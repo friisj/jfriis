@@ -9,7 +9,7 @@
 import { AdminRoute } from '@/components/auth/protected-route'
 import { useAuth } from '@/lib/hooks/useAuth'
 import { signOut } from '@/lib/auth'
-import { useRouter } from 'next/navigation'
+import { useRouter, usePathname } from 'next/navigation'
 import { ModeToggle } from '@/components/theme-switcher'
 
 export default function AdminLayout({
@@ -19,12 +19,23 @@ export default function AdminLayout({
 }) {
   const { user, isAdmin } = useAuth()
   const router = useRouter()
+  const pathname = usePathname()
 
   const handleSignOut = async () => {
     await signOut()
     router.push('/login')
     router.refresh()
   }
+
+  const navItems = [
+    { href: '/admin/projects', label: 'Projects' },
+    { href: '/admin/log', label: 'Log' },
+    { href: '/admin/specimens', label: 'Specimens' },
+    { href: '/admin/channels', label: 'Channels' },
+    { href: '/admin/backlog', label: 'Backlog' },
+  ]
+
+  const isActive = (href: string) => pathname?.startsWith(href)
 
   return (
     <AdminRoute>
@@ -38,36 +49,19 @@ export default function AdminLayout({
                   Admin
                 </a>
                 <nav className="hidden md:flex gap-6">
-                  <a
-                    href="/admin/projects"
-                    className="text-sm hover:text-primary transition-colors"
-                  >
-                    Projects
-                  </a>
-                  <a
-                    href="/admin/log"
-                    className="text-sm hover:text-primary transition-colors"
-                  >
-                    Log
-                  </a>
-                  <a
-                    href="/admin/specimens"
-                    className="text-sm hover:text-primary transition-colors"
-                  >
-                    Specimens
-                  </a>
-                  <a
-                    href="/admin/channels"
-                    className="text-sm hover:text-primary transition-colors"
-                  >
-                    Channels
-                  </a>
-                  <a
-                    href="/admin/backlog"
-                    className="text-sm hover:text-primary transition-colors"
-                  >
-                    Backlog
-                  </a>
+                  {navItems.map((item) => (
+                    <a
+                      key={item.href}
+                      href={item.href}
+                      className={`text-sm transition-colors ${
+                        isActive(item.href)
+                          ? 'text-primary font-medium'
+                          : 'hover:text-primary'
+                      }`}
+                    >
+                      {item.label}
+                    </a>
+                  ))}
                 </nav>
               </div>
 
