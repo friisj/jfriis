@@ -1,0 +1,319 @@
+'use client'
+
+import { useState } from 'react'
+import { useRouter } from 'next/navigation'
+import { supabase } from '@/lib/supabase'
+
+interface SpecimenFormData {
+  title: string
+  slug: string
+  description: string
+  component_code: string
+  custom_css: string
+  type: string
+  published: boolean
+  tags: string
+}
+
+interface SpecimenFormProps {
+  specimenId?: string
+  initialData?: Partial<SpecimenFormData>
+}
+
+export function SpecimenForm({ specimenId, initialData }: SpecimenFormProps) {
+  const router = useRouter()
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const [formData, setFormData] = useState<SpecimenFormData>({
+    title: initialData?.title || '',
+    slug: initialData?.slug || '',
+    description: initialData?.description || '',
+    component_code: initialData?.component_code || '',
+    custom_css: initialData?.custom_css || '',
+    type: initialData?.type || '',
+    published: initialData?.published || false,
+    tags: initialData?.tags || '',
+  })
+
+  const generateSlug = (title: string) => {
+    return title
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-|-$/g, '')
+  }
+
+  const handleTitleChange = (value: string) => {
+    setFormData({ ...formData, title: value })
+    if (!specimenId && !formData.slug) {
+      setFormData({ ...formData, title: value, slug: generateSlug(value) })
+    }
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setIsSubmitting(true)
+    setError(null)
+
+    try {
+      // Validate slug format
+      if (!/^[a-z0-9-]+$/.test(formData.slug)) {
+        throw new Error('Slug can only contain lowercase letters, numbers, and hyphens')
+      }
+
+      const tagsArray = formData.tags
+        .split(',')
+        .map(t => t.trim())
+        .filter(t => t.length > 0)
+
+      const specimenData = {
+        title: formData.title,
+        slug: formData.slug,
+        description: formData.description || null,
+        component_code: formData.component_code || null,
+        custom_css: formData.custom_css || null,
+        type: formData.type || null,
+        published: formData.published,
+        tags: tagsArray.length > 0 ? tagsArray : null,
+      }
+
+      if (specimenId) {
+        // Update existing specimen
+        const { error: updateError } = await supabase
+          .from('specimens')
+          .update(specimenData)
+          .eq('id', specimenId)
+
+        if (updateError) throw updateError
+      } else {
+        // Create new specimen
+        const { error: insertError } = await supabase
+          .from('specimens')
+          .insert([specimenData])
+
+        if (insertError) throw insertError
+      }
+
+      router.push('/admin/specimens')
+      router.refresh()
+    } catch (err: any) {
+      console.error('Error saving specimen:', err)
+      // Provide user-friendly error for duplicate slug
+      if (err.code === '23505' || err.message?.includes('duplicate key')) {
+        setError(`The slug "${formData.slug}" is already in use. Please choose a different one.`)
+      } else {
+        setError(err.message || 'Failed to save specimen')
+      }
+      setIsSubmitting(false)
+    }
+  }
+
+  const handleCancel = () => {
+    router.push('/admin/specimens')
+  }
+
+  const handleDelete = async () => {
+    if (!specimenId) return
+
+    const confirmed = confirm('Are you sure you want to delete this specimen? This action cannot be undone.')
+    if (!confirmed) return
+
+    setIsSubmitting(true)
+    setError(null)
+
+    try {
+      const { error: deleteError } = await supabase
+        .from('specimens')
+        .delete()
+        .eq('id', specimenId)
+
+      if (deleteError) throw deleteError
+
+      router.push('/admin/specimens')
+      router.refresh()
+    } catch (err: any) {
+      console.error('Error deleting specimen:', err)
+      setError(err.message || 'Failed to delete specimen')
+      setIsSubmitting(false)
+    }
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-6">
+      {error && (
+        <div className="p-4 rounded-lg border border-red-200 bg-red-50 dark:bg-red-950/10 text-red-800 dark:text-red-200">
+          {error}
+        </div>
+      )}
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Main Content */}
+        <div className="lg:col-span-2 space-y-6">
+          <div>
+            <label htmlFor="title" className="block text-sm font-medium mb-2">
+              Title *
+            </label>
+            <input
+              type="text"
+              id="title"
+              required
+              value={formData.title}
+              onChange={(e) => handleTitleChange(e.target.value)}
+              className="w-full px-3 py-2 rounded-lg border bg-background"
+              placeholder="Animated Card Component"
+            />
+          </div>
+
+          <div>
+            <label htmlFor="slug" className="block text-sm font-medium mb-2">
+              Slug *
+            </label>
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-muted-foreground">/</span>
+              <input
+                type="text"
+                id="slug"
+                required
+                value={formData.slug}
+                onChange={(e) => setFormData({ ...formData, slug: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '-') })}
+                className="flex-1 px-3 py-2 rounded-lg border bg-background"
+                placeholder="animated-card"
+              />
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">
+              Only lowercase letters, numbers, and hyphens
+            </p>
+          </div>
+
+          <div>
+            <label htmlFor="description" className="block text-sm font-medium mb-2">
+              Description
+            </label>
+            <textarea
+              id="description"
+              value={formData.description}
+              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+              rows={3}
+              className="w-full px-3 py-2 rounded-lg border bg-background resize-none"
+              placeholder="A brief description of this component..."
+            />
+          </div>
+
+          <div>
+            <label htmlFor="component_code" className="block text-sm font-medium mb-2">
+              Component Code (React/TypeScript)
+            </label>
+            <textarea
+              id="component_code"
+              value={formData.component_code}
+              onChange={(e) => setFormData({ ...formData, component_code: e.target.value })}
+              rows={16}
+              className="w-full px-3 py-2 rounded-lg border bg-background font-mono text-sm resize-none"
+              placeholder="export default function MyComponent() {&#10;  return (&#10;    <div>Your component here</div>&#10;  )&#10;}"
+            />
+          </div>
+
+          <div>
+            <label htmlFor="custom_css" className="block text-sm font-medium mb-2">
+              Custom CSS (Optional)
+            </label>
+            <textarea
+              id="custom_css"
+              value={formData.custom_css}
+              onChange={(e) => setFormData({ ...formData, custom_css: e.target.value })}
+              rows={10}
+              className="w-full px-3 py-2 rounded-lg border bg-background font-mono text-sm resize-none"
+              placeholder=".my-component {&#10;  /* Custom styles */&#10;}"
+            />
+          </div>
+        </div>
+
+        {/* Sidebar */}
+        <div className="space-y-6">
+          <div className="rounded-lg border bg-card p-4 space-y-4">
+            <h3 className="font-medium">Settings</h3>
+
+            <div>
+              <label htmlFor="type" className="block text-sm font-medium mb-2">
+                Type
+              </label>
+              <select
+                id="type"
+                value={formData.type}
+                onChange={(e) => setFormData({ ...formData, type: e.target.value })}
+                className="w-full px-3 py-2 rounded-lg border bg-background"
+              >
+                <option value="">Select type...</option>
+                <option value="ui-component">UI Component</option>
+                <option value="interactive">Interactive</option>
+                <option value="visual">Visual</option>
+                <option value="animation">Animation</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={formData.published}
+                  onChange={(e) => setFormData({ ...formData, published: e.target.checked })}
+                  className="rounded border-gray-300"
+                />
+                <span className="text-sm font-medium">Published</span>
+              </label>
+              <p className="text-xs text-muted-foreground mt-1">
+                Make this specimen visible to the public
+              </p>
+            </div>
+          </div>
+
+          <div className="rounded-lg border bg-card p-4 space-y-4">
+            <h3 className="font-medium">Tags</h3>
+            <div>
+              <input
+                type="text"
+                value={formData.tags}
+                onChange={(e) => setFormData({ ...formData, tags: e.target.value })}
+                className="w-full px-3 py-2 rounded-lg border bg-background"
+                placeholder="react, animation, ui"
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                Comma-separated tags
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="flex items-center justify-between pt-6 border-t">
+        <div className="flex items-center gap-3">
+          <button
+            type="submit"
+            disabled={isSubmitting}
+            className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50"
+          >
+            {isSubmitting ? 'Saving...' : specimenId ? 'Update Specimen' : 'Create Specimen'}
+          </button>
+          <button
+            type="button"
+            onClick={handleCancel}
+            className="px-4 py-2 border rounded-lg hover:bg-accent transition-colors"
+          >
+            Cancel
+          </button>
+        </div>
+
+        {specimenId && (
+          <button
+            type="button"
+            onClick={handleDelete}
+            disabled={isSubmitting}
+            className="px-4 py-2 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/20 rounded-lg transition-colors disabled:opacity-50"
+          >
+            Delete Specimen
+          </button>
+        )}
+      </div>
+    </form>
+  )
+}
