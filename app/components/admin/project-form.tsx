@@ -1,10 +1,11 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { toast } from 'sonner'
 import { MdxEditor } from '@/components/forms/mdx-editor'
+import { RelationshipSelector } from './relationship-selector'
 
 interface ProjectFormData {
   title: string
@@ -17,6 +18,7 @@ interface ProjectFormData {
   end_date: string
   published: boolean
   tags: string
+  specimenIds: string[]
 }
 
 interface ProjectFormProps {
@@ -40,7 +42,32 @@ export function ProjectForm({ projectId, initialData }: ProjectFormProps) {
     end_date: initialData?.end_date || '',
     published: initialData?.published || false,
     tags: initialData?.tags || '',
+    specimenIds: initialData?.specimenIds || [],
   })
+
+  // Load existing specimen relationships
+  useEffect(() => {
+    if (projectId) {
+      loadSpecimenRelationships()
+    }
+  }, [projectId])
+
+  const loadSpecimenRelationships = async () => {
+    if (!projectId) return
+
+    const { data } = await supabase
+      .from('project_specimens')
+      .select('specimen_id')
+      .eq('project_id', projectId)
+      .order('position')
+
+    if (data) {
+      setFormData(prev => ({
+        ...prev,
+        specimenIds: data.map(r => r.specimen_id)
+      }))
+    }
+  }
 
   const generateSlug = (title: string) => {
     return title
@@ -86,6 +113,8 @@ export function ProjectForm({ projectId, initialData }: ProjectFormProps) {
         ...(formData.published && !initialData?.published ? { published_at: new Date().toISOString() } : {}),
       }
 
+      let savedProjectId = projectId
+
       if (projectId) {
         // Update existing project
         const { error: updateError } = await supabase
@@ -94,19 +123,43 @@ export function ProjectForm({ projectId, initialData }: ProjectFormProps) {
           .eq('id', projectId)
 
         if (updateError) throw updateError
-
-        toast.success('Project updated successfully!')
       } else {
         // Create new project
-        const { error: insertError } = await supabase
+        const { data: newProject, error: insertError } = await supabase
           .from('projects')
           .insert([projectData])
+          .select('id')
+          .single()
 
         if (insertError) throw insertError
-
-        toast.success('Project created successfully!')
+        savedProjectId = newProject.id
       }
 
+      // Update specimen relationships
+      if (savedProjectId) {
+        // Delete existing relationships
+        await supabase
+          .from('project_specimens')
+          .delete()
+          .eq('project_id', savedProjectId)
+
+        // Insert new relationships
+        if (formData.specimenIds.length > 0) {
+          const relationships = formData.specimenIds.map((specimenId, index) => ({
+            project_id: savedProjectId,
+            specimen_id: specimenId,
+            position: index
+          }))
+
+          const { error: relationError } = await supabase
+            .from('project_specimens')
+            .insert(relationships)
+
+          if (relationError) throw relationError
+        }
+      }
+
+      toast.success(projectId ? 'Project updated successfully!' : 'Project created successfully!')
       router.push('/admin/projects')
       router.refresh()
     } catch (err: any) {
@@ -320,6 +373,16 @@ export function ProjectForm({ projectId, initialData }: ProjectFormProps) {
                 Comma-separated tags
               </p>
             </div>
+          </div>
+
+          <div className="rounded-lg border bg-card p-4">
+            <RelationshipSelector
+              label="Link Specimens"
+              tableName="specimens"
+              selectedIds={formData.specimenIds}
+              onChange={(ids) => setFormData({ ...formData, specimenIds: ids })}
+              helperText="Select specimens to showcase in this project"
+            />
           </div>
         </div>
       </div>
