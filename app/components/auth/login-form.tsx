@@ -3,34 +3,54 @@
 /**
  * Login Form Component
  *
- * Email/password login form with error handling
+ * Magic link (passwordless) login form
  */
 
 import { useState } from 'react'
-import { useRouter } from 'next/navigation'
-import { signIn } from '@/lib/auth'
+import { signInWithMagicLink } from '@/lib/auth'
 
 export function LoginForm() {
   const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
   const [error, setError] = useState('')
+  const [success, setSuccess] = useState(false)
   const [loading, setLoading] = useState(false)
-  const router = useRouter()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
+    setSuccess(false)
     setLoading(true)
 
     try {
-      await signIn(email, password)
-      router.push('/admin')
-      router.refresh()
+      await signInWithMagicLink(email)
+      setSuccess(true)
+      setEmail('')
     } catch (err: any) {
-      setError(err.message || 'Failed to sign in')
+      setError(err.message || 'Failed to send magic link')
     } finally {
       setLoading(false)
     }
+  }
+
+  if (success) {
+    return (
+      <div className="space-y-4">
+        <div className="p-4 rounded-lg bg-green-500/10 border border-green-500/20">
+          <h3 className="font-semibold text-green-700 dark:text-green-400 mb-1">
+            Check your email!
+          </h3>
+          <p className="text-sm text-green-600 dark:text-green-500">
+            We've sent you a magic link. Click the link in your email to sign in.
+          </p>
+        </div>
+        <button
+          onClick={() => setSuccess(false)}
+          className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+        >
+          ← Back to login
+        </button>
+      </div>
+    )
   }
 
   return (
@@ -48,22 +68,7 @@ export function LoginForm() {
           className="w-full px-4 py-2 border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-primary"
           placeholder="you@example.com"
           disabled={loading}
-        />
-      </div>
-
-      <div>
-        <label htmlFor="password" className="block text-sm font-medium mb-2">
-          Password
-        </label>
-        <input
-          id="password"
-          type="password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          required
-          className="w-full px-4 py-2 border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-primary"
-          placeholder="••••••••"
-          disabled={loading}
+          autoFocus
         />
       </div>
 
@@ -78,8 +83,12 @@ export function LoginForm() {
         disabled={loading}
         className="w-full px-4 py-2 bg-primary text-primary-foreground rounded-lg font-medium hover:opacity-90 disabled:opacity-50 transition-opacity"
       >
-        {loading ? 'Signing in...' : 'Sign In'}
+        {loading ? 'Sending magic link...' : 'Send Magic Link'}
       </button>
+
+      <p className="text-xs text-center text-muted-foreground">
+        No password required. We'll email you a secure link to sign in.
+      </p>
     </form>
   )
 }
