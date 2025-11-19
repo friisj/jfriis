@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { toast } from 'sonner'
+import { MdxEditor } from '@/components/forms/mdx-editor'
 
 interface ProjectFormData {
   title: string
@@ -215,19 +216,12 @@ export function ProjectForm({ projectId, initialData }: ProjectFormProps) {
             />
           </div>
 
-          <div>
-            <label htmlFor="content" className="block text-sm font-medium mb-2">
-              Content (Markdown)
-            </label>
-            <textarea
-              id="content"
-              value={formData.content}
-              onChange={(e) => setFormData({ ...formData, content: e.target.value })}
-              rows={16}
-              className="w-full px-3 py-2 rounded-lg border bg-background font-mono text-sm resize-none"
-              placeholder="# Project Details&#10;&#10;Write your project content here in Markdown..."
-            />
-          </div>
+          <MdxEditor
+            value={formData.content}
+            onChange={(value) => setFormData({ ...formData, content: value })}
+            placeholder="# Project Details&#10;&#10;Write your project content here in Markdown...&#10;&#10;You can embed specimens using: <Specimen id=&quot;simple-card&quot; />"
+            rows={16}
+          />
         </div>
 
         {/* Sidebar */}

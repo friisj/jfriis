@@ -1,0 +1,29 @@
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
+import { SpecimenEmbed } from './specimen-embed'
+
+interface MdxRendererProps {
+  content: string
+  className?: string
+}
+
+/**
+ * Renders markdown content with support for custom components
+ * Used on public pages to display project and log entry content
+ */
+export function MdxRenderer({ content, className = '' }: MdxRendererProps) {
+  return (
+    <div className={`prose prose-lg dark:prose-invert max-w-none ${className}`}>
+      <ReactMarkdown
+        remarkPlugins={[remarkGfm]}
+        components={{
+          // Custom component for embedding specimens
+          // Usage in markdown: <Specimen id="simple-card" />
+          Specimen: SpecimenEmbed as any,
+        }}
+      >
+        {content}
+      </ReactMarkdown>
+    </div>
+  )
+}

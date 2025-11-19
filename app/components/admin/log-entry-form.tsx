@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { toast } from 'sonner'
+import { MdxEditor } from '@/components/forms/mdx-editor'
 
 interface LogEntryFormData {
   title: string
@@ -192,19 +193,12 @@ export function LogEntryForm({ entryId, initialData }: LogEntryFormProps) {
             </p>
           </div>
 
-          <div>
-            <label htmlFor="content" className="block text-sm font-medium mb-2">
-              Content (Markdown)
-            </label>
-            <textarea
-              id="content"
-              value={formData.content}
-              onChange={(e) => setFormData({ ...formData, content: e.target.value })}
-              rows={20}
-              className="w-full px-3 py-2 rounded-lg border bg-background font-mono text-sm resize-none"
-              placeholder="# What I learned today&#10;&#10;Write your log entry content here in Markdown..."
-            />
-          </div>
+          <MdxEditor
+            value={formData.content}
+            onChange={(value) => setFormData({ ...formData, content: value })}
+            placeholder="# What I learned today&#10;&#10;Write your log entry content here in Markdown...&#10;&#10;Embed specimens: <Specimen id=&quot;simple-card&quot; />"
+            rows={20}
+          />
         </div>
 
         {/* Sidebar */}
