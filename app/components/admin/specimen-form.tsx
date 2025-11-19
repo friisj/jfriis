@@ -1,15 +1,15 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
+import { getAllSpecimens, type SpecimenMetadata } from '@/components/specimens/registry'
 
 interface SpecimenFormData {
   title: string
   slug: string
   description: string
-  component_code: string
-  custom_css: string
+  component_id: string
   type: string
   published: boolean
   tags: string
@@ -24,17 +24,22 @@ export function SpecimenForm({ specimenId, initialData }: SpecimenFormProps) {
   const router = useRouter()
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [availableSpecimens, setAvailableSpecimens] = useState<SpecimenMetadata[]>([])
 
   const [formData, setFormData] = useState<SpecimenFormData>({
     title: initialData?.title || '',
     slug: initialData?.slug || '',
     description: initialData?.description || '',
-    component_code: initialData?.component_code || '',
-    custom_css: initialData?.custom_css || '',
+    component_id: initialData?.component_id || '',
     type: initialData?.type || '',
     published: initialData?.published || false,
     tags: initialData?.tags || '',
   })
+
+  useEffect(() => {
+    // Load available specimens from registry
+    setAvailableSpecimens(getAllSpecimens())
+  }, [])
 
   const generateSlug = (title: string) => {
     return title
@@ -70,8 +75,7 @@ export function SpecimenForm({ specimenId, initialData }: SpecimenFormProps) {
         title: formData.title,
         slug: formData.slug,
         description: formData.description || null,
-        component_code: formData.component_code || null,
-        custom_css: formData.custom_css || null,
+        component_code: formData.component_id, // Store component ID in component_code field
         type: formData.type || null,
         published: formData.published,
         tags: tagsArray.length > 0 ? tagsArray : null,
@@ -186,6 +190,38 @@ export function SpecimenForm({ specimenId, initialData }: SpecimenFormProps) {
           </div>
 
           <div>
+            <label htmlFor="component_id" className="block text-sm font-medium mb-2">
+              Component *
+            </label>
+            <select
+              id="component_id"
+              required
+              value={formData.component_id}
+              onChange={(e) => {
+                const selectedSpecimen = availableSpecimens.find(s => s.id === e.target.value)
+                setFormData({
+                  ...formData,
+                  component_id: e.target.value,
+                  description: formData.description || selectedSpecimen?.description || '',
+                  type: formData.type || selectedSpecimen?.category || '',
+                  tags: formData.tags || selectedSpecimen?.tags?.join(', ') || '',
+                })
+              }}
+              className="w-full px-3 py-2 rounded-lg border bg-background"
+            >
+              <option value="">Select a component...</option>
+              {availableSpecimens.map((specimen) => (
+                <option key={specimen.id} value={specimen.id}>
+                  {specimen.name}
+                </option>
+              ))}
+            </select>
+            <p className="text-xs text-muted-foreground mt-1">
+              Components are defined in <code className="px-1 py-0.5 bg-muted rounded text-xs">components/specimens/</code>
+            </p>
+          </div>
+
+          <div>
             <label htmlFor="description" className="block text-sm font-medium mb-2">
               Description
             </label>
@@ -193,38 +229,13 @@ export function SpecimenForm({ specimenId, initialData }: SpecimenFormProps) {
               id="description"
               value={formData.description}
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-              rows={3}
+              rows={4}
               className="w-full px-3 py-2 rounded-lg border bg-background resize-none"
               placeholder="A brief description of this component..."
             />
-          </div>
-
-          <div>
-            <label htmlFor="component_code" className="block text-sm font-medium mb-2">
-              Component Code (React/TypeScript)
-            </label>
-            <textarea
-              id="component_code"
-              value={formData.component_code}
-              onChange={(e) => setFormData({ ...formData, component_code: e.target.value })}
-              rows={16}
-              className="w-full px-3 py-2 rounded-lg border bg-background font-mono text-sm resize-none"
-              placeholder="export default function MyComponent() {&#10;  return (&#10;    <div>Your component here</div>&#10;  )&#10;}"
-            />
-          </div>
-
-          <div>
-            <label htmlFor="custom_css" className="block text-sm font-medium mb-2">
-              Custom CSS (Optional)
-            </label>
-            <textarea
-              id="custom_css"
-              value={formData.custom_css}
-              onChange={(e) => setFormData({ ...formData, custom_css: e.target.value })}
-              rows={10}
-              className="w-full px-3 py-2 rounded-lg border bg-background font-mono text-sm resize-none"
-              placeholder=".my-component {&#10;  /* Custom styles */&#10;}"
-            />
+            <p className="text-xs text-muted-foreground mt-1">
+              Auto-filled from registry, but you can customize it
+            </p>
           </div>
         </div>
 

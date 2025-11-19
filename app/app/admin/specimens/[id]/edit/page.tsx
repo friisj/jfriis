@@ -26,8 +26,7 @@ export default async function EditSpecimenPage({ params }: EditSpecimenPageProps
     title: specimen.title,
     slug: specimen.slug,
     description: specimen.description || '',
-    component_code: specimen.component_code || '',
-    custom_css: specimen.custom_css || '',
+    component_id: specimen.component_code || '', // component_code stores the component ID
     type: specimen.type || '',
     published: specimen.published,
     tags: specimen.tags?.join(', ') || '',
