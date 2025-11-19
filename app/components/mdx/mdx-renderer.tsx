@@ -1,5 +1,6 @@
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
+import rehypeRaw from 'rehype-raw'
 import { SpecimenEmbed } from './specimen-embed'
 
 interface MdxRendererProps {
@@ -16,10 +17,12 @@ export function MdxRenderer({ content, className = '' }: MdxRendererProps) {
     <div className={`prose prose-lg dark:prose-invert max-w-none ${className}`}>
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
+        rehypePlugins={[rehypeRaw]}
         components={{
           // Custom component for embedding specimens
           // Usage in markdown: <Specimen id="simple-card" />
-          Specimen: SpecimenEmbed as any,
+          specimen: (props: any) => <SpecimenEmbed {...props} />,
+          Specimen: (props: any) => <SpecimenEmbed {...props} />,
         }}
       >
         {content}
