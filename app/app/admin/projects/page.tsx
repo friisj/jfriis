@@ -31,6 +31,10 @@ const statusColors = {
 export default async function AdminProjectsPage() {
   const supabase = await createClient()
 
+  // Check auth status
+  const { data: { user } } = await supabase.auth.getUser()
+  console.log('Projects page - User:', user?.email)
+
   const { data: projects, error } = await supabase
     .from('projects')
     .select('id, title, slug, status, type, published, created_at, updated_at')
@@ -39,6 +43,8 @@ export default async function AdminProjectsPage() {
   if (error) {
     console.error('Error fetching projects:', error)
   }
+
+  console.log('Projects fetched:', projects?.length || 0)
 
   return (
     <div className="p-8">
