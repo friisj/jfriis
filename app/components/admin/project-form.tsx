@@ -65,19 +65,6 @@ export function ProjectForm({ projectId, initialData }: ProjectFormProps) {
         throw new Error('Slug can only contain lowercase letters, numbers, and hyphens')
       }
 
-      // Check if slug is already taken (only when creating or changing slug)
-      if (!projectId || formData.slug !== initialData?.slug) {
-        const { data: existing } = await supabase
-          .from('projects')
-          .select('id')
-          .eq('slug', formData.slug)
-          .single()
-
-        if (existing && existing.id !== projectId) {
-          throw new Error(`The slug "${formData.slug}" is already in use. Please choose a different one.`)
-        }
-      }
-
       const tagsArray = formData.tags
         .split(',')
         .map(t => t.trim())
@@ -118,7 +105,12 @@ export function ProjectForm({ projectId, initialData }: ProjectFormProps) {
       router.refresh()
     } catch (err: any) {
       console.error('Error saving project:', err)
-      setError(err.message || 'Failed to save project')
+      // Provide user-friendly error for duplicate slug
+      if (err.code === '23505' || err.message?.includes('duplicate key')) {
+        setError(`The slug "${formData.slug}" is already in use. Please choose a different one.`)
+      } else {
+        setError(err.message || 'Failed to save project')
+      }
       setIsSubmitting(false)
     }
   }
@@ -193,7 +185,6 @@ export function ProjectForm({ projectId, initialData }: ProjectFormProps) {
                 onChange={(e) => setFormData({ ...formData, slug: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '-') })}
                 className="flex-1 px-3 py-2 rounded-lg border bg-background"
                 placeholder="my-awesome-project"
-                pattern="[a-z0-9-]+"
               />
             </div>
             <p className="text-xs text-muted-foreground mt-1">
