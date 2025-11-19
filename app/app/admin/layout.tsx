@@ -79,20 +79,22 @@ export default function AdminLayout({
                   View Site
                 </a>
                 <ModeToggle />
-                <div className="flex items-center gap-3">
-                  <div className="text-sm">
-                    <div className="font-medium">{user?.email}</div>
-                    {isAdmin && (
-                      <div className="text-xs text-muted-foreground">Admin</div>
-                    )}
+                {user && (
+                  <div className="flex items-center gap-3">
+                    <div className="text-sm">
+                      <div className="font-medium">{user.email}</div>
+                      {isAdmin && (
+                        <div className="text-xs text-muted-foreground">Admin</div>
+                      )}
+                    </div>
+                    <button
+                      onClick={handleSignOut}
+                      className="px-3 py-1.5 text-sm border rounded-lg hover:bg-accent transition-colors"
+                    >
+                      Sign Out
+                    </button>
                   </div>
-                  <button
-                    onClick={handleSignOut}
-                    className="px-3 py-1.5 text-sm border rounded-lg hover:bg-accent transition-colors"
-                  >
-                    Sign Out
-                  </button>
-                </div>
+                )}
               </div>
             </div>
           </div>

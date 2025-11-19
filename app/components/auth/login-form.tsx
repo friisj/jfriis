@@ -7,9 +7,13 @@
  */
 
 import { useState } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { signInWithMagicLink } from '@/lib/auth'
 
 export function LoginForm() {
+  const searchParams = useSearchParams()
+  const redirect = searchParams.get('redirect')
+
   const [email, setEmail] = useState('')
   const [error, setError] = useState('')
   const [success, setSuccess] = useState(false)
