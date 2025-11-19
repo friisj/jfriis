@@ -60,6 +60,24 @@ export function ProjectForm({ projectId, initialData }: ProjectFormProps) {
     setError(null)
 
     try {
+      // Validate slug format
+      if (!/^[a-z0-9-]+$/.test(formData.slug)) {
+        throw new Error('Slug can only contain lowercase letters, numbers, and hyphens')
+      }
+
+      // Check if slug is already taken (only when creating or changing slug)
+      if (!projectId || formData.slug !== initialData?.slug) {
+        const { data: existing } = await supabase
+          .from('projects')
+          .select('id')
+          .eq('slug', formData.slug)
+          .single()
+
+        if (existing && existing.id !== projectId) {
+          throw new Error(`The slug "${formData.slug}" is already in use. Please choose a different one.`)
+        }
+      }
+
       const tagsArray = formData.tags
         .split(',')
         .map(t => t.trim())
@@ -172,11 +190,15 @@ export function ProjectForm({ projectId, initialData }: ProjectFormProps) {
                 id="slug"
                 required
                 value={formData.slug}
-                onChange={(e) => setFormData({ ...formData, slug: e.target.value })}
+                onChange={(e) => setFormData({ ...formData, slug: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '-') })}
                 className="flex-1 px-3 py-2 rounded-lg border bg-background"
                 placeholder="my-awesome-project"
+                pattern="[a-z0-9-]+"
               />
             </div>
+            <p className="text-xs text-muted-foreground mt-1">
+              Only lowercase letters, numbers, and hyphens. Will be used in the URL.
+            </p>
           </div>
 
           <div>
