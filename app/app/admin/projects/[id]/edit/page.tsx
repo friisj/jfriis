@@ -3,18 +3,19 @@ import { ProjectForm } from '@/components/admin/project-form'
 import { notFound } from 'next/navigation'
 
 interface EditProjectPageProps {
-  params: {
+  params: Promise<{
     id: string
-  }
+  }>
 }
 
 export default async function EditProjectPage({ params }: EditProjectPageProps) {
   const supabase = await createClient()
+  const { id } = await params
 
   const { data: project, error } = await supabase
     .from('projects')
     .select('*')
-    .eq('id', params.id)
+    .eq('id', id)
     .single()
 
   if (error || !project) {
@@ -45,7 +46,7 @@ export default async function EditProjectPage({ params }: EditProjectPageProps) 
           </p>
         </div>
 
-        <ProjectForm projectId={params.id} initialData={initialData} />
+        <ProjectForm projectId={id} initialData={initialData} />
       </div>
     </div>
   )

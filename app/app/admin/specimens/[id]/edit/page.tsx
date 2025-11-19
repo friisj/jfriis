@@ -3,18 +3,19 @@ import { SpecimenForm } from '@/components/admin/specimen-form'
 import { notFound } from 'next/navigation'
 
 interface EditSpecimenPageProps {
-  params: {
+  params: Promise<{
     id: string
-  }
+  }>
 }
 
 export default async function EditSpecimenPage({ params }: EditSpecimenPageProps) {
   const supabase = await createClient()
+  const { id } = await params
 
   const { data: specimen, error } = await supabase
     .from('specimens')
     .select('*')
-    .eq('id', params.id)
+    .eq('id', id)
     .single()
 
   if (error || !specimen) {
@@ -42,7 +43,7 @@ export default async function EditSpecimenPage({ params }: EditSpecimenPageProps
           </p>
         </div>
 
-        <SpecimenForm specimenId={params.id} initialData={initialData} />
+        <SpecimenForm specimenId={id} initialData={initialData} />
       </div>
     </div>
   )

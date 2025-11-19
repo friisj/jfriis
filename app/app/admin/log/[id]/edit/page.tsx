@@ -3,18 +3,19 @@ import { LogEntryForm } from '@/components/admin/log-entry-form'
 import { notFound } from 'next/navigation'
 
 interface EditLogEntryPageProps {
-  params: {
+  params: Promise<{
     id: string
-  }
+  }>
 }
 
 export default async function EditLogEntryPage({ params }: EditLogEntryPageProps) {
   const supabase = await createClient()
+  const { id } = await params
 
   const { data: entry, error } = await supabase
     .from('log_entries')
     .select('*')
-    .eq('id', params.id)
+    .eq('id', id)
     .single()
 
   if (error || !entry) {
@@ -42,7 +43,7 @@ export default async function EditLogEntryPage({ params }: EditLogEntryPageProps
           </p>
         </div>
 
-        <LogEntryForm entryId={params.id} initialData={initialData} />
+        <LogEntryForm entryId={id} initialData={initialData} />
       </div>
     </div>
   )
