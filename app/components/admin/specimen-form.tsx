@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { getAllSpecimens, type SpecimenMetadata } from '@/components/specimens/registry'
+import { toast } from 'sonner'
 
 interface SpecimenFormData {
   title: string
@@ -89,6 +90,8 @@ export function SpecimenForm({ specimenId, initialData }: SpecimenFormProps) {
           .eq('id', specimenId)
 
         if (updateError) throw updateError
+
+        toast.success('Specimen updated successfully!')
       } else {
         // Create new specimen
         const { error: insertError } = await supabase
@@ -96,6 +99,8 @@ export function SpecimenForm({ specimenId, initialData }: SpecimenFormProps) {
           .insert([specimenData])
 
         if (insertError) throw insertError
+
+        toast.success('Specimen created successfully!')
       }
 
       router.push('/admin/specimens')
@@ -105,8 +110,10 @@ export function SpecimenForm({ specimenId, initialData }: SpecimenFormProps) {
       // Provide user-friendly error for duplicate slug
       if (err.code === '23505' || err.message?.includes('duplicate key')) {
         setError(`The slug "${formData.slug}" is already in use. Please choose a different one.`)
+        toast.error('Slug already in use')
       } else {
         setError(err.message || 'Failed to save specimen')
+        toast.error(err.message || 'Failed to save specimen')
       }
       setIsSubmitting(false)
     }
@@ -133,11 +140,13 @@ export function SpecimenForm({ specimenId, initialData }: SpecimenFormProps) {
 
       if (deleteError) throw deleteError
 
+      toast.success('Specimen deleted successfully')
       router.push('/admin/specimens')
       router.refresh()
     } catch (err: any) {
       console.error('Error deleting specimen:', err)
       setError(err.message || 'Failed to delete specimen')
+      toast.error(err.message || 'Failed to delete specimen')
       setIsSubmitting(false)
     }
   }

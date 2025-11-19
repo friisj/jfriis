@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
+import { toast } from 'sonner'
 
 interface LogEntryFormData {
   title: string
@@ -83,6 +84,8 @@ export function LogEntryForm({ entryId, initialData }: LogEntryFormProps) {
           .eq('id', entryId)
 
         if (updateError) throw updateError
+
+        toast.success('Log entry updated successfully!')
       } else {
         // Create new entry
         const { error: insertError } = await supabase
@@ -90,6 +93,8 @@ export function LogEntryForm({ entryId, initialData }: LogEntryFormProps) {
           .insert([entryData])
 
         if (insertError) throw insertError
+
+        toast.success('Log entry created successfully!')
       }
 
       router.push('/admin/log')
@@ -99,8 +104,10 @@ export function LogEntryForm({ entryId, initialData }: LogEntryFormProps) {
       // Provide user-friendly error for duplicate slug
       if (err.code === '23505' || err.message?.includes('duplicate key')) {
         setError(`The slug "${formData.slug}" is already in use. Please choose a different one.`)
+        toast.error('Slug already in use')
       } else {
         setError(err.message || 'Failed to save log entry')
+        toast.error(err.message || 'Failed to save log entry')
       }
       setIsSubmitting(false)
     }
@@ -127,11 +134,13 @@ export function LogEntryForm({ entryId, initialData }: LogEntryFormProps) {
 
       if (deleteError) throw deleteError
 
+      toast.success('Log entry deleted successfully')
       router.push('/admin/log')
       router.refresh()
     } catch (err: any) {
       console.error('Error deleting log entry:', err)
       setError(err.message || 'Failed to delete log entry')
+      toast.error(err.message || 'Failed to delete log entry')
       setIsSubmitting(false)
     }
   }

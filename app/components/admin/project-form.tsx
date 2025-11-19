@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
+import { toast } from 'sonner'
 
 interface ProjectFormData {
   title: string
@@ -92,6 +93,8 @@ export function ProjectForm({ projectId, initialData }: ProjectFormProps) {
           .eq('id', projectId)
 
         if (updateError) throw updateError
+
+        toast.success('Project updated successfully!')
       } else {
         // Create new project
         const { error: insertError } = await supabase
@@ -99,6 +102,8 @@ export function ProjectForm({ projectId, initialData }: ProjectFormProps) {
           .insert([projectData])
 
         if (insertError) throw insertError
+
+        toast.success('Project created successfully!')
       }
 
       router.push('/admin/projects')
@@ -108,8 +113,10 @@ export function ProjectForm({ projectId, initialData }: ProjectFormProps) {
       // Provide user-friendly error for duplicate slug
       if (err.code === '23505' || err.message?.includes('duplicate key')) {
         setError(`The slug "${formData.slug}" is already in use. Please choose a different one.`)
+        toast.error('Slug already in use')
       } else {
         setError(err.message || 'Failed to save project')
+        toast.error(err.message || 'Failed to save project')
       }
       setIsSubmitting(false)
     }
@@ -136,11 +143,13 @@ export function ProjectForm({ projectId, initialData }: ProjectFormProps) {
 
       if (deleteError) throw deleteError
 
+      toast.success('Project deleted successfully')
       router.push('/admin/projects')
       router.refresh()
     } catch (err: any) {
       console.error('Error deleting project:', err)
       setError(err.message || 'Failed to delete project')
+      toast.error(err.message || 'Failed to delete project')
       setIsSubmitting(false)
     }
   }
