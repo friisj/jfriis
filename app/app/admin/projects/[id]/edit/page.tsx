@@ -1,4 +1,4 @@
-import { supabase } from '@/lib/supabase'
+import { createClient } from '@/lib/supabase-server'
 import { ProjectForm } from '@/components/admin/project-form'
 import { notFound } from 'next/navigation'
 
@@ -9,6 +9,8 @@ interface EditProjectPageProps {
 }
 
 export default async function EditProjectPage({ params }: EditProjectPageProps) {
+  const supabase = await createClient()
+
   const { data: project, error } = await supabase
     .from('projects')
     .select('*')

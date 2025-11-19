@@ -1,4 +1,4 @@
-import { supabase } from '@/lib/supabase'
+import { createClient } from '@/lib/supabase-server'
 
 interface StatCardProps {
   title: string
@@ -23,6 +23,8 @@ function StatCard({ title, count, description, href }: StatCardProps) {
 }
 
 export async function DashboardStats() {
+  const supabase = await createClient()
+
   // Fetch counts from database
   const [
     { count: projectsCount },

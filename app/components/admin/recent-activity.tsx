@@ -1,4 +1,4 @@
-import { supabase } from '@/lib/supabase'
+import { createClient } from '@/lib/supabase-server'
 
 interface ActivityItem {
   id: string
@@ -35,6 +35,8 @@ function formatDate(dateString: string) {
 }
 
 export async function RecentActivity() {
+  const supabase = await createClient()
+
   // Fetch recent items from all tables
   const [
     { data: projects },

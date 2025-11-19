@@ -1,4 +1,4 @@
-import { supabase } from '@/lib/supabase'
+import { createClient } from '@/lib/supabase-server'
 import Link from 'next/link'
 
 interface Project {
@@ -29,6 +29,8 @@ const statusColors = {
 }
 
 export default async function AdminProjectsPage() {
+  const supabase = await createClient()
+
   const { data: projects, error } = await supabase
     .from('projects')
     .select('id, title, slug, status, type, published, created_at, updated_at')
