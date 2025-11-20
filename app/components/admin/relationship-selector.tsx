@@ -12,7 +12,7 @@ interface RelationshipItem {
 
 interface RelationshipSelectorProps {
   label: string
-  tableName: 'specimens' | 'projects'
+  tableName: 'specimens' | 'projects' | 'log_entries'
   selectedIds: string[]
   onChange: (ids: string[]) => void
   helperText?: string

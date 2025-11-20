@@ -1,10 +1,11 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { toast } from 'sonner'
 import { MdxEditor } from '@/components/forms/mdx-editor'
+import { RelationshipSelector } from './relationship-selector'
 
 interface LogEntryFormData {
   title: string
@@ -14,6 +15,8 @@ interface LogEntryFormData {
   type: string
   published: boolean
   tags: string
+  specimenIds: string[]
+  projectIds: string[]
 }
 
 interface LogEntryFormProps {
@@ -34,7 +37,39 @@ export function LogEntryForm({ entryId, initialData }: LogEntryFormProps) {
     type: initialData?.type || '',
     published: initialData?.published || false,
     tags: initialData?.tags || '',
+    specimenIds: initialData?.specimenIds || [],
+    projectIds: initialData?.projectIds || [],
   })
+
+  // Load existing relationships
+  useEffect(() => {
+    if (entryId) {
+      loadRelationships()
+    }
+  }, [entryId])
+
+  const loadRelationships = async () => {
+    if (!entryId) return
+
+    // Load specimen relationships
+    const { data: specimens } = await supabase
+      .from('log_entry_specimens')
+      .select('specimen_id')
+      .eq('log_entry_id', entryId)
+      .order('position')
+
+    // Load project relationships
+    const { data: projects } = await supabase
+      .from('log_entry_projects')
+      .select('project_id')
+      .eq('log_entry_id', entryId)
+
+    setFormData(prev => ({
+      ...prev,
+      specimenIds: specimens?.map(r => r.specimen_id) || [],
+      projectIds: projects?.map(r => r.project_id) || [],
+    }))
+  }
 
   const generateSlug = (title: string) => {
     return title
@@ -77,6 +112,8 @@ export function LogEntryForm({ entryId, initialData }: LogEntryFormProps) {
         ...(formData.published && !initialData?.published ? { published_at: new Date().toISOString() } : {}),
       }
 
+      let savedEntryId = entryId
+
       if (entryId) {
         // Update existing entry
         const { error: updateError } = await supabase
@@ -85,19 +122,63 @@ export function LogEntryForm({ entryId, initialData }: LogEntryFormProps) {
           .eq('id', entryId)
 
         if (updateError) throw updateError
-
-        toast.success('Log entry updated successfully!')
       } else {
         // Create new entry
-        const { error: insertError } = await supabase
+        const { data: newEntry, error: insertError } = await supabase
           .from('log_entries')
           .insert([entryData])
+          .select('id')
+          .single()
 
         if (insertError) throw insertError
-
-        toast.success('Log entry created successfully!')
+        savedEntryId = newEntry.id
       }
 
+      // Update relationships
+      if (savedEntryId) {
+        // Delete existing specimen relationships
+        await supabase
+          .from('log_entry_specimens')
+          .delete()
+          .eq('log_entry_id', savedEntryId)
+
+        // Insert new specimen relationships
+        if (formData.specimenIds.length > 0) {
+          const specimenRelations = formData.specimenIds.map((specimenId, index) => ({
+            log_entry_id: savedEntryId,
+            specimen_id: specimenId,
+            position: index
+          }))
+
+          const { error: specimenError } = await supabase
+            .from('log_entry_specimens')
+            .insert(specimenRelations)
+
+          if (specimenError) throw specimenError
+        }
+
+        // Delete existing project relationships
+        await supabase
+          .from('log_entry_projects')
+          .delete()
+          .eq('log_entry_id', savedEntryId)
+
+        // Insert new project relationships
+        if (formData.projectIds.length > 0) {
+          const projectRelations = formData.projectIds.map((projectId) => ({
+            log_entry_id: savedEntryId,
+            project_id: projectId
+          }))
+
+          const { error: projectError } = await supabase
+            .from('log_entry_projects')
+            .insert(projectRelations)
+
+          if (projectError) throw projectError
+        }
+      }
+
+      toast.success(entryId ? 'Log entry updated successfully!' : 'Log entry created successfully!')
       router.push('/admin/log')
       router.refresh()
     } catch (err: any) {
@@ -268,6 +349,26 @@ export function LogEntryForm({ entryId, initialData }: LogEntryFormProps) {
                 Comma-separated tags
               </p>
             </div>
+          </div>
+
+          <div className="rounded-lg border bg-card p-4">
+            <RelationshipSelector
+              label="Link Specimens"
+              tableName="specimens"
+              selectedIds={formData.specimenIds}
+              onChange={(ids) => setFormData({ ...formData, specimenIds: ids })}
+              helperText="Select specimens to showcase in this log entry"
+            />
+          </div>
+
+          <div className="rounded-lg border bg-card p-4">
+            <RelationshipSelector
+              label="Link Projects"
+              tableName="projects"
+              selectedIds={formData.projectIds}
+              onChange={(ids) => setFormData({ ...formData, projectIds: ids })}
+              helperText="Link related projects to this log entry"
+            />
           </div>
         </div>
       </div>

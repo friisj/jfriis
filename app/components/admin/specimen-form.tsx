@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { getAllSpecimens, type SpecimenMetadata } from '@/components/specimens/registry'
 import { toast } from 'sonner'
+import { RelationshipSelector } from './relationship-selector'
 
 interface SpecimenFormData {
   title: string
@@ -14,6 +15,8 @@ interface SpecimenFormData {
   type: string
   published: boolean
   tags: string
+  projectIds: string[]
+  logEntryIds: string[]
 }
 
 interface SpecimenFormProps {
@@ -35,12 +38,43 @@ export function SpecimenForm({ specimenId, initialData }: SpecimenFormProps) {
     type: initialData?.type || '',
     published: initialData?.published || false,
     tags: initialData?.tags || '',
+    projectIds: initialData?.projectIds || [],
+    logEntryIds: initialData?.logEntryIds || [],
   })
 
   useEffect(() => {
     // Load available specimens from registry
     setAvailableSpecimens(getAllSpecimens())
   }, [])
+
+  // Load existing relationships
+  useEffect(() => {
+    if (specimenId) {
+      loadRelationships()
+    }
+  }, [specimenId])
+
+  const loadRelationships = async () => {
+    if (!specimenId) return
+
+    // Load project relationships
+    const { data: projects } = await supabase
+      .from('project_specimens')
+      .select('project_id')
+      .eq('specimen_id', specimenId)
+
+    // Load log entry relationships
+    const { data: logEntries } = await supabase
+      .from('log_entry_specimens')
+      .select('log_entry_id')
+      .eq('specimen_id', specimenId)
+
+    setFormData(prev => ({
+      ...prev,
+      projectIds: projects?.map(r => r.project_id) || [],
+      logEntryIds: logEntries?.map(r => r.log_entry_id) || [],
+    }))
+  }
 
   const generateSlug = (title: string) => {
     return title
@@ -82,6 +116,8 @@ export function SpecimenForm({ specimenId, initialData }: SpecimenFormProps) {
         tags: tagsArray.length > 0 ? tagsArray : null,
       }
 
+      let savedSpecimenId = specimenId
+
       if (specimenId) {
         // Update existing specimen
         const { error: updateError } = await supabase
@@ -90,19 +126,64 @@ export function SpecimenForm({ specimenId, initialData }: SpecimenFormProps) {
           .eq('id', specimenId)
 
         if (updateError) throw updateError
-
-        toast.success('Specimen updated successfully!')
       } else {
         // Create new specimen
-        const { error: insertError } = await supabase
+        const { data: newSpecimen, error: insertError } = await supabase
           .from('specimens')
           .insert([specimenData])
+          .select('id')
+          .single()
 
         if (insertError) throw insertError
-
-        toast.success('Specimen created successfully!')
+        savedSpecimenId = newSpecimen.id
       }
 
+      // Update relationships
+      if (savedSpecimenId) {
+        // Delete existing project relationships
+        await supabase
+          .from('project_specimens')
+          .delete()
+          .eq('specimen_id', savedSpecimenId)
+
+        // Insert new project relationships
+        if (formData.projectIds.length > 0) {
+          const projectRelations = formData.projectIds.map((projectId, index) => ({
+            project_id: projectId,
+            specimen_id: savedSpecimenId,
+            position: index
+          }))
+
+          const { error: projectError } = await supabase
+            .from('project_specimens')
+            .insert(projectRelations)
+
+          if (projectError) throw projectError
+        }
+
+        // Delete existing log entry relationships
+        await supabase
+          .from('log_entry_specimens')
+          .delete()
+          .eq('specimen_id', savedSpecimenId)
+
+        // Insert new log entry relationships
+        if (formData.logEntryIds.length > 0) {
+          const logEntryRelations = formData.logEntryIds.map((logEntryId, index) => ({
+            log_entry_id: logEntryId,
+            specimen_id: savedSpecimenId,
+            position: index
+          }))
+
+          const { error: logEntryError } = await supabase
+            .from('log_entry_specimens')
+            .insert(logEntryRelations)
+
+          if (logEntryError) throw logEntryError
+        }
+      }
+
+      toast.success(specimenId ? 'Specimen updated successfully!' : 'Specimen created successfully!')
       router.push('/admin/specimens')
       router.refresh()
     } catch (err: any) {
@@ -301,6 +382,26 @@ export function SpecimenForm({ specimenId, initialData }: SpecimenFormProps) {
                 Comma-separated tags
               </p>
             </div>
+          </div>
+
+          <div className="rounded-lg border bg-card p-4">
+            <RelationshipSelector
+              label="Link Projects"
+              tableName="projects"
+              selectedIds={formData.projectIds}
+              onChange={(ids) => setFormData({ ...formData, projectIds: ids })}
+              helperText="Select projects that use this specimen"
+            />
+          </div>
+
+          <div className="rounded-lg border bg-card p-4">
+            <RelationshipSelector
+              label="Link Log Entries"
+              tableName="log_entries"
+              selectedIds={formData.logEntryIds}
+              onChange={(ids) => setFormData({ ...formData, logEntryIds: ids })}
+              helperText="Select log entries that feature this specimen"
+            />
           </div>
         </div>
       </div>

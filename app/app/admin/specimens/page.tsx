@@ -33,7 +33,18 @@ export default async function AdminSpecimensPage() {
 
   const { data: specimens, error } = await supabase
     .from('specimens')
-    .select('id, title, slug, description, type, published, created_at, updated_at')
+    .select(`
+      id,
+      title,
+      slug,
+      description,
+      type,
+      published,
+      created_at,
+      updated_at,
+      project_specimens (count),
+      log_entry_specimens (count)
+    `)
     .order('updated_at', { ascending: false })
 
   if (error) {
@@ -95,17 +106,24 @@ export default async function AdminSpecimensPage() {
                       </p>
                     )}
 
-                    <div className="flex items-center justify-between text-xs mt-auto pt-3 border-t">
-                      <div className="flex items-center gap-2">
-                        {specimen.type && (
-                          <span className={`px-2 py-0.5 rounded font-medium ${typeColors[specimen.type as keyof typeof typeColors] || 'bg-gray-500/10 text-gray-700 dark:text-gray-400'}`}>
-                            {specimen.type}
-                          </span>
-                        )}
+                    <div className="flex flex-col gap-2 mt-auto pt-3 border-t">
+                      <div className="flex items-center justify-between text-xs">
+                        <div className="flex items-center gap-2">
+                          {specimen.type && (
+                            <span className={`px-2 py-0.5 rounded font-medium ${typeColors[specimen.type as keyof typeof typeColors] || 'bg-gray-500/10 text-gray-700 dark:text-gray-400'}`}>
+                              {specimen.type}
+                            </span>
+                          )}
+                        </div>
+                        <span className="text-muted-foreground">
+                          {formatDate(specimen.updated_at)}
+                        </span>
                       </div>
-                      <span className="text-muted-foreground">
-                        {formatDate(specimen.updated_at)}
-                      </span>
+                      <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                        <span>{(specimen as any).project_specimens?.[0]?.count || 0} projects</span>
+                        <span>•</span>
+                        <span>{(specimen as any).log_entry_specimens?.[0]?.count || 0} log entries</span>
+                      </div>
                     </div>
                   </div>
                 </div>

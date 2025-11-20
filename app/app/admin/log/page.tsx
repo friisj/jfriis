@@ -33,7 +33,18 @@ export default async function AdminLogPage() {
 
   const { data: logEntries, error } = await supabase
     .from('log_entries')
-    .select('id, title, slug, entry_date, type, published, created_at, updated_at')
+    .select(`
+      id,
+      title,
+      slug,
+      entry_date,
+      type,
+      published,
+      created_at,
+      updated_at,
+      log_entry_specimens (count),
+      log_entry_projects (count)
+    `)
     .order('entry_date', { ascending: false })
 
   if (error) {
@@ -70,6 +81,7 @@ export default async function AdminLogPage() {
                     <th className="text-left px-6 py-3 text-sm font-medium">Title</th>
                     <th className="text-left px-6 py-3 text-sm font-medium">Date</th>
                     <th className="text-left px-6 py-3 text-sm font-medium">Type</th>
+                    <th className="text-left px-6 py-3 text-sm font-medium">Links</th>
                     <th className="text-left px-6 py-3 text-sm font-medium">Published</th>
                     <th className="text-right px-6 py-3 text-sm font-medium">Actions</th>
                   </tr>
@@ -94,6 +106,12 @@ export default async function AdminLogPage() {
                         ) : (
                           <span className="text-sm text-muted-foreground">-</span>
                         )}
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="flex flex-col gap-1 text-xs text-muted-foreground">
+                          <span>{(entry as any).log_entry_specimens?.[0]?.count || 0} specimens</span>
+                          <span>{(entry as any).log_entry_projects?.[0]?.count || 0} projects</span>
+                        </div>
                       </td>
                       <td className="px-6 py-4">
                         {entry.published ? (

@@ -19,6 +19,7 @@ interface ProjectFormData {
   published: boolean
   tags: string
   specimenIds: string[]
+  logEntryIds: string[]
 }
 
 interface ProjectFormProps {
@@ -43,30 +44,37 @@ export function ProjectForm({ projectId, initialData }: ProjectFormProps) {
     published: initialData?.published || false,
     tags: initialData?.tags || '',
     specimenIds: initialData?.specimenIds || [],
+    logEntryIds: initialData?.logEntryIds || [],
   })
 
-  // Load existing specimen relationships
+  // Load existing relationships
   useEffect(() => {
     if (projectId) {
-      loadSpecimenRelationships()
+      loadRelationships()
     }
   }, [projectId])
 
-  const loadSpecimenRelationships = async () => {
+  const loadRelationships = async () => {
     if (!projectId) return
 
-    const { data } = await supabase
+    // Load specimen relationships
+    const { data: specimens } = await supabase
       .from('project_specimens')
       .select('specimen_id')
       .eq('project_id', projectId)
       .order('position')
 
-    if (data) {
-      setFormData(prev => ({
-        ...prev,
-        specimenIds: data.map(r => r.specimen_id)
-      }))
-    }
+    // Load log entry relationships
+    const { data: logEntries } = await supabase
+      .from('log_entry_projects')
+      .select('log_entry_id')
+      .eq('project_id', projectId)
+
+    setFormData(prev => ({
+      ...prev,
+      specimenIds: specimens?.map(r => r.specimen_id) || [],
+      logEntryIds: logEntries?.map(r => r.log_entry_id) || [],
+    }))
   }
 
   const generateSlug = (title: string) => {
@@ -135,27 +143,47 @@ export function ProjectForm({ projectId, initialData }: ProjectFormProps) {
         savedProjectId = newProject.id
       }
 
-      // Update specimen relationships
+      // Update relationships
       if (savedProjectId) {
-        // Delete existing relationships
+        // Delete existing specimen relationships
         await supabase
           .from('project_specimens')
           .delete()
           .eq('project_id', savedProjectId)
 
-        // Insert new relationships
+        // Insert new specimen relationships
         if (formData.specimenIds.length > 0) {
-          const relationships = formData.specimenIds.map((specimenId, index) => ({
+          const specimenRelations = formData.specimenIds.map((specimenId, index) => ({
             project_id: savedProjectId,
             specimen_id: specimenId,
             position: index
           }))
 
-          const { error: relationError } = await supabase
+          const { error: specimenError } = await supabase
             .from('project_specimens')
-            .insert(relationships)
+            .insert(specimenRelations)
 
-          if (relationError) throw relationError
+          if (specimenError) throw specimenError
+        }
+
+        // Delete existing log entry relationships
+        await supabase
+          .from('log_entry_projects')
+          .delete()
+          .eq('project_id', savedProjectId)
+
+        // Insert new log entry relationships
+        if (formData.logEntryIds.length > 0) {
+          const logEntryRelations = formData.logEntryIds.map((logEntryId) => ({
+            project_id: savedProjectId,
+            log_entry_id: logEntryId
+          }))
+
+          const { error: logEntryError } = await supabase
+            .from('log_entry_projects')
+            .insert(logEntryRelations)
+
+          if (logEntryError) throw logEntryError
         }
       }
 
@@ -382,6 +410,16 @@ export function ProjectForm({ projectId, initialData }: ProjectFormProps) {
               selectedIds={formData.specimenIds}
               onChange={(ids) => setFormData({ ...formData, specimenIds: ids })}
               helperText="Select specimens to showcase in this project"
+            />
+          </div>
+
+          <div className="rounded-lg border bg-card p-4">
+            <RelationshipSelector
+              label="Link Log Entries"
+              tableName="log_entries"
+              selectedIds={formData.logEntryIds}
+              onChange={(ids) => setFormData({ ...formData, logEntryIds: ids })}
+              helperText="Select log entries related to this project"
             />
           </div>
         </div>

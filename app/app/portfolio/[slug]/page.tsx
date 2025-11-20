@@ -27,6 +27,25 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
   // Extract markdown content
   const content = project.content?.markdown || ''
 
+  // Fetch linked specimens
+  const { data: specimenLinks } = await supabase
+    .from('project_specimens')
+    .select(`
+      specimen_id,
+      position,
+      specimens (
+        id,
+        title,
+        slug,
+        type,
+        description
+      )
+    `)
+    .eq('project_id', project.id)
+    .order('position')
+
+  const linkedSpecimens = specimenLinks?.map(link => link.specimens).filter(Boolean) || []
+
   return (
     <div className="min-h-screen">
       {/* Header */}
@@ -98,6 +117,40 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
           <p className="text-muted-foreground italic">No content yet.</p>
         )}
       </div>
+
+      {/* Linked Specimens */}
+      {linkedSpecimens.length > 0 && (
+        <div className="border-t">
+          <div className="max-w-4xl mx-auto px-8 py-12">
+            <h2 className="text-2xl font-bold mb-6">Featured Specimens</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {linkedSpecimens.map((specimen: any) => (
+                <Link
+                  key={specimen.id}
+                  href={`/admin/specimens/${specimen.id}`}
+                  className="group border rounded-lg p-6 hover:border-primary transition-colors"
+                >
+                  <div className="flex items-start justify-between mb-3">
+                    <h3 className="font-semibold text-lg group-hover:text-primary transition-colors">
+                      {specimen.title}
+                    </h3>
+                    {specimen.type && (
+                      <span className="text-xs px-2.5 py-1 rounded-full bg-muted text-muted-foreground">
+                        {specimen.type}
+                      </span>
+                    )}
+                  </div>
+                  {specimen.description && (
+                    <p className="text-sm text-muted-foreground line-clamp-2">
+                      {specimen.description}
+                    </p>
+                  )}
+                </Link>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Footer */}
       <div className="border-t mt-12">

@@ -37,7 +37,18 @@ export default async function AdminProjectsPage() {
 
   const { data: projects, error } = await supabase
     .from('projects')
-    .select('id, title, slug, status, type, published, created_at, updated_at')
+    .select(`
+      id,
+      title,
+      slug,
+      status,
+      type,
+      published,
+      created_at,
+      updated_at,
+      project_specimens (count),
+      log_entry_projects (count)
+    `)
     .order('updated_at', { ascending: false })
 
   if (error) {
@@ -76,6 +87,7 @@ export default async function AdminProjectsPage() {
                     <th className="text-left px-6 py-3 text-sm font-medium">Title</th>
                     <th className="text-left px-6 py-3 text-sm font-medium">Status</th>
                     <th className="text-left px-6 py-3 text-sm font-medium">Type</th>
+                    <th className="text-left px-6 py-3 text-sm font-medium">Links</th>
                     <th className="text-left px-6 py-3 text-sm font-medium">Published</th>
                     <th className="text-left px-6 py-3 text-sm font-medium">Updated</th>
                     <th className="text-right px-6 py-3 text-sm font-medium">Actions</th>
@@ -96,6 +108,12 @@ export default async function AdminProjectsPage() {
                         </span>
                       </td>
                       <td className="px-6 py-4 text-sm">{project.type || '-'}</td>
+                      <td className="px-6 py-4">
+                        <div className="flex flex-col gap-1 text-xs text-muted-foreground">
+                          <span>{(project as any).project_specimens?.[0]?.count || 0} specimens</span>
+                          <span>{(project as any).log_entry_projects?.[0]?.count || 0} log entries</span>
+                        </div>
+                      </td>
                       <td className="px-6 py-4">
                         {project.published ? (
                           <span className="inline-flex items-center gap-1 text-green-600 dark:text-green-400">
