@@ -11,6 +11,7 @@ import {
 import { ChevronRight, Download } from 'lucide-react'
 import { ThemeExport } from './theme-export'
 import { themes } from '@/lib/themes/theme-config'
+import { getTailwindColor } from '@/lib/tailwind-colors'
 
 import type { FontWeight } from '@/lib/fonts/font-scanner'
 import type { TailwindScale, Shade, ScaleShade } from '@/lib/tailwind-colors'
@@ -230,6 +231,76 @@ const getDefaultConfig = (): DesignSystemConfig => {
           normal: '0em',
           wider: '0.05em'
         }
+      },
+      colors: {
+        background: {
+          light: { scale: 'neutral', shade: 50 },
+          dark: { scale: 'neutral', shade: 950 }
+        },
+        foreground: {
+          light: { scale: 'neutral', shade: 950 },
+          dark: { scale: 'neutral', shade: 50 }
+        },
+        card: {
+          light: { scale: 'neutral', shade: 50 },
+          dark: { scale: 'neutral', shade: 900 }
+        },
+        cardForeground: {
+          light: { scale: 'neutral', shade: 950 },
+          dark: { scale: 'neutral', shade: 50 }
+        },
+        primary: {
+          light: { scale: 'blue', shade: 600 },
+          dark: { scale: 'blue', shade: 500 }
+        },
+        primaryForeground: {
+          light: { scale: 'neutral', shade: 50 },
+          dark: { scale: 'neutral', shade: 950 }
+        },
+        secondary: {
+          light: { scale: 'neutral', shade: 200 },
+          dark: { scale: 'neutral', shade: 800 }
+        },
+        secondaryForeground: {
+          light: { scale: 'neutral', shade: 950 },
+          dark: { scale: 'neutral', shade: 50 }
+        },
+        muted: {
+          light: { scale: 'neutral', shade: 100 },
+          dark: { scale: 'neutral', shade: 800 }
+        },
+        mutedForeground: {
+          light: { scale: 'neutral', shade: 500 },
+          dark: { scale: 'neutral', shade: 400 }
+        },
+        accent: {
+          light: { scale: 'neutral', shade: 100 },
+          dark: { scale: 'neutral', shade: 800 }
+        },
+        accentForeground: {
+          light: { scale: 'neutral', shade: 950 },
+          dark: { scale: 'neutral', shade: 50 }
+        },
+        destructive: {
+          light: { scale: 'red', shade: 600 },
+          dark: { scale: 'red', shade: 500 }
+        },
+        destructiveForeground: {
+          light: { scale: 'neutral', shade: 50 },
+          dark: { scale: 'neutral', shade: 950 }
+        },
+        border: {
+          light: { scale: 'neutral', shade: 200 },
+          dark: { scale: 'neutral', shade: 800 }
+        },
+        input: {
+          light: { scale: 'neutral', shade: 200 },
+          dark: { scale: 'neutral', shade: 800 }
+        },
+        ring: {
+          light: { scale: 'blue', shade: 600 },
+          dark: { scale: 'blue', shade: 500 }
+        }
       }
     },
     semantic: {
@@ -387,7 +458,7 @@ export function DesignSystemTool() {
       cssVariables.push(`  --letter-spacing-${name}: ${spacing};`)
     })
 
-    // Theme Colors (if a predefined theme is selected)
+    // Colors - either from predefined theme or custom config
     if (currentThemeColors) {
       // We're viewing a predefined theme, inject its colors
       // Note: Tailwind uses light mode by default in .design-system-preview
@@ -397,6 +468,14 @@ export function DesignSystemTool() {
         // Convert camelCase to kebab-case for CSS variables
         const cssKey = key.replace(/([A-Z])/g, '-$1').toLowerCase()
         cssVariables.push(`  --${cssKey}: ${value};`)
+      })
+    } else if (primitives.colors) {
+      // We're in custom mode, use ColorSystemConfig
+      // For now, inject light mode colors (we can add dark mode support later)
+      Object.entries(primitives.colors).forEach(([key, colorPair]) => {
+        const cssKey = key.replace(/([A-Z])/g, '-$1').toLowerCase()
+        const oklchValue = getTailwindColor(colorPair.light.scale, colorPair.light.shade)
+        cssVariables.push(`  --${cssKey}: ${oklchValue};`)
       })
     }
 

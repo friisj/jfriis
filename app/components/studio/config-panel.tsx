@@ -3,13 +3,15 @@
 import { useState } from 'react'
 import type { DesignSystemConfig } from './design-system-tool'
 import { FontFamilySelector } from './font-family-selector'
+import { ColorPairSelector } from './color-selector'
+import type { ScaleShade } from '@/lib/tailwind-colors'
 
 interface ConfigPanelProps {
   config: DesignSystemConfig
   onConfigChange: (config: DesignSystemConfig) => void
 }
 
-type Section = 'spacing' | 'radius' | 'grid' | 'elevation' | 'typography'
+type Section = 'spacing' | 'radius' | 'grid' | 'elevation' | 'typography' | 'colors'
 
 export function ConfigPanel({ config, onConfigChange }: ConfigPanelProps) {
   const [activeSection, setActiveSection] = useState<Section>('spacing')
@@ -43,6 +45,7 @@ export function ConfigPanel({ config, onConfigChange }: ConfigPanelProps) {
   const sections: { id: Section; label: string }[] = [
     { id: 'spacing', label: 'Spacing' },
     { id: 'radius', label: 'Radius' },
+    { id: 'colors', label: 'Colors' },
     { id: 'grid', label: 'Grid' },
     { id: 'elevation', label: 'Elevation' },
     { id: 'typography', label: 'Typography' }
@@ -76,6 +79,9 @@ export function ConfigPanel({ config, onConfigChange }: ConfigPanelProps) {
         )}
         {activeSection === 'radius' && (
           <RadiusConfig config={config} updateConfig={updateConfig} />
+        )}
+        {activeSection === 'colors' && (
+          <ColorConfig config={config} updateConfig={updateConfig} />
         )}
         {activeSection === 'grid' && (
           <GridConfig config={config} updateConfig={updateConfig} />
@@ -621,6 +627,179 @@ function TypographyConfig({
             </label>
           </div>
         </div>
+      </div>
+    </div>
+  )
+}
+
+function ColorConfig({
+  config,
+  updateConfig
+}: {
+  config: DesignSystemConfig
+  updateConfig: (updates: Partial<DesignSystemConfig>) => void
+}) {
+  const updateColor = (
+    colorKey: keyof typeof config.primitives.colors,
+    light: ScaleShade,
+    dark: ScaleShade
+  ) => {
+    updateConfig({
+      primitives: {
+        ...config.primitives,
+        colors: {
+          ...config.primitives.colors,
+          [colorKey]: { light, dark }
+        }
+      }
+    })
+  }
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h3 className="font-semibold mb-2">Color System</h3>
+        <p className="text-sm text-muted-foreground mb-4">
+          Semantic colors using Tailwind color scales
+        </p>
+      </div>
+
+      <div className="space-y-4">
+        <ColorPairSelector
+          light={config.primitives.colors.background.light}
+          dark={config.primitives.colors.background.dark}
+          onChange={(light, dark) => updateColor('background', light, dark)}
+          label="Background"
+          description="Main background color for pages and surfaces"
+        />
+
+        <ColorPairSelector
+          light={config.primitives.colors.foreground.light}
+          dark={config.primitives.colors.foreground.dark}
+          onChange={(light, dark) => updateColor('foreground', light, dark)}
+          label="Foreground"
+          description="Primary text color"
+        />
+
+        <ColorPairSelector
+          light={config.primitives.colors.card.light}
+          dark={config.primitives.colors.card.dark}
+          onChange={(light, dark) => updateColor('card', light, dark)}
+          label="Card"
+          description="Background color for cards and elevated surfaces"
+        />
+
+        <ColorPairSelector
+          light={config.primitives.colors.cardForeground.light}
+          dark={config.primitives.colors.cardForeground.dark}
+          onChange={(light, dark) => updateColor('cardForeground', light, dark)}
+          label="Card Foreground"
+          description="Text color on cards"
+        />
+
+        <ColorPairSelector
+          light={config.primitives.colors.primary.light}
+          dark={config.primitives.colors.primary.dark}
+          onChange={(light, dark) => updateColor('primary', light, dark)}
+          label="Primary"
+          description="Primary brand color for buttons and interactive elements"
+        />
+
+        <ColorPairSelector
+          light={config.primitives.colors.primaryForeground.light}
+          dark={config.primitives.colors.primaryForeground.dark}
+          onChange={(light, dark) => updateColor('primaryForeground', light, dark)}
+          label="Primary Foreground"
+          description="Text color on primary colored elements"
+        />
+
+        <ColorPairSelector
+          light={config.primitives.colors.secondary.light}
+          dark={config.primitives.colors.secondary.dark}
+          onChange={(light, dark) => updateColor('secondary', light, dark)}
+          label="Secondary"
+          description="Secondary actions and less prominent elements"
+        />
+
+        <ColorPairSelector
+          light={config.primitives.colors.secondaryForeground.light}
+          dark={config.primitives.colors.secondaryForeground.dark}
+          onChange={(light, dark) => updateColor('secondaryForeground', light, dark)}
+          label="Secondary Foreground"
+          description="Text color on secondary elements"
+        />
+
+        <ColorPairSelector
+          light={config.primitives.colors.muted.light}
+          dark={config.primitives.colors.muted.dark}
+          onChange={(light, dark) => updateColor('muted', light, dark)}
+          label="Muted"
+          description="Subtle background color for hover states"
+        />
+
+        <ColorPairSelector
+          light={config.primitives.colors.mutedForeground.light}
+          dark={config.primitives.colors.mutedForeground.dark}
+          onChange={(light, dark) => updateColor('mutedForeground', light, dark)}
+          label="Muted Foreground"
+          description="Muted/secondary text color"
+        />
+
+        <ColorPairSelector
+          light={config.primitives.colors.accent.light}
+          dark={config.primitives.colors.accent.dark}
+          onChange={(light, dark) => updateColor('accent', light, dark)}
+          label="Accent"
+          description="Accent color for highlights and focus states"
+        />
+
+        <ColorPairSelector
+          light={config.primitives.colors.accentForeground.light}
+          dark={config.primitives.colors.accentForeground.dark}
+          onChange={(light, dark) => updateColor('accentForeground', light, dark)}
+          label="Accent Foreground"
+          description="Text color on accent elements"
+        />
+
+        <ColorPairSelector
+          light={config.primitives.colors.destructive.light}
+          dark={config.primitives.colors.destructive.dark}
+          onChange={(light, dark) => updateColor('destructive', light, dark)}
+          label="Destructive"
+          description="Error and destructive action colors"
+        />
+
+        <ColorPairSelector
+          light={config.primitives.colors.destructiveForeground.light}
+          dark={config.primitives.colors.destructiveForeground.dark}
+          onChange={(light, dark) => updateColor('destructiveForeground', light, dark)}
+          label="Destructive Foreground"
+          description="Text color on destructive elements"
+        />
+
+        <ColorPairSelector
+          light={config.primitives.colors.border.light}
+          dark={config.primitives.colors.border.dark}
+          onChange={(light, dark) => updateColor('border', light, dark)}
+          label="Border"
+          description="Default border color"
+        />
+
+        <ColorPairSelector
+          light={config.primitives.colors.input.light}
+          dark={config.primitives.colors.input.dark}
+          onChange={(light, dark) => updateColor('input', light, dark)}
+          label="Input"
+          description="Border color for input elements"
+        />
+
+        <ColorPairSelector
+          light={config.primitives.colors.ring.light}
+          dark={config.primitives.colors.ring.dark}
+          onChange={(light, dark) => updateColor('ring', light, dark)}
+          label="Ring"
+          description="Focus ring color"
+        />
       </div>
     </div>
   )
