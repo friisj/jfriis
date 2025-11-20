@@ -90,7 +90,7 @@ function CardTemplate({ config }: { config: DesignSystemConfig }) {
             className="px-4 py-2 bg-primary text-primary-foreground font-medium"
             style={{
               borderRadius: config.semantic.radius.interactive,
-              fontFamily: config.primitives.typography.fontFamilies.sans,
+              fontFamily: config.primitives.typography.fontFamilies.sans.stack,
               fontSize: config.primitives.typography.typeScale.sizes.sm
             }}
           >
@@ -100,7 +100,7 @@ function CardTemplate({ config }: { config: DesignSystemConfig }) {
             className="px-4 py-2 border font-medium"
             style={{
               borderRadius: config.semantic.radius.interactive,
-              fontFamily: config.primitives.typography.fontFamilies.sans,
+              fontFamily: config.primitives.typography.fontFamilies.sans.stack,
               fontSize: config.primitives.typography.typeScale.sizes.sm
             }}
           >
@@ -118,7 +118,7 @@ function CardTemplate({ config }: { config: DesignSystemConfig }) {
             <h3
               className="font-semibold"
               style={{
-                fontFamily: config.primitives.typography.fontFamilies.sans,
+                fontFamily: config.primitives.typography.fontFamilies.sans.stack,
                 fontSize: config.primitives.typography.typeScale.sizes.base,
                 lineHeight: config.primitives.typography.lineHeights.tight
               }}
@@ -128,7 +128,7 @@ function CardTemplate({ config }: { config: DesignSystemConfig }) {
             <p
               className="text-muted-foreground"
               style={{
-                fontFamily: config.primitives.typography.fontFamilies.sans,
+                fontFamily: config.primitives.typography.fontFamilies.sans.stack,
                 fontSize: config.primitives.typography.typeScale.sizes.xs,
                 lineHeight: config.primitives.typography.lineHeights.normal
               }}
@@ -149,7 +149,7 @@ function CardTemplate({ config }: { config: DesignSystemConfig }) {
           <div className="flex items-center justify-between py-2 border-b">
             <span
               style={{
-                fontFamily: config.primitives.typography.fontFamilies.sans,
+                fontFamily: config.primitives.typography.fontFamilies.sans.stack,
                 fontSize: config.primitives.typography.typeScale.sizes.sm
               }}
             >
@@ -160,7 +160,7 @@ function CardTemplate({ config }: { config: DesignSystemConfig }) {
           <div className="flex items-center justify-between py-2 border-b">
             <span
               style={{
-                fontFamily: config.primitives.typography.fontFamilies.sans,
+                fontFamily: config.primitives.typography.fontFamilies.sans.stack,
                 fontSize: config.primitives.typography.typeScale.sizes.sm
               }}
             >
@@ -211,7 +211,7 @@ function FormTemplate({ config }: { config: DesignSystemConfig }) {
             <label
               className="block mb-2 font-medium"
               style={{
-                fontFamily: config.primitives.typography.fontFamilies.sans,
+                fontFamily: config.primitives.typography.fontFamilies.sans.stack,
                 fontSize: config.primitives.typography.typeScale.sizes.sm
               }}
             >
@@ -222,7 +222,7 @@ function FormTemplate({ config }: { config: DesignSystemConfig }) {
               className="w-full px-3 py-2 border bg-background"
               style={{
                 borderRadius: interactiveRadius,
-                fontFamily: config.primitives.typography.fontFamilies.sans,
+                fontFamily: config.primitives.typography.fontFamilies.sans.stack,
                 fontSize: config.primitives.typography.typeScale.sizes.sm
               }}
               placeholder="Enter your name"
@@ -233,7 +233,7 @@ function FormTemplate({ config }: { config: DesignSystemConfig }) {
             <label
               className="block mb-2 font-medium"
               style={{
-                fontFamily: config.primitives.typography.fontFamilies.sans,
+                fontFamily: config.primitives.typography.fontFamilies.sans.stack,
                 fontSize: config.primitives.typography.typeScale.sizes.sm
               }}
             >
@@ -244,7 +244,7 @@ function FormTemplate({ config }: { config: DesignSystemConfig }) {
               className="w-full px-3 py-2 border bg-background"
               style={{
                 borderRadius: interactiveRadius,
-                fontFamily: config.primitives.typography.fontFamilies.sans,
+                fontFamily: config.primitives.typography.fontFamilies.sans.stack,
                 fontSize: config.primitives.typography.typeScale.sizes.sm
               }}
               placeholder="you@example.com"
@@ -255,7 +255,7 @@ function FormTemplate({ config }: { config: DesignSystemConfig }) {
             <label
               className="block mb-2 font-medium"
               style={{
-                fontFamily: config.primitives.typography.fontFamilies.sans,
+                fontFamily: config.primitives.typography.fontFamilies.sans.stack,
                 fontSize: config.primitives.typography.typeScale.sizes.sm
               }}
             >
@@ -265,7 +265,7 @@ function FormTemplate({ config }: { config: DesignSystemConfig }) {
               className="w-full px-3 py-2 border bg-background"
               style={{
                 borderRadius: interactiveRadius,
-                fontFamily: config.primitives.typography.fontFamilies.sans,
+                fontFamily: config.primitives.typography.fontFamilies.sans.stack,
                 fontSize: config.primitives.typography.typeScale.sizes.sm,
                 lineHeight: config.primitives.typography.lineHeights.normal
               }}
@@ -278,7 +278,7 @@ function FormTemplate({ config }: { config: DesignSystemConfig }) {
             className="w-full px-4 py-2 bg-primary text-primary-foreground font-medium"
             style={{
               borderRadius: interactiveRadius,
-              fontFamily: config.primitives.typography.fontFamilies.sans,
+              fontFamily: config.primitives.typography.fontFamilies.sans.stack,
               fontSize: config.primitives.typography.typeScale.sizes.sm
             }}
           >
@@ -550,7 +550,7 @@ function TypographyTemplate({ config }: { config: DesignSystemConfig }) {
               <div
                 style={{
                   fontSize: size,
-                  fontFamily: config.primitives.typography.fontFamilies.sans,
+                  fontFamily: config.primitives.typography.fontFamilies.sans.stack,
                   lineHeight: config.primitives.typography.lineHeights.normal
                 }}
               >
@@ -568,7 +568,7 @@ function TypographyTemplate({ config }: { config: DesignSystemConfig }) {
             <div
               key={name}
               style={{
-                fontFamily: config.primitives.typography.fontFamilies.sans,
+                fontFamily: config.primitives.typography.fontFamilies.sans.stack,
                 fontSize: config.primitives.typography.typeScale.sizes.base,
                 fontWeight: weight
               }}
@@ -587,7 +587,7 @@ function TypographyTemplate({ config }: { config: DesignSystemConfig }) {
               <div className="text-xs text-muted-foreground mb-2">{name} ({height})</div>
               <p
                 style={{
-                  fontFamily: config.primitives.typography.fontFamilies.sans,
+                  fontFamily: config.primitives.typography.fontFamilies.sans.stack,
                   fontSize: config.primitives.typography.typeScale.sizes.sm,
                   lineHeight: height
                 }}
