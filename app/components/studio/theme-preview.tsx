@@ -102,6 +102,118 @@ export function ThemePreview({ config, onEdit, onExport }: ThemePreviewProps) {
             ))}
           </div>
         </div>
+
+        {/* Typography Type Scale */}
+        <div>
+          <div className="text-sm text-muted-foreground mb-3">Type Scale</div>
+          <div className="space-y-2">
+            {Object.entries(config.primitives.typography.typeScale.sizes).map(([name, size]) => (
+              <div key={name} className="flex items-baseline gap-4 border-b border-border/50 pb-2">
+                <div className="w-16 text-xs text-muted-foreground font-mono">{name}</div>
+                <div className="w-24 text-xs text-muted-foreground font-mono">{size}</div>
+                <div
+                  style={{
+                    fontSize: size,
+                    fontFamily: config.primitives.typography.fontFamilies.sans,
+                    lineHeight: config.primitives.typography.lineHeights.normal
+                  }}
+                >
+                  The quick brown fox
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Font Families */}
+        <div>
+          <div className="text-sm text-muted-foreground mb-3">Font Families</div>
+          <div className="space-y-4">
+            <div className="rounded-lg border p-4">
+              <div className="text-xs text-muted-foreground mb-2 font-mono">
+                Sans: {config.primitives.typography.fontFamilies.sans}
+              </div>
+              <div
+                className="text-base"
+                style={{ fontFamily: config.primitives.typography.fontFamilies.sans }}
+              >
+                The quick brown fox jumps over the lazy dog. 0123456789
+              </div>
+            </div>
+
+            <div className="rounded-lg border p-4">
+              <div className="text-xs text-muted-foreground mb-2 font-mono">
+                Serif: {config.primitives.typography.fontFamilies.serif}
+              </div>
+              <div
+                className="text-base"
+                style={{ fontFamily: config.primitives.typography.fontFamilies.serif }}
+              >
+                The quick brown fox jumps over the lazy dog. 0123456789
+              </div>
+            </div>
+
+            <div className="rounded-lg border p-4">
+              <div className="text-xs text-muted-foreground mb-2 font-mono">
+                Mono: {config.primitives.typography.fontFamilies.mono}
+              </div>
+              <div
+                className="text-base"
+                style={{ fontFamily: config.primitives.typography.fontFamilies.mono }}
+              >
+                The quick brown fox jumps over the lazy dog. 0123456789
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Line Heights */}
+        <div>
+          <div className="text-sm text-muted-foreground mb-3">Line Heights</div>
+          <div className="space-y-4">
+            <div className="rounded-lg border p-4">
+              <div className="text-xs text-muted-foreground mb-2">
+                Tight ({config.primitives.typography.lineHeights.tight})
+              </div>
+              <div
+                style={{
+                  fontFamily: config.primitives.typography.fontFamilies.sans,
+                  lineHeight: config.primitives.typography.lineHeights.tight
+                }}
+              >
+                Design systems are the backbone of consistent user interfaces. They provide a shared language and reusable components that help teams build products faster.
+              </div>
+            </div>
+
+            <div className="rounded-lg border p-4">
+              <div className="text-xs text-muted-foreground mb-2">
+                Normal ({config.primitives.typography.lineHeights.normal})
+              </div>
+              <div
+                style={{
+                  fontFamily: config.primitives.typography.fontFamilies.sans,
+                  lineHeight: config.primitives.typography.lineHeights.normal
+                }}
+              >
+                Design systems are the backbone of consistent user interfaces. They provide a shared language and reusable components that help teams build products faster.
+              </div>
+            </div>
+
+            <div className="rounded-lg border p-4">
+              <div className="text-xs text-muted-foreground mb-2">
+                Relaxed ({config.primitives.typography.lineHeights.relaxed})
+              </div>
+              <div
+                style={{
+                  fontFamily: config.primitives.typography.fontFamilies.sans,
+                  lineHeight: config.primitives.typography.lineHeights.relaxed
+                }}
+              >
+                Design systems are the backbone of consistent user interfaces. They provide a shared language and reusable components that help teams build products faster.
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Actions */}

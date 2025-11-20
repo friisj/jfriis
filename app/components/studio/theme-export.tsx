@@ -11,6 +11,41 @@ interface ThemeExportProps {
 export function ThemeExport({ config, onBack }: ThemeExportProps) {
   const [copied, setCopied] = useState(false)
 
+  const generateFontFaceRules = () => {
+    const { fontFamilies } = config.primitives.typography
+    const allFiles: Array<{ family: string; files: any[] }> = []
+
+    // Collect all custom font files
+    if (fontFamilies.sans.source === 'custom' && fontFamilies.sans.files) {
+      allFiles.push({ family: fontFamilies.sans.name, files: fontFamilies.sans.files })
+    }
+    if (fontFamilies.serif.source === 'custom' && fontFamilies.serif.files) {
+      allFiles.push({ family: fontFamilies.serif.name, files: fontFamilies.serif.files })
+    }
+    if (fontFamilies.mono.source === 'custom' && fontFamilies.mono.files) {
+      allFiles.push({ family: fontFamilies.mono.name, files: fontFamilies.mono.files })
+    }
+
+    if (allFiles.length === 0) return ''
+
+    // Generate @font-face rules for each font file
+    const fontFaceRules = allFiles
+      .flatMap(({ family, files }) =>
+        files.map((file) => {
+          return `@font-face {
+  font-family: '${family}';
+  src: url('${file.path}') format('${file.format}');
+  font-weight: ${file.weight};
+  font-style: ${file.style};
+  font-display: swap;
+}`
+        })
+      )
+      .join('\n\n')
+
+    return `/* ===== CUSTOM FONT DECLARATIONS ===== */\n${fontFaceRules}\n\n`
+  }
+
   const generateTailwindTheme = () => {
     const { primitives, semantic } = config
 
@@ -42,15 +77,54 @@ export function ThemeExport({ config, onBack }: ThemeExportProps) {
       .map(([key, value]) => `  --radius-${key}: ${value};`)
       .join('\n')
 
+    // Typography tokens
+    const fontFamilyTokens = `  --font-sans: ${primitives.typography.fontFamilies.sans.stack};
+  --font-serif: ${primitives.typography.fontFamilies.serif.stack};
+  --font-mono: ${primitives.typography.fontFamilies.mono.stack};`
+
+    const typeSizeTokens = Object.entries(primitives.typography.typeScale.sizes)
+      .map(([name, size]) => `  --font-size-${name}: ${size};`)
+      .join('\n')
+
+    const fontWeightTokens = Object.entries(primitives.typography.fontWeights)
+      .map(([name, weight]) => `  --font-weight-${name}: ${weight};`)
+      .join('\n')
+
+    const lineHeightTokens = Object.entries(primitives.typography.lineHeights)
+      .map(([name, height]) => `  --line-height-${name}: ${height};`)
+      .join('\n')
+
+    const letterSpacingTokens = Object.entries(primitives.typography.letterSpacing)
+      .map(([name, spacing]) => `  --letter-spacing-${name}: ${spacing};`)
+      .join('\n')
+
+    const fontFaceRules = generateFontFaceRules()
+
     return `/* Add this to your globals.css */
 
-@theme inline {
+${fontFaceRules}@theme inline {
   /* ===== SPACING PRIMITIVES ===== */
 ${spacingTokens}
 
   /* ===== RADIUS PRIMITIVES ===== */
 ${radiusTokens}
 ${fullRadius}
+
+  /* ===== TYPOGRAPHY PRIMITIVES ===== */
+  /* Font Families */
+${fontFamilyTokens}
+
+  /* Type Scale */
+${typeSizeTokens}
+
+  /* Font Weights */
+${fontWeightTokens}
+
+  /* Line Heights */
+${lineHeightTokens}
+
+  /* Letter Spacing */
+${letterSpacingTokens}
 
   /* ===== SEMANTIC SPACING ===== */
 ${semanticSpacing}
@@ -68,6 +142,15 @@ ${semanticRadius}
     - Mobile: ${primitives.grid.margins.mobile}px
     - Tablet: ${primitives.grid.margins.tablet}px
     - Desktop: ${primitives.grid.margins.desktop}px
+
+  Breakpoints:
+    - sm: ${primitives.breakpoints.sm}px
+    - md: ${primitives.breakpoints.md}px
+    - lg: ${primitives.breakpoints.lg}px
+    - xl: ${primitives.breakpoints.xl}px
+    - 2xl: ${primitives.breakpoints['2xl']}px
+
+  Elevation: ${primitives.elevation.levels} levels (${primitives.elevation.strategy})
 */`
   }
 

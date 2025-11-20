@@ -26,6 +26,58 @@ export function StructuralCalibration({ onComplete, initialConfig }: StructuralC
     initialConfig?.primitives.elevation.strategy || 'shadow'
   )
 
+  // Typography state
+  const [fontSans, setFontSans] = useState(
+    initialConfig?.primitives.typography.fontFamilies.sans || 'Soehne, system-ui, sans-serif'
+  )
+  const [fontSerif, setFontSerif] = useState(
+    initialConfig?.primitives.typography.fontFamilies.serif || 'Untitled Serif, Georgia, serif'
+  )
+  const [fontMono, setFontMono] = useState(
+    initialConfig?.primitives.typography.fontFamilies.mono || 'Soehne Mono, Courier New, monospace'
+  )
+  const [typeScaleBase, setTypeScaleBase] = useState(
+    initialConfig?.primitives.typography.typeScale.base || 16
+  )
+  const [typeScaleRatio, setTypeScaleRatio] = useState(
+    initialConfig?.primitives.typography.typeScale.ratio || 1.25
+  )
+  const [lineHeightTight, setLineHeightTight] = useState(
+    initialConfig?.primitives.typography.lineHeights.tight || 1.25
+  )
+  const [lineHeightNormal, setLineHeightNormal] = useState(
+    initialConfig?.primitives.typography.lineHeights.normal || 1.5
+  )
+  const [lineHeightRelaxed, setLineHeightRelaxed] = useState(
+    initialConfig?.primitives.typography.lineHeights.relaxed || 1.75
+  )
+
+  const generateTypeScale = (base: number, ratio: number) => {
+    const sizes: Record<string, string> = {}
+    const steps = {
+      'xs': -2,
+      'sm': -1,
+      'base': 0,
+      'lg': 1,
+      'xl': 2,
+      '2xl': 3,
+      '3xl': 4,
+      '4xl': 5,
+      '5xl': 6,
+      '6xl': 7,
+      '7xl': 8,
+      '8xl': 9,
+      '9xl': 10
+    }
+
+    Object.entries(steps).forEach(([name, step]) => {
+      const size = base * Math.pow(ratio, step)
+      sizes[name] = `${(size / 16).toFixed(4)}rem`
+    })
+
+    return sizes
+  }
+
   const generateConfig = (): DesignSystemConfig => {
     // Generate spacing values based on scale
     const spacingValues = spacingScale === '8pt'
@@ -71,6 +123,36 @@ export function StructuralCalibration({ onComplete, initialConfig }: StructuralC
         elevation: {
           levels: elevationLevels,
           strategy: elevationStrategy
+        },
+        typography: {
+          fontFamilies: {
+            sans: fontSans,
+            serif: fontSerif,
+            mono: fontMono
+          },
+          typeScale: {
+            base: typeScaleBase,
+            ratio: typeScaleRatio,
+            sizes: generateTypeScale(typeScaleBase, typeScaleRatio)
+          },
+          fontWeights: {
+            light: 300,
+            normal: 400,
+            medium: 500,
+            semibold: 600,
+            bold: 700,
+            extrabold: 800
+          },
+          lineHeights: {
+            tight: lineHeightTight,
+            normal: lineHeightNormal,
+            relaxed: lineHeightRelaxed
+          },
+          letterSpacing: {
+            tighter: '-0.05em',
+            normal: '0em',
+            wider: '0.05em'
+          }
         }
       },
       semantic: {
@@ -341,6 +423,159 @@ export function StructuralCalibration({ onComplete, initialConfig }: StructuralC
               <option value="both">Shadows + Borders</option>
             </select>
           </label>
+        </div>
+      </section>
+
+      {/* Typography Section */}
+      <section className="space-y-6">
+        <div>
+          <h2 className="text-xl font-semibold mb-2">Typography System</h2>
+          <p className="text-sm text-muted-foreground">
+            Font families, type scale, and text styling
+          </p>
+        </div>
+
+        {/* Font Families */}
+        <div className="space-y-4">
+          <h3 className="text-sm font-semibold">Font Families</h3>
+          <div className="grid grid-cols-1 gap-4">
+            <label className="block">
+              <span className="text-sm font-medium mb-2 block">Sans Serif</span>
+              <input
+                type="text"
+                value={fontSans}
+                onChange={(e) => setFontSans(e.target.value)}
+                className="w-full px-3 py-2 border rounded-lg bg-background font-mono text-sm"
+                placeholder="Inter, system-ui, sans-serif"
+              />
+              <span className="text-xs text-muted-foreground mt-1 block">
+                UI text, body copy, headings
+              </span>
+            </label>
+
+            <label className="block">
+              <span className="text-sm font-medium mb-2 block">Serif</span>
+              <input
+                type="text"
+                value={fontSerif}
+                onChange={(e) => setFontSerif(e.target.value)}
+                className="w-full px-3 py-2 border rounded-lg bg-background font-mono text-sm"
+                placeholder="Georgia, serif"
+              />
+              <span className="text-xs text-muted-foreground mt-1 block">
+                Editorial content, formal text
+              </span>
+            </label>
+
+            <label className="block">
+              <span className="text-sm font-medium mb-2 block">Monospace</span>
+              <input
+                type="text"
+                value={fontMono}
+                onChange={(e) => setFontMono(e.target.value)}
+                className="w-full px-3 py-2 border rounded-lg bg-background font-mono text-sm"
+                placeholder="Courier New, monospace"
+              />
+              <span className="text-xs text-muted-foreground mt-1 block">
+                Code blocks, technical content
+              </span>
+            </label>
+          </div>
+        </div>
+
+        {/* Type Scale */}
+        <div className="space-y-4">
+          <h3 className="text-sm font-semibold">Type Scale</h3>
+          <div className="grid grid-cols-2 gap-6">
+            <label className="block">
+              <span className="text-sm font-medium mb-2 block">Base Size (px)</span>
+              <input
+                type="number"
+                value={typeScaleBase}
+                onChange={(e) => setTypeScaleBase(Number(e.target.value))}
+                className="w-full px-3 py-2 border rounded-lg bg-background"
+                min={12}
+                max={20}
+                step={1}
+              />
+              <span className="text-xs text-muted-foreground mt-1 block">
+                Typically 16px (1rem)
+              </span>
+            </label>
+
+            <label className="block">
+              <span className="text-sm font-medium mb-2 block">Scale Ratio</span>
+              <select
+                value={typeScaleRatio}
+                onChange={(e) => setTypeScaleRatio(Number(e.target.value))}
+                className="w-full px-3 py-2 border rounded-lg bg-background"
+              >
+                <option value={1.2}>1.200 - Minor Third</option>
+                <option value={1.25}>1.250 - Major Third</option>
+                <option value={1.333}>1.333 - Perfect Fourth</option>
+                <option value={1.414}>1.414 - Augmented Fourth</option>
+                <option value={1.5}>1.500 - Perfect Fifth</option>
+                <option value={1.618}>1.618 - Golden Ratio</option>
+              </select>
+              <span className="text-xs text-muted-foreground mt-1 block">
+                Multiplier for each step in scale
+              </span>
+            </label>
+          </div>
+        </div>
+
+        {/* Line Heights */}
+        <div className="space-y-4">
+          <h3 className="text-sm font-semibold">Line Heights</h3>
+          <div className="grid grid-cols-3 gap-6">
+            <label className="block">
+              <span className="text-sm font-medium mb-2 block">Tight</span>
+              <input
+                type="number"
+                value={lineHeightTight}
+                onChange={(e) => setLineHeightTight(Number(e.target.value))}
+                className="w-full px-3 py-2 border rounded-lg bg-background"
+                min={1}
+                max={2}
+                step={0.05}
+              />
+              <span className="text-xs text-muted-foreground mt-1 block">
+                Headings (1.25)
+              </span>
+            </label>
+
+            <label className="block">
+              <span className="text-sm font-medium mb-2 block">Normal</span>
+              <input
+                type="number"
+                value={lineHeightNormal}
+                onChange={(e) => setLineHeightNormal(Number(e.target.value))}
+                className="w-full px-3 py-2 border rounded-lg bg-background"
+                min={1}
+                max={2}
+                step={0.05}
+              />
+              <span className="text-xs text-muted-foreground mt-1 block">
+                Body text (1.5)
+              </span>
+            </label>
+
+            <label className="block">
+              <span className="text-sm font-medium mb-2 block">Relaxed</span>
+              <input
+                type="number"
+                value={lineHeightRelaxed}
+                onChange={(e) => setLineHeightRelaxed(Number(e.target.value))}
+                className="w-full px-3 py-2 border rounded-lg bg-background"
+                min={1}
+                max={2.5}
+                step={0.05}
+              />
+              <span className="text-xs text-muted-foreground mt-1 block">
+                Long-form (1.75)
+              </span>
+            </label>
+          </div>
         </div>
       </section>
 
