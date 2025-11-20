@@ -8,7 +8,7 @@ import {
   ResizablePanel,
   ResizableHandle,
 } from '@/components/ui/resizable'
-import { ChevronRight, Download } from 'lucide-react'
+import { ChevronRight, Download, Sun, Moon } from 'lucide-react'
 import { ThemeExport } from './theme-export'
 import { themes } from '@/lib/themes/theme-config'
 import { getTailwindColor } from '@/lib/tailwind-colors'
@@ -572,29 +572,17 @@ ${cssVariables.join('\n')}
           </div>
 
           {/* Light/Dark Mode Toggle */}
-          <div className="flex items-center gap-2 border-l pl-3">
-            <span className="text-sm text-muted-foreground">Mode:</span>
-            <button
-              onClick={() => setThemeMode(themeMode === 'light' ? 'dark' : 'light')}
-              className="relative inline-flex h-6 w-11 items-center rounded-full transition-colors"
-              style={{
-                borderRadius: '9999px',
-                backgroundColor: themeMode === 'dark' ? 'hsl(var(--primary))' : 'hsl(var(--muted))'
-              }}
-              title={`Switch to ${themeMode === 'light' ? 'dark' : 'light'} mode`}
-            >
-              <span
-                className="inline-block h-4 w-4 transform rounded-full shadow-sm transition-transform"
-                style={{
-                  backgroundColor: themeMode === 'dark' ? 'hsl(var(--primary-foreground))' : 'hsl(var(--background))',
-                  transform: themeMode === 'dark' ? 'translateX(1.5rem)' : 'translateX(0.25rem)'
-                }}
-              />
-            </button>
-            <span className="text-xs font-medium w-10">
-              {themeMode === 'light' ? 'Light' : 'Dark'}
-            </span>
-          </div>
+          <button
+            onClick={() => setThemeMode(themeMode === 'light' ? 'dark' : 'light')}
+            className="p-2 border rounded-lg hover:bg-accent transition-colors"
+            title={`Switch to ${themeMode === 'light' ? 'dark' : 'light'} mode`}
+          >
+            {themeMode === 'light' ? (
+              <Moon className="w-4 h-4" />
+            ) : (
+              <Sun className="w-4 h-4" />
+            )}
+          </button>
 
           <button
             onClick={() => setShowExport(!showExport)}
