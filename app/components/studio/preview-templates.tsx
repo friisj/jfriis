@@ -2,12 +2,13 @@
 
 import { useState } from 'react'
 import type { DesignSystemConfig } from './design-system-tool'
+import { TypographyTemplate as TypographyTemplateNew } from './preview-templates-typography'
 
 interface PreviewTemplatesProps {
   config: DesignSystemConfig
 }
 
-type Template = 'card' | 'form' | 'typography' | 'layout'
+type Template = 'card' | 'form' | 'blog' | 'typography' | 'layout'
 
 export function PreviewTemplates({ config }: PreviewTemplatesProps) {
   const [activeTemplate, setActiveTemplate] = useState<Template>('card')
@@ -15,6 +16,7 @@ export function PreviewTemplates({ config }: PreviewTemplatesProps) {
   const templates: { id: Template; label: string }[] = [
     { id: 'card', label: 'Card' },
     { id: 'form', label: 'Form' },
+    { id: 'blog', label: 'Blog Post' },
     { id: 'typography', label: 'Typography' },
     { id: 'layout', label: 'Layout' }
   ]
@@ -44,7 +46,8 @@ export function PreviewTemplates({ config }: PreviewTemplatesProps) {
       <div className="flex-1 overflow-auto p-8 bg-background">
         {activeTemplate === 'card' && <CardTemplate config={config} />}
         {activeTemplate === 'form' && <FormTemplate config={config} />}
-        {activeTemplate === 'typography' && <TypographyTemplate config={config} />}
+        {activeTemplate === 'blog' && <BlogTemplate config={config} />}
+        {activeTemplate === 'typography' && <TypographyTemplateNew config={config} />}
         {activeTemplate === 'layout' && <LayoutTemplate config={config} />}
       </div>
     </div>
@@ -284,6 +287,254 @@ function FormTemplate({ config }: { config: DesignSystemConfig }) {
         </div>
       </div>
     </div>
+  )
+}
+
+function BlogTemplate({ config }: { config: DesignSystemConfig }) {
+  const sans = config.primitives.typography.fontFamilies.sans.stack
+  const serif = config.primitives.typography.fontFamilies.serif.stack
+  const mono = config.primitives.typography.fontFamilies.mono.stack
+  const sizes = config.primitives.typography.typeScale.sizes
+  const lineHeights = config.primitives.typography.lineHeights
+
+  return (
+    <article className="max-w-3xl mx-auto prose prose-lg">
+      {/* Title */}
+      <h1
+        style={{
+          fontFamily: serif,
+          fontSize: sizes['4xl'],
+          lineHeight: lineHeights.tight,
+          fontWeight: 700,
+          marginBottom: '0.5em'
+        }}
+      >
+        The Evolution of Modern Design Systems
+      </h1>
+
+      {/* Meta */}
+      <div
+        className="flex items-center gap-4 text-muted-foreground pb-6 border-b mb-8"
+        style={{
+          fontFamily: sans,
+          fontSize: sizes.sm,
+          lineHeight: lineHeights.normal
+        }}
+      >
+        <span>By Jane Designer</span>
+        <span>•</span>
+        <span>March 15, 2024</span>
+        <span>•</span>
+        <span>8 min read</span>
+      </div>
+
+      {/* Lead paragraph */}
+      <p
+        className="text-lg"
+        style={{
+          fontFamily: serif,
+          fontSize: sizes.lg,
+          lineHeight: lineHeights.relaxed,
+          marginBottom: '1.5em'
+        }}
+      >
+        Design systems have fundamentally transformed how teams build digital products. What started
+        as simple style guides has evolved into comprehensive, living ecosystems that power modern
+        user interfaces.
+      </p>
+
+      {/* Heading 2 */}
+      <h2
+        style={{
+          fontFamily: serif,
+          fontSize: sizes['2xl'],
+          lineHeight: lineHeights.tight,
+          fontWeight: 700,
+          marginTop: '2em',
+          marginBottom: '0.75em'
+        }}
+      >
+        The Foundation: Design Tokens
+      </h2>
+
+      {/* Body paragraph */}
+      <p
+        style={{
+          fontFamily: serif,
+          fontSize: sizes.base,
+          lineHeight: lineHeights.relaxed,
+          marginBottom: '1.25em'
+        }}
+      >
+        At the heart of every design system lies a carefully crafted set of design tokens. These
+        atomic values define the visual DNA of your product—from spacing and typography to color
+        and motion.
+      </p>
+
+      {/* Blockquote */}
+      <blockquote
+        className="border-l-4 border-primary pl-6 my-8"
+        style={{
+          fontFamily: serif,
+          fontSize: sizes.lg,
+          lineHeight: lineHeights.normal,
+          fontStyle: 'italic'
+        }}
+      >
+        "Design tokens are the visual design atoms of the design system—specifically, they are named
+        entities that store visual design attributes."
+      </blockquote>
+
+      {/* Heading 3 */}
+      <h3
+        style={{
+          fontFamily: serif,
+          fontSize: sizes.xl,
+          lineHeight: lineHeights.tight,
+          fontWeight: 600,
+          marginTop: '1.5em',
+          marginBottom: '0.5em'
+        }}
+      >
+        Key Components of a Token System
+      </h3>
+
+      {/* Unordered list */}
+      <ul
+        className="space-y-2 my-6"
+        style={{
+          fontFamily: serif,
+          fontSize: sizes.base,
+          lineHeight: lineHeights.normal,
+          listStyleType: 'disc',
+          paddingLeft: '1.5em'
+        }}
+      >
+        <li>
+          <strong>Primitives</strong>: Raw values like hex colors, pixel dimensions, and font weights
+        </li>
+        <li>
+          <strong>Semantic tokens</strong>: Purpose-driven names that reference primitives
+        </li>
+        <li>
+          <strong>Component tokens</strong>: Specific values for individual component variants
+        </li>
+      </ul>
+
+      {/* Code block */}
+      <div
+        className="bg-muted rounded-lg p-4 my-6 border"
+        style={{
+          fontFamily: mono,
+          fontSize: sizes.sm,
+          lineHeight: lineHeights.normal
+        }}
+      >
+        <pre>
+          <code>{`// Example design token structure
+const tokens = {
+  color: {
+    primary: '#2563eb',
+    surface: '#ffffff'
+  },
+  spacing: {
+    sm: '8px',
+    md: '16px',
+    lg: '24px'
+  }
+}`}</code>
+        </pre>
+      </div>
+
+      {/* Ordered list */}
+      <h3
+        style={{
+          fontFamily: serif,
+          fontSize: sizes.xl,
+          lineHeight: lineHeights.tight,
+          fontWeight: 600,
+          marginTop: '1.5em',
+          marginBottom: '0.5em'
+        }}
+      >
+        Implementation Steps
+      </h3>
+
+      <ol
+        className="space-y-3 my-6"
+        style={{
+          fontFamily: serif,
+          fontSize: sizes.base,
+          lineHeight: lineHeights.normal,
+          listStyleType: 'decimal',
+          paddingLeft: '1.5em'
+        }}
+      >
+        <li>
+          <strong>Audit your existing design</strong> to identify patterns and inconsistencies
+        </li>
+        <li>
+          <strong>Define your token structure</strong> starting with primitives
+        </li>
+        <li>
+          <strong>Map semantic meanings</strong> to create a scalable system
+        </li>
+        <li>
+          <strong>Document usage guidelines</strong> for your team
+        </li>
+        <li>
+          <strong>Iterate based on feedback</strong> from designers and developers
+        </li>
+      </ol>
+
+      {/* Pull quote / Callout */}
+      <div
+        className="bg-accent border-l-4 border-primary rounded-r-lg p-6 my-8"
+        style={{
+          fontFamily: sans,
+          fontSize: sizes.base,
+          lineHeight: lineHeights.normal
+        }}
+      >
+        <p className="font-semibold mb-2">💡 Pro Tip</p>
+        <p>
+          Start small with spacing and color tokens. You can always expand your system as your team
+          becomes more comfortable with the token approach.
+        </p>
+      </div>
+
+      {/* Final paragraph */}
+      <p
+        style={{
+          fontFamily: serif,
+          fontSize: sizes.base,
+          lineHeight: lineHeights.relaxed,
+          marginTop: '2em'
+        }}
+      >
+        Building a design system is a journey, not a destination. The most successful systems evolve
+        with their products while maintaining consistency and enabling teams to move faster. By
+        starting with a solid foundation of design tokens, you set yourself up for scalable,
+        maintainable design at any scale.
+      </p>
+
+      {/* Footer meta */}
+      <div
+        className="border-t pt-6 mt-12 flex items-center justify-between text-muted-foreground"
+        style={{
+          fontFamily: sans,
+          fontSize: sizes.sm,
+          lineHeight: lineHeights.normal
+        }}
+      >
+        <div className="flex gap-3">
+          <span className="px-3 py-1 bg-muted rounded-full">Design Systems</span>
+          <span className="px-3 py-1 bg-muted rounded-full">UI/UX</span>
+          <span className="px-3 py-1 bg-muted rounded-full">Tokens</span>
+        </div>
+        <button className="hover:text-foreground">Share →</button>
+      </div>
+    </article>
   )
 }
 

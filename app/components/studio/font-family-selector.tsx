@@ -17,6 +17,8 @@ export function FontFamilySelector({ role, value, onChange }: FontFamilySelector
   } | null>(null)
   const [mode, setMode] = useState<'simple' | 'advanced'>(value.files && value.files.length > 0 ? 'advanced' : 'simple')
   const [selectedFamily, setSelectedFamily] = useState<string>(value.name)
+  const [fontLoaded, setFontLoaded] = useState<boolean | null>(null)
+  const [isValidating, setIsValidating] = useState(false)
 
   useEffect(() => {
     fetch('/api/fonts')
@@ -29,6 +31,61 @@ export function FontFamilySelector({ role, value, onChange }: FontFamilySelector
       })
       .catch(err => console.error('Failed to load fonts:', err))
   }, [])
+
+  // Validate font loading for custom fonts
+  useEffect(() => {
+    if (value.source === 'system') {
+      setFontLoaded(true)
+      return
+    }
+
+    if (!value.files || value.files.length === 0) {
+      setFontLoaded(null)
+      return
+    }
+
+    setIsValidating(true)
+
+    // Use Font Loading API to check if font is actually loaded
+    const validateFont = async () => {
+      try {
+        // Test if the font renders differently than a fallback
+        const testText = 'mmmmmmmmmmlli'
+        const fallbackFont = 'monospace'
+
+        // Create a canvas to measure text
+        const canvas = document.createElement('canvas')
+        const context = canvas.getContext('2d')
+        if (!context) {
+          setFontLoaded(null)
+          setIsValidating(false)
+          return
+        }
+
+        // Measure with fallback
+        context.font = `16px ${fallbackFont}`
+        const fallbackWidth = context.measureText(testText).width
+
+        // Measure with custom font
+        context.font = `16px "${value.name}", ${fallbackFont}`
+        const customWidth = context.measureText(testText).width
+
+        // If widths are different, font is loaded
+        const isLoaded = Math.abs(customWidth - fallbackWidth) > 0.1
+
+        setFontLoaded(isLoaded)
+        setIsValidating(false)
+      } catch (error) {
+        console.error('Font validation error:', error)
+        setFontLoaded(null)
+        setIsValidating(false)
+      }
+    }
+
+    // Wait a bit for fonts to load
+    const timer = setTimeout(validateFont, 500)
+    return () => clearTimeout(timer)
+  }, [value.name, value.source, value.files])
 
   const handleFamilyChange = (familyName: string, source: 'custom' | 'system') => {
     if (!availableFonts) return
@@ -114,18 +171,9 @@ export function FontFamilySelector({ role, value, onChange }: FontFamilySelector
 
   const roleLabel = role === 'sans' ? 'Sans Serif' : role === 'serif' ? 'Serif' : 'Monospace'
 
-  // Filter fonts by role
-  const relevantCustomFonts = availableFonts.custom.filter(f => {
-    if (role === 'mono') return f.name.toLowerCase().includes('mono')
-    if (role === 'serif') return f.name.toLowerCase().includes('serif')
-    return !f.name.toLowerCase().includes('mono') && !f.name.toLowerCase().includes('serif')
-  })
-
-  const relevantSystemFonts = availableFonts.system.filter(f => {
-    if (role === 'mono') return f.stack.includes('monospace')
-    if (role === 'serif') return f.stack.includes('serif')
-    return f.stack.includes('sans-serif') || f.stack.includes('system-ui')
-  })
+  // Show all fonts (no filtering by role)
+  const relevantCustomFonts = availableFonts.custom
+  const relevantSystemFonts = availableFonts.system
 
   const currentFont = value.source === 'custom'
     ? relevantCustomFonts.find(f => f.name === selectedFamily)
@@ -185,7 +233,20 @@ export function FontFamilySelector({ role, value, onChange }: FontFamilySelector
 
       {/* Font Stack Preview */}
       <div>
-        <label className="block text-xs text-muted-foreground mb-1">Font Stack</label>
+        <div className="flex items-center justify-between mb-1">
+          <label className="text-xs text-muted-foreground">Font Stack</label>
+          {value.source === 'custom' && (
+            <div className="flex items-center gap-1 text-xs">
+              {isValidating && <span className="text-muted-foreground">Validating...</span>}
+              {!isValidating && fontLoaded === true && (
+                <span className="text-green-600 dark:text-green-400">✓ Loaded</span>
+              )}
+              {!isValidating && fontLoaded === false && (
+                <span className="text-amber-600 dark:text-amber-400">⚠ Using fallback</span>
+              )}
+            </div>
+          )}
+        </div>
         <div className="px-3 py-2 border rounded-lg bg-muted/50 text-xs font-mono">
           {value.stack}
         </div>
