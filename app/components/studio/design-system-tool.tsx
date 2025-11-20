@@ -230,22 +230,22 @@ export function DesignSystemTool() {
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [showExport, setShowExport] = useState(false)
 
-  // Inject @font-face rules dynamically for custom fonts
+  // Inject complete theme (fonts + CSS variables) dynamically
   useEffect(() => {
     // Remove any existing injected styles
-    const existingStyle = document.getElementById('design-system-fonts')
+    const existingStyle = document.getElementById('design-system-preview-theme')
     if (existingStyle) {
       existingStyle.remove()
     }
 
-    // Collect all custom font files
-    const { fontFamilies } = config.primitives.typography
-    const allFontFaces: string[] = []
+    const { primitives } = config
+    const { fontFamilies } = primitives.typography
+    const allStyles: string[] = []
 
-    // Generate @font-face rules for each custom font
+    // 1. Generate @font-face rules for custom fonts
     if (fontFamilies.sans.source === 'custom' && fontFamilies.sans.files) {
       fontFamilies.sans.files.forEach((file) => {
-        allFontFaces.push(`
+        allStyles.push(`
 @font-face {
   font-family: '${file.family}';
   src: url('${file.path}') format('${file.format}');
@@ -258,7 +258,7 @@ export function DesignSystemTool() {
 
     if (fontFamilies.serif.source === 'custom' && fontFamilies.serif.files) {
       fontFamilies.serif.files.forEach((file) => {
-        allFontFaces.push(`
+        allStyles.push(`
 @font-face {
   font-family: '${file.family}';
   src: url('${file.path}') format('${file.format}');
@@ -271,7 +271,7 @@ export function DesignSystemTool() {
 
     if (fontFamilies.mono.source === 'custom' && fontFamilies.mono.files) {
       fontFamilies.mono.files.forEach((file) => {
-        allFontFaces.push(`
+        allStyles.push(`
 @font-face {
   font-family: '${file.family}';
   src: url('${file.path}') format('${file.format}');
@@ -282,14 +282,111 @@ export function DesignSystemTool() {
       })
     }
 
-    // Inject styles if we have any custom fonts
-    if (allFontFaces.length > 0) {
+    // 2. Generate CSS variables for the preview scope
+    // This creates a scoped theme that Tailwind can consume
+    const cssVariables: string[] = []
+
+    // Spacing scale (map to Tailwind's spacing scale)
+    primitives.spacing.values.forEach((value, index) => {
+      const key = index === 0 ? '0' : String(index)
+      cssVariables.push(`  --spacing-${key}: ${value / 16}rem;`)
+    })
+
+    // Radius scale
+    primitives.radius.values
+      .filter(v => v !== 9999)
+      .forEach((value, index) => {
+        const keys = ['none', 'sm', 'DEFAULT', 'md', 'lg', 'xl', '2xl', '3xl']
+        const key = keys[index] || String(index)
+        cssVariables.push(`  --radius-${key}: ${value / 16}rem;`)
+      })
+    cssVariables.push(`  --radius-full: 9999px;`)
+
+    // Typography - Font families
+    cssVariables.push(`  --font-sans: ${fontFamilies.sans.stack};`)
+    cssVariables.push(`  --font-serif: ${fontFamilies.serif.stack};`)
+    cssVariables.push(`  --font-mono: ${fontFamilies.mono.stack};`)
+
+    // Typography - Font sizes (map to Tailwind scale)
+    Object.entries(primitives.typography.typeScale.sizes).forEach(([name, size]) => {
+      cssVariables.push(`  --font-size-${name}: ${size};`)
+    })
+
+    // Typography - Font weights
+    Object.entries(primitives.typography.fontWeights).forEach(([name, weight]) => {
+      cssVariables.push(`  --font-weight-${name}: ${weight};`)
+    })
+
+    // Typography - Line heights
+    Object.entries(primitives.typography.lineHeights).forEach(([name, height]) => {
+      cssVariables.push(`  --line-height-${name}: ${height};`)
+    })
+
+    // Typography - Letter spacing
+    Object.entries(primitives.typography.letterSpacing).forEach(([name, spacing]) => {
+      cssVariables.push(`  --letter-spacing-${name}: ${spacing};`)
+    })
+
+    // Wrap CSS variables in a scoped selector for the preview area
+    allStyles.push(`
+/* Design System Preview Theme */
+.design-system-preview {
+${cssVariables.join('\n')}
+}
+
+/* Override Tailwind's default theme within preview */
+.design-system-preview {
+  font-family: var(--font-sans);
+}
+
+/* Theme-aware utility classes for preview */
+.design-system-preview .theme-text-xs { font-size: var(--font-size-xs); }
+.design-system-preview .theme-text-sm { font-size: var(--font-size-sm); }
+.design-system-preview .theme-text-base { font-size: var(--font-size-base); }
+.design-system-preview .theme-text-lg { font-size: var(--font-size-lg); }
+.design-system-preview .theme-text-xl { font-size: var(--font-size-xl); }
+.design-system-preview .theme-text-2xl { font-size: var(--font-size-2xl); }
+.design-system-preview .theme-text-3xl { font-size: var(--font-size-3xl); }
+.design-system-preview .theme-text-4xl { font-size: var(--font-size-4xl); }
+.design-system-preview .theme-text-5xl { font-size: var(--font-size-5xl); }
+
+.design-system-preview .theme-font-sans { font-family: var(--font-sans); }
+.design-system-preview .theme-font-serif { font-family: var(--font-serif); }
+.design-system-preview .theme-font-mono { font-family: var(--font-mono); }
+
+.design-system-preview .theme-p-1 { padding: var(--spacing-1); }
+.design-system-preview .theme-p-2 { padding: var(--spacing-2); }
+.design-system-preview .theme-p-3 { padding: var(--spacing-3); }
+.design-system-preview .theme-p-4 { padding: var(--spacing-4); }
+.design-system-preview .theme-p-6 { padding: var(--spacing-6); }
+.design-system-preview .theme-p-8 { padding: var(--spacing-8); }
+
+.design-system-preview .theme-rounded { border-radius: var(--radius-DEFAULT); }
+.design-system-preview .theme-rounded-sm { border-radius: var(--radius-sm); }
+.design-system-preview .theme-rounded-md { border-radius: var(--radius-md); }
+.design-system-preview .theme-rounded-lg { border-radius: var(--radius-lg); }
+.design-system-preview .theme-rounded-xl { border-radius: var(--radius-xl); }
+.design-system-preview .theme-rounded-full { border-radius: var(--radius-full); }
+
+.design-system-preview .theme-gap-2 { gap: var(--spacing-2); }
+.design-system-preview .theme-gap-3 { gap: var(--spacing-3); }
+.design-system-preview .theme-gap-4 { gap: var(--spacing-4); }
+.design-system-preview .theme-gap-6 { gap: var(--spacing-6); }
+
+.design-system-preview .theme-space-y-2 > * + * { margin-top: var(--spacing-2); }
+.design-system-preview .theme-space-y-3 > * + * { margin-top: var(--spacing-3); }
+.design-system-preview .theme-space-y-4 > * + * { margin-top: var(--spacing-4); }
+.design-system-preview .theme-space-y-6 > * + * { margin-top: var(--spacing-6); }
+`)
+
+    // Inject all styles
+    if (allStyles.length > 0) {
       const styleElement = document.createElement('style')
-      styleElement.id = 'design-system-fonts'
-      styleElement.textContent = allFontFaces.join('\n')
+      styleElement.id = 'design-system-preview-theme'
+      styleElement.textContent = allStyles.join('\n')
       document.head.appendChild(styleElement)
     }
-  }, [config.primitives.typography.fontFamilies])
+  }, [config])
 
   return (
     <div className="h-screen flex flex-col">

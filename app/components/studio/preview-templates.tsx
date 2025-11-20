@@ -53,7 +53,7 @@ export function PreviewTemplates({ config }: PreviewTemplatesProps) {
       </div>
 
       {/* Preview Area */}
-      <div className="flex-1 overflow-auto p-8 bg-background">
+      <div className="flex-1 overflow-auto p-8 bg-background design-system-preview">
         {activeTemplate === 'dashboard' && <DashboardTemplate config={config} />}
         {activeTemplate === 'card' && <CardTemplate config={config} />}
         {activeTemplate === 'form' && <FormTemplate config={config} />}
@@ -545,118 +545,51 @@ function DashboardTemplate({ config }: { config: DesignSystemConfig }) {
 }
 
 function CardTemplate({ config }: { config: DesignSystemConfig }) {
-  const spacing = config.semantic.spacing['component-padding']
-  const radius = config.semantic.radius.surface
-  const gapValue = config.semantic.spacing['component-gap']
-
   return (
-    <div className="max-w-2xl mx-auto space-y-6">
-      <div
-        className="border bg-card text-card-foreground"
-        style={{ borderRadius: radius, padding: spacing }}
-      >
-        <h3
-          className="font-semibold mb-2"
-          style={{
-            fontFamily: config.primitives.typography.fontFamilies.sans.stack,
-            fontSize: config.primitives.typography.typeScale.sizes.lg,
-            lineHeight: config.primitives.typography.lineHeights.tight
-          }}
-        >
+    <div className="max-w-2xl mx-auto theme-space-y-6">
+      <div className="border bg-card text-card-foreground theme-rounded-lg theme-p-4">
+        <h3 className="theme-font-sans theme-text-lg font-semibold mb-2 leading-tight">
           Product Card Example
         </h3>
-        <p
-          className="text-muted-foreground mb-4"
-          style={{
-            fontFamily: config.primitives.typography.fontFamilies.sans.stack,
-            fontSize: config.primitives.typography.typeScale.sizes.sm,
-            lineHeight: config.primitives.typography.lineHeights.normal
-          }}
-        >
+        <p className="theme-font-sans theme-text-sm text-muted-foreground mb-4 leading-normal">
           This card demonstrates your spacing, radius, and typography configuration in action.
         </p>
-        <div className="flex gap-3" style={{ gap: gapValue }}>
-          <button
-            className="px-4 py-2 bg-primary text-primary-foreground font-medium"
-            style={{
-              borderRadius: config.semantic.radius.interactive,
-              fontFamily: config.primitives.typography.fontFamilies.sans.stack,
-              fontSize: config.primitives.typography.typeScale.sizes.sm
-            }}
-          >
+        <div className="flex theme-gap-3">
+          <button className="px-4 py-2 bg-primary text-primary-foreground font-medium theme-rounded theme-text-sm theme-font-sans">
             Primary Action
           </button>
-          <button
-            className="px-4 py-2 border font-medium"
-            style={{
-              borderRadius: config.semantic.radius.interactive,
-              fontFamily: config.primitives.typography.fontFamilies.sans.stack,
-              fontSize: config.primitives.typography.typeScale.sizes.sm
-            }}
-          >
+          <button className="px-4 py-2 border font-medium theme-rounded theme-text-sm theme-font-sans">
             Secondary
           </button>
         </div>
       </div>
 
-      <div
-        className="border bg-card text-card-foreground"
-        style={{ borderRadius: radius, padding: spacing }}
-      >
+      <div className="border bg-card text-card-foreground theme-rounded-lg theme-p-4">
         <div className="flex items-start justify-between mb-4">
           <div>
-            <h3
-              className="font-semibold"
-              style={{
-                fontFamily: config.primitives.typography.fontFamilies.sans.stack,
-                fontSize: config.primitives.typography.typeScale.sizes.base,
-                lineHeight: config.primitives.typography.lineHeights.tight
-              }}
-            >
+            <h3 className="theme-font-sans theme-text-base font-semibold leading-tight">
               Settings Panel
             </h3>
-            <p
-              className="text-muted-foreground"
-              style={{
-                fontFamily: config.primitives.typography.fontFamilies.sans.stack,
-                fontSize: config.primitives.typography.typeScale.sizes.xs,
-                lineHeight: config.primitives.typography.lineHeights.normal
-              }}
-            >
+            <p className="theme-font-sans theme-text-xs text-muted-foreground leading-normal">
               Configure your preferences
             </p>
           </div>
-          <button
-            className="text-muted-foreground hover:text-foreground"
-            style={{
-              fontSize: config.primitives.typography.typeScale.sizes.sm
-            }}
-          >
+          <button className="text-muted-foreground hover:text-foreground theme-text-sm">
             ✕
           </button>
         </div>
-        <div className="space-y-3" style={{ gap: gapValue }}>
+        <div className="theme-space-y-3">
           <div className="flex items-center justify-between py-2 border-b">
-            <span
-              style={{
-                fontFamily: config.primitives.typography.fontFamilies.sans.stack,
-                fontSize: config.primitives.typography.typeScale.sizes.sm
-              }}
-            >
+            <span className="theme-font-sans theme-text-sm">
               Enable notifications
             </span>
-            <div className="w-10 h-6 bg-primary rounded-full" style={{ borderRadius: '9999px' }} />
+            <div className="w-10 h-6 bg-primary theme-rounded-full" />
           </div>
           <div className="flex items-center justify-between py-2 border-b">
-            <span
-              style={{
-                fontFamily: config.primitives.typography.fontFamilies.sans.stack,
-                fontSize: config.primitives.typography.typeScale.sizes.sm
-              }}
-            >
+            <span className="theme-font-sans theme-text-sm">
               Dark mode
             </span>
-            <div className="w-10 h-6 bg-muted rounded-full" style={{ borderRadius: '9999px' }} />
+            <div className="w-10 h-6 bg-muted theme-rounded-full" />
           </div>
         </div>
       </div>
