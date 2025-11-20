@@ -125,7 +125,7 @@ export function FontFamilySelector({ role, value, onChange }: FontFamilySelector
       // Map available weights
       for (const file of customFont.files) {
         files.push({
-          family: customFont.displayName,
+          family: customFont.name, // Use the actual font-family name, not display name
           weight: file.weight,
           style: file.style,
           path: file.path,
@@ -144,8 +144,8 @@ export function FontFamilySelector({ role, value, onChange }: FontFamilySelector
       }
 
       onChange({
-        name: customFont.displayName,
-        stack: `${customFont.displayName}, ${role === 'mono' ? 'monospace' : role === 'serif' ? 'serif' : 'sans-serif'}`,
+        name: customFont.name,
+        stack: `${customFont.name}, ${role === 'mono' ? 'monospace' : role === 'serif' ? 'serif' : 'sans-serif'}`,
         source: 'custom',
         files,
         weights

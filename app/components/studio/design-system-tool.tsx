@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { PreviewTemplates } from './preview-templates'
 import { ConfigPanel } from './config-panel'
 import {
@@ -150,8 +150,8 @@ const getDefaultConfig = (): DesignSystemConfig => {
       typography: {
         fontFamilies: {
           sans: {
-            name: 'Soehne',
-            stack: 'Soehne, system-ui, sans-serif',
+            name: 'soehne',
+            stack: 'soehne, system-ui, sans-serif',
             source: 'custom',
             weights: {
               light: 300,
@@ -163,8 +163,8 @@ const getDefaultConfig = (): DesignSystemConfig => {
             }
           },
           serif: {
-            name: 'Untitled Serif',
-            stack: 'Untitled Serif, Georgia, serif',
+            name: 'untitled-sans',
+            stack: 'untitled-sans, Georgia, serif',
             source: 'custom',
             weights: {
               normal: 400,
@@ -173,8 +173,8 @@ const getDefaultConfig = (): DesignSystemConfig => {
             }
           },
           mono: {
-            name: 'Soehne Mono',
-            stack: 'Soehne Mono, Courier New, monospace',
+            name: 'soehne-mono',
+            stack: 'soehne-mono, Courier New, monospace',
             source: 'custom',
             weights: {
               normal: 400,
@@ -229,6 +229,67 @@ export function DesignSystemTool() {
   const [config, setConfig] = useState<DesignSystemConfig>(getDefaultConfig())
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [showExport, setShowExport] = useState(false)
+
+  // Inject @font-face rules dynamically for custom fonts
+  useEffect(() => {
+    // Remove any existing injected styles
+    const existingStyle = document.getElementById('design-system-fonts')
+    if (existingStyle) {
+      existingStyle.remove()
+    }
+
+    // Collect all custom font files
+    const { fontFamilies } = config.primitives.typography
+    const allFontFaces: string[] = []
+
+    // Generate @font-face rules for each custom font
+    if (fontFamilies.sans.source === 'custom' && fontFamilies.sans.files) {
+      fontFamilies.sans.files.forEach((file) => {
+        allFontFaces.push(`
+@font-face {
+  font-family: '${file.family}';
+  src: url('${file.path}') format('${file.format}');
+  font-weight: ${file.weight};
+  font-style: ${file.style};
+  font-display: swap;
+}`)
+      })
+    }
+
+    if (fontFamilies.serif.source === 'custom' && fontFamilies.serif.files) {
+      fontFamilies.serif.files.forEach((file) => {
+        allFontFaces.push(`
+@font-face {
+  font-family: '${file.family}';
+  src: url('${file.path}') format('${file.format}');
+  font-weight: ${file.weight};
+  font-style: ${file.style};
+  font-display: swap;
+}`)
+      })
+    }
+
+    if (fontFamilies.mono.source === 'custom' && fontFamilies.mono.files) {
+      fontFamilies.mono.files.forEach((file) => {
+        allFontFaces.push(`
+@font-face {
+  font-family: '${file.family}';
+  src: url('${file.path}') format('${file.format}');
+  font-weight: ${file.weight};
+  font-style: ${file.style};
+  font-display: swap;
+}`)
+      })
+    }
+
+    // Inject styles if we have any custom fonts
+    if (allFontFaces.length > 0) {
+      const styleElement = document.createElement('style')
+      styleElement.id = 'design-system-fonts'
+      styleElement.textContent = allFontFaces.join('\n')
+      document.head.appendChild(styleElement)
+    }
+  }, [config.primitives.typography.fontFamilies])
 
   return (
     <div className="h-screen flex flex-col">
