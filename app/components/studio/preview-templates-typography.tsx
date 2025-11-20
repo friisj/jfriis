@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import type { DesignSystemConfig } from './design-system-tool'
 
 export function TypographyTemplate({ config }: { config: DesignSystemConfig }) {
@@ -6,6 +7,21 @@ export function TypographyTemplate({ config }: { config: DesignSystemConfig }) {
   const mono = config.primitives.typography.fontFamilies.mono
   const sizes = config.primitives.typography.typeScale.sizes
   const lineHeights = config.primitives.typography.lineHeights
+
+  const [typeScaleFont, setTypeScaleFont] = useState<'sans' | 'serif' | 'mono'>('sans')
+
+  const getCurrentFont = () => {
+    switch (typeScaleFont) {
+      case 'sans':
+        return sans
+      case 'serif':
+        return serif
+      case 'mono':
+        return mono
+    }
+  }
+
+  const currentFont = getCurrentFont()
 
   return (
     <div className="max-w-4xl mx-auto space-y-8">
@@ -74,7 +90,44 @@ export function TypographyTemplate({ config }: { config: DesignSystemConfig }) {
 
       {/* Type Scale */}
       <div>
-        <h4 className="text-xs font-medium text-muted-foreground mb-4">TYPE SCALE</h4>
+        <div className="flex items-center justify-between mb-4">
+          <h4 className="text-xs font-medium text-muted-foreground">TYPE SCALE</h4>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setTypeScaleFont('sans')}
+              className={`px-3 py-1 text-xs rounded transition-colors ${
+                typeScaleFont === 'sans'
+                  ? 'bg-primary text-primary-foreground'
+                  : 'bg-muted hover:bg-muted/80'
+              }`}
+            >
+              Sans
+            </button>
+            <button
+              onClick={() => setTypeScaleFont('serif')}
+              className={`px-3 py-1 text-xs rounded transition-colors ${
+                typeScaleFont === 'serif'
+                  ? 'bg-primary text-primary-foreground'
+                  : 'bg-muted hover:bg-muted/80'
+              }`}
+            >
+              Serif
+            </button>
+            <button
+              onClick={() => setTypeScaleFont('mono')}
+              className={`px-3 py-1 text-xs rounded transition-colors ${
+                typeScaleFont === 'mono'
+                  ? 'bg-primary text-primary-foreground'
+                  : 'bg-muted hover:bg-muted/80'
+              }`}
+            >
+              Mono
+            </button>
+          </div>
+        </div>
+        <div className="mb-3 text-xs text-muted-foreground">
+          Showing: <span className="font-mono">{currentFont.name}</span>
+        </div>
         <div className="space-y-3">
           {Object.entries(sizes).map(([name, size]) => (
             <div key={name} className="flex items-baseline gap-4 pb-2 border-b border-border/50">
@@ -83,7 +136,7 @@ export function TypographyTemplate({ config }: { config: DesignSystemConfig }) {
               <div
                 style={{
                   fontSize: size,
-                  fontFamily: sans.stack,
+                  fontFamily: currentFont.stack,
                   lineHeight: lineHeights.normal
                 }}
               >
@@ -97,12 +150,15 @@ export function TypographyTemplate({ config }: { config: DesignSystemConfig }) {
       {/* Font Weights */}
       <div>
         <h4 className="text-xs font-medium text-muted-foreground mb-4">FONT WEIGHTS</h4>
+        <div className="mb-3 text-xs text-muted-foreground">
+          Using: <span className="font-mono">{currentFont.name}</span>
+        </div>
         <div className="space-y-2">
           {Object.entries(config.primitives.typography.fontWeights).map(([name, weight]) => (
             <div
               key={name}
               style={{
-                fontFamily: sans.stack,
+                fontFamily: currentFont.stack,
                 fontSize: sizes.base,
                 fontWeight: weight
               }}
@@ -116,13 +172,16 @@ export function TypographyTemplate({ config }: { config: DesignSystemConfig }) {
       {/* Line Heights */}
       <div>
         <h4 className="text-xs font-medium text-muted-foreground mb-4">LINE HEIGHTS</h4>
+        <div className="mb-3 text-xs text-muted-foreground">
+          Using: <span className="font-mono">{currentFont.name}</span>
+        </div>
         <div className="space-y-4">
           {Object.entries(lineHeights).map(([name, height]) => (
             <div key={name} className="border-b pb-4">
               <div className="text-xs text-muted-foreground mb-2">{name} ({height})</div>
               <p
                 style={{
-                  fontFamily: sans.stack,
+                  fontFamily: currentFont.stack,
                   fontSize: sizes.sm,
                   lineHeight: height
                 }}
