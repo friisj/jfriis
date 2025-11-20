@@ -10,6 +10,7 @@ import {
 } from '@/components/ui/resizable'
 import { ChevronRight, Download } from 'lucide-react'
 import { ThemeExport } from './theme-export'
+import { themes } from '@/lib/themes/theme-config'
 
 import type { FontWeight } from '@/lib/fonts/font-scanner'
 
@@ -226,9 +227,40 @@ const getDefaultConfig = (): DesignSystemConfig => {
 }
 
 export function DesignSystemTool() {
+  const [selectedTheme, setSelectedTheme] = useState<'custom' | string>('custom')
+  const [customConfig, setCustomConfig] = useState<DesignSystemConfig>(getDefaultConfig())
   const [config, setConfig] = useState<DesignSystemConfig>(getDefaultConfig())
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [showExport, setShowExport] = useState(false)
+
+  // Update config when theme selection changes
+  useEffect(() => {
+    if (selectedTheme === 'custom') {
+      setConfig(customConfig)
+    } else {
+      // Load predefined theme
+      const theme = themes[selectedTheme]
+      if (theme) {
+        const baseConfig = getDefaultConfig()
+
+        // Override radius if theme has it
+        if (theme.radius) {
+          const radiusValue = parseFloat(theme.radius)
+          baseConfig.primitives.radius.values = [0, 4, radiusValue * 16, 12, 16, 9999]
+        }
+
+        // Use system fonts (predefined themes don't have custom fonts)
+        baseConfig.primitives.typography.fontFamilies.sans = {
+          name: 'system-ui',
+          stack: 'system-ui, -apple-system, sans-serif',
+          source: 'system',
+          weights: { normal: 400, medium: 500, semibold: 600, bold: 700 }
+        }
+
+        setConfig(baseConfig)
+      }
+    }
+  }, [selectedTheme, customConfig])
 
   // Inject complete theme (fonts + CSS variables) dynamically
   useEffect(() => {
@@ -399,6 +431,26 @@ ${cssVariables.join('\n')}
           </p>
         </div>
         <div className="flex items-center gap-3">
+          {/* Theme Selector */}
+          <div className="flex items-center gap-2">
+            <label htmlFor="theme-select" className="text-sm text-muted-foreground">
+              Compare:
+            </label>
+            <select
+              id="theme-select"
+              value={selectedTheme}
+              onChange={(e) => setSelectedTheme(e.target.value)}
+              className="px-3 py-2 border rounded-lg bg-background text-sm font-medium hover:bg-accent transition-colors"
+            >
+              <option value="custom">Custom (Editable)</option>
+              {Object.keys(themes).map((themeName) => (
+                <option key={themeName} value={themeName}>
+                  {themeName.charAt(0).toUpperCase() + themeName.slice(1)} Theme
+                </option>
+              ))}
+            </select>
+          </div>
+
           <button
             onClick={() => setShowExport(!showExport)}
             className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors text-sm font-medium flex items-center gap-2"
@@ -447,7 +499,20 @@ ${cssVariables.join('\n')}
             <>
               <ResizableHandle withHandle />
               <ResizablePanel defaultSize={35} minSize={25} maxSize={50}>
-                <ConfigPanel config={config} onConfigChange={setConfig} />
+                {selectedTheme === 'custom' ? (
+                  <ConfigPanel config={customConfig} onConfigChange={setCustomConfig} />
+                ) : (
+                  <div className="h-full overflow-auto p-6">
+                    <div className="text-center py-12">
+                      <p className="text-sm text-muted-foreground mb-4">
+                        Viewing <strong>{themes[selectedTheme]?.name || selectedTheme}</strong> theme
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        Switch to "Custom (Editable)" to modify the configuration
+                      </p>
+                    </div>
+                  </div>
+                )}
               </ResizablePanel>
             </>
           )}
