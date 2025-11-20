@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import type { DesignSystemConfig } from './design-system-tool'
+import { getTailwindColor } from '@/lib/tailwind-colors'
 
 interface ThemeExportProps {
   config: DesignSystemConfig
@@ -98,6 +99,17 @@ export function ThemeExport({ config, onBack }: ThemeExportProps) {
       .map(([name, spacing]) => `  --letter-spacing-${name}: ${spacing};`)
       .join('\n')
 
+    // Color tokens
+    const colorTokens = Object.entries(primitives.colors)
+      .map(([name, colorPair]) => {
+        const cssKey = name.replace(/([A-Z])/g, '-$1').toLowerCase()
+        const lightColor = getTailwindColor(colorPair.light.scale, colorPair.light.shade)
+        const darkColor = getTailwindColor(colorPair.dark.scale, colorPair.dark.shade)
+        return `  --${cssKey}: ${lightColor}; /* ${colorPair.light.scale}-${colorPair.light.shade} */
+  /* Dark mode: ${darkColor} (${colorPair.dark.scale}-${colorPair.dark.shade}) */`
+      })
+      .join('\n')
+
     const fontFaceRules = generateFontFaceRules()
 
     return `/* Add this to your globals.css */
@@ -125,6 +137,9 @@ ${lineHeightTokens}
 
   /* Letter Spacing */
 ${letterSpacingTokens}
+
+  /* ===== COLOR PRIMITIVES ===== */
+${colorTokens}
 
   /* ===== SEMANTIC SPACING ===== */
 ${semanticSpacing}
