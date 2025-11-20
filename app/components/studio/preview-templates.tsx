@@ -583,13 +583,23 @@ function CardTemplate({ config }: { config: DesignSystemConfig }) {
             <span className="theme-font-sans theme-text-sm">
               Enable notifications
             </span>
-            <div className="w-10 h-6 bg-primary theme-rounded-full" />
+            <button
+              className="relative inline-flex h-6 w-11 items-center rounded-full bg-primary transition-colors"
+              style={{ borderRadius: '9999px' }}
+            >
+              <span className="inline-block h-4 w-4 transform rounded-full bg-primary-foreground shadow-sm transition-transform translate-x-6" />
+            </button>
           </div>
           <div className="flex items-center justify-between py-2 border-b">
             <span className="theme-font-sans theme-text-sm">
               Dark mode
             </span>
-            <div className="w-10 h-6 bg-muted theme-rounded-full" />
+            <button
+              className="relative inline-flex h-6 w-11 items-center rounded-full bg-muted transition-colors"
+              style={{ borderRadius: '9999px' }}
+            >
+              <span className="inline-block h-4 w-4 transform rounded-full bg-background shadow-sm transition-transform translate-x-1" />
+            </button>
           </div>
         </div>
       </div>
