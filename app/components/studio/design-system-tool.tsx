@@ -233,10 +233,14 @@ export function DesignSystemTool() {
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [showExport, setShowExport] = useState(false)
 
+  // Track current theme colors for injection
+  const [currentThemeColors, setCurrentThemeColors] = useState<any>(null)
+
   // Update config when theme selection changes
   useEffect(() => {
     if (selectedTheme === 'custom') {
       setConfig(customConfig)
+      setCurrentThemeColors(null) // Custom doesn't override colors
     } else {
       // Load predefined theme
       const theme = themes[selectedTheme]
@@ -258,6 +262,7 @@ export function DesignSystemTool() {
         }
 
         setConfig(baseConfig)
+        setCurrentThemeColors(theme.colors)  // Store theme colors for injection
       }
     }
   }, [selectedTheme, customConfig])
@@ -359,6 +364,19 @@ export function DesignSystemTool() {
       cssVariables.push(`  --letter-spacing-${name}: ${spacing};`)
     })
 
+    // Theme Colors (if a predefined theme is selected)
+    if (currentThemeColors) {
+      // We're viewing a predefined theme, inject its colors
+      // Note: Tailwind uses light mode by default in .design-system-preview
+      const colors = currentThemeColors.light || currentThemeColors.dark
+
+      Object.entries(colors).forEach(([key, value]: [string, any]) => {
+        // Convert camelCase to kebab-case for CSS variables
+        const cssKey = key.replace(/([A-Z])/g, '-$1').toLowerCase()
+        cssVariables.push(`  --${cssKey}: ${value};`)
+      })
+    }
+
     // Wrap CSS variables in a scoped selector for the preview area
     allStyles.push(`
 /* Design System Preview Theme */
@@ -418,7 +436,7 @@ ${cssVariables.join('\n')}
       styleElement.textContent = allStyles.join('\n')
       document.head.appendChild(styleElement)
     }
-  }, [config])
+  }, [config, currentThemeColors])
 
   return (
     <div className="h-screen flex flex-col">

@@ -110,52 +110,62 @@ export const defaultTheme: Theme = {
   radius: '0.625rem',
 }
 
-// Example: Blue theme
+// Blue theme - Rich blue tones for high contrast
 export const blueTheme: Theme = {
   name: 'blue',
   colors: {
     light: {
-      background: 'oklch(0.99 0.005 240)',
-      foreground: 'oklch(0.2 0.02 240)',
+      background: 'oklch(0.98 0.01 240)',
+      foreground: 'oklch(0.25 0.05 240)',
       card: 'oklch(1 0 0)',
-      cardForeground: 'oklch(0.2 0.02 240)',
+      cardForeground: 'oklch(0.25 0.05 240)',
       popover: 'oklch(1 0 0)',
-      popoverForeground: 'oklch(0.2 0.02 240)',
-      primary: 'oklch(0.5 0.2 240)',
-      primaryForeground: 'oklch(1 0 0)',
-      secondary: 'oklch(0.95 0.01 240)',
-      secondaryForeground: 'oklch(0.2 0.02 240)',
-      muted: 'oklch(0.95 0.01 240)',
-      mutedForeground: 'oklch(0.5 0.01 240)',
-      accent: 'oklch(0.95 0.01 240)',
-      accentForeground: 'oklch(0.2 0.02 240)',
+      popoverForeground: 'oklch(0.25 0.05 240)',
+      primary: 'oklch(0.5 0.18 250)',      // Rich blue
+      primaryForeground: 'oklch(0.99 0 0)',
+      secondary: 'oklch(0.88 0.05 240)',   // Light blue-gray
+      secondaryForeground: 'oklch(0.25 0.05 240)',
+      muted: 'oklch(0.92 0.03 240)',       // Subtle blue tint
+      mutedForeground: 'oklch(0.48 0.05 240)',
+      accent: 'oklch(0.85 0.08 240)',      // Stronger blue accent
+      accentForeground: 'oklch(0.25 0.05 240)',
       destructive: 'oklch(0.577 0.245 27.325)',
-      border: 'oklch(0.9 0.01 240)',
-      input: 'oklch(0.9 0.01 240)',
-      ring: 'oklch(0.5 0.2 240)',
+      border: 'oklch(0.86 0.04 240)',      // Blue-tinted borders
+      input: 'oklch(0.86 0.04 240)',
+      ring: 'oklch(0.5 0.18 250)',
+      chart1: 'oklch(0.55 0.2 250)',       // Blue
+      chart2: 'oklch(0.65 0.15 200)',      // Cyan
+      chart3: 'oklch(0.45 0.18 280)',      // Indigo
+      chart4: 'oklch(0.7 0.12 220)',       // Sky blue
+      chart5: 'oklch(0.5 0.15 260)',       // Purple-blue
     },
     dark: {
-      background: 'oklch(0.15 0.02 240)',
-      foreground: 'oklch(0.95 0.01 240)',
-      card: 'oklch(0.2 0.02 240)',
-      cardForeground: 'oklch(0.95 0.01 240)',
-      popover: 'oklch(0.2 0.02 240)',
-      popoverForeground: 'oklch(0.95 0.01 240)',
-      primary: 'oklch(0.6 0.2 240)',
-      primaryForeground: 'oklch(0.1 0.02 240)',
-      secondary: 'oklch(0.25 0.02 240)',
-      secondaryForeground: 'oklch(0.95 0.01 240)',
-      muted: 'oklch(0.25 0.02 240)',
-      mutedForeground: 'oklch(0.6 0.01 240)',
-      accent: 'oklch(0.25 0.02 240)',
-      accentForeground: 'oklch(0.95 0.01 240)',
+      background: 'oklch(0.18 0.03 240)',
+      foreground: 'oklch(0.95 0.02 240)',
+      card: 'oklch(0.22 0.035 240)',
+      cardForeground: 'oklch(0.95 0.02 240)',
+      popover: 'oklch(0.22 0.035 240)',
+      popoverForeground: 'oklch(0.95 0.02 240)',
+      primary: 'oklch(0.65 0.18 250)',     // Bright blue
+      primaryForeground: 'oklch(0.15 0.03 240)',
+      secondary: 'oklch(0.28 0.04 240)',
+      secondaryForeground: 'oklch(0.95 0.02 240)',
+      muted: 'oklch(0.28 0.04 240)',
+      mutedForeground: 'oklch(0.65 0.04 240)',
+      accent: 'oklch(0.35 0.08 240)',
+      accentForeground: 'oklch(0.95 0.02 240)',
       destructive: 'oklch(0.704 0.191 22.216)',
-      border: 'oklch(0.3 0.02 240)',
-      input: 'oklch(0.3 0.02 240)',
-      ring: 'oklch(0.6 0.2 240)',
+      border: 'oklch(0.32 0.04 240)',
+      input: 'oklch(0.32 0.04 240)',
+      ring: 'oklch(0.65 0.18 250)',
+      chart1: 'oklch(0.6 0.2 250)',
+      chart2: 'oklch(0.7 0.15 200)',
+      chart3: 'oklch(0.5 0.18 280)',
+      chart4: 'oklch(0.75 0.12 220)',
+      chart5: 'oklch(0.55 0.15 260)',
     },
   },
-  radius: '0.5rem',
+  radius: '0.75rem',  // Slightly more rounded than default
 }
 
 // Theme registry
