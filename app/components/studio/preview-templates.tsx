@@ -3,17 +3,27 @@
 import { useState } from 'react'
 import type { DesignSystemConfig } from './design-system-tool'
 import { TypographyTemplate as TypographyTemplateNew } from './preview-templates-typography'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
+import { Progress } from '@/components/ui/progress'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Separator } from '@/components/ui/separator'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
+import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart'
+import { Bar, BarChart, Line, LineChart, XAxis, YAxis, CartesianGrid, Legend, ResponsiveContainer } from 'recharts'
 
 interface PreviewTemplatesProps {
   config: DesignSystemConfig
 }
 
-type Template = 'card' | 'form' | 'blog' | 'typography' | 'layout'
+type Template = 'card' | 'form' | 'blog' | 'typography' | 'layout' | 'dashboard'
 
 export function PreviewTemplates({ config }: PreviewTemplatesProps) {
   const [activeTemplate, setActiveTemplate] = useState<Template>('card')
 
   const templates: { id: Template; label: string }[] = [
+    { id: 'dashboard', label: 'Dashboard' },
     { id: 'card', label: 'Card' },
     { id: 'form', label: 'Form' },
     { id: 'blog', label: 'Blog Post' },
@@ -44,12 +54,492 @@ export function PreviewTemplates({ config }: PreviewTemplatesProps) {
 
       {/* Preview Area */}
       <div className="flex-1 overflow-auto p-8 bg-background">
+        {activeTemplate === 'dashboard' && <DashboardTemplate config={config} />}
         {activeTemplate === 'card' && <CardTemplate config={config} />}
         {activeTemplate === 'form' && <FormTemplate config={config} />}
         {activeTemplate === 'blog' && <BlogTemplate config={config} />}
         {activeTemplate === 'typography' && <TypographyTemplateNew config={config} />}
         {activeTemplate === 'layout' && <LayoutTemplate config={config} />}
       </div>
+    </div>
+  )
+}
+
+function DashboardTemplate({ config }: { config: DesignSystemConfig }) {
+  const [isOpen, setIsOpen] = useState(false)
+  const sans = config.primitives.typography.fontFamilies.sans.stack
+  const mono = config.primitives.typography.fontFamilies.mono.stack
+  const sizes = config.primitives.typography.typeScale.sizes
+
+  // Sample data for charts
+  const revenueData = [
+    { month: 'Jan', revenue: 4200, expenses: 2400 },
+    { month: 'Feb', revenue: 3800, expenses: 2200 },
+    { month: 'Mar', revenue: 5100, expenses: 2800 },
+    { month: 'Apr', revenue: 6200, expenses: 3100 },
+    { month: 'May', revenue: 5800, expenses: 2900 },
+    { month: 'Jun', revenue: 7200, expenses: 3400 }
+  ]
+
+  const trafficData = [
+    { day: 'Mon', visitors: 1200 },
+    { day: 'Tue', visitors: 1900 },
+    { day: 'Wed', visitors: 1600 },
+    { day: 'Thu', visitors: 2100 },
+    { day: 'Fri', visitors: 2400 },
+    { day: 'Sat', visitors: 1800 },
+    { day: 'Sun', visitors: 1400 }
+  ]
+
+  const chartConfig = {
+    revenue: { label: 'Revenue', color: 'hsl(var(--chart-1))' },
+    expenses: { label: 'Expenses', color: 'hsl(var(--chart-2))' },
+    visitors: { label: 'Visitors', color: 'hsl(var(--chart-1))' }
+  }
+
+  return (
+    <div className="max-w-7xl mx-auto space-y-6" style={{ fontFamily: sans }}>
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1
+            className="font-bold text-foreground"
+            style={{ fontSize: sizes['3xl'], fontFamily: sans }}
+          >
+            Analytics Dashboard
+          </h1>
+          <p
+            className="text-muted-foreground mt-1"
+            style={{ fontSize: sizes.sm, fontFamily: sans }}
+          >
+            Welcome back! Here's what's happening with your business.
+          </p>
+        </div>
+        <Badge variant="outline" style={{ fontFamily: sans, fontSize: sizes.xs }}>
+          Live
+        </Badge>
+      </div>
+
+      {/* KPI Cards Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <Card>
+          <CardHeader className="pb-2">
+            <CardDescription style={{ fontFamily: sans, fontSize: sizes.xs }}>
+              Total Revenue
+            </CardDescription>
+            <CardTitle style={{ fontFamily: sans, fontSize: sizes['2xl'] }}>
+              $45,231
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center gap-2">
+              <Badge variant="default" style={{ fontSize: sizes.xs }}>
+                +20.1%
+              </Badge>
+              <span
+                className="text-muted-foreground"
+                style={{ fontSize: sizes.xs, fontFamily: sans }}
+              >
+                from last month
+              </span>
+            </div>
+            <Progress value={65} className="mt-3" />
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-2">
+            <CardDescription style={{ fontFamily: sans, fontSize: sizes.xs }}>
+              Active Users
+            </CardDescription>
+            <CardTitle style={{ fontFamily: sans, fontSize: sizes['2xl'] }}>
+              2,350
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center gap-2">
+              <Badge variant="secondary" style={{ fontSize: sizes.xs }}>
+                +12.5%
+              </Badge>
+              <span
+                className="text-muted-foreground"
+                style={{ fontSize: sizes.xs, fontFamily: sans }}
+              >
+                from last week
+              </span>
+            </div>
+            <Progress value={42} className="mt-3" />
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-2">
+            <CardDescription style={{ fontFamily: sans, fontSize: sizes.xs }}>
+              Conversion Rate
+            </CardDescription>
+            <CardTitle style={{ fontFamily: sans, fontSize: sizes['2xl'] }}>
+              3.24%
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center gap-2">
+              <Badge variant="destructive" style={{ fontSize: sizes.xs }}>
+                -2.3%
+              </Badge>
+              <span
+                className="text-muted-foreground"
+                style={{ fontSize: sizes.xs, fontFamily: sans }}
+              >
+                from last month
+              </span>
+            </div>
+            <Progress value={24} className="mt-3" />
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-2">
+            <CardDescription style={{ fontFamily: sans, fontSize: sizes.xs }}>
+              Total Orders
+            </CardDescription>
+            <CardTitle style={{ fontFamily: sans, fontSize: sizes['2xl'] }}>
+              1,234
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center gap-2">
+              <Badge variant="default" style={{ fontSize: sizes.xs }}>
+                +8.2%
+              </Badge>
+              <span
+                className="text-muted-foreground"
+                style={{ fontSize: sizes.xs, fontFamily: sans }}
+              >
+                from last month
+              </span>
+            </div>
+            <Progress value={78} className="mt-3" />
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Charts Section */}
+      <Tabs defaultValue="revenue" className="w-full">
+        <TabsList style={{ fontFamily: sans, fontSize: sizes.sm }}>
+          <TabsTrigger value="revenue">Revenue & Expenses</TabsTrigger>
+          <TabsTrigger value="traffic">Traffic</TabsTrigger>
+        </TabsList>
+        <TabsContent value="revenue" className="mt-4">
+          <Card>
+            <CardHeader>
+              <CardTitle style={{ fontFamily: sans, fontSize: sizes.xl }}>
+                Revenue vs Expenses
+              </CardTitle>
+              <CardDescription style={{ fontFamily: sans, fontSize: sizes.sm }}>
+                Monthly comparison for the last 6 months
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ChartContainer config={chartConfig} className="h-[300px] w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={revenueData}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis
+                      dataKey="month"
+                      style={{ fontFamily: sans, fontSize: sizes.xs }}
+                    />
+                    <YAxis style={{ fontFamily: sans, fontSize: sizes.xs }} />
+                    <ChartTooltip content={<ChartTooltipContent />} />
+                    <Legend
+                      wrapperStyle={{ fontFamily: sans, fontSize: sizes.sm }}
+                    />
+                    <Bar dataKey="revenue" fill="hsl(var(--chart-1))" />
+                    <Bar dataKey="expenses" fill="hsl(var(--chart-2))" />
+                  </BarChart>
+                </ResponsiveContainer>
+              </ChartContainer>
+            </CardContent>
+          </Card>
+        </TabsContent>
+        <TabsContent value="traffic" className="mt-4">
+          <Card>
+            <CardHeader>
+              <CardTitle style={{ fontFamily: sans, fontSize: sizes.xl }}>
+                Weekly Traffic
+              </CardTitle>
+              <CardDescription style={{ fontFamily: sans, fontSize: sizes.sm }}>
+                Visitor count for the past week
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ChartContainer config={chartConfig} className="h-[300px] w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={trafficData}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis
+                      dataKey="day"
+                      style={{ fontFamily: sans, fontSize: sizes.xs }}
+                    />
+                    <YAxis style={{ fontFamily: sans, fontSize: sizes.xs }} />
+                    <ChartTooltip content={<ChartTooltipContent />} />
+                    <Line
+                      type="monotone"
+                      dataKey="visitors"
+                      stroke="hsl(var(--chart-1))"
+                      strokeWidth={2}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              </ChartContainer>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
+
+      {/* Recent Activity Table */}
+      <Card>
+        <CardHeader>
+          <CardTitle style={{ fontFamily: sans, fontSize: sizes.xl }}>
+            Recent Transactions
+          </CardTitle>
+          <CardDescription style={{ fontFamily: sans, fontSize: sizes.sm }}>
+            You have 23 transactions this month
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead style={{ fontFamily: sans, fontSize: sizes.sm }}>
+                  Customer
+                </TableHead>
+                <TableHead style={{ fontFamily: sans, fontSize: sizes.sm }}>
+                  Status
+                </TableHead>
+                <TableHead style={{ fontFamily: sans, fontSize: sizes.sm }}>
+                  Date
+                </TableHead>
+                <TableHead
+                  className="text-right"
+                  style={{ fontFamily: sans, fontSize: sizes.sm }}
+                >
+                  Amount
+                </TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              <TableRow>
+                <TableCell
+                  className="font-medium"
+                  style={{ fontFamily: sans, fontSize: sizes.sm }}
+                >
+                  Olivia Martin
+                </TableCell>
+                <TableCell>
+                  <Badge variant="default" style={{ fontSize: sizes.xs }}>
+                    Completed
+                  </Badge>
+                </TableCell>
+                <TableCell
+                  style={{ fontFamily: mono, fontSize: sizes.xs }}
+                  className="text-muted-foreground"
+                >
+                  2024-03-15
+                </TableCell>
+                <TableCell
+                  className="text-right font-medium"
+                  style={{ fontFamily: mono, fontSize: sizes.sm }}
+                >
+                  $1,299.00
+                </TableCell>
+              </TableRow>
+              <TableRow>
+                <TableCell
+                  className="font-medium"
+                  style={{ fontFamily: sans, fontSize: sizes.sm }}
+                >
+                  Jackson Lee
+                </TableCell>
+                <TableCell>
+                  <Badge variant="secondary" style={{ fontSize: sizes.xs }}>
+                    Pending
+                  </Badge>
+                </TableCell>
+                <TableCell
+                  style={{ fontFamily: mono, fontSize: sizes.xs }}
+                  className="text-muted-foreground"
+                >
+                  2024-03-14
+                </TableCell>
+                <TableCell
+                  className="text-right font-medium"
+                  style={{ fontFamily: mono, fontSize: sizes.sm }}
+                >
+                  $599.00
+                </TableCell>
+              </TableRow>
+              <TableRow>
+                <TableCell
+                  className="font-medium"
+                  style={{ fontFamily: sans, fontSize: sizes.sm }}
+                >
+                  Isabella Nguyen
+                </TableCell>
+                <TableCell>
+                  <Badge variant="default" style={{ fontSize: sizes.xs }}>
+                    Completed
+                  </Badge>
+                </TableCell>
+                <TableCell
+                  style={{ fontFamily: mono, fontSize: sizes.xs }}
+                  className="text-muted-foreground"
+                >
+                  2024-03-13
+                </TableCell>
+                <TableCell
+                  className="text-right font-medium"
+                  style={{ fontFamily: mono, fontSize: sizes.sm }}
+                >
+                  $899.00
+                </TableCell>
+              </TableRow>
+              <TableRow>
+                <TableCell
+                  className="font-medium"
+                  style={{ fontFamily: sans, fontSize: sizes.sm }}
+                >
+                  William Kim
+                </TableCell>
+                <TableCell>
+                  <Badge variant="destructive" style={{ fontSize: sizes.xs }}>
+                    Failed
+                  </Badge>
+                </TableCell>
+                <TableCell
+                  style={{ fontFamily: mono, fontSize: sizes.xs }}
+                  className="text-muted-foreground"
+                >
+                  2024-03-12
+                </TableCell>
+                <TableCell
+                  className="text-right font-medium"
+                  style={{ fontFamily: mono, fontSize: sizes.sm }}
+                >
+                  $299.00
+                </TableCell>
+              </TableRow>
+              <TableRow>
+                <TableCell
+                  className="font-medium"
+                  style={{ fontFamily: sans, fontSize: sizes.sm }}
+                >
+                  Sofia Davis
+                </TableCell>
+                <TableCell>
+                  <Badge variant="default" style={{ fontSize: sizes.xs }}>
+                    Completed
+                  </Badge>
+                </TableCell>
+                <TableCell
+                  style={{ fontFamily: mono, fontSize: sizes.xs }}
+                  className="text-muted-foreground"
+                >
+                  2024-03-11
+                </TableCell>
+                <TableCell
+                  className="text-right font-medium"
+                  style={{ fontFamily: mono, fontSize: sizes.sm }}
+                >
+                  $1,999.00
+                </TableCell>
+              </TableRow>
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+
+      <Separator />
+
+      {/* Collapsible Section */}
+      <Collapsible open={isOpen} onOpenChange={setIsOpen}>
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle style={{ fontFamily: sans, fontSize: sizes.lg }}>
+                  System Settings
+                </CardTitle>
+                <CardDescription style={{ fontFamily: sans, fontSize: sizes.sm }}>
+                  Advanced configuration options
+                </CardDescription>
+              </div>
+              <CollapsibleTrigger asChild>
+                <button
+                  className="px-3 py-1 text-sm border rounded hover:bg-accent"
+                  style={{ fontFamily: sans, fontSize: sizes.sm }}
+                >
+                  {isOpen ? 'Hide' : 'Show'}
+                </button>
+              </CollapsibleTrigger>
+            </div>
+          </CardHeader>
+          <CollapsibleContent>
+            <CardContent className="space-y-3">
+              <div className="flex items-center justify-between py-2 border-b">
+                <div>
+                  <div
+                    className="font-medium"
+                    style={{ fontFamily: sans, fontSize: sizes.sm }}
+                  >
+                    Enable notifications
+                  </div>
+                  <div
+                    className="text-muted-foreground"
+                    style={{ fontFamily: sans, fontSize: sizes.xs }}
+                  >
+                    Receive email updates about your account
+                  </div>
+                </div>
+                <div className="w-10 h-6 bg-primary rounded-full" />
+              </div>
+              <div className="flex items-center justify-between py-2 border-b">
+                <div>
+                  <div
+                    className="font-medium"
+                    style={{ fontFamily: sans, fontSize: sizes.sm }}
+                  >
+                    Two-factor authentication
+                  </div>
+                  <div
+                    className="text-muted-foreground"
+                    style={{ fontFamily: sans, fontSize: sizes.xs }}
+                  >
+                    Add an extra layer of security
+                  </div>
+                </div>
+                <div className="w-10 h-6 bg-muted rounded-full" />
+              </div>
+              <div className="flex items-center justify-between py-2">
+                <div>
+                  <div
+                    className="font-medium"
+                    style={{ fontFamily: sans, fontSize: sizes.sm }}
+                  >
+                    Marketing emails
+                  </div>
+                  <div
+                    className="text-muted-foreground"
+                    style={{ fontFamily: sans, fontSize: sizes.xs }}
+                  >
+                    Receive product updates and offers
+                  </div>
+                </div>
+                <div className="w-10 h-6 bg-primary rounded-full" />
+              </div>
+            </CardContent>
+          </CollapsibleContent>
+        </Card>
+      </Collapsible>
     </div>
   )
 }
