@@ -326,6 +326,7 @@ export function DesignSystemTool() {
   const [config, setConfig] = useState<DesignSystemConfig>(getDefaultConfig())
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [showExport, setShowExport] = useState(false)
+  const [themeMode, setThemeMode] = useState<'light' | 'dark'>('light')
 
   // Track current theme colors for injection
   const [currentThemeColors, setCurrentThemeColors] = useState<any>(null)
@@ -460,9 +461,8 @@ export function DesignSystemTool() {
 
     // Colors - either from predefined theme or custom config
     if (currentThemeColors) {
-      // We're viewing a predefined theme, inject its colors
-      // Note: Tailwind uses light mode by default in .design-system-preview
-      const colors = currentThemeColors.light || currentThemeColors.dark
+      // We're viewing a predefined theme, inject its colors based on theme mode
+      const colors = themeMode === 'dark' ? currentThemeColors.dark : currentThemeColors.light
 
       Object.entries(colors).forEach(([key, value]: [string, any]) => {
         // Convert camelCase to kebab-case for CSS variables
@@ -470,11 +470,11 @@ export function DesignSystemTool() {
         cssVariables.push(`  --${cssKey}: ${value};`)
       })
     } else if (primitives.colors) {
-      // We're in custom mode, use ColorSystemConfig
-      // For now, inject light mode colors (we can add dark mode support later)
+      // We're in custom mode, use ColorSystemConfig based on theme mode
       Object.entries(primitives.colors).forEach(([key, colorPair]) => {
         const cssKey = key.replace(/([A-Z])/g, '-$1').toLowerCase()
-        const oklchValue = getTailwindColor(colorPair.light.scale, colorPair.light.shade)
+        const colorConfig = themeMode === 'dark' ? colorPair.dark : colorPair.light
+        const oklchValue = getTailwindColor(colorConfig.scale, colorConfig.shade)
         cssVariables.push(`  --${cssKey}: ${oklchValue};`)
       })
     }
@@ -538,7 +538,7 @@ ${cssVariables.join('\n')}
       styleElement.textContent = allStyles.join('\n')
       document.head.appendChild(styleElement)
     }
-  }, [config, currentThemeColors])
+  }, [config, currentThemeColors, themeMode])
 
   return (
     <div className="h-screen flex flex-col">
@@ -569,6 +569,31 @@ ${cssVariables.join('\n')}
                 </option>
               ))}
             </select>
+          </div>
+
+          {/* Light/Dark Mode Toggle */}
+          <div className="flex items-center gap-2 border-l pl-3">
+            <span className="text-sm text-muted-foreground">Mode:</span>
+            <button
+              onClick={() => setThemeMode(themeMode === 'light' ? 'dark' : 'light')}
+              className="relative inline-flex h-6 w-11 items-center rounded-full transition-colors"
+              style={{
+                borderRadius: '9999px',
+                backgroundColor: themeMode === 'dark' ? 'hsl(var(--primary))' : 'hsl(var(--muted))'
+              }}
+              title={`Switch to ${themeMode === 'light' ? 'dark' : 'light'} mode`}
+            >
+              <span
+                className="inline-block h-4 w-4 transform rounded-full shadow-sm transition-transform"
+                style={{
+                  backgroundColor: themeMode === 'dark' ? 'hsl(var(--primary-foreground))' : 'hsl(var(--background))',
+                  transform: themeMode === 'dark' ? 'translateX(1.5rem)' : 'translateX(0.25rem)'
+                }}
+              />
+            </button>
+            <span className="text-xs font-medium w-10">
+              {themeMode === 'light' ? 'Light' : 'Dark'}
+            </span>
           </div>
 
           <button
