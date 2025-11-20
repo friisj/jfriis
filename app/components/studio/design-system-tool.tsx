@@ -13,6 +13,7 @@ import { ThemeExport } from './theme-export'
 import { themes } from '@/lib/themes/theme-config'
 
 import type { FontWeight } from '@/lib/fonts/font-scanner'
+import type { TailwindScale, Shade, ScaleShade } from '@/lib/tailwind-colors'
 
 export interface FontFaceRule {
   family: string
@@ -35,6 +36,27 @@ export interface FontFamilyConfig {
     bold: FontWeight
     extrabold?: FontWeight
   }
+}
+
+export interface ColorSystemConfig {
+  // Semantic color roles using Tailwind scales
+  background: { light: ScaleShade; dark: ScaleShade }
+  foreground: { light: ScaleShade; dark: ScaleShade }
+  card: { light: ScaleShade; dark: ScaleShade }
+  cardForeground: { light: ScaleShade; dark: ScaleShade }
+  primary: { light: ScaleShade; dark: ScaleShade }
+  primaryForeground: { light: ScaleShade; dark: ScaleShade }
+  secondary: { light: ScaleShade; dark: ScaleShade }
+  secondaryForeground: { light: ScaleShade; dark: ScaleShade }
+  muted: { light: ScaleShade; dark: ScaleShade }
+  mutedForeground: { light: ScaleShade; dark: ScaleShade }
+  accent: { light: ScaleShade; dark: ScaleShade }
+  accentForeground: { light: ScaleShade; dark: ScaleShade }
+  destructive: { light: ScaleShade; dark: ScaleShade }
+  destructiveForeground: { light: ScaleShade; dark: ScaleShade }
+  border: { light: ScaleShade; dark: ScaleShade }
+  input: { light: ScaleShade; dark: ScaleShade }
+  ring: { light: ScaleShade; dark: ScaleShade }
 }
 
 export type DesignSystemConfig = {
@@ -91,6 +113,7 @@ export type DesignSystemConfig = {
         wider: string
       }
     }
+    colors: ColorSystemConfig
   }
   semantic: {
     spacing: Record<string, string>
