@@ -601,9 +601,12 @@ function FormTemplate({ config }: { config: DesignSystemConfig }) {
   const spacing = config.semantic.spacing['component-padding']
   const radius = config.semantic.radius.surface
   const interactiveRadius = config.semantic.radius.interactive
+  const sans = config.primitives.typography.fontFamilies.sans.stack
+  const sizes = config.primitives.typography.typeScale.sizes
+  const lineHeights = config.primitives.typography.lineHeights
 
   return (
-    <div className="max-w-lg mx-auto">
+    <div className="max-w-2xl mx-auto">
       <div
         className="border bg-card text-card-foreground"
         style={{ borderRadius: radius, padding: spacing }}
@@ -611,102 +614,311 @@ function FormTemplate({ config }: { config: DesignSystemConfig }) {
         <h2
           className="font-semibold mb-2"
           style={{
-            fontFamily: config.primitives.typography.fontFamilies.sans.stack,
-            fontSize: config.primitives.typography.typeScale.sizes.xl,
-            lineHeight: config.primitives.typography.lineHeights.tight
+            fontFamily: sans,
+            fontSize: sizes.xl,
+            lineHeight: lineHeights.tight
           }}
         >
-          Contact Form
+          Account Settings
         </h2>
         <p
           className="text-muted-foreground mb-6"
           style={{
-            fontFamily: config.primitives.typography.fontFamilies.sans.stack,
-            fontSize: config.primitives.typography.typeScale.sizes.sm,
-            lineHeight: config.primitives.typography.lineHeights.normal
+            fontFamily: sans,
+            fontSize: sizes.sm,
+            lineHeight: lineHeights.normal
           }}
         >
-          Fill out the form below to get in touch
+          Manage your account preferences and notification settings
         </p>
 
-        <div className="space-y-4">
-          <div>
-            <label
-              className="block mb-2 font-medium"
-              style={{
-                fontFamily: config.primitives.typography.fontFamilies.sans.stack,
-                fontSize: config.primitives.typography.typeScale.sizes.sm
-              }}
-            >
-              Full Name
-            </label>
-            <input
-              type="text"
-              className="w-full px-3 py-2 border bg-background"
-              style={{
-                borderRadius: interactiveRadius,
-                fontFamily: config.primitives.typography.fontFamilies.sans.stack,
-                fontSize: config.primitives.typography.typeScale.sizes.sm
-              }}
-              placeholder="Enter your name"
-            />
+        <div className="space-y-6">
+          {/* Text Inputs */}
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label
+                className="block mb-2 font-medium text-sm"
+                style={{ fontFamily: sans, fontSize: sizes.sm }}
+              >
+                First Name
+              </label>
+              <input
+                type="text"
+                className="w-full px-3 py-2 border border-input bg-background"
+                style={{ borderRadius: interactiveRadius, fontFamily: sans, fontSize: sizes.sm }}
+                placeholder="John"
+              />
+            </div>
+            <div>
+              <label
+                className="block mb-2 font-medium text-sm"
+                style={{ fontFamily: sans, fontSize: sizes.sm }}
+              >
+                Last Name
+              </label>
+              <input
+                type="text"
+                className="w-full px-3 py-2 border border-input bg-background"
+                style={{ borderRadius: interactiveRadius, fontFamily: sans, fontSize: sizes.sm }}
+                placeholder="Doe"
+              />
+            </div>
           </div>
 
           <div>
             <label
-              className="block mb-2 font-medium"
-              style={{
-                fontFamily: config.primitives.typography.fontFamilies.sans.stack,
-                fontSize: config.primitives.typography.typeScale.sizes.sm
-              }}
+              className="block mb-2 font-medium text-sm"
+              style={{ fontFamily: sans, fontSize: sizes.sm }}
             >
               Email Address
             </label>
             <input
               type="email"
-              className="w-full px-3 py-2 border bg-background"
-              style={{
-                borderRadius: interactiveRadius,
-                fontFamily: config.primitives.typography.fontFamilies.sans.stack,
-                fontSize: config.primitives.typography.typeScale.sizes.sm
-              }}
-              placeholder="you@example.com"
+              className="w-full px-3 py-2 border border-input bg-background"
+              style={{ borderRadius: interactiveRadius, fontFamily: sans, fontSize: sizes.sm }}
+              placeholder="john.doe@example.com"
             />
           </div>
 
+          {/* Select Dropdown */}
           <div>
             <label
-              className="block mb-2 font-medium"
-              style={{
-                fontFamily: config.primitives.typography.fontFamilies.sans.stack,
-                fontSize: config.primitives.typography.typeScale.sizes.sm
-              }}
+              className="block mb-2 font-medium text-sm"
+              style={{ fontFamily: sans, fontSize: sizes.sm }}
             >
-              Message
+              Country
             </label>
-            <textarea
-              className="w-full px-3 py-2 border bg-background"
-              style={{
-                borderRadius: interactiveRadius,
-                fontFamily: config.primitives.typography.fontFamilies.sans.stack,
-                fontSize: config.primitives.typography.typeScale.sizes.sm,
-                lineHeight: config.primitives.typography.lineHeights.normal
-              }}
-              rows={4}
-              placeholder="Your message here..."
-            />
+            <select
+              className="w-full px-3 py-2 border border-input bg-background"
+              style={{ borderRadius: interactiveRadius, fontFamily: sans, fontSize: sizes.sm }}
+            >
+              <option>United States</option>
+              <option>Canada</option>
+              <option>United Kingdom</option>
+              <option>Australia</option>
+              <option>Germany</option>
+            </select>
           </div>
 
-          <button
-            className="w-full px-4 py-2 bg-primary text-primary-foreground font-medium"
-            style={{
-              borderRadius: interactiveRadius,
-              fontFamily: config.primitives.typography.fontFamilies.sans.stack,
-              fontSize: config.primitives.typography.typeScale.sizes.sm
-            }}
-          >
-            Send Message
-          </button>
+          {/* Radio Buttons */}
+          <div>
+            <label
+              className="block mb-3 font-medium text-sm"
+              style={{ fontFamily: sans, fontSize: sizes.sm }}
+            >
+              Account Type
+            </label>
+            <div className="space-y-2">
+              <label className="flex items-center gap-2">
+                <input
+                  type="radio"
+                  name="accountType"
+                  className="w-4 h-4 text-primary border-input"
+                  defaultChecked
+                />
+                <span style={{ fontFamily: sans, fontSize: sizes.sm }}>
+                  Personal
+                </span>
+              </label>
+              <label className="flex items-center gap-2">
+                <input
+                  type="radio"
+                  name="accountType"
+                  className="w-4 h-4 text-primary border-input"
+                />
+                <span style={{ fontFamily: sans, fontSize: sizes.sm }}>
+                  Business
+                </span>
+              </label>
+              <label className="flex items-center gap-2">
+                <input
+                  type="radio"
+                  name="accountType"
+                  className="w-4 h-4 text-primary border-input"
+                />
+                <span style={{ fontFamily: sans, fontSize: sizes.sm }}>
+                  Enterprise
+                </span>
+              </label>
+            </div>
+          </div>
+
+          {/* Checkboxes */}
+          <div>
+            <label
+              className="block mb-3 font-medium text-sm"
+              style={{ fontFamily: sans, fontSize: sizes.sm }}
+            >
+              Notification Preferences
+            </label>
+            <div className="space-y-2">
+              <label className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  className="w-4 h-4 text-primary border-input"
+                  style={{ borderRadius: '0.25rem' }}
+                  defaultChecked
+                />
+                <span style={{ fontFamily: sans, fontSize: sizes.sm }}>
+                  Email notifications
+                </span>
+              </label>
+              <label className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  className="w-4 h-4 text-primary border-input"
+                  style={{ borderRadius: '0.25rem' }}
+                  defaultChecked
+                />
+                <span style={{ fontFamily: sans, fontSize: sizes.sm }}>
+                  Push notifications
+                </span>
+              </label>
+              <label className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  className="w-4 h-4 text-primary border-input"
+                  style={{ borderRadius: '0.25rem' }}
+                />
+                <span style={{ fontFamily: sans, fontSize: sizes.sm }}>
+                  SMS notifications
+                </span>
+              </label>
+              <label className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  className="w-4 h-4 text-primary border-input"
+                  style={{ borderRadius: '0.25rem' }}
+                />
+                <span style={{ fontFamily: sans, fontSize: sizes.sm }}>
+                  Marketing emails
+                </span>
+              </label>
+            </div>
+          </div>
+
+          {/* Toggle Switches */}
+          <div className="space-y-3 pt-2 border-t">
+            <div className="flex items-center justify-between">
+              <div>
+                <div
+                  className="font-medium"
+                  style={{ fontFamily: sans, fontSize: sizes.sm }}
+                >
+                  Two-factor Authentication
+                </div>
+                <p
+                  className="text-muted-foreground"
+                  style={{ fontFamily: sans, fontSize: sizes.xs }}
+                >
+                  Add an extra layer of security to your account
+                </p>
+              </div>
+              <button
+                className="relative inline-flex h-6 w-11 items-center rounded-full bg-muted transition-colors"
+                style={{ borderRadius: '9999px' }}
+              >
+                <span className="inline-block h-4 w-4 transform rounded-full bg-background shadow-sm transition-transform translate-x-1" />
+              </button>
+            </div>
+
+            <div className="flex items-center justify-between">
+              <div>
+                <div
+                  className="font-medium"
+                  style={{ fontFamily: sans, fontSize: sizes.sm }}
+                >
+                  Public Profile
+                </div>
+                <p
+                  className="text-muted-foreground"
+                  style={{ fontFamily: sans, fontSize: sizes.xs }}
+                >
+                  Make your profile visible to everyone
+                </p>
+              </div>
+              <button
+                className="relative inline-flex h-6 w-11 items-center rounded-full bg-primary transition-colors"
+                style={{ borderRadius: '9999px' }}
+              >
+                <span className="inline-block h-4 w-4 transform rounded-full bg-primary-foreground shadow-sm transition-transform translate-x-6" />
+              </button>
+            </div>
+
+            <div className="flex items-center justify-between">
+              <div>
+                <div
+                  className="font-medium"
+                  style={{ fontFamily: sans, fontSize: sizes.sm }}
+                >
+                  Activity Status
+                </div>
+                <p
+                  className="text-muted-foreground"
+                  style={{ fontFamily: sans, fontSize: sizes.xs }}
+                >
+                  Show when you're active
+                </p>
+              </div>
+              <button
+                className="relative inline-flex h-6 w-11 items-center rounded-full bg-primary transition-colors"
+                style={{ borderRadius: '9999px' }}
+              >
+                <span className="inline-block h-4 w-4 transform rounded-full bg-primary-foreground shadow-sm transition-transform translate-x-6" />
+              </button>
+            </div>
+          </div>
+
+          {/* Textarea */}
+          <div>
+            <label
+              className="block mb-2 font-medium text-sm"
+              style={{ fontFamily: sans, fontSize: sizes.sm }}
+            >
+              Bio
+            </label>
+            <textarea
+              className="w-full px-3 py-2 border border-input bg-background"
+              style={{
+                borderRadius: interactiveRadius,
+                fontFamily: sans,
+                fontSize: sizes.sm,
+                lineHeight: lineHeights.normal
+              }}
+              rows={3}
+              placeholder="Tell us about yourself..."
+            />
+            <p
+              className="text-muted-foreground mt-1"
+              style={{ fontFamily: sans, fontSize: sizes.xs }}
+            >
+              Brief description for your profile. Max 500 characters.
+            </p>
+          </div>
+
+          {/* Action Buttons */}
+          <div className="flex gap-3 pt-4 border-t">
+            <button
+              className="flex-1 px-4 py-2 border border-input bg-background font-medium hover:bg-accent transition-colors"
+              style={{
+                borderRadius: interactiveRadius,
+                fontFamily: sans,
+                fontSize: sizes.sm
+              }}
+            >
+              Cancel
+            </button>
+            <button
+              className="flex-1 px-4 py-2 bg-primary text-primary-foreground font-medium hover:bg-primary/90 transition-colors"
+              style={{
+                borderRadius: interactiveRadius,
+                fontFamily: sans,
+                fontSize: sizes.sm
+              }}
+            >
+              Save Changes
+            </button>
+          </div>
         </div>
       </div>
     </div>
