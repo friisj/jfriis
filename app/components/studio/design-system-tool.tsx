@@ -552,6 +552,7 @@ export function DesignSystemTool() {
 .design-system-preview {
 ${cssVariables.join('\n')}
 ${tailwindColorMappings.map(m => '  ' + m).join('\n')}
+  font-family: var(--font-sans);
 }
 
 `)
