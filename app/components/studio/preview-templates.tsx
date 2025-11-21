@@ -749,12 +749,12 @@ function FormTemplate({ config }: { config: DesignSystemConfig }) {
 
 function BlogTemplate({ config }: { config: DesignSystemConfig }) {
   return (
-    <article className="max-w-3xl mx-auto prose prose-lg prose-neutral">
+    <article className="max-w-3xl mx-auto text-foreground">
       <h1 className="font-serif text-4xl font-bold mb-2 leading-tight">
         The Evolution of Modern Design Systems
       </h1>
 
-      <div className="flex items-center gap-4 text-muted-foreground text-sm pb-6 border-b mb-8 not-prose">
+      <div className="flex items-center gap-4 text-muted-foreground text-sm pb-6 border-b mb-8">
         <span>By Jane Designer</span>
         <span>•</span>
         <span>March 15, 2024</span>
@@ -793,7 +793,7 @@ function BlogTemplate({ config }: { config: DesignSystemConfig }) {
         <li><strong>Component tokens</strong>: Specific values for individual component variants</li>
       </ul>
 
-      <div className="bg-muted rounded-lg p-4 my-6 border font-mono text-sm not-prose">
+      <div className="bg-muted rounded-lg p-4 my-6 border font-mono text-sm">
         <pre><code>{`// Example design token structure
 const tokens = {
   color: {
@@ -820,7 +820,7 @@ const tokens = {
         <li><strong>Iterate based on feedback</strong> from designers and developers</li>
       </ol>
 
-      <div className="bg-accent border-l-4 border-primary rounded-r-lg p-6 my-8 not-prose">
+      <div className="bg-accent border-l-4 border-primary rounded-r-lg p-6 my-8">
         <p className="font-semibold mb-2">💡 Pro Tip</p>
         <p>
           Start small with spacing and color tokens. You can always expand your system as your team
@@ -835,7 +835,7 @@ const tokens = {
         maintainable design at any scale.
       </p>
 
-      <div className="border-t pt-6 mt-12 flex items-center justify-between text-muted-foreground text-sm not-prose">
+      <div className="border-t pt-6 mt-12 flex items-center justify-between text-muted-foreground text-sm">
         <div className="flex gap-3">
           <Badge variant="secondary">Design Systems</Badge>
           <Badge variant="secondary">UI/UX</Badge>
@@ -849,7 +849,7 @@ const tokens = {
 
 function TypographyTemplate({ config }: { config: DesignSystemConfig }) {
   return (
-    <div className="max-w-3xl mx-auto space-y-8">
+    <div className="max-w-3xl mx-auto space-y-8 text-foreground">
       <div>
         <h4 className="text-xs font-medium text-muted-foreground mb-4">TYPE SCALE</h4>
         <div className="space-y-3">
@@ -918,7 +918,7 @@ function LayoutTemplate({ config }: { config: DesignSystemConfig }) {
   const radius = config.semantic.radius
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 text-foreground">
       <div>
         <h4 className="text-xs font-medium text-muted-foreground mb-4">SPACING SCALE</h4>
         <div className="space-y-2">

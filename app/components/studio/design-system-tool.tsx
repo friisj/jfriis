@@ -561,26 +561,6 @@ ${tailwindColorMappings.map(m => '  ' + m).join('\n')}
 .design-system-preview .font-sans { font-family: var(--font-sans); }
 .design-system-preview .font-serif { font-family: var(--font-serif); }
 .design-system-preview .font-mono { font-family: var(--font-mono); }
-
-/* Override prose colors to use theme variables */
-.design-system-preview .prose {
-  --tw-prose-body: var(--foreground);
-  --tw-prose-headings: var(--foreground);
-  --tw-prose-lead: var(--foreground);
-  --tw-prose-links: var(--primary);
-  --tw-prose-bold: var(--foreground);
-  --tw-prose-counters: var(--muted-foreground);
-  --tw-prose-bullets: var(--muted-foreground);
-  --tw-prose-hr: var(--border);
-  --tw-prose-quotes: var(--foreground);
-  --tw-prose-quote-borders: var(--border);
-  --tw-prose-captions: var(--muted-foreground);
-  --tw-prose-code: var(--foreground);
-  --tw-prose-pre-code: var(--foreground);
-  --tw-prose-pre-bg: var(--muted);
-  --tw-prose-th-borders: var(--border);
-  --tw-prose-td-borders: var(--border);
-}
 `)
 
     // Inject all styles
