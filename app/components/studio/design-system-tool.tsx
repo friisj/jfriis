@@ -328,14 +328,16 @@ export function DesignSystemTool() {
   const [showExport, setShowExport] = useState(false)
   const [themeMode, setThemeMode] = useState<'light' | 'dark'>('light')
 
-  // Track current theme colors for injection
+  // Track current theme colors and typography for injection
   const [currentThemeColors, setCurrentThemeColors] = useState<any>(null)
+  const [currentThemeTypography, setCurrentThemeTypography] = useState<any>(null)
 
   // Update config when theme selection changes
   useEffect(() => {
     if (selectedTheme === 'custom') {
       setConfig(customConfig)
       setCurrentThemeColors(null) // Custom doesn't override colors
+      setCurrentThemeTypography(null) // Custom doesn't override typography
     } else {
       // Load predefined theme
       const theme = themes[selectedTheme]
@@ -358,6 +360,7 @@ export function DesignSystemTool() {
 
         setConfig(baseConfig)
         setCurrentThemeColors(theme.colors)  // Store theme colors for injection
+        setCurrentThemeTypography(theme.typography || null)  // Store theme typography for injection
       }
     }
   }, [selectedTheme, customConfig])
@@ -434,10 +437,24 @@ export function DesignSystemTool() {
       })
     cssVariables.push(`  --radius-full: 9999px;`)
 
-    // Typography - Font families
-    cssVariables.push(`  --font-sans: ${fontFamilies.sans.stack};`)
-    cssVariables.push(`  --font-serif: ${fontFamilies.serif.stack};`)
-    cssVariables.push(`  --font-mono: ${fontFamilies.mono.stack};`)
+    // Typography - Font families (use theme typography if available)
+    if (currentThemeTypography) {
+      // Use typography from predefined theme
+      if (currentThemeTypography.fontSans) {
+        cssVariables.push(`  --font-sans: ${currentThemeTypography.fontSans};`)
+      }
+      if (currentThemeTypography.fontSerif) {
+        cssVariables.push(`  --font-serif: ${currentThemeTypography.fontSerif};`)
+      }
+      if (currentThemeTypography.fontMono) {
+        cssVariables.push(`  --font-mono: ${currentThemeTypography.fontMono};`)
+      }
+    } else {
+      // Use custom config font families
+      cssVariables.push(`  --font-sans: ${fontFamilies.sans.stack};`)
+      cssVariables.push(`  --font-serif: ${fontFamilies.serif.stack};`)
+      cssVariables.push(`  --font-mono: ${fontFamilies.mono.stack};`)
+    }
 
     // Typography - Font sizes (map to Tailwind scale)
     Object.entries(primitives.typography.typeScale.sizes).forEach(([name, size]) => {
@@ -538,7 +555,7 @@ ${cssVariables.join('\n')}
       styleElement.textContent = allStyles.join('\n')
       document.head.appendChild(styleElement)
     }
-  }, [config, currentThemeColors, themeMode])
+  }, [config, currentThemeColors, currentThemeTypography, themeMode])
 
   return (
     <div className="h-screen flex flex-col">

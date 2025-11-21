@@ -107,6 +107,10 @@ export const defaultTheme: Theme = {
       chart5: 'oklch(0.645 0.246 16.439)',
     },
   },
+  typography: {
+    fontSans: 'ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji"',
+    fontMono: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
+  },
   radius: '0.625rem',
 }
 
@@ -164,6 +168,10 @@ export const blueTheme: Theme = {
       chart4: 'oklch(0.75 0.12 220)',
       chart5: 'oklch(0.55 0.15 260)',
     },
+  },
+  typography: {
+    fontSans: 'var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif',
+    fontMono: 'var(--font-geist-mono), ui-monospace, monospace',
   },
   radius: '0.75rem',  // Slightly more rounded than default
 }
