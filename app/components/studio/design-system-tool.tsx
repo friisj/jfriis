@@ -553,6 +553,8 @@ export function DesignSystemTool() {
 ${cssVariables.join('\n')}
 ${tailwindColorMappings.map(m => '  ' + m).join('\n')}
   font-family: var(--font-sans);
+  color: var(--foreground);
+  background-color: var(--background);
 }
 
 /* Map Tailwind font classes to preview fonts */
