@@ -19,8 +19,35 @@ export const SHADES = [50, 100, 200, 300, 400, 500, 600, 700, 800, 900, 950] as 
 export type Shade = typeof SHADES[number]
 
 export interface ScaleShade {
-  scale: TailwindScale
+  scale: TailwindScale | 'custom'
   shade: Shade
+  // Custom OKLCH values (only used when scale === 'custom')
+  customOklch?: {
+    l: number  // Lightness: 0-100
+    c: number  // Chroma: 0-0.4
+    h: number  // Hue: 0-360
+  }
+}
+
+/**
+ * Convert custom OKLCH values to CSS oklch() string
+ */
+export function formatOklch(l: number, c: number, h: number): string {
+  // Convert L from 0-100 to 0-1 for CSS
+  const lNormalized = l / 100
+  return `oklch(${lNormalized.toFixed(3)} ${c.toFixed(3)} ${h.toFixed(1)})`
+}
+
+/**
+ * Get color value from ScaleShade configuration
+ * Handles both Tailwind scales and custom OKLCH values
+ */
+export function getColorValue(scaleShade: ScaleShade): string {
+  if (scaleShade.scale === 'custom' && scaleShade.customOklch) {
+    const { l, c, h } = scaleShade.customOklch
+    return formatOklch(l, c, h)
+  }
+  return getTailwindColor(scaleShade.scale as TailwindScale, scaleShade.shade)
 }
 
 /**

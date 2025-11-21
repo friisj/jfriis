@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import type { DesignSystemConfig } from './design-system-tool'
-import { getTailwindColor } from '@/lib/tailwind-colors'
+import { getColorValue } from '@/lib/tailwind-colors'
 
 interface ThemeExportProps {
   config: DesignSystemConfig
@@ -103,10 +103,18 @@ export function ThemeExport({ config, onBack }: ThemeExportProps) {
     const colorTokens = Object.entries(primitives.colors)
       .map(([name, colorPair]) => {
         const cssKey = name.replace(/([A-Z])/g, '-$1').toLowerCase()
-        const lightColor = getTailwindColor(colorPair.light.scale, colorPair.light.shade)
-        const darkColor = getTailwindColor(colorPair.dark.scale, colorPair.dark.shade)
-        return `  --${cssKey}: ${lightColor}; /* ${colorPair.light.scale}-${colorPair.light.shade} */
-  /* Dark mode: ${darkColor} (${colorPair.dark.scale}-${colorPair.dark.shade}) */`
+        const lightColor = getColorValue(colorPair.light)
+        const darkColor = getColorValue(colorPair.dark)
+
+        const lightLabel = colorPair.light.scale === 'custom'
+          ? 'custom'
+          : `${colorPair.light.scale}-${colorPair.light.shade}`
+        const darkLabel = colorPair.dark.scale === 'custom'
+          ? 'custom'
+          : `${colorPair.dark.scale}-${colorPair.dark.shade}`
+
+        return `  --${cssKey}: ${lightColor}; /* ${lightLabel} */
+  /* Dark mode: ${darkColor} (${darkLabel}) */`
       })
       .join('\n')
 

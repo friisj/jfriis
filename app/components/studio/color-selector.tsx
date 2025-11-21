@@ -1,7 +1,9 @@
 'use client'
 
-import { TAILWIND_SCALES, SHADES, getTailwindColor, getScaleLabel, getShadeLabel } from '@/lib/tailwind-colors'
+import { useState } from 'react'
+import { TAILWIND_SCALES, SHADES, getTailwindColor, getScaleLabel, getShadeLabel, getColorValue } from '@/lib/tailwind-colors'
 import type { ScaleShade } from '@/lib/tailwind-colors'
+import { OklchPicker } from './oklch-picker'
 
 interface ColorSelectorProps {
   value: ScaleShade
@@ -10,7 +12,31 @@ interface ColorSelectorProps {
 }
 
 export function ColorSelector({ value, onChange, label }: ColorSelectorProps) {
-  const currentColor = getTailwindColor(value.scale, value.shade)
+  const [showCustomPicker, setShowCustomPicker] = useState(value.scale === 'custom')
+  const currentColor = getColorValue(value)
+
+  const handleScaleChange = (newScale: string) => {
+    if (newScale === 'custom') {
+      // Initialize with default OKLCH values when switching to custom
+      onChange({
+        scale: 'custom',
+        shade: 500, // Not used for custom but keep for type compatibility
+        customOklch: value.customOklch || { l: 50, c: 0.15, h: 240 }
+      })
+      setShowCustomPicker(true)
+    } else {
+      onChange({ scale: newScale as any, shade: value.shade })
+      setShowCustomPicker(false)
+    }
+  }
+
+  const handleCustomOklchChange = (l: number, c: number, h: number) => {
+    onChange({
+      ...value,
+      scale: 'custom',
+      customOklch: { l, c, h }
+    })
+  }
 
   return (
     <div className="space-y-2">
@@ -23,13 +49,13 @@ export function ColorSelector({ value, onChange, label }: ColorSelectorProps) {
         <div
           className="w-10 h-10 rounded-md border border-border shadow-sm"
           style={{ backgroundColor: currentColor }}
-          title={`${getScaleLabel(value.scale)} ${getShadeLabel(value.shade)}`}
+          title={value.scale === 'custom' ? 'Custom OKLCH' : `${getScaleLabel(value.scale as any)} ${getShadeLabel(value.shade)}`}
         />
 
         {/* Scale Selector */}
         <select
           value={value.scale}
-          onChange={(e) => onChange({ ...value, scale: e.target.value as any })}
+          onChange={(e) => handleScaleChange(e.target.value)}
           className="flex-1 px-3 py-2 border rounded-md bg-background text-sm hover:bg-accent transition-colors"
         >
           {TAILWIND_SCALES.map((scale) => (
@@ -37,26 +63,43 @@ export function ColorSelector({ value, onChange, label }: ColorSelectorProps) {
               {getScaleLabel(scale)}
             </option>
           ))}
+          <option value="custom">Custom OKLCH</option>
         </select>
 
-        {/* Shade Selector */}
-        <select
-          value={value.shade}
-          onChange={(e) => onChange({ ...value, shade: parseInt(e.target.value) as any })}
-          className="w-24 px-3 py-2 border rounded-md bg-background text-sm hover:bg-accent transition-colors"
-        >
-          {SHADES.map((shade) => (
-            <option key={shade} value={shade}>
-              {shade}
-            </option>
-          ))}
-        </select>
+        {/* Shade Selector (hidden for custom) */}
+        {!showCustomPicker && (
+          <select
+            value={value.shade}
+            onChange={(e) => onChange({ ...value, shade: parseInt(e.target.value) as any })}
+            className="w-24 px-3 py-2 border rounded-md bg-background text-sm hover:bg-accent transition-colors"
+          >
+            {SHADES.map((shade) => (
+              <option key={shade} value={shade}>
+                {shade}
+              </option>
+            ))}
+          </select>
+        )}
       </div>
 
-      {/* Color value display */}
-      <div className="text-xs text-muted-foreground font-mono">
-        {currentColor}
-      </div>
+      {/* Custom OKLCH Picker */}
+      {showCustomPicker && value.customOklch && (
+        <div className="mt-3 p-3 border rounded-md bg-muted/30">
+          <OklchPicker
+            l={value.customOklch.l}
+            c={value.customOklch.c}
+            h={value.customOklch.h}
+            onChange={handleCustomOklchChange}
+          />
+        </div>
+      )}
+
+      {/* Color value display (for non-custom) */}
+      {!showCustomPicker && (
+        <div className="text-xs text-muted-foreground font-mono">
+          {currentColor}
+        </div>
+      )}
     </div>
   )
 }

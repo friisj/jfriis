@@ -11,7 +11,7 @@ import {
 import { ChevronRight, Download, Sun, Moon } from 'lucide-react'
 import { ThemeExport } from './theme-export'
 import { themes } from '@/lib/themes/theme-config'
-import { getTailwindColor } from '@/lib/tailwind-colors'
+import { getColorValue } from '@/lib/tailwind-colors'
 
 import type { FontWeight } from '@/lib/fonts/font-scanner'
 import type { TailwindScale, Shade, ScaleShade } from '@/lib/tailwind-colors'
@@ -474,7 +474,7 @@ export function DesignSystemTool() {
       Object.entries(primitives.colors).forEach(([key, colorPair]) => {
         const cssKey = key.replace(/([A-Z])/g, '-$1').toLowerCase()
         const colorConfig = themeMode === 'dark' ? colorPair.dark : colorPair.light
-        const oklchValue = getTailwindColor(colorConfig.scale, colorConfig.shade)
+        const oklchValue = getColorValue(colorConfig)
         cssVariables.push(`  --${cssKey}: ${oklchValue};`)
       })
     }
