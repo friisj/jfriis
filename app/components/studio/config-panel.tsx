@@ -5,6 +5,8 @@ import type { DesignSystemConfig } from './design-system-tool'
 import { FontFamilySelector } from './font-family-selector'
 import { ColorPairSelector } from './color-selector'
 import type { ScaleShade } from '@/lib/tailwind-colors'
+import { generateStyledPalette, type SeedColor, type PaletteStyle } from '@/lib/palette-generator'
+import { OklchPicker } from './oklch-picker'
 
 interface ConfigPanelProps {
   config: DesignSystemConfig
@@ -639,6 +641,9 @@ function ColorConfig({
   config: DesignSystemConfig
   updateConfig: (updates: Partial<DesignSystemConfig>) => void
 }) {
+  const [brandColor, setBrandColor] = useState<SeedColor>({ l: 50, c: 0.2, h: 240 })
+  const [paletteStyle, setPaletteStyle] = useState<PaletteStyle>('complementary')
+
   const updateColor = (
     colorKey: keyof typeof config.primitives.colors,
     light: ScaleShade,
@@ -655,13 +660,99 @@ function ColorConfig({
     })
   }
 
+  const handleGeneratePalette = () => {
+    const generatedColors = generateStyledPalette(brandColor, paletteStyle)
+    updateConfig({
+      primitives: {
+        ...config.primitives,
+        colors: generatedColors
+      }
+    })
+  }
+
+  // Format OKLCH for display
+  const formatOklch = (l: number, c: number, h: number) =>
+    `oklch(${(l / 100).toFixed(2)} ${c.toFixed(3)} ${h.toFixed(0)})`
+
   return (
     <div className="space-y-6">
       <div>
         <h3 className="font-semibold mb-2">Color System</h3>
         <p className="text-sm text-muted-foreground mb-4">
-          Semantic colors using Tailwind color scales
+          Generate a palette from brand colors or customize individual colors
         </p>
+      </div>
+
+      {/* Palette Generator */}
+      <div className="p-4 border rounded-lg bg-card space-y-4">
+        <div>
+          <h4 className="text-sm font-semibold mb-1">Generate from Brand Color</h4>
+          <p className="text-xs text-muted-foreground">
+            Pick your primary brand color and choose a palette style
+          </p>
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          {/* Brand Color Picker */}
+          <div className="space-y-2">
+            <label className="text-xs font-medium">Brand Color</label>
+            <div className="flex items-center gap-2 mb-2">
+              <div
+                className="w-10 h-10 rounded-md border shadow-sm"
+                style={{ backgroundColor: formatOklch(brandColor.l, brandColor.c, brandColor.h) }}
+              />
+              <span className="text-xs font-mono text-muted-foreground">
+                {formatOklch(brandColor.l, brandColor.c, brandColor.h)}
+              </span>
+            </div>
+            <OklchPicker
+              l={brandColor.l}
+              c={brandColor.c}
+              h={brandColor.h}
+              onChange={(l, c, h) => setBrandColor({ l, c, h })}
+            />
+          </div>
+
+          {/* Palette Style */}
+          <div className="space-y-2">
+            <label className="text-xs font-medium">Palette Style</label>
+            <div className="space-y-2">
+              {([
+                { value: 'complementary', label: 'Complementary', desc: 'Balanced contrast' },
+                { value: 'vibrant', label: 'Vibrant', desc: 'High energy' },
+                { value: 'muted', label: 'Muted', desc: 'Subtle & soft' },
+                { value: 'monochrome', label: 'Monochrome', desc: 'Single hue' },
+              ] as const).map((style) => (
+                <button
+                  key={style.value}
+                  onClick={() => setPaletteStyle(style.value)}
+                  className={`w-full text-left px-3 py-2 text-sm border rounded transition-colors ${
+                    paletteStyle === style.value
+                      ? 'border-primary bg-primary/10'
+                      : 'hover:bg-muted'
+                  }`}
+                >
+                  <div className="font-medium">{style.label}</div>
+                  <div className="text-xs text-muted-foreground">{style.desc}</div>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <button
+          onClick={handleGeneratePalette}
+          className="w-full py-2 bg-primary text-primary-foreground rounded-lg font-medium hover:bg-primary/90 transition-colors"
+        >
+          Generate Palette
+        </button>
+      </div>
+
+      {/* Divider */}
+      <div className="flex items-center gap-4">
+        <div className="flex-1 border-t" />
+        <span className="text-xs text-muted-foreground">or customize individually</span>
+        <div className="flex-1 border-t" />
       </div>
 
       <div className="space-y-4">
