@@ -520,10 +520,38 @@ export function DesignSystemTool() {
     }
 
     // Wrap CSS variables in a scoped selector for the preview area
+    // We need both the raw variables (--foreground) AND the Tailwind mappings (--color-foreground)
+    const tailwindColorMappings = [
+      '--color-background: var(--background);',
+      '--color-foreground: var(--foreground);',
+      '--color-card: var(--card);',
+      '--color-card-foreground: var(--card-foreground);',
+      '--color-popover: var(--popover);',
+      '--color-popover-foreground: var(--popover-foreground);',
+      '--color-primary: var(--primary);',
+      '--color-primary-foreground: var(--primary-foreground);',
+      '--color-secondary: var(--secondary);',
+      '--color-secondary-foreground: var(--secondary-foreground);',
+      '--color-muted: var(--muted);',
+      '--color-muted-foreground: var(--muted-foreground);',
+      '--color-accent: var(--accent);',
+      '--color-accent-foreground: var(--accent-foreground);',
+      '--color-destructive: var(--destructive);',
+      '--color-border: var(--border);',
+      '--color-input: var(--input);',
+      '--color-ring: var(--ring);',
+      '--color-chart-1: var(--chart-1);',
+      '--color-chart-2: var(--chart-2);',
+      '--color-chart-3: var(--chart-3);',
+      '--color-chart-4: var(--chart-4);',
+      '--color-chart-5: var(--chart-5);',
+    ]
+
     allStyles.push(`
 /* Design System Preview Theme */
 .design-system-preview {
 ${cssVariables.join('\n')}
+${tailwindColorMappings.map(m => '  ' + m).join('\n')}
 }
 
 /* Override Tailwind's default theme within preview */

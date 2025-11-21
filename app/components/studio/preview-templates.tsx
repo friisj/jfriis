@@ -947,7 +947,6 @@ function BlogTemplate({ config }: { config: DesignSystemConfig }) {
     <article className="max-w-3xl mx-auto prose prose-lg">
       {/* Title */}
       <h1
-        className="text-foreground"
         style={{
           fontFamily: serif,
           fontSize: sizes['4xl'],
@@ -977,7 +976,7 @@ function BlogTemplate({ config }: { config: DesignSystemConfig }) {
 
       {/* Lead paragraph */}
       <p
-        className="text-lg text-foreground"
+        className="text-lg"
         style={{
           fontFamily: serif,
           fontSize: sizes.lg,
@@ -992,7 +991,6 @@ function BlogTemplate({ config }: { config: DesignSystemConfig }) {
 
       {/* Heading 2 */}
       <h2
-        className="text-foreground"
         style={{
           fontFamily: serif,
           fontSize: sizes['2xl'],
@@ -1007,7 +1005,6 @@ function BlogTemplate({ config }: { config: DesignSystemConfig }) {
 
       {/* Body paragraph */}
       <p
-        className="text-foreground"
         style={{
           fontFamily: serif,
           fontSize: sizes.base,
@@ -1022,7 +1019,7 @@ function BlogTemplate({ config }: { config: DesignSystemConfig }) {
 
       {/* Blockquote */}
       <blockquote
-        className="border-l-4 border-primary pl-6 my-8 text-foreground"
+        className="border-l-4 border-primary pl-6 my-8"
         style={{
           fontFamily: serif,
           fontSize: sizes.lg,
@@ -1036,7 +1033,6 @@ function BlogTemplate({ config }: { config: DesignSystemConfig }) {
 
       {/* Heading 3 */}
       <h3
-        className="text-foreground"
         style={{
           fontFamily: serif,
           fontSize: sizes.xl,
@@ -1051,7 +1047,7 @@ function BlogTemplate({ config }: { config: DesignSystemConfig }) {
 
       {/* Unordered list */}
       <ul
-        className="space-y-2 my-6 text-foreground"
+        className="space-y-2 my-6"
         style={{
           fontFamily: serif,
           fontSize: sizes.base,
@@ -1098,7 +1094,6 @@ const tokens = {
 
       {/* Ordered list */}
       <h3
-        className="text-foreground"
         style={{
           fontFamily: serif,
           fontSize: sizes.xl,
@@ -1112,7 +1107,7 @@ const tokens = {
       </h3>
 
       <ol
-        className="space-y-3 my-6 text-foreground"
+        className="space-y-3 my-6"
         style={{
           fontFamily: serif,
           fontSize: sizes.base,
@@ -1156,7 +1151,6 @@ const tokens = {
 
       {/* Final paragraph */}
       <p
-        className="text-foreground"
         style={{
           fontFamily: serif,
           fontSize: sizes.base,
