@@ -554,49 +554,6 @@ ${cssVariables.join('\n')}
 ${tailwindColorMappings.map(m => '  ' + m).join('\n')}
 }
 
-/* Override Tailwind's default theme within preview */
-.design-system-preview {
-  font-family: var(--font-sans);
-}
-
-/* Theme-aware utility classes for preview */
-.design-system-preview .theme-text-xs { font-size: var(--font-size-xs); }
-.design-system-preview .theme-text-sm { font-size: var(--font-size-sm); }
-.design-system-preview .theme-text-base { font-size: var(--font-size-base); }
-.design-system-preview .theme-text-lg { font-size: var(--font-size-lg); }
-.design-system-preview .theme-text-xl { font-size: var(--font-size-xl); }
-.design-system-preview .theme-text-2xl { font-size: var(--font-size-2xl); }
-.design-system-preview .theme-text-3xl { font-size: var(--font-size-3xl); }
-.design-system-preview .theme-text-4xl { font-size: var(--font-size-4xl); }
-.design-system-preview .theme-text-5xl { font-size: var(--font-size-5xl); }
-
-.design-system-preview .theme-font-sans { font-family: var(--font-sans); }
-.design-system-preview .theme-font-serif { font-family: var(--font-serif); }
-.design-system-preview .theme-font-mono { font-family: var(--font-mono); }
-
-.design-system-preview .theme-p-1 { padding: var(--spacing-1); }
-.design-system-preview .theme-p-2 { padding: var(--spacing-2); }
-.design-system-preview .theme-p-3 { padding: var(--spacing-3); }
-.design-system-preview .theme-p-4 { padding: var(--spacing-4); }
-.design-system-preview .theme-p-6 { padding: var(--spacing-6); }
-.design-system-preview .theme-p-8 { padding: var(--spacing-8); }
-
-.design-system-preview .theme-rounded { border-radius: var(--radius-DEFAULT); }
-.design-system-preview .theme-rounded-sm { border-radius: var(--radius-sm); }
-.design-system-preview .theme-rounded-md { border-radius: var(--radius-md); }
-.design-system-preview .theme-rounded-lg { border-radius: var(--radius-lg); }
-.design-system-preview .theme-rounded-xl { border-radius: var(--radius-xl); }
-.design-system-preview .theme-rounded-full { border-radius: var(--radius-full); }
-
-.design-system-preview .theme-gap-2 { gap: var(--spacing-2); }
-.design-system-preview .theme-gap-3 { gap: var(--spacing-3); }
-.design-system-preview .theme-gap-4 { gap: var(--spacing-4); }
-.design-system-preview .theme-gap-6 { gap: var(--spacing-6); }
-
-.design-system-preview .theme-space-y-2 > * + * { margin-top: var(--spacing-2); }
-.design-system-preview .theme-space-y-3 > * + * { margin-top: var(--spacing-3); }
-.design-system-preview .theme-space-y-4 > * + * { margin-top: var(--spacing-4); }
-.design-system-preview .theme-space-y-6 > * + * { margin-top: var(--spacing-6); }
 `)
 
     // Inject all styles

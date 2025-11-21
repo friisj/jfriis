@@ -547,162 +547,97 @@ function DashboardTemplate({ config }: { config: DesignSystemConfig }) {
 
 function CardTemplate({ config }: { config: DesignSystemConfig }) {
   return (
-    <div className="max-w-2xl mx-auto theme-space-y-6">
-      <div className="border bg-card text-card-foreground theme-rounded-lg theme-p-4">
-        <h3 className="theme-font-sans theme-text-lg font-semibold mb-2 leading-tight">
-          Product Card Example
-        </h3>
-        <p className="theme-font-sans theme-text-sm text-muted-foreground mb-4 leading-normal">
-          This card demonstrates your spacing, radius, and typography configuration in action.
-        </p>
-        <div className="flex theme-gap-3">
-          <button className="px-4 py-2 bg-primary text-primary-foreground font-medium theme-rounded theme-text-sm theme-font-sans">
-            Primary Action
-          </button>
-          <button className="px-4 py-2 border font-medium theme-rounded theme-text-sm theme-font-sans">
-            Secondary
-          </button>
-        </div>
-      </div>
+    <div className="max-w-2xl mx-auto space-y-6">
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg">Product Card Example</CardTitle>
+          <CardDescription>
+            This card demonstrates your spacing, radius, and typography configuration in action.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex gap-3">
+            <button className="px-4 py-2 bg-primary text-primary-foreground font-medium rounded-md text-sm">
+              Primary Action
+            </button>
+            <button className="px-4 py-2 border rounded-md font-medium text-sm">
+              Secondary
+            </button>
+          </div>
+        </CardContent>
+      </Card>
 
-      <div className="border bg-card text-card-foreground theme-rounded-lg theme-p-4">
-        <div className="flex items-start justify-between mb-4">
-          <div>
-            <h3 className="theme-font-sans theme-text-base font-semibold leading-tight">
-              Settings Panel
-            </h3>
-            <p className="theme-font-sans theme-text-xs text-muted-foreground leading-normal">
-              Configure your preferences
-            </p>
-          </div>
-          <button className="text-muted-foreground hover:text-foreground theme-text-sm">
-            ✕
-          </button>
-        </div>
-        <div className="theme-space-y-3">
-          <div className="flex items-center justify-between py-2 border-b">
-            <span className="theme-font-sans theme-text-sm">
-              Enable notifications
-            </span>
-            <button
-              className="relative inline-flex h-6 w-11 items-center rounded-full bg-primary transition-colors"
-              style={{ borderRadius: '9999px' }}
-            >
-              <span className="inline-block h-4 w-4 transform rounded-full bg-primary-foreground shadow-sm transition-transform translate-x-6" />
+      <Card>
+        <CardHeader>
+          <div className="flex items-start justify-between">
+            <div>
+              <CardTitle className="text-base">Settings Panel</CardTitle>
+              <CardDescription>Configure your preferences</CardDescription>
+            </div>
+            <button className="text-muted-foreground hover:text-foreground text-sm">
+              ✕
             </button>
           </div>
+        </CardHeader>
+        <CardContent className="space-y-3">
           <div className="flex items-center justify-between py-2 border-b">
-            <span className="theme-font-sans theme-text-sm">
-              Dark mode
-            </span>
-            <button
-              className="relative inline-flex h-6 w-11 items-center rounded-full bg-muted transition-colors"
-              style={{ borderRadius: '9999px' }}
-            >
-              <span className="inline-block h-4 w-4 transform rounded-full bg-background shadow-sm transition-transform translate-x-1" />
-            </button>
+            <span className="text-sm">Enable notifications</span>
+            <Switch defaultChecked />
           </div>
-        </div>
-      </div>
+          <div className="flex items-center justify-between py-2 border-b">
+            <span className="text-sm">Dark mode</span>
+            <Switch />
+          </div>
+        </CardContent>
+      </Card>
     </div>
   )
 }
 
 function FormTemplate({ config }: { config: DesignSystemConfig }) {
-  const spacing = config.semantic.spacing['component-padding']
-  const radius = config.semantic.radius.surface
-  const interactiveRadius = config.semantic.radius.interactive
-  const sans = config.primitives.typography.fontFamilies.sans.stack
-  const sizes = config.primitives.typography.typeScale.sizes
-  const lineHeights = config.primitives.typography.lineHeights
-
   return (
     <div className="max-w-2xl mx-auto">
-      <div
-        className="border bg-card text-card-foreground"
-        style={{ borderRadius: radius, padding: spacing }}
-      >
-        <h2
-          className="font-semibold mb-2"
-          style={{
-            fontFamily: sans,
-            fontSize: sizes.xl,
-            lineHeight: lineHeights.tight
-          }}
-        >
-          Account Settings
-        </h2>
-        <p
-          className="text-muted-foreground mb-6"
-          style={{
-            fontFamily: sans,
-            fontSize: sizes.sm,
-            lineHeight: lineHeights.normal
-          }}
-        >
-          Manage your account preferences and notification settings
-        </p>
-
-        <div className="space-y-6">
+      <Card>
+        <CardHeader>
+          <CardTitle>Account Settings</CardTitle>
+          <CardDescription>
+            Manage your account preferences and notification settings
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
           {/* Text Inputs */}
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label
-                className="block mb-2 font-medium text-sm"
-                style={{ fontFamily: sans, fontSize: sizes.sm }}
-              >
-                First Name
-              </label>
+              <label className="block mb-2 font-medium text-sm">First Name</label>
               <input
                 type="text"
-                className="w-full px-3 py-2 border border-input bg-background"
-                style={{ borderRadius: interactiveRadius, fontFamily: sans, fontSize: sizes.sm }}
+                className="w-full px-3 py-2 border border-input bg-background rounded-md text-sm"
                 placeholder="John"
               />
             </div>
             <div>
-              <label
-                className="block mb-2 font-medium text-sm"
-                style={{ fontFamily: sans, fontSize: sizes.sm }}
-              >
-                Last Name
-              </label>
+              <label className="block mb-2 font-medium text-sm">Last Name</label>
               <input
                 type="text"
-                className="w-full px-3 py-2 border border-input bg-background"
-                style={{ borderRadius: interactiveRadius, fontFamily: sans, fontSize: sizes.sm }}
+                className="w-full px-3 py-2 border border-input bg-background rounded-md text-sm"
                 placeholder="Doe"
               />
             </div>
           </div>
 
           <div>
-            <label
-              className="block mb-2 font-medium text-sm"
-              style={{ fontFamily: sans, fontSize: sizes.sm }}
-            >
-              Email Address
-            </label>
+            <label className="block mb-2 font-medium text-sm">Email Address</label>
             <input
               type="email"
-              className="w-full px-3 py-2 border border-input bg-background"
-              style={{ borderRadius: interactiveRadius, fontFamily: sans, fontSize: sizes.sm }}
+              className="w-full px-3 py-2 border border-input bg-background rounded-md text-sm"
               placeholder="john.doe@example.com"
             />
           </div>
 
           {/* Select Dropdown */}
           <div>
-            <label
-              className="block mb-2 font-medium text-sm"
-              style={{ fontFamily: sans, fontSize: sizes.sm }}
-            >
-              Country
-            </label>
-            <select
-              className="w-full px-3 py-2 border border-input bg-background"
-              style={{ borderRadius: interactiveRadius, fontFamily: sans, fontSize: sizes.sm }}
-            >
+            <label className="block mb-2 font-medium text-sm">Country</label>
+            <select className="w-full px-3 py-2 border border-input bg-background rounded-md text-sm">
               <option>United States</option>
               <option>Canada</option>
               <option>United Kingdom</option>
@@ -713,260 +648,113 @@ function FormTemplate({ config }: { config: DesignSystemConfig }) {
 
           {/* Radio Buttons */}
           <div>
-            <label
-              className="block mb-3 font-medium text-sm"
-              style={{ fontFamily: sans, fontSize: sizes.sm }}
-            >
-              Account Type
-            </label>
+            <label className="block mb-3 font-medium text-sm">Account Type</label>
             <div className="space-y-2">
               <label className="flex items-center gap-2">
-                <input
-                  type="radio"
-                  name="accountType"
-                  className="w-4 h-4 text-primary border-input"
-                  defaultChecked
-                />
-                <span style={{ fontFamily: sans, fontSize: sizes.sm }}>
-                  Personal
-                </span>
+                <input type="radio" name="accountType" className="w-4 h-4" defaultChecked />
+                <span className="text-sm">Personal</span>
               </label>
               <label className="flex items-center gap-2">
-                <input
-                  type="radio"
-                  name="accountType"
-                  className="w-4 h-4 text-primary border-input"
-                />
-                <span style={{ fontFamily: sans, fontSize: sizes.sm }}>
-                  Business
-                </span>
+                <input type="radio" name="accountType" className="w-4 h-4" />
+                <span className="text-sm">Business</span>
               </label>
               <label className="flex items-center gap-2">
-                <input
-                  type="radio"
-                  name="accountType"
-                  className="w-4 h-4 text-primary border-input"
-                />
-                <span style={{ fontFamily: sans, fontSize: sizes.sm }}>
-                  Enterprise
-                </span>
+                <input type="radio" name="accountType" className="w-4 h-4" />
+                <span className="text-sm">Enterprise</span>
               </label>
             </div>
           </div>
 
           {/* Checkboxes */}
           <div>
-            <label
-              className="block mb-3 font-medium text-sm"
-              style={{ fontFamily: sans, fontSize: sizes.sm }}
-            >
-              Notification Preferences
-            </label>
+            <label className="block mb-3 font-medium text-sm">Notification Preferences</label>
             <div className="space-y-2">
               <label className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  className="w-4 h-4 text-primary border-input"
-                  style={{ borderRadius: '0.25rem' }}
-                  defaultChecked
-                />
-                <span style={{ fontFamily: sans, fontSize: sizes.sm }}>
-                  Email notifications
-                </span>
+                <input type="checkbox" className="w-4 h-4 rounded" defaultChecked />
+                <span className="text-sm">Email notifications</span>
               </label>
               <label className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  className="w-4 h-4 text-primary border-input"
-                  style={{ borderRadius: '0.25rem' }}
-                  defaultChecked
-                />
-                <span style={{ fontFamily: sans, fontSize: sizes.sm }}>
-                  Push notifications
-                </span>
+                <input type="checkbox" className="w-4 h-4 rounded" defaultChecked />
+                <span className="text-sm">Push notifications</span>
               </label>
               <label className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  className="w-4 h-4 text-primary border-input"
-                  style={{ borderRadius: '0.25rem' }}
-                />
-                <span style={{ fontFamily: sans, fontSize: sizes.sm }}>
-                  SMS notifications
-                </span>
+                <input type="checkbox" className="w-4 h-4 rounded" />
+                <span className="text-sm">SMS notifications</span>
               </label>
               <label className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  className="w-4 h-4 text-primary border-input"
-                  style={{ borderRadius: '0.25rem' }}
-                />
-                <span style={{ fontFamily: sans, fontSize: sizes.sm }}>
-                  Marketing emails
-                </span>
+                <input type="checkbox" className="w-4 h-4 rounded" />
+                <span className="text-sm">Marketing emails</span>
               </label>
             </div>
           </div>
 
           {/* Toggle Switches */}
-          <div className="space-y-3 pt-2 border-t">
+          <div className="space-y-4 pt-4 border-t">
             <div className="flex items-center justify-between">
               <div>
-                <div
-                  className="font-medium"
-                  style={{ fontFamily: sans, fontSize: sizes.sm }}
-                >
-                  Two-factor Authentication
-                </div>
-                <p
-                  className="text-muted-foreground"
-                  style={{ fontFamily: sans, fontSize: sizes.xs }}
-                >
+                <div className="font-medium text-sm">Two-factor Authentication</div>
+                <p className="text-muted-foreground text-xs">
                   Add an extra layer of security to your account
                 </p>
               </div>
-              <button
-                className="relative inline-flex h-6 w-11 items-center rounded-full bg-muted transition-colors"
-                style={{ borderRadius: '9999px' }}
-              >
-                <span className="inline-block h-4 w-4 transform rounded-full bg-background shadow-sm transition-transform translate-x-1" />
-              </button>
+              <Switch />
             </div>
 
             <div className="flex items-center justify-between">
               <div>
-                <div
-                  className="font-medium"
-                  style={{ fontFamily: sans, fontSize: sizes.sm }}
-                >
-                  Public Profile
-                </div>
-                <p
-                  className="text-muted-foreground"
-                  style={{ fontFamily: sans, fontSize: sizes.xs }}
-                >
+                <div className="font-medium text-sm">Public Profile</div>
+                <p className="text-muted-foreground text-xs">
                   Make your profile visible to everyone
                 </p>
               </div>
-              <button
-                className="relative inline-flex h-6 w-11 items-center rounded-full bg-primary transition-colors"
-                style={{ borderRadius: '9999px' }}
-              >
-                <span className="inline-block h-4 w-4 transform rounded-full bg-primary-foreground shadow-sm transition-transform translate-x-6" />
-              </button>
+              <Switch defaultChecked />
             </div>
 
             <div className="flex items-center justify-between">
               <div>
-                <div
-                  className="font-medium"
-                  style={{ fontFamily: sans, fontSize: sizes.sm }}
-                >
-                  Activity Status
-                </div>
-                <p
-                  className="text-muted-foreground"
-                  style={{ fontFamily: sans, fontSize: sizes.xs }}
-                >
-                  Show when you're active
-                </p>
+                <div className="font-medium text-sm">Activity Status</div>
+                <p className="text-muted-foreground text-xs">Show when you're active</p>
               </div>
-              <button
-                className="relative inline-flex h-6 w-11 items-center rounded-full bg-primary transition-colors"
-                style={{ borderRadius: '9999px' }}
-              >
-                <span className="inline-block h-4 w-4 transform rounded-full bg-primary-foreground shadow-sm transition-transform translate-x-6" />
-              </button>
+              <Switch defaultChecked />
             </div>
           </div>
 
           {/* Textarea */}
           <div>
-            <label
-              className="block mb-2 font-medium text-sm"
-              style={{ fontFamily: sans, fontSize: sizes.sm }}
-            >
-              Bio
-            </label>
+            <label className="block mb-2 font-medium text-sm">Bio</label>
             <textarea
-              className="w-full px-3 py-2 border border-input bg-background"
-              style={{
-                borderRadius: interactiveRadius,
-                fontFamily: sans,
-                fontSize: sizes.sm,
-                lineHeight: lineHeights.normal
-              }}
+              className="w-full px-3 py-2 border border-input bg-background rounded-md text-sm"
               rows={3}
               placeholder="Tell us about yourself..."
             />
-            <p
-              className="text-muted-foreground mt-1"
-              style={{ fontFamily: sans, fontSize: sizes.xs }}
-            >
+            <p className="text-muted-foreground text-xs mt-1">
               Brief description for your profile. Max 500 characters.
             </p>
           </div>
 
           {/* Action Buttons */}
           <div className="flex gap-3 pt-4 border-t">
-            <button
-              className="flex-1 px-4 py-2 border border-input bg-background font-medium hover:bg-accent transition-colors"
-              style={{
-                borderRadius: interactiveRadius,
-                fontFamily: sans,
-                fontSize: sizes.sm
-              }}
-            >
+            <button className="flex-1 px-4 py-2 border border-input bg-background font-medium rounded-md text-sm hover:bg-accent transition-colors">
               Cancel
             </button>
-            <button
-              className="flex-1 px-4 py-2 bg-primary text-primary-foreground font-medium hover:bg-primary/90 transition-colors"
-              style={{
-                borderRadius: interactiveRadius,
-                fontFamily: sans,
-                fontSize: sizes.sm
-              }}
-            >
+            <button className="flex-1 px-4 py-2 bg-primary text-primary-foreground font-medium rounded-md text-sm hover:bg-primary/90 transition-colors">
               Save Changes
             </button>
           </div>
-        </div>
-      </div>
+        </CardContent>
+      </Card>
     </div>
   )
 }
 
 function BlogTemplate({ config }: { config: DesignSystemConfig }) {
-  const sans = config.primitives.typography.fontFamilies.sans.stack
-  const serif = config.primitives.typography.fontFamilies.serif.stack
-  const mono = config.primitives.typography.fontFamilies.mono.stack
-  const sizes = config.primitives.typography.typeScale.sizes
-  const lineHeights = config.primitives.typography.lineHeights
-
   return (
-    <article className="max-w-3xl mx-auto prose prose-lg">
-      {/* Title */}
-      <h1
-        style={{
-          fontFamily: serif,
-          fontSize: sizes['4xl'],
-          lineHeight: lineHeights.tight,
-          fontWeight: 700,
-          marginBottom: '0.5em'
-        }}
-      >
+    <article className="max-w-3xl mx-auto prose prose-lg dark:prose-invert">
+      <h1 className="font-serif text-4xl font-bold mb-2 leading-tight">
         The Evolution of Modern Design Systems
       </h1>
 
-      {/* Meta */}
-      <div
-        className="flex items-center gap-4 text-muted-foreground pb-6 border-b mb-8"
-        style={{
-          fontFamily: sans,
-          fontSize: sizes.sm,
-          lineHeight: lineHeights.normal
-        }}
-      >
+      <div className="flex items-center gap-4 text-muted-foreground text-sm pb-6 border-b mb-8 not-prose">
         <span>By Jane Designer</span>
         <span>•</span>
         <span>March 15, 2024</span>
@@ -974,110 +762,39 @@ function BlogTemplate({ config }: { config: DesignSystemConfig }) {
         <span>8 min read</span>
       </div>
 
-      {/* Lead paragraph */}
-      <p
-        className="text-lg"
-        style={{
-          fontFamily: serif,
-          fontSize: sizes.lg,
-          lineHeight: lineHeights.relaxed,
-          marginBottom: '1.5em'
-        }}
-      >
+      <p className="text-lg font-serif leading-relaxed">
         Design systems have fundamentally transformed how teams build digital products. What started
         as simple style guides has evolved into comprehensive, living ecosystems that power modern
         user interfaces.
       </p>
 
-      {/* Heading 2 */}
-      <h2
-        style={{
-          fontFamily: serif,
-          fontSize: sizes['2xl'],
-          lineHeight: lineHeights.tight,
-          fontWeight: 700,
-          marginTop: '2em',
-          marginBottom: '0.75em'
-        }}
-      >
+      <h2 className="font-serif text-2xl font-bold mt-8 mb-3 leading-tight">
         The Foundation: Design Tokens
       </h2>
 
-      {/* Body paragraph */}
-      <p
-        style={{
-          fontFamily: serif,
-          fontSize: sizes.base,
-          lineHeight: lineHeights.relaxed,
-          marginBottom: '1.25em'
-        }}
-      >
+      <p className="font-serif leading-relaxed">
         At the heart of every design system lies a carefully crafted set of design tokens. These
         atomic values define the visual DNA of your product—from spacing and typography to color
         and motion.
       </p>
 
-      {/* Blockquote */}
-      <blockquote
-        className="border-l-4 border-primary pl-6 my-8"
-        style={{
-          fontFamily: serif,
-          fontSize: sizes.lg,
-          lineHeight: lineHeights.normal,
-          fontStyle: 'italic'
-        }}
-      >
+      <blockquote className="border-l-4 border-primary pl-6 my-8 font-serif text-lg italic">
         "Design tokens are the visual design atoms of the design system—specifically, they are named
         entities that store visual design attributes."
       </blockquote>
 
-      {/* Heading 3 */}
-      <h3
-        style={{
-          fontFamily: serif,
-          fontSize: sizes.xl,
-          lineHeight: lineHeights.tight,
-          fontWeight: 600,
-          marginTop: '1.5em',
-          marginBottom: '0.5em'
-        }}
-      >
+      <h3 className="font-serif text-xl font-semibold mt-6 mb-2 leading-tight">
         Key Components of a Token System
       </h3>
 
-      {/* Unordered list */}
-      <ul
-        className="space-y-2 my-6"
-        style={{
-          fontFamily: serif,
-          fontSize: sizes.base,
-          lineHeight: lineHeights.normal,
-          listStyleType: 'disc',
-          paddingLeft: '1.5em'
-        }}
-      >
-        <li>
-          <strong>Primitives</strong>: Raw values like hex colors, pixel dimensions, and font weights
-        </li>
-        <li>
-          <strong>Semantic tokens</strong>: Purpose-driven names that reference primitives
-        </li>
-        <li>
-          <strong>Component tokens</strong>: Specific values for individual component variants
-        </li>
+      <ul className="space-y-2 my-6 font-serif list-disc pl-6">
+        <li><strong>Primitives</strong>: Raw values like hex colors, pixel dimensions, and font weights</li>
+        <li><strong>Semantic tokens</strong>: Purpose-driven names that reference primitives</li>
+        <li><strong>Component tokens</strong>: Specific values for individual component variants</li>
       </ul>
 
-      {/* Code block */}
-      <div
-        className="bg-muted rounded-lg p-4 my-6 border"
-        style={{
-          fontFamily: mono,
-          fontSize: sizes.sm,
-          lineHeight: lineHeights.normal
-        }}
-      >
-        <pre>
-          <code>{`// Example design token structure
+      <div className="bg-muted rounded-lg p-4 my-6 border font-mono text-sm not-prose">
+        <pre><code>{`// Example design token structure
 const tokens = {
   color: {
     primary: '#2563eb',
@@ -1088,60 +805,22 @@ const tokens = {
     md: '16px',
     lg: '24px'
   }
-}`}</code>
-        </pre>
+}`}</code></pre>
       </div>
 
-      {/* Ordered list */}
-      <h3
-        style={{
-          fontFamily: serif,
-          fontSize: sizes.xl,
-          lineHeight: lineHeights.tight,
-          fontWeight: 600,
-          marginTop: '1.5em',
-          marginBottom: '0.5em'
-        }}
-      >
+      <h3 className="font-serif text-xl font-semibold mt-6 mb-2 leading-tight">
         Implementation Steps
       </h3>
 
-      <ol
-        className="space-y-3 my-6"
-        style={{
-          fontFamily: serif,
-          fontSize: sizes.base,
-          lineHeight: lineHeights.normal,
-          listStyleType: 'decimal',
-          paddingLeft: '1.5em'
-        }}
-      >
-        <li>
-          <strong>Audit your existing design</strong> to identify patterns and inconsistencies
-        </li>
-        <li>
-          <strong>Define your token structure</strong> starting with primitives
-        </li>
-        <li>
-          <strong>Map semantic meanings</strong> to create a scalable system
-        </li>
-        <li>
-          <strong>Document usage guidelines</strong> for your team
-        </li>
-        <li>
-          <strong>Iterate based on feedback</strong> from designers and developers
-        </li>
+      <ol className="space-y-3 my-6 font-serif list-decimal pl-6">
+        <li><strong>Audit your existing design</strong> to identify patterns and inconsistencies</li>
+        <li><strong>Define your token structure</strong> starting with primitives</li>
+        <li><strong>Map semantic meanings</strong> to create a scalable system</li>
+        <li><strong>Document usage guidelines</strong> for your team</li>
+        <li><strong>Iterate based on feedback</strong> from designers and developers</li>
       </ol>
 
-      {/* Pull quote / Callout */}
-      <div
-        className="bg-accent border-l-4 border-primary rounded-r-lg p-6 my-8"
-        style={{
-          fontFamily: sans,
-          fontSize: sizes.base,
-          lineHeight: lineHeights.normal
-        }}
-      >
+      <div className="bg-accent border-l-4 border-primary rounded-r-lg p-6 my-8 not-prose">
         <p className="font-semibold mb-2">💡 Pro Tip</p>
         <p>
           Start small with spacing and color tokens. You can always expand your system as your team
@@ -1149,34 +828,18 @@ const tokens = {
         </p>
       </div>
 
-      {/* Final paragraph */}
-      <p
-        style={{
-          fontFamily: serif,
-          fontSize: sizes.base,
-          lineHeight: lineHeights.relaxed,
-          marginTop: '2em'
-        }}
-      >
+      <p className="font-serif leading-relaxed mt-8">
         Building a design system is a journey, not a destination. The most successful systems evolve
         with their products while maintaining consistency and enabling teams to move faster. By
         starting with a solid foundation of design tokens, you set yourself up for scalable,
         maintainable design at any scale.
       </p>
 
-      {/* Footer meta */}
-      <div
-        className="border-t pt-6 mt-12 flex items-center justify-between text-muted-foreground"
-        style={{
-          fontFamily: sans,
-          fontSize: sizes.sm,
-          lineHeight: lineHeights.normal
-        }}
-      >
+      <div className="border-t pt-6 mt-12 flex items-center justify-between text-muted-foreground text-sm not-prose">
         <div className="flex gap-3">
-          <span className="px-3 py-1 bg-muted rounded-full">Design Systems</span>
-          <span className="px-3 py-1 bg-muted rounded-full">UI/UX</span>
-          <span className="px-3 py-1 bg-muted rounded-full">Tokens</span>
+          <Badge variant="secondary">Design Systems</Badge>
+          <Badge variant="secondary">UI/UX</Badge>
+          <Badge variant="secondary">Tokens</Badge>
         </div>
         <button className="hover:text-foreground">Share →</button>
       </div>
