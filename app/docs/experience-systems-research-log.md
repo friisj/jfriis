@@ -552,50 +552,26 @@ const proposal = {
 
 ## Research Timeline {#timeline}
 
-### January 2025
+### Recent Progress
 
-**Week 1**: Foundation
+**Foundation Complete**:
 - ✅ Built design system configurator prototype
 - ✅ Implemented OKLCH palette generator
 - ✅ Created live preview system
 
-**Week 2**: Semantic Layer Exploration
+**Current Work**:
 - ✅ Defined semantic token structure
 - ✅ Created cross-media mapping specification
-- 🔄 Building semantic token editor (in progress)
+- 🔄 Semantic layer exploration
+- 🔄 Evaluation framework design
 
-**Week 3**: Evaluation Framework
-- 🔄 Designing eval dimensions
-- 🔄 Building accessibility evaluator
-- 📅 Brand alignment prototype (planned)
-
-**Week 4**: Generative Adapters
-- 📅 Midjourney adapter prototype (planned)
-- 📅 Claude skill integration (planned)
-
-### February 2025 (Planned)
-
-**Week 1-2**: Agent Integration
-- Claude skills for component generation
-- Rule-based validation
-- Multi-step workflows
-
-**Week 3-4**: Proof of Concept
-- Generate complete landing page (multi-modal)
-- Measure coherence across media
-- User testing with designers
-
-### March 2025 (Planned)
-
-**Week 1-2**: Refinement
-- Iterate based on POC feedback
-- Improve evals and generators
-- Optimize token structure
-
-**Week 3-4**: Documentation & Communication
-- Update whitepaper with learnings
-- Create case studies
-- Prepare demo for stakeholders
+**Next Steps** (Priority order, no timeline estimates):
+1. Semantic token editor implementation
+2. Derivation rules engine
+3. Basic evaluation framework
+4. Cross-media adapters (Midjourney, Sora, etc.)
+5. Claude integration (skills/rules)
+6. Multi-modal proof of concept
 
 ---
 
