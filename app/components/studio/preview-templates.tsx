@@ -10,6 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Separator } from '@/components/ui/separator'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
+import { Switch } from '@/components/ui/switch'
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart'
 import { Bar, BarChart, Line, LineChart, XAxis, YAxis, CartesianGrid, Legend, ResponsiveContainer } from 'recharts'
 
@@ -341,7 +342,7 @@ function DashboardTemplate({ config }: { config: DesignSystemConfig }) {
                   </Badge>
                 </TableCell>
                 <TableCell
-                  style={{ fontFamily: mono, fontSize: sizes.xs }}
+                  style={{ fontFamily: mono, fontSize: sizes.sm }}
                   className="text-muted-foreground"
                 >
                   2024-03-15
@@ -366,7 +367,7 @@ function DashboardTemplate({ config }: { config: DesignSystemConfig }) {
                   </Badge>
                 </TableCell>
                 <TableCell
-                  style={{ fontFamily: mono, fontSize: sizes.xs }}
+                  style={{ fontFamily: mono, fontSize: sizes.sm }}
                   className="text-muted-foreground"
                 >
                   2024-03-14
@@ -391,7 +392,7 @@ function DashboardTemplate({ config }: { config: DesignSystemConfig }) {
                   </Badge>
                 </TableCell>
                 <TableCell
-                  style={{ fontFamily: mono, fontSize: sizes.xs }}
+                  style={{ fontFamily: mono, fontSize: sizes.sm }}
                   className="text-muted-foreground"
                 >
                   2024-03-13
@@ -416,7 +417,7 @@ function DashboardTemplate({ config }: { config: DesignSystemConfig }) {
                   </Badge>
                 </TableCell>
                 <TableCell
-                  style={{ fontFamily: mono, fontSize: sizes.xs }}
+                  style={{ fontFamily: mono, fontSize: sizes.sm }}
                   className="text-muted-foreground"
                 >
                   2024-03-12
@@ -441,7 +442,7 @@ function DashboardTemplate({ config }: { config: DesignSystemConfig }) {
                   </Badge>
                 </TableCell>
                 <TableCell
-                  style={{ fontFamily: mono, fontSize: sizes.xs }}
+                  style={{ fontFamily: mono, fontSize: sizes.sm }}
                   className="text-muted-foreground"
                 >
                   2024-03-11
@@ -484,9 +485,9 @@ function DashboardTemplate({ config }: { config: DesignSystemConfig }) {
             </div>
           </CardHeader>
           <CollapsibleContent>
-            <CardContent className="space-y-3">
-              <div className="flex items-center justify-between py-2 border-b">
-                <div>
+            <CardContent className="space-y-4">
+              <div className="flex items-center justify-between py-3 border-b">
+                <div className="space-y-1">
                   <div
                     className="font-medium"
                     style={{ fontFamily: sans, fontSize: sizes.sm }}
@@ -500,10 +501,10 @@ function DashboardTemplate({ config }: { config: DesignSystemConfig }) {
                     Receive email updates about your account
                   </div>
                 </div>
-                <div className="w-10 h-6 bg-primary rounded-full" />
+                <Switch defaultChecked />
               </div>
-              <div className="flex items-center justify-between py-2 border-b">
-                <div>
+              <div className="flex items-center justify-between py-3 border-b">
+                <div className="space-y-1">
                   <div
                     className="font-medium"
                     style={{ fontFamily: sans, fontSize: sizes.sm }}
@@ -517,10 +518,10 @@ function DashboardTemplate({ config }: { config: DesignSystemConfig }) {
                     Add an extra layer of security
                   </div>
                 </div>
-                <div className="w-10 h-6 bg-muted rounded-full" />
+                <Switch />
               </div>
-              <div className="flex items-center justify-between py-2">
-                <div>
+              <div className="flex items-center justify-between py-3">
+                <div className="space-y-1">
                   <div
                     className="font-medium"
                     style={{ fontFamily: sans, fontSize: sizes.sm }}
@@ -534,7 +535,7 @@ function DashboardTemplate({ config }: { config: DesignSystemConfig }) {
                     Receive product updates and offers
                   </div>
                 </div>
-                <div className="w-10 h-6 bg-primary rounded-full" />
+                <Switch defaultChecked />
               </div>
             </CardContent>
           </CollapsibleContent>
