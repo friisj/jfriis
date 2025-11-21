@@ -362,8 +362,9 @@ export function DesignSystemTool() {
             }
           }
           if (theme.typography.fontSerif) {
+            const serifName = theme.name === 'blue' ? 'Geist' : 'System Serif'
             baseConfig.primitives.typography.fontFamilies.serif = {
-              name: 'System Serif',
+              name: serifName,
               stack: theme.typography.fontSerif,
               source: 'system',
               weights: { normal: 400, medium: 500, semibold: 600, bold: 700 }

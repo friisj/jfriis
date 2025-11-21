@@ -171,6 +171,7 @@ export const blueTheme: Theme = {
   },
   typography: {
     fontSans: 'var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif',
+    fontSerif: 'var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif',
     fontMono: 'var(--font-geist-mono), ui-monospace, monospace',
   },
   radius: '0.75rem',  // Slightly more rounded than default
