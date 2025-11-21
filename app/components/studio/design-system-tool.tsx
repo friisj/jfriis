@@ -555,6 +555,10 @@ ${tailwindColorMappings.map(m => '  ' + m).join('\n')}
   font-family: var(--font-sans);
 }
 
+/* Map Tailwind font classes to preview fonts */
+.design-system-preview .font-sans { font-family: var(--font-sans); }
+.design-system-preview .font-serif { font-family: var(--font-serif); }
+.design-system-preview .font-mono { font-family: var(--font-mono); }
 `)
 
     // Inject all styles
