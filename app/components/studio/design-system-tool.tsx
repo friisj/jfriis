@@ -350,12 +350,34 @@ export function DesignSystemTool() {
           baseConfig.primitives.radius.values = [0, 4, radiusValue * 16, 12, 16, 9999]
         }
 
-        // Use system fonts (predefined themes don't have custom fonts)
-        baseConfig.primitives.typography.fontFamilies.sans = {
-          name: 'system-ui',
-          stack: 'system-ui, -apple-system, sans-serif',
-          source: 'system',
-          weights: { normal: 400, medium: 500, semibold: 600, bold: 700 }
+        // Override font families if theme has typography
+        if (theme.typography) {
+          if (theme.typography.fontSans) {
+            const fontName = theme.name === 'blue' ? 'Geist' : 'System UI'
+            baseConfig.primitives.typography.fontFamilies.sans = {
+              name: fontName,
+              stack: theme.typography.fontSans,
+              source: 'system',
+              weights: { normal: 400, medium: 500, semibold: 600, bold: 700 }
+            }
+          }
+          if (theme.typography.fontSerif) {
+            baseConfig.primitives.typography.fontFamilies.serif = {
+              name: 'System Serif',
+              stack: theme.typography.fontSerif,
+              source: 'system',
+              weights: { normal: 400, medium: 500, semibold: 600, bold: 700 }
+            }
+          }
+          if (theme.typography.fontMono) {
+            const monoName = theme.name === 'blue' ? 'Geist Mono' : 'System Mono'
+            baseConfig.primitives.typography.fontFamilies.mono = {
+              name: monoName,
+              stack: theme.typography.fontMono,
+              source: 'system',
+              weights: { normal: 400, medium: 500, semibold: 600, bold: 700 }
+            }
+          }
         }
 
         setConfig(baseConfig)
