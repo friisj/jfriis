@@ -749,7 +749,7 @@ function FormTemplate({ config }: { config: DesignSystemConfig }) {
 
 function BlogTemplate({ config }: { config: DesignSystemConfig }) {
   return (
-    <article className="max-w-3xl mx-auto prose prose-lg dark:prose-invert">
+    <article className="max-w-3xl mx-auto">
       <h1 className="font-serif text-4xl font-bold mb-2 leading-tight">
         The Evolution of Modern Design Systems
       </h1>
