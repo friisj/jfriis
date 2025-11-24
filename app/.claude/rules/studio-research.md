@@ -86,6 +86,14 @@ When building prototypes in `/app/studio/`:
 - **Keep it separate**: Don't mix studio prototype code with production site code
 - **Refactor on promotion**: If prototype becomes a site feature, rebuild with production quality
 
+### Database for Studio Prototypes
+
+- **Use the same Supabase instance** as the main site for simplicity
+- **Namespace your tables**: Prefix studio project tables (e.g., `studio_es_tokens`, `studio_prototype_data`)
+- **Document schema**: Keep SQL schema definitions in `/docs/studio/{project}/prototype/schema.sql`
+- **RLS policies**: Set appropriate policies (typically less strict for prototypes)
+- **Clean up**: Mark prototype tables clearly; archive or drop when project spins off or is abandoned
+
 ## Artifacts to Create
 
 ### Phase 1: Exploration
