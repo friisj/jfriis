@@ -528,11 +528,12 @@ Implementation plan for building the jonfriis.com portfolio site, from core CMS 
 **Goal**: Track idea evolution from rough concept to published content (reference pattern, not conversion)
 
 **Schema Changes**:
-- [ ] Create `backlog_log_entries` junction table
-  - [ ] backlog_item_id → log_entry_id relationship
-  - [ ] relationship_type field (inspired_by, expanded_from, related_to)
-  - [ ] created_at timestamp
-- [ ] Remove `converted_to`/`converted_id` from backlog_items (pivot away from conversion pattern)
+- [ ] Run migration: `supabase/migrations/002_backlog_lineage.sql` ✅ (created, not applied)
+  - Creates `backlog_log_entries` junction table
+  - backlog_item_id → log_entry_id relationship
+  - relationship_type field (inspired_by, expanded_from, related_to)
+  - created_at timestamp
+  - Removes `converted_to`/`converted_id` from backlog_items (pivot away from conversion pattern)
 
 **UI Updates**:
 - [ ] In log entry form: "Link to backlog idea" selector
