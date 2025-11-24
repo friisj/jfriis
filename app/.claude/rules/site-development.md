@@ -121,11 +121,11 @@ The site has its own design system (separate from Studio/Experience Systems work
 
 ## Database & API Patterns
 
-- Use Prisma ORM for database access
+- Use Supabase client for database access (PostgreSQL via Supabase API)
 - Server actions for mutations when possible
 - API routes for external integrations or complex operations
 - Proper error handling and validation
-- Security: input sanitization, auth checks
+- Security: Row Level Security (RLS) policies, input sanitization, auth checks
 
 ## Admin Interface Standards
 
@@ -212,11 +212,12 @@ Example: `feat: add project filtering to admin interface`
 
 ### Updating Database Schema
 
-1. Modify Prisma schema
-2. Run `npx prisma migrate dev`
+1. Modify Supabase schema via Supabase dashboard or SQL migrations
+2. Update TypeScript types if using generated types
 3. Update affected queries/mutations
 4. Test data flow thoroughly
-5. Document breaking changes if any
+5. Update RLS policies if table permissions change
+6. Document breaking changes if any
 
 ## Questions to Ask
 
