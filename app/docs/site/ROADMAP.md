@@ -429,24 +429,37 @@ Implementation plan for building the jonfriis.com portfolio site, from core CMS 
 
 ### 3.1 Content Relationships ✅
 
-**Status**: Mostly Complete
+**Status**: Core Functionality Complete
 
-**Current State**:
-- ✅ Database schema with all junction tables (project_specimens, log_entry_specimens, log_entry_projects)
-- ✅ RelationshipSelector component exists and integrated in forms
-- ✅ Forms load/save relationships
+**Implemented**:
+- ✅ Database schema with all junction tables
+  - `project_specimens` (projects ↔ specimens)
+  - `log_entry_specimens` (log entries ↔ specimens)
+  - `log_entry_projects` (log entries ↔ projects)
+  - `gallery_specimen_items` (gallery sequences ↔ specimens)
+- ✅ RelationshipSelector component (`/components/admin/relationship-selector.tsx`)
+- ✅ Forms load existing relationships on edit
+  - Projects load: specimen IDs, log entry IDs
+  - Log entries load: specimen IDs, project IDs
+- ✅ Forms save relationships on submit
+  - Delete existing → Insert new (atomic updates)
+  - Transaction-safe relationship updates
 - ✅ List views display relationship counts
+  - Projects: shows specimen count, log entry count
+  - Log entries: shows specimen count, project count
+  - Specimens: shows project count, log entry count
 
-**Remaining Enhancements**:
-- [ ] Drag to reorder related items (position field)
-- [ ] Inline specimen preview in relationship selector
-- [ ] Relationship management on public detail pages (for authenticated users)
+**Files Created**:
+- ✅ `/components/admin/relationship-selector.tsx` - Multi-select relationship UI
+- ✅ `/components/admin/project-form.tsx` - Relationship management integrated
+- ✅ `/components/admin/log-entry-form.tsx` - Relationship management integrated
+- ✅ `/components/admin/specimen-form.tsx` - Relationship management integrated
 
-**Files Already Created**:
-- ✅ `/components/admin/relationship-selector.tsx`
-- ✅ Forms using RelationshipSelector (project-form, log-entry-form)
-- `/components/admin/linked-items-manager.tsx`
-- `/lib/api/relationships.ts`
+**Optional Enhancements** (nice-to-have):
+- [ ] Drag to reorder related items (use position field)
+- [ ] Inline preview thumbnails in relationship selector
+- [ ] Relationship management on public detail pages (authenticated users only)
+- [ ] Bulk relationship editor (link multiple items at once)
 
 ### 3.2 Backlog Workflow Enhancement
 
