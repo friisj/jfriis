@@ -108,6 +108,35 @@ The Studio is a dedicated space within the jonfriis.com repository for:
 
 ## Active Studio Projects
 
+### Design System Tool
+**Status**: Phase 2 (Prototype) - Phases 1-3 complete, active development
+**Location**: `/app/studio/design-system-tool` + `/docs/studio/design-system-tool/`
+**Focus**: Interactive design system configuration and theme generation tool
+
+**Current State**:
+- ✅ Phase 1-3 Complete: Typography, Colors, Spacing, Grid, Elevation
+- ✅ Live preview system with 7 templates (Card, Form, Dashboard, Blog, etc.)
+- ✅ OKLCH color space implementation
+- ✅ Brand color palette generator (complementary, vibrant, muted, monochrome)
+- ✅ Tailwind v4 CSS export + JSON configuration export
+- ✅ Custom font loading with @font-face injection
+- ✅ Public demo route at `/studio/design-system-tool`
+- 🔄 Phase 4 In Progress: Motion & Interaction tokens
+
+**Dual Purpose**:
+1. **Site Utility**: Being used to create the jonfriis.com theme
+2. **Portfolio Showcase**: Demonstrates "eating own dog food" approach
+
+**Next Steps**:
+1. Complete Phase 4: Motion & Interaction tokens (needed for site UX)
+2. Finalize jonfriis.com theme using the tool
+3. Continue roadmap: Theme packages → AI integration → Figma sync → Marketplace
+
+**Documents**: `/docs/studio/design-system-tool/design-system-roadmap.md` (10 phases planned)
+**Demo**: [/studio/design-system-tool](/studio/design-system-tool)
+
+---
+
 ### Experience Systems
 **Status**: Phase 1 (Exploration) - Iteration 8 complete
 **Location**: `/docs/studio/experience-systems/exploration/`
@@ -136,7 +165,6 @@ The Studio is a dedicated space within the jonfriis.com repository for:
 
 ### Ideas Under Consideration
 - AI-powered content generation tools
-- Design system generators
 - Interactive data visualization frameworks
 - Experimental UI component patterns
 - Novel interaction paradigms

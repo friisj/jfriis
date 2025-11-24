@@ -21,7 +21,7 @@ Implementation plan for building the jonfriis.com portfolio site, from core CMS 
 ## Phase 1: Authentication & Core CMS
 
 **Priority**: High
-**Status**: In Progress (Admin CRUD interfaces complete, Auth pending)
+**Status**: In Progress (Admin CRUD + Auth complete, Forms + Theme pending)
 
 ### 1.1 Admin CRUD Interfaces ✅
 
@@ -72,32 +72,34 @@ Implementation plan for building the jonfriis.com portfolio site, from core CMS 
 - `/app/admin/layout.tsx` - app/admin/layout.tsx:1
 - `/app/admin/page.tsx` - Dashboard
 
-### 1.2 Authentication UI
+### 1.2 Authentication UI ✅
 
-**Status**: Pending
-**Blocks**: All admin interfaces need auth protection
+**Status**: Complete (needs integration with admin layout)
 
-**Required**:
-- [ ] Auth components
-  - [ ] Login form component
-  - [ ] Auth state management hook
-  - [ ] Protected route wrapper
-- [ ] Auth pages
-  - [ ] `/login` page
-  - [ ] Auth callback handler (`/auth/callback`)
-- [ ] Auth utilities
-  - [ ] Helper functions (signIn, signOut, getUser)
-  - [ ] Middleware for route protection
-- [ ] Admin layout updates
-  - [ ] Redirect to login if not authenticated
-  - [ ] User info display
-  - [ ] Logout button
+**Implemented**:
+- [x] Auth components
+  - [x] Login form component (`/components/auth/login-form.tsx`)
+  - [x] Auth state management hook (`/lib/hooks/useAuth.ts`)
+  - [x] Protected route wrappers (`/components/auth/protected-route.tsx`)
+- [x] Auth pages
+  - [x] `/login` page with magic link auth
+  - [x] Auth callback handling (Supabase handles redirects)
+- [x] Auth utilities
+  - [x] Helper functions (`/lib/auth.ts` - signInWithMagicLink, signOut)
+  - [x] Admin role checking (isAdmin from profiles table)
+
+**Remaining**:
+- [ ] Apply ProtectedRoute wrapper to admin layout
+- [ ] Add user info display in admin header
+- [ ] Add logout button to admin navigation
+- [ ] Test auth flow end-to-end
 
 **Acceptance Criteria**:
-- Email/password authentication works
-- Admin routes redirect to login when unauthenticated
-- Logout functionality works
-- User session persists across page loads
+- ✅ Magic link authentication works
+- ⏳ Admin routes redirect to login when unauthenticated
+- ✅ Logout functionality exists
+- ✅ User session persists via Supabase
+- ⏳ Admin role checking integrated
 
 ### 1.3 Admin Form Implementation
 
@@ -192,7 +194,65 @@ Implementation plan for building the jonfriis.com portfolio site, from core CMS 
 - Update `/app/admin/layout.tsx`
 - Update `/app/admin/page.tsx`
 
-### 1.5 MDX System
+### 1.5 Site Theme Finalization
+
+**Status**: In Progress
+**Priority**: High (blocks public views)
+**Tool**: Using `/studio/design-system-tool` (Studio project)
+
+**Context**: The site's default theme is being created using the Design System Tool, which is an active Studio project. This validates the tool while establishing the site's visual identity.
+
+**Required**:
+- [ ] Complete Motion & Interaction tokens in design system tool
+  - [ ] Duration scale (micro, standard, page transitions)
+  - [ ] Easing curves (ease-in, ease-out, custom)
+  - [ ] Focus indicators (ring width, offset, color)
+  - [ ] Hover/active state transitions
+  - [ ] Reduced motion preferences
+
+- [ ] Finalize site theme configuration
+  - [ ] Typography: Font families, type scale, line heights
+  - [ ] Colors: Semantic color roles (light/dark modes)
+  - [ ] Spacing: 4pt/8pt grid, radius values
+  - [ ] Motion: Transitions, animations, interaction states
+  - [ ] Grid: Column system, gutters, breakpoints
+
+- [ ] Export and apply theme
+  - [ ] Export theme to `/lib/themes/site-theme.json`
+  - [ ] Apply theme tokens to `/app/globals.css`
+  - [ ] Update `tailwind.config.ts` with theme values
+  - [ ] Test theme across all admin components
+  - [ ] Verify light/dark mode switching
+
+- [ ] Document theme
+  - [ ] Create `/docs/site/THEME.md` with rationale
+  - [ ] Document color choices and accessibility
+  - [ ] Note any design decisions
+
+**Files to Create/Update**:
+- `/lib/themes/site-theme.json` - Exported theme configuration
+- `/app/globals.css` - Apply CSS variables
+- `tailwind.config.ts` - Theme token integration
+- `/docs/site/THEME.md` - Site theme documentation
+
+**Acceptance Criteria**:
+- All admin pages use theme tokens consistently
+- Light/dark mode works across entire site
+- Motion tokens applied to transitions
+- No hardcoded colors/spacing in components
+- Theme can be regenerated from design system tool
+- WCAG AA contrast ratios met
+
+**Phase 1 Complete When**:
+- Authentication works and protects admin routes
+- All CRUD operations work with forms
+- **Site theme finalized and applied**
+- MDX editing functional
+- Can create and edit all content types
+
+---
+
+### 1.6 MDX System
 
 **Status**: Not Started
 **Dependencies**: Required for content editing in projects and log entries
