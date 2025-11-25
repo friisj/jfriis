@@ -12,6 +12,7 @@ import { ChevronRight, Download, Sun, Moon } from 'lucide-react'
 import { ThemeExport } from './theme-export'
 import { themes } from '@/lib/themes/theme-config'
 import { getColorValue } from '@/lib/tailwind-colors'
+import { usePrivateHeader } from '@/components/layout/private-header-context'
 
 import type { FontWeight } from '@/lib/fonts/font-scanner'
 import type { TailwindScale, Shade, ScaleShade } from '@/lib/tailwind-colors'
@@ -333,6 +334,8 @@ export function DesignSystemTool() {
   const [currentThemeTypography, setCurrentThemeTypography] = useState<any>(null)
 
   // Update config when theme selection changes
+  const { setActions } = usePrivateHeader()
+
   useEffect(() => {
     if (selectedTheme === 'custom') {
       setConfig(customConfig)
@@ -572,66 +575,71 @@ ${tailwindColorMappings.map(m => '  ' + m).join('\n')}
     }
   }, [config, currentThemeColors, currentThemeTypography, themeMode])
 
+  // Register header actions in the private header slot
+  useEffect(() => {
+    setActions(
+      <div className="flex items-center gap-3">
+        {/* Theme Selector */}
+        <div className="flex items-center gap-2">
+          <label htmlFor="theme-select" className="text-sm text-muted-foreground">
+            Compare:
+          </label>
+          <select
+            id="theme-select"
+            value={selectedTheme}
+            onChange={(e) => setSelectedTheme(e.target.value)}
+            className="px-3 py-2 border rounded-lg bg-background text-sm font-medium hover:bg-accent transition-colors"
+          >
+            <option value="custom">Custom (Editable)</option>
+            {Object.keys(themes).map((themeName) => (
+              <option key={themeName} value={themeName}>
+                {themeName.charAt(0).toUpperCase() + themeName.slice(1)} Theme
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {/* Light/Dark Mode Toggle */}
+        <button
+          onClick={() => setThemeMode(themeMode === 'light' ? 'dark' : 'light')}
+          className="p-2 border rounded-lg hover:bg-accent transition-colors"
+          title={`Switch to ${themeMode === 'light' ? 'dark' : 'light'} mode`}
+        >
+          {themeMode === 'light' ? (
+            <Moon className="w-4 h-4" />
+          ) : (
+            <Sun className="w-4 h-4" />
+          )}
+        </button>
+
+        <button
+          onClick={() => setShowExport(!showExport)}
+          className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors text-sm font-medium flex items-center gap-2"
+        >
+          <Download className="w-4 h-4" />
+          Export
+        </button>
+        <button
+          onClick={() => setSidebarOpen(!sidebarOpen)}
+          className="px-4 py-2 border rounded-lg hover:bg-accent transition-colors text-sm font-medium flex items-center gap-2"
+        >
+          <ChevronRight className={`w-4 h-4 transition-transform ${sidebarOpen ? 'rotate-180' : ''}`} />
+          {sidebarOpen ? 'Hide' : 'Show'} Config
+        </button>
+      </div>,
+    )
+
+    return () => setActions(null)
+  }, [
+    setActions,
+    selectedTheme,
+    themeMode,
+    showExport,
+    sidebarOpen,
+  ])
+
   return (
     <div className="h-screen flex flex-col">
-      {/* Header */}
-      <div className="border-b bg-background px-6 py-4 flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-bold">Design System Tool</h1>
-          <p className="text-sm text-muted-foreground">
-            Live preview with structural configuration
-          </p>
-        </div>
-        <div className="flex items-center gap-3">
-          {/* Theme Selector */}
-          <div className="flex items-center gap-2">
-            <label htmlFor="theme-select" className="text-sm text-muted-foreground">
-              Compare:
-            </label>
-            <select
-              id="theme-select"
-              value={selectedTheme}
-              onChange={(e) => setSelectedTheme(e.target.value)}
-              className="px-3 py-2 border rounded-lg bg-background text-sm font-medium hover:bg-accent transition-colors"
-            >
-              <option value="custom">Custom (Editable)</option>
-              {Object.keys(themes).map((themeName) => (
-                <option key={themeName} value={themeName}>
-                  {themeName.charAt(0).toUpperCase() + themeName.slice(1)} Theme
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Light/Dark Mode Toggle */}
-          <button
-            onClick={() => setThemeMode(themeMode === 'light' ? 'dark' : 'light')}
-            className="p-2 border rounded-lg hover:bg-accent transition-colors"
-            title={`Switch to ${themeMode === 'light' ? 'dark' : 'light'} mode`}
-          >
-            {themeMode === 'light' ? (
-              <Moon className="w-4 h-4" />
-            ) : (
-              <Sun className="w-4 h-4" />
-            )}
-          </button>
-
-          <button
-            onClick={() => setShowExport(!showExport)}
-            className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors text-sm font-medium flex items-center gap-2"
-          >
-            <Download className="w-4 h-4" />
-            Export
-          </button>
-          <button
-            onClick={() => setSidebarOpen(!sidebarOpen)}
-            className="px-4 py-2 border rounded-lg hover:bg-accent transition-colors text-sm font-medium flex items-center gap-2"
-          >
-            <ChevronRight className={`w-4 h-4 transition-transform ${sidebarOpen ? 'rotate-180' : ''}`} />
-            {sidebarOpen ? 'Hide' : 'Show'} Config
-          </button>
-        </div>
-      </div>
 
       {/* Export Modal/Overlay */}
       {showExport && (

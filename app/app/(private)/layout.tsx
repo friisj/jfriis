@@ -1,7 +1,9 @@
 'use client'
 
 import { ProtectedRoute } from '@/components/auth/protected-route'
+import { ModeToggle } from '@/components/theme-switcher'
 import { UserMenu } from '@/components/user-menu'
+import { PrivateHeaderProvider, usePrivateHeader } from '@/components/layout/private-header-context'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 
@@ -27,11 +29,13 @@ function PrivateHeader() {
       .replace(/\b\w/g, (c) => c.toUpperCase())
   }
 
+  const { actions } = usePrivateHeader()
+
   return (
     <header className="border-b bg-card flex items-center justify-between">
       <div className="flex items-center justify-between gap-4">
         <nav className="flex items-center gap-1 text-sm text-muted-foreground h-10 px-3">
-          <Link href="/admin" className="hover:text-foreground">
+          <Link href="/" className="hover:text-foreground">
             JF
           </Link>
           {segments.map((segment, index) => (
@@ -53,7 +57,11 @@ function PrivateHeader() {
           ))}
         </nav>
       </div>
-      <div className="flex items-center gap-4">
+      <div className="flex items-center h-10 border-l border-border divide-x divide-border">
+        <div className="h-10 px-3 flex items-center">
+          {actions}
+        </div>
+        <ModeToggle />
         <UserMenu />
       </div>
     </header>
@@ -63,12 +71,14 @@ function PrivateHeader() {
 export default function PrivateLayout({ children }: { children: React.ReactNode }) {
   return (
     <ProtectedRoute>
-      <div className="min-h-screen flex flex-col">
-        <PrivateHeader />
-        <main className="flex-1 flex flex-col">
-          {children}
-        </main>
-      </div>
+      <PrivateHeaderProvider>
+        <div className="min-h-screen flex flex-col">
+          <PrivateHeader />
+          <main className="flex-1 flex flex-col">
+            {children}
+          </main>
+        </div>
+      </PrivateHeaderProvider>
     </ProtectedRoute>
   )
 }

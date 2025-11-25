@@ -49,7 +49,7 @@ export function ModeToggle() {
   return (
     <button
       onClick={toggleMode}
-      className="p-2 rounded-lg hover:bg-accent transition-colors"
+      className="h-10 px-3 hover:bg-accent transition-colors"
       aria-label="Toggle theme mode"
     >
       {mode === 'light' ? '🌙' : '☀️'}
