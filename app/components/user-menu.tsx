@@ -3,7 +3,9 @@
 import { useAuth } from '@/lib/hooks/useAuth'
 import { signOut } from '@/lib/auth'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { useState } from 'react'
+import { ModeToggle } from '@/components/theme-switcher'
 
 export function UserMenu() {
   const { user, isAdmin } = useAuth()
@@ -47,7 +49,7 @@ export function UserMenu() {
         </button>
 
         {isOpen && (
-          <div className="absolute top-full right-0 mt-2 w-48 rounded-lg border bg-card shadow-lg overflow-hidden">
+          <div className="absolute top-full right-0 mt-2 w-56 rounded-lg border bg-card shadow-lg overflow-hidden">
             {user ? (
               <>
                 <div className="px-3 py-2 border-b text-sm">
@@ -57,14 +59,21 @@ export function UserMenu() {
                   )}
                 </div>
                 <div className="py-1">
+                  <Link
+                    href="/"
+                    className="block px-3 py-2 text-sm hover:bg-accent transition-colors"
+                    onClick={() => setIsOpen(false)}
+                  >
+                    Preview
+                  </Link>
                   {isAdmin && (
-                    <a
+                    <Link
                       href="/admin"
                       className="block px-3 py-2 text-sm hover:bg-accent transition-colors"
                       onClick={() => setIsOpen(false)}
                     >
                       Admin Dashboard
-                    </a>
+                    </Link>
                   )}
                   <button
                     onClick={handleSignOut}
@@ -73,17 +82,29 @@ export function UserMenu() {
                     Log out
                   </button>
                 </div>
+
+                <div className="border-t px-3 py-2 flex items-center justify-between gap-2 text-sm">
+                  <span className="text-muted-foreground">Theme</span>
+                  <ModeToggle />
+                </div>
               </>
             ) : (
-              <div className="py-1">
-                <a
-                  href="/login"
-                  className="block px-3 py-2 text-sm hover:bg-accent transition-colors"
-                  onClick={() => setIsOpen(false)}
-                >
-                  Admin
-                </a>
-              </div>
+              <>
+                <div className="py-1">
+                  <Link
+                    href="/login"
+                    className="block px-3 py-2 text-sm hover:bg-accent transition-colors"
+                    onClick={() => setIsOpen(false)}
+                  >
+                    Admin
+                  </Link>
+                </div>
+
+                <div className="border-t px-3 py-2 flex items-center justify-between gap-2 text-sm">
+                  <span className="text-muted-foreground">Theme</span>
+                  <ModeToggle />
+                </div>
+              </>
             )}
           </div>
         )}

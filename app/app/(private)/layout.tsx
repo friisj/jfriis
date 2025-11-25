@@ -58,10 +58,9 @@ function PrivateHeader() {
         </nav>
       </div>
       <div className="flex items-center h-10 border-l border-border divide-x divide-border">
-        <div className="h-10 px-3 flex items-center">
+        <div className="h-10 flex items-center">
           {actions}
         </div>
-        <ModeToggle />
         <UserMenu />
       </div>
     </header>
