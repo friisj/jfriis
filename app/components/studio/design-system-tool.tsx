@@ -8,11 +8,12 @@ import {
   ResizablePanel,
   ResizableHandle,
 } from '@/components/ui/resizable'
-import { ChevronRight, Download, Sun, Moon } from 'lucide-react'
+import { ChevronRight, Download, Sun, Moon, PanelRightClose, PanelRightOpen } from 'lucide-react'
 import { ThemeExport } from './theme-export'
 import { themes } from '@/lib/themes/theme-config'
 import { getColorValue } from '@/lib/tailwind-colors'
 import { usePrivateHeader } from '@/components/layout/private-header-context'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 
 import type { FontWeight } from '@/lib/fonts/font-scanner'
 import type { TailwindScale, Shade, ScaleShade } from '@/lib/tailwind-colors'
@@ -578,53 +579,77 @@ ${tailwindColorMappings.map(m => '  ' + m).join('\n')}
   // Register header actions in the private header slot
   useEffect(() => {
     setActions(
-      <div className="flex items-center gap-3">
+      <div className="flex items-center divide-x divide-border h-10">
         {/* Theme Selector */}
-        <div className="flex items-center gap-2">
-          <label htmlFor="theme-select" className="text-sm text-muted-foreground">
-            Compare:
-          </label>
-          <select
-            id="theme-select"
-            value={selectedTheme}
-            onChange={(e) => setSelectedTheme(e.target.value)}
-            className="px-3 py-2 border rounded-lg bg-background text-sm font-medium hover:bg-accent transition-colors"
-          >
-            <option value="custom">Custom (Editable)</option>
+        <Popover>
+          <PopoverTrigger asChild>
+            <button
+              className="h-10 px-3 text-xs font-medium hover:bg-accent transition-colors flex items-center gap-1"
+              type="button"
+            >
+              <span>
+                {selectedTheme === 'custom'
+                  ? 'Custom (Editable)'
+                  : `${selectedTheme.charAt(0).toUpperCase() + selectedTheme.slice(1)} Theme`}
+              </span>
+              <ChevronRight className="size-3.5 rotate-90" />
+            </button>
+          </PopoverTrigger>
+          <PopoverContent align="end" side="bottom" className="min-w-10 p-1">
+            <button
+              className={`w-full text-left px-3 py-1.5 text-sm rounded-md hover:bg-accent ${
+                selectedTheme === 'custom' ? 'bg-accent/60' : ''
+              }`}
+              type="button"
+              onClick={() => setSelectedTheme('custom')}
+            >
+              Custom (Editable)
+            </button>
             {Object.keys(themes).map((themeName) => (
-              <option key={themeName} value={themeName}>
+              <button
+                key={themeName}
+                type="button"
+                onClick={() => setSelectedTheme(themeName)}
+                className={`w-full text-left px-3 py-1.5 text-sm rounded-md hover:bg-accent ${
+                  selectedTheme === themeName ? 'bg-accent/60' : ''
+                }`}
+              >
                 {themeName.charAt(0).toUpperCase() + themeName.slice(1)} Theme
-              </option>
+              </button>
             ))}
-          </select>
-        </div>
+          </PopoverContent>
+        </Popover>
 
         {/* Light/Dark Mode Toggle */}
         <button
           onClick={() => setThemeMode(themeMode === 'light' ? 'dark' : 'light')}
-          className="p-2 border rounded-lg hover:bg-accent transition-colors"
+          className="size-10 flex items-center justify-center hover:bg-accent transition-colors"
           title={`Switch to ${themeMode === 'light' ? 'dark' : 'light'} mode`}
         >
           {themeMode === 'light' ? (
-            <Moon className="w-4 h-4" />
+            <Moon className="size-3.5" />
           ) : (
-            <Sun className="w-4 h-4" />
+            <Sun className="size-3.5" />
           )}
         </button>
 
         <button
           onClick={() => setShowExport(!showExport)}
-          className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors text-sm font-medium flex items-center gap-2"
+          className="px-3 h-10 text-foreground hover:bg-accent transition-colors text-xs font-medium flex items-center"
         >
-          <Download className="w-4 h-4" />
-          Export
+          <Download className="size-3.5" />
+          <span className="sr-only">Export</span>
         </button>
         <button
           onClick={() => setSidebarOpen(!sidebarOpen)}
-          className="px-4 py-2 border rounded-lg hover:bg-accent transition-colors text-sm font-medium flex items-center gap-2"
+          className="size-10 hover:bg-accent transition-colors text-sm font-medium flex items-center justify-center"
         >
-          <ChevronRight className={`w-4 h-4 transition-transform ${sidebarOpen ? 'rotate-180' : ''}`} />
-          {sidebarOpen ? 'Hide' : 'Show'} Config
+          {sidebarOpen ? (
+            <PanelRightClose className="size-3.5" />
+          ) : (
+            <PanelRightOpen className="size-3.5" />
+          )}
+          <span className="sr-only">Toggle sidebar</span>
         </button>
       </div>,
     )
