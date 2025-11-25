@@ -34,7 +34,7 @@ function PrivateHeader() {
   return (
     <header className="border-b bg-card flex items-center justify-between">
       <div className="flex items-center justify-between gap-4">
-        <nav className="flex items-center gap-1 text-sm text-muted-foreground h-10 px-3">
+        <nav className="flex items-center gap-1 text-xs text-muted-foreground h-10 px-3">
           <Link href="/" className="hover:text-foreground">
             JF
           </Link>

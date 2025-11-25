@@ -205,13 +205,6 @@ ${semanticRadius}
 
   return (
     <div className="space-y-8">
-      {/* Instructions */}
-      <div className="rounded-lg border bg-card p-6">
-        <h2 className="text-xl font-semibold mb-2">Export Configuration</h2>
-        <p className="text-sm text-muted-foreground">
-          Choose how you want to use this configuration in your project
-        </p>
-      </div>
 
       {/* Option 1: Tailwind Theme CSS */}
       <div className="space-y-4">

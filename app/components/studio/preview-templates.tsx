@@ -35,13 +35,13 @@ export function PreviewTemplates({ config }: PreviewTemplatesProps) {
   return (
     <div className="h-full flex flex-col">
       {/* Template Selector */}
-      <div className="border-b bg-muted/30 px-6 py-4">
-        <div className="flex items-center gap-2">
+      <div className="border-border border-b">
+        <div className="flex items-center gap-2 p-3">
           {templates.map((template) => (
             <button
               key={template.id}
               onClick={() => setActiveTemplate(template.id)}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+              className={`px-3 h-8 rounded-md text-sm font-medium transition-colors cursor-pointer ${
                 activeTemplate === template.id
                   ? 'bg-primary text-primary-foreground'
                   : 'bg-background hover:bg-accent'

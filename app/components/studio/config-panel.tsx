@@ -56,13 +56,13 @@ export function ConfigPanel({ config, onConfigChange }: ConfigPanelProps) {
   return (
     <div className="h-full flex flex-col bg-muted/30">
       {/* Section Tabs */}
-      <div className="border-b bg-background px-4 py-3">
+      <div className="border-b bg-background p-3">
         <div className="flex flex-wrap gap-2">
           {sections.map((section) => (
             <button
               key={section.id}
               onClick={() => setActiveSection(section.id)}
-              className={`px-3 py-1.5 rounded text-sm font-medium transition-colors ${
+              className={`px-3 h-8 rounded-md text-sm font-medium transition-colors ${
                 activeSection === section.id
                   ? 'bg-primary text-primary-foreground'
                   : 'bg-muted hover:bg-muted/80'
