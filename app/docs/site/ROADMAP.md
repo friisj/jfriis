@@ -74,32 +74,31 @@ Implementation plan for building the jonfriis.com portfolio site, from core CMS 
 
 ### 1.2 Authentication UI ✅
 
-**Status**: Complete (needs integration with admin layout)
+**Status**: Complete and Integrated
 
 **Implemented**:
-- [x] Auth components
-  - [x] Login form component (`/components/auth/login-form.tsx`)
-  - [x] Auth state management hook (`/lib/hooks/useAuth.ts`)
-  - [x] Protected route wrappers (`/components/auth/protected-route.tsx`)
-- [x] Auth pages
-  - [x] `/login` page with magic link auth
-  - [x] Auth callback handling (Supabase handles redirects)
-- [x] Auth utilities
-  - [x] Helper functions (`/lib/auth.ts` - signInWithMagicLink, signOut)
-  - [x] Admin role checking (isAdmin from profiles table)
-
-**Remaining**:
-- [ ] Apply ProtectedRoute wrapper to admin layout
-- [ ] Add user info display in admin header
-- [ ] Add logout button to admin navigation
-- [ ] Test auth flow end-to-end
+- ✅ Auth components
+  - ✅ Login form component (`/components/auth/login-form.tsx`)
+  - ✅ Auth state management hook (`/lib/hooks/useAuth.ts`)
+  - ✅ Protected route wrappers (`/components/auth/protected-route.tsx`)
+- ✅ Auth pages
+  - ✅ `/login` page with magic link auth
+  - ✅ Auth callback handling (Supabase handles redirects)
+- ✅ Auth utilities
+  - ✅ Helper functions (`/lib/auth.ts` - signInWithMagicLink, signOut)
+  - ✅ Admin role checking (isAdmin from profiles table)
+- ✅ Admin layout integration (`/app/admin/layout.tsx`)
+  - ✅ AdminRoute wrapper protecting all admin pages (line 41)
+  - ✅ User info display in header with email and admin badge (lines 76-82)
+  - ✅ Sign out button in navigation (lines 84-89)
+  - ✅ useAuth() hook providing user state (line 20)
 
 **Acceptance Criteria**:
 - ✅ Magic link authentication works
-- ⏳ Admin routes redirect to login when unauthenticated
-- ✅ Logout functionality exists
+- ✅ Admin routes redirect to login when unauthenticated (AdminRoute wrapper)
+- ✅ Logout functionality exists and works
 - ✅ User session persists via Supabase
-- ⏳ Admin role checking integrated
+- ✅ Admin role checking integrated in header display
 
 ### 1.3 Admin Form Implementation ✅
 
@@ -246,15 +245,14 @@ Implementation plan for building the jonfriis.com portfolio site, from core CMS 
 - WCAG AA contrast ratios met
 
 **Phase 1 Complete When**:
-- ✅ Authentication works and protects admin routes (auth wired up, needs layout integration)
+- ✅ Authentication works and protects admin routes
 - ✅ All CRUD operations work with forms
 - ⏳ **Site theme finalized and applied** (in progress via Design System Tool)
 - ✅ MDX editing functional
 - ✅ Can create and edit all content types
 
-**Current Blockers**:
-- Auth needs to be applied to admin layout (ProtectedRoute wrapper)
-- Site theme needs Motion tokens completed and export/application
+**Current Blocker**:
+- Site theme needs Motion tokens completed and export/application (Phase 1.5)
 
 ---
 
@@ -1081,29 +1079,24 @@ components/
 ## Next Actions
 
 **Critical Path to Complete Phase 1**:
-1. **Apply auth to admin layout** (Quick win - wrap admin layout with ProtectedRoute)
-   - File: `/app/admin/layout.tsx`
-   - Add user info display in header
-   - Add logout button
-   - Test auth flow end-to-end
-
-2. **Complete site theme** (Phase 1.5)
-   - Option A: Finish Motion tokens in Design System Tool, export theme
-   - Option B: Use current theme tokens, skip Motion for now
+1. **Complete site theme** (Phase 1.5) - Only remaining Phase 1 blocker
+   - **Option A**: Finish Motion tokens in Design System Tool, export theme
+   - **Option B**: Use current theme tokens (skip Motion for now), export and apply
    - Apply theme to `/app/globals.css` and `tailwind.config.ts`
    - Verify light/dark mode works
+   - **Estimated effort**: 1-3 hours depending on option
 
 **After Phase 1 Complete**:
-3. **Build public portfolio view** (Phase 2.1)
+2. **Build public portfolio view** (Phase 2.1)
    - `/portfolio` index with project cards
    - `/portfolio/[slug]` detail pages with MDX rendering
    - Use completed theme
 
-4. **Build public log view** (Phase 2.2)
+3. **Build public log view** (Phase 2.2)
    - `/log` timeline/feed
    - `/log/[slug]` entry detail with MDX rendering
 
-5. **Enhance admin dashboard** (Phase 1.4)
+4. **Enhance admin dashboard** (Phase 1.4)
    - Stats cards
    - Recent activity
    - Quick links
