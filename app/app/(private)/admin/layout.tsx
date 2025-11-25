@@ -1,10 +1,4 @@
-'use client'
-
-/**
- * Admin Layout
- *
- * Layout wrapper for all admin pages with auth protection
- */
+ 'use client'
 
 import { AdminRoute } from '@/components/auth/protected-route'
 import { useAuth } from '@/lib/hooks/useAuth'
@@ -100,3 +94,5 @@ export default function AdminLayout({
     </AdminRoute>
   )
 }
+
+

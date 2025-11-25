@@ -1,9 +1,8 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
-import { ThemeProvider } from "@/lib/themes";
-import { UserMenu } from "@/components/user-menu";
-import { Toaster } from "sonner";
-import "./globals.css";
+import { ThemeProvider } from '@/lib/themes'
+import { Toaster } from 'sonner'
+import './globals.css'
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -16,9 +15,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Jon Friis - Designer, Developer, Entrepreneur",
-  description: "Portfolio and work of Jon Friis",
-};
+  title: 'Jon Friis - Designer, Developer, Entrepreneur',
+  description: 'Portfolio and work of Jon Friis',
+}
 
 export default function RootLayout({
   children,
@@ -27,15 +26,12 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-      >
+      <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
         <ThemeProvider defaultTheme="default" defaultMode="light">
-          <UserMenu />
           {children}
           <Toaster richColors closeButton position="top-right" />
         </ThemeProvider>
       </body>
     </html>
-  );
+  )
 }

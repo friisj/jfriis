@@ -145,7 +145,7 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
                       {specimen.description}
                     </p>
                   )}
-                </Link>
+                </p>
               ))}
             </div>
           </div>
@@ -166,3 +166,5 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
     </div>
   )
 }
+
+

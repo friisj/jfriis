@@ -19,26 +19,7 @@ export const metadata = {
 export default function DesignSystemToolPage() {
   return (
     <div className="h-screen flex flex-col">
-      <header className="border-b bg-card px-6 py-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold mb-1">Design System Tool</h1>
-            <p className="text-sm text-muted-foreground">
-              Interactive theme configuration and generation
-            </p>
-          </div>
-          <a
-            href="/studio"
-            className="text-sm text-muted-foreground hover:text-foreground transition-colors"
-          >
-            ← Back to Studio
-          </a>
-        </div>
-      </header>
-
-      <main className="flex-1 overflow-hidden">
-        <DesignSystemTool />
-      </main>
+      <DesignSystemTool />
     </div>
   )
 }
