@@ -15,8 +15,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: 'Jon Friis - Designer, Developer, Entrepreneur',
-  description: 'Portfolio and work of Jon Friis',
+  title: 'JF',
+  description: 'description',
 }
 
 export default function RootLayout({

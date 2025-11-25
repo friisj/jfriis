@@ -33,8 +33,8 @@ export default function AdminLayout({
 
   return (
     <AdminRoute>
-      <div className="min-h-screen flex flex-col">
-        {/* Header */}
+      <div className="min-h-[calc(100vh-3.5rem)] flex flex-col">
+        {/* Admin sub-header, sits below common private header */}
         <header className="border-b bg-card">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex items-center justify-between h-16">
