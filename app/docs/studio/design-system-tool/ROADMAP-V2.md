@@ -139,19 +139,20 @@ Extend theme system with animation and interaction design tokens.
 
 ---
 
-### **Phase 4a: Border & Stroke System** 🆕 [New]
+### **Phase 4a: Border, Stroke & Ring System** 🆕 [New]
 **Timeline**: 1 week
 **Priority**: High
 **Depends On**: Phase 4
 
 #### Objectives
-Comprehensive border and stroke tokenization for UI elements and SVG graphics.
+Comprehensive border, stroke, and ring (focus) tokenization for UI elements and Tailwind compatibility.
 
 #### Deliverables
 
 **4a.1 Border Width Tokens**
 - Scale: `border-0` (0), `border-1` (1px), `border-2` (2px), `border-4` (4px), `border-8` (8px)
 - Semantic: `border-default` (1-2px), `border-thick` (3-4px), `border-hairline` (0.5px)
+- Tailwind compatibility: Maps to `borderWidth` theme config
 
 **4a.2 Border Style Tokens**
 - Styles: `solid`, `dashed`, `dotted`, `double`, `none`
@@ -161,26 +162,107 @@ Comprehensive border and stroke tokenization for UI elements and SVG graphics.
 - Semantic: `border-default`, `border-muted`, `border-strong`, `border-contrast`
 - State-specific: `border-hover`, `border-active`, `border-disabled`
 
-**4a.4 Outline Tokens** (for focus states)
+**4a.4 Ring Tokens** (Tailwind-compatible focus indicators) 🆕
+Ring utilities use `box-shadow` to create outline-like focus indicators that respect `border-radius`, solving the limitation of CSS `outline` property.
+
+**Why Ring vs Outline**:
+- ✅ Respects border-radius (outlines traditionally don't, though modern browsers now support it)
+- ✅ Doesn't affect layout (box-shadow is not in document flow)
+- ✅ Can layer multiple rings (ring + ring-offset effect)
+- ❌ Invisible in Windows High Contrast Mode (accessibility concern)
+
+**Ring Width Scale**:
+- `ring-0` (0px - no ring)
+- `ring-1` (1px)
+- `ring-2` (2px - default)
+- `ring-4` (4px)
+- `ring-8` (8px)
+- `ring-inset` (inset shadow)
+- Tailwind compatibility: Maps to `ringWidth` theme config
+
+**Ring Offset Width**:
+- `ring-offset-0` (0px - ring directly on element)
+- `ring-offset-1` (1px)
+- `ring-offset-2` (2px - default, creates gap)
+- `ring-offset-4` (4px)
+- `ring-offset-8` (8px)
+- Purpose: Creates space between element and ring
+- Tailwind compatibility: Maps to `ringOffsetWidth` theme config
+
+**Ring Color Tokens**:
+- Semantic: `ring-primary`, `ring-secondary`, `ring-accent`
+- State: `ring-focus`, `ring-error`, `ring-success`
+- Default: Semi-transparent blue (`#3b82f680` / `rgb(59 130 246 / 0.5)`)
+- Tailwind compatibility: Maps to `ringColor` theme config
+
+**Ring Offset Color**:
+- Background color shown between element and ring
+- Usually matches page background
+- Default: White (light mode), black (dark mode)
+- Tailwind compatibility: Maps to `ringOffsetColor` theme config
+
+**Ring Opacity**:
+- `ring-opacity-50` (50%)
+- `ring-opacity-75` (75%)
+- `ring-opacity-100` (100%)
+- Tailwind compatibility: Maps to `ringOpacity` theme config
+
+**Multi-layer Box Shadow Architecture**:
+Tailwind's ring system layers multiple box-shadows:
+```css
+box-shadow:
+  0 0 0 calc(2px + var(--ring-offset-width)) var(--ring-offset-color),  /* offset layer */
+  0 0 0 calc(2px + var(--ring-offset-width) + var(--ring-width)) var(--ring-color); /* ring layer */
+```
+
+**Common Focus Ring Pattern**:
+```css
+/* Tailwind: focus:ring-2 focus:ring-primary focus:ring-offset-2 */
+.focus-ring {
+  --ring-width: 2px;
+  --ring-color: var(--color-primary);
+  --ring-offset-width: 2px;
+  --ring-offset-color: var(--color-background);
+}
+```
+
+**4a.5 Outline Tokens** (CSS outline for accessibility)
 - Outline width: 2px, 3px, 4px
 - Outline style: solid, dashed, dotted, double
 - Outline offset: 0px, 2px, 4px (space between element and outline)
 - Outline color: Focus indicator color
 
-**4a.5 Stroke Tokens** (SVG/Vector)
+**Outline vs Ring Decision Tree**:
+- Use **Ring** when: Visual polish matters, border-radius respect needed, layering effects desired
+- Use **Outline** when: Accessibility critical (Windows High Contrast Mode), focus must always be visible
+- Best practice: Use ring by default, provide outline fallback for accessibility
+
+**4a.6 Stroke Tokens** (SVG/Vector)
 - Stroke width for icons, illustrations
 - Stroke color (semantic colors)
 - Stroke dasharray (for dashed lines)
 
-**4a.6 Preview Integration**
-- Add "Borders" section to existing preview templates
+**4a.7 Preview Integration**
+- Add "Borders & Focus" section to existing preview templates
 - Show border width scale
-- Demonstrate outline on focus states
+- Demonstrate ring focus states (with offset)
+- Compare ring vs outline side-by-side
+- Show ring + ring-offset layering effect
+- Test with rounded corners
 
 #### Success Metrics
 - ✅ Border tokens applied across all components
-- ✅ Outline distinct from borders (focus vs static)
+- ✅ Ring tokens Tailwind-compatible
+- ✅ Ring respects border-radius
+- ✅ Ring offset creates proper gap
+- ✅ Outline provided as accessibility fallback
 - ✅ SVG stroke support functional
+
+#### Technical Notes
+- Ring uses CSS variables for dynamic theming
+- Multi-layer box-shadow architecture enables offset effect
+- Modern browsers now support `outline` with `border-radius`, reducing ring necessity
+- Consider outline for keyboard navigation accessibility
 
 ---
 

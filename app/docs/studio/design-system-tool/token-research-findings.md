@@ -211,7 +211,7 @@ Modern design systems use **three-tier token architecture**:
 
 ---
 
-### 🆕 8. Border & Stroke Tokens (Not Yet Implemented)
+### 🆕 8. Border, Stroke & Ring Tokens (Not Yet Implemented)
 
 **Status in Design System Tool**: Minimal (only radius implemented)
 
@@ -227,11 +227,67 @@ Modern design systems use **three-tier token architecture**:
 - Inherits from semantic color tokens
 - Specialized: `border-default`, `border-muted`, `border-strong`, `border-contrast`
 
-#### Outline Tokens
+#### Ring Tokens (Tailwind-Compatible Focus Indicators)
+**Critical for Tailwind compatibility**: Ring utilities use `box-shadow` to create focus indicators that respect `border-radius`.
+
+**Why Ring vs Outline**:
+- ✅ Respects border-radius (traditional outlines don't)
+- ✅ Doesn't affect layout (box-shadow not in document flow)
+- ✅ Can layer multiple rings (ring + ring-offset effect)
+- ❌ Invisible in Windows High Contrast Mode (accessibility concern)
+
+**Ring Width Scale**:
+- `ring-0` (0px), `ring-1` (1px), `ring-2` (2px - default), `ring-4` (4px), `ring-8` (8px)
+- `ring-inset` (inset shadow)
+- Tailwind: Maps to `ringWidth` theme config
+
+**Ring Offset Width**:
+- `ring-offset-0` (0px), `ring-offset-1` (1px), `ring-offset-2` (2px - default), `ring-offset-4` (4px), `ring-offset-8` (8px)
+- Creates gap between element and ring
+- Tailwind: Maps to `ringOffsetWidth` theme config
+
+**Ring Color Tokens**:
+- Semantic: `ring-primary`, `ring-secondary`, `ring-accent`
+- State: `ring-focus`, `ring-error`, `ring-success`
+- Default: Semi-transparent blue (#3b82f680)
+- Tailwind: Maps to `ringColor` theme config
+
+**Ring Offset Color**:
+- Background color shown between element and ring
+- Usually matches page background
+- Default: White (light), black (dark)
+- Tailwind: Maps to `ringOffsetColor` theme config
+
+**Ring Opacity**:
+- `ring-opacity-50` (50%), `ring-opacity-75` (75%), `ring-opacity-100` (100%)
+- Tailwind: Maps to `ringOpacity` theme config
+
+**Multi-layer Box Shadow Architecture**:
+```css
+box-shadow:
+  0 0 0 calc(2px + var(--ring-offset-width)) var(--ring-offset-color),
+  0 0 0 calc(2px + var(--ring-offset-width) + var(--ring-width)) var(--ring-color);
+```
+
+**Common Pattern**:
+```css
+/* Tailwind: focus:ring-2 focus:ring-primary focus:ring-offset-2 */
+--ring-width: 2px;
+--ring-color: var(--color-primary);
+--ring-offset-width: 2px;
+--ring-offset-color: var(--color-background);
+```
+
+#### Outline Tokens (CSS outline for accessibility)
 - **Outline width**: For focus states (distinct from borders)
 - **Outline style**: `solid`, `dashed`, `dotted`, `double`
 - **Outline offset**: Space between element and outline (typically 2-4px)
 - **Outline color**: Focus indicator color
+
+**Outline vs Ring Decision**:
+- **Ring**: Visual polish, border-radius respect, layering effects
+- **Outline**: Accessibility critical (Windows High Contrast Mode), always visible
+- **Best practice**: Use ring by default, provide outline fallback
 
 #### Stroke (SVG/Vector)
 - Stroke width for icons, illustrations
@@ -240,7 +296,13 @@ Modern design systems use **three-tier token architecture**:
 
 **W3C DTCG Support**: `strokeStyle` token type, Border composite tokens
 
-**Sources**: Red Hat Border Tokens, US Web Design System, Tokens Studio
+**Tailwind Sources**:
+- Tailwind CSS Ring Width documentation
+- Stack Overflow: Ring vs Outline differences
+- Steve Kinney: Border, Outline, and Ring course
+- Accessibility concerns: Windows High Contrast Mode
+
+**Design System Sources**: Red Hat Border Tokens, US Web Design System, Tokens Studio
 
 ---
 
