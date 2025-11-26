@@ -17,25 +17,38 @@ export function MotionTemplate({ config }: { config: DesignSystemConfig }) {
   const sans = config.primitives.typography.fontFamilies.sans.stack
   const sizes = config.primitives.typography.typeScale.sizes
 
-  // Convert motion tokens to Framer Motion spring configs
+  // Safety check for new motion structure
+  if (!motionConfig.profiles || !motionConfig.mode) {
+    return (
+      <div className="p-8 text-center text-muted-foreground">
+        <p>Motion preview is being updated to the new semantic structure.</p>
+        <p className="text-sm mt-2">Please refresh the page.</p>
+      </div>
+    )
+  }
+
+  // Convert motion spring presets to Framer Motion configs
   const springConfigs = {
+    tight: {
+      type: 'spring' as const,
+      ...motionConfig.springs.tight
+    },
+    balanced: {
+      type: 'spring' as const,
+      ...motionConfig.springs.balanced
+    },
+    loose: {
+      type: 'spring' as const,
+      ...motionConfig.springs.loose
+    },
     bouncy: {
       type: 'spring' as const,
       ...motionConfig.springs.bouncy
-    },
-    smooth: {
-      type: 'spring' as const,
-      ...motionConfig.springs.smooth
-    },
-    gentle: {
-      type: 'spring' as const,
-      ...motionConfig.springs.gentle
-    },
-    snappy: {
-      type: 'spring' as const,
-      ...motionConfig.springs.snappy
     }
   }
+
+  // Get profiles for easier access
+  const profiles = motionConfig.profiles
 
   return (
     <div className="space-y-12" style={{ fontFamily: sans }}>

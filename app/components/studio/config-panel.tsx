@@ -909,6 +909,12 @@ function MotionConfig({
 }) {
   const motion = config.primitives.motion
 
+  // Safety check: ensure motion has the new structure
+  if (!motion.profiles || !motion.mode) {
+    console.error('Motion config is missing new structure. Expected profiles and mode.')
+    return <div className="p-4 text-destructive">Motion configuration needs to be updated. Please refresh the page.</div>
+  }
+
   const updateMotion = (updates: Partial<typeof motion>) => {
     updateConfig({
       primitives: {
