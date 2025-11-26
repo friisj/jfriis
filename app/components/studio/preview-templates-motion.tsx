@@ -52,7 +52,7 @@ export function MotionTemplate({ config }: { config: DesignSystemConfig }) {
         <div>
           <h2 className="text-2xl font-semibold mb-2">Duration Scale</h2>
           <p className="text-muted-foreground">
-            IBM Carbon-inspired duration values for different use cases
+            Duration values for different use cases
           </p>
         </div>
 
@@ -166,40 +166,7 @@ export function MotionTemplate({ config }: { config: DesignSystemConfig }) {
         </div>
       </section>
 
-      {/* Focus Ring / Interactive States */}
-      <section className="space-y-6">
-        <div>
-          <h2 className="text-2xl font-semibold mb-2">Focus Rings & Interactive States</h2>
-          <p className="text-muted-foreground">
-            Tailwind-compatible ring system using box-shadow for focus indicators
-          </p>
-        </div>
-
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-          {Object.entries(motionConfig.ring.width).map(([name, width]) => (
-            <motion.button
-              key={name}
-              className="px-6 py-3 bg-primary text-primary-foreground rounded-lg font-medium relative"
-              whileHover={{
-                scale: 1.02,
-                boxShadow: `0 0 0 ${motionConfig.ring.offsetWidth[2]}px hsl(var(--background)), 0 0 0 ${motionConfig.ring.offsetWidth[2] + width}px hsl(var(--primary))`
-              }}
-              whileTap={{ scale: 0.98 }}
-              onFocus={(e) => {
-                e.currentTarget.style.boxShadow = `0 0 0 ${motionConfig.ring.offsetWidth[2]}px hsl(var(--background)), 0 0 0 ${motionConfig.ring.offsetWidth[2] + width}px hsl(var(--ring))`
-              }}
-              onBlur={(e) => {
-                e.currentTarget.style.boxShadow = 'none'
-              }}
-              transition={{ duration: motionConfig.durations.fast / 1000 }}
-            >
-              Ring {name} ({width}px)
-            </motion.button>
-          ))}
-        </div>
-      </section>
-
-      {/* Notification Example (IBM Carbon-inspired) */}
+      {/* Notification Example */}
       <section className="space-y-6">
         <div>
           <h2 className="text-2xl font-semibold mb-2">Notification Pattern</h2>
@@ -245,7 +212,7 @@ export function MotionTemplate({ config }: { config: DesignSystemConfig }) {
         </div>
       </section>
 
-      {/* Expandable Content (IBM Carbon List) */}
+      {/* Expandable Content */}
       <section className="space-y-6">
         <div>
           <h2 className="text-2xl font-semibold mb-2">Expandable Content</h2>

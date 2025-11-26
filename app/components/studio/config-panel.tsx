@@ -928,7 +928,7 @@ function MotionConfig({
         <div>
           <h3 className="text-lg font-semibold mb-2">Duration Scale</h3>
           <p className="text-sm text-muted-foreground">
-            IBM Carbon-inspired duration values (in milliseconds)
+            Duration values (in milliseconds)
           </p>
         </div>
 

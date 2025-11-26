@@ -62,7 +62,19 @@ export interface ColorSystemConfig {
   ring: { light: ScaleShade; dark: ScaleShade }
 }
 
-// Universal motion physics configuration
+// Semantic motion modes define the personality and intent of motion
+// Productive: Fast, efficient, focused on task completion
+// Expressive: Slower, more personality, focused on delight and brand
+export type MotionMode = 'productive' | 'expressive'
+
+// Motion profile combines duration, easing, and optional spring for a use case
+export interface MotionProfile {
+  duration: number
+  easing: string
+  spring?: { stiffness: number; damping: number; mass: number }
+}
+
+// Universal motion physics configuration with semantic organization
 // These tokens are platform-agnostic and can be adapted to:
 // - CSS transitions/animations
 // - Framer Motion (React)
@@ -71,73 +83,69 @@ export interface ColorSystemConfig {
 // - Three.js, Unity, Unreal
 // - AI prompt context for generative tools
 export interface MotionSystemConfig {
-  // Duration scale (IBM Carbon-inspired, in milliseconds)
-  durations: {
-    micro: number      // 70ms - Instant feedback (hover, focus)
-    fast: number       // 110ms - Quick transitions (tooltips, dropdowns)
-    standard: number   // 150ms - Default UI transitions
-    moderate: number   // 250ms - Emphasis transitions
-    slow: number       // 350ms - Deliberate transitions
-    page: number       // 500ms - Page transitions
-    deliberate: number // 700ms - Intentionally slow (important changes)
+  // Active motion mode (affects all motion profile durations)
+  mode: MotionMode
+
+  // Semantic motion profiles organized by use case intent
+  // Each profile automatically adapts based on mode (productive vs expressive)
+  profiles: {
+    // Micro-interactions: hover, focus, press states
+    interaction: MotionProfile
+
+    // State changes: toggle, switch, checkbox, radio
+    stateChange: MotionProfile
+
+    // UI transitions: menu open/close, dialog show/hide, dropdown
+    transition: MotionProfile
+
+    // Content reveals: accordion expand/collapse, disclosure, progressive disclosure
+    reveal: MotionProfile
+
+    // Navigation: page transitions, route changes, view swaps
+    navigation: MotionProfile
+
+    // Emphasis: success messages, errors, important feedback, celebrations
+    emphasis: MotionProfile
   }
 
-  // Easing curves for CSS
-  easings: {
-    'ease-in': string       // Accelerate from zero velocity
-    'ease-out': string      // Decelerate to zero velocity
-    'ease-in-out': string   // Accelerate then decelerate
-    'linear': string        // Constant velocity
-    'custom': string        // User-defined cubic-bezier
-  }
-
-  // Spring physics (universal parameters)
+  // Universal spring physics presets (adaptable to any platform)
   // Maps to: Framer Motion, iOS CASpringAnimation, Android SpringAnimation
   springs: {
+    tight: {
+      stiffness: number   // High stiffness, quick response
+      damping: number     // High damping, no overshoot
+      mass: number        // Light mass
+    }
+    balanced: {
+      stiffness: number   // Medium stiffness
+      damping: number     // Medium damping, slight overshoot
+      mass: number        // Medium mass
+    }
+    loose: {
+      stiffness: number   // Low stiffness, slower response
+      damping: number     // Low damping, gentle overshoot
+      mass: number        // Heavy mass
+    }
     bouncy: {
-      stiffness: number   // Spring strength (higher = faster)
-      damping: number     // Resistance (lower = more oscillation)
-      mass: number        // Weight of moving object
-    }
-    smooth: {
-      stiffness: number
-      damping: number
-      mass: number
-    }
-    gentle: {
-      stiffness: number
-      damping: number
-      mass: number
-    }
-    snappy: {
-      stiffness: number
-      damping: number
-      mass: number
+      stiffness: number   // Medium-high stiffness
+      damping: number     // Low damping, pronounced overshoot
+      mass: number        // Light mass
     }
   }
 
-  // Focus/Ring indicators (Tailwind-compatible)
-  ring: {
-    width: {
-      0: number    // 0px
-      1: number    // 1px
-      2: number    // 2px (default)
-      4: number    // 4px
-      8: number    // 8px
-    }
-    offsetWidth: {
-      0: number    // 0px
-      1: number    // 1px
-      2: number    // 2px (default)
-      4: number    // 4px
-      8: number    // 8px
-    }
-    // Ring colors use semantic color system (primary, secondary, accent)
-    opacity: {
-      50: number   // 0.5
-      75: number   // 0.75
-      100: number  // 1.0
-    }
+  // CSS easing curves organized by intent (not mechanics)
+  easings: {
+    // Elements entering view or gaining attention
+    enter: string
+
+    // Elements exiting view or losing attention
+    exit: string
+
+    // Standard state transitions
+    standard: string
+
+    // Linear mechanical motion (progress bars, loading)
+    linear: string
   }
 
   // Accessibility
@@ -388,69 +396,87 @@ const getDefaultConfig = (): DesignSystemConfig => {
         }
       },
       motion: {
-        // IBM Carbon-inspired duration scale
-        durations: {
-          micro: 70,      // Instant feedback (hover, focus)
-          fast: 110,      // Quick transitions (tooltips, dropdowns)
-          standard: 150,  // Default UI transitions
-          moderate: 250,  // Emphasis transitions
-          slow: 350,      // Deliberate transitions
-          page: 500,      // Page transitions
-          deliberate: 700 // Intentionally slow (important changes)
+        // Default to productive mode (fast, efficient)
+        mode: 'productive' as MotionMode,
+
+        // Semantic motion profiles
+        // Productive durations favor speed, expressive durations favor delight
+        profiles: {
+          // Micro-interactions (hover, focus, press)
+          interaction: {
+            duration: 70,  // Productive: 70ms, Expressive: 110ms
+            easing: 'cubic-bezier(0.0, 0.0, 0.2, 1.0)',  // ease-out
+            spring: { stiffness: 400, damping: 25, mass: 1 }  // tight spring
+          },
+
+          // State changes (toggle, switch, checkbox)
+          stateChange: {
+            duration: 110,  // Productive: 110ms, Expressive: 150ms
+            easing: 'cubic-bezier(0.0, 0.0, 0.2, 1.0)',
+            spring: { stiffness: 300, damping: 20, mass: 1 }  // balanced spring
+          },
+
+          // UI transitions (menu, dialog, dropdown)
+          transition: {
+            duration: 150,  // Productive: 150ms, Expressive: 250ms
+            easing: 'cubic-bezier(0.4, 0.0, 0.2, 1.0)',  // standard
+            spring: { stiffness: 200, damping: 20, mass: 1 }  // balanced spring
+          },
+
+          // Content reveals (accordion, disclosure)
+          reveal: {
+            duration: 250,  // Productive: 250ms, Expressive: 350ms
+            easing: 'cubic-bezier(0.4, 0.0, 0.2, 1.0)',
+            spring: { stiffness: 150, damping: 20, mass: 1 }  // loose spring
+          },
+
+          // Navigation (page transitions, route changes)
+          navigation: {
+            duration: 350,  // Productive: 350ms, Expressive: 500ms
+            easing: 'cubic-bezier(0.4, 0.0, 0.2, 1.0)',
+            spring: { stiffness: 100, damping: 20, mass: 1 }  // loose spring
+          },
+
+          // Emphasis (success, error, celebrations)
+          emphasis: {
+            duration: 500,  // Productive: 500ms, Expressive: 700ms
+            easing: 'cubic-bezier(0.4, 0.0, 0.2, 1.0)',
+            spring: { stiffness: 300, damping: 10, mass: 1 }  // bouncy spring
+          }
         },
-        // CSS easing curves
-        easings: {
-          'ease-in': 'cubic-bezier(0.4, 0.0, 1.0, 1.0)',
-          'ease-out': 'cubic-bezier(0.0, 0.0, 0.2, 1.0)',
-          'ease-in-out': 'cubic-bezier(0.4, 0.0, 0.2, 1.0)',
-          'linear': 'linear',
-          'custom': 'cubic-bezier(0.4, 0.0, 0.2, 1.0)' // Default to ease-in-out
-        },
-        // Universal spring physics (Framer Motion defaults)
+
+        // Universal spring physics presets
         springs: {
-          bouncy: {
-            stiffness: 300,
-            damping: 10,
+          tight: {
+            stiffness: 400,
+            damping: 25,
             mass: 1
           },
-          smooth: {
+          balanced: {
+            stiffness: 200,
+            damping: 20,
+            mass: 1
+          },
+          loose: {
             stiffness: 100,
             damping: 20,
             mass: 1
           },
-          gentle: {
-            stiffness: 50,
-            damping: 15,
-            mass: 1
-          },
-          snappy: {
-            stiffness: 400,
-            damping: 25,
+          bouncy: {
+            stiffness: 300,
+            damping: 10,
             mass: 1
           }
         },
-        // Tailwind-compatible ring system
-        ring: {
-          width: {
-            0: 0,
-            1: 1,
-            2: 2,  // default
-            4: 4,
-            8: 8
-          },
-          offsetWidth: {
-            0: 0,
-            1: 1,
-            2: 2,  // default
-            4: 4,
-            8: 8
-          },
-          opacity: {
-            50: 0.5,
-            75: 0.75,
-            100: 1.0
-          }
+
+        // CSS easing curves organized by intent
+        easings: {
+          enter: 'cubic-bezier(0.0, 0.0, 0.2, 1.0)',     // ease-out (decelerate in)
+          exit: 'cubic-bezier(0.4, 0.0, 1.0, 1.0)',      // ease-in (accelerate out)
+          standard: 'cubic-bezier(0.4, 0.0, 0.2, 1.0)',  // ease-in-out
+          linear: 'linear'
         },
+
         // Accessibility
         reducedMotion: false  // Will be detected at runtime
       }
