@@ -60,36 +60,50 @@ export function MotionTemplate({ config }: { config: DesignSystemConfig }) {
         </p>
       </div>
 
-      {/* Duration Scale Examples */}
+      {/* Motion Mode Display */}
       <section className="space-y-6">
         <div>
-          <h2 className="text-2xl font-semibold mb-2">Duration Scale</h2>
+          <h2 className="text-2xl font-semibold mb-2">Motion Mode: {motionConfig.mode}</h2>
           <p className="text-muted-foreground">
-            Duration values for different use cases
+            {motionConfig.mode === 'productive'
+              ? 'Fast, efficient motion optimized for task completion'
+              : 'Slower, delightful motion focused on brand expression'}
+          </p>
+        </div>
+      </section>
+
+      {/* Semantic Motion Profiles */}
+      <section className="space-y-6">
+        <div>
+          <h2 className="text-2xl font-semibold mb-2">Semantic Motion Profiles</h2>
+          <p className="text-muted-foreground">
+            Each profile defines timing for specific use cases
           </p>
         </div>
 
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          {Object.entries(motionConfig.durations).map(([name, duration]) => (
+        <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+          {Object.entries(profiles).map(([name, profile]) => (
             <motion.div
               key={name}
               whileHover={{
                 scale: 1.05,
-                transition: { duration: duration / 1000 }
+                transition: { duration: profile.duration / 1000, ease: profile.easing as any }
               }}
               whileTap={{ scale: 0.95 }}
             >
               <Card className="cursor-pointer">
                 <CardHeader>
-                  <CardTitle className="text-base capitalize">{name}</CardTitle>
-                  <CardDescription>{duration}ms</CardDescription>
+                  <CardTitle className="text-base capitalize">
+                    {name.replace(/([A-Z])/g, ' $1').trim()}
+                  </CardTitle>
+                  <CardDescription>{profile.duration}ms</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <motion.div
                     className="h-2 bg-primary rounded-full"
                     initial={{ width: 0 }}
                     whileInView={{ width: '100%' }}
-                    transition={{ duration: duration / 1000 }}
+                    transition={{ duration: profile.duration / 1000, ease: profile.easing as any }}
                     viewport={{ once: true }}
                   />
                 </CardContent>
@@ -144,12 +158,12 @@ export function MotionTemplate({ config }: { config: DesignSystemConfig }) {
         </div>
       </section>
 
-      {/* Easing Curves Examples */}
+      {/* Easing Curves (Intent-based) */}
       <section className="space-y-6">
         <div>
           <h2 className="text-2xl font-semibold mb-2">Easing Curves</h2>
           <p className="text-muted-foreground">
-            CSS cubic-bezier timing functions for different motion feels
+            Intent-based timing functions (enter, exit, standard, linear)
           </p>
         </div>
 
@@ -157,7 +171,7 @@ export function MotionTemplate({ config }: { config: DesignSystemConfig }) {
           {Object.entries(motionConfig.easings).map(([name, easing]) => (
             <Card key={name}>
               <CardHeader>
-                <CardTitle className="capitalize">{name.replace('-', ' ')}</CardTitle>
+                <CardTitle className="capitalize">{name}</CardTitle>
                 <CardDescription className="font-mono text-xs">{easing}</CardDescription>
               </CardHeader>
               <CardContent>
@@ -167,7 +181,7 @@ export function MotionTemplate({ config }: { config: DesignSystemConfig }) {
                     initial={{ width: 0 }}
                     whileInView={{ width: '100%' }}
                     transition={{
-                      duration: motionConfig.durations.moderate / 1000,
+                      duration: profiles.transition.duration / 1000,
                       ease: easing.replace('cubic-bezier', '').replace(/[()]/g, '').split(',').map(Number) as any
                     }}
                     viewport={{ once: false }}
@@ -179,12 +193,12 @@ export function MotionTemplate({ config }: { config: DesignSystemConfig }) {
         </div>
       </section>
 
-      {/* Notification Example */}
+      {/* Notification Example - Uses "emphasis" profile */}
       <section className="space-y-6">
         <div>
           <h2 className="text-2xl font-semibold mb-2">Notification Pattern</h2>
           <p className="text-muted-foreground">
-            Entrance/exit animations with spring physics
+            Uses <Badge variant="outline">emphasis</Badge> profile ({profiles.emphasis.duration}ms) for important feedback
           </p>
         </div>
 
@@ -199,7 +213,10 @@ export function MotionTemplate({ config }: { config: DesignSystemConfig }) {
                 initial={{ opacity: 0, y: -20, scale: 0.95 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, y: -20, scale: 0.95 }}
-                transition={springConfigs.smooth}
+                transition={profiles.emphasis.spring ? springConfigs.bouncy : {
+                  duration: profiles.emphasis.duration / 1000,
+                  ease: profiles.emphasis.easing as any
+                }}
                 className="max-w-md"
               >
                 <Card className="border-l-4 border-l-primary">
@@ -225,12 +242,12 @@ export function MotionTemplate({ config }: { config: DesignSystemConfig }) {
         </div>
       </section>
 
-      {/* Expandable Content */}
+      {/* Expandable Content - Uses "reveal" profile */}
       <section className="space-y-6">
         <div>
           <h2 className="text-2xl font-semibold mb-2">Expandable Content</h2>
           <p className="text-muted-foreground">
-            Accordion-style expansion with smooth spring physics
+            Uses <Badge variant="outline">reveal</Badge> profile ({profiles.reveal.duration}ms) for accordion-style expansion
           </p>
         </div>
 
@@ -244,7 +261,7 @@ export function MotionTemplate({ config }: { config: DesignSystemConfig }) {
                 <span>Click to expand</span>
                 <motion.span
                   animate={{ rotate: isExpanded ? 180 : 0 }}
-                  transition={springConfigs.snappy}
+                  transition={springConfigs.tight}
                 >
                   ▼
                 </motion.span>
@@ -258,18 +275,20 @@ export function MotionTemplate({ config }: { config: DesignSystemConfig }) {
                 initial={{ height: 0, opacity: 0 }}
                 animate={{ height: 'auto', opacity: 1 }}
                 exit={{ height: 0, opacity: 0 }}
-                transition={springConfigs.smooth}
+                transition={profiles.reveal.spring ? springConfigs.balanced : {
+                  duration: profiles.reveal.duration / 1000,
+                  ease: profiles.reveal.easing as any
+                }}
               >
                 <CardContent className="pt-0">
                   <p className="text-muted-foreground">
-                    This content expands and collapses using spring physics. The smooth spring
-                    configuration provides natural, physics-based motion that adapts to
-                    interruptions and feels responsive to user input.
+                    This content expands using the reveal profile. The timing adapts based on
+                    your motion mode (productive vs expressive) to match your design intent.
                   </p>
                   <div className="mt-4 space-y-2">
-                    <Badge>Spring-based</Badge>
+                    <Badge>Semantic</Badge>
                     <Badge variant="outline">Interruptible</Badge>
-                    <Badge variant="secondary">Responsive</Badge>
+                    <Badge variant="secondary">Mode-aware</Badge>
                   </div>
                 </CardContent>
               </motion.div>
@@ -278,17 +297,17 @@ export function MotionTemplate({ config }: { config: DesignSystemConfig }) {
         </Card>
       </section>
 
-      {/* Button Hover States */}
+      {/* Button Hover States - Uses "interaction" profile */}
       <section className="space-y-6">
         <div>
           <h2 className="text-2xl font-semibold mb-2">Interactive Buttons</h2>
           <p className="text-muted-foreground">
-            Micro-interactions with different spring feels
+            Uses <Badge variant="outline">interaction</Badge> profile ({profiles.interaction.duration}ms) for micro-interactions
           </p>
         </div>
 
         <div className="flex flex-wrap gap-4">
-          {['bouncy', 'smooth', 'gentle', 'snappy'].map((spring) => (
+          {['tight', 'balanced', 'loose', 'bouncy'].map((spring) => (
             <motion.button
               key={spring}
               className="px-6 py-3 bg-primary text-primary-foreground rounded-lg font-medium"
