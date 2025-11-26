@@ -921,305 +921,71 @@ function MotionConfig({
     })
   }
 
-  const updateProfile = (profileName: keyof typeof motion.profiles, updates: Partial<MotionProfile>) => {
-    updateMotion({
-      profiles: {
-        ...motion.profiles,
-        [profileName]: {
-          ...motion.profiles[profileName],
-          ...updates
-        }
-      }
-    })
-  }
-
-  const profileDescriptions: Record<keyof typeof motion.profiles, string> = {
-    interaction: 'Micro-interactions: hover, focus, press states',
-    stateChange: 'Toggle, switch, checkbox, radio button transitions',
-    transition: 'Menu open/close, dialog show/hide, dropdown animations',
-    reveal: 'Accordion expand/collapse, disclosure, progressive reveal',
-    navigation: 'Page transitions, route changes, view swaps',
-    emphasis: 'Success messages, errors, celebrations, important feedback'
-  }
-
   return (
     <div className="space-y-8">
-      {/* Motion Mode Selector */}
+      {/* Duration Scale */}
       <div className="space-y-4">
         <div>
-          <h3 className="text-lg font-semibold mb-2">Motion Mode</h3>
+          <h3 className="text-lg font-semibold mb-2">Duration Scale</h3>
           <p className="text-sm text-muted-foreground">
-            Defines the personality and intent of all motion in your design system
+            Duration values (in milliseconds)
           </p>
         </div>
 
         <div className="grid grid-cols-2 gap-4">
-          <button
-            onClick={() => updateMotion({ mode: 'productive' })}
-            className={`p-4 border-2 rounded-lg text-left transition-colors ${
-              motion.mode === 'productive'
-                ? 'border-primary bg-primary/5'
-                : 'border-border hover:border-primary/50'
-            }`}
-          >
-            <div className="font-semibold mb-1">Productive</div>
-            <div className="text-sm text-muted-foreground">
-              Fast, efficient, task-focused. Optimized for productivity and quick interactions.
-            </div>
-          </button>
-
-          <button
-            onClick={() => updateMotion({ mode: 'expressive' })}
-            className={`p-4 border-2 rounded-lg text-left transition-colors ${
-              motion.mode === 'expressive'
-                ? 'border-primary bg-primary/5'
-                : 'border-border hover:border-primary/50'
-            }`}
-          >
-            <div className="font-semibold mb-1">Expressive</div>
-            <div className="text-sm text-muted-foreground">
-              Slower, delightful, brand-focused. Emphasizes personality and user delight.
-            </div>
-          </button>
-        </div>
-      </div>
-
-      {/* Semantic Motion Profiles */}
-      <div className="space-y-4">
-        <div>
-          <h3 className="text-lg font-semibold mb-2">Semantic Motion Profiles</h3>
-          <p className="text-sm text-muted-foreground">
-            Each profile defines timing for a specific use case
-          </p>
-        </div>
-
-        <div className="space-y-4">
-          {Object.entries(motion.profiles).map(([name, profile]) => (
-            <div key={name} className="border rounded-lg p-4 space-y-3">
-              <div>
-                <h4 className="font-medium capitalize">{name.replace(/([A-Z])/g, ' $1').trim()}</h4>
-                <p className="text-xs text-muted-foreground mt-1">
-                  {profileDescriptions[name as keyof typeof motion.profiles]}
-                </p>
-              </div>
-
-              {/* Duration */}
-              <div className="space-y-2">
-                <label className="text-sm font-medium">
-                  Duration: {profile.duration}ms
-                </label>
-                <input
-                  type="range"
-                  min="0"
-                  max="1000"
-                  step="10"
-                  value={profile.duration}
-                  onChange={(e) =>
-                    updateProfile(name as keyof typeof motion.profiles, {
-                      duration: parseInt(e.target.value)
-                    })
-                  }
-                  className="w-full"
-                />
-              </div>
-
-              {/* Easing */}
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Easing Curve</label>
-                <input
-                  type="text"
-                  value={profile.easing}
-                  onChange={(e) =>
-                    updateProfile(name as keyof typeof motion.profiles, {
-                      easing: e.target.value
-                    })
-                  }
-                  className="w-full px-3 py-2 border rounded-md text-sm font-mono"
-                  placeholder="cubic-bezier(0.4, 0.0, 0.2, 1.0)"
-                />
-              </div>
-
-              {/* Spring (if present) */}
-              {profile.spring && (
-                <div className="space-y-2 pt-2 border-t">
-                  <label className="text-xs font-medium text-muted-foreground">
-                    Spring Physics (optional)
-                  </label>
-
-                  <div className="grid grid-cols-3 gap-2">
-                    <div>
-                      <label className="text-xs">Stiffness</label>
-                      <input
-                        type="number"
-                        value={profile.spring.stiffness}
-                        onChange={(e) =>
-                          updateProfile(name as keyof typeof motion.profiles, {
-                            spring: {
-                              ...profile.spring!,
-                              stiffness: parseInt(e.target.value) || 0
-                            }
-                          })
-                        }
-                        className="w-full px-2 py-1 border rounded text-xs"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="text-xs">Damping</label>
-                      <input
-                        type="number"
-                        value={profile.spring.damping}
-                        onChange={(e) =>
-                          updateProfile(name as keyof typeof motion.profiles, {
-                            spring: {
-                              ...profile.spring!,
-                              damping: parseInt(e.target.value) || 0
-                            }
-                          })
-                        }
-                        className="w-full px-2 py-1 border rounded text-xs"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="text-xs">Mass</label>
-                      <input
-                        type="number"
-                        value={profile.spring.mass}
-                        onChange={(e) =>
-                          updateProfile(name as keyof typeof motion.profiles, {
-                            spring: {
-                              ...profile.spring!,
-                              mass: parseFloat(e.target.value) || 1
-                            }
-                          })
-                        }
-                        className="w-full px-2 py-1 border rounded text-xs"
-                        step="0.1"
-                      />
-                    </div>
-                  </div>
-                </div>
-              )}
+          {Object.entries(motion.durations).map(([name, value]) => (
+            <div key={name} className="space-y-2">
+              <label className="text-sm font-medium capitalize flex items-center gap-2">
+                {name}
+                <span className="text-xs text-muted-foreground">({value}ms)</span>
+              </label>
+              <input
+                type="range"
+                min="0"
+                max="1000"
+                step="10"
+                value={value}
+                onChange={(e) =>
+                  updateMotion({
+                    durations: {
+                      ...motion.durations,
+                      [name]: parseInt(e.target.value)
+                    }
+                  })
+                }
+                className="w-full"
+              />
+              <input
+                type="number"
+                value={value}
+                onChange={(e) =>
+                  updateMotion({
+                    durations: {
+                      ...motion.durations,
+                      [name]: parseInt(e.target.value) || 0
+                    }
+                  })
+                }
+                className="w-full px-3 py-2 border rounded-md text-sm"
+              />
             </div>
           ))}
         </div>
       </div>
 
-      {/* Spring Physics Presets */}
-      <div className="space-y-4">
-        <div>
-          <h3 className="text-lg font-semibold mb-2">Spring Physics Presets</h3>
-          <p className="text-sm text-muted-foreground">
-            Universal physics parameters adaptable to any platform
-          </p>
-        </div>
-
-        {Object.entries(motion.springs).map(([name, spring]) => (
-          <div key={name} className="border rounded-lg p-4 space-y-3">
-            <h4 className="font-medium capitalize">{name}</h4>
-
-            <div className="grid grid-cols-3 gap-4">
-              <div className="space-y-2">
-                <label className="text-sm">
-                  Stiffness: {spring.stiffness}
-                </label>
-                <input
-                  type="range"
-                  min="0"
-                  max="1000"
-                  step="10"
-                  value={spring.stiffness}
-                  onChange={(e) =>
-                    updateMotion({
-                      springs: {
-                        ...motion.springs,
-                        [name]: {
-                          ...spring,
-                          stiffness: parseInt(e.target.value)
-                        }
-                      }
-                    })
-                  }
-                  className="w-full"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-sm">
-                  Damping: {spring.damping}
-                </label>
-                <input
-                  type="range"
-                  min="0"
-                  max="100"
-                  step="1"
-                  value={spring.damping}
-                  onChange={(e) =>
-                    updateMotion({
-                      springs: {
-                        ...motion.springs,
-                        [name]: {
-                          ...spring,
-                          damping: parseInt(e.target.value)
-                        }
-                      }
-                    })
-                  }
-                  className="w-full"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-sm">
-                  Mass: {spring.mass}
-                </label>
-                <input
-                  type="range"
-                  min="0.1"
-                  max="10"
-                  step="0.1"
-                  value={spring.mass}
-                  onChange={(e) =>
-                    updateMotion({
-                      springs: {
-                        ...motion.springs,
-                        [name]: {
-                          ...spring,
-                          mass: parseFloat(e.target.value)
-                        }
-                      }
-                    })
-                  }
-                  className="w-full"
-                />
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {/* Easing Curves (Intent-based) */}
+      {/* Easing Curves */}
       <div className="space-y-4">
         <div>
           <h3 className="text-lg font-semibold mb-2">Easing Curves</h3>
           <p className="text-sm text-muted-foreground">
-            CSS timing functions organized by intent
+            CSS cubic-bezier timing functions
           </p>
         </div>
 
         <div className="space-y-3">
           {Object.entries(motion.easings).map(([name, value]) => (
             <div key={name} className="space-y-2">
-              <label className="text-sm font-medium capitalize flex items-center gap-2">
-                {name}
-                <span className="text-xs text-muted-foreground font-normal">
-                  {name === 'enter' && '(elements entering view)'}
-                  {name === 'exit' && '(elements exiting view)'}
-                  {name === 'standard' && '(state transitions)'}
-                  {name === 'linear' && '(mechanical motion)'}
-                </span>
-              </label>
+              <label className="text-sm font-medium capitalize">{name}</label>
               <input
                 type="text"
                 value={value}
@@ -1239,24 +1005,229 @@ function MotionConfig({
         </div>
       </div>
 
-      {/* Reduced Motion */}
+      {/* Spring Physics */}
       <div className="space-y-4">
-        <div className="flex items-center justify-between p-4 border rounded-lg">
-          <label className="flex items-center gap-3 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={motion.reducedMotion}
-              onChange={(e) => updateMotion({ reducedMotion: e.target.checked })}
-              className="w-4 h-4"
-            />
-            <span className="text-sm font-medium">
-              Reduced Motion
-              <span className="block text-xs text-muted-foreground font-normal">
-                Automatically detected via prefers-reduced-motion media query
-              </span>
-            </span>
-          </label>
+        <div>
+          <h3 className="text-lg font-semibold mb-2">Spring Physics</h3>
+          <p className="text-sm text-muted-foreground">
+            Universal physics parameters (Framer Motion, iOS, Android, etc.)
+          </p>
         </div>
+
+        {Object.entries(motion.springs).map(([name, spring]) => (
+          <div key={name} className="border rounded-lg p-4 space-y-3">
+            <h4 className="font-medium capitalize">{name}</h4>
+
+            <div className="space-y-2">
+              <label className="text-sm">
+                Stiffness: {spring.stiffness}
+                <span className="text-xs text-muted-foreground ml-2">
+                  (higher = faster)
+                </span>
+              </label>
+              <input
+                type="range"
+                min="0"
+                max="1000"
+                step="10"
+                value={spring.stiffness}
+                onChange={(e) =>
+                  updateMotion({
+                    springs: {
+                      ...motion.springs,
+                      [name]: {
+                        ...spring,
+                        stiffness: parseInt(e.target.value)
+                      }
+                    }
+                  })
+                }
+                className="w-full"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm">
+                Damping: {spring.damping}
+                <span className="text-xs text-muted-foreground ml-2">
+                  (lower = more oscillation)
+                </span>
+              </label>
+              <input
+                type="range"
+                min="0"
+                max="100"
+                step="1"
+                value={spring.damping}
+                onChange={(e) =>
+                  updateMotion({
+                    springs: {
+                      ...motion.springs,
+                      [name]: {
+                        ...spring,
+                        damping: parseInt(e.target.value)
+                      }
+                    }
+                  })
+                }
+                className="w-full"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm">
+                Mass: {spring.mass}
+                <span className="text-xs text-muted-foreground ml-2">
+                  (weight of object)
+                </span>
+              </label>
+              <input
+                type="range"
+                min="0.1"
+                max="10"
+                step="0.1"
+                value={spring.mass}
+                onChange={(e) =>
+                  updateMotion({
+                    springs: {
+                      ...motion.springs,
+                      [name]: {
+                        ...spring,
+                        mass: parseFloat(e.target.value)
+                      }
+                    }
+                  })
+                }
+                className="w-full"
+              />
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Ring/Focus Indicators */}
+      <div className="space-y-4">
+        <div>
+          <h3 className="text-lg font-semibold mb-2">Ring / Focus Indicators</h3>
+          <p className="text-sm text-muted-foreground">
+            Tailwind-compatible ring system (uses box-shadow)
+          </p>
+        </div>
+
+        <div className="space-y-4">
+          <div>
+            <h4 className="font-medium mb-3">Ring Width</h4>
+            <div className="grid grid-cols-5 gap-2">
+              {Object.entries(motion.ring.width).map(([name, value]) => (
+                <div key={name} className="space-y-1">
+                  <label className="text-xs">{name}</label>
+                  <input
+                    type="number"
+                    value={value}
+                    onChange={(e) =>
+                      updateMotion({
+                        ring: {
+                          ...motion.ring,
+                          width: {
+                            ...motion.ring.width,
+                            [name]: parseInt(e.target.value) || 0
+                          }
+                        }
+                      })
+                    }
+                    className="w-full px-2 py-1 border rounded text-xs"
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <h4 className="font-medium mb-3">Ring Offset Width</h4>
+            <div className="grid grid-cols-5 gap-2">
+              {Object.entries(motion.ring.offsetWidth).map(([name, value]) => (
+                <div key={name} className="space-y-1">
+                  <label className="text-xs">{name}</label>
+                  <input
+                    type="number"
+                    value={value}
+                    onChange={(e) =>
+                      updateMotion({
+                        ring: {
+                          ...motion.ring,
+                          offsetWidth: {
+                            ...motion.ring.offsetWidth,
+                            [name]: parseInt(e.target.value) || 0
+                          }
+                        }
+                      })
+                    }
+                    className="w-full px-2 py-1 border rounded text-xs"
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <h4 className="font-medium mb-3">Ring Opacity</h4>
+            <div className="grid grid-cols-3 gap-2">
+              {Object.entries(motion.ring.opacity).map(([name, value]) => (
+                <div key={name} className="space-y-1">
+                  <label className="text-xs">{name}%</label>
+                  <input
+                    type="number"
+                    min="0"
+                    max="1"
+                    step="0.01"
+                    value={value}
+                    onChange={(e) =>
+                      updateMotion({
+                        ring: {
+                          ...motion.ring,
+                          opacity: {
+                            ...motion.ring.opacity,
+                            [name]: parseFloat(e.target.value) || 0
+                          }
+                        }
+                      })
+                    }
+                    className="w-full px-2 py-1 border rounded text-xs"
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Accessibility */}
+      <div className="space-y-4">
+        <div>
+          <h3 className="text-lg font-semibold mb-2">Accessibility</h3>
+          <p className="text-sm text-muted-foreground">
+            Respect user motion preferences
+          </p>
+        </div>
+
+        <label className="flex items-center gap-3">
+          <input
+            type="checkbox"
+            checked={motion.reducedMotion}
+            onChange={(e) =>
+              updateMotion({
+                reducedMotion: e.target.checked
+              })
+            }
+            className="w-4 h-4"
+          />
+          <span className="text-sm">
+            Reduced Motion
+            <span className="block text-xs text-muted-foreground">
+              Automatically detected via prefers-reduced-motion media query
+            </span>
+          </span>
+        </label>
       </div>
     </div>
   )
