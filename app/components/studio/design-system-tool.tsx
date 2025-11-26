@@ -62,6 +62,88 @@ export interface ColorSystemConfig {
   ring: { light: ScaleShade; dark: ScaleShade }
 }
 
+// Universal motion physics configuration
+// These tokens are platform-agnostic and can be adapted to:
+// - CSS transitions/animations
+// - Framer Motion (React)
+// - CASpringAnimation (iOS)
+// - SpringAnimation (Android)
+// - Three.js, Unity, Unreal
+// - AI prompt context for generative tools
+export interface MotionSystemConfig {
+  // Duration scale (IBM Carbon-inspired, in milliseconds)
+  durations: {
+    micro: number      // 70ms - Instant feedback (hover, focus)
+    fast: number       // 110ms - Quick transitions (tooltips, dropdowns)
+    standard: number   // 150ms - Default UI transitions
+    moderate: number   // 250ms - Emphasis transitions
+    slow: number       // 350ms - Deliberate transitions
+    page: number       // 500ms - Page transitions
+    deliberate: number // 700ms - Intentionally slow (important changes)
+  }
+
+  // Easing curves for CSS
+  easings: {
+    'ease-in': string       // Accelerate from zero velocity
+    'ease-out': string      // Decelerate to zero velocity
+    'ease-in-out': string   // Accelerate then decelerate
+    'linear': string        // Constant velocity
+    'custom': string        // User-defined cubic-bezier
+  }
+
+  // Spring physics (universal parameters)
+  // Maps to: Framer Motion, iOS CASpringAnimation, Android SpringAnimation
+  springs: {
+    bouncy: {
+      stiffness: number   // Spring strength (higher = faster)
+      damping: number     // Resistance (lower = more oscillation)
+      mass: number        // Weight of moving object
+    }
+    smooth: {
+      stiffness: number
+      damping: number
+      mass: number
+    }
+    gentle: {
+      stiffness: number
+      damping: number
+      mass: number
+    }
+    snappy: {
+      stiffness: number
+      damping: number
+      mass: number
+    }
+  }
+
+  // Focus/Ring indicators (Tailwind-compatible)
+  ring: {
+    width: {
+      0: number    // 0px
+      1: number    // 1px
+      2: number    // 2px (default)
+      4: number    // 4px
+      8: number    // 8px
+    }
+    offsetWidth: {
+      0: number    // 0px
+      1: number    // 1px
+      2: number    // 2px (default)
+      4: number    // 4px
+      8: number    // 8px
+    }
+    // Ring colors use semantic color system (primary, secondary, accent)
+    opacity: {
+      50: number   // 0.5
+      75: number   // 0.75
+      100: number  // 1.0
+    }
+  }
+
+  // Accessibility
+  reducedMotion: boolean  // prefers-reduced-motion preference
+}
+
 export type DesignSystemConfig = {
   primitives: {
     spacing: {
@@ -117,6 +199,7 @@ export type DesignSystemConfig = {
       }
     }
     colors: ColorSystemConfig
+    motion: MotionSystemConfig
   }
   semantic: {
     spacing: Record<string, string>
@@ -303,6 +386,73 @@ const getDefaultConfig = (): DesignSystemConfig => {
           light: { scale: 'blue', shade: 600 },
           dark: { scale: 'blue', shade: 500 }
         }
+      },
+      motion: {
+        // IBM Carbon-inspired duration scale
+        durations: {
+          micro: 70,      // Instant feedback (hover, focus)
+          fast: 110,      // Quick transitions (tooltips, dropdowns)
+          standard: 150,  // Default UI transitions
+          moderate: 250,  // Emphasis transitions
+          slow: 350,      // Deliberate transitions
+          page: 500,      // Page transitions
+          deliberate: 700 // Intentionally slow (important changes)
+        },
+        // CSS easing curves
+        easings: {
+          'ease-in': 'cubic-bezier(0.4, 0.0, 1.0, 1.0)',
+          'ease-out': 'cubic-bezier(0.0, 0.0, 0.2, 1.0)',
+          'ease-in-out': 'cubic-bezier(0.4, 0.0, 0.2, 1.0)',
+          'linear': 'linear',
+          'custom': 'cubic-bezier(0.4, 0.0, 0.2, 1.0)' // Default to ease-in-out
+        },
+        // Universal spring physics (Framer Motion defaults)
+        springs: {
+          bouncy: {
+            stiffness: 300,
+            damping: 10,
+            mass: 1
+          },
+          smooth: {
+            stiffness: 100,
+            damping: 20,
+            mass: 1
+          },
+          gentle: {
+            stiffness: 50,
+            damping: 15,
+            mass: 1
+          },
+          snappy: {
+            stiffness: 400,
+            damping: 25,
+            mass: 1
+          }
+        },
+        // Tailwind-compatible ring system
+        ring: {
+          width: {
+            0: 0,
+            1: 1,
+            2: 2,  // default
+            4: 4,
+            8: 8
+          },
+          offsetWidth: {
+            0: 0,
+            1: 1,
+            2: 2,  // default
+            4: 4,
+            8: 8
+          },
+          opacity: {
+            50: 0.5,
+            75: 0.75,
+            100: 1.0
+          }
+        },
+        // Accessibility
+        reducedMotion: false  // Will be detected at runtime
       }
     },
     semantic: {

@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import type { DesignSystemConfig } from './design-system-tool'
 import { TypographyTemplate as TypographyTemplateNew } from './preview-templates-typography'
+import { MotionTemplate } from './preview-templates-motion'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Progress } from '@/components/ui/progress'
@@ -18,7 +19,7 @@ interface PreviewTemplatesProps {
   config: DesignSystemConfig
 }
 
-type Template = 'card' | 'form' | 'blog' | 'typography' | 'layout' | 'dashboard'
+type Template = 'card' | 'form' | 'blog' | 'typography' | 'layout' | 'dashboard' | 'motion'
 
 export function PreviewTemplates({ config }: PreviewTemplatesProps) {
   const [activeTemplate, setActiveTemplate] = useState<Template>('card')
@@ -29,7 +30,8 @@ export function PreviewTemplates({ config }: PreviewTemplatesProps) {
     { id: 'form', label: 'Form' },
     { id: 'blog', label: 'Blog Post' },
     { id: 'typography', label: 'Typography' },
-    { id: 'layout', label: 'Layout' }
+    { id: 'layout', label: 'Layout' },
+    { id: 'motion', label: 'Motion' }
   ]
 
   return (
@@ -61,6 +63,7 @@ export function PreviewTemplates({ config }: PreviewTemplatesProps) {
         {activeTemplate === 'blog' && <BlogTemplate config={config} />}
         {activeTemplate === 'typography' && <TypographyTemplateNew config={config} />}
         {activeTemplate === 'layout' && <LayoutTemplate config={config} />}
+        {activeTemplate === 'motion' && <MotionTemplate config={config} />}
       </div>
     </div>
   )

@@ -13,7 +13,7 @@ interface ConfigPanelProps {
   onConfigChange: (config: DesignSystemConfig) => void
 }
 
-type Section = 'spacing' | 'radius' | 'grid' | 'elevation' | 'typography' | 'colors'
+type Section = 'spacing' | 'radius' | 'grid' | 'elevation' | 'typography' | 'colors' | 'motion'
 
 export function ConfigPanel({ config, onConfigChange }: ConfigPanelProps) {
   const [activeSection, setActiveSection] = useState<Section>('spacing')
@@ -50,7 +50,8 @@ export function ConfigPanel({ config, onConfigChange }: ConfigPanelProps) {
     { id: 'colors', label: 'Colors' },
     { id: 'grid', label: 'Grid' },
     { id: 'elevation', label: 'Elevation' },
-    { id: 'typography', label: 'Typography' }
+    { id: 'typography', label: 'Typography' },
+    { id: 'motion', label: 'Motion' }
   ]
 
   return (
@@ -93,6 +94,9 @@ export function ConfigPanel({ config, onConfigChange }: ConfigPanelProps) {
         )}
         {activeSection === 'typography' && (
           <TypographyConfig config={config} updateConfig={updateConfig} />
+        )}
+        {activeSection === 'motion' && (
+          <MotionConfig config={config} updateConfig={updateConfig} />
         )}
       </div>
     </div>
@@ -891,6 +895,339 @@ function ColorConfig({
           label="Ring"
           description="Focus ring color"
         />
+      </div>
+    </div>
+  )
+}
+
+function MotionConfig({
+  config,
+  updateConfig
+}: {
+  config: DesignSystemConfig
+  updateConfig: (updates: Partial<DesignSystemConfig>) => void
+}) {
+  const motion = config.primitives.motion
+
+  const updateMotion = (updates: Partial<typeof motion>) => {
+    updateConfig({
+      primitives: {
+        ...config.primitives,
+        motion: {
+          ...motion,
+          ...updates
+        }
+      }
+    })
+  }
+
+  return (
+    <div className="space-y-8">
+      {/* Duration Scale */}
+      <div className="space-y-4">
+        <div>
+          <h3 className="text-lg font-semibold mb-2">Duration Scale</h3>
+          <p className="text-sm text-muted-foreground">
+            IBM Carbon-inspired duration values (in milliseconds)
+          </p>
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          {Object.entries(motion.durations).map(([name, value]) => (
+            <div key={name} className="space-y-2">
+              <label className="text-sm font-medium capitalize flex items-center gap-2">
+                {name}
+                <span className="text-xs text-muted-foreground">({value}ms)</span>
+              </label>
+              <input
+                type="range"
+                min="0"
+                max="1000"
+                step="10"
+                value={value}
+                onChange={(e) =>
+                  updateMotion({
+                    durations: {
+                      ...motion.durations,
+                      [name]: parseInt(e.target.value)
+                    }
+                  })
+                }
+                className="w-full"
+              />
+              <input
+                type="number"
+                value={value}
+                onChange={(e) =>
+                  updateMotion({
+                    durations: {
+                      ...motion.durations,
+                      [name]: parseInt(e.target.value) || 0
+                    }
+                  })
+                }
+                className="w-full px-3 py-2 border rounded-md text-sm"
+              />
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Easing Curves */}
+      <div className="space-y-4">
+        <div>
+          <h3 className="text-lg font-semibold mb-2">Easing Curves</h3>
+          <p className="text-sm text-muted-foreground">
+            CSS cubic-bezier timing functions
+          </p>
+        </div>
+
+        <div className="space-y-3">
+          {Object.entries(motion.easings).map(([name, value]) => (
+            <div key={name} className="space-y-2">
+              <label className="text-sm font-medium capitalize">{name}</label>
+              <input
+                type="text"
+                value={value}
+                onChange={(e) =>
+                  updateMotion({
+                    easings: {
+                      ...motion.easings,
+                      [name]: e.target.value
+                    }
+                  })
+                }
+                className="w-full px-3 py-2 border rounded-md text-sm font-mono"
+                placeholder="cubic-bezier(0.4, 0.0, 0.2, 1.0)"
+              />
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Spring Physics */}
+      <div className="space-y-4">
+        <div>
+          <h3 className="text-lg font-semibold mb-2">Spring Physics</h3>
+          <p className="text-sm text-muted-foreground">
+            Universal physics parameters (Framer Motion, iOS, Android, etc.)
+          </p>
+        </div>
+
+        {Object.entries(motion.springs).map(([name, spring]) => (
+          <div key={name} className="border rounded-lg p-4 space-y-3">
+            <h4 className="font-medium capitalize">{name}</h4>
+
+            <div className="space-y-2">
+              <label className="text-sm">
+                Stiffness: {spring.stiffness}
+                <span className="text-xs text-muted-foreground ml-2">
+                  (higher = faster)
+                </span>
+              </label>
+              <input
+                type="range"
+                min="0"
+                max="1000"
+                step="10"
+                value={spring.stiffness}
+                onChange={(e) =>
+                  updateMotion({
+                    springs: {
+                      ...motion.springs,
+                      [name]: {
+                        ...spring,
+                        stiffness: parseInt(e.target.value)
+                      }
+                    }
+                  })
+                }
+                className="w-full"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm">
+                Damping: {spring.damping}
+                <span className="text-xs text-muted-foreground ml-2">
+                  (lower = more oscillation)
+                </span>
+              </label>
+              <input
+                type="range"
+                min="0"
+                max="100"
+                step="1"
+                value={spring.damping}
+                onChange={(e) =>
+                  updateMotion({
+                    springs: {
+                      ...motion.springs,
+                      [name]: {
+                        ...spring,
+                        damping: parseInt(e.target.value)
+                      }
+                    }
+                  })
+                }
+                className="w-full"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm">
+                Mass: {spring.mass}
+                <span className="text-xs text-muted-foreground ml-2">
+                  (weight of object)
+                </span>
+              </label>
+              <input
+                type="range"
+                min="0.1"
+                max="10"
+                step="0.1"
+                value={spring.mass}
+                onChange={(e) =>
+                  updateMotion({
+                    springs: {
+                      ...motion.springs,
+                      [name]: {
+                        ...spring,
+                        mass: parseFloat(e.target.value)
+                      }
+                    }
+                  })
+                }
+                className="w-full"
+              />
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Ring/Focus Indicators */}
+      <div className="space-y-4">
+        <div>
+          <h3 className="text-lg font-semibold mb-2">Ring / Focus Indicators</h3>
+          <p className="text-sm text-muted-foreground">
+            Tailwind-compatible ring system (uses box-shadow)
+          </p>
+        </div>
+
+        <div className="space-y-4">
+          <div>
+            <h4 className="font-medium mb-3">Ring Width</h4>
+            <div className="grid grid-cols-5 gap-2">
+              {Object.entries(motion.ring.width).map(([name, value]) => (
+                <div key={name} className="space-y-1">
+                  <label className="text-xs">{name}</label>
+                  <input
+                    type="number"
+                    value={value}
+                    onChange={(e) =>
+                      updateMotion({
+                        ring: {
+                          ...motion.ring,
+                          width: {
+                            ...motion.ring.width,
+                            [name]: parseInt(e.target.value) || 0
+                          }
+                        }
+                      })
+                    }
+                    className="w-full px-2 py-1 border rounded text-xs"
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <h4 className="font-medium mb-3">Ring Offset Width</h4>
+            <div className="grid grid-cols-5 gap-2">
+              {Object.entries(motion.ring.offsetWidth).map(([name, value]) => (
+                <div key={name} className="space-y-1">
+                  <label className="text-xs">{name}</label>
+                  <input
+                    type="number"
+                    value={value}
+                    onChange={(e) =>
+                      updateMotion({
+                        ring: {
+                          ...motion.ring,
+                          offsetWidth: {
+                            ...motion.ring.offsetWidth,
+                            [name]: parseInt(e.target.value) || 0
+                          }
+                        }
+                      })
+                    }
+                    className="w-full px-2 py-1 border rounded text-xs"
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <h4 className="font-medium mb-3">Ring Opacity</h4>
+            <div className="grid grid-cols-3 gap-2">
+              {Object.entries(motion.ring.opacity).map(([name, value]) => (
+                <div key={name} className="space-y-1">
+                  <label className="text-xs">{name}%</label>
+                  <input
+                    type="number"
+                    min="0"
+                    max="1"
+                    step="0.01"
+                    value={value}
+                    onChange={(e) =>
+                      updateMotion({
+                        ring: {
+                          ...motion.ring,
+                          opacity: {
+                            ...motion.ring.opacity,
+                            [name]: parseFloat(e.target.value) || 0
+                          }
+                        }
+                      })
+                    }
+                    className="w-full px-2 py-1 border rounded text-xs"
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Accessibility */}
+      <div className="space-y-4">
+        <div>
+          <h3 className="text-lg font-semibold mb-2">Accessibility</h3>
+          <p className="text-sm text-muted-foreground">
+            Respect user motion preferences
+          </p>
+        </div>
+
+        <label className="flex items-center gap-3">
+          <input
+            type="checkbox"
+            checked={motion.reducedMotion}
+            onChange={(e) =>
+              updateMotion({
+                reducedMotion: e.target.checked
+              })
+            }
+            className="w-4 h-4"
+          />
+          <span className="text-sm">
+            Reduced Motion
+            <span className="block text-xs text-muted-foreground">
+              Automatically detected via prefers-reduced-motion media query
+            </span>
+          </span>
+        </label>
       </div>
     </div>
   )

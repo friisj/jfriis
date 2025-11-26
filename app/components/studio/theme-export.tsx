@@ -118,6 +118,29 @@ export function ThemeExport({ config, onBack }: ThemeExportProps) {
       })
       .join('\n')
 
+    // Motion tokens
+    const durationTokens = Object.entries(primitives.motion.durations)
+      .map(([name, value]) => `  --duration-${name}: ${value}ms;`)
+      .join('\n')
+
+    const easingTokens = Object.entries(primitives.motion.easings)
+      .map(([name, value]) => `  --easing-${name}: ${value};`)
+      .join('\n')
+
+    const springTokens = Object.entries(primitives.motion.springs)
+      .flatMap(([name, spring]) => [
+        `  --spring-${name}-stiffness: ${spring.stiffness};`,
+        `  --spring-${name}-damping: ${spring.damping};`,
+        `  --spring-${name}-mass: ${spring.mass};`
+      ])
+      .join('\n')
+
+    const ringTokens = [
+      ...Object.entries(primitives.motion.ring.width).map(([name, value]) => `  --ring-width-${name}: ${value}px;`),
+      ...Object.entries(primitives.motion.ring.offsetWidth).map(([name, value]) => `  --ring-offset-width-${name}: ${value}px;`),
+      ...Object.entries(primitives.motion.ring.opacity).map(([name, value]) => `  --ring-opacity-${name}: ${value};`)
+    ].join('\n')
+
     const fontFaceRules = generateFontFaceRules()
 
     return `/* Add this to your globals.css */
@@ -149,11 +172,36 @@ ${letterSpacingTokens}
   /* ===== COLOR PRIMITIVES ===== */
 ${colorTokens}
 
+  /* ===== MOTION PRIMITIVES ===== */
+  /* Duration Scale */
+${durationTokens}
+
+  /* Easing Curves */
+${easingTokens}
+
+  /* Spring Physics (for Framer Motion, iOS, Android, etc.) */
+${springTokens}
+
+  /* Ring / Focus Indicators (Tailwind-compatible) */
+${ringTokens}
+
   /* ===== SEMANTIC SPACING ===== */
 ${semanticSpacing}
 
   /* ===== SEMANTIC RADIUS ===== */
 ${semanticRadius}
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
 
 /* Grid configuration (add to your layout component) */
@@ -181,6 +229,144 @@ ${semanticRadius}
     return JSON.stringify(config, null, 2)
   }
 
+  const generateFramerMotion = () => {
+    const { motion } = config.primitives
+
+    return `// motion.ts - Universal motion tokens for Framer Motion
+// These values are exported from your design system
+
+import type { Transition } from 'framer-motion'
+
+// Duration scale (in seconds for Framer Motion)
+export const durations = {
+  micro: ${motion.durations.micro / 1000},      // ${motion.durations.micro}ms - Instant feedback
+  fast: ${motion.durations.fast / 1000},        // ${motion.durations.fast}ms - Quick transitions
+  standard: ${motion.durations.standard / 1000},  // ${motion.durations.standard}ms - Default
+  moderate: ${motion.durations.moderate / 1000},  // ${motion.durations.moderate}ms - Emphasis
+  slow: ${motion.durations.slow / 1000},        // ${motion.durations.slow}ms - Deliberate
+  page: ${motion.durations.page / 1000},        // ${motion.durations.page}ms - Page transitions
+  deliberate: ${motion.durations.deliberate / 1000} // ${motion.durations.deliberate}ms - Intentionally slow
+} as const
+
+// Spring physics configurations
+export const springs = {
+  bouncy: {
+    type: 'spring' as const,
+    stiffness: ${motion.springs.bouncy.stiffness},
+    damping: ${motion.springs.bouncy.damping},
+    mass: ${motion.springs.bouncy.mass}
+  },
+  smooth: {
+    type: 'spring' as const,
+    stiffness: ${motion.springs.smooth.stiffness},
+    damping: ${motion.springs.smooth.damping},
+    mass: ${motion.springs.smooth.mass}
+  },
+  gentle: {
+    type: 'spring' as const,
+    stiffness: ${motion.springs.gentle.stiffness},
+    damping: ${motion.springs.gentle.damping},
+    mass: ${motion.springs.gentle.mass}
+  },
+  snappy: {
+    type: 'spring' as const,
+    stiffness: ${motion.springs.snappy.stiffness},
+    damping: ${motion.springs.snappy.damping},
+    mass: ${motion.springs.snappy.mass}
+  }
+} as const
+
+// Easing curves (cubic-bezier values)
+export const easings = {
+  easeIn: ${JSON.stringify(motion.easings['ease-in'])},
+  easeOut: ${JSON.stringify(motion.easings['ease-out'])},
+  easeInOut: ${JSON.stringify(motion.easings['ease-in-out'])},
+  linear: ${JSON.stringify(motion.easings['linear'])}
+} as const
+
+// Common motion variants
+export const variants = {
+  fadeIn: {
+    initial: { opacity: 0 },
+    animate: { opacity: 1 },
+    exit: { opacity: 0 },
+    transition: { duration: durations.fast }
+  },
+  fadeInUp: {
+    initial: { opacity: 0, y: 20 },
+    animate: { opacity: 1, y: 0 },
+    exit: { opacity: 0, y: 20 },
+    transition: springs.smooth
+  },
+  scaleIn: {
+    initial: { opacity: 0, scale: 0.95 },
+    animate: { opacity: 1, scale: 1 },
+    exit: { opacity: 0, scale: 0.95 },
+    transition: springs.smooth
+  },
+  slideInRight: {
+    initial: { opacity: 0, x: 100 },
+    animate: { opacity: 1, x: 0 },
+    exit: { opacity: 0, x: 100 },
+    transition: springs.snappy
+  },
+  slideInLeft: {
+    initial: { opacity: 0, x: -100 },
+    animate: { opacity: 1, x: 0 },
+    exit: { opacity: 0, x: -100 },
+    transition: springs.snappy
+  }
+} as const
+
+// Gesture interactions
+export const gestures = {
+  tap: {
+    scale: 0.95,
+    transition: { duration: durations.micro }
+  },
+  hover: {
+    scale: 1.02,
+    transition: springs.gentle
+  },
+  press: {
+    scale: 0.98,
+    transition: { duration: durations.micro }
+  }
+} as const
+
+// Custom hook for using motion tokens
+export function useMotion() {
+  return {
+    durations,
+    springs,
+    easings,
+    variants,
+    gestures
+  }
+}
+
+// Example usage:
+// import { motion } from 'framer-motion'
+// import { variants, springs } from './motion'
+//
+// <motion.div
+//   variants={variants.fadeInUp}
+//   initial="initial"
+//   animate="animate"
+//   exit="exit"
+// >
+//   Content
+// </motion.div>
+//
+// <motion.button
+//   whileHover={gestures.hover}
+//   whileTap={gestures.tap}
+// >
+//   Button
+// </motion.button>
+`
+  }
+
   const handleCopyTheme = async () => {
     await navigator.clipboard.writeText(generateTailwindTheme())
     setCopied(true)
@@ -189,6 +375,12 @@ ${semanticRadius}
 
   const handleCopyJSON = async () => {
     await navigator.clipboard.writeText(generateJSON())
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
+
+  const handleCopyFramerMotion = async () => {
+    await navigator.clipboard.writeText(generateFramerMotion())
     setCopied(true)
     setTimeout(() => setCopied(false), 2000)
   }
@@ -264,6 +456,34 @@ ${semanticRadius}
           </div>
           <pre className="p-4 text-xs overflow-x-auto max-h-96">
             <code>{generateJSON()}</code>
+          </pre>
+        </div>
+      </div>
+
+      {/* Option 3: Framer Motion Export */}
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="font-semibold">Framer Motion Tokens (React)</h3>
+            <p className="text-sm text-muted-foreground">
+              Ready-to-use motion tokens, variants, and hooks for React projects
+            </p>
+          </div>
+          <button
+            onClick={handleCopyFramerMotion}
+            className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors text-sm font-medium"
+          >
+            {copied ? 'Copied!' : 'Copy to Clipboard'}
+          </button>
+        </div>
+
+        <div className="rounded-lg border bg-muted/50 overflow-hidden">
+          <div className="p-4 border-b bg-muted/80 flex items-center justify-between">
+            <span className="text-xs font-medium text-muted-foreground">motion.ts</span>
+            <span className="text-xs text-muted-foreground">TypeScript + Framer Motion</span>
+          </div>
+          <pre className="p-4 text-xs overflow-x-auto max-h-96">
+            <code>{generateFramerMotion()}</code>
           </pre>
         </div>
       </div>
