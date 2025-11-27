@@ -1632,12 +1632,19 @@ function InteractionsConfig({
 
         {/* Focus Ring Preview */}
         <div className="p-4 border rounded-lg bg-muted/30">
-          <p className="text-sm font-medium mb-3">Preview</p>
+          <p className="text-sm font-medium mb-3">Preview (click to focus)</p>
           <button
-            className="px-4 py-2 bg-primary text-primary-foreground rounded-lg focus:outline-none"
+            className="px-4 py-2 bg-primary text-primary-foreground rounded-lg transition-shadow"
             style={{
-              boxShadow: `0 0 0 ${interaction.focusRing.offset} var(--background), 0 0 0 calc(${interaction.focusRing.offset} + ${interaction.focusRing.width}) var(--ring)`,
-              borderStyle: interaction.focusRing.style
+              outline: 'none',
+              boxShadow: 'none'
+            }}
+            onFocus={(e) => {
+              e.target.style.boxShadow = `0 0 0 ${interaction.focusRing.offset} var(--background), 0 0 0 calc(${interaction.focusRing.offset} + ${interaction.focusRing.width}) var(--ring)`
+              e.target.style.outlineStyle = interaction.focusRing.style
+            }}
+            onBlur={(e) => {
+              e.target.style.boxShadow = 'none'
             }}
           >
             Focus Ring Example
