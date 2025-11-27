@@ -261,10 +261,131 @@ motion: {
 
 ---
 
-### **Phase 4a: Border, Stroke & Ring System** 🆕 [New]
-**Timeline**: 1 week
+### **Phase 5: Comprehensive Interaction & State System** ✅ [In Progress]
+**Timeline**: 1-2 weeks
 **Priority**: High
 **Depends On**: Phase 4
+**Status**: Foundation implemented, advanced features planned
+
+#### Objectives
+Complete interaction and state feedback system with loading states, brightness adjustments, and timing thresholds.
+
+#### Current Implementation ✅
+
+**5.1 State Opacity Layers** ✅
+- Material Design 3 state layer system
+- `hover`: 0.08 (8% overlay)
+- `focus`: 0.12 (12% overlay)
+- `pressed`: 0.12 (12% overlay)
+- `disabled`: 0.38 (38% element opacity)
+- `loading`: 0.6 (60% content opacity)
+- All values configurable via sliders in Interactions panel
+
+**5.2 Scale Transforms** ✅
+- `hover`: 1.02 (2% scale up for subtle feedback)
+- `pressed`: 0.98 (2% scale down for pressed feeling)
+- `active`: 0.95 (5% scale down for active state)
+- Provides tactile feedback on interactive elements
+
+**5.3 Focus Ring Configuration** ✅
+- `width`: 2px (WCAG AAA minimum)
+- `offset`: 2px (space between element and ring)
+- `style`: solid | dashed | dotted
+- Live preview in config panel
+- WCAG 2.4.7, 1.4.11, 2.4.13 compliant
+
+**5.4 State Feedback Colors** ✅
+- **Success**: Green for validation, confirmations
+- **Warning**: Amber/orange for cautions, alerts
+- **Info**: Blue for tips, information
+- Each with foreground pair for text contrast
+- Fully customizable in Colors section
+
+#### Planned Deliverables
+
+**5.5 Brightness/Contrast Adjustments** 🔜
+- Alternative to opacity-based state layers
+- Hover: Darken by 5% (light) / Lighten by 5% (dark)
+- Active: Darken by 10% (light) / Lighten by 10% (dark)
+- Allows color-based feedback vs opacity overlays
+- Config toggle: "Opacity mode" vs "Brightness mode"
+
+**5.6 Loading & Skeleton States** 🔜
+- **Skeleton animation**: pulse | wave
+- **Skeleton duration**: 1500ms
+- **Skeleton colors**: base + highlight
+- **Spinner configuration**: color, size (sm/md/lg), stroke width
+- **Timing thresholds**:
+  - `minDisplayTime`: 300ms (don't flash for quick ops)
+  - `optimal`: 2000-10000ms (ideal for spinner)
+  - `skeleton`: >10s (use skeleton screens)
+
+**5.7 Interaction Timing Thresholds** 🔜
+- **Hover delay**: 200ms (prevent flicker on fast mouse movement)
+- **Tooltip delay**: 700ms (standard before tooltip appears)
+- **Long press**: 500ms (mobile long-press duration)
+- **Double-click**: 300ms (max time between clicks)
+- **Debounce defaults**:
+  - Search input: 300ms
+  - Window resize: 150ms
+  - Scroll events: 100ms
+
+**5.8 Advanced States** 🔜
+- **Drag state**: 0.16 opacity overlay
+- **Indeterminate**: Partial selection (checkbox parents)
+- **Visited**: Link visited state (purple tint)
+- **Error state**: Validation failed styling
+- **Skeleton state**: Loading placeholder animation
+
+**5.9 Blur Effects** 🔜
+- `disabled`: 2px blur
+- `loading`: 4px blur
+- `backdrop`: 12px blur (modal backdrops)
+- Used with `filter` or `backdrop-filter`
+
+**5.10 Preview Template** 🔜
+- Interactive state demonstrations
+- Hover/focus/pressed/disabled previews
+- Success/warning/info feedback examples
+- Loading states (spinner + skeleton)
+- Timing visualization (hover delay, tooltips)
+
+**5.11 Export Enhancement** 🔜
+- CSS: State opacity variables, scale transforms
+- CSS: State color tokens (success, warning, info)
+- Framer Motion: Interaction timing hooks
+- TypeScript: Interaction config types
+- Documentation: WCAG compliance guide
+
+#### Success Metrics
+- ✅ State opacity configurab le across 5 states
+- ✅ Scale transforms applied to interactive elements
+- ✅ Focus ring WCAG AAA compliant
+- ✅ State colors cover common feedback scenarios
+- ⏳ Loading states prevent UI flash (<300ms ops)
+- ⏳ Brightness mode as alternative to opacity
+- ⏳ All interaction timing thresholds documented
+
+#### Accessibility Requirements ✅
+- WCAG 2.4.7 (AA): Focus indicators visible
+- WCAG 1.4.11 (AA): 3:1 contrast for focus indicators
+- WCAG 2.4.13 (AAA): Focus indicator ≥2px thick
+- Never use color alone for state (combine with icons/text)
+- Respect `prefers-reduced-motion` for all animations
+
+#### Technical Considerations
+- Interaction timing values should reference motion profiles where applicable
+- Brightness adjustments require HSL/OKLCH color manipulation
+- Skeleton animations should use CSS animations (performant)
+- State colors should maintain contrast ratios in dark mode
+- Export should provide examples for common frameworks (React, Vue, Svelte)
+
+---
+
+### **Phase 4a: Border, Stroke & Ring System** 🆕 [New]
+**Timeline**: 1 week
+**Priority**: Medium
+**Depends On**: Phase 5
 
 #### Objectives
 Comprehensive border, stroke, and ring (focus) tokenization for UI elements and Tailwind compatibility.
