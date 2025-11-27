@@ -900,20 +900,23 @@ function ColorConfig({
           description="Focus ring color"
         />
 
-        {/* Divider */}
-        <div className="flex items-center gap-4 my-6">
-          <div className="flex-1 border-t" />
-          <span className="text-xs text-muted-foreground font-semibold">State Feedback Colors</span>
-          <div className="flex-1 border-t" />
-        </div>
+        {/* State Feedback Colors - Only show if they exist */}
+        {config.primitives.colors.success && (
+          <>
+            {/* Divider */}
+            <div className="flex items-center gap-4 my-6">
+              <div className="flex-1 border-t" />
+              <span className="text-xs text-muted-foreground font-semibold">State Feedback Colors</span>
+              <div className="flex-1 border-t" />
+            </div>
 
-        <ColorPairSelector
-          light={config.primitives.colors.success.light}
-          dark={config.primitives.colors.success.dark}
-          onChange={(light, dark) => updateColor('success', light, dark)}
-          label="Success"
-          description="Success state background (validation, confirmations)"
-        />
+            <ColorPairSelector
+              light={config.primitives.colors.success.light}
+              dark={config.primitives.colors.success.dark}
+              onChange={(light, dark) => updateColor('success', light, dark)}
+              label="Success"
+              description="Success state background (validation, confirmations)"
+            />
 
         <ColorPairSelector
           light={config.primitives.colors.successForeground.light}
@@ -954,6 +957,8 @@ function ColorConfig({
           label="Info Foreground"
           description="Text color on info elements"
         />
+          </>
+        )}
       </div>
     </div>
   )
@@ -1295,6 +1300,16 @@ function InteractionsConfig({
   updateConfig: (updates: Partial<DesignSystemConfig>) => void
 }) {
   const interaction = config.primitives.interaction
+
+  // Safety check: ensure interaction config exists with defaults
+  if (!interaction || !interaction.stateOpacity || !interaction.scale || !interaction.focusRing) {
+    return (
+      <div className="p-8 text-center text-muted-foreground">
+        <p>Interaction configuration needs to be initialized.</p>
+        <p className="text-sm mt-2">Please refresh the page to load default interaction settings.</p>
+      </div>
+    )
+  }
 
   const updateInteraction = (updates: Partial<typeof interaction>) => {
     updateConfig({
