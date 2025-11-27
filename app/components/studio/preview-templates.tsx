@@ -926,7 +926,7 @@ function LayoutTemplate({ config }: { config: DesignSystemConfig }) {
         <h4 className="text-xs font-medium text-muted-foreground mb-4">SPACING SCALE</h4>
         <div className="space-y-2">
           {config.primitives.spacing.values.slice(0, 9).map((value, index) => (
-            <div key={value} className="flex items-center gap-4">
+            <div key={index} className="flex items-center gap-4">
               <div className="w-20 text-xs text-muted-foreground font-mono">{value}px</div>
               <div
                 className="bg-primary/20 border border-primary/50"

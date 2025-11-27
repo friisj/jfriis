@@ -9,13 +9,20 @@ import { Button } from '@/components/ui/button'
 
 export function MotionTemplate({ config }: { config: DesignSystemConfig }) {
   const [showNotification, setShowNotification] = useState(false)
-  const [selectedCard, setSelectedCard] = useState<number | null>(null)
+  const [selectedSpring, setSelectedSpring] = useState<string | null>(null)
   const [isExpanded, setIsExpanded] = useState(false)
   const [hoveredButton, setHoveredButton] = useState<string | null>(null)
+  const [easingAnimKey, setEasingAnimKey] = useState(0)
 
   const motionConfig = config.primitives.motion
   const sans = config.primitives.typography.fontFamilies.sans.stack
   const sizes = config.primitives.typography.typeScale.sizes
+
+  // Helper to convert CSS cubic-bezier to Framer Motion easing array
+  const parseCubicBezier = (easing: string): number[] => {
+    const match = easing.match(/cubic-bezier\(([\d.]+),\s*([\d.]+),\s*([\d.]+),\s*([\d.]+)\)/)
+    return match ? [parseFloat(match[1]), parseFloat(match[2]), parseFloat(match[3]), parseFloat(match[4])] : [0.4, 0, 0.2, 1]
+  }
 
   // Safety check for new motion structure
   if (!motionConfig.profiles || !motionConfig.mode) {
@@ -82,34 +89,47 @@ export function MotionTemplate({ config }: { config: DesignSystemConfig }) {
         </div>
 
         <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
-          {Object.entries(profiles).map(([name, profile]) => (
-            <motion.div
-              key={name}
-              whileHover={{
-                scale: 1.05,
-                transition: { duration: profile.duration / 1000, ease: profile.easing as any }
-              }}
-              whileTap={{ scale: 0.95 }}
-            >
-              <Card className="cursor-pointer">
-                <CardHeader>
-                  <CardTitle className="text-base capitalize">
-                    {name.replace(/([A-Z])/g, ' $1').trim()}
-                  </CardTitle>
-                  <CardDescription>{profile.duration}ms</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <motion.div
-                    className="h-2 bg-primary rounded-full"
-                    initial={{ width: 0 }}
-                    whileInView={{ width: '100%' }}
-                    transition={{ duration: profile.duration / 1000, ease: profile.easing as any }}
-                    viewport={{ once: true }}
-                  />
-                </CardContent>
-              </Card>
-            </motion.div>
-          ))}
+          {Object.entries(profiles).map(([name, profile]) => {
+            // Build transition - use spring if available, otherwise duration + easing
+            const hoverTransition = profile.spring
+              ? { type: 'spring' as const, ...profile.spring }
+              : { duration: profile.duration / 1000, ease: parseCubicBezier(profile.easing) }
+
+            const progressTransition = profile.spring
+              ? { type: 'spring' as const, ...profile.spring }
+              : { duration: profile.duration / 1000, ease: parseCubicBezier(profile.easing) }
+
+            return (
+              <motion.div
+                key={name}
+                whileHover={{
+                  scale: 1.05,
+                  transition: hoverTransition
+                }}
+                whileTap={{ scale: 0.95 }}
+              >
+                <Card className="cursor-pointer">
+                  <CardHeader>
+                    <CardTitle className="text-base capitalize">
+                      {name.replace(/([A-Z])/g, ' $1').trim()}
+                    </CardTitle>
+                    <CardDescription>
+                      {profile.duration}ms {profile.spring && '• Spring'}
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <motion.div
+                      className="h-2 bg-primary rounded-full"
+                      initial={{ width: 0 }}
+                      whileInView={{ width: '100%' }}
+                      transition={progressTransition}
+                      viewport={{ once: true }}
+                    />
+                  </CardContent>
+                </Card>
+              </motion.div>
+            )
+          })}
         </div>
       </section>
 
@@ -136,20 +156,14 @@ export function MotionTemplate({ config }: { config: DesignSystemConfig }) {
                   <motion.div
                     className="w-16 h-16 bg-primary rounded-xl"
                     animate={{
-                      x: selectedCard === Object.keys(springConfigs).indexOf(name) ? 200 : 0
+                      x: selectedSpring === name ? 200 : 0
                     }}
                     transition={spring}
                   />
                   <Button
-                    onClick={() =>
-                      setSelectedCard(
-                        selectedCard === Object.keys(springConfigs).indexOf(name)
-                          ? null
-                          : Object.keys(springConfigs).indexOf(name)
-                      )
-                    }
+                    onClick={() => setSelectedSpring(selectedSpring === name ? null : name)}
                   >
-                    {selectedCard === Object.keys(springConfigs).indexOf(name) ? 'Reset' : 'Animate'}
+                    {selectedSpring === name ? 'Reset' : 'Animate'}
                   </Button>
                 </div>
               </CardContent>
@@ -160,11 +174,20 @@ export function MotionTemplate({ config }: { config: DesignSystemConfig }) {
 
       {/* Easing Curves (Intent-based) */}
       <section className="space-y-6">
-        <div>
-          <h2 className="text-2xl font-semibold mb-2">Easing Curves</h2>
-          <p className="text-muted-foreground">
-            Intent-based timing functions (enter, exit, standard, linear)
-          </p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-2xl font-semibold mb-2">Easing Curves</h2>
+            <p className="text-muted-foreground">
+              Intent-based timing functions (enter, exit, standard, linear)
+            </p>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setEasingAnimKey(k => k + 1)}
+          >
+            Replay All
+          </Button>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -177,14 +200,14 @@ export function MotionTemplate({ config }: { config: DesignSystemConfig }) {
               <CardContent>
                 <div className="space-y-4">
                   <motion.div
+                    key={`${name}-${easingAnimKey}`}
                     className="h-3 bg-primary rounded-full"
                     initial={{ width: 0 }}
-                    whileInView={{ width: '100%' }}
+                    animate={{ width: '100%' }}
                     transition={{
-                      duration: profiles.transition.duration / 1000,
-                      ease: easing.replace('cubic-bezier', '').replace(/[()]/g, '').split(',').map(Number) as any
+                      duration: 1.2,
+                      ease: parseCubicBezier(easing)
                     }}
-                    viewport={{ once: false }}
                   />
                 </div>
               </CardContent>
@@ -215,7 +238,7 @@ export function MotionTemplate({ config }: { config: DesignSystemConfig }) {
                 exit={{ opacity: 0, y: -20, scale: 0.95 }}
                 transition={profiles.emphasis.spring ? springConfigs.bouncy : {
                   duration: profiles.emphasis.duration / 1000,
-                  ease: profiles.emphasis.easing as any
+                  ease: parseCubicBezier(profiles.emphasis.easing)
                 }}
                 className="max-w-md"
               >
@@ -277,7 +300,7 @@ export function MotionTemplate({ config }: { config: DesignSystemConfig }) {
                 exit={{ height: 0, opacity: 0 }}
                 transition={profiles.reveal.spring ? springConfigs.balanced : {
                   duration: profiles.reveal.duration / 1000,
-                  ease: profiles.reveal.easing as any
+                  ease: parseCubicBezier(profiles.reveal.easing)
                 }}
               >
                 <CardContent className="pt-0">

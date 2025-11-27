@@ -118,9 +118,24 @@ export function ThemeExport({ config, onBack }: ThemeExportProps) {
       })
       .join('\n')
 
-    // Motion tokens
-    const durationTokens = Object.entries(primitives.motion.durations)
-      .map(([name, value]) => `  --duration-${name}: ${value}ms;`)
+    // Motion tokens - Semantic profiles
+    const motionMode = `  --motion-mode: ${primitives.motion.mode};`
+
+    const profileTokens = Object.entries(primitives.motion.profiles)
+      .flatMap(([name, profile]) => {
+        const tokens = [
+          `  --motion-${name}-duration: ${profile.duration}ms;`,
+          `  --motion-${name}-easing: ${profile.easing};`
+        ]
+        if (profile.spring) {
+          tokens.push(
+            `  --motion-${name}-stiffness: ${profile.spring.stiffness};`,
+            `  --motion-${name}-damping: ${profile.spring.damping};`,
+            `  --motion-${name}-mass: ${profile.spring.mass};`
+          )
+        }
+        return tokens
+      })
       .join('\n')
 
     const easingTokens = Object.entries(primitives.motion.easings)
@@ -134,12 +149,6 @@ export function ThemeExport({ config, onBack }: ThemeExportProps) {
         `  --spring-${name}-mass: ${spring.mass};`
       ])
       .join('\n')
-
-    const ringTokens = [
-      ...Object.entries(primitives.motion.ring.width).map(([name, value]) => `  --ring-width-${name}: ${value}px;`),
-      ...Object.entries(primitives.motion.ring.offsetWidth).map(([name, value]) => `  --ring-offset-width-${name}: ${value}px;`),
-      ...Object.entries(primitives.motion.ring.opacity).map(([name, value]) => `  --ring-opacity-${name}: ${value};`)
-    ].join('\n')
 
     const fontFaceRules = generateFontFaceRules()
 
@@ -173,17 +182,17 @@ ${letterSpacingTokens}
 ${colorTokens}
 
   /* ===== MOTION PRIMITIVES ===== */
-  /* Duration Scale */
-${durationTokens}
+  /* Motion Mode (productive | expressive) */
+${motionMode}
 
-  /* Easing Curves */
+  /* Semantic Motion Profiles */
+${profileTokens}
+
+  /* Easing Curves (intent-based) */
 ${easingTokens}
 
-  /* Spring Physics (for Framer Motion, iOS, Android, etc.) */
+  /* Spring Physics Presets (platform-agnostic) */
 ${springTokens}
-
-  /* Ring / Focus Indicators (Tailwind-compatible) */
-${ringTokens}
 
   /* ===== SEMANTIC SPACING ===== */
 ${semanticSpacing}
@@ -232,112 +241,196 @@ ${semanticRadius}
   const generateFramerMotion = () => {
     const { motion } = config.primitives
 
-    return `// motion.ts - Universal motion tokens for Framer Motion
+    // Helper to parse cubic-bezier strings to number arrays
+    const parseCubicBezier = (easing: string): string => {
+      const match = easing.match(/cubic-bezier\(([\d.]+),\s*([\d.]+),\s*([\d.]+),\s*([\d.]+)\)/)
+      return match ? `[${match[1]}, ${match[2]}, ${match[3]}, ${match[4]}]` : '[0.4, 0, 0.2, 1]'
+    }
+
+    return `// motion.ts - Semantic motion tokens for Framer Motion
 // These values are exported from your design system
 
 import type { Transition } from 'framer-motion'
 
-// Duration scale (in seconds for Framer Motion)
-export const durations = {
-  micro: ${motion.durations.micro / 1000},      // ${motion.durations.micro}ms - Instant feedback
-  fast: ${motion.durations.fast / 1000},        // ${motion.durations.fast}ms - Quick transitions
-  standard: ${motion.durations.standard / 1000},  // ${motion.durations.standard}ms - Default
-  moderate: ${motion.durations.moderate / 1000},  // ${motion.durations.moderate}ms - Emphasis
-  slow: ${motion.durations.slow / 1000},        // ${motion.durations.slow}ms - Deliberate
-  page: ${motion.durations.page / 1000},        // ${motion.durations.page}ms - Page transitions
-  deliberate: ${motion.durations.deliberate / 1000} // ${motion.durations.deliberate}ms - Intentionally slow
+// Motion mode: ${motion.mode}
+// ${motion.mode === 'productive' ? 'Fast, efficient, task-focused' : 'Slower, delightful, brand-focused'}
+export const MOTION_MODE = '${motion.mode}' as const
+
+// ===== SEMANTIC MOTION PROFILES =====
+// Use these for consistent timing across your application
+
+export const profiles = {
+  // Micro-interactions: hover, focus, press states
+  interaction: {
+    duration: ${motion.profiles.interaction.duration / 1000}, // ${motion.profiles.interaction.duration}ms
+    ease: ${parseCubicBezier(motion.profiles.interaction.easing)}${motion.profiles.interaction.spring ? `,
+    spring: {
+      type: 'spring' as const,
+      stiffness: ${motion.profiles.interaction.spring.stiffness},
+      damping: ${motion.profiles.interaction.spring.damping},
+      mass: ${motion.profiles.interaction.spring.mass}
+    }` : ''}
+  },
+
+  // Toggle, switch, checkbox, radio button transitions
+  stateChange: {
+    duration: ${motion.profiles.stateChange.duration / 1000}, // ${motion.profiles.stateChange.duration}ms
+    ease: ${parseCubicBezier(motion.profiles.stateChange.easing)}${motion.profiles.stateChange.spring ? `,
+    spring: {
+      type: 'spring' as const,
+      stiffness: ${motion.profiles.stateChange.spring.stiffness},
+      damping: ${motion.profiles.stateChange.spring.damping},
+      mass: ${motion.profiles.stateChange.spring.mass}
+    }` : ''}
+  },
+
+  // Menu open/close, dialog show/hide, dropdown animations
+  transition: {
+    duration: ${motion.profiles.transition.duration / 1000}, // ${motion.profiles.transition.duration}ms
+    ease: ${parseCubicBezier(motion.profiles.transition.easing)}${motion.profiles.transition.spring ? `,
+    spring: {
+      type: 'spring' as const,
+      stiffness: ${motion.profiles.transition.spring.stiffness},
+      damping: ${motion.profiles.transition.spring.damping},
+      mass: ${motion.profiles.transition.spring.mass}
+    }` : ''}
+  },
+
+  // Accordion expand/collapse, disclosure, progressive reveal
+  reveal: {
+    duration: ${motion.profiles.reveal.duration / 1000}, // ${motion.profiles.reveal.duration}ms
+    ease: ${parseCubicBezier(motion.profiles.reveal.easing)}${motion.profiles.reveal.spring ? `,
+    spring: {
+      type: 'spring' as const,
+      stiffness: ${motion.profiles.reveal.spring.stiffness},
+      damping: ${motion.profiles.reveal.spring.damping},
+      mass: ${motion.profiles.reveal.spring.mass}
+    }` : ''}
+  },
+
+  // Page transitions, route changes, view swaps
+  navigation: {
+    duration: ${motion.profiles.navigation.duration / 1000}, // ${motion.profiles.navigation.duration}ms
+    ease: ${parseCubicBezier(motion.profiles.navigation.easing)}${motion.profiles.navigation.spring ? `,
+    spring: {
+      type: 'spring' as const,
+      stiffness: ${motion.profiles.navigation.spring.stiffness},
+      damping: ${motion.profiles.navigation.spring.damping},
+      mass: ${motion.profiles.navigation.spring.mass}
+    }` : ''}
+  },
+
+  // Success messages, errors, celebrations, important feedback
+  emphasis: {
+    duration: ${motion.profiles.emphasis.duration / 1000}, // ${motion.profiles.emphasis.duration}ms
+    ease: ${parseCubicBezier(motion.profiles.emphasis.easing)}${motion.profiles.emphasis.spring ? `,
+    spring: {
+      type: 'spring' as const,
+      stiffness: ${motion.profiles.emphasis.spring.stiffness},
+      damping: ${motion.profiles.emphasis.spring.damping},
+      mass: ${motion.profiles.emphasis.spring.mass}
+    }` : ''}
+  }
 } as const
 
-// Spring physics configurations
+// ===== SPRING PHYSICS PRESETS =====
+// Universal spring configurations adaptable to any platform
+
 export const springs = {
+  tight: {
+    type: 'spring' as const,
+    stiffness: ${motion.springs.tight.stiffness},
+    damping: ${motion.springs.tight.damping},
+    mass: ${motion.springs.tight.mass}
+  },
+  balanced: {
+    type: 'spring' as const,
+    stiffness: ${motion.springs.balanced.stiffness},
+    damping: ${motion.springs.balanced.damping},
+    mass: ${motion.springs.balanced.mass}
+  },
+  loose: {
+    type: 'spring' as const,
+    stiffness: ${motion.springs.loose.stiffness},
+    damping: ${motion.springs.loose.damping},
+    mass: ${motion.springs.loose.mass}
+  },
   bouncy: {
     type: 'spring' as const,
     stiffness: ${motion.springs.bouncy.stiffness},
     damping: ${motion.springs.bouncy.damping},
     mass: ${motion.springs.bouncy.mass}
-  },
-  smooth: {
-    type: 'spring' as const,
-    stiffness: ${motion.springs.smooth.stiffness},
-    damping: ${motion.springs.smooth.damping},
-    mass: ${motion.springs.smooth.mass}
-  },
-  gentle: {
-    type: 'spring' as const,
-    stiffness: ${motion.springs.gentle.stiffness},
-    damping: ${motion.springs.gentle.damping},
-    mass: ${motion.springs.gentle.mass}
-  },
-  snappy: {
-    type: 'spring' as const,
-    stiffness: ${motion.springs.snappy.stiffness},
-    damping: ${motion.springs.snappy.damping},
-    mass: ${motion.springs.snappy.mass}
   }
 } as const
 
-// Easing curves (cubic-bezier values)
+// ===== EASING CURVES =====
+// Intent-based timing functions
+
 export const easings = {
-  easeIn: ${JSON.stringify(motion.easings['ease-in'])},
-  easeOut: ${JSON.stringify(motion.easings['ease-out'])},
-  easeInOut: ${JSON.stringify(motion.easings['ease-in-out'])},
-  linear: ${JSON.stringify(motion.easings['linear'])}
+  enter: ${parseCubicBezier(motion.easings.enter)}, // Elements entering view
+  exit: ${parseCubicBezier(motion.easings.exit)},   // Elements exiting view
+  standard: ${parseCubicBezier(motion.easings.standard)}, // State transitions
+  linear: ${parseCubicBezier(motion.easings.linear)}  // Mechanical motion
 } as const
 
-// Common motion variants
+// ===== COMMON MOTION VARIANTS =====
+
 export const variants = {
   fadeIn: {
     initial: { opacity: 0 },
     animate: { opacity: 1 },
     exit: { opacity: 0 },
-    transition: { duration: durations.fast }
+    transition: { duration: profiles.transition.duration, ease: profiles.transition.ease }
   },
   fadeInUp: {
     initial: { opacity: 0, y: 20 },
     animate: { opacity: 1, y: 0 },
     exit: { opacity: 0, y: 20 },
-    transition: springs.smooth
+    transition: profiles.transition.spring || { duration: profiles.transition.duration, ease: profiles.transition.ease }
   },
   scaleIn: {
     initial: { opacity: 0, scale: 0.95 },
     animate: { opacity: 1, scale: 1 },
     exit: { opacity: 0, scale: 0.95 },
-    transition: springs.smooth
+    transition: profiles.emphasis.spring || { duration: profiles.emphasis.duration, ease: profiles.emphasis.ease }
   },
   slideInRight: {
     initial: { opacity: 0, x: 100 },
     animate: { opacity: 1, x: 0 },
     exit: { opacity: 0, x: 100 },
-    transition: springs.snappy
+    transition: profiles.navigation.spring || { duration: profiles.navigation.duration, ease: profiles.navigation.ease }
   },
   slideInLeft: {
     initial: { opacity: 0, x: -100 },
     animate: { opacity: 1, x: 0 },
     exit: { opacity: 0, x: -100 },
-    transition: springs.snappy
+    transition: profiles.navigation.spring || { duration: profiles.navigation.duration, ease: profiles.navigation.ease }
   }
 } as const
 
-// Gesture interactions
+// ===== GESTURE INTERACTIONS =====
+
 export const gestures = {
   tap: {
     scale: 0.95,
-    transition: { duration: durations.micro }
+    transition: { duration: profiles.interaction.duration, ease: profiles.interaction.ease }
   },
   hover: {
     scale: 1.02,
-    transition: springs.gentle
+    transition: profiles.interaction.spring || { duration: profiles.interaction.duration, ease: profiles.interaction.ease }
   },
   press: {
     scale: 0.98,
-    transition: { duration: durations.micro }
+    transition: { duration: profiles.interaction.duration, ease: profiles.interaction.ease }
   }
 } as const
 
-// Custom hook for using motion tokens
+// ===== CUSTOM HOOK =====
+
 export function useMotion() {
   return {
-    durations,
+    mode: MOTION_MODE,
+    profiles,
     springs,
     easings,
     variants,
@@ -345,25 +438,41 @@ export function useMotion() {
   }
 }
 
-// Example usage:
-// import { motion } from 'framer-motion'
-// import { variants, springs } from './motion'
-//
-// <motion.div
-//   variants={variants.fadeInUp}
-//   initial="initial"
-//   animate="animate"
-//   exit="exit"
-// >
-//   Content
-// </motion.div>
-//
-// <motion.button
-//   whileHover={gestures.hover}
-//   whileTap={gestures.tap}
-// >
-//   Button
-// </motion.button>
+// ===== EXAMPLE USAGE =====
+/*
+import { motion } from 'framer-motion'
+import { profiles, variants, gestures } from './motion'
+
+// Using semantic profiles
+<motion.div
+  initial={{ opacity: 0, y: -20 }}
+  animate={{ opacity: 1, y: 0 }}
+  transition={{
+    duration: profiles.emphasis.duration,
+    ease: profiles.emphasis.ease
+  }}
+>
+  Success notification
+</motion.div>
+
+// Using variants
+<motion.div
+  variants={variants.fadeInUp}
+  initial="initial"
+  animate="animate"
+  exit="exit"
+>
+  Content
+</motion.div>
+
+// Using gestures
+<motion.button
+  whileHover={gestures.hover}
+  whileTap={gestures.tap}
+>
+  Button
+</motion.button>
+*/
 `
   }
 
