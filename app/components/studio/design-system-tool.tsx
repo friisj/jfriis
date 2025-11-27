@@ -60,6 +60,14 @@ export interface ColorSystemConfig {
   border: { light: ScaleShade; dark: ScaleShade }
   input: { light: ScaleShade; dark: ScaleShade }
   ring: { light: ScaleShade; dark: ScaleShade }
+
+  // State colors for feedback
+  success: { light: ScaleShade; dark: ScaleShade }
+  successForeground: { light: ScaleShade; dark: ScaleShade }
+  warning: { light: ScaleShade; dark: ScaleShade }
+  warningForeground: { light: ScaleShade; dark: ScaleShade }
+  info: { light: ScaleShade; dark: ScaleShade }
+  infoForeground: { light: ScaleShade; dark: ScaleShade }
 }
 
 // Semantic motion modes define the personality and intent of motion
@@ -152,6 +160,33 @@ export interface MotionSystemConfig {
   reducedMotion: boolean  // prefers-reduced-motion preference
 }
 
+// Interaction and state feedback configuration
+// Defines how interactive elements respond to user input
+export interface InteractionConfig {
+  // State opacity layers (Material Design 3 state layer system)
+  stateOpacity: {
+    hover: number        // Overlay opacity on hover (default 0.08)
+    focus: number        // Overlay opacity on focus (default 0.12)
+    pressed: number      // Overlay opacity when pressed (default 0.12)
+    disabled: number     // Element opacity when disabled (default 0.38)
+    loading: number      // Content opacity under loading state (default 0.6)
+  }
+
+  // Scale transforms for tactile feedback
+  scale: {
+    hover: number        // Scale multiplier on hover (default 1.02 = 2% larger)
+    pressed: number      // Scale multiplier when pressed (default 0.98 = 2% smaller)
+    active: number       // Scale multiplier for active state (default 0.95 = 5% smaller)
+  }
+
+  // Focus ring configuration (WCAG 2.4.7, 1.4.11, 2.4.13 compliance)
+  focusRing: {
+    width: string        // Ring thickness (min 2px for WCAG AAA)
+    offset: string       // Space between element and ring
+    style: 'solid' | 'dashed' | 'dotted'
+  }
+}
+
 export type DesignSystemConfig = {
   primitives: {
     spacing: {
@@ -208,6 +243,7 @@ export type DesignSystemConfig = {
     }
     colors: ColorSystemConfig
     motion: MotionSystemConfig
+    interaction: InteractionConfig
   }
   semantic: {
     spacing: Record<string, string>
@@ -393,6 +429,32 @@ const getDefaultConfig = (): DesignSystemConfig => {
         ring: {
           light: { scale: 'blue', shade: 600 },
           dark: { scale: 'blue', shade: 500 }
+        },
+
+        // State feedback colors
+        success: {
+          light: { scale: 'green', shade: 600 },
+          dark: { scale: 'green', shade: 500 }
+        },
+        successForeground: {
+          light: { scale: 'neutral', shade: 50 },
+          dark: { scale: 'neutral', shade: 950 }
+        },
+        warning: {
+          light: { scale: 'amber', shade: 600 },
+          dark: { scale: 'amber', shade: 500 }
+        },
+        warningForeground: {
+          light: { scale: 'neutral', shade: 950 },
+          dark: { scale: 'neutral', shade: 950 }
+        },
+        info: {
+          light: { scale: 'sky', shade: 600 },
+          dark: { scale: 'sky', shade: 500 }
+        },
+        infoForeground: {
+          light: { scale: 'neutral', shade: 50 },
+          dark: { scale: 'neutral', shade: 950 }
         }
       },
       motion: {
@@ -479,6 +541,30 @@ const getDefaultConfig = (): DesignSystemConfig => {
 
         // Accessibility
         reducedMotion: false  // Will be detected at runtime
+      },
+      interaction: {
+        // State opacity layers (Material Design 3 standard)
+        stateOpacity: {
+          hover: 0.08,      // 8% overlay on hover
+          focus: 0.12,      // 12% overlay on focus
+          pressed: 0.12,    // 12% overlay when pressed
+          disabled: 0.38,   // 38% element opacity when disabled
+          loading: 0.6      // 60% content opacity under loading
+        },
+
+        // Scale transforms for tactile feedback
+        scale: {
+          hover: 1.02,      // 2% scale up on hover
+          pressed: 0.98,    // 2% scale down when pressed
+          active: 0.95      // 5% scale down for active state
+        },
+
+        // Focus ring (WCAG AAA compliance)
+        focusRing: {
+          width: '2px',     // Minimum 2px for WCAG 2.4.13
+          offset: '2px',    // Space between element and ring
+          style: 'solid'    // Ring style
+        }
       }
     },
     semantic: {

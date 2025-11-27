@@ -13,7 +13,7 @@ interface ConfigPanelProps {
   onConfigChange: (config: DesignSystemConfig) => void
 }
 
-type Section = 'spacing' | 'radius' | 'grid' | 'elevation' | 'typography' | 'colors' | 'motion'
+type Section = 'spacing' | 'radius' | 'grid' | 'elevation' | 'typography' | 'colors' | 'motion' | 'interactions'
 
 export function ConfigPanel({ config, onConfigChange }: ConfigPanelProps) {
   const [activeSection, setActiveSection] = useState<Section>('spacing')
@@ -51,7 +51,8 @@ export function ConfigPanel({ config, onConfigChange }: ConfigPanelProps) {
     { id: 'grid', label: 'Grid' },
     { id: 'elevation', label: 'Elevation' },
     { id: 'typography', label: 'Typography' },
-    { id: 'motion', label: 'Motion' }
+    { id: 'motion', label: 'Motion' },
+    { id: 'interactions', label: 'Interactions' }
   ]
 
   return (
@@ -97,6 +98,9 @@ export function ConfigPanel({ config, onConfigChange }: ConfigPanelProps) {
         )}
         {activeSection === 'motion' && (
           <MotionConfig config={config} updateConfig={updateConfig} />
+        )}
+        {activeSection === 'interactions' && (
+          <InteractionsConfig config={config} updateConfig={updateConfig} />
         )}
       </div>
     </div>
@@ -895,6 +899,61 @@ function ColorConfig({
           label="Ring"
           description="Focus ring color"
         />
+
+        {/* Divider */}
+        <div className="flex items-center gap-4 my-6">
+          <div className="flex-1 border-t" />
+          <span className="text-xs text-muted-foreground font-semibold">State Feedback Colors</span>
+          <div className="flex-1 border-t" />
+        </div>
+
+        <ColorPairSelector
+          light={config.primitives.colors.success.light}
+          dark={config.primitives.colors.success.dark}
+          onChange={(light, dark) => updateColor('success', light, dark)}
+          label="Success"
+          description="Success state background (validation, confirmations)"
+        />
+
+        <ColorPairSelector
+          light={config.primitives.colors.successForeground.light}
+          dark={config.primitives.colors.successForeground.dark}
+          onChange={(light, dark) => updateColor('successForeground', light, dark)}
+          label="Success Foreground"
+          description="Text color on success elements"
+        />
+
+        <ColorPairSelector
+          light={config.primitives.colors.warning.light}
+          dark={config.primitives.colors.warning.dark}
+          onChange={(light, dark) => updateColor('warning', light, dark)}
+          label="Warning"
+          description="Warning state background (cautions, alerts)"
+        />
+
+        <ColorPairSelector
+          light={config.primitives.colors.warningForeground.light}
+          dark={config.primitives.colors.warningForeground.dark}
+          onChange={(light, dark) => updateColor('warningForeground', light, dark)}
+          label="Warning Foreground"
+          description="Text color on warning elements"
+        />
+
+        <ColorPairSelector
+          light={config.primitives.colors.info.light}
+          dark={config.primitives.colors.info.dark}
+          onChange={(light, dark) => updateColor('info', light, dark)}
+          label="Info"
+          description="Info state background (tips, information)"
+        />
+
+        <ColorPairSelector
+          light={config.primitives.colors.infoForeground.light}
+          dark={config.primitives.colors.infoForeground.dark}
+          onChange={(light, dark) => updateColor('infoForeground', light, dark)}
+          label="Info Foreground"
+          description="Text color on info elements"
+        />
       </div>
     </div>
   )
@@ -1224,6 +1283,371 @@ function MotionConfig({
           </label>
         </div>
       </div>
+    </div>
+  )
+}
+
+function InteractionsConfig({
+  config,
+  updateConfig
+}: {
+  config: DesignSystemConfig
+  updateConfig: (updates: Partial<DesignSystemConfig>) => void
+}) {
+  const interaction = config.primitives.interaction
+
+  const updateInteraction = (updates: Partial<typeof interaction>) => {
+    updateConfig({
+      primitives: {
+        ...config.primitives,
+        interaction: {
+          ...interaction,
+          ...updates
+        }
+      }
+    })
+  }
+
+  return (
+    <div className="space-y-8">
+      {/* State Opacity Layers */}
+      <section className="space-y-4">
+        <div>
+          <h3 className="text-lg font-semibold mb-2">State Opacity Layers</h3>
+          <p className="text-sm text-muted-foreground">
+            Material Design 3 state layer system - opacity overlays for interactive states
+          </p>
+        </div>
+
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <label className="text-sm font-medium flex items-center justify-between">
+              <span>Hover: {(interaction.stateOpacity.hover * 100).toFixed(0)}%</span>
+              <span className="text-xs text-muted-foreground">
+                Overlay opacity on hover
+              </span>
+            </label>
+            <input
+              type="range"
+              min="0"
+              max="0.2"
+              step="0.01"
+              value={interaction.stateOpacity.hover}
+              onChange={(e) =>
+                updateInteraction({
+                  stateOpacity: {
+                    ...interaction.stateOpacity,
+                    hover: parseFloat(e.target.value)
+                  }
+                })
+              }
+              className="w-full"
+            />
+            <p className="text-xs text-muted-foreground">Material Design: 8%</p>
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-sm font-medium flex items-center justify-between">
+              <span>Focus: {(interaction.stateOpacity.focus * 100).toFixed(0)}%</span>
+              <span className="text-xs text-muted-foreground">
+                Overlay opacity on focus
+              </span>
+            </label>
+            <input
+              type="range"
+              min="0"
+              max="0.2"
+              step="0.01"
+              value={interaction.stateOpacity.focus}
+              onChange={(e) =>
+                updateInteraction({
+                  stateOpacity: {
+                    ...interaction.stateOpacity,
+                    focus: parseFloat(e.target.value)
+                  }
+                })
+              }
+              className="w-full"
+            />
+            <p className="text-xs text-muted-foreground">Material Design: 12%</p>
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-sm font-medium flex items-center justify-between">
+              <span>Pressed: {(interaction.stateOpacity.pressed * 100).toFixed(0)}%</span>
+              <span className="text-xs text-muted-foreground">
+                Overlay opacity when pressed
+              </span>
+            </label>
+            <input
+              type="range"
+              min="0"
+              max="0.2"
+              step="0.01"
+              value={interaction.stateOpacity.pressed}
+              onChange={(e) =>
+                updateInteraction({
+                  stateOpacity: {
+                    ...interaction.stateOpacity,
+                    pressed: parseFloat(e.target.value)
+                  }
+                })
+              }
+              className="w-full"
+            />
+            <p className="text-xs text-muted-foreground">Material Design: 12%</p>
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-sm font-medium flex items-center justify-between">
+              <span>Disabled: {(interaction.stateOpacity.disabled * 100).toFixed(0)}%</span>
+              <span className="text-xs text-muted-foreground">
+                Element opacity when disabled
+              </span>
+            </label>
+            <input
+              type="range"
+              min="0.1"
+              max="0.7"
+              step="0.01"
+              value={interaction.stateOpacity.disabled}
+              onChange={(e) =>
+                updateInteraction({
+                  stateOpacity: {
+                    ...interaction.stateOpacity,
+                    disabled: parseFloat(e.target.value)
+                  }
+                })
+              }
+              className="w-full"
+            />
+            <p className="text-xs text-muted-foreground">Standard: 38%</p>
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-sm font-medium flex items-center justify-between">
+              <span>Loading: {(interaction.stateOpacity.loading * 100).toFixed(0)}%</span>
+              <span className="text-xs text-muted-foreground">
+                Content opacity under loading state
+              </span>
+            </label>
+            <input
+              type="range"
+              min="0.3"
+              max="1"
+              step="0.05"
+              value={interaction.stateOpacity.loading}
+              onChange={(e) =>
+                updateInteraction({
+                  stateOpacity: {
+                    ...interaction.stateOpacity,
+                    loading: parseFloat(e.target.value)
+                  }
+                })
+              }
+              className="w-full"
+            />
+            <p className="text-xs text-muted-foreground">Typical: 60%</p>
+          </div>
+        </div>
+      </section>
+
+      {/* Scale Transforms */}
+      <section className="space-y-4">
+        <div>
+          <h3 className="text-lg font-semibold mb-2">Scale Transforms</h3>
+          <p className="text-sm text-muted-foreground">
+            Tactile feedback through scale changes on interactive elements
+          </p>
+        </div>
+
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <label className="text-sm font-medium flex items-center justify-between">
+              <span>Hover: {interaction.scale.hover}x</span>
+              <span className="text-xs text-muted-foreground">
+                Scale multiplier on hover
+              </span>
+            </label>
+            <input
+              type="range"
+              min="1"
+              max="1.1"
+              step="0.01"
+              value={interaction.scale.hover}
+              onChange={(e) =>
+                updateInteraction({
+                  scale: {
+                    ...interaction.scale,
+                    hover: parseFloat(e.target.value)
+                  }
+                })
+              }
+              className="w-full"
+            />
+            <p className="text-xs text-muted-foreground">Subtle: 1.02 (2% larger)</p>
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-sm font-medium flex items-center justify-between">
+              <span>Pressed: {interaction.scale.pressed}x</span>
+              <span className="text-xs text-muted-foreground">
+                Scale multiplier when pressed
+              </span>
+            </label>
+            <input
+              type="range"
+              min="0.9"
+              max="1"
+              step="0.01"
+              value={interaction.scale.pressed}
+              onChange={(e) =>
+                updateInteraction({
+                  scale: {
+                    ...interaction.scale,
+                    pressed: parseFloat(e.target.value)
+                  }
+                })
+              }
+              className="w-full"
+            />
+            <p className="text-xs text-muted-foreground">Standard: 0.98 (2% smaller)</p>
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-sm font-medium flex items-center justify-between">
+              <span>Active: {interaction.scale.active}x</span>
+              <span className="text-xs text-muted-foreground">
+                Scale multiplier for active state
+              </span>
+            </label>
+            <input
+              type="range"
+              min="0.85"
+              max="1"
+              step="0.01"
+              value={interaction.scale.active}
+              onChange={(e) =>
+                updateInteraction({
+                  scale: {
+                    ...interaction.scale,
+                    active: parseFloat(e.target.value)
+                  }
+                })
+              }
+              className="w-full"
+            />
+            <p className="text-xs text-muted-foreground">Pronounced: 0.95 (5% smaller)</p>
+          </div>
+        </div>
+      </section>
+
+      {/* Focus Ring */}
+      <section className="space-y-4">
+        <div>
+          <h3 className="text-lg font-semibold mb-2">Focus Ring</h3>
+          <p className="text-sm text-muted-foreground">
+            Keyboard focus indicator (WCAG 2.4.7, 1.4.11, 2.4.13 compliance)
+          </p>
+        </div>
+
+        <div className="space-y-4">
+          <label className="block">
+            <span className="text-sm font-medium mb-2 block">Width</span>
+            <input
+              type="text"
+              value={interaction.focusRing.width}
+              onChange={(e) =>
+                updateInteraction({
+                  focusRing: {
+                    ...interaction.focusRing,
+                    width: e.target.value
+                  }
+                })
+              }
+              className="w-full px-3 py-2 border rounded-lg bg-background"
+              placeholder="2px"
+            />
+            <p className="text-xs text-muted-foreground mt-1">
+              Minimum 2px for WCAG AAA (2.4.13)
+            </p>
+          </label>
+
+          <label className="block">
+            <span className="text-sm font-medium mb-2 block">Offset</span>
+            <input
+              type="text"
+              value={interaction.focusRing.offset}
+              onChange={(e) =>
+                updateInteraction({
+                  focusRing: {
+                    ...interaction.focusRing,
+                    offset: e.target.value
+                  }
+                })
+              }
+              className="w-full px-3 py-2 border rounded-lg bg-background"
+              placeholder="2px"
+            />
+            <p className="text-xs text-muted-foreground mt-1">
+              Space between element and ring
+            </p>
+          </label>
+
+          <label className="block">
+            <span className="text-sm font-medium mb-2 block">Style</span>
+            <select
+              value={interaction.focusRing.style}
+              onChange={(e) =>
+                updateInteraction({
+                  focusRing: {
+                    ...interaction.focusRing,
+                    style: e.target.value as 'solid' | 'dashed' | 'dotted'
+                  }
+                })
+              }
+              className="w-full px-3 py-2 border rounded-lg bg-background"
+            >
+              <option value="solid">Solid</option>
+              <option value="dashed">Dashed</option>
+              <option value="dotted">Dotted</option>
+            </select>
+          </label>
+        </div>
+
+        {/* Focus Ring Preview */}
+        <div className="p-4 border rounded-lg bg-muted/30">
+          <p className="text-sm font-medium mb-3">Preview</p>
+          <button
+            className="px-4 py-2 bg-primary text-primary-foreground rounded-lg focus:outline-none"
+            style={{
+              boxShadow: `0 0 0 ${interaction.focusRing.offset} var(--background), 0 0 0 calc(${interaction.focusRing.offset} + ${interaction.focusRing.width}) var(--ring)`,
+              borderStyle: interaction.focusRing.style
+            }}
+          >
+            Focus Ring Example
+          </button>
+          <p className="text-xs text-muted-foreground mt-2">
+            Ring color uses the <code className="px-1 bg-muted rounded">--ring</code> semantic token
+          </p>
+        </div>
+      </section>
+
+      {/* Accessibility Note */}
+      <section className="space-y-4">
+        <div className="p-4 border rounded-lg bg-muted/30">
+          <h4 className="text-sm font-semibold mb-2 flex items-center gap-2">
+            <span>♿</span>
+            Accessibility Requirements
+          </h4>
+          <ul className="text-sm text-muted-foreground space-y-1">
+            <li>• <strong>WCAG 2.4.7 (AA):</strong> Focus indicators must be visible</li>
+            <li>• <strong>WCAG 1.4.11 (AA):</strong> 3:1 contrast ratio for focus indicators</li>
+            <li>• <strong>WCAG 2.4.13 (AAA):</strong> Focus indicator ≥2px thick with 3:1 contrast</li>
+            <li>• Never use color alone to indicate state (combine with icons, text)</li>
+          </ul>
+        </div>
+      </section>
     </div>
   )
 }
