@@ -950,46 +950,6 @@ function MotionConfig({
 
   return (
     <div className="space-y-8">
-      {/* Motion Mode Selector */}
-      <div className="space-y-4">
-        <div>
-          <h3 className="text-lg font-semibold mb-2">Motion Mode</h3>
-          <p className="text-sm text-muted-foreground">
-            Defines the personality and intent of all motion in your design system
-          </p>
-        </div>
-
-        <div className="grid grid-cols-2 gap-4">
-          <button
-            onClick={() => updateMotion({ mode: 'productive' })}
-            className={`p-4 border-2 rounded-lg text-left transition-colors ${
-              motion.mode === 'productive'
-                ? 'border-primary bg-primary/5'
-                : 'border-border hover:border-primary/50'
-            }`}
-          >
-            <div className="font-semibold mb-1">Productive</div>
-            <div className="text-sm text-muted-foreground">
-              Fast, efficient, task-focused. Optimized for productivity and quick interactions.
-            </div>
-          </button>
-
-          <button
-            onClick={() => updateMotion({ mode: 'expressive' })}
-            className={`p-4 border-2 rounded-lg text-left transition-colors ${
-              motion.mode === 'expressive'
-                ? 'border-primary bg-primary/5'
-                : 'border-border hover:border-primary/50'
-            }`}
-          >
-            <div className="font-semibold mb-1">Expressive</div>
-            <div className="text-sm text-muted-foreground">
-              Slower, delightful, brand-focused. Emphasizes personality and user delight.
-            </div>
-          </button>
-        </div>
-      </div>
-
       {/* Semantic Motion Profiles */}
       <div className="space-y-4">
         <div>

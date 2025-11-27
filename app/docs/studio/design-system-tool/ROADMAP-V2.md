@@ -87,55 +87,177 @@ Users can:
 
 ## Detailed Phase Roadmap
 
-### **Phase 4: Motion & Interaction Tokens** ⏳ [Current Focus]
+### **Phase 4: Motion & Interaction Tokens** ✅ [Complete]
 **Timeline**: 1-2 weeks
 **Priority**: High
 **Depends On**: Phases 1-3
+**Status**: Semantic motion profiles implemented
 
 #### Objectives
-Extend theme system with animation and interaction design tokens.
+Extend theme system with animation and interaction design tokens using semantic, intent-based profiles.
 
 #### Deliverables
 
-**4.1 Motion Token Configuration**
-- **Duration scale**:
-  - Micro: 100-200ms (small UI feedback - button press, checkbox toggle)
-  - Standard: 300-400ms (common transitions - dropdown open, modal fade)
-  - Page: 500-700ms (view transitions, page loads)
-  - Deliberate: 800-1000ms (emphasis animations, storytelling)
-- **Easing curves**:
-  - ease-in: Accelerate (start slow, end fast)
-  - ease-out: Decelerate (start fast, end slow) - most common for UI
-  - ease-in-out: Accelerate then decelerate
-  - linear: Constant speed
-  - Custom cubic-bezier: e.g., Material ease-out `cubic-bezier(0.4, 0.0, 0.2, 1)`
-- **Transition properties mapping**: Which CSS properties to animate
-- **Choreography**: Stagger delays (50-100ms), sequence timing
+**4.1 Semantic Motion Profile System** ✅
+- **6 Intent-Based Profiles**:
+  - `interaction`: Micro-interactions (hover, focus, press) - 70ms
+  - `stateChange`: Toggles, switches, checkboxes - 110ms
+  - `transition`: Menus, dialogs, dropdowns - 240ms
+  - `reveal`: Accordions, progressive disclosure - 300ms
+  - `navigation`: Page transitions, route changes - 400ms
+  - `emphasis`: Success messages, celebrations - 300ms
+- **Profile Configuration**:
+  - Duration (ms)
+  - Easing curve (CSS cubic-bezier)
+  - Optional spring physics (stiffness, damping, mass)
+- **Universal Spring Presets**:
+  - `tight`, `balanced`, `loose`, `bouncy`
+  - Platform-agnostic (adaptable to iOS, Android, 3D engines)
+- **Intent-Based Easings**:
+  - `enter`: Elements entering view
+  - `exit`: Elements exiting view
+  - `standard`: State transitions
+  - `linear`: Mechanical motion
 
-**4.2 Interaction Tokens**
-- **Focus indicators**:
-  - Ring width: 2px, 3px, 4px
-  - Ring offset: 0px, 2px (space between element and ring)
-  - Ring color: Semantic color token (primary, accent)
-  - Ring opacity: 0.5, 0.75, 1.0
-- **Hover state transitions**: Timing and property changes
-- **Active/pressed state feedback**: Scale, brightness adjustments
-- **Disabled state**: Opacity (0.5-0.6)
+**4.2 Preview Integration** ✅
+- Interactive motion template with live demonstrations
+- Semantic profile cards with progress bars
+- Spring physics interactive demos
+- Easing curve comparison with replay
+- Real-world examples (notifications, expandables, buttons)
+- Reduced motion toggle and accessibility notes
 
-**4.3 Preview Integration**
-- Add motion template showing transitions
-- Animate preview template transitions
-- Toggle for reduced motion preference (`prefers-reduced-motion: reduce`)
-
-**4.4 Export Enhancement**
-- Generate motion CSS variables
-- Export timing function definitions
-- Include accessibility preferences
+**4.3 Export Enhancement** ✅
+- CSS: Semantic motion profile variables
+- Framer Motion: TypeScript export with profiles, springs, easings
+- Helper functions for cubic-bezier parsing
+- Example usage and patterns
 
 #### Success Metrics
-- ✅ All preview templates use motion tokens
-- ✅ Smooth transitions in light/dark toggle
-- ✅ Reduced motion mode functional
+- ✅ Semantic profiles cover 90%+ of motion use cases
+- ✅ Spring physics demonstrated interactively
+- ✅ Export includes semantic structure
+- ✅ Preview shows real-world motion patterns
+
+#### Deferred to Phase 4.5
+- **Motion Modes System**: Customizable modes (productive, expressive, custom) with per-mode profile configurations
+- **Mode Switching**: Automatic profile updates when switching modes
+- **Custom Mode Creation**: User-defined modes with unique timing characteristics
+
+---
+
+### **Phase 4.5: Motion Modes System** 🆕 [Planned]
+**Timeline**: 1-2 weeks
+**Priority**: Medium-High
+**Depends On**: Phase 4
+**Status**: Deferred for future cycle
+
+#### Objectives
+Extend motion system with customizable modes that automatically adjust profile configurations based on design intent.
+
+#### Current Limitations
+- Motion mode selector (Productive/Expressive) is informational only
+- Profile values don't change when mode changes
+- Can't create custom modes
+- Modes are based on IBM Carbon (not customizable for other brands)
+
+#### Proposed Solution
+
+**Mode-Scoped Profile Configuration**:
+```typescript
+motion: {
+  currentMode: 'productive',
+  modes: {
+    productive: {
+      label: 'Productive',
+      description: 'Fast, efficient, task-focused',
+      profiles: {
+        interaction: { duration: 70, easing: '...', spring: {...} },
+        stateChange: { duration: 110, ... },
+        // ... all 6 profiles
+      }
+    },
+    expressive: {
+      label: 'Expressive',
+      description: 'Slower, delightful, brand-focused',
+      profiles: {
+        interaction: { duration: 150, ... },  // slower
+        stateChange: { duration: 200, ... },  // more delightful
+        // ... all 6 profiles
+      }
+    },
+    custom: {
+      label: 'Custom',
+      description: 'Your own timing',
+      profiles: { ... }
+    }
+  },
+  springs: { tight, balanced, loose, bouncy },
+  easings: { enter, exit, standard, linear }
+}
+```
+
+#### Deliverables
+
+**4.5.1 Mode Management UI**
+- Mode selector with visual feedback (highlight selected mode)
+- Create/edit/delete custom modes
+- Duplicate existing mode as starting point
+- Rename modes with custom labels/descriptions
+
+**4.5.2 Mode Switching Behavior**
+- Click mode → All profile values update automatically
+- Smooth transition in preview showing timing differences
+- Config panel reflects current mode's profile values
+- Export includes all modes (selectable at build time)
+
+**4.5.3 Per-Mode Profile Editor**
+- Edit profile values for each mode independently
+- Compare modes side-by-side
+- Copy profile values between modes
+- Reset mode to defaults
+
+**4.5.4 Mode Presets**
+- Start with 2-3 presets: Productive, Expressive, Accessible
+- **Productive**: Fast (70-240ms), sharp easings, minimal springs
+- **Expressive**: Slower (150-500ms), smooth easings, bouncy springs
+- **Accessible**: Respects reduced motion, instant or very fast (0-100ms)
+- Allow users to create their own presets
+
+**4.5.5 Export Enhancement**
+- Export all modes or single mode
+- CSS: Generate mode-specific variables with data attributes
+  ```css
+  [data-motion-mode="productive"] {
+    --motion-interaction-duration: 70ms;
+  }
+  [data-motion-mode="expressive"] {
+    --motion-interaction-duration: 150ms;
+  }
+  ```
+- Framer Motion: Export mode switcher hook
+  ```typescript
+  const { setMode, currentMode, profiles } = useMotionMode()
+  ```
+
+#### Success Metrics
+- ✅ Mode switching updates all profile values instantly
+- ✅ Can create/edit/delete custom modes
+- ✅ At least 3 useful mode presets included
+- ✅ Export supports mode switching
+- ✅ Preview clearly shows timing differences between modes
+
+#### Technical Considerations
+- Backward compatibility: Migrate existing configs to modes structure
+- Performance: Don't re-render entire preview on mode switch
+- State management: Mode is part of design system config
+- Validation: Ensure all modes have complete profile sets
+
+#### Open Questions
+- [ ] Should modes also affect spring presets and easings, or just profiles?
+- [ ] How to handle partial mode definitions (missing profiles)?
+- [ ] Should there be a "live mode switcher" in exported apps?
+- [ ] Can users share mode presets separately from full themes?
 
 ---
 
