@@ -194,7 +194,7 @@ export type DesignSystemConfig = {
       values: number[]
     }
     radius: {
-      style: 'sharp' | 'moderate' | 'rounded'
+      style: 'sharp' | 'moderate' | 'rounded' | 'custom'
       values: number[]
     }
     grid: {

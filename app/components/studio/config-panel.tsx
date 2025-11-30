@@ -190,13 +190,23 @@ function RadiusConfig({
   config: DesignSystemConfig
   updateConfig: (updates: Partial<DesignSystemConfig>) => void
 }) {
-  const setRadiusStyle = (style: 'sharp' | 'moderate' | 'rounded') => {
+  // State for nested radius calculator
+  const [selectedOuterRadius, setSelectedOuterRadius] = useState(
+    config.primitives.radius.values.filter(v => v !== 9999)[2] || 8
+  )
+  const [selectedPadding, setSelectedPadding] = useState(
+    config.primitives.spacing.values[2] || 8
+  )
+
+  const setRadiusStyle = (style: 'sharp' | 'moderate' | 'rounded' | 'custom') => {
     const radiusValues =
       style === 'sharp'
-        ? [0, 2, 4, 8, 9999]
+        ? [0, 2, 4, 6, 8, 9999]
         : style === 'moderate'
-        ? [0, 4, 8, 12, 16, 9999]
-        : [0, 8, 12, 16, 24, 32, 9999]
+        ? [0, 2, 4, 8, 12, 16, 9999]
+        : style === 'rounded'
+        ? [0, 4, 8, 12, 16, 24, 32, 9999]
+        : config.primitives.radius.values // Keep current for custom
 
     updateConfig({
       primitives: {
@@ -206,53 +216,227 @@ function RadiusConfig({
     })
   }
 
+  const updateRadiusValue = (index: number, newValue: number) => {
+    const newValues = [...config.primitives.radius.values]
+    newValues[index] = newValue
+    updateConfig({
+      primitives: {
+        ...config.primitives,
+        radius: { ...config.primitives.radius, style: 'custom', values: newValues }
+      }
+    })
+  }
+
+  const addRadiusValue = () => {
+    const newValues = [...config.primitives.radius.values.filter(v => v !== 9999), 0, 9999]
+    updateConfig({
+      primitives: {
+        ...config.primitives,
+        radius: { ...config.primitives.radius, values: newValues }
+      }
+    })
+  }
+
+  const removeRadiusValue = (index: number) => {
+    const newValues = config.primitives.radius.values.filter((_, i) => i !== index)
+    updateConfig({
+      primitives: {
+        ...config.primitives,
+        radius: { ...config.primitives.radius, values: newValues }
+      }
+    })
+  }
+
+  // Tailwind mapping helper
+  const getTailwindName = (index: number, value: number) => {
+    if (value === 0) return 'none'
+    if (value === 9999) return 'full'
+    const names = ['sm', 'DEFAULT', 'md', 'lg', 'xl', '2xl', '3xl']
+    return names[index - 1] || `custom-${index}`
+  }
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       <div>
-        <h3 className="font-semibold mb-2">Border Radius</h3>
-        <p className="text-sm text-muted-foreground mb-4">
+        <h3 className="text-lg font-semibold mb-2">Border Radius</h3>
+        <p className="text-sm text-muted-foreground">
           Visual softness and corner treatment
         </p>
       </div>
 
-      <div className="space-y-3">
-        {(['sharp', 'moderate', 'rounded'] as const).map((style) => (
-          <button
-            key={style}
-            type="button"
-            onClick={() => setRadiusStyle(style)}
-            className={`w-full p-4 border text-left transition-colors ${
-              config.primitives.radius.style === style
-                ? 'border-primary bg-primary/5'
-                : 'border-border hover:border-primary/50'
-            } ${style === 'sharp' ? 'rounded-none' : style === 'moderate' ? 'rounded-lg' : 'rounded-2xl'}`}
-          >
-            <div className="font-medium mb-1 capitalize">{style}</div>
-            <div className="text-xs text-muted-foreground">
-              {style === 'sharp'
-                ? '0-4px: Technical, precise'
-                : style === 'moderate'
-                ? '4-16px: Balanced, modern'
-                : '8-32px: Friendly, soft'}
-            </div>
-          </button>
-        ))}
-      </div>
+      {/* Style Presets */}
+      <section className="space-y-4">
+        <div className="text-sm font-medium">Presets</div>
+        <div className="grid grid-cols-3 gap-3">
+          {(['sharp', 'moderate', 'rounded'] as const).map((style) => (
+            <button
+              key={style}
+              type="button"
+              onClick={() => setRadiusStyle(style)}
+              className={`p-3 border text-left transition-colors ${
+                config.primitives.radius.style === style
+                  ? 'border-primary bg-primary/5'
+                  : 'border-border hover:border-primary/50'
+              } ${style === 'sharp' ? 'rounded-none' : style === 'moderate' ? 'rounded-lg' : 'rounded-2xl'}`}
+            >
+              <div className="font-medium text-sm capitalize">{style}</div>
+              <div className="text-xs text-muted-foreground mt-1">
+                {style === 'sharp'
+                  ? '0-8px'
+                  : style === 'moderate'
+                  ? '0-16px'
+                  : '0-32px'}
+              </div>
+            </button>
+          ))}
+        </div>
+      </section>
 
-      <div>
-        <div className="text-sm font-medium mb-3">Current Radius Values</div>
-        <div className="flex flex-wrap gap-3">
-          {config.primitives.radius.values.filter((v) => v !== 9999).map((value) => (
-            <div key={value} className="text-center">
+      {/* Custom Radius Scale */}
+      <section className="space-y-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <div className="text-sm font-medium">Radius Scale</div>
+            <p className="text-xs text-muted-foreground mt-1">
+              {config.primitives.radius.style === 'custom' ? 'Custom values' : 'Tailwind-compatible scale'}
+            </p>
+          </div>
+          <button
+            onClick={addRadiusValue}
+            className="text-sm px-3 py-1 border rounded-md hover:bg-accent transition-colors"
+          >
+            + Add Value
+          </button>
+        </div>
+
+        <div className="space-y-2">
+          {config.primitives.radius.values.map((value, index) => (
+            <div key={index} className="flex items-center gap-3">
+              <div className="w-20 text-xs text-muted-foreground font-mono">
+                {getTailwindName(index, value)}
+              </div>
               <div
-                className="w-16 h-16 bg-primary/30 border border-primary/50 mb-1"
-                style={{ borderRadius: `${value}px` }}
+                className="w-12 h-12 bg-primary/20 border border-primary/40 flex-shrink-0"
+                style={{ borderRadius: `${value === 9999 ? 9999 : value}px` }}
               />
-              <div className="text-xs text-muted-foreground font-mono">{value}px</div>
+              <input
+                type="number"
+                value={value}
+                onChange={(e) => updateRadiusValue(index, parseInt(e.target.value) || 0)}
+                className="flex-1 px-3 py-2 border rounded-md bg-background text-sm"
+                min="0"
+                max="9999"
+                step="2"
+              />
+              <span className="text-xs text-muted-foreground w-8">px</span>
+              {config.primitives.radius.values.length > 3 && value !== 9999 && (
+                <button
+                  onClick={() => removeRadiusValue(index)}
+                  className="text-xs px-2 py-1 text-destructive hover:bg-destructive/10 rounded transition-colors"
+                >
+                  Remove
+                </button>
+              )}
             </div>
           ))}
         </div>
-      </div>
+      </section>
+
+      {/* Semantic Radius */}
+      <section className="space-y-4">
+        <div>
+          <div className="text-sm font-medium">Semantic Tokens</div>
+          <p className="text-xs text-muted-foreground mt-1">
+            Intent-based radius values for common use cases
+          </p>
+        </div>
+
+        <div className="space-y-3">
+          <div className="p-3 border rounded-lg space-y-2">
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="text-sm font-medium">Interactive</div>
+                <div className="text-xs text-muted-foreground">Buttons, inputs, controls</div>
+              </div>
+              <div className="text-xs font-mono text-muted-foreground">
+                {config.semantic.radius.interactive}
+              </div>
+            </div>
+          </div>
+
+          <div className="p-3 border rounded-lg space-y-2">
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="text-sm font-medium">Surface</div>
+                <div className="text-xs text-muted-foreground">Cards, panels, containers</div>
+              </div>
+              <div className="text-xs font-mono text-muted-foreground">
+                {config.semantic.radius.surface}
+              </div>
+            </div>
+          </div>
+
+          <div className="p-3 border rounded-lg space-y-2">
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="text-sm font-medium">Dialog</div>
+                <div className="text-xs text-muted-foreground">Modals, dialogs, popovers</div>
+              </div>
+              <div className="text-xs font-mono text-muted-foreground">
+                {config.semantic.radius.dialog}
+              </div>
+            </div>
+          </div>
+        </div>
+        <p className="text-xs text-muted-foreground">
+          Semantic values automatically update based on primitive scale changes
+        </p>
+      </section>
+
+      {/* Nested Radius Calculator */}
+      <section className="space-y-4">
+        <div>
+          <div className="text-sm font-medium">Nested Radius Calculator</div>
+          <p className="text-xs text-muted-foreground mt-1">
+            Calculate correct inner radius for nested containers
+          </p>
+        </div>
+
+        <div className="p-4 border rounded-lg bg-muted/30 space-y-3">
+          <div className="text-xs text-muted-foreground">
+            Formula: <code className="px-1 py-0.5 bg-muted rounded">inner = max(0, outer - padding)</code>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs text-muted-foreground">Outer Radius</label>
+              <select
+                className="w-full mt-1 px-2 py-1 border rounded text-sm bg-background"
+                value={selectedOuterRadius}
+                onChange={(e) => setSelectedOuterRadius(parseInt(e.target.value))}
+              >
+                {config.primitives.radius.values.filter(v => v !== 9999).map((value, index) => (
+                  <option key={index} value={value}>{value}px ({getTailwindName(index, value)})</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="text-xs text-muted-foreground">Padding</label>
+              <select
+                className="w-full mt-1 px-2 py-1 border rounded text-sm bg-background"
+                value={selectedPadding}
+                onChange={(e) => setSelectedPadding(parseInt(e.target.value))}
+              >
+                {config.primitives.spacing.values.slice(0, 8).map((value) => (
+                  <option key={value} value={value}>{value}px</option>
+                ))}
+              </select>
+            </div>
+          </div>
+          <div className="text-sm">
+            Inner Radius: <span className="font-mono font-medium">{Math.max(0, selectedOuterRadius - selectedPadding)}px</span>
+          </div>
+        </div>
+      </section>
     </div>
   )
 }
