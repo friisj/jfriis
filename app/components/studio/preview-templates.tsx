@@ -4,6 +4,7 @@ import { useState } from 'react'
 import type { DesignSystemConfig } from './design-system-tool'
 import { TypographyTemplate as TypographyTemplateNew } from './preview-templates-typography'
 import { MotionTemplate } from './preview-templates-motion'
+import { NestedRadiusTemplate } from './preview-templates-nested-radius'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Progress } from '@/components/ui/progress'
@@ -19,7 +20,7 @@ interface PreviewTemplatesProps {
   config: DesignSystemConfig
 }
 
-type Template = 'card' | 'form' | 'blog' | 'typography' | 'layout' | 'dashboard' | 'motion'
+type Template = 'card' | 'form' | 'blog' | 'typography' | 'layout' | 'dashboard' | 'motion' | 'nested-radius'
 
 export function PreviewTemplates({ config }: PreviewTemplatesProps) {
   const [activeTemplate, setActiveTemplate] = useState<Template>('card')
@@ -31,7 +32,8 @@ export function PreviewTemplates({ config }: PreviewTemplatesProps) {
     { id: 'blog', label: 'Blog Post' },
     { id: 'typography', label: 'Typography' },
     { id: 'layout', label: 'Layout' },
-    { id: 'motion', label: 'Motion' }
+    { id: 'motion', label: 'Motion' },
+    { id: 'nested-radius', label: 'Nested Radius' }
   ]
 
   return (
@@ -64,6 +66,7 @@ export function PreviewTemplates({ config }: PreviewTemplatesProps) {
         {activeTemplate === 'typography' && <TypographyTemplateNew config={config} />}
         {activeTemplate === 'layout' && <LayoutTemplate config={config} />}
         {activeTemplate === 'motion' && <MotionTemplate config={config} />}
+        {activeTemplate === 'nested-radius' && <NestedRadiusTemplate config={config} />}
       </div>
     </div>
   )
