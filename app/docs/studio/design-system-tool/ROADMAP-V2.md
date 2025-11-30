@@ -73,7 +73,7 @@ Users can:
 | 10. Sizing & Icons | High | 4c | Planned |
 | 11. Gradients | High | 4d | Planned |
 | 12. Text Selection/Highlighting | Medium | 4e | Planned |
-| 13. Nested Border Radius | High | 4f | ✅ Complete |
+| 13. Nested Border Radius | High | 4f | Planned |
 | 14. Overlay Components | High | 4g | Planned |
 | 15. Breakpoints & Responsive | Medium | 5 | Planned |
 | 16. Z-Index & Layering | Medium | 5 | Planned |
@@ -81,7 +81,7 @@ Users can:
 | 18. Animation/Keyframes | Low | 9+ | Future |
 | 19. Content/Copy Tokens | Low | 9+ | Future |
 
-**Coverage**: 7/19 complete (37%) → Target: 16/19 by Phase 5 (84%)
+**Coverage**: 6/19 complete (32%) → Target: 16/19 by Phase 5 (84%)
 
 ---
 
@@ -714,98 +714,57 @@ Consistent text selection and highlighting styles across the system.
 
 ---
 
-### **Phase 4f: Nested Border Radius System** ✅ [Completed]
+### **Phase 4f: Nested Border Radius System** 🆕 [New]
 **Timeline**: 3-4 days
 **Priority**: High (visual polish)
 **Depends On**: Phase 4e
-**Status**: Fully Implemented
 
 #### Objectives
 Mathematically correct nested border radius for polished, aligned designs.
 
-#### Implementation Summary
+#### Deliverables
 
-**Core Utility Functions** ✅
-- Created `/lib/nested-radius.ts` with production-ready utilities
-- `calculateNestedRadius()`: Formula `inner = max(0, outer - padding)`
-- `getNestedRadius()`: Multi-level nesting calculation
-- `generateNestingMap()`: Complete nesting depth mapping
-- `getMaxNestingDepth()`: Calculate safe nesting limits
-- `isValidNestingConfig()`: Validation for edge cases
+**4f.1 Mathematical Implementation**
+Formula: `inner-radius = outer-radius - padding`
 
-**React Context & Hooks** ✅
-- `NestedRadiusProvider`: Establishes base nesting context
-- `NestedRadiusContainer`: Auto-incrementing wrapper component
-- `useNestedRadius()`: Hook for automatic radius calculation
-- `useNestedRadiusContext()`: Access full context for debugging
-- `NestedRadiusDebug`: Development overlay for visualization
+Example:
+- Outer container: 24px radius, 8px padding
+- Inner container: 16px radius
+- Calculation: 24px - 8px = 16px
 
-**Interactive Preview Template** ✅
-- Comprehensive "Nested Radius" preview template
-- Live configuration controls (semantic token, padding slider)
-- Calculated nesting map visualization (all levels)
-- Side-by-side comparison (correct vs incorrect)
-- Real-world examples:
-  - Dashboard with nested stats cards
-  - Form with grouped input sections
-  - Multi-level container hierarchies
-- Interactive debugging with live radius display
-- Usage documentation with code examples
+**4f.2 Dynamic Calculation Tokens**
+```css
+--radius-lg: 24px;
+--nested-padding: 8px;
+--radius-nested-lg: calc(var(--radius-lg) - var(--nested-padding));
+```
 
-**Config Panel Integration** ✅
-- Enhanced radius calculator in config panel
-- Dynamic calculation with dropdown selectors
-- Real-time inner radius display
-- Link to full preview template documentation
-- Formula explanation and guidance
+**4f.3 Padding-Aware Variants**
+- `--radius-nested-tight`: outer - 4px
+- `--radius-nested-normal`: outer - 8px
+- `--radius-nested-relaxed`: outer - 16px
 
-#### Deliverables - All Complete
+**4f.4 Edge Case Handling**
+- Clamp negative values to 0
+- Small radius (< padding) → inner = 0 (sharp)
+- Anti-aliasing compensation for small radii
 
-**4f.1 Mathematical Implementation** ✅
-Formula: `inner = max(0, outer - padding)` with edge case handling
-
-**4f.2 Dynamic Calculation System** ✅
-React context automatically manages nesting depth and calculations
-
-**4f.3 Semantic Token Awareness** ✅
-Works with all semantic tokens (interactive, surface, dialog)
-
-**4f.4 Edge Case Handling** ✅
-- Clamps negative values to 0
-- Validates nesting depth
-- Calculates maximum safe depth
-- Handles small radii gracefully
-
-**4f.5 Preview Integration** ✅
-- Full "Nested Radius" preview template
-- Multiple demonstration patterns
-- Side-by-side visual comparison
-- Interactive controls and debugging
-
-#### Key Differentiators
-- **Automatic**: Context-based, no manual calculation needed
-- **Semantic**: Works with design intent tokens, not raw values
-- **Developer-friendly**: Simple API with comprehensive docs
-- **Debug-ready**: Visual debugging tools included
-- **Export-ready**: Utilities can generate platform-specific tokens
+**4f.5 Preview Integration**
+- Add "Nested Radius" section to preview
+- Show outer container with inner card
+- Demonstrate alignment at different scales
+- Visual comparison (correct vs incorrect nesting)
 
 #### Success Metrics
-- ✅ Nested radius visually aligned across all examples
-- ✅ No negative radius values (max(0, ...) clamping)
-- ✅ Works across all radius scales and semantic tokens
-- ✅ Context automatically propagates through component tree
-- ✅ Preview template demonstrates all use cases
+- ✅ Nested radius visually aligned
+- ✅ No negative radius values
+- ✅ Works across all radius scales
 
 **Research Sources**:
 - Cloud Four: "The Math Behind Nesting Rounded Corners"
 - CSS-Tricks: "Careful With Your Nested Border-Radii"
 - Material Design 3: Corner radius scale
 - Nested Radius Calculator (vercel app)
-
-**Files Created**:
-- `/lib/nested-radius.ts` - Core utility functions
-- `/components/studio/nested-radius-context.tsx` - React context/hooks
-- `/components/studio/preview-templates-nested-radius.tsx` - Preview template
 
 ---
 

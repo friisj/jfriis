@@ -435,12 +435,6 @@ function RadiusConfig({
           <div className="text-sm">
             Inner Radius: <span className="font-mono font-medium">{Math.max(0, selectedOuterRadius - selectedPadding)}px</span>
           </div>
-          <div className="pt-3 border-t">
-            <p className="text-xs text-muted-foreground">
-              💡 View the <strong>Nested Radius</strong> preview template for interactive examples,
-              side-by-side comparisons, and usage documentation.
-            </p>
-          </div>
         </div>
       </section>
     </div>
