@@ -43,11 +43,12 @@ export function PreviewTemplates({ config }: PreviewTemplatesProps) {
             <button
               key={template.id}
               onClick={() => setActiveTemplate(template.id)}
-              className={`px-3 h-8 rounded-md text-sm font-medium transition-colors cursor-pointer ${
+              className={`px-3 h-8 text-sm font-medium transition-colors cursor-pointer ${
                 activeTemplate === template.id
                   ? 'bg-primary text-primary-foreground'
                   : 'bg-background hover:bg-accent'
               }`}
+              style={{ borderRadius: config.semantic.radius.interactive }}
             >
               {template.label}
             </button>
@@ -74,6 +75,9 @@ function DashboardTemplate({ config }: { config: DesignSystemConfig }) {
   const sans = config.primitives.typography.fontFamilies.sans.stack
   const mono = config.primitives.typography.fontFamilies.mono.stack
   const sizes = config.primitives.typography.typeScale.sizes
+  const radiusInteractive = config.semantic.radius.interactive
+  const radiusSurface = config.semantic.radius.surface
+  const radiusDialog = config.semantic.radius.dialog
 
   // Sample data for charts
   const revenueData = [
@@ -479,8 +483,8 @@ function DashboardTemplate({ config }: { config: DesignSystemConfig }) {
               </div>
               <CollapsibleTrigger asChild>
                 <button
-                  className="px-3 py-1 text-sm border rounded hover:bg-accent"
-                  style={{ fontFamily: sans, fontSize: sizes.sm }}
+                  className="px-3 py-1 text-sm border hover:bg-accent"
+                  style={{ fontFamily: sans, fontSize: sizes.sm, borderRadius: radiusInteractive }}
                 >
                   {isOpen ? 'Hide' : 'Show'}
                 </button>
@@ -549,6 +553,10 @@ function DashboardTemplate({ config }: { config: DesignSystemConfig }) {
 }
 
 function CardTemplate({ config }: { config: DesignSystemConfig }) {
+  const radiusInteractive = config.semantic.radius.interactive
+  const radiusSurface = config.semantic.radius.surface
+  const radiusDialog = config.semantic.radius.dialog
+
   return (
     <div className="max-w-2xl mx-auto space-y-6">
       <Card>
@@ -560,10 +568,10 @@ function CardTemplate({ config }: { config: DesignSystemConfig }) {
         </CardHeader>
         <CardContent>
           <div className="flex gap-3">
-            <button className="px-4 py-2 bg-primary text-primary-foreground font-medium rounded-md text-sm">
+            <button className="px-4 py-2 bg-primary text-primary-foreground font-medium text-sm" style={{ borderRadius: radiusInteractive }}>
               Primary Action
             </button>
-            <button className="px-4 py-2 border rounded-md font-medium text-sm">
+            <button className="px-4 py-2 border font-medium text-sm" style={{ borderRadius: radiusInteractive }}>
               Secondary
             </button>
           </div>
@@ -598,6 +606,10 @@ function CardTemplate({ config }: { config: DesignSystemConfig }) {
 }
 
 function FormTemplate({ config }: { config: DesignSystemConfig }) {
+  const radiusInteractive = config.semantic.radius.interactive
+  const radiusSurface = config.semantic.radius.surface
+  const radiusDialog = config.semantic.radius.dialog
+
   return (
     <div className="max-w-2xl mx-auto">
       <Card>
@@ -614,16 +626,18 @@ function FormTemplate({ config }: { config: DesignSystemConfig }) {
               <label className="block mb-2 font-medium text-sm">First Name</label>
               <input
                 type="text"
-                className="w-full px-3 py-2 border border-input bg-background rounded-md text-sm"
+                className="w-full px-3 py-2 border border-input bg-background text-sm"
                 placeholder="John"
+                style={{ borderRadius: radiusInteractive }}
               />
             </div>
             <div>
               <label className="block mb-2 font-medium text-sm">Last Name</label>
               <input
                 type="text"
-                className="w-full px-3 py-2 border border-input bg-background rounded-md text-sm"
+                className="w-full px-3 py-2 border border-input bg-background text-sm"
                 placeholder="Doe"
+                style={{ borderRadius: radiusInteractive }}
               />
             </div>
           </div>
@@ -632,15 +646,16 @@ function FormTemplate({ config }: { config: DesignSystemConfig }) {
             <label className="block mb-2 font-medium text-sm">Email Address</label>
             <input
               type="email"
-              className="w-full px-3 py-2 border border-input bg-background rounded-md text-sm"
+              className="w-full px-3 py-2 border border-input bg-background text-sm"
               placeholder="john.doe@example.com"
+              style={{ borderRadius: radiusInteractive }}
             />
           </div>
 
           {/* Select Dropdown */}
           <div>
             <label className="block mb-2 font-medium text-sm">Country</label>
-            <select className="w-full px-3 py-2 border border-input bg-background rounded-md text-sm">
+            <select className="w-full px-3 py-2 border border-input bg-background text-sm" style={{ borderRadius: radiusInteractive }}>
               <option>United States</option>
               <option>Canada</option>
               <option>United Kingdom</option>
@@ -726,9 +741,10 @@ function FormTemplate({ config }: { config: DesignSystemConfig }) {
           <div>
             <label className="block mb-2 font-medium text-sm">Bio</label>
             <textarea
-              className="w-full px-3 py-2 border border-input bg-background rounded-md text-sm"
+              className="w-full px-3 py-2 border border-input bg-background text-sm"
               rows={3}
               placeholder="Tell us about yourself..."
+              style={{ borderRadius: radiusInteractive }}
             />
             <p className="text-muted-foreground text-xs mt-1">
               Brief description for your profile. Max 500 characters.
@@ -737,10 +753,10 @@ function FormTemplate({ config }: { config: DesignSystemConfig }) {
 
           {/* Action Buttons */}
           <div className="flex gap-3 pt-4 border-t">
-            <button className="flex-1 px-4 py-2 border border-input bg-background font-medium rounded-md text-sm hover:bg-accent transition-colors">
+            <button className="flex-1 px-4 py-2 border border-input bg-background font-medium text-sm hover:bg-accent transition-colors" style={{ borderRadius: radiusInteractive }}>
               Cancel
             </button>
-            <button className="flex-1 px-4 py-2 bg-primary text-primary-foreground font-medium rounded-md text-sm hover:bg-primary/90 transition-colors">
+            <button className="flex-1 px-4 py-2 bg-primary text-primary-foreground font-medium text-sm hover:bg-primary/90 transition-colors" style={{ borderRadius: radiusInteractive }}>
               Save Changes
             </button>
           </div>
@@ -751,6 +767,10 @@ function FormTemplate({ config }: { config: DesignSystemConfig }) {
 }
 
 function BlogTemplate({ config }: { config: DesignSystemConfig }) {
+  const radiusInteractive = config.semantic.radius.interactive
+  const radiusSurface = config.semantic.radius.surface
+  const radiusDialog = config.semantic.radius.dialog
+
   return (
     <article className="max-w-3xl mx-auto text-foreground">
       <h1 className="font-serif text-4xl font-bold mb-2 leading-tight">
@@ -796,7 +816,7 @@ function BlogTemplate({ config }: { config: DesignSystemConfig }) {
         <li><strong>Component tokens</strong>: Specific values for individual component variants</li>
       </ul>
 
-      <div className="bg-muted rounded-lg p-4 my-6 border font-mono text-sm">
+      <div className="bg-muted p-4 my-6 border font-mono text-sm" style={{ borderRadius: radiusSurface }}>
         <pre><code>{`// Example design token structure
 const tokens = {
   color: {
@@ -823,7 +843,7 @@ const tokens = {
         <li><strong>Iterate based on feedback</strong> from designers and developers</li>
       </ol>
 
-      <div className="bg-accent border-l-4 border-primary rounded-r-lg p-6 my-8">
+      <div className="bg-accent border-l-4 border-primary p-6 my-8" style={{ borderRadius: `0 ${radiusSurface} ${radiusSurface} 0` }}>
         <p className="font-semibold mb-2">💡 Pro Tip</p>
         <p>
           Start small with spacing and color tokens. You can always expand your system as your team
@@ -919,6 +939,9 @@ function TypographyTemplate({ config }: { config: DesignSystemConfig }) {
 function LayoutTemplate({ config }: { config: DesignSystemConfig }) {
   const spacing = config.semantic.spacing
   const radius = config.semantic.radius
+  const radiusInteractive = config.semantic.radius.interactive
+  const radiusSurface = config.semantic.radius.surface
+  const radiusDialog = config.semantic.radius.dialog
 
   return (
     <div className="space-y-6 text-foreground">
@@ -970,7 +993,7 @@ function LayoutTemplate({ config }: { config: DesignSystemConfig }) {
 
       <div>
         <h4 className="text-xs font-medium text-muted-foreground mb-4">GRID SYSTEM</h4>
-        <div className="border rounded-lg p-4 space-y-2 text-sm">
+        <div className="border p-4 space-y-2 text-sm" style={{ borderRadius: radiusSurface }}>
           <div>Columns: {config.primitives.grid.columns}</div>
           <div>Gutter: {config.primitives.grid.gutter}px</div>
           <div>Max Width: {config.primitives.grid.maxWidth}px</div>
