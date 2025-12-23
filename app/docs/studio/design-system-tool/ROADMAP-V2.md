@@ -1,7 +1,7 @@
 # Design System Tool - Comprehensive Roadmap v2.0
 
-**Last Updated**: 2025-01-25
-**Status**: Active Development
+**Last Updated**: 2025-12-22
+**Status**: Active Development (Phase 5 in progress)
 **Based On**: W3C DTCG Spec v2025.10, comprehensive design system research
 
 ---
@@ -73,7 +73,7 @@ Users can:
 | 10. Sizing & Icons | High | 4c | Planned |
 | 11. Gradients | High | 4d | Planned |
 | 12. Text Selection/Highlighting | Medium | 4e | Planned |
-| 13. Nested Border Radius | High | 4f | Planned |
+| 13. Nested Border Radius | High | 4f | Simplified (calculator only) |
 | 14. Overlay Components | High | 4g | Planned |
 | 15. Breakpoints & Responsive | Medium | 5 | Planned |
 | 16. Z-Index & Layering | Medium | 5 | Planned |
@@ -714,15 +714,34 @@ Consistent text selection and highlighting styles across the system.
 
 ---
 
-### **Phase 4f: Nested Border Radius System** 🆕 [New]
-**Timeline**: 3-4 days
+### **Phase 4f: Nested Border Radius System** ✅ [Simplified]
 **Priority**: High (visual polish)
 **Depends On**: Phase 4e
+**Status**: Simplified implementation - calculator only (full system attempted and reverted)
 
 #### Objectives
 Mathematically correct nested border radius for polished, aligned designs.
 
-#### Deliverables
+#### Implementation Outcome
+
+**What was built (and reverted):**
+- React context system for automatic nesting depth tracking
+- Utility functions (`calculateNestedRadius`, `getNestedRadius`, `generateNestingMap`)
+- Preview template with interactive demos and side-by-side comparisons
+- Config panel integration with documentation links
+
+**Why it was reverted:**
+After implementation review, the automatic nested radius system added unnecessary complexity for unclear benefit. The React context, provider components, and preview template were overcomplicated for a problem that developers can solve by manually selecting appropriate radius values from the scale.
+
+**What was kept:**
+- Simple nested radius calculator in the config panel (formula: `inner = max(0, outer - padding)`)
+- Interactive dropdowns for outer radius and padding selection
+- Real-time calculation display
+
+**Decision rationale:**
+This aligns with how other design systems (Material Design, Carbon, etc.) handle nested radius - they provide a scale and let developers choose. The calculator helps developers understand the math; they then manually apply appropriate radius classes.
+
+#### Original Deliverables (For Reference)
 
 **4f.1 Mathematical Implementation**
 Formula: `inner-radius = outer-radius - padding`
@@ -1105,10 +1124,10 @@ Power user features and component-specific tokenization.
 
 ### Critical Path (Must Have)
 1. ✅ **Phase 4** - Motion & Interaction (duration, easing, focus rings)
-2. ✅ **Phase 4a** - Border & Stroke (border width, outline for focus)
-3. ✅ **Phase 4b** - Effects & Opacity (subtle hover effects)
-4. ✅ **Phase 4f** - Nested Border Radius (polished cards)
-5. ⚠️ **Phase 4g** - Overlay Components (modals, tooltips for admin UI)
+2. 📋 **Phase 4a** - Border & Stroke (border width, outline for focus)
+3. 📋 **Phase 4b** - Effects & Opacity (subtle hover effects)
+4. ✅ **Phase 4f** - Nested Border Radius (simplified: calculator only)
+5. 📋 **Phase 4g** - Overlay Components (modals, tooltips for admin UI)
 
 ### Nice to Have
 6. **Phase 4c** - Sizing & Icons (icon consistency)
@@ -1242,6 +1261,19 @@ Power user features and component-specific tokenization.
 ---
 
 ## Changelog
+
+**v2.1 (2025-12-22)**: Checkpoint update - Phase 4f outcome documented
+- Updated Phase 4f status to "Simplified" after full implementation was attempted and reverted
+- Documented what was built, why it was reverted, and what was kept (calculator only)
+- Clarified that automatic nested radius system adds unnecessary complexity
+- Decision aligns with industry practice (Material Design, Carbon provide scales, not automation)
+- Updated Critical Path section to reflect actual completion status
+- Recent work: Button styles now use dynamic border radius from config
+
+**Next Steps for Resumption:**
+- Phase 5 (Interaction & State) is in progress - foundation complete, advanced features pending
+- Phase 4a (Borders), 4b (Effects), 4g (Overlays) are next priorities
+- Consider whether remaining 4.x phases are needed before site theme export
 
 **v2.0 (2025-01-25)**: Major update based on comprehensive research
 - Added 7 new sub-phases (4a-4g) covering 8 additional token categories
