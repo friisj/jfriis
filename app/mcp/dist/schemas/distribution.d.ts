@@ -1,0 +1,280 @@
+import { z } from 'zod';
+export declare const ChannelSchema: z.ZodObject<{
+    id: z.ZodOptional<z.ZodString>;
+    created_at: z.ZodOptional<z.ZodString>;
+    updated_at: z.ZodOptional<z.ZodString>;
+    name: z.ZodString;
+    display_name: z.ZodString;
+    type: z.ZodNullable<z.ZodOptional<z.ZodString>>;
+    config: z.ZodNullable<z.ZodOptional<z.ZodAny>>;
+    enabled: z.ZodDefault<z.ZodBoolean>;
+}, "strip", z.ZodTypeAny, {
+    display_name: string;
+    name: string;
+    enabled: boolean;
+    id?: string | undefined;
+    created_at?: string | undefined;
+    updated_at?: string | undefined;
+    type?: string | null | undefined;
+    config?: any;
+}, {
+    display_name: string;
+    name: string;
+    id?: string | undefined;
+    created_at?: string | undefined;
+    updated_at?: string | undefined;
+    type?: string | null | undefined;
+    config?: any;
+    enabled?: boolean | undefined;
+}>;
+export declare const ChannelCreateSchema: z.ZodObject<Omit<{
+    id: z.ZodOptional<z.ZodString>;
+    created_at: z.ZodOptional<z.ZodString>;
+    updated_at: z.ZodOptional<z.ZodString>;
+    name: z.ZodString;
+    display_name: z.ZodString;
+    type: z.ZodNullable<z.ZodOptional<z.ZodString>>;
+    config: z.ZodNullable<z.ZodOptional<z.ZodAny>>;
+    enabled: z.ZodDefault<z.ZodBoolean>;
+}, "id" | "created_at" | "updated_at">, "strip", z.ZodTypeAny, {
+    display_name: string;
+    name: string;
+    enabled: boolean;
+    type?: string | null | undefined;
+    config?: any;
+}, {
+    display_name: string;
+    name: string;
+    type?: string | null | undefined;
+    config?: any;
+    enabled?: boolean | undefined;
+}>;
+export declare const ChannelUpdateSchema: z.ZodObject<{
+    type: z.ZodOptional<z.ZodNullable<z.ZodOptional<z.ZodString>>>;
+    display_name: z.ZodOptional<z.ZodString>;
+    name: z.ZodOptional<z.ZodString>;
+    config: z.ZodOptional<z.ZodNullable<z.ZodOptional<z.ZodAny>>>;
+    enabled: z.ZodOptional<z.ZodDefault<z.ZodBoolean>>;
+}, "strip", z.ZodTypeAny, {
+    type?: string | null | undefined;
+    display_name?: string | undefined;
+    name?: string | undefined;
+    config?: any;
+    enabled?: boolean | undefined;
+}, {
+    type?: string | null | undefined;
+    display_name?: string | undefined;
+    name?: string | undefined;
+    config?: any;
+    enabled?: boolean | undefined;
+}>;
+export declare const DistributionPostSchema: z.ZodObject<{
+    id: z.ZodOptional<z.ZodString>;
+    created_at: z.ZodOptional<z.ZodString>;
+    updated_at: z.ZodOptional<z.ZodString>;
+    channel_id: z.ZodString;
+    content_type: z.ZodString;
+    content_id: z.ZodString;
+    title: z.ZodNullable<z.ZodOptional<z.ZodString>>;
+    body: z.ZodNullable<z.ZodOptional<z.ZodString>>;
+    url: z.ZodNullable<z.ZodOptional<z.ZodString>>;
+    status: z.ZodDefault<z.ZodEnum<["draft", "scheduled", "posted", "failed"]>>;
+    posted_at: z.ZodNullable<z.ZodOptional<z.ZodString>>;
+    engagement: z.ZodNullable<z.ZodOptional<z.ZodAny>>;
+}, "strip", z.ZodTypeAny, {
+    status: "draft" | "scheduled" | "posted" | "failed";
+    channel_id: string;
+    content_type: string;
+    content_id: string;
+    id?: string | undefined;
+    created_at?: string | undefined;
+    updated_at?: string | undefined;
+    title?: string | null | undefined;
+    body?: string | null | undefined;
+    url?: string | null | undefined;
+    posted_at?: string | null | undefined;
+    engagement?: any;
+}, {
+    channel_id: string;
+    content_type: string;
+    content_id: string;
+    id?: string | undefined;
+    created_at?: string | undefined;
+    updated_at?: string | undefined;
+    title?: string | null | undefined;
+    status?: "draft" | "scheduled" | "posted" | "failed" | undefined;
+    body?: string | null | undefined;
+    url?: string | null | undefined;
+    posted_at?: string | null | undefined;
+    engagement?: any;
+}>;
+export declare const DistributionPostCreateSchema: z.ZodObject<Omit<{
+    id: z.ZodOptional<z.ZodString>;
+    created_at: z.ZodOptional<z.ZodString>;
+    updated_at: z.ZodOptional<z.ZodString>;
+    channel_id: z.ZodString;
+    content_type: z.ZodString;
+    content_id: z.ZodString;
+    title: z.ZodNullable<z.ZodOptional<z.ZodString>>;
+    body: z.ZodNullable<z.ZodOptional<z.ZodString>>;
+    url: z.ZodNullable<z.ZodOptional<z.ZodString>>;
+    status: z.ZodDefault<z.ZodEnum<["draft", "scheduled", "posted", "failed"]>>;
+    posted_at: z.ZodNullable<z.ZodOptional<z.ZodString>>;
+    engagement: z.ZodNullable<z.ZodOptional<z.ZodAny>>;
+}, "id" | "created_at" | "updated_at">, "strip", z.ZodTypeAny, {
+    status: "draft" | "scheduled" | "posted" | "failed";
+    channel_id: string;
+    content_type: string;
+    content_id: string;
+    title?: string | null | undefined;
+    body?: string | null | undefined;
+    url?: string | null | undefined;
+    posted_at?: string | null | undefined;
+    engagement?: any;
+}, {
+    channel_id: string;
+    content_type: string;
+    content_id: string;
+    title?: string | null | undefined;
+    status?: "draft" | "scheduled" | "posted" | "failed" | undefined;
+    body?: string | null | undefined;
+    url?: string | null | undefined;
+    posted_at?: string | null | undefined;
+    engagement?: any;
+}>;
+export declare const DistributionPostUpdateSchema: z.ZodObject<{
+    title: z.ZodOptional<z.ZodNullable<z.ZodOptional<z.ZodString>>>;
+    status: z.ZodOptional<z.ZodDefault<z.ZodEnum<["draft", "scheduled", "posted", "failed"]>>>;
+    body: z.ZodOptional<z.ZodNullable<z.ZodOptional<z.ZodString>>>;
+    channel_id: z.ZodOptional<z.ZodString>;
+    content_type: z.ZodOptional<z.ZodString>;
+    content_id: z.ZodOptional<z.ZodString>;
+    url: z.ZodOptional<z.ZodNullable<z.ZodOptional<z.ZodString>>>;
+    posted_at: z.ZodOptional<z.ZodNullable<z.ZodOptional<z.ZodString>>>;
+    engagement: z.ZodOptional<z.ZodNullable<z.ZodOptional<z.ZodAny>>>;
+}, "strip", z.ZodTypeAny, {
+    title?: string | null | undefined;
+    status?: "draft" | "scheduled" | "posted" | "failed" | undefined;
+    body?: string | null | undefined;
+    channel_id?: string | undefined;
+    content_type?: string | undefined;
+    content_id?: string | undefined;
+    url?: string | null | undefined;
+    posted_at?: string | null | undefined;
+    engagement?: any;
+}, {
+    title?: string | null | undefined;
+    status?: "draft" | "scheduled" | "posted" | "failed" | undefined;
+    body?: string | null | undefined;
+    channel_id?: string | undefined;
+    content_type?: string | undefined;
+    content_id?: string | undefined;
+    url?: string | null | undefined;
+    posted_at?: string | null | undefined;
+    engagement?: any;
+}>;
+export declare const DistributionQueueSchema: z.ZodObject<{
+    id: z.ZodOptional<z.ZodString>;
+    created_at: z.ZodOptional<z.ZodString>;
+    updated_at: z.ZodOptional<z.ZodString>;
+    channel_id: z.ZodString;
+    content_type: z.ZodString;
+    content_id: z.ZodString;
+    status: z.ZodDefault<z.ZodEnum<["pending", "processing", "completed", "failed"]>>;
+    priority: z.ZodDefault<z.ZodNumber>;
+    attempts: z.ZodDefault<z.ZodNumber>;
+    max_attempts: z.ZodDefault<z.ZodNumber>;
+    process_after: z.ZodNullable<z.ZodOptional<z.ZodString>>;
+    error_message: z.ZodNullable<z.ZodOptional<z.ZodString>>;
+}, "strip", z.ZodTypeAny, {
+    status: "completed" | "failed" | "pending" | "processing";
+    channel_id: string;
+    content_type: string;
+    content_id: string;
+    priority: number;
+    attempts: number;
+    max_attempts: number;
+    id?: string | undefined;
+    created_at?: string | undefined;
+    updated_at?: string | undefined;
+    process_after?: string | null | undefined;
+    error_message?: string | null | undefined;
+}, {
+    channel_id: string;
+    content_type: string;
+    content_id: string;
+    id?: string | undefined;
+    created_at?: string | undefined;
+    updated_at?: string | undefined;
+    status?: "completed" | "failed" | "pending" | "processing" | undefined;
+    priority?: number | undefined;
+    attempts?: number | undefined;
+    max_attempts?: number | undefined;
+    process_after?: string | null | undefined;
+    error_message?: string | null | undefined;
+}>;
+export declare const DistributionQueueCreateSchema: z.ZodObject<Omit<{
+    id: z.ZodOptional<z.ZodString>;
+    created_at: z.ZodOptional<z.ZodString>;
+    updated_at: z.ZodOptional<z.ZodString>;
+    channel_id: z.ZodString;
+    content_type: z.ZodString;
+    content_id: z.ZodString;
+    status: z.ZodDefault<z.ZodEnum<["pending", "processing", "completed", "failed"]>>;
+    priority: z.ZodDefault<z.ZodNumber>;
+    attempts: z.ZodDefault<z.ZodNumber>;
+    max_attempts: z.ZodDefault<z.ZodNumber>;
+    process_after: z.ZodNullable<z.ZodOptional<z.ZodString>>;
+    error_message: z.ZodNullable<z.ZodOptional<z.ZodString>>;
+}, "id" | "created_at" | "updated_at">, "strip", z.ZodTypeAny, {
+    status: "completed" | "failed" | "pending" | "processing";
+    channel_id: string;
+    content_type: string;
+    content_id: string;
+    priority: number;
+    attempts: number;
+    max_attempts: number;
+    process_after?: string | null | undefined;
+    error_message?: string | null | undefined;
+}, {
+    channel_id: string;
+    content_type: string;
+    content_id: string;
+    status?: "completed" | "failed" | "pending" | "processing" | undefined;
+    priority?: number | undefined;
+    attempts?: number | undefined;
+    max_attempts?: number | undefined;
+    process_after?: string | null | undefined;
+    error_message?: string | null | undefined;
+}>;
+export declare const DistributionQueueUpdateSchema: z.ZodObject<{
+    status: z.ZodOptional<z.ZodDefault<z.ZodEnum<["pending", "processing", "completed", "failed"]>>>;
+    channel_id: z.ZodOptional<z.ZodString>;
+    content_type: z.ZodOptional<z.ZodString>;
+    content_id: z.ZodOptional<z.ZodString>;
+    priority: z.ZodOptional<z.ZodDefault<z.ZodNumber>>;
+    attempts: z.ZodOptional<z.ZodDefault<z.ZodNumber>>;
+    max_attempts: z.ZodOptional<z.ZodDefault<z.ZodNumber>>;
+    process_after: z.ZodOptional<z.ZodNullable<z.ZodOptional<z.ZodString>>>;
+    error_message: z.ZodOptional<z.ZodNullable<z.ZodOptional<z.ZodString>>>;
+}, "strip", z.ZodTypeAny, {
+    status?: "completed" | "failed" | "pending" | "processing" | undefined;
+    channel_id?: string | undefined;
+    content_type?: string | undefined;
+    content_id?: string | undefined;
+    priority?: number | undefined;
+    attempts?: number | undefined;
+    max_attempts?: number | undefined;
+    process_after?: string | null | undefined;
+    error_message?: string | null | undefined;
+}, {
+    status?: "completed" | "failed" | "pending" | "processing" | undefined;
+    channel_id?: string | undefined;
+    content_type?: string | undefined;
+    content_id?: string | undefined;
+    priority?: number | undefined;
+    attempts?: number | undefined;
+    max_attempts?: number | undefined;
+    process_after?: string | null | undefined;
+    error_message?: string | null | undefined;
+}>;
