@@ -1,7 +1,7 @@
 # Studio Project Registry
 
-> **Last updated:** 2025-12-22
-> **Quick pulse:** Design System Tool is hot, shipping Phase 5. Experience Systems on hold pending prototype work.
+> **Last updated:** 2025-12-26
+> **Quick pulse:** DST hot (Phase 5). ES paused. Hando (home platform) starting with Twin (digital building model).
 
 ---
 
@@ -57,6 +57,28 @@
 - SCP governance workflow
 - TechCo worked example with BCS calculation
 - 80+ term glossary
+
+---
+
+### Hando
+
+| Field | Value |
+|-------|-------|
+| **Path** | `/app/components/studio/hando/` |
+| **Status** | Planning - platform foundation |
+| **Temperature** | Warm |
+| **Database Tables** | Sub-projects use `studio_hando_{subproject}_*` |
+
+**Current focus:** Defining twin (digital building model) as first sub-project
+
+**Next milestone:** Twin data model and initial prototype
+
+**Blockers:** None
+
+**Sub-projects:**
+- `twin` - Digital twin for residential buildings (Planning)
+
+**Notes:** Platform for home maintenance and management. Twin provides the foundational building model that other sub-projects (maintenance scheduling, cost tracking, etc.) could build upon.
 
 ---
 
