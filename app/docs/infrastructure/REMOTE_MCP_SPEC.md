@@ -1,8 +1,8 @@
 # jonfriis.com Remote MCP Server Specification
 
-> **Version:** 1.0.0
+> **Version:** 1.1.0
 > **Status:** Specification
-> **Last Updated:** 2025-12-26
+> **Last Updated:** 2025-12-27
 > **Depends On:** [MCP_SPEC.md](./MCP_SPEC.md) (local implementation)
 
 ---
@@ -122,20 +122,25 @@ Claude Mobile and claude.ai require OAuth 2.1 for remote MCP servers.
 
 ### Scopes
 
+OAuth scopes provide coarse-grained access control at the token level:
+
 | Scope | Permissions |
 |-------|-------------|
 | `mcp:read` | `db_list_tables`, `db_query`, `db_get` |
 | `mcp:write` | `db_create`, `db_update`, `db_delete` |
-| `mcp:admin` | All operations (future: schema changes) |
+| `mcp:admin` | All operations + user/role management |
+
+Scopes are the *maximum* permissions a token can have. Actual permissions are further restricted by the user's role (see [Roles & Permissions](#roles--permissions)).
 
 ### User Model
 
-For a personal site MCP:
+Multi-user ready from day one:
 
-- **Single authorized user**: Jon Friis
+- **Multiple users**: Owner + collaborators + API clients
 - **Simple auth**: Magic link or passkey (no password)
 - **Session management**: JWT with short expiry + refresh tokens
-- **Device management**: List/revoke authorized devices
+- **Device management**: List/revoke authorized devices per user
+- **Role assignment**: Each user has one or more roles
 
 ### Implementation Options
 
@@ -165,6 +170,384 @@ Pros: Battle-tested, handles edge cases
 Cons: External dependency, cost at scale
 
 **Recommendation**: Start with Option A using Supabase Auth, migrate to Option B if complexity grows.
+
+---
+
+## Roles & Permissions
+
+Multi-user access control with granular permissions. Ready for collaborators, API clients, and different access levels per MCP client.
+
+### Permission Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                        Access Check Flow                         │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│   Request with Bearer Token                                     │
+│         │                                                       │
+│         ▼                                                       │
+│   ┌─────────────┐                                               │
+│   │ OAuth Scope │  Token has mcp:write?                         │
+│   │   Check     │  ─── No ──► 403 Forbidden                     │
+│   └──────┬──────┘                                               │
+│          │ Yes                                                  │
+│          ▼                                                       │
+│   ┌─────────────┐                                               │
+│   │    Role     │  User role allows this table + operation?     │
+│   │   Check     │  ─── No ──► 403 Forbidden                     │
+│   └──────┬──────┘                                               │
+│          │ Yes                                                  │
+│          ▼                                                       │
+│   ┌─────────────┐                                               │
+│   │     RLS     │  Supabase row-level policy passes?            │
+│   │   Check     │  ─── No ──► 403 / Empty result                │
+│   └──────┬──────┘                                               │
+│          │ Yes                                                  │
+│          ▼                                                       │
+│      Execute Operation                                          │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Roles
+
+| Role | Description | Default Permissions |
+|------|-------------|---------------------|
+| `owner` | Full system access | All tables, all operations |
+| `admin` | Administrative access | All tables, all operations, no user management |
+| `editor` | Content management | Site content tables, CRUD |
+| `studio` | Studio project access | `studio_*` tables only |
+| `viewer` | Read-only access | All tables, read only |
+| `api` | Programmatic access | Configured per-client |
+
+### Permission Model
+
+Permissions are defined as `(table_pattern, operations[])` tuples:
+
+```typescript
+// lib/mcp/permissions/types.ts
+interface Permission {
+  tables: string | string[]  // Table name, pattern with *, or array
+  operations: Operation[]    // ['read'] | ['read', 'create', 'update'] | ['*']
+}
+
+type Operation = 'read' | 'create' | 'update' | 'delete' | '*'
+
+interface Role {
+  id: string
+  name: string
+  description: string
+  permissions: Permission[]
+  inherits?: string[]  // Inherit permissions from other roles
+}
+```
+
+### Default Role Definitions
+
+```typescript
+// lib/mcp/permissions/roles.ts
+export const roles: Record<string, Role> = {
+  owner: {
+    id: 'owner',
+    name: 'Owner',
+    description: 'Full system access including user management',
+    permissions: [
+      { tables: '*', operations: ['*'] }
+    ],
+  },
+
+  admin: {
+    id: 'admin',
+    name: 'Administrator',
+    description: 'Full data access, no user management',
+    permissions: [
+      { tables: '*', operations: ['read', 'create', 'update', 'delete'] }
+    ],
+  },
+
+  editor: {
+    id: 'editor',
+    name: 'Editor',
+    description: 'Manage site content',
+    permissions: [
+      { tables: ['projects', 'log_entries', 'specimens', 'gallery_sequences'], operations: ['*'] },
+      { tables: ['backlog_items'], operations: ['read', 'create', 'update'] },
+      { tables: '*', operations: ['read'] },  // Can read everything
+    ],
+  },
+
+  studio: {
+    id: 'studio',
+    name: 'Studio Access',
+    description: 'Access to studio project tables only',
+    permissions: [
+      { tables: 'studio_*', operations: ['*'] },
+      { tables: ['projects', 'specimens'], operations: ['read'] },
+    ],
+  },
+
+  viewer: {
+    id: 'viewer',
+    name: 'Viewer',
+    description: 'Read-only access to all data',
+    permissions: [
+      { tables: '*', operations: ['read'] }
+    ],
+  },
+
+  api: {
+    id: 'api',
+    name: 'API Client',
+    description: 'Programmatic access with custom permissions',
+    permissions: [], // Configured per-client
+  },
+}
+```
+
+### Permission Checking
+
+```typescript
+// lib/mcp/permissions/check.ts
+import { roles } from './roles'
+
+interface AccessContext {
+  userId: string
+  userRoles: string[]
+  tokenScopes: string[]
+}
+
+export function canAccess(
+  context: AccessContext,
+  table: string,
+  operation: Operation
+): boolean {
+  // 1. Check OAuth scope
+  const scopeRequired = operationToScope(operation)
+  if (!context.tokenScopes.includes(scopeRequired) &&
+      !context.tokenScopes.includes('mcp:admin')) {
+    return false
+  }
+
+  // 2. Check role permissions
+  for (const roleName of context.userRoles) {
+    const role = roles[roleName]
+    if (!role) continue
+
+    for (const permission of role.permissions) {
+      if (matchesTable(permission.tables, table) &&
+          matchesOperation(permission.operations, operation)) {
+        return true
+      }
+    }
+  }
+
+  return false
+}
+
+function matchesTable(pattern: string | string[], table: string): boolean {
+  if (Array.isArray(pattern)) {
+    return pattern.includes(table)
+  }
+  if (pattern === '*') return true
+  if (pattern.endsWith('*')) {
+    return table.startsWith(pattern.slice(0, -1))
+  }
+  return pattern === table
+}
+
+function matchesOperation(allowed: Operation[], requested: Operation): boolean {
+  return allowed.includes('*') || allowed.includes(requested)
+}
+
+function operationToScope(operation: Operation): string {
+  if (operation === 'read') return 'mcp:read'
+  return 'mcp:write'
+}
+```
+
+### Per-Client Permissions
+
+Different MCP clients can have different access levels:
+
+| Client | User Type | Role | Rationale |
+|--------|-----------|------|-----------|
+| Claude Code (local) | Service | `owner` | Trusted, local, full access |
+| Claude Mobile (Jon) | Human | `owner` | Personal device |
+| Claude Desktop (Jon) | Human | `owner` | Personal device |
+| Claude Web (Jon) | Human | `editor` | Potentially shared browser |
+| Collaborator | Human | `editor` or `studio` | Limited by assignment |
+| API Integration | Service | `api` + custom | Scoped to specific needs |
+| Public API | Anonymous | `viewer` | Read-only public data |
+
+### API Client Configuration
+
+For programmatic access, create API clients with custom permissions:
+
+```typescript
+// Database: mcp_api_clients table
+interface ApiClient {
+  id: string
+  name: string
+  description: string
+  client_id: string      // For OAuth client_credentials flow
+  client_secret_hash: string
+  permissions: Permission[]
+  rate_limit: number     // Requests per minute
+  created_by: string     // User who created this client
+  created_at: Date
+  last_used_at: Date
+  enabled: boolean
+}
+
+// Example: Analytics integration
+const analyticsClient: ApiClient = {
+  id: 'analytics-integration',
+  name: 'Analytics Dashboard',
+  description: 'Read-only access for analytics',
+  client_id: 'analytics_xxx',
+  client_secret_hash: '...',
+  permissions: [
+    { tables: ['projects', 'log_entries', 'specimens'], operations: ['read'] }
+  ],
+  rate_limit: 60,
+  // ...
+}
+```
+
+### Database Schema
+
+```sql
+-- Users table (extends Supabase auth.users)
+CREATE TABLE mcp_users (
+  id UUID PRIMARY KEY REFERENCES auth.users(id),
+  display_name TEXT,
+  roles TEXT[] DEFAULT ARRAY['viewer'],
+  created_at TIMESTAMPTZ DEFAULT now(),
+  updated_at TIMESTAMPTZ DEFAULT now()
+);
+
+-- API clients for programmatic access
+CREATE TABLE mcp_api_clients (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name TEXT NOT NULL,
+  description TEXT,
+  client_id TEXT UNIQUE NOT NULL,
+  client_secret_hash TEXT NOT NULL,
+  permissions JSONB NOT NULL DEFAULT '[]',
+  rate_limit INTEGER DEFAULT 60,
+  created_by UUID REFERENCES mcp_users(id),
+  created_at TIMESTAMPTZ DEFAULT now(),
+  last_used_at TIMESTAMPTZ,
+  enabled BOOLEAN DEFAULT true
+);
+
+-- Audit log for all operations
+CREATE TABLE mcp_audit_log (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  timestamp TIMESTAMPTZ DEFAULT now(),
+  user_id UUID REFERENCES mcp_users(id),
+  client_id UUID REFERENCES mcp_api_clients(id),
+  action TEXT NOT NULL,  -- 'read', 'create', 'update', 'delete'
+  table_name TEXT NOT NULL,
+  record_id UUID,
+  changes JSONB,
+  ip_address INET,
+  user_agent TEXT,
+  granted BOOLEAN NOT NULL
+);
+
+-- Index for audit queries
+CREATE INDEX idx_audit_user ON mcp_audit_log(user_id, timestamp DESC);
+CREATE INDEX idx_audit_table ON mcp_audit_log(table_name, timestamp DESC);
+```
+
+### Row-Level Security (RLS)
+
+For fine-grained record-level access, use Supabase RLS:
+
+```sql
+-- Example: Users can only see their own drafts, everyone sees published
+CREATE POLICY "Drafts visible to owner" ON projects
+  FOR SELECT
+  USING (
+    published = true
+    OR auth.uid() = created_by
+    OR EXISTS (
+      SELECT 1 FROM mcp_users
+      WHERE id = auth.uid()
+      AND 'admin' = ANY(roles)
+    )
+  );
+
+-- Example: Studio tables only accessible to studio role
+CREATE POLICY "Studio tables require studio role" ON studio_dst_configs
+  FOR ALL
+  USING (
+    EXISTS (
+      SELECT 1 FROM mcp_users
+      WHERE id = auth.uid()
+      AND ('studio' = ANY(roles) OR 'admin' = ANY(roles) OR 'owner' = ANY(roles))
+    )
+  );
+```
+
+### Permission Errors
+
+Clear error messages for permission failures:
+
+```typescript
+interface PermissionError {
+  code: 'FORBIDDEN'
+  message: string
+  details: {
+    required_scope?: string
+    required_role?: string
+    table?: string
+    operation?: string
+  }
+}
+
+// Examples
+{
+  code: 'FORBIDDEN',
+  message: 'Token missing required scope: mcp:write',
+  details: { required_scope: 'mcp:write', operation: 'create' }
+}
+
+{
+  code: 'FORBIDDEN',
+  message: 'Role "viewer" cannot create records in table "projects"',
+  details: { required_role: 'editor', table: 'projects', operation: 'create' }
+}
+```
+
+### Admin UI for Permissions
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│  MCP Admin: Users & Permissions                                 │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  Users                                                          │
+│  ─────                                                          │
+│  ┌─────────────────────────────────────────────────────────────┐│
+│  │ Jon Friis         jon@jonfriis.com    [owner]    [Edit]    ││
+│  │ Collaborator      collab@example.com  [editor]   [Edit]    ││
+│  │ Studio Bot        (API client)        [studio]   [Edit]    ││
+│  └─────────────────────────────────────────────────────────────┘│
+│                                                      [+ Invite] │
+│                                                                 │
+│  API Clients                                                    │
+│  ───────────                                                    │
+│  ┌─────────────────────────────────────────────────────────────┐│
+│  │ Analytics         Read: projects, log_entries   [Manage]   ││
+│  │ Backup Service    Read: *                       [Manage]   ││
+│  └─────────────────────────────────────────────────────────────┘│
+│                                                   [+ New Client]│
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
 
 ---
 
@@ -543,30 +926,50 @@ paths:
 
 **Validation**: Full OAuth flow works, tokens properly scoped
 
-### Phase 3: Claude Integration
+### Phase 3: Roles & Permissions
+
+1. Create `mcp_users` and `mcp_api_clients` tables
+2. Implement role definitions in `lib/mcp/permissions/roles.ts`
+3. Add permission checking middleware
+4. Integrate with tool handlers
+5. Add `mcp_audit_log` table and logging
+
+**Validation**: Different roles have different access, all operations logged
+
+### Phase 4: Claude Integration
 
 1. Create `/.well-known/mcp.json` manifest
 2. Test with Claude Desktop (HTTP transport)
 3. Test with Claude Mobile
 4. Test with claude.ai (if supported)
+5. Verify role-based access works across clients
 
-**Validation**: All Claude clients can authenticate and use tools
+**Validation**: All Claude clients can authenticate and use tools with correct permissions
 
-### Phase 4: Production Hardening
+### Phase 5: Production Hardening
 
-1. Add rate limiting
-2. Add audit logging
-3. Add device management UI
-4. Add token revocation
+1. Add rate limiting (per-user, per-role)
+2. Add device management UI
+3. Add token revocation
+4. Implement RLS policies for sensitive tables
 5. Security audit
 
-**Validation**: Rate limits enforced, all operations logged
+**Validation**: Rate limits enforced, RLS working, security reviewed
 
-### Phase 5: ChatGPT (Optional)
+### Phase 6: Admin UI
+
+1. Build user management UI (invite, assign roles)
+2. Build API client management UI
+3. Add audit log viewer
+4. Add permission testing tool ("can user X do Y on table Z?")
+
+**Validation**: Can manage users and permissions via UI
+
+### Phase 7: ChatGPT (Optional)
 
 1. Generate OpenAPI spec
 2. Create ChatGPT Action
-3. Test tool calls
+3. Test tool calls with read-only access
 
 **Validation**: ChatGPT can query database via Actions
 
@@ -687,10 +1090,29 @@ import { dbQuery } from '../../../../lib/mcp/tools-core'
 
 1. **Auth provider**: Self-hosted vs Clerk/Auth0?
 2. **Multi-device**: Should each device have separate tokens?
-3. **Scope granularity**: Per-table scopes or just read/write?
-4. **SSE requirement**: Is streaming needed for any tools?
-5. **ChatGPT priority**: Worth implementing Actions?
+3. **Invitation flow**: Magic link invite, or manual user creation?
+4. **Role storage**: Static in code, or dynamic in database?
+5. **RLS complexity**: Start with role-based only, add RLS later?
+6. **SSE requirement**: Is streaming needed for any tools?
+7. **ChatGPT priority**: Worth implementing Actions?
 
 ---
 
-*This spec extends the local MCP for remote access. Core functionality remains identical.*
+## Summary: Permission Layers
+
+| Layer | What it controls | Where defined |
+|-------|------------------|---------------|
+| **OAuth Scopes** | Max token permissions | Token claims |
+| **Roles** | Table + operation access | `mcp_users.roles` |
+| **Role Definitions** | What each role can do | Code (`roles.ts`) |
+| **API Client Permissions** | Custom per-client access | `mcp_api_clients.permissions` |
+| **RLS Policies** | Row-level filtering | Supabase policies |
+
+This layered approach allows:
+- Quick role assignment for common use cases
+- Custom permissions for API integrations
+- Fine-grained row-level control when needed
+
+---
+
+*This spec extends the local MCP for remote access with multi-user support. Core functionality remains identical.*
