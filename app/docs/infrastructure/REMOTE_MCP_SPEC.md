@@ -18,7 +18,6 @@ The local MCP (stdio transport) works excellently with Claude Code but is inacce
 - **Claude Mobile** (iOS/Android) - Supports remote MCP only
 - **claude.ai** (web) - Requires HTTP endpoints
 - **Claude Desktop** - Can use either, but HTTP enables shared access
-- **ChatGPT** - Via Actions (OpenAPI integration)
 
 ### Architecture
 
