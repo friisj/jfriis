@@ -10,7 +10,7 @@ import {
   dbCreate as dbCreateCore,
   dbUpdate as dbUpdateCore,
   dbDelete as dbDeleteCore,
-} from '../../../lib/mcp/tools-core.js'
+} from '../../lib/mcp/tools-core.js'
 
 // Re-export types
 export type {
@@ -19,7 +19,7 @@ export type {
   DbCreateInput,
   DbUpdateInput,
   DbDeleteInput,
-} from '../../../lib/mcp/types.js'
+} from '../../lib/mcp/types.js'
 
 // Wrap each tool to inject the local supabase client
 export async function dbListTables() {
