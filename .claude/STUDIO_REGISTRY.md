@@ -1,7 +1,7 @@
 # Studio Project Registry
 
-> **Last updated:** 2025-12-26
-> **Quick pulse:** DST hot (Phase 5). ES paused. Hando (home platform) starting with Twin (digital building model).
+> **Last updated:** 2025-12-27
+> **Quick pulse:** DST hot (Phase 5). ES paused. Hando (home platform) starting with Twin (digital building model). Trux (new project) in planning.
 
 ---
 
@@ -79,6 +79,24 @@
 - `twin` - Digital twin for residential buildings (Planning)
 
 **Notes:** Platform for home maintenance and management. Twin provides the foundational building model that other sub-projects (maintenance scheduling, cost tracking, etc.) could build upon.
+
+---
+
+### Trux
+
+| Field | Value |
+|-------|-------|
+| **Path** | `/app/components/studio/trux/` |
+| **Status** | Planning |
+| **Temperature** | Warm |
+
+**Current focus:** Initial project setup and definition
+
+**Next milestone:** Define project scope and initial features
+
+**Blockers:** None
+
+**Notes:** New studio project - purpose and features to be defined.
 
 ---
 
