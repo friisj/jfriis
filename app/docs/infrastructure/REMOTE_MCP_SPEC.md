@@ -1,6 +1,6 @@
 # jonfriis.com Remote MCP Server Specification
 
-> **Version:** 2.0.0
+> **Version:** 2.1.0
 > **Status:** Specification
 > **Last Updated:** 2025-12-27
 > **Depends On:** [MCP_SPEC.md](./MCP_SPEC.md) (local implementation)
@@ -183,18 +183,6 @@ async function handleDeny(authorizationId: string) {
 }
 ```
 
-### Scopes
-
-OAuth scopes provide coarse-grained access control:
-
-| Scope | Permissions |
-|-------|-------------|
-| `mcp:read` | `db_list_tables`, `db_query`, `db_get` |
-| `mcp:write` | `db_create`, `db_update`, `db_delete` |
-| `mcp:admin` | All operations + user/role management |
-
-Actual permissions are further restricted by the user's role (see [Roles & Permissions](#roles--permissions)).
-
 ### Setup Steps
 
 1. **Enable OAuth Server** in Supabase Dashboard → Authentication → OAuth Server
@@ -223,150 +211,108 @@ Multi-user ready from day one:
 
 ## Roles & Permissions
 
-Simple role-based access control. One layer, easy to debug.
-
-### Permission Architecture
-
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                        Access Check Flow                         │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                 │
-│   Request with Bearer Token                                     │
-│         │                                                       │
-│         ▼                                                       │
-│   ┌─────────────┐                                               │
-│   │    Role     │  User role allows this table + operation?     │
-│   │   Check     │  ─── No ──► 403 Forbidden                     │
-│   └──────┬──────┘                                               │
-│          │ Yes                                                  │
-│          ▼                                                       │
-│      Execute Operation                                          │
-│                                                                 │
-└─────────────────────────────────────────────────────────────────┘
-```
-
-**Why single-layer?**
-- Easy to debug (one place to check)
-- Roles stored in `profiles.mcp_roles` (existing table)
-- RLS can be added later if row-level filtering needed
+Two roles with project-level assignment for collaborators.
 
 ### Roles
 
-| Role | Description | Permissions |
-|------|-------------|-------------|
-| `owner` | Full system access | All tables, all operations |
-| `editor` | Content management | Site tables CRUD, studio read-only |
-| `studio` | Studio project access | `studio_*` tables only |
-| `viewer` | Read-only access | All tables, read only |
+| Role | Description |
+|------|-------------|
+| `admin` | Full access to everything |
+| `editor` | Read all, write only to assigned projects |
 
-### Role Definitions
+### How It Works
+
+```
+Request with Bearer Token
+        │
+        ▼
+   Is user admin? ─── Yes ──► Execute
+        │
+        No
+        │
+        ▼
+   Is this a read? ─── Yes ──► Execute
+        │
+        No
+        │
+        ▼
+   Is user assigned to this project? ─── Yes ──► Execute
+        │
+        No
+        │
+        ▼
+   403 Forbidden
+```
+
+### Database Schema
+
+```sql
+-- Add role and project assignments to profiles
+ALTER TABLE profiles
+  ADD COLUMN role TEXT DEFAULT 'editor' CHECK (role IN ('admin', 'editor')),
+  ADD COLUMN assigned_projects UUID[] DEFAULT '{}';
+
+-- Jon is admin
+UPDATE profiles SET role = 'admin' WHERE id = '<jon-user-id>';
+
+-- Assign collaborator to specific projects
+UPDATE profiles
+  SET assigned_projects = ARRAY['<project-uuid-1>', '<project-uuid-2>']
+  WHERE id = '<collaborator-user-id>';
+```
+
+### Permission Check
 
 ```typescript
 // lib/mcp/permissions.ts
 type Operation = 'read' | 'create' | 'update' | 'delete'
 
-interface Permission {
-  tables: string | string[]  // Table name, 'studio_*' pattern, or array
-  operations: Operation[]
+interface User {
+  id: string
+  role: 'admin' | 'editor'
+  assigned_projects: string[]
 }
 
-export const roles: Record<string, Permission[]> = {
-  owner: [
-    { tables: '*', operations: ['read', 'create', 'update', 'delete'] }
-  ],
-
-  editor: [
-    { tables: ['projects', 'log_entries', 'specimens', 'gallery_sequences', 'backlog_items'],
-      operations: ['read', 'create', 'update', 'delete'] },
-    { tables: '*', operations: ['read'] },
-  ],
-
-  studio: [
-    { tables: 'studio_*', operations: ['read', 'create', 'update', 'delete'] },
-    { tables: '*', operations: ['read'] },
-  ],
-
-  viewer: [
-    { tables: '*', operations: ['read'] }
-  ],
-}
-```
-
-### Permission Checking
-
-```typescript
-// lib/mcp/permissions.ts
 export function canAccess(
-  userRoles: string[],
-  table: string,
-  operation: Operation
+  user: User,
+  operation: Operation,
+  projectId?: string
 ): boolean {
-  for (const roleName of userRoles) {
-    const permissions = roles[roleName]
-    if (!permissions) continue
+  // Admins can do anything
+  if (user.role === 'admin') return true
 
-    for (const perm of permissions) {
-      if (matchesTable(perm.tables, table) && perm.operations.includes(operation)) {
-        return true
-      }
-    }
-  }
+  // Everyone can read
+  if (operation === 'read') return true
+
+  // Editors can write to assigned projects
+  if (projectId && user.assigned_projects.includes(projectId)) return true
+
   return false
 }
-
-function matchesTable(pattern: string | string[], table: string): boolean {
-  if (Array.isArray(pattern)) return pattern.includes(table)
-  if (pattern === '*') return true
-  if (pattern.endsWith('*')) return table.startsWith(pattern.slice(0, -1))
-  return pattern === table
-}
 ```
 
-### Database Schema
+### Project Context
 
-Uses existing `profiles` table - just add one column:
+Tools need to know which project a record belongs to:
 
-```sql
--- Add MCP roles to existing profiles table
-ALTER TABLE profiles ADD COLUMN mcp_roles TEXT[] DEFAULT ARRAY['viewer'];
+```typescript
+// For studio tables, project_id is explicit
+db_create({ table: 'studio_tokens', data: { project_id: 'xxx', ... } })
 
--- Set owner role for Jon
-UPDATE profiles SET mcp_roles = ARRAY['owner'] WHERE id = '<jon-user-id>';
+// For site tables, we derive from context or require project_id
+db_update({ table: 'log_entries', id: 'xxx', data: { ... } })
+// → Look up log_entry.project_id to check permission
 ```
-
-### Per-Client Access
-
-Different Claude clients authenticate as the same user, so they get the same role:
-
-| Client | User | Role |
-|--------|------|------|
-| Claude Code (local) | Service account | `owner` |
-| Claude Mobile (Jon) | Jon's Supabase user | `owner` |
-| Claude Desktop (Jon) | Jon's Supabase user | `owner` |
-| Collaborator | Their Supabase user | Assigned role |
 
 ### Permission Errors
 
 ```typescript
 {
   error: 'FORBIDDEN',
-  message: 'Role "viewer" cannot delete from table "projects"',
-  details: { table: 'projects', operation: 'delete', userRoles: ['viewer'] }
+  message: 'You do not have write access to this project',
+  details: { operation: 'update', project_id: 'xxx' }
 }
 ```
-
-### Future: Row-Level Security
-
-If you need record-level filtering (e.g., "users can only see their own drafts"), add RLS later:
-
-```sql
--- Example: Only see own unpublished content
-CREATE POLICY "Own drafts only" ON projects
-  FOR SELECT USING (published = true OR created_by = auth.uid());
-```
-
-This is additive - doesn't require changing the role system.
 
 ---
 
@@ -413,16 +359,10 @@ Required for Claude to discover the MCP server capabilities.
   "authentication": {
     "type": "oauth2",
     "authorization_url": "https://jonfriis.com/oauth/authorize",
-    "token_url": "https://jonfriis.com/oauth/token",
-    "scopes": {
-      "mcp:read": "Read database tables",
-      "mcp:write": "Create, update, delete records",
-      "mcp:admin": "Full administrative access"
-    }
+    "token_url": "https://jonfriis.com/oauth/token"
   },
   "endpoints": {
-    "messages": "https://jonfriis.com/mcp/v1/messages",
-    "sse": "https://jonfriis.com/mcp/v1/sse"
+    "messages": "https://jonfriis.com/mcp/v1/messages"
   },
   "tools": [
     "db_list_tables",
@@ -501,16 +441,7 @@ Content-Type: application/json
 
 ## Rate Limiting
 
-### Per-User Token Budget
-
-Each user gets 100 tokens per minute. Different operations cost different amounts:
-
-| Operation | Cost | Example |
-|-----------|------|---------|
-| `read` | 1 token | `db_query`, `db_get`, `db_list_tables` |
-| `create` | 5 tokens | `db_create` |
-| `update` | 5 tokens | `db_update` |
-| `delete` | 10 tokens | `db_delete` |
+Simple per-user limit to prevent runaway clients.
 
 ### Implementation
 
@@ -519,34 +450,24 @@ Each user gets 100 tokens per minute. Different operations cost different amount
 import { Ratelimit } from '@upstash/ratelimit'
 import { kv } from '@vercel/kv'
 
-const costs: Record<string, number> = {
-  db_list_tables: 1,
-  db_query: 1,
-  db_get: 1,
-  db_create: 5,
-  db_update: 5,
-  db_delete: 10,
-}
-
 const ratelimit = new Ratelimit({
   redis: kv,
-  limiter: Ratelimit.tokenBucket(100, '1 m', 100), // 100 tokens/min, 100 burst
+  limiter: Ratelimit.slidingWindow(60, '1 m'), // 60 requests per minute
 })
 
-export async function checkRateLimit(userId: string, tool: string) {
-  const cost = costs[tool] ?? 1
-  const { success, remaining } = await ratelimit.limit(userId, { rate: cost })
+export async function checkRateLimit(userId: string) {
+  const { success, remaining } = await ratelimit.limit(userId)
   return { success, remaining }
 }
 ```
 
-### Rate Limit Headers
+### Rate Limit Response
 
 ```http
-X-RateLimit-Limit: 100
-X-RateLimit-Remaining: 85
-X-RateLimit-Reset: 1703596800
-X-RateLimit-Cost: 5
+HTTP/1.1 429 Too Many Requests
+Retry-After: 30
+
+{ "error": "Rate limit exceeded. Try again in 30 seconds." }
 ```
 
 ---
@@ -589,49 +510,6 @@ Handled by Supabase OAuth:
 - **Table allowlist**: Only registered tables accessible
 - **Query limits**: Max 1000 records per query
 - **No raw SQL**: All queries go through Supabase client
-
-### Audit Logging
-
-Log write operations only (reads are too high volume):
-
-```sql
-CREATE TABLE mcp_audit_log (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  created_at TIMESTAMPTZ DEFAULT now(),
-  user_id UUID REFERENCES profiles(id),
-  action TEXT NOT NULL,  -- 'create', 'update', 'delete'
-  table_name TEXT NOT NULL,
-  record_id UUID,
-  changes JSONB,
-  ip_address INET,
-  user_agent TEXT
-);
-
-CREATE INDEX idx_audit_user ON mcp_audit_log(user_id, created_at DESC);
-```
-
-### Audit Retention
-
-Auto-delete logs older than 90 days:
-
-```sql
--- Run daily via Supabase cron or pg_cron
-DELETE FROM mcp_audit_log WHERE created_at < now() - interval '90 days';
-```
-
-Or use Supabase Edge Function scheduled job:
-
-```typescript
-// supabase/functions/cleanup-audit-logs/index.ts
-Deno.serve(async () => {
-  const { error } = await supabase
-    .from('mcp_audit_log')
-    .delete()
-    .lt('created_at', new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString())
-
-  return new Response(error ? 'Error' : 'OK')
-})
-```
 
 ---
 
@@ -770,21 +648,18 @@ Before adding remote access, extract shared code:
 
 ### Phase 3: Roles & Permissions
 
-1. Add `mcp_roles` column to `profiles` table
+1. Add `role` and `assigned_projects` columns to `profiles` table
 2. Create `lib/mcp/permissions.ts`
 3. Add permission check to MCP endpoint
-4. Create `mcp_audit_log` table
-5. Add audit logging for writes
 
 **Validation**: Different roles get different access
 
 ### Phase 4: Rate Limiting & Polish
 
 1. Set up Vercel KV
-2. Implement token-bucket rate limiting
+2. Implement rate limiting
 3. Add `/.well-known/mcp.json` manifest
 4. Add `/api/mcp/health` endpoint
-5. Set up audit log retention (90 day cleanup)
 
 **Validation**: Rate limits work, health check passes
 
@@ -808,7 +683,6 @@ Before adding remote access, extract shared code:
 | Supabase DB | Down | Return 503, log error |
 | Supabase Auth | Down | Return 503 (can't validate tokens) |
 | Vercel KV (rate limit) | Down | Skip rate limiting, log warning |
-| Audit logging | Fails | Continue operation, log error |
 
 ### Implementation
 
@@ -854,58 +728,6 @@ export async function GET() {
   })
 }
 ```
-
----
-
-## Monitoring
-
-### Metrics to Track
-
-- **Request volume**: By endpoint, by user, by tool
-- **Latency**: P50, P95, P99 for tool calls
-- **Error rate**: By error type, by endpoint
-- **Auth failures**: Failed logins, expired tokens
-- **Rate limit hits**: By user, by scope
-
-### Alerting
-
-- Error rate > 5% over 5 minutes
-- Latency P95 > 2 seconds
-- Auth failures > 10 per minute (possible attack)
-- Rate limit hits > 100 per hour (possible abuse)
-
-### Logging
-
-Use Vercel's built-in logging with structured logs:
-
-```typescript
-console.log(JSON.stringify({
-  level: 'info',
-  event: 'mcp_tool_call',
-  tool: 'db_query',
-  table: 'projects',
-  user_id: 'xxx',
-  duration_ms: 45,
-  result_count: 10
-}))
-```
-
----
-
-## Cost Considerations
-
-### Vercel Pricing
-
-- **Edge Functions**: Included in Pro plan
-- **Bandwidth**: First 1TB free, then $0.15/GB
-- **KV Storage**: First 30k requests free, then $0.20/100k
-
-### Expected Usage
-
-For personal use (1-2 users):
-- ~1000 requests/month
-- ~10MB data transfer
-- **Estimated cost**: $0 (within free tier)
 
 ---
 
@@ -980,9 +802,8 @@ import { dbQuery } from '../../../../lib/mcp/tools-core'
 | Aspect | Approach |
 |--------|----------|
 | **Auth** | Supabase OAuth 2.1 Server (built-in, free) |
-| **Permissions** | Single-layer role check in code |
-| **Rate limiting** | Per-user token bucket via Vercel KV |
-| **Audit** | Write ops only, 90-day retention |
+| **Permissions** | 2 roles (admin/editor) with project-level assignment |
+| **Rate limiting** | Simple per-user limit via Vercel KV |
 | **Shared code** | `lib/mcp/` imported by both local and remote |
 
 **5 Implementation Phases**:
@@ -995,4 +816,4 @@ import { dbQuery } from '../../../../lib/mcp/tools-core'
 
 ---
 
-*This spec extends the local MCP for remote access. Uses Supabase OAuth (free) and simple role-based permissions.*
+*This spec extends the local MCP for remote access. Uses Supabase OAuth (free) and project-level permissions for collaborators.*
