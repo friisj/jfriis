@@ -2,7 +2,7 @@
  * Remote MCP HTTP endpoint
  * Handles JSON-RPC 2.0 requests for MCP tools
  *
- * Phase 1: No auth (will add in Phase 2)
+ * Phase 2: Bearer token authentication via Supabase OAuth
  */
 import { createClient } from '@supabase/supabase-js'
 import {
@@ -21,9 +21,8 @@ import type {
   DbDeleteInput,
 } from '@/lib/mcp/types'
 
-// Create Supabase client for remote MCP
-// Phase 1: Using service role (will switch to user token in Phase 2)
-function getSupabaseClient() {
+// Create Supabase client with service role for database operations
+function getServiceClient() {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
   const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 
@@ -37,6 +36,47 @@ function getSupabaseClient() {
       persistSession: false,
     },
   })
+}
+
+// Create Supabase client for token validation (anon key)
+function getAuthClient() {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+
+  if (!supabaseUrl || !supabaseKey) {
+    throw new Error('Missing Supabase environment variables')
+  }
+
+  return createClient(supabaseUrl, supabaseKey, {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false,
+    },
+  })
+}
+
+// Validate Bearer token and return user
+async function validateToken(request: Request): Promise<{ user: { id: string; email?: string } } | { error: string }> {
+  const authHeader = request.headers.get('Authorization')
+
+  if (!authHeader?.startsWith('Bearer ')) {
+    return { error: 'Missing or invalid Authorization header' }
+  }
+
+  const token = authHeader.slice(7)
+
+  if (!token) {
+    return { error: 'Empty token' }
+  }
+
+  const authClient = getAuthClient()
+  const { data: { user }, error } = await authClient.auth.getUser(token)
+
+  if (error || !user) {
+    return { error: error?.message || 'Invalid token' }
+  }
+
+  return { user: { id: user.id, email: user.email } }
 }
 
 // JSON-RPC 2.0 error codes
@@ -94,6 +134,18 @@ export async function POST(request: Request) {
   let requestId: string | number | null = null
 
   try {
+    // Validate authentication first
+    const authResult = await validateToken(request)
+    if ('error' in authResult) {
+      return Response.json(
+        { error: authResult.error },
+        { status: 401, headers: { 'WWW-Authenticate': 'Bearer' } }
+      )
+    }
+
+    // User is authenticated - store for later use (Phase 3 will use for permissions)
+    const _user = authResult.user
+
     // Parse request body
     let body: JsonRpcRequest
     try {
@@ -132,8 +184,8 @@ export async function POST(request: Request) {
       )
     }
 
-    // Get Supabase client
-    const supabase = getSupabaseClient()
+    // Get Supabase client (service role for DB operations)
+    const supabase = getServiceClient()
 
     // Execute tool
     let result: unknown
