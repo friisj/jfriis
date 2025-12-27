@@ -1,6 +1,6 @@
 # jonfriis.com Remote MCP Server Specification
 
-> **Version:** 1.1.0
+> **Version:** 2.0.0
 > **Status:** Specification
 > **Last Updated:** 2025-12-27
 > **Depends On:** [MCP_SPEC.md](./MCP_SPEC.md) (local implementation)
@@ -71,9 +71,8 @@ The local MCP (stdio transport) works excellently with Claude Code but is inacce
 
 ## Technology Stack
 
-- **Runtime:** Vercel Edge Functions (Node.js compatible)
-- **Framework:** Hono (lightweight HTTP framework)
-- **Auth:** Custom OAuth 2.1 server or Auth0/Clerk
+- **Runtime:** Vercel (Next.js API routes)
+- **Auth:** Supabase OAuth 2.1 Server (built-in, free)
 - **Core:** Shared code with local MCP (`@modelcontextprotocol/sdk`, Zod, Supabase)
 - **Deployment:** Vercel (same as main site)
 
@@ -81,48 +80,112 @@ The local MCP (stdio transport) works excellently with Claude Code but is inacce
 
 ## Authentication
 
-### OAuth 2.1 Flow
+### Supabase OAuth 2.1 Server
 
-Claude Mobile and claude.ai require OAuth 2.1 for remote MCP servers.
+Supabase provides built-in OAuth 2.1 server capabilities (public beta, free on all plans). This eliminates the need for custom OAuth implementation.
+
+**What Supabase handles:**
+- Authorization endpoint (`/auth/v1/oauth/authorize`)
+- Token endpoint (`/auth/v1/oauth/token`)
+- PKCE validation
+- JWT signing (RS256)
+- Refresh tokens
+- JWKS endpoint
+- OIDC discovery
+
+**What we build:**
+- Consent UI page (~50 lines)
+
+### OAuth Flow
 
 ```
-┌──────────┐                              ┌──────────┐
-│  Claude  │                              │  jfriis  │
-│  Client  │                              │   Auth   │
-└────┬─────┘                              └────┬─────┘
-     │                                         │
-     │  1. Authorization Request               │
-     │  GET /oauth/authorize                   │
-     │  ?client_id=claude                      │
-     │  &redirect_uri=...                      │
-     │  &scope=mcp:read mcp:write              │
-     ├────────────────────────────────────────►│
-     │                                         │
-     │  2. User Login (if needed)              │
-     │     (Jon authenticates)                 │
-     │◄────────────────────────────────────────┤
-     │                                         │
-     │  3. Authorization Code                  │
-     │  redirect_uri?code=xxx                  │
-     │◄────────────────────────────────────────┤
-     │                                         │
-     │  4. Token Exchange                      │
-     │  POST /oauth/token                      │
-     │  { code, client_id, client_secret }     │
-     ├────────────────────────────────────────►│
-     │                                         │
-     │  5. Access Token + Refresh Token        │
-     │  { access_token, refresh_token }        │
-     │◄────────────────────────────────────────┤
-     │                                         │
-     │  6. MCP Requests with Bearer Token      │
-     │  Authorization: Bearer <token>          │
-     ├────────────────────────────────────────►│
+┌──────────┐                    ┌──────────┐                    ┌──────────┐
+│  Claude  │                    │ Supabase │                    │ jonfriis │
+│  Client  │                    │   Auth   │                    │ Consent  │
+└────┬─────┘                    └────┬─────┘                    └────┬─────┘
+     │                               │                               │
+     │  1. Authorization Request     │                               │
+     │  GET /auth/v1/oauth/authorize │                               │
+     ├──────────────────────────────►│                               │
+     │                               │                               │
+     │                               │  2. Redirect to consent       │
+     │                               │  /oauth/consent?authz_id=xxx  │
+     │                               ├──────────────────────────────►│
+     │                               │                               │
+     │                               │                    3. User logs in
+     │                               │                    4. Approves/denies
+     │                               │                               │
+     │                               │  5. Redirect back with code   │
+     │◄──────────────────────────────┼───────────────────────────────┤
+     │                               │                               │
+     │  6. Token Exchange            │                               │
+     │  POST /auth/v1/oauth/token    │                               │
+     ├──────────────────────────────►│                               │
+     │                               │                               │
+     │  7. Access Token (JWT)        │                               │
+     │◄──────────────────────────────┤                               │
+```
+
+### Consent UI
+
+The only custom code needed - a page showing what the client is requesting:
+
+```typescript
+// app/(site)/oauth/consent/page.tsx
+import { createClient } from '@/lib/supabase/server'
+import { redirect } from 'next/navigation'
+
+export default async function ConsentPage({
+  searchParams,
+}: {
+  searchParams: { authorization_id: string }
+}) {
+  const supabase = createClient()
+  const { authorization_id } = searchParams
+
+  // Get authorization details
+  const { data: authDetails, error } = await supabase.auth.oauth
+    .getAuthorizationDetails(authorization_id)
+
+  if (error) {
+    return <div>Invalid authorization request</div>
+  }
+
+  // Check if user is logged in
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) {
+    // Redirect to login, preserving authorization_id
+    redirect(`/login?redirect=/oauth/consent&authorization_id=${authorization_id}`)
+  }
+
+  return (
+    <ConsentForm
+      clientName={authDetails.client.name}
+      scopes={authDetails.scopes}
+      authorizationId={authorization_id}
+    />
+  )
+}
+
+// Client component for approve/deny buttons
+async function handleApprove(authorizationId: string) {
+  'use server'
+  const supabase = createClient()
+  const { data } = await supabase.auth.oauth.approveAuthorization(authorizationId)
+  redirect(data.redirect_to)
+}
+
+async function handleDeny(authorizationId: string) {
+  'use server'
+  const supabase = createClient()
+  const { data } = await supabase.auth.oauth.denyAuthorization(authorizationId)
+  redirect(data.redirect_to)
+}
 ```
 
 ### Scopes
 
-OAuth scopes provide coarse-grained access control at the token level:
+OAuth scopes provide coarse-grained access control:
 
 | Scope | Permissions |
 |-------|-------------|
@@ -130,52 +193,37 @@ OAuth scopes provide coarse-grained access control at the token level:
 | `mcp:write` | `db_create`, `db_update`, `db_delete` |
 | `mcp:admin` | All operations + user/role management |
 
-Scopes are the *maximum* permissions a token can have. Actual permissions are further restricted by the user's role (see [Roles & Permissions](#roles--permissions)).
+Actual permissions are further restricted by the user's role (see [Roles & Permissions](#roles--permissions)).
+
+### Setup Steps
+
+1. **Enable OAuth Server** in Supabase Dashboard → Authentication → OAuth Server
+2. **Set Authorization Path** to `/oauth/consent`
+3. **Switch JWT signing** to RS256 (Dashboard → Auth → Settings)
+4. **Register OAuth client** for Claude (Dashboard → Authentication → OAuth Apps)
+5. **Build consent UI** page (code above)
 
 ### User Model
 
 Multi-user ready from day one:
 
 - **Multiple users**: Owner + collaborators + API clients
-- **Simple auth**: Magic link or passkey (no password)
-- **Session management**: JWT with short expiry + refresh tokens
-- **Device management**: List/revoke authorized devices per user
-- **Role assignment**: Each user has one or more roles
+- **Auth methods**: Magic link, social login, passkey
+- **Session management**: Supabase handles JWT + refresh tokens
+- **Device management**: Via Supabase dashboard
+- **Role assignment**: Each user has roles in `profiles.mcp_roles`
 
-### Implementation Options
+### References
 
-**Option A: Self-hosted (Simple)**
-
-Custom OAuth server using Supabase Auth:
-
-```typescript
-// app/api/oauth/authorize/route.ts
-// app/api/oauth/token/route.ts
-// app/api/oauth/revoke/route.ts
-```
-
-Pros: Full control, no external dependencies
-Cons: Must implement OAuth 2.1 spec correctly
-
-**Option B: Auth Provider (Robust)**
-
-Use Clerk, Auth0, or WorkOS:
-
-```typescript
-import { ClerkProvider } from '@clerk/nextjs'
-// Pre-built OAuth flows, MFA, device management
-```
-
-Pros: Battle-tested, handles edge cases
-Cons: External dependency, cost at scale
-
-**Recommendation**: Start with Option A using Supabase Auth, migrate to Option B if complexity grows.
+- [Supabase OAuth 2.1 Server Docs](https://supabase.com/docs/guides/auth/oauth-server)
+- [Getting Started Guide](https://supabase.com/docs/guides/auth/oauth-server/getting-started)
+- [OAuth 2.1 Flows](https://supabase.com/docs/guides/auth/oauth-server/oauth-flows)
 
 ---
 
 ## Roles & Permissions
 
-Multi-user access control with granular permissions. Ready for collaborators, API clients, and different access levels per MCP client.
+Simple role-based access control. One layer, easy to debug.
 
 ### Permission Architecture
 
@@ -188,20 +236,8 @@ Multi-user access control with granular permissions. Ready for collaborators, AP
 │         │                                                       │
 │         ▼                                                       │
 │   ┌─────────────┐                                               │
-│   │ OAuth Scope │  Token has mcp:write?                         │
-│   │   Check     │  ─── No ──► 403 Forbidden                     │
-│   └──────┬──────┘                                               │
-│          │ Yes                                                  │
-│          ▼                                                       │
-│   ┌─────────────┐                                               │
 │   │    Role     │  User role allows this table + operation?     │
 │   │   Check     │  ─── No ──► 403 Forbidden                     │
-│   └──────┬──────┘                                               │
-│          │ Yes                                                  │
-│          ▼                                                       │
-│   ┌─────────────┐                                               │
-│   │     RLS     │  Supabase row-level policy passes?            │
-│   │   Check     │  ─── No ──► 403 / Empty result                │
 │   └──────┬──────┘                                               │
 │          │ Yes                                                  │
 │          ▼                                                       │
@@ -210,380 +246,155 @@ Multi-user access control with granular permissions. Ready for collaborators, AP
 └─────────────────────────────────────────────────────────────────┘
 ```
 
+**Why single-layer?**
+- Easy to debug (one place to check)
+- Roles stored in `profiles.mcp_roles` (existing table)
+- RLS can be added later if row-level filtering needed
+
 ### Roles
 
-| Role | Description | Default Permissions |
-|------|-------------|---------------------|
+| Role | Description | Permissions |
+|------|-------------|-------------|
 | `owner` | Full system access | All tables, all operations |
-| `admin` | Administrative access | All tables, all operations, no user management |
-| `editor` | Content management | Site content tables, CRUD |
+| `editor` | Content management | Site tables CRUD, studio read-only |
 | `studio` | Studio project access | `studio_*` tables only |
 | `viewer` | Read-only access | All tables, read only |
-| `api` | Programmatic access | Configured per-client |
 
-### Permission Model
-
-Permissions are defined as `(table_pattern, operations[])` tuples:
+### Role Definitions
 
 ```typescript
-// lib/mcp/permissions/types.ts
+// lib/mcp/permissions.ts
+type Operation = 'read' | 'create' | 'update' | 'delete'
+
 interface Permission {
-  tables: string | string[]  // Table name, pattern with *, or array
-  operations: Operation[]    // ['read'] | ['read', 'create', 'update'] | ['*']
+  tables: string | string[]  // Table name, 'studio_*' pattern, or array
+  operations: Operation[]
 }
 
-type Operation = 'read' | 'create' | 'update' | 'delete' | '*'
+export const roles: Record<string, Permission[]> = {
+  owner: [
+    { tables: '*', operations: ['read', 'create', 'update', 'delete'] }
+  ],
 
-interface Role {
-  id: string
-  name: string
-  description: string
-  permissions: Permission[]
-  inherits?: string[]  // Inherit permissions from other roles
-}
-```
+  editor: [
+    { tables: ['projects', 'log_entries', 'specimens', 'gallery_sequences', 'backlog_items'],
+      operations: ['read', 'create', 'update', 'delete'] },
+    { tables: '*', operations: ['read'] },
+  ],
 
-### Default Role Definitions
+  studio: [
+    { tables: 'studio_*', operations: ['read', 'create', 'update', 'delete'] },
+    { tables: '*', operations: ['read'] },
+  ],
 
-```typescript
-// lib/mcp/permissions/roles.ts
-export const roles: Record<string, Role> = {
-  owner: {
-    id: 'owner',
-    name: 'Owner',
-    description: 'Full system access including user management',
-    permissions: [
-      { tables: '*', operations: ['*'] }
-    ],
-  },
-
-  admin: {
-    id: 'admin',
-    name: 'Administrator',
-    description: 'Full data access, no user management',
-    permissions: [
-      { tables: '*', operations: ['read', 'create', 'update', 'delete'] }
-    ],
-  },
-
-  editor: {
-    id: 'editor',
-    name: 'Editor',
-    description: 'Manage site content',
-    permissions: [
-      { tables: ['projects', 'log_entries', 'specimens', 'gallery_sequences'], operations: ['*'] },
-      { tables: ['backlog_items'], operations: ['read', 'create', 'update'] },
-      { tables: '*', operations: ['read'] },  // Can read everything
-    ],
-  },
-
-  studio: {
-    id: 'studio',
-    name: 'Studio Access',
-    description: 'Access to studio project tables only',
-    permissions: [
-      { tables: 'studio_*', operations: ['*'] },
-      { tables: ['projects', 'specimens'], operations: ['read'] },
-    ],
-  },
-
-  viewer: {
-    id: 'viewer',
-    name: 'Viewer',
-    description: 'Read-only access to all data',
-    permissions: [
-      { tables: '*', operations: ['read'] }
-    ],
-  },
-
-  api: {
-    id: 'api',
-    name: 'API Client',
-    description: 'Programmatic access with custom permissions',
-    permissions: [], // Configured per-client
-  },
+  viewer: [
+    { tables: '*', operations: ['read'] }
+  ],
 }
 ```
 
 ### Permission Checking
 
 ```typescript
-// lib/mcp/permissions/check.ts
-import { roles } from './roles'
-
-interface AccessContext {
-  userId: string
-  userRoles: string[]
-  tokenScopes: string[]
-}
-
+// lib/mcp/permissions.ts
 export function canAccess(
-  context: AccessContext,
+  userRoles: string[],
   table: string,
   operation: Operation
 ): boolean {
-  // 1. Check OAuth scope
-  const scopeRequired = operationToScope(operation)
-  if (!context.tokenScopes.includes(scopeRequired) &&
-      !context.tokenScopes.includes('mcp:admin')) {
-    return false
-  }
+  for (const roleName of userRoles) {
+    const permissions = roles[roleName]
+    if (!permissions) continue
 
-  // 2. Check role permissions
-  for (const roleName of context.userRoles) {
-    const role = roles[roleName]
-    if (!role) continue
-
-    for (const permission of role.permissions) {
-      if (matchesTable(permission.tables, table) &&
-          matchesOperation(permission.operations, operation)) {
+    for (const perm of permissions) {
+      if (matchesTable(perm.tables, table) && perm.operations.includes(operation)) {
         return true
       }
     }
   }
-
   return false
 }
 
 function matchesTable(pattern: string | string[], table: string): boolean {
-  if (Array.isArray(pattern)) {
-    return pattern.includes(table)
-  }
+  if (Array.isArray(pattern)) return pattern.includes(table)
   if (pattern === '*') return true
-  if (pattern.endsWith('*')) {
-    return table.startsWith(pattern.slice(0, -1))
-  }
+  if (pattern.endsWith('*')) return table.startsWith(pattern.slice(0, -1))
   return pattern === table
-}
-
-function matchesOperation(allowed: Operation[], requested: Operation): boolean {
-  return allowed.includes('*') || allowed.includes(requested)
-}
-
-function operationToScope(operation: Operation): string {
-  if (operation === 'read') return 'mcp:read'
-  return 'mcp:write'
-}
-```
-
-### Per-Client Permissions
-
-Different MCP clients can have different access levels:
-
-| Client | User Type | Role | Rationale |
-|--------|-----------|------|-----------|
-| Claude Code (local) | Service | `owner` | Trusted, local, full access |
-| Claude Mobile (Jon) | Human | `owner` | Personal device |
-| Claude Desktop (Jon) | Human | `owner` | Personal device |
-| Claude Web (Jon) | Human | `editor` | Potentially shared browser |
-| Collaborator | Human | `editor` or `studio` | Limited by assignment |
-| API Integration | Service | `api` + custom | Scoped to specific needs |
-| Public API | Anonymous | `viewer` | Read-only public data |
-
-### API Client Configuration
-
-For programmatic access, create API clients with custom permissions:
-
-```typescript
-// Database: mcp_api_clients table
-interface ApiClient {
-  id: string
-  name: string
-  description: string
-  client_id: string      // For OAuth client_credentials flow
-  client_secret_hash: string
-  permissions: Permission[]
-  rate_limit: number     // Requests per minute
-  created_by: string     // User who created this client
-  created_at: Date
-  last_used_at: Date
-  enabled: boolean
-}
-
-// Example: Analytics integration
-const analyticsClient: ApiClient = {
-  id: 'analytics-integration',
-  name: 'Analytics Dashboard',
-  description: 'Read-only access for analytics',
-  client_id: 'analytics_xxx',
-  client_secret_hash: '...',
-  permissions: [
-    { tables: ['projects', 'log_entries', 'specimens'], operations: ['read'] }
-  ],
-  rate_limit: 60,
-  // ...
 }
 ```
 
 ### Database Schema
 
-```sql
--- Users table (extends Supabase auth.users)
-CREATE TABLE mcp_users (
-  id UUID PRIMARY KEY REFERENCES auth.users(id),
-  display_name TEXT,
-  roles TEXT[] DEFAULT ARRAY['viewer'],
-  created_at TIMESTAMPTZ DEFAULT now(),
-  updated_at TIMESTAMPTZ DEFAULT now()
-);
-
--- API clients for programmatic access
-CREATE TABLE mcp_api_clients (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  name TEXT NOT NULL,
-  description TEXT,
-  client_id TEXT UNIQUE NOT NULL,
-  client_secret_hash TEXT NOT NULL,
-  permissions JSONB NOT NULL DEFAULT '[]',
-  rate_limit INTEGER DEFAULT 60,
-  created_by UUID REFERENCES mcp_users(id),
-  created_at TIMESTAMPTZ DEFAULT now(),
-  last_used_at TIMESTAMPTZ,
-  enabled BOOLEAN DEFAULT true
-);
-
--- Audit log for all operations
-CREATE TABLE mcp_audit_log (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  timestamp TIMESTAMPTZ DEFAULT now(),
-  user_id UUID REFERENCES mcp_users(id),
-  client_id UUID REFERENCES mcp_api_clients(id),
-  action TEXT NOT NULL,  -- 'read', 'create', 'update', 'delete'
-  table_name TEXT NOT NULL,
-  record_id UUID,
-  changes JSONB,
-  ip_address INET,
-  user_agent TEXT,
-  granted BOOLEAN NOT NULL
-);
-
--- Index for audit queries
-CREATE INDEX idx_audit_user ON mcp_audit_log(user_id, timestamp DESC);
-CREATE INDEX idx_audit_table ON mcp_audit_log(table_name, timestamp DESC);
-```
-
-### Row-Level Security (RLS)
-
-For fine-grained record-level access, use Supabase RLS:
+Uses existing `profiles` table - just add one column:
 
 ```sql
--- Example: Users can only see their own drafts, everyone sees published
-CREATE POLICY "Drafts visible to owner" ON projects
-  FOR SELECT
-  USING (
-    published = true
-    OR auth.uid() = created_by
-    OR EXISTS (
-      SELECT 1 FROM mcp_users
-      WHERE id = auth.uid()
-      AND 'admin' = ANY(roles)
-    )
-  );
+-- Add MCP roles to existing profiles table
+ALTER TABLE profiles ADD COLUMN mcp_roles TEXT[] DEFAULT ARRAY['viewer'];
 
--- Example: Studio tables only accessible to studio role
-CREATE POLICY "Studio tables require studio role" ON studio_dst_configs
-  FOR ALL
-  USING (
-    EXISTS (
-      SELECT 1 FROM mcp_users
-      WHERE id = auth.uid()
-      AND ('studio' = ANY(roles) OR 'admin' = ANY(roles) OR 'owner' = ANY(roles))
-    )
-  );
+-- Set owner role for Jon
+UPDATE profiles SET mcp_roles = ARRAY['owner'] WHERE id = '<jon-user-id>';
 ```
+
+### Per-Client Access
+
+Different Claude clients authenticate as the same user, so they get the same role:
+
+| Client | User | Role |
+|--------|------|------|
+| Claude Code (local) | Service account | `owner` |
+| Claude Mobile (Jon) | Jon's Supabase user | `owner` |
+| Claude Desktop (Jon) | Jon's Supabase user | `owner` |
+| Collaborator | Their Supabase user | Assigned role |
 
 ### Permission Errors
 
-Clear error messages for permission failures:
-
 ```typescript
-interface PermissionError {
-  code: 'FORBIDDEN'
-  message: string
-  details: {
-    required_scope?: string
-    required_role?: string
-    table?: string
-    operation?: string
-  }
-}
-
-// Examples
 {
-  code: 'FORBIDDEN',
-  message: 'Token missing required scope: mcp:write',
-  details: { required_scope: 'mcp:write', operation: 'create' }
-}
-
-{
-  code: 'FORBIDDEN',
-  message: 'Role "viewer" cannot create records in table "projects"',
-  details: { required_role: 'editor', table: 'projects', operation: 'create' }
+  error: 'FORBIDDEN',
+  message: 'Role "viewer" cannot delete from table "projects"',
+  details: { table: 'projects', operation: 'delete', userRoles: ['viewer'] }
 }
 ```
 
-### Admin UI for Permissions
+### Future: Row-Level Security
 
+If you need record-level filtering (e.g., "users can only see their own drafts"), add RLS later:
+
+```sql
+-- Example: Only see own unpublished content
+CREATE POLICY "Own drafts only" ON projects
+  FOR SELECT USING (published = true OR created_by = auth.uid());
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│  MCP Admin: Users & Permissions                                 │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                 │
-│  Users                                                          │
-│  ─────                                                          │
-│  ┌─────────────────────────────────────────────────────────────┐│
-│  │ Jon Friis         jon@jonfriis.com    [owner]    [Edit]    ││
-│  │ Collaborator      collab@example.com  [editor]   [Edit]    ││
-│  │ Studio Bot        (API client)        [studio]   [Edit]    ││
-│  └─────────────────────────────────────────────────────────────┘│
-│                                                      [+ Invite] │
-│                                                                 │
-│  API Clients                                                    │
-│  ───────────                                                    │
-│  ┌─────────────────────────────────────────────────────────────┐│
-│  │ Analytics         Read: projects, log_entries   [Manage]   ││
-│  │ Backup Service    Read: *                       [Manage]   ││
-│  └─────────────────────────────────────────────────────────────┘│
-│                                                   [+ New Client]│
-│                                                                 │
-└─────────────────────────────────────────────────────────────────┘
-```
+
+This is additive - doesn't require changing the role system.
 
 ---
 
 ## HTTP Endpoints
 
-### MCP Protocol Endpoints
-
-The remote MCP follows the HTTP transport spec from the MCP protocol.
+### MCP Protocol Endpoint
 
 ```
-POST /mcp/v1/messages
+POST /api/mcp/v1/messages
   - Main MCP message endpoint
   - Accepts JSON-RPC 2.0 messages
   - Returns tool results
-
-GET /mcp/v1/sse
-  - Server-Sent Events for streaming
-  - Used for long-running operations
-  - Optional (can start with request/response only)
+  - Requires Bearer token from Supabase OAuth
 ```
 
-### OAuth Endpoints
+### OAuth Endpoints (Supabase-provided)
 
 ```
-GET  /oauth/authorize      - Start OAuth flow
-POST /oauth/token          - Exchange code for tokens
-POST /oauth/revoke         - Revoke tokens
-GET  /oauth/userinfo       - Get current user info
+GET  /auth/v1/oauth/authorize  - Start OAuth flow (Supabase)
+POST /auth/v1/oauth/token      - Token exchange (Supabase)
+GET  /oauth/consent            - Consent UI (we build this)
 ```
 
 ### Utility Endpoints
 
 ```
-GET  /health               - Health check
-GET  /.well-known/mcp.json - MCP server manifest
-GET  /openapi.json         - OpenAPI spec (for ChatGPT)
+GET  /api/mcp/health           - Health check
+GET  /.well-known/mcp.json     - MCP server manifest
 ```
 
 ---
@@ -690,34 +501,52 @@ Content-Type: application/json
 
 ## Rate Limiting
 
-### Limits
+### Per-User Token Budget
 
-| Scope | Rate Limit | Burst |
-|-------|------------|-------|
-| `mcp:read` | 100 req/min | 20 |
-| `mcp:write` | 30 req/min | 10 |
-| `mcp:admin` | 10 req/min | 5 |
+Each user gets 100 tokens per minute. Different operations cost different amounts:
+
+| Operation | Cost | Example |
+|-----------|------|---------|
+| `read` | 1 token | `db_query`, `db_get`, `db_list_tables` |
+| `create` | 5 tokens | `db_create` |
+| `update` | 5 tokens | `db_update` |
+| `delete` | 10 tokens | `db_delete` |
 
 ### Implementation
 
-Use Vercel KV (Redis) for rate limit tracking:
-
 ```typescript
+// lib/mcp/rate-limit.ts
 import { Ratelimit } from '@upstash/ratelimit'
 import { kv } from '@vercel/kv'
 
+const costs: Record<string, number> = {
+  db_list_tables: 1,
+  db_query: 1,
+  db_get: 1,
+  db_create: 5,
+  db_update: 5,
+  db_delete: 10,
+}
+
 const ratelimit = new Ratelimit({
   redis: kv,
-  limiter: Ratelimit.slidingWindow(100, '1 m'),
+  limiter: Ratelimit.tokenBucket(100, '1 m', 100), // 100 tokens/min, 100 burst
 })
+
+export async function checkRateLimit(userId: string, tool: string) {
+  const cost = costs[tool] ?? 1
+  const { success, remaining } = await ratelimit.limit(userId, { rate: cost })
+  return { success, remaining }
+}
 ```
 
 ### Rate Limit Headers
 
 ```http
 X-RateLimit-Limit: 100
-X-RateLimit-Remaining: 95
+X-RateLimit-Remaining: 85
 X-RateLimit-Reset: 1703596800
+X-RateLimit-Cost: 5
 ```
 
 ---
@@ -730,11 +559,29 @@ X-RateLimit-Reset: 1703596800
 - **TLS 1.3**: Modern encryption
 - **HSTS**: Strict transport security header
 
+### CORS
+
+Specific origins only (not `*`):
+
+```typescript
+// middleware.ts or route handler
+const allowedOrigins = [
+  'https://claude.ai',
+  'https://api.anthropic.com',
+  // Add other known Claude client origins
+]
+
+headers.set('Access-Control-Allow-Origin', origin) // Only if in allowedOrigins
+headers.set('Access-Control-Allow-Methods', 'POST, OPTIONS')
+headers.set('Access-Control-Allow-Headers', 'Authorization, Content-Type')
+```
+
 ### Token Security
 
-- **Short-lived access tokens**: 1 hour expiry
-- **Refresh tokens**: 30 day expiry, single-use
-- **Token binding**: Bind to device/IP (optional)
+Handled by Supabase OAuth:
+- **Access tokens**: JWT signed with RS256
+- **Refresh tokens**: Managed by Supabase
+- **Validation**: Via Supabase JWKS endpoint
 
 ### Request Validation
 
@@ -745,58 +592,58 @@ X-RateLimit-Reset: 1703596800
 
 ### Audit Logging
 
-Log all write operations:
+Log write operations only (reads are too high volume):
+
+```sql
+CREATE TABLE mcp_audit_log (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  created_at TIMESTAMPTZ DEFAULT now(),
+  user_id UUID REFERENCES profiles(id),
+  action TEXT NOT NULL,  -- 'create', 'update', 'delete'
+  table_name TEXT NOT NULL,
+  record_id UUID,
+  changes JSONB,
+  ip_address INET,
+  user_agent TEXT
+);
+
+CREATE INDEX idx_audit_user ON mcp_audit_log(user_id, created_at DESC);
+```
+
+### Audit Retention
+
+Auto-delete logs older than 90 days:
+
+```sql
+-- Run daily via Supabase cron or pg_cron
+DELETE FROM mcp_audit_log WHERE created_at < now() - interval '90 days';
+```
+
+Or use Supabase Edge Function scheduled job:
 
 ```typescript
-interface AuditLog {
-  timestamp: string
-  user_id: string
-  action: 'create' | 'update' | 'delete'
-  table: string
-  record_id: string
-  changes: Record<string, any>
-  ip_address: string
-  user_agent: string
-}
+// supabase/functions/cleanup-audit-logs/index.ts
+Deno.serve(async () => {
+  const { error } = await supabase
+    .from('mcp_audit_log')
+    .delete()
+    .lt('created_at', new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString())
+
+  return new Response(error ? 'Error' : 'OK')
+})
 ```
 
 ---
 
 ## Deployment
 
-### Vercel Configuration
-
-```json
-// vercel.json
-{
-  "rewrites": [
-    { "source": "/mcp/:path*", "destination": "/api/mcp/:path*" },
-    { "source": "/oauth/:path*", "destination": "/api/oauth/:path*" }
-  ],
-  "headers": [
-    {
-      "source": "/mcp/:path*",
-      "headers": [
-        { "key": "Access-Control-Allow-Origin", "value": "*" },
-        { "key": "Access-Control-Allow-Methods", "value": "GET, POST, OPTIONS" },
-        { "key": "Access-Control-Allow-Headers", "value": "Authorization, Content-Type" }
-      ]
-    }
-  ]
-}
-```
-
 ### Environment Variables
 
 ```bash
-# Supabase
-SUPABASE_URL=https://xxx.supabase.co
-SUPABASE_SERVICE_ROLE_KEY=xxx
-
-# OAuth
-OAUTH_CLIENT_ID=claude-mcp
-OAUTH_CLIENT_SECRET=xxx
-OAUTH_ISSUER=https://jonfriis.com
+# Supabase (already configured)
+NEXT_PUBLIC_SUPABASE_URL=https://xxx.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=xxx
+SUPABASE_SERVICE_ROLE_KEY=xxx  # For local MCP only
 
 # Rate limiting (Vercel KV)
 KV_REST_API_URL=xxx
@@ -807,31 +654,30 @@ KV_REST_API_TOKEN=xxx
 
 ```
 app/
-├── api/
-│   ├── mcp/
-│   │   └── v1/
-│   │       ├── messages/
-│   │       │   └── route.ts    # Main MCP endpoint
-│   │       └── sse/
-│   │           └── route.ts    # SSE streaming (optional)
+├── (site)/
 │   └── oauth/
-│       ├── authorize/
-│       │   └── route.ts
-│       ├── token/
-│       │   └── route.ts
-│       └── revoke/
-│           └── route.ts
-├── mcp/                         # Existing local MCP
-│   └── src/
-│       ├── tools.ts            # Shared tool implementations
-│       ├── tables.ts           # Shared table registry
-│       └── schemas/            # Shared Zod schemas
+│       └── consent/
+│           └── page.tsx        # OAuth consent UI
+├── api/
+│   └── mcp/
+│       ├── v1/
+│       │   └── messages/
+│       │       └── route.ts    # Main MCP endpoint
+│       └── health/
+│           └── route.ts        # Health check
+├── .well-known/
+│   └── mcp.json/
+│       └── route.ts            # MCP manifest
 └── lib/
     └── mcp/
-        ├── http-adapter.ts     # HTTP → MCP protocol adapter
-        ├── auth.ts             # OAuth implementation
+        ├── tools-core.ts       # Shared tool implementations
+        ├── tables.ts           # Shared table registry
+        ├── schemas/            # Shared Zod schemas
+        ├── permissions.ts      # Role-based access
         └── rate-limit.ts       # Rate limiting
 ```
+
+Note: Local MCP (`app/mcp/`) imports from `lib/mcp/` for shared code.
 
 ---
 
@@ -843,8 +689,8 @@ app/
 2. Go to Settings > Custom Connectors
 3. Add new connector:
    - **Name**: jonfriis
-   - **URL**: https://jonfriis.com/.well-known/mcp.json
-4. Authenticate via OAuth flow
+   - **URL**: `https://jonfriis.com/.well-known/mcp.json`
+4. Authenticate via OAuth flow (redirects to jonfriis.com login)
 5. MCP tools now available in conversations
 
 ### claude.ai Setup
@@ -857,7 +703,7 @@ app/
 
 ### Claude Desktop Setup
 
-For remote access (not local stdio):
+For remote access (instead of local stdio):
 
 ```json
 // ~/Library/Application Support/Claude/claude_desktop_config.json
@@ -871,107 +717,143 @@ For remote access (not local stdio):
 }
 ```
 
-### ChatGPT Actions (Optional)
+### Local MCP (Claude Code)
 
-Export OpenAPI spec for ChatGPT integration:
+The local stdio MCP remains the fastest option for Claude Code:
 
-```yaml
-# /openapi.json
-openapi: 3.1.0
-info:
-  title: jonfriis Database API
-  version: 1.0.0
-servers:
-  - url: https://jonfriis.com/api
-paths:
-  /db/query:
-    post:
-      operationId: dbQuery
-      summary: Query database table
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/DbQueryInput'
-      responses:
-        '200':
-          description: Query results
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/DbQueryOutput'
+```json
+// .mcp.json (project root)
+{
+  "mcpServers": {
+    "jfriis": {
+      "command": "node",
+      "args": ["app/mcp/dist/index.js"]
+    }
+  }
+}
 ```
 
 ---
 
 ## Implementation Plan
 
+### Phase 0: Refactor to Shared Core
+
+Before adding remote access, extract shared code:
+
+1. Move tool implementations from `app/mcp/src/tools.ts` to `lib/mcp/tools-core.ts`
+2. Move table registry to `lib/mcp/tables.ts`
+3. Move schemas to `lib/mcp/schemas/`
+4. Update local MCP to import from `lib/mcp/`
+5. Test local MCP still works
+
+**Validation**: Local MCP works with refactored imports
+
 ### Phase 1: HTTP Transport
 
-1. Create HTTP adapter wrapping existing tool implementations
-2. Add `/mcp/v1/messages` endpoint
-3. Test with curl/Postman
-4. Add basic API key auth (temporary, before OAuth)
+1. Create `/api/mcp/v1/messages/route.ts`
+2. Import tools from `lib/mcp/tools-core.ts`
+3. Add JSON-RPC 2.0 request parsing
+4. Test with curl (no auth yet)
 
-**Validation**: Can call all 5 tools via HTTP
+**Validation**: Can call all 5 tools via HTTP POST
 
-### Phase 2: OAuth 2.1
+### Phase 2: Supabase OAuth
 
-1. Implement `/oauth/authorize` endpoint
-2. Implement `/oauth/token` endpoint
-3. Add token validation middleware
-4. Implement refresh token flow
-5. Add login UI (simple magic link)
+1. Enable OAuth Server in Supabase dashboard
+2. Set JWT signing to RS256
+3. Register Claude as OAuth client
+4. Build `/oauth/consent` page
+5. Add token validation to MCP endpoint
 
-**Validation**: Full OAuth flow works, tokens properly scoped
+**Validation**: OAuth flow works, MCP rejects unauthorized requests
 
 ### Phase 3: Roles & Permissions
 
-1. Create `mcp_users` and `mcp_api_clients` tables
-2. Implement role definitions in `lib/mcp/permissions/roles.ts`
-3. Add permission checking middleware
-4. Integrate with tool handlers
-5. Add `mcp_audit_log` table and logging
+1. Add `mcp_roles` column to `profiles` table
+2. Create `lib/mcp/permissions.ts`
+3. Add permission check to MCP endpoint
+4. Create `mcp_audit_log` table
+5. Add audit logging for writes
 
-**Validation**: Different roles have different access, all operations logged
+**Validation**: Different roles get different access
 
-### Phase 4: Claude Integration
+### Phase 4: Rate Limiting & Polish
 
-1. Create `/.well-known/mcp.json` manifest
-2. Test with Claude Desktop (HTTP transport)
-3. Test with Claude Mobile
-4. Test with claude.ai (if supported)
-5. Verify role-based access works across clients
+1. Set up Vercel KV
+2. Implement token-bucket rate limiting
+3. Add `/.well-known/mcp.json` manifest
+4. Add `/api/mcp/health` endpoint
+5. Set up audit log retention (90 day cleanup)
 
-**Validation**: All Claude clients can authenticate and use tools with correct permissions
+**Validation**: Rate limits work, health check passes
 
-### Phase 5: Production Hardening
+### Phase 5: Claude Integration
 
-1. Add rate limiting (per-user, per-role)
-2. Add device management UI
-3. Add token revocation
-4. Implement RLS policies for sensitive tables
-5. Security audit
+1. Test with Claude Desktop (HTTP transport)
+2. Test with Claude Mobile
+3. Test with claude.ai (if MCP supported)
+4. Document any client-specific quirks
 
-**Validation**: Rate limits enforced, RLS working, security reviewed
+**Validation**: All Claude clients can authenticate and use tools
 
-### Phase 6: Admin UI
+---
 
-1. Build user management UI (invite, assign roles)
-2. Build API client management UI
-3. Add audit log viewer
-4. Add permission testing tool ("can user X do Y on table Z?")
+## Graceful Degradation
 
-**Validation**: Can manage users and permissions via UI
+### Failure Modes
 
-### Phase 7: ChatGPT (Optional)
+| Component | Failure | Behavior |
+|-----------|---------|----------|
+| Supabase DB | Down | Return 503, log error |
+| Supabase Auth | Down | Return 503 (can't validate tokens) |
+| Vercel KV (rate limit) | Down | Skip rate limiting, log warning |
+| Audit logging | Fails | Continue operation, log error |
 
-1. Generate OpenAPI spec
-2. Create ChatGPT Action
-3. Test tool calls with read-only access
+### Implementation
 
-**Validation**: ChatGPT can query database via Actions
+```typescript
+// lib/mcp/resilience.ts
+export async function withFallback<T>(
+  primary: () => Promise<T>,
+  fallback: T | (() => T),
+  context: string
+): Promise<T> {
+  try {
+    return await primary()
+  } catch (error) {
+    console.error(`[${context}] Primary failed, using fallback:`, error)
+    return typeof fallback === 'function' ? fallback() : fallback
+  }
+}
+
+// Usage in rate limiting
+const { success } = await withFallback(
+  () => checkRateLimit(userId, tool),
+  { success: true, remaining: -1 }, // Skip rate limit if KV down
+  'rate-limit'
+)
+```
+
+### Health Check
+
+```typescript
+// app/api/mcp/health/route.ts
+export async function GET() {
+  const checks = await Promise.allSettled([
+    supabase.from('profiles').select('count').limit(1),
+    kv.ping(),
+  ])
+
+  const [db, cache] = checks.map(r => r.status === 'fulfilled')
+
+  return Response.json({
+    status: db ? 'healthy' : 'degraded',
+    checks: { database: db, cache },
+    timestamp: new Date().toISOString(),
+  })
+}
+```
 
 ---
 
@@ -1065,14 +947,13 @@ import { dbQuery } from '../../../../lib/mcp/tools-core'
 ```json
 {
   "dependencies": {
-    "hono": "^4.0.0",           // HTTP framework
-    "@upstash/ratelimit": "^1.0.0",  // Rate limiting
-    "jose": "^5.0.0"            // JWT handling
+    "@upstash/ratelimit": "^1.0.0",
+    "@vercel/kv": "^1.0.0"
   }
 }
 ```
 
-### Existing (Shared)
+### Existing (Shared with Local MCP)
 
 ```json
 {
@@ -1086,33 +967,32 @@ import { dbQuery } from '../../../../lib/mcp/tools-core'
 
 ---
 
-## Questions to Resolve
+## Open Questions
 
-1. **Auth provider**: Self-hosted vs Clerk/Auth0?
-2. **Multi-device**: Should each device have separate tokens?
-3. **Invitation flow**: Magic link invite, or manual user creation?
-4. **Role storage**: Static in code, or dynamic in database?
-5. **RLS complexity**: Start with role-based only, add RLS later?
-6. **SSE requirement**: Is streaming needed for any tools?
-7. **ChatGPT priority**: Worth implementing Actions?
+1. **Claude client origins**: What exact origins does Claude Mobile/Desktop use for CORS?
+2. **Supabase OAuth beta**: Any limitations during beta period?
+3. **Vercel KV cold starts**: Will rate limiting be slow on first request?
 
 ---
 
-## Summary: Permission Layers
+## Summary
 
-| Layer | What it controls | Where defined |
-|-------|------------------|---------------|
-| **OAuth Scopes** | Max token permissions | Token claims |
-| **Roles** | Table + operation access | `mcp_users.roles` |
-| **Role Definitions** | What each role can do | Code (`roles.ts`) |
-| **API Client Permissions** | Custom per-client access | `mcp_api_clients.permissions` |
-| **RLS Policies** | Row-level filtering | Supabase policies |
+| Aspect | Approach |
+|--------|----------|
+| **Auth** | Supabase OAuth 2.1 Server (built-in, free) |
+| **Permissions** | Single-layer role check in code |
+| **Rate limiting** | Per-user token bucket via Vercel KV |
+| **Audit** | Write ops only, 90-day retention |
+| **Shared code** | `lib/mcp/` imported by both local and remote |
 
-This layered approach allows:
-- Quick role assignment for common use cases
-- Custom permissions for API integrations
-- Fine-grained row-level control when needed
+**5 Implementation Phases**:
+0. Refactor to shared core
+1. HTTP transport
+2. Supabase OAuth
+3. Roles & permissions
+4. Rate limiting & polish
+5. Claude integration testing
 
 ---
 
-*This spec extends the local MCP for remote access with multi-user support. Core functionality remains identical.*
+*This spec extends the local MCP for remote access. Uses Supabase OAuth (free) and simple role-based permissions.*
