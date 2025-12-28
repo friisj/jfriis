@@ -94,10 +94,12 @@ export default function Spike01() {
     // Create ground with small ramp
     const ground = Bodies.rectangle(400, 550, 600, 60, {
       isStatic: true,
+      friction: 1, // High friction for wheel grip
       render: { fillStyle: '#333' }
     })
     const ramp = Bodies.rectangle(650, 500, 200, 20, {
       isStatic: true,
+      friction: 1,
       angle: -0.2,
       render: { fillStyle: '#333' }
     })
@@ -179,14 +181,18 @@ export default function Spike01() {
 
       const { frontWheel, rearWheel } = truckRef.current
 
+      // Apply torque to spin wheels (like a motor)
+      // Torque = force applied at radius
+      const torque = enginePower * 10000 // Scale up for visible effect
+
       if (keys['ArrowRight'] || keys['d']) {
-        Body.applyForce(frontWheel, frontWheel.position, { x: enginePower, y: 0 })
-        Body.applyForce(rearWheel, rearWheel.position, { x: enginePower, y: 0 })
+        Body.setAngularVelocity(frontWheel, frontWheel.angularVelocity + torque)
+        Body.setAngularVelocity(rearWheel, rearWheel.angularVelocity + torque)
       }
 
       if (keys['ArrowLeft'] || keys['a']) {
-        Body.applyForce(frontWheel, frontWheel.position, { x: -enginePower, y: 0 })
-        Body.applyForce(rearWheel, rearWheel.position, { x: -enginePower, y: 0 })
+        Body.setAngularVelocity(frontWheel, frontWheel.angularVelocity - torque)
+        Body.setAngularVelocity(rearWheel, rearWheel.angularVelocity - torque)
       }
     })
 
