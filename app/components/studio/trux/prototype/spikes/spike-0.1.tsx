@@ -41,6 +41,34 @@ export default function Spike01() {
   const [wheelSize, setWheelSize] = useState(30)
   const [enginePower, setEnginePower] = useState(0.0005)
 
+  // Persisted observations and validation
+  const [observations, setObservations] = useState('')
+  const [validationChecks, setValidationChecks] = useState({
+    responsive: false,
+    compression: false,
+    controllable: false,
+    stable: false
+  })
+
+  // Load from localStorage on mount
+  useEffect(() => {
+    const saved = localStorage.getItem('spike-0.1-observations')
+    if (saved) setObservations(saved)
+
+    const savedChecks = localStorage.getItem('spike-0.1-validation')
+    if (savedChecks) setValidationChecks(JSON.parse(savedChecks))
+  }, [])
+
+  // Save observations to localStorage
+  useEffect(() => {
+    localStorage.setItem('spike-0.1-observations', observations)
+  }, [observations])
+
+  // Save validation to localStorage
+  useEffect(() => {
+    localStorage.setItem('spike-0.1-validation', JSON.stringify(validationChecks))
+  }, [validationChecks])
+
   useEffect(() => {
     if (!canvasRef.current) return
 
@@ -304,29 +332,53 @@ Examples:
 - Stiffness 0.3, damping 0.05: bouncy but stable
 - Too much stiffness causes harsh impacts
 - Damping below 0.02 causes endless oscillation"
+              value={observations}
+              onChange={(e) => setObservations(e.target.value)}
             />
+            <p className="text-xs text-gray-500 mt-2">
+              💾 Auto-saved to localStorage
+            </p>
           </div>
 
           <div className="border-2 border-black p-4">
             <h2 className="font-bold mb-2">Validation Checklist:</h2>
             <div className="space-y-2">
               <label className="flex items-center gap-2">
-                <input type="checkbox" />
+                <input
+                  type="checkbox"
+                  checked={validationChecks.responsive}
+                  onChange={(e) => setValidationChecks({ ...validationChecks, responsive: e.target.checked })}
+                />
                 <span>Truck drives forward/backward responsively (&lt; 100ms lag)</span>
               </label>
               <label className="flex items-center gap-2">
-                <input type="checkbox" />
+                <input
+                  type="checkbox"
+                  checked={validationChecks.compression}
+                  onChange={(e) => setValidationChecks({ ...validationChecks, compression: e.target.checked })}
+                />
                 <span>Suspension visibly compresses when landing from ramp</span>
               </label>
               <label className="flex items-center gap-2">
-                <input type="checkbox" />
+                <input
+                  type="checkbox"
+                  checked={validationChecks.controllable}
+                  onChange={(e) => setValidationChecks({ ...validationChecks, controllable: e.target.checked })}
+                />
                 <span>Feels "bouncy but controllable" after tuning</span>
               </label>
               <label className="flex items-center gap-2">
-                <input type="checkbox" />
+                <input
+                  type="checkbox"
+                  checked={validationChecks.stable}
+                  onChange={(e) => setValidationChecks({ ...validationChecks, stable: e.target.checked })}
+                />
                 <span>Physics stable (no clipping/explosions)</span>
               </label>
             </div>
+            <p className="text-xs text-gray-500 mt-3">
+              💾 Auto-saved to localStorage
+            </p>
           </div>
 
           <div className="flex gap-4">
