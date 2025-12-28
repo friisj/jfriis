@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic'
+
 import { createClient } from '@/lib/supabase-server'
 import { LogEntryForm } from '@/components/admin/log-entry-form'
 import { notFound } from 'next/navigation'

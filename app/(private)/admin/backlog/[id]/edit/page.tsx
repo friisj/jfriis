@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic'
+
 import { createClient } from '@/lib/supabase-server'
 import { BacklogItemForm } from '@/components/admin/backlog-item-form'
 import { notFound } from 'next/navigation'
