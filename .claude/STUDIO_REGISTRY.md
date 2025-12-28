@@ -11,7 +11,7 @@
 
 | Field | Value |
 |-------|-------|
-| **Path** | `/app/components/studio/`, `/app/docs/studio/design-system-tool/` |
+| **Path** | `/components/studio/`, `/docs/studio/design-system-tool/` |
 | **Status** | Active - Phase 5 in progress |
 | **Temperature** | Hot |
 | **Public URL** | `/studio/design-system-tool` |
@@ -38,7 +38,7 @@
 
 | Field | Value |
 |-------|-------|
-| **Path** | `/app/docs/studio/experience-systems/exploration/` |
+| **Path** | `/docs/studio/experience-systems/exploration/` |
 | **Status** | Paused - exploration complete |
 | **Temperature** | Warm |
 
@@ -64,7 +64,7 @@
 
 | Field | Value |
 |-------|-------|
-| **Path** | `/app/components/studio/hando/` |
+| **Path** | `/components/studio/hando/` |
 | **Status** | Planning - platform foundation |
 | **Temperature** | Warm |
 | **Database Tables** | Sub-projects use `studio_hando_{subproject}_*` |
@@ -86,7 +86,7 @@
 
 | Field | Value |
 |-------|-------|
-| **Path** | `/app/components/studio/trux/` |
+| **Path** | `/components/studio/trux/` |
 | **Status** | Planning |
 | **Temperature** | Warm |
 

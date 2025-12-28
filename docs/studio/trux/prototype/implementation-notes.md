@@ -9,8 +9,8 @@
 ### 2025-12-27: Project Initialization
 
 **Created:**
-- Project structure at `/app/components/studio/trux/`
-- Documentation at `/app/docs/studio/trux/`
+- Project structure at `/components/studio/trux/`
+- Documentation at `/docs/studio/trux/`
 - Game design specification
 - Technical specification (initial draft)
 

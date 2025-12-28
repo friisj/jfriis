@@ -29,23 +29,23 @@
    └── types.ts           # Shared types
    ```
 
-2. **Move tool implementations from `app/mcp/src/tools.ts` to `lib/mcp/tools-core.ts`**
+2. **Move tool implementations from `mcp/src/tools.ts` to `lib/mcp/tools-core.ts`**
    - Keep function signatures identical
    - Export each tool function
 
-3. **Move table registry from `app/mcp/src/tables.ts` to `lib/mcp/tables.ts`**
+3. **Move table registry from `mcp/src/tables.ts` to `lib/mcp/tables.ts`**
 
 4. **Move Zod schemas to `lib/mcp/schemas/`**
 
 5. **Update local MCP to import from `lib/mcp/`**
    ```typescript
-   // app/mcp/src/tools.ts
+   // mcp/src/tools.ts
    import { dbQuery, dbGet, dbCreate, dbUpdate, dbDelete } from '../../../lib/mcp/tools-core'
    ```
 
 6. **Rebuild and test local MCP**
    ```bash
-   cd app/mcp && npm run build
+   cd mcp && npm run build
    ```
 
 ### Validation
@@ -429,8 +429,8 @@ New files to create:
 [ ] app/(site)/oauth/consent/page.tsx
 
 Files to modify:
-[ ] app/mcp/src/tools.ts (import from lib/mcp)
-[ ] app/mcp/src/index.ts (if needed)
+[ ] mcp/src/tools.ts (import from lib/mcp)
+[ ] mcp/src/index.ts (if needed)
 ```
 
 ---

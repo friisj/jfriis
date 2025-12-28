@@ -47,5 +47,5 @@ Likely tables:
 
 ## Related
 
-- Parent project: `app/components/studio/hando/`
-- Shared resources: `app/components/studio/hando/shared/`
+- Parent project: `components/studio/hando/`
+- Shared resources: `components/studio/hando/shared/`

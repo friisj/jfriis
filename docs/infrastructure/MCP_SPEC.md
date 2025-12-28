@@ -440,8 +440,7 @@ The new table is immediately available via all CRUD tools.
 ## File Structure
 
 ```
-app/
-├── mcp/
+mcp/
 │   ├── src/
 │   │   ├── index.ts              # Server entry point
 │   │   ├── tools.ts              # CRUD tool handlers
@@ -490,7 +489,7 @@ Add to project root `.claude/settings.local.json`:
   "mcpServers": {
     "jfriis": {
       "command": "node",
-      "args": ["./app/mcp/dist/index.js"]
+      "args": ["./mcp/dist/index.js"]
     }
   }
 }
@@ -503,7 +502,7 @@ Or if using ts-node for development:
   "mcpServers": {
     "jfriis": {
       "command": "npx",
-      "args": ["ts-node", "./app/mcp/src/index.ts"]
+      "args": ["ts-node", "./mcp/src/index.ts"]
     }
   }
 }
@@ -682,7 +681,7 @@ When Supabase schema changes:
 Run server directly to see logs:
 
 ```bash
-cd app/mcp
+cd mcp
 npx ts-node src/index.ts
 ```
 

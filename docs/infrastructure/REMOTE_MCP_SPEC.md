@@ -554,7 +554,7 @@ app/
         └── rate-limit.ts       # Rate limiting
 ```
 
-Note: Local MCP (`app/mcp/`) imports from `lib/mcp/` for shared code.
+Note: Local MCP (`mcp/`) imports from `lib/mcp/` for shared code.
 
 ---
 
@@ -604,7 +604,7 @@ The local stdio MCP remains the fastest option for Claude Code:
   "mcpServers": {
     "jfriis": {
       "command": "node",
-      "args": ["app/mcp/dist/index.js"]
+      "args": ["mcp/dist/index.js"]
     }
   }
 }
@@ -618,7 +618,7 @@ The local stdio MCP remains the fastest option for Claude Code:
 
 Before adding remote access, extract shared code:
 
-1. Move tool implementations from `app/mcp/src/tools.ts` to `lib/mcp/tools-core.ts`
+1. Move tool implementations from `mcp/src/tools.ts` to `lib/mcp/tools-core.ts`
 2. Move table registry to `lib/mcp/tables.ts`
 3. Move schemas to `lib/mcp/schemas/`
 4. Update local MCP to import from `lib/mcp/`
@@ -752,7 +752,7 @@ export async function dbQuery(params: DbQueryInput): Promise<DbQueryOutput> {
   // Shared implementation used by both local and remote
 }
 
-// app/mcp/src/tools.ts (local)
+// mcp/src/tools.ts (local)
 import { dbQuery } from '../../lib/mcp/tools-core'
 
 // app/api/mcp/v1/messages/route.ts (remote)

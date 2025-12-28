@@ -19,7 +19,7 @@
 ### Location
 
 ```
-app/components/studio/{project-name}/
+components/studio/{project-name}/
 ```
 
 Use kebab-case for directory names.
@@ -27,7 +27,7 @@ Use kebab-case for directory names.
 ### Minimum Structure
 
 ```
-app/components/studio/{project-name}/
+components/studio/{project-name}/
 ├── README.md                 # Project overview, status, links
 ├── components/               # React components (if applicable)
 ├── lib/                      # Utilities, helpers
@@ -80,7 +80,7 @@ Examples:
 
 ### Create Supabase Migration
 
-Create migration file in `app/supabase/migrations/`:
+Create migration file in `supabase/migrations/`:
 
 ```sql
 -- {timestamp}_studio_{project}_tables.sql
@@ -146,7 +146,7 @@ cd app && npx supabase db push
 
 ### Create Schema File
 
-Create `app/mcp/src/schemas/studio-{project}.ts`:
+Create `mcp/src/schemas/studio-{project}.ts`:
 
 ```typescript
 import { z } from 'zod'
@@ -178,7 +178,7 @@ export const {TableName}UpdateSchema = {TableName}CreateSchema.partial()
 
 ### Register in Table Registry
 
-Edit `app/mcp/src/tables.ts`:
+Edit `mcp/src/tables.ts`:
 
 ```typescript
 import {
@@ -221,7 +221,7 @@ Add under `## Active Projects` or `## Paused Projects`:
 
 | Field | Value |
 |-------|-------|
-| **Path** | `/app/components/studio/{project-name}/` |
+| **Path** | `/components/studio/{project-name}/` |
 | **Status** | Planning | Active | Paused |
 | **Temperature** | Hot | Warm | Cold |
 | **Database Tables** | `studio_{project}_*` |
@@ -252,11 +252,11 @@ Update the header quick pulse to reflect the new project:
 
 After completing the above steps, verify:
 
-- [ ] Project directory exists at `app/components/studio/{project}/`
+- [ ] Project directory exists at `components/studio/{project}/`
 - [ ] README.md describes the project
 - [ ] Migration ran successfully (check Supabase dashboard)
-- [ ] Zod schema file exists at `app/mcp/src/schemas/studio-{project}.ts`
-- [ ] Table registered in `app/mcp/src/tables.ts`
+- [ ] Zod schema file exists at `mcp/src/schemas/studio-{project}.ts`
+- [ ] Table registered in `mcp/src/tables.ts`
 - [ ] MCP rebuilt (`npm run build` in mcp/)
 - [ ] Studio registry updated (`.claude/STUDIO_REGISTRY.md`)
 - [ ] Can query new table via MCP: `{ "tool": "db_query", "table": "studio_{project}_{table}" }`
@@ -269,10 +269,10 @@ After completing the above steps, verify:
 
 | What | Where |
 |------|-------|
-| Project code | `app/components/studio/{project}/` |
-| Migrations | `app/supabase/migrations/` |
-| MCP schemas | `app/mcp/src/schemas/studio-{project}.ts` |
-| Table registry | `app/mcp/src/tables.ts` |
+| Project code | `components/studio/{project}/` |
+| Migrations | `supabase/migrations/` |
+| MCP schemas | `mcp/src/schemas/studio-{project}.ts` |
+| Table registry | `mcp/src/tables.ts` |
 | Studio registry | `.claude/STUDIO_REGISTRY.md` |
 
 ### Naming Conventions

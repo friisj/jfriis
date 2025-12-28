@@ -24,7 +24,7 @@
 ### Component Structure
 
 ```
-app/components/studio/trux/
+components/studio/trux/
 ├── components/
 │   ├── TruxGame.tsx           # Main game component
 │   ├── TuningScreen.tsx       # Vehicle configuration UI

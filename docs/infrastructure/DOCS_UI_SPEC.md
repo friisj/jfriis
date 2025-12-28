@@ -293,7 +293,7 @@ Automated sync checker comparing UI state against source files.
 │     └─ studio_hando_units not shown                             │
 │  ✅ MCP_SPEC.md                Synced                           │
 │  ⚠️  Directory structure       3 new paths                      │
-│     └─ /app/components/studio/hando/twin/ not in sitemap        │
+│     └─ /components/studio/hando/twin/ not in sitemap        │
 │                                                                 │
 │  Overall: 2 warnings, 0 errors                                  │
 │                                                                 │
@@ -710,7 +710,7 @@ export const projects: Project[] = [
     startDate: '2025-11',
     links: {
       demo: '/studio/design-system-tool',
-      source: 'app/components/studio/design-system-tool',
+      source: 'components/studio/design-system-tool',
     },
   },
   {

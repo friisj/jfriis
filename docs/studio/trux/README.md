@@ -23,7 +23,7 @@ Trux is a browser-based side-scrolling game where players pilot a parametrically
 ## Project Structure
 
 ### Code
-- `/app/components/studio/trux/` - Game components and engine
+- `/components/studio/trux/` - Game components and engine
 
 ### Documentation
 - `/docs/studio/trux/prototype/game-design.md` - Mechanics, controls, scoring

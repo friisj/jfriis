@@ -110,7 +110,7 @@ The Studio is a dedicated space within the jonfriis.com repository for:
 
 ### Trux
 **Status**: Phase 2 (Prototype) - Specification complete, implementation pending
-**Location**: `/app/components/studio/trux/` + `/docs/studio/trux/`
+**Location**: `/components/studio/trux/` + `/docs/studio/trux/`
 **Focus**: Side-scrolling monster truck survival game with parametric vehicle customization
 
 **Current State**:
