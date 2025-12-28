@@ -108,6 +108,30 @@ The Studio is a dedicated space within the jonfriis.com repository for:
 
 ## Active Studio Projects
 
+### Trux
+**Status**: Phase 2 (Prototype) - Specification complete, implementation pending
+**Location**: `/app/components/studio/trux/` + `/docs/studio/trux/`
+**Focus**: Side-scrolling monster truck survival game with parametric vehicle customization
+
+**Current State**:
+- ✅ Game design specification complete
+- ✅ Technical architecture defined
+- ⏳ Implementation pending
+
+**Concept**:
+Monochrome line-art browser game inspired by Excite Bike. Players tune a monster truck's parameters (wheel size, suspension, weight) and attempt to survive procedurally generated terrain. Physics-based gameplay with emphasis on vehicle customization and the tuning → crash → retry loop.
+
+**Next Steps**:
+1. Set up Canvas component and game loop
+2. Implement basic physics (Vector2D, forces, collision)
+3. Create procedural terrain generator
+4. Build vehicle customization UI
+5. Polish and tune gameplay feel
+
+**Documents**: `/docs/studio/trux/prototype/` (game-design.md, technical-spec.md)
+
+---
+
 ### Design System Tool
 **Status**: Phase 2 (Prototype) - Phases 1-3 complete, active development
 **Location**: `/app/studio/design-system-tool` + `/docs/studio/design-system-tool/`
