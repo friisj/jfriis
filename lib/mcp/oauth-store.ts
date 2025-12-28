@@ -1,13 +1,14 @@
 /**
  * OAuth Authorization Code Store
  *
- * In-memory storage for OAuth 2.0 authorization codes with PKCE support.
- * Codes are single-use and expire after 10 minutes.
+ * Uses encrypted codes that contain all OAuth data, avoiding the need for
+ * server-side storage. This works on serverless platforms where in-memory
+ * state doesn't persist across function invocations.
  *
- * For production scale, consider migrating to Vercel KV or Redis.
+ * The authorization code IS the encrypted payload - no database needed.
  */
 
-import { createHash, randomBytes } from 'crypto'
+import { createHash, randomBytes, createCipheriv, createDecipheriv } from 'crypto'
 
 // Allowed redirect URIs for security
 const ALLOWED_REDIRECT_URIS = [
@@ -28,12 +29,69 @@ export interface OAuthRequest {
   created_at: number
 }
 
-// In-memory store - survives within a single serverless instance
-// For Vercel, this works for the token exchange since it happens quickly
-const authCodes = new Map<string, OAuthRequest>()
-
 // Code expiration time (10 minutes)
 const CODE_EXPIRY_MS = 10 * 60 * 1000
+
+// Track used codes to prevent replay (short-lived, in-memory is OK for this)
+// Note: In serverless, this only prevents replay within the same instance
+// The expiry check provides the main protection
+const usedCodes = new Set<string>()
+
+/**
+ * Get encryption key from environment
+ * Uses SUPABASE_SERVICE_ROLE_KEY as the secret (hashed to 32 bytes for AES-256)
+ */
+function getEncryptionKey(): Buffer {
+  const secret = process.env.SUPABASE_SERVICE_ROLE_KEY
+  if (!secret) {
+    throw new Error('SUPABASE_SERVICE_ROLE_KEY is required for OAuth code encryption')
+  }
+  // Hash to get consistent 32-byte key for AES-256
+  return createHash('sha256').update(secret).digest()
+}
+
+/**
+ * Encrypt data using AES-256-GCM
+ */
+function encrypt(data: string): string {
+  const key = getEncryptionKey()
+  const iv = randomBytes(12) // 96-bit IV for GCM
+  const cipher = createCipheriv('aes-256-gcm', key, iv)
+
+  let encrypted = cipher.update(data, 'utf8', 'base64url')
+  encrypted += cipher.final('base64url')
+
+  const authTag = cipher.getAuthTag()
+
+  // Combine: iv (12 bytes) + authTag (16 bytes) + encrypted data
+  const combined = Buffer.concat([iv, authTag, Buffer.from(encrypted, 'base64url')])
+  return combined.toString('base64url')
+}
+
+/**
+ * Decrypt data using AES-256-GCM
+ */
+function decrypt(encryptedData: string): string | null {
+  try {
+    const key = getEncryptionKey()
+    const combined = Buffer.from(encryptedData, 'base64url')
+
+    // Extract: iv (12 bytes) + authTag (16 bytes) + encrypted data
+    const iv = combined.subarray(0, 12)
+    const authTag = combined.subarray(12, 28)
+    const encrypted = combined.subarray(28)
+
+    const decipher = createDecipheriv('aes-256-gcm', key, iv)
+    decipher.setAuthTag(authTag)
+
+    let decrypted = decipher.update(encrypted.toString('base64url'), 'base64url', 'utf8')
+    decrypted += decipher.final('utf8')
+
+    return decrypted
+  } catch {
+    return null
+  }
+}
 
 /**
  * Validate a redirect URI against allowed list
@@ -43,42 +101,51 @@ export function isValidRedirectUri(uri: string): boolean {
 }
 
 /**
- * Generate a secure authorization code and store the OAuth request
+ * Generate an encrypted authorization code containing all OAuth request data
  */
 export function generateAuthCode(request: Omit<OAuthRequest, 'created_at'>): string {
-  // Clean up expired codes first
-  cleanupExpiredCodes()
-
-  // Generate a secure random code
-  const code = randomBytes(32).toString('base64url')
-
-  // Store the request with timestamp
-  authCodes.set(code, {
+  const fullRequest: OAuthRequest = {
     ...request,
     created_at: Date.now(),
-  })
+  }
 
+  // Encrypt the entire request as the authorization code
+  const code = encrypt(JSON.stringify(fullRequest))
   return code
 }
 
 /**
  * Consume an authorization code (single-use)
+ * Decrypts the code to get the stored request.
  * Returns the stored request if valid, null if invalid/expired/used
  */
 export function consumeAuthCode(code: string): OAuthRequest | null {
-  const request = authCodes.get(code)
-
-  if (!request) {
+  // Check if code was already used (replay protection)
+  const codeHash = createHash('sha256').update(code).digest('hex').substring(0, 16)
+  if (usedCodes.has(codeHash)) {
     return null
   }
 
-  // Delete immediately (single-use)
-  authCodes.delete(code)
+  // Decrypt the code
+  const decrypted = decrypt(code)
+  if (!decrypted) {
+    return null
+  }
+
+  let request: OAuthRequest
+  try {
+    request = JSON.parse(decrypted)
+  } catch {
+    return null
+  }
 
   // Check if expired
   if (Date.now() - request.created_at > CODE_EXPIRY_MS) {
     return null
   }
+
+  // Mark as used (single-use)
+  usedCodes.add(codeHash)
 
   return request
 }
@@ -107,22 +174,8 @@ export function verifyPkce(
 }
 
 /**
- * Clean up expired authorization codes
+ * Get the count of used codes (for debugging)
  */
-function cleanupExpiredCodes(): void {
-  const now = Date.now()
-
-  for (const [code, request] of authCodes.entries()) {
-    if (now - request.created_at > CODE_EXPIRY_MS) {
-      authCodes.delete(code)
-    }
-  }
-}
-
-/**
- * Get the count of active codes (for debugging)
- */
-export function getActiveCodeCount(): number {
-  cleanupExpiredCodes()
-  return authCodes.size
+export function getUsedCodeCount(): number {
+  return usedCodes.size
 }
