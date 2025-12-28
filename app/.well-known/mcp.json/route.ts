@@ -18,7 +18,7 @@ export async function GET() {
     // Server icon
     icons: [
       {
-        src: `${BASE_URL}/jf-icon.svg`,
+        src: `${BASE_URL}/jf-badge.svg`,
         mimeType: 'image/svg+xml',
       },
     ],
