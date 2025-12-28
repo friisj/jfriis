@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic'
+
 import { BacklogItemForm } from '@/components/admin/backlog-item-form'
 
 export default function NewBacklogItemPage() {

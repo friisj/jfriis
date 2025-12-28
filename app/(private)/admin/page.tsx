@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic'
+
 import { DashboardStats } from '@/components/admin/dashboard-stats'
 import { RecentActivity } from '@/components/admin/recent-activity'
 

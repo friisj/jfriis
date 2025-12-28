@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic'
+
 import { LogEntryForm } from '@/components/admin/log-entry-form'
 
 export default function NewLogEntryPage() {
