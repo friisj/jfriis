@@ -27,7 +27,7 @@ var supabase = createClient(supabaseUrl, supabaseKey, {
   }
 });
 
-// ../../lib/mcp/schemas/projects.ts
+// ../lib/mcp/schemas/projects.ts
 import { z } from "zod";
 var ProjectSchema = z.object({
   id: z.string().uuid().optional(),
@@ -57,7 +57,7 @@ var ProjectCreateSchema = ProjectSchema.omit({
 });
 var ProjectUpdateSchema = ProjectCreateSchema.partial();
 
-// ../../lib/mcp/schemas/log-entries.ts
+// ../lib/mcp/schemas/log-entries.ts
 import { z as z2 } from "zod";
 var LogEntrySchema = z2.object({
   id: z2.string().uuid().optional(),
@@ -82,7 +82,7 @@ var LogEntryCreateSchema = LogEntrySchema.omit({
 });
 var LogEntryUpdateSchema = LogEntryCreateSchema.partial();
 
-// ../../lib/mcp/schemas/specimens.ts
+// ../lib/mcp/schemas/specimens.ts
 import { z as z3 } from "zod";
 var SpecimenSchema = z3.object({
   id: z3.string().uuid().optional(),
@@ -117,7 +117,7 @@ var SpecimenCreateSchema = SpecimenSchema.omit({
 });
 var SpecimenUpdateSchema = SpecimenCreateSchema.partial();
 
-// ../../lib/mcp/schemas/gallery.ts
+// ../lib/mcp/schemas/gallery.ts
 import { z as z4 } from "zod";
 var GallerySequenceSchema = z4.object({
   id: z4.string().uuid().optional(),
@@ -136,7 +136,7 @@ var GallerySequenceCreateSchema = GallerySequenceSchema.omit({
 });
 var GallerySequenceUpdateSchema = GallerySequenceCreateSchema.partial();
 
-// ../../lib/mcp/schemas/other.ts
+// ../lib/mcp/schemas/other.ts
 import { z as z5 } from "zod";
 var LandingPageSchema = z5.object({
   id: z5.string().uuid().optional(),
@@ -187,7 +187,7 @@ var ProfileUpdateSchema = ProfileSchema.omit({
   updated_at: true
 }).partial();
 
-// ../../lib/mcp/schemas/distribution.ts
+// ../lib/mcp/schemas/distribution.ts
 import { z as z6 } from "zod";
 var ChannelSchema = z6.object({
   id: z6.string().uuid().optional(),
@@ -246,7 +246,7 @@ var DistributionQueueCreateSchema = DistributionQueueSchema.omit({
 });
 var DistributionQueueUpdateSchema = DistributionQueueCreateSchema.partial();
 
-// ../../lib/mcp/schemas/junctions.ts
+// ../lib/mcp/schemas/junctions.ts
 import { z as z7 } from "zod";
 var GallerySpecimenItemSchema = z7.object({
   id: z7.string().uuid().optional(),
@@ -297,7 +297,7 @@ var LogEntryProjectCreateSchema = LogEntryProjectSchema.omit({
 });
 var LogEntryProjectUpdateSchema = LogEntryProjectCreateSchema.partial();
 
-// ../../lib/mcp/tables.ts
+// ../lib/mcp/tables.ts
 var tables = {
   // Site content tables
   projects: {
@@ -467,7 +467,7 @@ function isValidTable(tableName) {
   return tableName in tables;
 }
 
-// ../../lib/mcp/tools-core.ts
+// ../lib/mcp/tools-core.ts
 async function dbListTables() {
   const tableList = Object.entries(tables).map(([name, def]) => ({
     name,
