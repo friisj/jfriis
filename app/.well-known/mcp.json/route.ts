@@ -6,7 +6,6 @@
  */
 
 const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://jonfriis.com'
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL
 
 export async function GET() {
   const manifest = {
@@ -16,13 +15,13 @@ export async function GET() {
     description: 'Database CRUD tools for jonfriis.com',
     homepage: BASE_URL,
 
-    // OAuth 2.1 authentication via Supabase
+    // OAuth 2.0 authentication via our authorization server
     authentication: {
       type: 'oauth2',
-      // Supabase OAuth endpoints
-      authorization_url: `${SUPABASE_URL}/auth/v1/authorize`,
-      token_url: `${SUPABASE_URL}/auth/v1/token`,
-      // PKCE required for public clients (Claude Mobile)
+      // Our OAuth endpoints (backed by Supabase auth)
+      authorization_url: `${BASE_URL}/api/oauth/authorize`,
+      token_url: `${BASE_URL}/api/oauth/token`,
+      // PKCE required for public clients
       pkce_required: true,
     },
 
