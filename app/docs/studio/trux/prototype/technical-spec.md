@@ -7,15 +7,15 @@
 ## Technology Stack
 
 ### Core
-- **React 19** - Component structure and game loop management
+- **React 19** - Component structure and UI management
 - **TypeScript 5** - Type-safe game logic
-- **Canvas API** - 2D rendering
 - **Next.js** - Hosting and routing
 
-### Libraries (Minimal Dependencies)
-- **No physics library** - Custom 2D physics for learning/control
-- **No game framework** - Raw Canvas for maximum control
-- **Simplex noise** - For terrain generation (1 small utility)
+### Libraries (Use the Right Tools)
+- **Matter.js** - 2D physics engine (rigid bodies, springs, collision)
+- **simplex-noise** - Procedural terrain generation
+- **Canvas 2D API** - Rendering (simple, works well for line art)
+  - *Alternative considered: Two.js for vector graphics, but Canvas is sufficient*
 
 ---
 
@@ -33,23 +33,18 @@ app/components/studio/trux/
 │   └── CrashScreen.tsx        # Post-game stats
 ├── lib/
 │   ├── engine/
-│   │   ├── GameLoop.ts        # RequestAnimationFrame loop
-│   │   ├── Physics.ts         # Physics simulation
-│   │   ├── Collision.ts       # Collision detection
+│   │   ├── GameEngine.ts      # Matter.js world + game loop
+│   │   ├── Renderer.ts        # Canvas rendering from Matter bodies
 │   │   └── Input.ts           # Keyboard/touch handling
 │   ├── entities/
-│   │   ├── Truck.ts           # Vehicle entity
+│   │   ├── Truck.ts           # Vehicle setup (Matter bodies + constraints)
 │   │   ├── Terrain.ts         # Terrain generator/manager
 │   │   └── Camera.ts          # Viewport management
-│   ├── rendering/
-│   │   ├── Renderer.ts        # Canvas drawing
-│   │   └── LineArt.ts         # Vector drawing utilities
 │   └── utils/
-│       ├── noise.ts           # Simplex/Perlin noise
-│       ├── math.ts            # Vector2D, clamp, lerp, etc.
-│       └── physics-utils.ts   # Spring forces, damping
+│       ├── noise.ts           # Simplex noise wrapper
+│       └── matter-helpers.ts  # Matter.js utilities
 └── config/
-    ├── physics-constants.ts   # Gravity, friction, etc.
+    ├── physics-config.ts      # Matter.js settings, gravity, etc.
     └── truck-presets.ts       # Default vehicle configs
 ```
 
@@ -57,30 +52,39 @@ app/components/studio/trux/
 
 ## Core Systems
 
-### 1. Game Loop
+### 1. Game Engine (Matter.js Integration)
 
-#### Fixed Timestep Pattern
+#### Setup
 ```typescript
-const FIXED_TIMESTEP = 1000 / 60 // 16.67ms (60Hz)
-let accumulator = 0
-let lastTime = performance.now()
+import Matter from 'matter-js'
 
-function gameLoop(currentTime: number) {
-  const deltaTime = currentTime - lastTime
-  lastTime = currentTime
-  accumulator += deltaTime
+class GameEngine {
+  engine: Matter.Engine
+  world: Matter.World
+  runner: Matter.Runner
 
-  // Physics updates at fixed rate
-  while (accumulator >= FIXED_TIMESTEP) {
-    updatePhysics(FIXED_TIMESTEP)
-    accumulator -= FIXED_TIMESTEP
+  constructor() {
+    // Create Matter.js engine
+    this.engine = Matter.Engine.create()
+    this.world = this.engine.world
+
+    // Configure physics
+    this.engine.gravity.y = 1 // 1 = realistic gravity for our scale
+
+    // Create fixed-timestep runner
+    this.runner = Matter.Runner.create({
+      delta: 1000 / 60,  // 60 FPS
+      isFixed: true
+    })
   }
 
-  // Rendering interpolates between states
-  const alpha = accumulator / FIXED_TIMESTEP
-  render(alpha)
+  start() {
+    Matter.Runner.run(this.runner, this.engine)
+  }
 
-  requestAnimationFrame(gameLoop)
+  stop() {
+    Matter.Runner.stop(this.runner)
+  }
 }
 ```
 
@@ -88,7 +92,8 @@ function gameLoop(currentTime: number) {
 ```typescript
 interface GameState {
   status: 'tuning' | 'playing' | 'crashed'
-  truck: Truck
+  engine: Matter.Engine
+  truck: TruckBodies     // Matter.js bodies
   terrain: Terrain
   camera: Camera
   elapsedTime: number
@@ -98,98 +103,136 @@ interface GameState {
 
 ---
 
-### 2. Physics Engine
+### 2. Vehicle Physics (Matter.js Bodies)
 
 #### Coordinate System
-- **Origin**: Top-left of canvas
-- **Y-axis**: Down is positive (standard Canvas)
-- **Units**: 1 pixel = 1 centimeter (for intuitive sizing)
-- **Gravity**: 9.81 m/s² = 981 cm/s² = 981 px/s²
+- **Matter.js uses standard physics coordinates**
+- **Units**: Pixels (1 pixel ≈ 1 cm for game scale)
+- **Gravity**: Matter.js default (y: 1) works well for our scale
 
-#### Vector2D Class
+#### Physics Configuration
 ```typescript
-class Vector2D {
-  constructor(public x: number, public y: number) {}
-
-  add(v: Vector2D): Vector2D
-  subtract(v: Vector2D): Vector2D
-  multiply(scalar: number): Vector2D
-  magnitude(): number
-  normalize(): Vector2D
-  dot(v: Vector2D): number
-}
-```
-
-#### Physics Constants
-```typescript
-const PHYSICS = {
-  GRAVITY: 981,              // cm/s² (9.81 m/s²)
-  AIR_RESISTANCE: 0.01,      // Drag coefficient
-  GROUND_FRICTION: 0.3,      // Friction when wheels touch ground
-  TERRAIN_SCROLL_SPEED: 400, // cm/s (scrolling from right to left)
-  MAX_SAFE_LANDING_ANGLE: 30,// Degrees from horizontal
+// config/physics-config.ts
+export const PHYSICS_CONFIG = {
+  gravity: { x: 0, y: 1 },       // Standard downward gravity
+  airResistance: 0.01,           // Drag coefficient
+  groundFriction: 0.3,           // Friction when wheels touch ground
+  terrainScrollSpeed: 400,       // px/s (terrain moves left)
+  maxSafeLandingAngle: 30,       // Degrees from horizontal
+  wheelCategories: {
+    wheel: 0x0001,
+    terrain: 0x0002,
+    chassis: 0x0004
+  }
 }
 ```
 
 ---
 
-### 3. Vehicle Model
+### 3. Vehicle Model (Matter.js Composite)
 
-#### Truck Entity
+#### Truck Configuration
 ```typescript
 interface TruckConfig {
-  wheelDiameter: number     // cm (50-150)
-  suspensionStiffness: number  // N/m (spring constant)
-  suspensionDamping: number    // Damping coefficient
-  mass: number              // kg (800-1200)
-  enginePower: number       // Newtons (acceleration force)
-  wheelbase: number         // cm (distance between wheels)
-}
-
-class Truck {
-  // Physical state
-  position: Vector2D        // Center of chassis
-  velocity: Vector2D        // cm/s
-  rotation: number          // radians (0 = level)
-  angularVelocity: number   // rad/s
-
-  // Configuration
-  config: TruckConfig
-
-  // Wheels (local to chassis)
-  frontWheel: Wheel
-  rearWheel: Wheel
-
-  // Methods
-  update(deltaTime: number, input: Input, terrain: Terrain): void
-  applyForce(force: Vector2D): void
-  applyTorque(torque: number): void
-  checkCollision(terrain: Terrain): CollisionResult
+  wheelDiameter: number        // px (50-150)
+  suspensionStiffness: number  // Matter.js constraint stiffness (0-1)
+  suspensionDamping: number    // Matter.js constraint damping (0-1)
+  chassisMass: number          // kg (800-1200)
+  enginePower: number          // Force to apply (Newtons)
+  wheelbase: number            // px (distance between wheels)
 }
 ```
 
-#### Wheel Suspension System
+#### Building the Truck (Matter.js Bodies + Constraints)
 ```typescript
-class Wheel {
-  localPosition: Vector2D   // Relative to chassis center
-  compression: number       // Current suspension compression (0-1)
-  maxTravel: number         // Maximum suspension travel (cm)
+import Matter from 'matter-js'
 
-  // Calculate suspension force (Hooke's Law + damping)
-  getSuspensionForce(
-    groundHeight: number,
-    chassisVelocity: Vector2D,
-    stiffness: number,
-    damping: number
-  ): Vector2D {
-    const compression = this.getCompression(groundHeight)
-    const compressionVelocity = this.getCompressionVelocity(chassisVelocity)
+function createTruck(config: TruckConfig, x: number, y: number) {
+  const { Bodies, Body, Constraint, Composite } = Matter
 
-    // F = -kx (spring) - cv (damper)
-    const springForce = -stiffness * compression
-    const dampingForce = -damping * compressionVelocity
+  // Create chassis (main body)
+  const chassis = Bodies.rectangle(x, y, config.wheelbase, 60, {
+    mass: config.chassisMass,
+    friction: 0.3,
+    collisionFilter: { category: PHYSICS_CONFIG.wheelCategories.chassis }
+  })
 
-    return new Vector2D(0, springForce + dampingForce)
+  // Create wheels
+  const wheelRadius = config.wheelDiameter / 2
+  const frontWheel = Bodies.circle(
+    x + config.wheelbase / 2,
+    y + 40,
+    wheelRadius,
+    {
+      friction: 0.8,
+      mass: 20,
+      collisionFilter: { category: PHYSICS_CONFIG.wheelCategories.wheel }
+    }
+  )
+
+  const rearWheel = Bodies.circle(
+    x - config.wheelbase / 2,
+    y + 40,
+    wheelRadius,
+    {
+      friction: 0.8,
+      mass: 20,
+      collisionFilter: { category: PHYSICS_CONFIG.wheelCategories.wheel }
+    }
+  )
+
+  // Suspension constraints (spring-damper)
+  const frontSuspension = Constraint.create({
+    bodyA: chassis,
+    pointA: { x: config.wheelbase / 2, y: 30 },
+    bodyB: frontWheel,
+    stiffness: config.suspensionStiffness,
+    damping: config.suspensionDamping,
+    length: 40  // Rest length
+  })
+
+  const rearSuspension = Constraint.create({
+    bodyA: chassis,
+    pointA: { x: -config.wheelbase / 2, y: 30 },
+    bodyB: rearWheel,
+    stiffness: config.suspensionStiffness,
+    damping: config.suspensionDamping,
+    length: 40
+  })
+
+  // Combine into composite
+  const truck = Composite.create()
+  Composite.add(truck, [chassis, frontWheel, rearWheel, frontSuspension, rearSuspension])
+
+  return {
+    composite: truck,
+    chassis,
+    frontWheel,
+    rearWheel,
+    frontSuspension,
+    rearSuspension
+  }
+}
+```
+
+#### Applying Player Input
+```typescript
+function applyTruckInput(truck: TruckBodies, input: InputState) {
+  const { chassis, frontWheel, rearWheel } = truck
+
+  // Throttle: Apply force to wheels
+  if (input.throttle > 0) {
+    const wheelForce = config.enginePower * input.throttle
+    Body.applyForce(frontWheel, frontWheel.position, { x: wheelForce, y: 0 })
+    Body.applyForce(rearWheel, rearWheel.position, { x: wheelForce, y: 0 })
+  }
+
+  // Lean: Apply torque to chassis (mid-air rotation control)
+  if (input.leanForward > 0) {
+    Body.setAngularVelocity(chassis, 0.05 * input.leanForward)
+  }
+  if (input.leanBackward > 0) {
+    Body.setAngularVelocity(chassis, -0.05 * input.leanBackward)
   }
 }
 ```
@@ -236,56 +279,68 @@ class Terrain {
 
 ---
 
-### 5. Collision Detection
+### 5. Collision & Crash Detection
 
-#### Ground Contact
+#### Terrain Collision (Matter.js)
+Matter.js handles all physics-based collision automatically. We just need to:
+1. Create terrain as static Matter.js bodies
+2. Set collision filters to allow wheels to collide with terrain
+3. Let Matter.js resolve contacts and apply forces
+
 ```typescript
-interface CollisionResult {
-  isGrounded: boolean
-  groundHeight: number
-  normal: Vector2D
-  isCrashed: boolean
-}
+// Terrain is created as static bodies that don't move
+function createTerrainSegment(points: { x: number, y: number }[]) {
+  const { Bodies } = Matter
 
-function checkWheelContact(
-  wheelPos: Vector2D,
-  terrain: Terrain
-): CollisionResult {
-  const groundHeight = terrain.getHeightAt(wheelPos.x)
-  const isGrounded = wheelPos.y >= groundHeight
+  // Create a static body from terrain points
+  const terrain = Bodies.fromVertices(
+    0, 0,
+    [points],
+    {
+      isStatic: true,
+      friction: 0.8,
+      collisionFilter: { category: PHYSICS_CONFIG.wheelCategories.terrain }
+    }
+  )
 
-  if (isGrounded) {
-    // Calculate surface normal for friction
-    const dx = 1
-    const h1 = terrain.getHeightAt(wheelPos.x - dx)
-    const h2 = terrain.getHeightAt(wheelPos.x + dx)
-    const slope = (h2 - h1) / (2 * dx)
-    const normal = new Vector2D(-slope, 1).normalize()
-
-    return { isGrounded: true, groundHeight, normal, isCrashed: false }
-  }
-
-  return { isGrounded: false, groundHeight, normal: Vector2D.up(), isCrashed: false }
+  return terrain
 }
 ```
 
-#### Crash Detection
+#### Crash Detection (Game Logic)
+We need to detect when the player has failed:
+
 ```typescript
-function checkCrash(truck: Truck, terrain: Terrain): boolean {
-  // 1. Chassis collision with ground
-  const chassisBottom = truck.position.y + truck.getHeight() / 2
-  const groundHeight = terrain.getHeightAt(truck.position.x)
-  if (chassisBottom > groundHeight) return true
+function checkCrash(truck: TruckBodies, camera: Camera): CrashReason | null {
+  const { chassis } = truck
 
-  // 2. Excessive rotation (flipped over)
-  const tiltDegrees = (truck.rotation * 180) / Math.PI
-  if (Math.abs(tiltDegrees) > 90) return true
+  // 1. Flipped over (excessive rotation)
+  const tiltDegrees = (chassis.angle * 180) / Math.PI
+  if (Math.abs(tiltDegrees) > 90) {
+    return 'flipped'
+  }
 
-  // 3. Off-screen (fell behind)
-  if (truck.position.x < camera.left - 200) return true
+  // 2. Chassis bottomed out (collision with terrain)
+  // Listen for collision events between chassis and terrain
+  // (Set up in Matter.Events.on('collisionStart'))
 
-  return false
+  // 3. Off-screen (fell too far behind)
+  if (chassis.position.x < camera.left - 200) {
+    return 'offscreen'
+  }
+
+  return null
 }
+
+// Set up collision listener for chassis hits
+Events.on(engine, 'collisionStart', (event) => {
+  event.pairs.forEach((pair) => {
+    if (isChassisTerrainCollision(pair)) {
+      // Crash! Chassis hit ground
+      gameState.status = 'crashed'
+    }
+  })
+})
 ```
 
 ---
@@ -316,35 +371,75 @@ function initCanvas(): RenderContext {
 }
 ```
 
-#### Line Art Rendering
+#### Line Art Rendering (From Matter.js Bodies)
 ```typescript
 class LineArtRenderer {
   ctx: CanvasRenderingContext2D
   lineWidth: number = 2
   strokeColor: string = '#000000'
-  fillColor: string = '#FFFFFF'
 
-  // Draw truck
-  drawTruck(truck: Truck, camera: Camera): void {
+  // Draw truck bodies
+  drawTruck(truck: TruckBodies, camera: Camera): void {
+    const { chassis, frontWheel, rearWheel, frontSuspension, rearSuspension } = truck
+
+    // Draw chassis
+    this.drawBody(chassis, camera, { stroke: '#000', lineWidth: 2 })
+
+    // Draw wheels
+    this.drawBody(frontWheel, camera, { stroke: '#000', lineWidth: 2 })
+    this.drawBody(rearWheel, camera, { stroke: '#000', lineWidth: 2 })
+
+    // Draw suspension constraints (lines from chassis to wheels)
+    this.drawConstraint(frontSuspension, camera)
+    this.drawConstraint(rearSuspension, camera)
+  }
+
+  // Generic Matter.js body renderer
+  drawBody(body: Matter.Body, camera: Camera, style: { stroke: string, lineWidth: number }): void {
     this.ctx.save()
+    this.ctx.strokeStyle = style.stroke
+    this.ctx.lineWidth = style.lineWidth
 
-    // Transform to truck's local space
+    // Transform to body's position and rotation
     this.ctx.translate(
-      truck.position.x - camera.left,
-      truck.position.y - camera.top
+      body.position.x - camera.left,
+      body.position.y - camera.top
     )
-    this.ctx.rotate(truck.rotation)
+    this.ctx.rotate(body.angle)
 
-    // Draw chassis (rectangle)
-    this.ctx.strokeRect(-truck.width / 2, -truck.height / 2, truck.width, truck.height)
+    // Draw body vertices
+    this.ctx.beginPath()
+    body.vertices.forEach((vertex, i) => {
+      const localX = vertex.x - body.position.x
+      const localY = vertex.y - body.position.y
+      if (i === 0) {
+        this.ctx.moveTo(localX, localY)
+      } else {
+        this.ctx.lineTo(localX, localY)
+      }
+    })
+    this.ctx.closePath()
+    this.ctx.stroke()
 
-    // Draw wheels (circles)
-    this.drawWheel(truck.frontWheel, truck.config.wheelDiameter)
-    this.drawWheel(truck.rearWheel, truck.config.wheelDiameter)
+    this.ctx.restore()
+  }
 
-    // Draw suspension (springs)
-    this.drawSuspension(truck.frontWheel)
-    this.drawSuspension(truck.rearWheel)
+  // Draw constraint (spring visualization)
+  drawConstraint(constraint: Matter.Constraint, camera: Camera): void {
+    if (!constraint.bodyA || !constraint.bodyB) return
+
+    const posA = constraint.bodyA.position
+    const posB = constraint.bodyB.position
+
+    this.ctx.save()
+    this.ctx.strokeStyle = '#666'
+    this.ctx.lineWidth = 1
+    this.ctx.setLineDash([3, 3]) // Dashed line for spring
+
+    this.ctx.beginPath()
+    this.ctx.moveTo(posA.x - camera.left, posA.y - camera.top)
+    this.ctx.lineTo(posB.x - camera.left, posB.y - camera.top)
+    this.ctx.stroke()
 
     this.ctx.restore()
   }
@@ -352,6 +447,9 @@ class LineArtRenderer {
   // Draw terrain
   drawTerrain(terrain: Terrain, camera: Camera): void {
     this.ctx.beginPath()
+    this.ctx.strokeStyle = '#000'
+    this.ctx.lineWidth = 2
+
     const startX = camera.left
     const endX = camera.right
 

@@ -12,40 +12,83 @@
 - Project structure at `/app/components/studio/trux/`
 - Documentation at `/app/docs/studio/trux/`
 - Game design specification
-- Technical specification
+- Technical specification (initial draft)
 
-**Decisions:**
+**Initial Decisions:**
 - Going straight to Phase 2 (Prototype) - no exploration phase needed
-- Using minimal dependencies (no physics engine, no game framework)
-- Target: Canvas API for maximum control and learning
+- ~~Using minimal dependencies~~ (REVISED - see below)
+- Target: Canvas API for rendering (still valid)
 - Monochrome aesthetic for simplicity and performance
 
-**Next Steps:**
-- Set up basic Canvas component
-- Implement game loop with fixed timestep
-- Create Vector2D utility class
+### 2025-12-27: Technical Spec Revision - Use Proper Libraries
+
+**Critique & Revision:**
+After review, the "minimal dependencies" approach was overcomplicated and reinventing the wheel.
+
+**Changed Decisions:**
+- ✅ **Use Matter.js** for physics (rigid bodies, springs, collision)
+  - Original plan: Build custom 2D physics engine
+  - Rationale: Matter.js is industry-standard, well-tested, perfect for this use case
+  - Benefit: Saves weeks of debugging, handles edge cases we'd inevitably hit
+
+- ✅ **Keep Canvas 2D API** for rendering
+  - Considered: Two.js, PixiJS
+  - Decision: Canvas 2D is sufficient for simple line art
+  - Can revisit if we need vector graphics features later
+
+- ✅ **Use simplex-noise** library for terrain
+  - Small, focused library for procedural generation
+  - No reason to implement noise from scratch
+
+**What We Got Right:**
+- TypeScript for type safety ✓
+- React for UI management ✓
+- Fixed timestep game loop pattern ✓
+- Procedural terrain (custom implementation appropriate here) ✓
+
+**Why This Matters:**
+Studio projects should explore *concepts*, not reinvent solved problems. Using Matter.js lets us focus on the interesting parts: vehicle tuning, procedural terrain, gameplay feel. Building a physics engine would be a distraction from the actual game design experiments.
+
+**Next Steps (Revised):**
+- Install Matter.js and simplex-noise
+- Set up Matter.js world and runner
+- Create truck composite (chassis + wheels + constraints)
+- Implement terrain as Matter.js static bodies
 
 ---
 
 ## Technical Decisions
 
-### Why No Physics Engine?
+### Physics Engine: Matter.js (REVISED DECISION)
 
-**Decision:** Build custom 2D physics instead of using Matter.js, Box2D, etc.
+**Decision:** Use Matter.js for all physics simulation
 
-**Rationale:**
-- Learning opportunity for physics simulation
-- Full control over behavior and tuning
-- Smaller bundle size (no external dependencies)
-- Physics needs are simple (2D rigid body, springs)
-- Can optimize specifically for this use case
+**Original Plan (REJECTED):**
+- Build custom 2D physics engine for "learning" and "control"
+- Implement spring-damper system manually
+- Write custom collision detection
+
+**Why That Was Wrong:**
+- Reinventing the wheel for no benefit
+- Would spend weeks debugging edge cases (tunneling, instability, constraint drift)
+- "Learning opportunity" is a distraction from actual game design
+- Matter.js is battle-tested and handles all our needs
+
+**Why Matter.js is Right:**
+- Industry-standard 2D physics library
+- Built-in rigid bodies, springs/constraints, collision detection
+- Active maintenance and documentation
+- Perfect for side-scrolling vehicle physics
+- **Lets us focus on gameplay, not physics math**
 
 **Trade-offs:**
-- More upfront development time
-- Potential for physics bugs
-- Need to implement collision detection manually
+- ✅ Faster development (weeks saved)
+- ✅ More stable physics out of the box
+- ✅ Better collision handling
+- ⚠️ Slightly larger bundle (~100KB minified)
+- ⚠️ Less "educational" (but that's not the goal)
 
-**Status:** Confident this is the right call for a studio prototype
+**Status:** Correct decision for a studio *game* prototype
 
 ---
 
