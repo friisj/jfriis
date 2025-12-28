@@ -68,11 +68,16 @@ function getAuthClient() {
 async function validateToken(request: Request): Promise<{ user: { id: string; email?: string } } | { error: string }> {
   const authHeader = request.headers.get('Authorization')
 
+  console.log('MCP Auth: header present:', !!authHeader)
+  console.log('MCP Auth: header starts with Bearer:', authHeader?.startsWith('Bearer '))
+
   if (!authHeader?.startsWith('Bearer ')) {
     return { error: 'Missing or invalid Authorization header' }
   }
 
   const token = authHeader.slice(7)
+  console.log('MCP Auth: token length:', token?.length)
+  console.log('MCP Auth: token preview:', token?.substring(0, 20) + '...')
 
   if (!token) {
     return { error: 'Empty token' }
@@ -80,6 +85,8 @@ async function validateToken(request: Request): Promise<{ user: { id: string; em
 
   const authClient = getAuthClient()
   const { data: { user }, error } = await authClient.auth.getUser(token)
+
+  console.log('MCP Auth: getUser result:', { userId: user?.id, error: error?.message })
 
   if (error || !user) {
     return { error: error?.message || 'Invalid token' }
@@ -206,7 +213,109 @@ export async function POST(request: Request) {
       )
     }
 
-    // Only support tools/call method
+    // Handle MCP methods
+    console.log('MCP Request: method:', body.method)
+
+    // Handle tools/list method (tool discovery)
+    if (body.method === 'tools/list') {
+      return Response.json(
+        jsonRpcSuccess(requestId, {
+          tools: [
+            {
+              name: 'db_list_tables',
+              description: 'List all available database tables and their schemas',
+              inputSchema: { type: 'object', properties: {} },
+            },
+            {
+              name: 'db_query',
+              description: 'Query records from a table with filters, sorting, and pagination',
+              inputSchema: {
+                type: 'object',
+                properties: {
+                  table: { type: 'string', description: 'Table name' },
+                  filters: { type: 'object', description: 'Filter conditions' },
+                  order_by: { type: 'string', description: 'Column to sort by' },
+                  ascending: { type: 'boolean', description: 'Sort ascending' },
+                  limit: { type: 'number', description: 'Max records to return' },
+                  offset: { type: 'number', description: 'Records to skip' },
+                },
+                required: ['table'],
+              },
+            },
+            {
+              name: 'db_get',
+              description: 'Get a single record by ID or slug',
+              inputSchema: {
+                type: 'object',
+                properties: {
+                  table: { type: 'string', description: 'Table name' },
+                  id: { type: 'string', description: 'Record ID' },
+                  slug: { type: 'string', description: 'Record slug' },
+                },
+                required: ['table'],
+              },
+            },
+            {
+              name: 'db_create',
+              description: 'Create a new record in a table',
+              inputSchema: {
+                type: 'object',
+                properties: {
+                  table: { type: 'string', description: 'Table name' },
+                  data: { type: 'object', description: 'Record data' },
+                },
+                required: ['table', 'data'],
+              },
+            },
+            {
+              name: 'db_update',
+              description: 'Update an existing record by ID',
+              inputSchema: {
+                type: 'object',
+                properties: {
+                  table: { type: 'string', description: 'Table name' },
+                  id: { type: 'string', description: 'Record ID' },
+                  data: { type: 'object', description: 'Fields to update' },
+                },
+                required: ['table', 'id', 'data'],
+              },
+            },
+            {
+              name: 'db_delete',
+              description: 'Delete a record by ID',
+              inputSchema: {
+                type: 'object',
+                properties: {
+                  table: { type: 'string', description: 'Table name' },
+                  id: { type: 'string', description: 'Record ID' },
+                },
+                required: ['table', 'id'],
+              },
+            },
+          ],
+        }),
+        { status: 200 }
+      )
+    }
+
+    // Handle initialize method (MCP protocol handshake)
+    if (body.method === 'initialize') {
+      return Response.json(
+        jsonRpcSuccess(requestId, {
+          protocolVersion: '2024-11-05',
+          capabilities: {
+            tools: {},
+          },
+          serverInfo: {
+            name: 'jfriis',
+            version: '1.0.0',
+          },
+        }),
+        { status: 200 }
+      )
+    }
+
+    // Only support tools/call for tool execution
     if (body.method !== 'tools/call') {
       return Response.json(
         jsonRpcError(requestId, JSON_RPC_ERRORS.METHOD_NOT_FOUND, `Method not found: ${body.method}`),
