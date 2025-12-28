@@ -5,7 +5,7 @@
  * Located at /.well-known/mcp.json per MCP specification.
  */
 
-const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://jonfriis.com'
+const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://www.jonfriis.com'
 
 export async function GET() {
   const manifest = {
