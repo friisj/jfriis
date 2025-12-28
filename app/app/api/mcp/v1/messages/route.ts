@@ -2,7 +2,7 @@
  * Remote MCP HTTP endpoint
  * Handles JSON-RPC 2.0 requests for MCP tools
  *
- * Phase 2: Bearer token authentication via Supabase OAuth
+ * Phase 3: Role-based permissions (admin/editor)
  */
 import { createClient } from '@supabase/supabase-js'
 import {
@@ -20,6 +20,15 @@ import type {
   DbUpdateInput,
   DbDeleteInput,
 } from '@/lib/mcp/types'
+import {
+  canAccess,
+  getOperationType,
+  extractProjectId,
+  permissionDeniedError,
+  type McpUser,
+  type Role,
+} from '@/lib/mcp/permissions'
+import { checkRateLimit, getRateLimitHeaders } from '@/lib/mcp/rate-limit'
 
 // Create Supabase client with service role for database operations
 function getServiceClient() {
@@ -143,8 +152,39 @@ export async function POST(request: Request) {
       )
     }
 
-    // User is authenticated - store for later use (Phase 3 will use for permissions)
-    const _user = authResult.user
+    // Get Supabase client for DB operations and profile lookup
+    const supabase = getServiceClient()
+
+    // Fetch user profile to get role and assigned projects
+    const { data: profile, error: profileError } = await supabase
+      .from('profiles')
+      .select('role, assigned_projects')
+      .eq('id', authResult.user.id)
+      .single()
+
+    // Build McpUser with profile data (default to editor if no profile)
+    const mcpUser: McpUser = {
+      id: authResult.user.id,
+      email: authResult.user.email,
+      role: (profile?.role as Role) || 'editor',
+      assigned_projects: profile?.assigned_projects || [],
+    }
+
+    // Check rate limit
+    const rateLimitResult = await checkRateLimit(mcpUser.id)
+    if (!rateLimitResult.success) {
+      const retryAfter = Math.ceil((rateLimitResult.reset - Date.now()) / 1000)
+      return Response.json(
+        { error: 'Rate limit exceeded. Try again later.' },
+        {
+          status: 429,
+          headers: {
+            'Retry-After': String(retryAfter > 0 ? retryAfter : 60),
+            ...getRateLimitHeaders(rateLimitResult),
+          },
+        }
+      )
+    }
 
     // Parse request body
     let body: JsonRpcRequest
@@ -184,8 +224,35 @@ export async function POST(request: Request) {
       )
     }
 
-    // Get Supabase client (service role for DB operations)
-    const supabase = getServiceClient()
+    // Check permissions before executing tool
+    const operation = getOperationType(toolName)
+    const tableName = (toolArgs as { table?: string }).table || ''
+
+    // For write operations, we need to check project-level access
+    if (operation !== 'read') {
+      let projectId = extractProjectId(toolName, toolArgs as Record<string, unknown>)
+
+      // For update/delete, we may need to look up the existing record's project_id
+      if ((toolName === 'db_update' || toolName === 'db_delete') && !projectId && tableName) {
+        const recordId = (toolArgs as { id?: string }).id
+        if (recordId) {
+          const { data: existingRecord } = await supabase
+            .from(tableName)
+            .select('project_id')
+            .eq('id', recordId)
+            .single()
+          projectId = existingRecord?.project_id
+        }
+      }
+
+      if (!canAccess(mcpUser, operation, tableName, projectId)) {
+        const error = permissionDeniedError(operation, tableName)
+        return Response.json(
+          jsonRpcError(requestId, error.code, error.message),
+          { status: 200 }
+        )
+      }
+    }
 
     // Execute tool
     let result: unknown
@@ -196,23 +263,23 @@ export async function POST(request: Request) {
         break
 
       case 'db_query':
-        result = await dbQuery(supabase, toolArgs as DbQueryInput)
+        result = await dbQuery(supabase, toolArgs as unknown as DbQueryInput)
         break
 
       case 'db_get':
-        result = await dbGet(supabase, toolArgs as DbGetInput)
+        result = await dbGet(supabase, toolArgs as unknown as DbGetInput)
         break
 
       case 'db_create':
-        result = await dbCreate(supabase, toolArgs as DbCreateInput)
+        result = await dbCreate(supabase, toolArgs as unknown as DbCreateInput)
         break
 
       case 'db_update':
-        result = await dbUpdate(supabase, toolArgs as DbUpdateInput)
+        result = await dbUpdate(supabase, toolArgs as unknown as DbUpdateInput)
         break
 
       case 'db_delete':
-        result = await dbDelete(supabase, toolArgs as DbDeleteInput)
+        result = await dbDelete(supabase, toolArgs as unknown as DbDeleteInput)
         break
 
       default:

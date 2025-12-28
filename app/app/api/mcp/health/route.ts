@@ -3,10 +3,12 @@
  * Returns status of MCP dependencies
  */
 import { createClient } from '@supabase/supabase-js'
+import { kv } from '@vercel/kv'
 
 export async function GET() {
-  const checks: Record<string, boolean> = {
+  const checks: Record<string, boolean | null> = {
     database: false,
+    cache: null, // null means not configured
   }
 
   // Check database connectivity
@@ -26,14 +28,27 @@ export async function GET() {
     checks.database = false
   }
 
-  const allHealthy = Object.values(checks).every(Boolean)
+  // Check KV (rate limiting) connectivity
+  if (process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN) {
+    try {
+      await kv.ping()
+      checks.cache = true
+    } catch {
+      checks.cache = false
+    }
+  }
+  // If KV not configured, cache stays null (acceptable - rate limiting disabled)
+
+  // Database is required, cache is optional
+  const isHealthy = checks.database === true
+  const isDegraded = checks.cache === false // KV configured but failing
 
   return Response.json(
     {
-      status: allHealthy ? 'healthy' : 'degraded',
+      status: isHealthy ? (isDegraded ? 'degraded' : 'healthy') : 'unhealthy',
       checks,
       timestamp: new Date().toISOString(),
     },
-    { status: allHealthy ? 200 : 503 }
+    { status: isHealthy ? 200 : 503 }
   )
 }

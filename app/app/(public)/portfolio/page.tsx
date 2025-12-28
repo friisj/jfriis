@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase-server'
 import Link from 'next/link'
+import type { Project } from '@/lib/types/database'
 
 export default async function PortfolioPage() {
   const supabase = await createClient()
@@ -9,6 +10,7 @@ export default async function PortfolioPage() {
     .select('id, title, slug, description, type, status, start_date, end_date, tags, published_at')
     .eq('published', true)
     .order('start_date', { ascending: false, nullsFirst: false })
+    .returns<Project[]>()
 
   return (
     <div className="min-h-screen p-8">

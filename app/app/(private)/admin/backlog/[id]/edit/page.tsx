@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase-server'
 import { BacklogItemForm } from '@/components/admin/backlog-item-form'
 import { notFound } from 'next/navigation'
+import type { BacklogItem } from '@/lib/types/database'
 
 interface EditBacklogItemPageProps {
   params: Promise<{
@@ -16,7 +17,7 @@ export default async function EditBacklogItemPage({ params }: EditBacklogItemPag
     .from('backlog_items')
     .select('*')
     .eq('id', id)
-    .single()
+    .single<BacklogItem>()
 
   if (error || !item) {
     notFound()

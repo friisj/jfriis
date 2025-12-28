@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase-server'
 import Link from 'next/link'
+import type { LogEntry } from '@/lib/types/database'
 
 export default async function LogPage() {
   const supabase = await createClient()
@@ -9,6 +10,7 @@ export default async function LogPage() {
     .select('id, title, slug, content, entry_date, type, tags, published_at')
     .eq('published', true)
     .order('entry_date', { ascending: false })
+    .returns<LogEntry[]>()
 
   // Group entries by year
   const entriesByYear = entries?.reduce((acc, entry) => {

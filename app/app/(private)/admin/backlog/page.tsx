@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase-server'
 import Link from 'next/link'
+import type { BacklogItem } from '@/lib/types/database'
 
 export default async function AdminBacklogPage() {
   const supabase = await createClient()
@@ -8,6 +9,7 @@ export default async function AdminBacklogPage() {
     .from('backlog_items')
     .select('id, title, content, status, tags, created_at, updated_at')
     .order('created_at', { ascending: false })
+    .returns<BacklogItem[]>()
 
   if (error) {
     console.error('Error fetching backlog items:', error)

@@ -50,6 +50,9 @@ export const ProfileSchema = z.object({
   display_name: z.string().optional().nullable(),
   avatar_url: z.string().optional().nullable(),
   is_admin: z.boolean().default(false),
+  // Remote MCP role-based access
+  role: z.enum(['admin', 'editor']).default('editor'),
+  assigned_projects: z.array(z.string().uuid()).default([]),
   metadata: z.any().optional().nullable(),
 })
 

@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase-server'
 import { SpecimenForm } from '@/components/admin/specimen-form'
 import { notFound } from 'next/navigation'
+import type { Specimen } from '@/lib/types/database'
 
 interface EditSpecimenPageProps {
   params: Promise<{
@@ -16,7 +17,7 @@ export default async function EditSpecimenPage({ params }: EditSpecimenPageProps
     .from('specimens')
     .select('*')
     .eq('id', id)
-    .single()
+    .single<Specimen>()
 
   if (error || !specimen) {
     notFound()

@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase-server'
 import { ProjectForm } from '@/components/admin/project-form'
 import { notFound } from 'next/navigation'
+import type { Project } from '@/lib/types/database'
 
 interface EditProjectPageProps {
   params: Promise<{
@@ -16,7 +17,7 @@ export default async function EditProjectPage({ params }: EditProjectPageProps) 
     .from('projects')
     .select('*')
     .eq('id', id)
-    .single()
+    .single<Project>()
 
   if (error || !project) {
     notFound()

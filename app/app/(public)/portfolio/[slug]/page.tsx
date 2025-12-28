@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase-server'
 import { notFound } from 'next/navigation'
 import { MdxRenderer } from '@/components/mdx/mdx-renderer'
 import Link from 'next/link'
+import type { Project } from '@/lib/types/database'
 
 interface ProjectPageProps {
   params: Promise<{
@@ -18,7 +19,7 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
     .select('*')
     .eq('slug', slug)
     .eq('published', true)
-    .single()
+    .single<Project>()
 
   if (error || !project) {
     notFound()
@@ -28,6 +29,18 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
   const content = project.content?.markdown || ''
 
   // Fetch linked specimens
+  interface ProjectSpecimenLink {
+    specimen_id: string
+    position: number
+    specimens: {
+      id: string
+      title: string
+      slug: string
+      type?: string
+      description?: string
+    } | null
+  }
+
   const { data: specimenLinks } = await supabase
     .from('project_specimens')
     .select(`
@@ -43,6 +56,7 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
     `)
     .eq('project_id', project.id)
     .order('position')
+    .returns<ProjectSpecimenLink[]>()
 
   const linkedSpecimens = specimenLinks?.map(link => link.specimens).filter(Boolean) || []
 
@@ -145,7 +159,7 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
                       {specimen.description}
                     </p>
                   )}
-                </p>
+                </Link>
               ))}
             </div>
           </div>

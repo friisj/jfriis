@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase-server'
 import { LogEntryForm } from '@/components/admin/log-entry-form'
 import { notFound } from 'next/navigation'
+import type { LogEntry } from '@/lib/types/database'
 
 interface EditLogEntryPageProps {
   params: Promise<{
@@ -16,7 +17,7 @@ export default async function EditLogEntryPage({ params }: EditLogEntryPageProps
     .from('log_entries')
     .select('*')
     .eq('id', id)
-    .single()
+    .single<LogEntry>()
 
   if (error || !entry) {
     notFound()

@@ -2,11 +2,36 @@ import { createClient } from '@/lib/supabase-server'
 import { notFound } from 'next/navigation'
 import { MdxRenderer } from '@/components/mdx/mdx-renderer'
 import Link from 'next/link'
+import type { LogEntry } from '@/lib/types/database'
 
 interface LogEntryPageProps {
   params: Promise<{
     slug: string
   }>
+}
+
+interface SpecimenLink {
+  specimen_id: string
+  position: number
+  specimens: {
+    id: string
+    title: string
+    slug: string
+    type?: string
+    description?: string
+  } | null
+}
+
+interface ProjectLink {
+  project_id: string
+  projects: {
+    id: string
+    title: string
+    slug: string
+    type?: string
+    description?: string
+    status?: string
+  } | null
 }
 
 export default async function LogEntryPage({ params }: LogEntryPageProps) {
@@ -18,7 +43,7 @@ export default async function LogEntryPage({ params }: LogEntryPageProps) {
     .select('*')
     .eq('slug', slug)
     .eq('published', true)
-    .single()
+    .single<LogEntry>()
 
   if (error || !entry) {
     notFound()
@@ -43,6 +68,7 @@ export default async function LogEntryPage({ params }: LogEntryPageProps) {
     `)
     .eq('log_entry_id', entry.id)
     .order('position')
+    .returns<SpecimenLink[]>()
 
   const linkedSpecimens = specimenLinks?.map(link => link.specimens).filter(Boolean) || []
 
@@ -61,6 +87,7 @@ export default async function LogEntryPage({ params }: LogEntryPageProps) {
       )
     `)
     .eq('log_entry_id', entry.id)
+    .returns<ProjectLink[]>()
 
   const linkedProjects = projectLinks?.map(link => link.projects).filter(Boolean) || []
 
