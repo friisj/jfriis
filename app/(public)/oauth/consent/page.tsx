@@ -4,6 +4,10 @@
  * Displays authorization request details and allows user to approve/deny.
  * Works with Supabase OAuth 2.1 Server.
  */
+
+// Force dynamic rendering - this page requires runtime auth
+export const dynamic = 'force-dynamic'
+
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase-server'
 import { ConsentForm } from './consent-form'

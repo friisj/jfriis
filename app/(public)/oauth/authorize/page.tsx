@@ -5,6 +5,9 @@
  * them to approve or deny the authorization request.
  */
 
+// Force dynamic rendering - this page requires runtime cookies and auth
+export const dynamic = 'force-dynamic'
+
 import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase-server'
