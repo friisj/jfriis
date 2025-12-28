@@ -21,6 +21,8 @@ export async function GET() {
       // Our OAuth endpoints (backed by Supabase auth)
       authorization_url: `${BASE_URL}/api/oauth/authorize`,
       token_url: `${BASE_URL}/api/oauth/token`,
+      // Dynamic Client Registration endpoint (RFC 7591)
+      registration_url: `${BASE_URL}/register`,
       // PKCE required for public clients
       pkce_required: true,
     },
