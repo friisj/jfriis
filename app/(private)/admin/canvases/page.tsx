@@ -15,11 +15,13 @@ export default async function AdminCanvasesPage() {
   const supabase = await createClient()
 
   // Fetch counts for all canvas types in parallel
-  const [bmcResult, cpResult, vmResult, vpcResult] = await Promise.all([
+  const [bmcResult, cpResult, vmResult, vpcResult, assumptionsResult, leapOfFaithResult] = await Promise.all([
     supabase.from('business_model_canvases').select('id', { count: 'exact', head: true }),
     supabase.from('customer_profiles').select('id', { count: 'exact', head: true }),
     (supabase.from('value_maps') as any).select('id', { count: 'exact', head: true }),
     (supabase.from('value_proposition_canvases') as any).select('id', { count: 'exact', head: true }),
+    supabase.from('assumptions').select('id', { count: 'exact', head: true }),
+    supabase.from('assumptions').select('id', { count: 'exact', head: true }).eq('is_leap_of_faith', true),
   ])
 
   const canvasTypes: CanvasTypeCard[] = [
@@ -98,6 +100,37 @@ export default async function AdminCanvasesPage() {
               <p className="text-sm text-muted-foreground">{type.description}</p>
             </Link>
           ))}
+        </div>
+
+        {/* Assumptions Section */}
+        <div className="mt-8">
+          <h2 className="text-xl font-semibold mb-4">Validation</h2>
+          <Link
+            href="/admin/assumptions"
+            className="group rounded-lg border bg-card p-6 hover:border-primary/50 hover:bg-accent/50 transition-colors block"
+          >
+            <div className="flex items-start justify-between mb-4">
+              <div className="p-2 rounded-lg bg-muted text-muted-foreground group-hover:text-primary transition-colors">
+                <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+              <div className="text-right">
+                <span className="text-2xl font-bold text-muted-foreground group-hover:text-foreground transition-colors">
+                  {assumptionsResult.count ?? 0}
+                </span>
+                {(leapOfFaithResult.count ?? 0) > 0 && (
+                  <div className="text-xs text-amber-600 dark:text-amber-400 mt-1">
+                    {leapOfFaithResult.count} leaps of faith
+                  </div>
+                )}
+              </div>
+            </div>
+            <h3 className="text-lg font-semibold mb-1">Assumptions</h3>
+            <p className="text-sm text-muted-foreground">
+              Track and validate assumptions from your business model and value propositions
+            </p>
+          </Link>
         </div>
 
         <div className="mt-8 p-4 rounded-lg border bg-muted/50">
