@@ -1,6 +1,13 @@
 # Studio Project Registry
 
-> **Last updated:** 2025-12-27
+> ⚠️ **DEPRECATED:** This markdown registry has been replaced by the `studio_projects` database table.
+> Use MCP tools (`db_query`, `db_update`) or the admin UI at `/admin/studio` to manage projects.
+> See `docs/infrastructure/STUDIO_PROJECT_PROTOCOL.md` for the new workflow.
+> This file is kept for reference only and will not be updated.
+
+---
+
+> **Last updated:** 2025-12-27 (FINAL - migrated to database)
 > **Quick pulse:** DST hot (Phase 5). ES paused. Hando (home platform) starting with Twin (digital building model). Trux (new project) in planning.
 
 ---
