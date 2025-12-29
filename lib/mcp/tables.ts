@@ -90,6 +90,18 @@ import {
   CustomerProfileUpdateSchema,
 } from './schemas/strategyzer'
 
+import {
+  AssumptionSchema,
+  AssumptionCreateSchema,
+  AssumptionUpdateSchema,
+  AssumptionExperimentSchema,
+  AssumptionExperimentCreateSchema,
+  AssumptionExperimentUpdateSchema,
+  AssumptionEvidenceSchema,
+  AssumptionEvidenceCreateSchema,
+  AssumptionEvidenceUpdateSchema,
+} from './schemas/assumptions'
+
 export interface TableDefinition {
   description: string
   schema: z.ZodObject<any>
@@ -276,6 +288,32 @@ export const tables: Record<string, TableDefinition> = {
     createSchema: CustomerProfileCreateSchema,
     updateSchema: CustomerProfileUpdateSchema,
     hasSlug: true,
+    hasProjectId: false, // Admin only
+  },
+
+  // Assumption tables (Teresa Torres, David Bland, Strategyzer methodologies)
+  assumptions: {
+    description: 'Testable assumptions extracted from canvases and hypotheses',
+    schema: AssumptionSchema,
+    createSchema: AssumptionCreateSchema,
+    updateSchema: AssumptionUpdateSchema,
+    hasSlug: true,
+    hasProjectId: false, // Admin only
+  },
+  assumption_experiments: {
+    description: 'Junction table linking assumptions to experiments with results',
+    schema: AssumptionExperimentSchema,
+    createSchema: AssumptionExperimentCreateSchema,
+    updateSchema: AssumptionExperimentUpdateSchema,
+    hasSlug: false,
+    hasProjectId: false, // Admin only
+  },
+  assumption_evidence: {
+    description: 'Evidence collected for or against assumptions',
+    schema: AssumptionEvidenceSchema,
+    createSchema: AssumptionEvidenceCreateSchema,
+    updateSchema: AssumptionEvidenceUpdateSchema,
+    hasSlug: false,
     hasProjectId: false, // Admin only
   },
 }

@@ -405,6 +405,71 @@ export interface CustomerProfile extends BaseCanvas {
 export type CustomerProfileInsert = Omit<CustomerProfile, keyof BaseRecord>
 export type CustomerProfileUpdate = Partial<CustomerProfileInsert>
 
+// Assumptions (first-class entities for hypothesis testing)
+export type AssumptionCategory = 'desirability' | 'viability' | 'feasibility' | 'usability' | 'ethical'
+export type AssumptionImportance = 'critical' | 'high' | 'medium' | 'low'
+export type AssumptionEvidenceLevel = 'none' | 'weak' | 'moderate' | 'strong'
+export type AssumptionStatus = 'identified' | 'prioritized' | 'testing' | 'validated' | 'invalidated' | 'archived'
+export type AssumptionSourceType = 'business_model_canvas' | 'value_map' | 'customer_profile' | 'value_proposition_canvas' | 'opportunity' | 'solution' | 'manual'
+
+export interface Assumption extends BaseRecord {
+  slug: string
+  statement: string
+  category: AssumptionCategory
+  importance: AssumptionImportance
+  evidence_level: AssumptionEvidenceLevel
+  status: AssumptionStatus
+  is_leap_of_faith: boolean
+  studio_project_id?: string
+  hypothesis_id?: string
+  source_type?: AssumptionSourceType
+  source_id?: string
+  source_block?: string
+  validation_criteria?: string
+  validated_at?: string
+  invalidated_at?: string
+  decision?: string
+  decision_notes?: string
+  notes?: string
+  tags: string[]
+  metadata: any
+}
+
+export type AssumptionInsert = Omit<Assumption, keyof BaseRecord | 'is_leap_of_faith'>
+export type AssumptionUpdate = Partial<AssumptionInsert>
+
+// Assumption-Experiment Junction
+export type AssumptionExperimentResult = 'supports' | 'refutes' | 'inconclusive'
+
+export interface AssumptionExperiment extends BaseRecord {
+  assumption_id: string
+  experiment_id: string
+  result?: AssumptionExperimentResult
+  confidence?: 'low' | 'medium' | 'high'
+  notes?: string
+}
+
+export type AssumptionExperimentInsert = Omit<AssumptionExperiment, keyof BaseRecord>
+export type AssumptionExperimentUpdate = Partial<AssumptionExperimentInsert>
+
+// Assumption Evidence
+export type AssumptionEvidenceType = 'interview' | 'survey' | 'analytics' | 'experiment' | 'observation' | 'research' | 'competitor' | 'expert'
+
+export interface AssumptionEvidence extends BaseRecord {
+  assumption_id: string
+  evidence_type: AssumptionEvidenceType
+  title: string
+  summary?: string
+  url?: string
+  supports_assumption?: boolean
+  confidence?: 'low' | 'medium' | 'high'
+  collected_at?: string
+  metadata: any
+}
+
+export type AssumptionEvidenceInsert = Omit<AssumptionEvidence, keyof BaseRecord>
+export type AssumptionEvidenceUpdate = Partial<AssumptionEvidenceInsert>
+
 // Database schema (for type-safe table references)
 export interface Database {
   public: {
@@ -513,6 +578,21 @@ export interface Database {
         Row: CustomerProfile
         Insert: CustomerProfileInsert
         Update: CustomerProfileUpdate
+      }
+      assumptions: {
+        Row: Assumption
+        Insert: AssumptionInsert
+        Update: AssumptionUpdate
+      }
+      assumption_experiments: {
+        Row: AssumptionExperiment
+        Insert: AssumptionExperimentInsert
+        Update: AssumptionExperimentUpdate
+      }
+      assumption_evidence: {
+        Row: AssumptionEvidence
+        Insert: AssumptionEvidenceInsert
+        Update: AssumptionEvidenceUpdate
       }
     }
   }

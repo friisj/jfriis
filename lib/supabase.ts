@@ -1,5 +1,5 @@
 import { createBrowserClient } from '@supabase/ssr'
-import type { Database } from './types/database'
+import type { Database } from './types/supabase'
 
 // Lazy initialize the Supabase client to avoid errors during build-time prerender
 let _supabase: ReturnType<typeof createBrowserClient<Database>> | null = null
