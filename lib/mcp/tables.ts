@@ -63,6 +63,18 @@ import {
   LogEntryProjectUpdateSchema,
 } from './schemas/junctions'
 
+import {
+  StudioProjectSchema,
+  StudioProjectCreateSchema,
+  StudioProjectUpdateSchema,
+  StudioHypothesisSchema,
+  StudioHypothesisCreateSchema,
+  StudioHypothesisUpdateSchema,
+  StudioExperimentSchema,
+  StudioExperimentCreateSchema,
+  StudioExperimentUpdateSchema,
+} from './schemas/studio'
+
 export interface TableDefinition {
   description: string
   schema: z.ZodObject<any>
@@ -190,6 +202,32 @@ export const tables: Record<string, TableDefinition> = {
     updateSchema: LogEntryProjectUpdateSchema,
     hasSlug: false,
     hasProjectId: true, // Has project_id directly
+  },
+
+  // Studio tables
+  studio_projects: {
+    description: 'Studio workshop projects with PRD fields',
+    schema: StudioProjectSchema,
+    createSchema: StudioProjectCreateSchema,
+    updateSchema: StudioProjectUpdateSchema,
+    hasSlug: true,
+    hasProjectId: false, // Admin only
+  },
+  studio_hypotheses: {
+    description: 'Testable hypotheses within studio projects',
+    schema: StudioHypothesisSchema,
+    createSchema: StudioHypothesisCreateSchema,
+    updateSchema: StudioHypothesisUpdateSchema,
+    hasSlug: false,
+    hasProjectId: false, // Admin only
+  },
+  studio_experiments: {
+    description: 'Experiments that test studio hypotheses',
+    schema: StudioExperimentSchema,
+    createSchema: StudioExperimentCreateSchema,
+    updateSchema: StudioExperimentUpdateSchema,
+    hasSlug: true,
+    hasProjectId: false, // Admin only
   },
 }
 

@@ -49,6 +49,8 @@ export interface LogEntry extends BaseRecord {
   seo_description?: string
   published: boolean
   published_at?: string
+  studio_project_id?: string
+  studio_experiment_id?: string
 }
 
 export type LogEntryInsert = Omit<LogEntry, keyof BaseRecord | 'published_at'>
@@ -77,6 +79,7 @@ export interface Specimen extends BaseRecord {
   tags?: string[]
   metadata?: any
   published: boolean
+  studio_project_id?: string
 }
 
 export type SpecimenInsert = Omit<Specimen, keyof BaseRecord>
@@ -224,6 +227,53 @@ export interface LogEntryProject {
   created_at: string
 }
 
+// Studio Projects
+export interface StudioProject extends BaseRecord {
+  slug: string
+  name: string
+  description?: string
+  status: 'draft' | 'active' | 'paused' | 'completed' | 'archived'
+  temperature?: 'hot' | 'warm' | 'cold'
+  current_focus?: string
+  problem_statement?: string
+  hypothesis?: string
+  success_criteria?: string
+  scope_out?: string
+  path?: string
+  scaffolded_at?: string
+}
+
+export type StudioProjectInsert = Omit<StudioProject, keyof BaseRecord>
+export type StudioProjectUpdate = Partial<StudioProjectInsert>
+
+// Studio Hypotheses
+export interface StudioHypothesis extends BaseRecord {
+  project_id: string
+  statement: string
+  validation_criteria?: string
+  sequence: number
+  status: 'proposed' | 'testing' | 'validated' | 'invalidated'
+}
+
+export type StudioHypothesisInsert = Omit<StudioHypothesis, keyof BaseRecord>
+export type StudioHypothesisUpdate = Partial<StudioHypothesisInsert>
+
+// Studio Experiments
+export interface StudioExperiment extends BaseRecord {
+  project_id: string
+  hypothesis_id?: string
+  slug: string
+  name: string
+  description?: string
+  type: 'spike' | 'experiment' | 'prototype'
+  status: 'planned' | 'in_progress' | 'completed' | 'abandoned'
+  outcome?: 'success' | 'failure' | 'inconclusive'
+  learnings?: string
+}
+
+export type StudioExperimentInsert = Omit<StudioExperiment, keyof BaseRecord>
+export type StudioExperimentUpdate = Partial<StudioExperimentInsert>
+
 // Database schema (for type-safe table references)
 export interface Database {
   public: {
@@ -297,6 +347,21 @@ export interface Database {
         Row: LogEntryProject
         Insert: Omit<LogEntryProject, 'id' | 'created_at'>
         Update: Partial<Omit<LogEntryProject, 'id' | 'created_at'>>
+      }
+      studio_projects: {
+        Row: StudioProject
+        Insert: StudioProjectInsert
+        Update: StudioProjectUpdate
+      }
+      studio_hypotheses: {
+        Row: StudioHypothesis
+        Insert: StudioHypothesisInsert
+        Update: StudioHypothesisUpdate
+      }
+      studio_experiments: {
+        Row: StudioExperiment
+        Insert: StudioExperimentInsert
+        Update: StudioExperimentUpdate
       }
     }
   }
