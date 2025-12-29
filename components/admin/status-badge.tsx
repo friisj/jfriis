@@ -1,6 +1,5 @@
 interface StatusBadgeProps {
   value: string
-  variant?: 'default' | 'subtle'
   colorMap?: Record<string, string>
 }
 
@@ -24,7 +23,7 @@ const defaultColorMap: Record<string, string> = {
   update: 'bg-green-500/10 text-green-700 dark:text-green-400',
 }
 
-export function StatusBadge({ value, variant = 'default', colorMap }: StatusBadgeProps) {
+export function StatusBadge({ value, colorMap }: StatusBadgeProps) {
   const colors = colorMap || defaultColorMap
   const colorClass = colors[value.toLowerCase()] || colors.draft
 

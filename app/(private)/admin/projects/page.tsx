@@ -2,10 +2,13 @@ export const dynamic = 'force-dynamic'
 
 import { createClient } from '@/lib/supabase-server'
 import Link from 'next/link'
-import { AdminListLayout } from '@/components/admin/admin-list-layout'
-import { AdminTable, AdminTableColumn } from '@/components/admin/admin-table'
-import { AdminEmptyState } from '@/components/admin/admin-empty-state'
-import { StatusBadge } from '@/components/admin/status-badge'
+import {
+  AdminListLayout,
+  AdminTable,
+  AdminTableColumn,
+  AdminEmptyState,
+  StatusBadge,
+} from '@/components/admin'
 import { formatDate } from '@/lib/utils'
 
 interface Project {
@@ -17,6 +20,8 @@ interface Project {
   published: boolean
   created_at: string
   updated_at: string
+  project_specimens?: Array<{ count: number }>
+  log_entry_projects?: Array<{ count: number }>
 }
 
 export default async function AdminProjectsPage() {
@@ -69,8 +74,8 @@ export default async function AdminProjectsPage() {
       header: 'Links',
       cell: (project) => (
         <div className="flex flex-col gap-1 text-xs text-muted-foreground">
-          <span>{(project as any).project_specimens?.[0]?.count || 0} specimens</span>
-          <span>{(project as any).log_entry_projects?.[0]?.count || 0} log entries</span>
+          <span>{project.project_specimens?.[0]?.count || 0} specimens</span>
+          <span>{project.log_entry_projects?.[0]?.count || 0} log entries</span>
         </div>
       ),
     },
@@ -114,7 +119,7 @@ export default async function AdminProjectsPage() {
       actionLabel="New Project"
     >
       {projects && projects.length > 0 ? (
-        <AdminTable columns={columns} data={projects} getRowKey={(p) => p.id} />
+        <AdminTable columns={columns} data={projects} />
       ) : (
         <AdminEmptyState
           icon={

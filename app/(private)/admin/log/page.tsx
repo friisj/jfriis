@@ -2,10 +2,13 @@ export const dynamic = 'force-dynamic'
 
 import { createClient } from '@/lib/supabase-server'
 import Link from 'next/link'
-import { AdminListLayout } from '@/components/admin/admin-list-layout'
-import { AdminTable, AdminTableColumn } from '@/components/admin/admin-table'
-import { AdminEmptyState } from '@/components/admin/admin-empty-state'
-import { StatusBadge } from '@/components/admin/status-badge'
+import {
+  AdminListLayout,
+  AdminTable,
+  AdminTableColumn,
+  AdminEmptyState,
+  StatusBadge,
+} from '@/components/admin'
 import { formatDate } from '@/lib/utils'
 
 interface LogEntry {
@@ -17,6 +20,8 @@ interface LogEntry {
   published: boolean
   created_at: string
   updated_at: string
+  log_entry_specimens?: Array<{ count: number }>
+  log_entry_projects?: Array<{ count: number }>
 }
 
 export default async function AdminLogPage() {
@@ -69,8 +74,8 @@ export default async function AdminLogPage() {
       header: 'Links',
       cell: (entry) => (
         <div className="flex flex-col gap-1 text-xs text-muted-foreground">
-          <span>{(entry as any).log_entry_specimens?.[0]?.count || 0} specimens</span>
-          <span>{(entry as any).log_entry_projects?.[0]?.count || 0} projects</span>
+          <span>{entry.log_entry_specimens?.[0]?.count || 0} specimens</span>
+          <span>{entry.log_entry_projects?.[0]?.count || 0} projects</span>
         </div>
       ),
     },
@@ -110,7 +115,7 @@ export default async function AdminLogPage() {
       actionLabel="New Entry"
     >
       {logEntries && logEntries.length > 0 ? (
-        <AdminTable columns={columns} data={logEntries} getRowKey={(e) => e.id} />
+        <AdminTable columns={columns} data={logEntries} />
       ) : (
         <AdminEmptyState
           icon={

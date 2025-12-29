@@ -9,16 +9,16 @@ export interface AdminTableColumn<T = any> {
   align?: 'left' | 'right' | 'center'
 }
 
-interface AdminTableProps<T = any> {
+interface AdminTableProps<T extends { id: string } = any> {
   columns: AdminTableColumn<T>[]
   data: T[]
-  getRowKey: (row: T) => string
+  getRowKey?: (row: T) => string
 }
 
-export function AdminTable<T = any>({
+export function AdminTable<T extends { id: string } = any>({
   columns,
   data,
-  getRowKey,
+  getRowKey = (row) => row.id,
 }: AdminTableProps<T>) {
   const getAlignClass = (align?: 'left' | 'right' | 'center') => {
     if (align === 'right') return 'text-right'
@@ -45,9 +45,9 @@ export function AdminTable<T = any>({
         <table className="w-full">
           <thead className="border-b bg-muted/50">
             <tr>
-              {columns.map((column, idx) => (
+              {columns.map((column) => (
                 <th
-                  key={idx}
+                  key={column.header}
                   className={`px-6 py-3 text-sm font-medium ${getAlignClass(column.align)} ${column.headerClassName || ''}`}
                 >
                   {column.header}
@@ -58,9 +58,9 @@ export function AdminTable<T = any>({
           <tbody className="divide-y">
             {data.map((row) => (
               <tr key={getRowKey(row)} className="hover:bg-accent transition-colors">
-                {columns.map((column, idx) => (
+                {columns.map((column) => (
                   <td
-                    key={idx}
+                    key={column.header}
                     className={`px-6 py-4 ${getAlignClass(column.align)} ${column.cellClassName || ''}`}
                   >
                     {getCellValue(row, column)}

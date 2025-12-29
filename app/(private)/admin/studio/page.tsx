@@ -2,10 +2,13 @@ export const dynamic = 'force-dynamic'
 
 import { createClient } from '@/lib/supabase-server'
 import Link from 'next/link'
-import { AdminListLayout } from '@/components/admin/admin-list-layout'
-import { AdminTable, AdminTableColumn } from '@/components/admin/admin-table'
-import { AdminEmptyState } from '@/components/admin/admin-empty-state'
-import { StatusBadge } from '@/components/admin/status-badge'
+import {
+  AdminListLayout,
+  AdminTable,
+  AdminTableColumn,
+  AdminEmptyState,
+  StatusBadge,
+} from '@/components/admin'
 import { formatDate } from '@/lib/utils'
 
 interface StudioProject {
@@ -134,7 +137,7 @@ export default async function AdminStudioPage() {
       actionLabel="New Project"
     >
       {projects && projects.length > 0 ? (
-        <AdminTable columns={columns} data={projects} getRowKey={(p) => p.id} />
+        <AdminTable columns={columns} data={projects} />
       ) : (
         <AdminEmptyState
           icon={
