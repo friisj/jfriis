@@ -1,6 +1,7 @@
-export const dynamic = 'force-dynamic'
+'use client'
 
-import { createClient } from '@/lib/supabase-server'
+import { useEffect, useState } from 'react'
+import { supabase } from '@/lib/supabase'
 import Link from 'next/link'
 import {
   AdminListLayout,
@@ -32,29 +33,47 @@ const profileTypeLabels: Record<string, string> = {
   icp: 'ICP',
 }
 
-export default async function AdminCustomerProfilesPage() {
-  const supabase = await createClient()
+export default function AdminCustomerProfilesPage() {
+  const [profiles, setProfiles] = useState<CustomerProfile[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
-  const { data: profiles, error } = await supabase
-    .from('customer_profiles')
-    .select(`
-      id,
-      slug,
-      name,
-      description,
-      status,
-      profile_type,
-      validation_confidence,
-      studio_project_id,
-      created_at,
-      updated_at,
-      studio_project:studio_projects(name)
-    `)
-    .order('updated_at', { ascending: false })
+  useEffect(() => {
+    async function fetchData() {
+      const { data, error } = await supabase
+        .from('customer_profiles')
+        .select(`
+          id,
+          slug,
+          name,
+          description,
+          status,
+          profile_type,
+          validation_confidence,
+          studio_project_id,
+          created_at,
+          updated_at,
+          studio_project:studio_projects(name)
+        `)
+        .order('updated_at', { ascending: false })
+
+      if (error) {
+        console.error('Error fetching customer profiles:', error)
+        setError('Error loading customer profiles')
+      } else {
+        setProfiles(data || [])
+      }
+      setLoading(false)
+    }
+    fetchData()
+  }, [])
+
+  if (loading) {
+    return <div className="p-8">Loading...</div>
+  }
 
   if (error) {
-    console.error('Error fetching customer profiles:', error)
-    return <div className="p-8">Error loading customer profiles</div>
+    return <div className="p-8">{error}</div>
   }
 
   const columns: AdminTableColumn<CustomerProfile>[] = [
@@ -134,7 +153,7 @@ export default async function AdminCustomerProfilesPage() {
       actionHref="/admin/canvases/customer-profiles/new"
       actionLabel="New Profile"
     >
-      {profiles && profiles.length > 0 ? (
+      {profiles.length > 0 ? (
         <AdminTable columns={columns} data={profiles} />
       ) : (
         <AdminEmptyState

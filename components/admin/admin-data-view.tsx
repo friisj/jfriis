@@ -1,3 +1,5 @@
+'use client'
+
 import { ReactNode } from 'react'
 import { TableView, TableViewConfig } from './views/table-view'
 import { ViewSwitcher } from './views/view-switcher'

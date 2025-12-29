@@ -1,6 +1,7 @@
-export const dynamic = 'force-dynamic'
+'use client'
 
-import { createClient } from '@/lib/supabase-server'
+import { useEffect, useState } from 'react'
+import { supabase } from '@/lib/supabase'
 import Link from 'next/link'
 import {
   AdminListLayout,
@@ -25,29 +26,47 @@ interface ValueMap {
   business_model_canvas?: { name: string } | null
 }
 
-export default async function AdminValueMapsPage() {
-  const supabase = await createClient()
+export default function AdminValueMapsPage() {
+  const [valueMaps, setValueMaps] = useState<ValueMap[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
-  const { data: valueMaps, error } = await (supabase
-    .from('value_maps') as any)
-    .select(`
-      id,
-      slug,
-      name,
-      description,
-      status,
-      studio_project_id,
-      business_model_canvas_id,
-      created_at,
-      updated_at,
-      studio_project:studio_projects(name),
-      business_model_canvas:business_model_canvases(name)
-    `)
-    .order('updated_at', { ascending: false })
+  useEffect(() => {
+    async function fetchData() {
+      const { data, error } = await (supabase
+        .from('value_maps') as any)
+        .select(`
+          id,
+          slug,
+          name,
+          description,
+          status,
+          studio_project_id,
+          business_model_canvas_id,
+          created_at,
+          updated_at,
+          studio_project:studio_projects(name),
+          business_model_canvas:business_model_canvases(name)
+        `)
+        .order('updated_at', { ascending: false })
+
+      if (error) {
+        console.error('Error fetching value maps:', error)
+        setError('Error loading value maps')
+      } else {
+        setValueMaps(data || [])
+      }
+      setLoading(false)
+    }
+    fetchData()
+  }, [])
+
+  if (loading) {
+    return <div className="p-8">Loading...</div>
+  }
 
   if (error) {
-    console.error('Error fetching value maps:', error)
-    return <div className="p-8">Error loading value maps</div>
+    return <div className="p-8">{error}</div>
   }
 
   const columns: AdminTableColumn<ValueMap>[] = [
@@ -69,9 +88,17 @@ export default async function AdminValueMapsPage() {
     {
       key: 'bmc',
       header: 'Linked BMC',
-      cell: (vm) => (
-        <span className="text-sm text-muted-foreground">{vm.business_model_canvas?.name || '-'}</span>
-      ),
+      cell: (vm) =>
+        vm.business_model_canvas?.name ? (
+          <Link
+            href={`/admin/canvases/business-models/${vm.business_model_canvas_id}/edit`}
+            className="text-sm text-primary hover:underline"
+          >
+            {vm.business_model_canvas.name}
+          </Link>
+        ) : (
+          <span className="text-sm text-muted-foreground">-</span>
+        ),
     },
     {
       key: 'project',
@@ -109,7 +136,7 @@ export default async function AdminValueMapsPage() {
       actionHref="/admin/canvases/value-maps/new"
       actionLabel="New Value Map"
     >
-      {valueMaps && valueMaps.length > 0 ? (
+      {valueMaps.length > 0 ? (
         <AdminTable columns={columns} data={valueMaps} />
       ) : (
         <AdminEmptyState

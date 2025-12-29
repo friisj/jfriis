@@ -1,6 +1,7 @@
-export const dynamic = 'force-dynamic'
+'use client'
 
-import { createClient } from '@/lib/supabase-server'
+import { useEffect, useState } from 'react'
+import { supabase } from '@/lib/supabase'
 import Link from 'next/link'
 import {
   AdminListLayout,
@@ -24,28 +25,46 @@ interface BusinessModelCanvas {
   studio_project?: { name: string } | null
 }
 
-export default async function AdminBusinessModelsPage() {
-  const supabase = await createClient()
+export default function AdminBusinessModelsPage() {
+  const [canvases, setCanvases] = useState<BusinessModelCanvas[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
-  const { data: canvases, error } = await supabase
-    .from('business_model_canvases')
-    .select(`
-      id,
-      slug,
-      name,
-      description,
-      status,
-      version,
-      studio_project_id,
-      created_at,
-      updated_at,
-      studio_project:studio_projects(name)
-    `)
-    .order('updated_at', { ascending: false })
+  useEffect(() => {
+    async function fetchData() {
+      const { data, error } = await supabase
+        .from('business_model_canvases')
+        .select(`
+          id,
+          slug,
+          name,
+          description,
+          status,
+          version,
+          studio_project_id,
+          created_at,
+          updated_at,
+          studio_project:studio_projects(name)
+        `)
+        .order('updated_at', { ascending: false })
+
+      if (error) {
+        console.error('Error fetching business model canvases:', error)
+        setError('Error loading business model canvases')
+      } else {
+        setCanvases(data || [])
+      }
+      setLoading(false)
+    }
+    fetchData()
+  }, [])
+
+  if (loading) {
+    return <div className="p-8">Loading...</div>
+  }
 
   if (error) {
-    console.error('Error fetching business model canvases:', error)
-    return <div className="p-8">Error loading business model canvases</div>
+    return <div className="p-8">{error}</div>
   }
 
   const columns: AdminTableColumn<BusinessModelCanvas>[] = [
@@ -110,7 +129,7 @@ export default async function AdminBusinessModelsPage() {
       actionHref="/admin/canvases/business-models/new"
       actionLabel="New Canvas"
     >
-      {canvases && canvases.length > 0 ? (
+      {canvases.length > 0 ? (
         <AdminTable columns={columns} data={canvases} />
       ) : (
         <AdminEmptyState
