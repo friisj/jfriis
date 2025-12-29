@@ -26,6 +26,28 @@
 
 ---
 
+## Workflow
+
+### Capture → Shape → Scaffold
+
+| Environment | Role |
+|-------------|------|
+| **MCP (anywhere)** | Capture ideas, shape PRD fields conversationally |
+| **Claude Code** | Scaffold when ready to work |
+
+**Status progression:**
+```
+draft → active → paused/completed/archived
+  ↑        ↑
+(MCP)  (Claude Code scaffolds)
+```
+
+1. **Capture** via MCP → `studio_projects` row (status: `draft`)
+2. **Shape** over time via MCP → fill PRD fields, notes, hypotheses
+3. **Scaffold** in Claude Code → create directories, files, routes (status: `active`, `scaffolded_at` set)
+
+---
+
 ## Planned Improvements
 
 ### 1. Migrate Registry to Supabase
@@ -35,22 +57,35 @@
 **Tables:**
 
 ```sql
--- Core project registry
 studio_projects (
-  id, slug, name, description,
-  status,        -- planning, active, paused, archived
-  temperature,   -- hot, warm, cold
-  current_focus,
-  path,          -- components/studio/{slug}/
-  created_at, updated_at
-)
+  id UUID PRIMARY KEY,
+  slug TEXT UNIQUE,
+  name TEXT,
+  description TEXT,
 
--- Optional: keep markdown snapshot auto-generated for quick reference
+  -- Status
+  status TEXT,           -- draft, active, paused, completed, archived
+  temperature TEXT,      -- hot, warm, cold
+  current_focus TEXT,
+
+  -- PRD fields
+  problem_statement TEXT,
+  hypothesis TEXT,
+  success_criteria TEXT,
+  scope_out TEXT,
+
+  -- Scaffolding
+  path TEXT,             -- components/studio/{slug}/
+  scaffolded_at TIMESTAMPTZ,
+
+  created_at TIMESTAMPTZ,
+  updated_at TIMESTAMPTZ
+)
 ```
 
 **Benefits:**
 - Projects can be related to experiments, logs, specimens
-- Query via MCP ("show me all active projects")
+- Query via MCP ("show me all draft projects")
 - Easier to update (no file editing)
 - Studio-mgr agent can read current state
 
@@ -178,14 +213,60 @@ What we discovered.
 
 ---
 
+### 6. Bidirectional Links to Other Entities
+
+**Studio projects should link to:**
+- `log_entries` (writing about the project)
+- `specimens` (visual artifacts from the project)
+- `studio_experiments` (experiments within the project)
+- `studio_hypotheses` (hypotheses being tested)
+
+**Implementation:**
+
+Option A: Junction tables
+```sql
+studio_project_log_entries (project_id, log_entry_id)
+studio_project_specimens (project_id, specimen_id)
+```
+
+Option B: Add `studio_project_id` FK to existing tables
+```sql
+ALTER TABLE log_entries ADD COLUMN studio_project_id UUID REFERENCES studio_projects(id);
+ALTER TABLE specimens ADD COLUMN studio_project_id UUID REFERENCES studio_projects(id);
+```
+
+**Recommendation:** Option B is simpler. One project per log/specimen. Can query both directions.
+
+---
+
+### 7. Admin UI for Studio Projects
+
+**Location:** `/admin/studio` or extend existing admin
+
+**Features:**
+- List all studio projects (filter by status, temperature)
+- Edit project details, PRD fields
+- View related entities (experiments, logs, specimens)
+- Quick actions: change status, update focus
+- Scaffold button (triggers Claude Code workflow description)
+
+**Views needed:**
+- Project list with status badges
+- Project detail/edit form
+- Related content panels
+
+---
+
 ## Implementation Order
 
 1. **Create DB tables** (projects, hypotheses, experiments, notes)
-2. **Migrate registry data** to `studio_projects`
-3. **Create templates** (PRD, roadmap, experiment README)
-4. **Update protocol** with new requirements
-5. **Build simple views** (list projects, list experiments)
-6. **Deprecate** markdown registry
+2. **Add FKs** to log_entries, specimens for bidirectional links
+3. **Migrate registry data** to `studio_projects`
+4. **Create templates** (PRD, roadmap, experiment README)
+5. **Update protocol** with new requirements
+6. **Build admin UI** for studio project management
+7. **Create Claude Code skill** for scaffolding
+8. **Deprecate** markdown registry
 
 ---
 
@@ -195,6 +276,7 @@ What we discovered.
 - How to handle sub-projects (Hando/Twin pattern)?
 - Auto-generate experiment READMEs from DB or keep manual?
 - Integration with log entries (experiment → spawns log post)?
+- Admin UI: separate section or integrated with existing admin?
 
 ---
 
