@@ -160,22 +160,28 @@ studio_experiments (
   learnings,       -- what we discovered
   created_at, updated_at
 )
-
--- Observations, notes, annotations
-studio_notes (
-  id,
-  parent_type,     -- project, hypothesis, experiment
-  parent_id,
-  content,
-  note_type,       -- observation, question, decision, feedback
-  created_at
-)
 ```
 
+**Notes via log_entries:**
+
+Instead of a separate `studio_notes` table, use existing `log_entries` with added FKs:
+
+```sql
+ALTER TABLE log_entries
+  ADD COLUMN studio_project_id UUID REFERENCES studio_projects(id),
+  ADD COLUMN studio_experiment_id UUID REFERENCES studio_experiments(id);
+```
+
+This enables:
+- **Substantive notes** become full log entries (published or draft)
+- **Quick observations** stay lightweight via experiment `learnings` field
+- **Bifurcation**: casual notes in learnings, substantial reflections in log
+
 **Benefits:**
-- Rich context is captured and queryable
+- Rich context captured in existing system
 - Learnings persist across sessions
-- Can review "what did we learn about X?"
+- Log entries can be published when ready
+- No new table to maintain
 - Hypotheses track validation state
 
 ---
@@ -213,8 +219,8 @@ Studio Project
 - Name, description, status from `studio_experiments`
 - Parent hypothesis and validation criteria
 - Outcome, learnings
-- Feedback/notes from `studio_notes`
-- State changes, logs
+- Related log entries (substantive notes, reflections)
+- State changes, status history
 
 **Directory structure:**
 
@@ -242,26 +248,29 @@ app/(studio)/{project}/
 ### 6. Bidirectional Links to Other Entities
 
 **Studio projects should link to:**
-- `log_entries` (writing about the project)
+- `log_entries` (writing about the project or experiments)
 - `specimens` (visual artifacts from the project)
 - `studio_experiments` (experiments within the project)
 - `studio_hypotheses` (hypotheses being tested)
 
-**Implementation:**
+**Implementation:** Add FKs to existing tables
 
-Option A: Junction tables
 ```sql
-studio_project_log_entries (project_id, log_entry_id)
-studio_project_specimens (project_id, specimen_id)
+-- Log entries can link to project and/or experiment
+ALTER TABLE log_entries
+  ADD COLUMN studio_project_id UUID REFERENCES studio_projects(id),
+  ADD COLUMN studio_experiment_id UUID REFERENCES studio_experiments(id);
+
+-- Specimens link to project
+ALTER TABLE specimens
+  ADD COLUMN studio_project_id UUID REFERENCES studio_projects(id);
 ```
 
-Option B: Add `studio_project_id` FK to existing tables
-```sql
-ALTER TABLE log_entries ADD COLUMN studio_project_id UUID REFERENCES studio_projects(id);
-ALTER TABLE specimens ADD COLUMN studio_project_id UUID REFERENCES studio_projects(id);
-```
-
-**Recommendation:** Option B is simpler. One project per log/specimen. Can query both directions.
+**Benefits:**
+- Simple FK approach (one project per log/specimen)
+- Log entries can be about the project generally OR a specific experiment
+- Query both directions easily
+- No junction tables to maintain
 
 ---
 
@@ -285,8 +294,8 @@ ALTER TABLE specimens ADD COLUMN studio_project_id UUID REFERENCES studio_projec
 
 ## Implementation Order
 
-1. **Create DB tables** (projects, hypotheses, experiments, notes)
-2. **Add FKs** to log_entries, specimens for bidirectional links
+1. **Create DB tables** (projects, hypotheses, experiments)
+2. **Add FKs** to log_entries (project + experiment), specimens (project)
 3. **Migrate registry data** to `studio_projects`
 4. **Create templates** (PRD, roadmap, experiment README)
 5. **Update protocol** with new requirements
@@ -298,11 +307,10 @@ ALTER TABLE specimens ADD COLUMN studio_project_id UUID REFERENCES studio_projec
 
 ## Open Questions
 
-- Should notes support threading/replies?
 - How to handle sub-projects (Hando/Twin pattern)?
 - Auto-generate experiment READMEs from DB or keep manual?
-- Integration with log entries (experiment → spawns log post)?
 - Admin UI: separate section or integrated with existing admin?
+- Should log entries linked to experiments auto-display on experiment page?
 
 ---
 
