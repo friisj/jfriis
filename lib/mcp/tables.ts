@@ -75,6 +75,18 @@ import {
   StudioExperimentUpdateSchema,
 } from './schemas/studio'
 
+import {
+  BusinessModelCanvasSchema,
+  BusinessModelCanvasCreateSchema,
+  BusinessModelCanvasUpdateSchema,
+  ValuePropositionCanvasSchema,
+  ValuePropositionCanvasCreateSchema,
+  ValuePropositionCanvasUpdateSchema,
+  CustomerProfileSchema,
+  CustomerProfileCreateSchema,
+  CustomerProfileUpdateSchema,
+} from './schemas/strategyzer'
+
 export interface TableDefinition {
   description: string
   schema: z.ZodObject<any>
@@ -226,6 +238,32 @@ export const tables: Record<string, TableDefinition> = {
     schema: StudioExperimentSchema,
     createSchema: StudioExperimentCreateSchema,
     updateSchema: StudioExperimentUpdateSchema,
+    hasSlug: true,
+    hasProjectId: false, // Admin only
+  },
+
+  // Strategyzer Canvas tables
+  business_model_canvases: {
+    description: 'Business Model Canvas (9-block framework)',
+    schema: BusinessModelCanvasSchema,
+    createSchema: BusinessModelCanvasCreateSchema,
+    updateSchema: BusinessModelCanvasUpdateSchema,
+    hasSlug: true,
+    hasProjectId: false, // Admin only
+  },
+  value_proposition_canvases: {
+    description: 'Value Proposition Canvas (customer profile + value map)',
+    schema: ValuePropositionCanvasSchema,
+    createSchema: ValuePropositionCanvasCreateSchema,
+    updateSchema: ValuePropositionCanvasUpdateSchema,
+    hasSlug: true,
+    hasProjectId: false, // Admin only
+  },
+  customer_profiles: {
+    description: 'Detailed customer segment profiles',
+    schema: CustomerProfileSchema,
+    createSchema: CustomerProfileCreateSchema,
+    updateSchema: CustomerProfileUpdateSchema,
     hasSlug: true,
     hasProjectId: false, // Admin only
   },

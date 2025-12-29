@@ -274,6 +274,116 @@ export interface StudioExperiment extends BaseRecord {
 export type StudioExperimentInsert = Omit<StudioExperiment, keyof BaseRecord>
 export type StudioExperimentUpdate = Partial<StudioExperimentInsert>
 
+// Strategyzer Canvas - Shared Types
+export interface CanvasBlockItem {
+  id: string
+  content: string
+  priority?: 'high' | 'medium' | 'low'
+  created_at: string
+  metadata?: {
+    source?: string
+    confidence?: 'low' | 'medium' | 'high'
+    tags?: string[]
+    [key: string]: any
+  }
+}
+
+export interface Assumption {
+  id: string
+  statement: string
+  criticality: 'high' | 'medium' | 'low'
+  tested: boolean
+  hypothesis_id?: string
+}
+
+export interface Evidence {
+  id: string
+  type: 'interview' | 'survey' | 'analytics' | 'experiment' | 'observation'
+  reference: string
+  summary: string
+  confidence: 'low' | 'medium' | 'high'
+  date: string
+}
+
+export interface CanvasBlock {
+  items: CanvasBlockItem[]
+  assumptions: Assumption[]
+  evidence?: Evidence[]
+  validation_status: 'untested' | 'testing' | 'validated' | 'invalidated'
+  validated_at?: string
+  notes?: string
+}
+
+interface BaseCanvas extends BaseRecord {
+  slug: string
+  name: string
+  description?: string
+  studio_project_id?: string
+  hypothesis_id?: string
+  status: 'draft' | 'active' | 'validated' | 'archived'
+  version: number
+  parent_version_id?: string
+  tags: string[]
+  metadata: any
+}
+
+// Business Model Canvas
+export interface BusinessModelCanvas extends BaseCanvas {
+  key_partners: CanvasBlock
+  key_activities: CanvasBlock
+  key_resources: CanvasBlock
+  value_propositions: CanvasBlock
+  customer_segments: CanvasBlock
+  customer_relationships: CanvasBlock
+  channels: CanvasBlock
+  cost_structure: CanvasBlock
+  revenue_streams: CanvasBlock
+  related_value_proposition_ids: string[]
+  related_customer_profile_ids: string[]
+}
+
+export type BusinessModelCanvasInsert = Omit<BusinessModelCanvas, keyof BaseRecord>
+export type BusinessModelCanvasUpdate = Partial<BusinessModelCanvasInsert>
+
+// Value Proposition Canvas
+export interface ValuePropositionCanvas extends BaseCanvas {
+  fit_score?: number
+  customer_jobs: CanvasBlock
+  pains: CanvasBlock
+  gains: CanvasBlock
+  products_services: CanvasBlock
+  pain_relievers: CanvasBlock
+  gain_creators: CanvasBlock
+  business_model_canvas_id?: string
+  customer_profile_id?: string
+}
+
+export type ValuePropositionCanvasInsert = Omit<ValuePropositionCanvas, keyof BaseRecord>
+export type ValuePropositionCanvasUpdate = Partial<ValuePropositionCanvasInsert>
+
+// Customer Profile
+export interface CustomerProfile extends BaseCanvas {
+  profile_type?: 'persona' | 'segment' | 'archetype' | 'icp'
+  demographics: any
+  psychographics: any
+  behaviors: any
+  jobs: CanvasBlock
+  pains: CanvasBlock & { severity?: Record<string, 'high' | 'medium' | 'low'> }
+  gains: CanvasBlock & { importance?: Record<string, 'high' | 'medium' | 'low'> }
+  environment: any
+  journey_stages: { items: any[] }
+  market_size_estimate?: string
+  addressable_percentage?: number
+  evidence_sources: { items: Evidence[] }
+  validation_confidence?: 'low' | 'medium' | 'high'
+  last_validated_at?: string
+  related_business_model_ids: string[]
+  related_value_proposition_ids: string[]
+}
+
+export type CustomerProfileInsert = Omit<CustomerProfile, keyof BaseRecord>
+export type CustomerProfileUpdate = Partial<CustomerProfileInsert>
+
 // Database schema (for type-safe table references)
 export interface Database {
   public: {
@@ -362,6 +472,21 @@ export interface Database {
         Row: StudioExperiment
         Insert: StudioExperimentInsert
         Update: StudioExperimentUpdate
+      }
+      business_model_canvases: {
+        Row: BusinessModelCanvas
+        Insert: BusinessModelCanvasInsert
+        Update: BusinessModelCanvasUpdate
+      }
+      value_proposition_canvases: {
+        Row: ValuePropositionCanvas
+        Insert: ValuePropositionCanvasInsert
+        Update: ValuePropositionCanvasUpdate
+      }
+      customer_profiles: {
+        Row: CustomerProfile
+        Insert: CustomerProfileInsert
+        Update: CustomerProfileUpdate
       }
     }
   }
