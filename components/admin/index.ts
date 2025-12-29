@@ -1,4 +1,6 @@
 export { AdminListLayout } from './admin-list-layout'
 export { AdminTable, type AdminTableColumn } from './admin-table'
+export { AdminDataView, type AdminDataViewProps } from './admin-data-view'
 export { AdminEmptyState } from './admin-empty-state'
 export { StatusBadge } from './status-badge'
+export { TableView, type TableViewConfig } from './views/table-view'
