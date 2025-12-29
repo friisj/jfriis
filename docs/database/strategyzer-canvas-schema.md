@@ -700,17 +700,17 @@ ORDER BY cp.validation_confidence DESC, cp.last_validated_at DESC;
 - Canvas export/import (JSON, PDF)
 - Template library for common business models
 
-## Open Questions
+## Design Decisions
 
-1. **Granular Permissions:** Should individual canvases support team-based access control, or rely on project-level permissions?
+**Permissions:** Simple admin-only access via `is_admin()`. No sophisticated per-canvas permissions needed.
 
-2. **Snapshot Frequency:** Should we auto-snapshot canvases at key milestones (e.g., when hypothesis status changes)?
+**Versioning:** Manual versioning only via `parent_version_id`. No automatic snapshots at milestones.
 
-3. **AI Integration:** Should we add fields for AI-generated insights or recommendations on canvases?
+**AI/LLM Augmentation:** Deferred for future. Will add AI-generated insights across all tables later.
 
-4. **Template System:** Should we create a separate `canvas_templates` table, or store templates as regular canvases with a `is_template` flag?
+**Templates:** Deferred for future. Can store as regular canvases with `is_template` metadata flag if needed.
 
-5. **Multi-tenant Support:** Current design assumes single-user (is_admin()). Future multi-tenant needs?
+**Multi-tenant:** Single-user design. Multi-tenant support deferred.
 
 ## References
 
