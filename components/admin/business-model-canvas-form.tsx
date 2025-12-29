@@ -3,10 +3,12 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
+import { AssumptionLinker } from './assumption-linker'
 
 interface CanvasBlock {
   items: string[]
-  assumptions: string[]
+  assumptions: string[] // Legacy text assumptions
+  assumption_ids: string[] // Linked assumption object IDs
   validation_status: 'untested' | 'testing' | 'validated' | 'invalidated'
 }
 
@@ -42,6 +44,7 @@ interface BusinessModelCanvasFormProps {
 const defaultBlock = (): CanvasBlock => ({
   items: [],
   assumptions: [],
+  assumption_ids: [],
   validation_status: 'untested',
 })
 
@@ -61,13 +64,18 @@ function CanvasBlockEditor({
   blockKey,
   value,
   onChange,
+  projectId,
 }: {
   blockKey: string
   value: CanvasBlock
   onChange: (value: CanvasBlock) => void
+  projectId?: string
 }) {
-  const [isOpen, setIsOpen] = useState(value.items.length > 0)
+  const [isOpen, setIsOpen] = useState(value.items.length > 0 || (value.assumption_ids?.length || 0) > 0)
   const label = BLOCK_LABELS[blockKey]
+
+  // Ensure assumption_ids exists (migration from old data)
+  const assumptionIds = value.assumption_ids || []
 
   return (
     <div className="rounded-lg border bg-card">
@@ -83,6 +91,11 @@ function CanvasBlockEditor({
         <div className="flex items-center gap-2">
           {value.items.length > 0 && (
             <span className="text-xs bg-muted px-2 py-1 rounded">{value.items.length} items</span>
+          )}
+          {assumptionIds.length > 0 && (
+            <span className="text-xs bg-amber-500/10 text-amber-700 dark:text-amber-400 px-2 py-1 rounded">
+              {assumptionIds.length} assumptions
+            </span>
           )}
           <svg
             className={`w-5 h-5 transition-transform ${isOpen ? 'rotate-180' : ''}`}
@@ -114,18 +127,18 @@ function CanvasBlockEditor({
           </div>
 
           <div>
-            <label className="block text-sm font-medium mb-1">Assumptions (one per line)</label>
-            <textarea
-              value={value.assumptions.join('\n')}
-              onChange={(e) =>
+            <label className="block text-sm font-medium mb-2">Linked Assumptions</label>
+            <AssumptionLinker
+              linkedIds={assumptionIds}
+              onChange={(ids) =>
                 onChange({
                   ...value,
-                  assumptions: e.target.value.split('\n').filter((item) => item.trim()),
+                  assumption_ids: ids,
                 })
               }
-              className="w-full px-3 py-2 rounded-lg border bg-background text-sm"
-              rows={2}
-              placeholder="Key assumptions to validate..."
+              sourceType="business_model_canvas"
+              sourceBlock={blockKey}
+              projectId={projectId}
             />
           </div>
 
@@ -379,16 +392,19 @@ export function BusinessModelCanvasForm({ canvasId, initialData }: BusinessModel
               blockKey="key_partners"
               value={formData.key_partners}
               onChange={(value) => setFormData({ ...formData, key_partners: value })}
+              projectId={formData.studio_project_id}
             />
             <CanvasBlockEditor
               blockKey="key_activities"
               value={formData.key_activities}
               onChange={(value) => setFormData({ ...formData, key_activities: value })}
+              projectId={formData.studio_project_id}
             />
             <CanvasBlockEditor
               blockKey="key_resources"
               value={formData.key_resources}
               onChange={(value) => setFormData({ ...formData, key_resources: value })}
+              projectId={formData.studio_project_id}
             />
           </div>
 
@@ -398,16 +414,19 @@ export function BusinessModelCanvasForm({ canvasId, initialData }: BusinessModel
               blockKey="customer_segments"
               value={formData.customer_segments}
               onChange={(value) => setFormData({ ...formData, customer_segments: value })}
+              projectId={formData.studio_project_id}
             />
             <CanvasBlockEditor
               blockKey="customer_relationships"
               value={formData.customer_relationships}
               onChange={(value) => setFormData({ ...formData, customer_relationships: value })}
+              projectId={formData.studio_project_id}
             />
             <CanvasBlockEditor
               blockKey="channels"
               value={formData.channels}
               onChange={(value) => setFormData({ ...formData, channels: value })}
+              projectId={formData.studio_project_id}
             />
           </div>
         </div>
@@ -417,6 +436,7 @@ export function BusinessModelCanvasForm({ canvasId, initialData }: BusinessModel
           blockKey="value_propositions"
           value={formData.value_propositions}
           onChange={(value) => setFormData({ ...formData, value_propositions: value })}
+          projectId={formData.studio_project_id}
         />
 
         {/* Bottom - Financials */}
@@ -425,11 +445,13 @@ export function BusinessModelCanvasForm({ canvasId, initialData }: BusinessModel
             blockKey="cost_structure"
             value={formData.cost_structure}
             onChange={(value) => setFormData({ ...formData, cost_structure: value })}
+            projectId={formData.studio_project_id}
           />
           <CanvasBlockEditor
             blockKey="revenue_streams"
             value={formData.revenue_streams}
             onChange={(value) => setFormData({ ...formData, revenue_streams: value })}
+            projectId={formData.studio_project_id}
           />
         </div>
       </div>

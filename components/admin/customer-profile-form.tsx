@@ -3,10 +3,12 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
+import { AssumptionLinker } from './assumption-linker'
 
 interface ProfileBlock {
   items: string[]
   evidence: string[]
+  assumption_ids: string[]
   validation_status: 'untested' | 'testing' | 'validated' | 'invalidated'
 }
 
@@ -46,21 +48,29 @@ interface CustomerProfileFormProps {
 const defaultBlock = (): ProfileBlock => ({
   items: [],
   evidence: [],
+  assumption_ids: [],
   validation_status: 'untested',
 })
 
 function ProfileBlockEditor({
   label,
   description,
+  blockKey,
   value,
   onChange,
+  projectId,
 }: {
   label: string
   description: string
+  blockKey: string
   value: ProfileBlock
   onChange: (value: ProfileBlock) => void
+  projectId?: string
 }) {
-  const [isOpen, setIsOpen] = useState(value.items.length > 0)
+  const [isOpen, setIsOpen] = useState(value.items.length > 0 || (value.assumption_ids?.length || 0) > 0)
+
+  // Ensure assumption_ids exists (migration from old data)
+  const assumptionIds = value.assumption_ids || []
 
   return (
     <div className="rounded-lg border bg-card">
@@ -76,6 +86,11 @@ function ProfileBlockEditor({
         <div className="flex items-center gap-2">
           {value.items.length > 0 && (
             <span className="text-xs bg-muted px-2 py-1 rounded">{value.items.length} items</span>
+          )}
+          {assumptionIds.length > 0 && (
+            <span className="text-xs bg-amber-500/10 text-amber-700 dark:text-amber-400 px-2 py-1 rounded">
+              {assumptionIds.length} assumptions
+            </span>
           )}
           <svg
             className={`w-5 h-5 transition-transform ${isOpen ? 'rotate-180' : ''}`}
@@ -103,6 +118,22 @@ function ProfileBlockEditor({
               className="w-full px-3 py-2 rounded-lg border bg-background text-sm"
               rows={4}
               placeholder="Enter each item on a new line..."
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium mb-2">Linked Assumptions</label>
+            <AssumptionLinker
+              linkedIds={assumptionIds}
+              onChange={(ids) =>
+                onChange({
+                  ...value,
+                  assumption_ids: ids,
+                })
+              }
+              sourceType="customer_profile"
+              sourceBlock={blockKey}
+              projectId={projectId}
             />
           </div>
 
@@ -438,22 +469,28 @@ export function CustomerProfileForm({ profileId, initialData }: CustomerProfileF
         <ProfileBlockEditor
           label="Jobs to be Done"
           description="What tasks are they trying to accomplish?"
+          blockKey="jobs"
           value={formData.jobs}
           onChange={(value) => setFormData({ ...formData, jobs: value })}
+          projectId={formData.studio_project_id}
         />
 
         <ProfileBlockEditor
           label="Pains"
           description="What obstacles, risks, or negative outcomes do they face?"
+          blockKey="pains"
           value={formData.pains}
           onChange={(value) => setFormData({ ...formData, pains: value })}
+          projectId={formData.studio_project_id}
         />
 
         <ProfileBlockEditor
           label="Gains"
           description="What outcomes and benefits do they desire?"
+          blockKey="gains"
           value={formData.gains}
           onChange={(value) => setFormData({ ...formData, gains: value })}
+          projectId={formData.studio_project_id}
         />
       </div>
 

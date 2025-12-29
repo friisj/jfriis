@@ -3,10 +3,12 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
+import { AssumptionLinker } from './assumption-linker'
 
 interface CanvasBlock {
   items: string[]
-  assumptions: string[]
+  assumptions: string[] // Legacy text assumptions
+  assumption_ids: string[] // Linked assumption object IDs
   validation_status: 'untested' | 'testing' | 'validated' | 'invalidated'
 }
 
@@ -42,6 +44,7 @@ interface ValueMapFormProps {
 const defaultBlock = (): CanvasBlock => ({
   items: [],
   assumptions: [],
+  assumption_ids: [],
   validation_status: 'untested',
 })
 
@@ -64,13 +67,18 @@ function CanvasBlockEditor({
   blockKey,
   value,
   onChange,
+  projectId,
 }: {
   blockKey: string
   value: CanvasBlock
   onChange: (value: CanvasBlock) => void
+  projectId?: string
 }) {
-  const [isOpen, setIsOpen] = useState(value.items.length > 0)
+  const [isOpen, setIsOpen] = useState(value.items.length > 0 || (value.assumption_ids?.length || 0) > 0)
   const label = BLOCK_LABELS[blockKey]
+
+  // Ensure assumption_ids exists (migration from old data)
+  const assumptionIds = value.assumption_ids || []
 
   return (
     <div className="rounded-lg border bg-card">
@@ -86,6 +94,11 @@ function CanvasBlockEditor({
         <div className="flex items-center gap-2">
           {value.items.length > 0 && (
             <span className="text-xs bg-muted px-2 py-1 rounded">{value.items.length} items</span>
+          )}
+          {assumptionIds.length > 0 && (
+            <span className="text-xs bg-amber-500/10 text-amber-700 dark:text-amber-400 px-2 py-1 rounded">
+              {assumptionIds.length} assumptions
+            </span>
           )}
           <svg
             className={`w-5 h-5 transition-transform ${isOpen ? 'rotate-180' : ''}`}
@@ -117,18 +130,18 @@ function CanvasBlockEditor({
           </div>
 
           <div>
-            <label className="block text-sm font-medium mb-1">Assumptions (one per line)</label>
-            <textarea
-              value={value.assumptions.join('\n')}
-              onChange={(e) =>
+            <label className="block text-sm font-medium mb-2">Linked Assumptions</label>
+            <AssumptionLinker
+              linkedIds={assumptionIds}
+              onChange={(ids) =>
                 onChange({
                   ...value,
-                  assumptions: e.target.value.split('\n').filter((item) => item.trim()),
+                  assumption_ids: ids,
                 })
               }
-              className="w-full px-3 py-2 rounded-lg border bg-background text-sm"
-              rows={2}
-              placeholder="Key assumptions to validate..."
+              sourceType="value_map"
+              sourceBlock={blockKey}
+              projectId={projectId}
             />
           </div>
 
@@ -392,16 +405,19 @@ export function ValueMapForm({ valueMapId, initialData }: ValueMapFormProps) {
           blockKey="products_services"
           value={formData.products_services}
           onChange={(value) => setFormData({ ...formData, products_services: value })}
+          projectId={formData.studio_project_id}
         />
         <CanvasBlockEditor
           blockKey="pain_relievers"
           value={formData.pain_relievers}
           onChange={(value) => setFormData({ ...formData, pain_relievers: value })}
+          projectId={formData.studio_project_id}
         />
         <CanvasBlockEditor
           blockKey="gain_creators"
           value={formData.gain_creators}
           onChange={(value) => setFormData({ ...formData, gain_creators: value })}
+          projectId={formData.studio_project_id}
         />
       </div>
 
