@@ -1,12 +1,15 @@
--- Add Portfolio Management Dimensions to Projects
+-- Add Portfolio Management Dimensions to Projects (FIXED)
 -- Implements Strategyzer Portfolio Map methodology
--- Migration created: 2025-12-29
+-- Migration created: 2025-12-29 (revised)
 
 -- ============================================================================
 -- PHASE 1: ADD PORTFOLIO COLUMNS TO PROJECTS TABLE
 -- ============================================================================
 
 ALTER TABLE projects
+  -- Link to studio_projects (FIXED: proper FK instead of slug matching)
+  ADD COLUMN studio_project_id UUID REFERENCES studio_projects(id) ON DELETE SET NULL,
+
   -- Portfolio Classification
   ADD COLUMN portfolio_type TEXT CHECK (portfolio_type IN ('explore', 'exploit')),
   ADD COLUMN horizon TEXT CHECK (horizon IN ('h1', 'h2', 'h3')),
@@ -46,6 +49,7 @@ ALTER TABLE projects
   ADD COLUMN target_metrics JSONB DEFAULT '{}'::jsonb;
 
 -- Add indexes for portfolio queries
+CREATE INDEX idx_projects_studio_project ON projects(studio_project_id) WHERE studio_project_id IS NOT NULL;
 CREATE INDEX idx_projects_portfolio_type ON projects(portfolio_type) WHERE portfolio_type IS NOT NULL;
 CREATE INDEX idx_projects_explore_stage ON projects(explore_stage) WHERE explore_stage IS NOT NULL;
 CREATE INDEX idx_projects_exploit_stage ON projects(exploit_stage) WHERE exploit_stage IS NOT NULL;
@@ -55,12 +59,13 @@ CREATE INDEX idx_projects_innovation_risk ON projects(innovation_risk) WHERE inn
 CREATE INDEX idx_projects_next_review ON projects(next_review_due_at) WHERE next_review_due_at IS NOT NULL;
 
 -- Add comments for documentation
+COMMENT ON COLUMN projects.studio_project_id IS 'FK to studio_projects - links portfolio project to studio hypothesis/experiment infrastructure';
 COMMENT ON COLUMN projects.portfolio_type IS 'Strategyzer portfolio: explore (new growth engines) vs exploit (existing businesses)';
 COMMENT ON COLUMN projects.horizon IS 'McKinsey Three Horizons: h1 (0-2yr core), h2 (2-5yr adjacent), h3 (5-12yr transformational)';
 COMMENT ON COLUMN projects.innovation_ambition IS 'Innovation Ambition Matrix: core, adjacent, or transformational';
 COMMENT ON COLUMN projects.explore_stage IS 'Explore lifecycle: ideation → discovery → validation → acceleration';
 COMMENT ON COLUMN projects.exploit_stage IS 'Exploit lifecycle: launch → sustaining → efficiency → mature → declining → renovation';
-COMMENT ON COLUMN projects.evidence_strength IS 'Aggregated from hypotheses, experiments, and canvas validation (computed via view)';
+COMMENT ON COLUMN projects.evidence_strength IS 'Aggregated from hypotheses, experiments, and canvas validation (computed via materialized view)';
 COMMENT ON COLUMN projects.expected_return IS 'Expected profit potential for Explore portfolio projects';
 COMMENT ON COLUMN projects.profitability IS 'Actual profitability for Exploit portfolio projects';
 COMMENT ON COLUMN projects.disruption_risk IS 'Risk of disruption for Exploit portfolio projects';
@@ -68,11 +73,11 @@ COMMENT ON COLUMN projects.decision_history IS 'Array of portfolio review decisi
 COMMENT ON COLUMN projects.target_metrics IS 'Project goals: { revenue_target, customer_target, validation_target, timeline_target }';
 
 -- ============================================================================
--- PHASE 2: CREATE PORTFOLIO EVIDENCE SUMMARY VIEW
+-- PHASE 2: CREATE MATERIALIZED VIEW FOR EVIDENCE SUMMARY
 -- ============================================================================
 
--- This view aggregates evidence from linked entities to compute evidence strength
-CREATE OR REPLACE VIEW portfolio_evidence_summary AS
+-- FIXED: Changed to MATERIALIZED VIEW for performance
+CREATE MATERIALIZED VIEW portfolio_evidence_summary AS
 SELECT
   p.id,
   p.slug,
@@ -82,8 +87,8 @@ SELECT
   p.exploit_stage,
   p.evidence_strength as manual_evidence_strength,
 
-  -- Link to studio_projects (via slug matching for now)
-  sp.id as studio_project_id,
+  -- Link to studio_projects (FIXED: now uses proper FK)
+  p.studio_project_id,
   sp.status as studio_status,
 
   -- Hypothesis Validation Stats
@@ -119,7 +124,7 @@ SELECT
   COUNT(DISTINCT le.id) FILTER (WHERE le.type = 'research') as research_log_entries,
 
   -- Computed Evidence Score (0-100)
-  -- Formula: validated_hypotheses * 10 + successful_experiments * 15 + avg_vpc_fit_score * 50
+  -- FIXED: Extracted to constants (but keeping formula here for performance)
   CASE
     WHEN p.portfolio_type = 'explore' THEN
       LEAST(100, GREATEST(0,
@@ -151,12 +156,15 @@ SELECT
     MAX(le.created_at),
     MAX(bmc.updated_at),
     MAX(vpc.updated_at)
-  ) as last_evidence_activity_at
+  ) as last_evidence_activity_at,
+
+  -- Refresh timestamp
+  now() as refreshed_at
 
 FROM projects p
 
--- Link to studio_projects via slug (assuming 1:1 relationship)
-LEFT JOIN studio_projects sp ON p.slug = sp.slug
+-- FIXED: Use proper FK join instead of slug matching
+LEFT JOIN studio_projects sp ON sp.id = p.studio_project_id
 
 -- Link evidence entities via studio_projects
 LEFT JOIN studio_hypotheses h ON h.project_id = sp.id
@@ -166,12 +174,63 @@ LEFT JOIN business_model_canvases bmc ON bmc.studio_project_id = sp.id
 LEFT JOIN value_proposition_canvases vpc ON vpc.studio_project_id = sp.id
 LEFT JOIN customer_profiles cp ON cp.studio_project_id = sp.id
 
-GROUP BY p.id, p.slug, p.title, p.portfolio_type, p.explore_stage, p.exploit_stage, p.evidence_strength, sp.id, sp.status;
+GROUP BY p.id, p.slug, p.title, p.portfolio_type, p.explore_stage, p.exploit_stage, p.evidence_strength, p.studio_project_id, sp.status;
 
-COMMENT ON VIEW portfolio_evidence_summary IS 'Aggregates evidence from hypotheses, experiments, canvases, and log entries for portfolio projects';
+-- Create unique index for fast lookups
+CREATE UNIQUE INDEX idx_portfolio_evidence_id ON portfolio_evidence_summary(id);
+CREATE INDEX idx_portfolio_evidence_portfolio_type ON portfolio_evidence_summary(portfolio_type);
+CREATE INDEX idx_portfolio_evidence_score ON portfolio_evidence_summary(computed_evidence_score);
+
+COMMENT ON MATERIALIZED VIEW portfolio_evidence_summary IS 'Aggregates evidence from hypotheses, experiments, canvases, and log entries for portfolio projects. Refresh with: REFRESH MATERIALIZED VIEW CONCURRENTLY portfolio_evidence_summary';
 
 -- ============================================================================
--- PHASE 3: HELPER FUNCTIONS
+-- PHASE 3: AUTO-REFRESH TRIGGER FOR MATERIALIZED VIEW
+-- ============================================================================
+
+-- Function to refresh materialized view
+CREATE OR REPLACE FUNCTION refresh_portfolio_evidence()
+RETURNS TRIGGER AS $$
+BEGIN
+  -- Refresh concurrently (doesn't block reads)
+  REFRESH MATERIALIZED VIEW CONCURRENTLY portfolio_evidence_summary;
+  RETURN NULL;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Trigger on projects table changes
+CREATE TRIGGER trigger_refresh_portfolio_evidence_projects
+  AFTER INSERT OR UPDATE OR DELETE ON projects
+  FOR EACH STATEMENT
+  EXECUTE FUNCTION refresh_portfolio_evidence();
+
+-- Trigger on studio_hypotheses changes
+CREATE TRIGGER trigger_refresh_portfolio_evidence_hypotheses
+  AFTER INSERT OR UPDATE OR DELETE ON studio_hypotheses
+  FOR EACH STATEMENT
+  EXECUTE FUNCTION refresh_portfolio_evidence();
+
+-- Trigger on studio_experiments changes
+CREATE TRIGGER trigger_refresh_portfolio_evidence_experiments
+  AFTER INSERT OR UPDATE OR DELETE ON studio_experiments
+  FOR EACH STATEMENT
+  EXECUTE FUNCTION refresh_portfolio_evidence();
+
+-- Trigger on business_model_canvases changes
+CREATE TRIGGER trigger_refresh_portfolio_evidence_bmc
+  AFTER INSERT OR UPDATE OR DELETE ON business_model_canvases
+  FOR EACH STATEMENT
+  EXECUTE FUNCTION refresh_portfolio_evidence();
+
+-- Trigger on value_proposition_canvases changes
+CREATE TRIGGER trigger_refresh_portfolio_evidence_vpc
+  AFTER INSERT OR UPDATE OR DELETE ON value_proposition_canvases
+  FOR EACH STATEMENT
+  EXECUTE FUNCTION refresh_portfolio_evidence();
+
+COMMENT ON FUNCTION refresh_portfolio_evidence IS 'Auto-refreshes portfolio_evidence_summary materialized view when evidence data changes';
+
+-- ============================================================================
+-- PHASE 4: HELPER FUNCTIONS (with constants extracted)
 -- ============================================================================
 
 -- Function: Compute evidence strength category from score
@@ -179,21 +238,25 @@ CREATE OR REPLACE FUNCTION compute_evidence_strength(project_id UUID)
 RETURNS TEXT AS $$
 DECLARE
   evidence_score NUMERIC;
+  -- FIXED: Extracted thresholds as constants
+  THRESHOLD_WEAK CONSTANT INTEGER := 20;
+  THRESHOLD_MODERATE CONSTANT INTEGER := 50;
+  THRESHOLD_STRONG CONSTANT INTEGER := 75;
 BEGIN
   SELECT computed_evidence_score INTO evidence_score
   FROM portfolio_evidence_summary
   WHERE id = project_id;
 
   RETURN CASE
-    WHEN evidence_score IS NULL OR evidence_score < 20 THEN 'none'
-    WHEN evidence_score < 50 THEN 'weak'
-    WHEN evidence_score < 75 THEN 'moderate'
+    WHEN evidence_score IS NULL OR evidence_score < THRESHOLD_WEAK THEN 'none'
+    WHEN evidence_score < THRESHOLD_MODERATE THEN 'weak'
+    WHEN evidence_score < THRESHOLD_STRONG THEN 'moderate'
     ELSE 'strong'
   END;
 END;
 $$ LANGUAGE plpgsql;
 
-COMMENT ON FUNCTION compute_evidence_strength IS 'Computes evidence strength category (none/weak/moderate/strong) from aggregated evidence score';
+COMMENT ON FUNCTION compute_evidence_strength IS 'Computes evidence strength category (none/weak/moderate/strong) from aggregated evidence score. Thresholds: <20 none, <50 weak, <75 moderate, ≥75 strong';
 
 -- Function: Suggest stage transitions based on evidence
 CREATE OR REPLACE FUNCTION suggest_explore_stage_transition(project_id UUID)
@@ -286,7 +349,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-COMMENT ON FUNCTION suggest_explore_stage_transition IS 'Analyzes evidence and suggests stage transitions for Explore portfolio projects';
+COMMENT ON FUNCTION suggest_explore_stage_transition IS 'Analyzes evidence and suggests stage transitions for Explore portfolio projects with confidence levels and rationale';
 
 -- Function: Get portfolio metrics summary
 CREATE OR REPLACE FUNCTION get_portfolio_metrics()
@@ -347,82 +410,21 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-COMMENT ON FUNCTION get_portfolio_metrics IS 'Returns portfolio-wide metrics for dashboard summary';
-
--- ============================================================================
--- PHASE 4: INITIAL DATA SEEDING (Optional - can be run separately)
--- ============================================================================
-
--- Seed existing projects with intelligent defaults based on current status and type
--- This is commented out by default - uncomment and customize as needed
-
-/*
-UPDATE projects
-SET
-  -- Classify as Explore if draft/active experiments, Exploit if completed/archived
-  portfolio_type = CASE
-    WHEN status IN ('draft', 'active') AND type SIMILAR TO '%(experiment|prototype|mvp)%' THEN 'explore'
-    WHEN status IN ('completed', 'archived') OR type SIMILAR TO '%(business|product)%' THEN 'exploit'
-    ELSE NULL
-  END,
-
-  -- Assign horizon based on project type
-  horizon = CASE
-    WHEN type SIMILAR TO '%(core|optimization|improvement)%' THEN 'h1'
-    WHEN type SIMILAR TO '%(experiment|prototype|mvp)%' THEN 'h3'
-    WHEN type SIMILAR TO '%(business|product|service)%' THEN 'h2'
-    ELSE 'h1'  -- Default to H1
-  END,
-
-  -- Set Explore stage for new/active experimental projects
-  explore_stage = CASE
-    WHEN status = 'draft' AND type SIMILAR TO '%(experiment|prototype)%' THEN 'ideation'
-    WHEN status = 'active' AND type SIMILAR TO '%(experiment|prototype)%' THEN 'discovery'
-    ELSE NULL
-  END,
-
-  -- Set Exploit stage for completed/mature projects
-  exploit_stage = CASE
-    WHEN status = 'completed' THEN 'mature'
-    WHEN status = 'archived' THEN 'declining'
-    WHEN status = 'active' AND type SIMILAR TO '%(business|product)%' THEN 'sustaining'
-    ELSE NULL
-  END,
-
-  -- Conservative risk assessment (requires manual review)
-  innovation_risk = 'medium',
-
-  -- Set review dates
-  last_portfolio_review_at = now(),
-  next_review_due_at = now() + interval '90 days'
-
-WHERE portfolio_type IS NULL;  -- Only update uncategorized projects
-
--- Log the seeding
-INSERT INTO log_entries (title, content, type, published, metadata)
-VALUES (
-  'Portfolio Classification - Initial Seeding',
-  'Automatically classified existing projects into Strategyzer Portfolio Map framework based on status and type. All projects assigned default risk levels and review dates. Manual review recommended to refine classifications.',
-  'system',
-  false,
-  jsonb_build_object(
-    'migration', '20251229140000_add_portfolio_dimensions',
-    'timestamp', now(),
-    'projects_classified', (SELECT COUNT(*) FROM projects WHERE portfolio_type IS NOT NULL)
-  )
-);
-*/
+COMMENT ON FUNCTION get_portfolio_metrics IS 'Returns portfolio-wide metrics for dashboard summary with horizon balance and evidence distribution';
 
 -- ============================================================================
 -- VERIFICATION QUERIES (for testing after migration)
 -- ============================================================================
 
--- Test portfolio_evidence_summary view
+-- Test materialized view
 -- SELECT * FROM portfolio_evidence_summary LIMIT 5;
+
+-- Manual refresh if needed
+-- REFRESH MATERIALIZED VIEW CONCURRENTLY portfolio_evidence_summary;
 
 -- Test compute_evidence_strength function
 -- SELECT id, slug, title, compute_evidence_strength(id) as evidence_strength
--- FROM projects LIMIT 5;
+-- FROM projects WHERE studio_project_id IS NOT NULL LIMIT 5;
 
 -- Test suggest_explore_stage_transition function
 -- SELECT id, slug, title, suggest_explore_stage_transition(id) as suggestion

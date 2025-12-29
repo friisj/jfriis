@@ -4,38 +4,15 @@ import Link from 'next/link'
 import type { Project } from '@/lib/types/database'
 import { AdminDataView, AdminTableColumn, AdminEmptyState, StatusBadge } from '@/components/admin'
 import { formatDate } from '@/lib/utils'
+import {
+  getEvidenceColor,
+  getRiskColor,
+  getPortfolioTypeColor,
+  BADGE_BASE_CLASSES,
+} from '@/lib/portfolio/colors'
 
 interface PortfolioTableViewProps {
   projects: Project[]
-}
-
-// Helper to get badge color for evidence strength
-function getEvidenceColor(strength?: string) {
-  switch (strength) {
-    case 'strong':
-      return 'bg-green-500/10 text-green-700 dark:text-green-400'
-    case 'moderate':
-      return 'bg-blue-500/10 text-blue-700 dark:text-blue-400'
-    case 'weak':
-      return 'bg-yellow-500/10 text-yellow-700 dark:text-yellow-400'
-    case 'none':
-    default:
-      return 'bg-gray-500/10 text-gray-700 dark:text-gray-400'
-  }
-}
-
-// Helper to get badge color for risk
-function getRiskColor(risk?: string) {
-  switch (risk) {
-    case 'high':
-      return 'bg-red-500/10 text-red-700 dark:text-red-400'
-    case 'medium':
-      return 'bg-orange-500/10 text-orange-700 dark:text-orange-400'
-    case 'low':
-      return 'bg-green-500/10 text-green-700 dark:text-green-400'
-    default:
-      return 'bg-gray-500/10 text-gray-700 dark:text-gray-400'
-  }
 }
 
 export function PortfolioTableView({ projects }: PortfolioTableViewProps) {
@@ -58,13 +35,7 @@ export function PortfolioTableView({ projects }: PortfolioTableViewProps) {
           return <span className="text-sm text-muted-foreground">—</span>
         }
         return (
-          <span
-            className={`px-2 py-1 rounded text-xs font-medium ${
-              project.portfolio_type === 'explore'
-                ? 'bg-purple-500/10 text-purple-700 dark:text-purple-400'
-                : 'bg-blue-500/10 text-blue-700 dark:text-blue-400'
-            }`}
-          >
+          <span className={`${BADGE_BASE_CLASSES} ${getPortfolioTypeColor(project.portfolio_type)}`}>
             {project.portfolio_type}
           </span>
         )
@@ -101,7 +72,7 @@ export function PortfolioTableView({ projects }: PortfolioTableViewProps) {
       cell: (project) => {
         const strength = project.evidence_strength || 'none'
         return (
-          <span className={`px-2 py-1 rounded text-xs font-medium ${getEvidenceColor(strength)}`}>
+          <span className={`${BADGE_BASE_CLASSES} ${getEvidenceColor(strength)}`}>
             {strength}
           </span>
         )
@@ -115,7 +86,7 @@ export function PortfolioTableView({ projects }: PortfolioTableViewProps) {
           return <span className="text-sm text-muted-foreground">—</span>
         }
         return (
-          <span className={`px-2 py-1 rounded text-xs font-medium ${getRiskColor(project.innovation_risk)}`}>
+          <span className={`${BADGE_BASE_CLASSES} ${getRiskColor(project.innovation_risk)}`}>
             {project.innovation_risk}
           </span>
         )

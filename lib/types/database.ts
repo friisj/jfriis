@@ -56,6 +56,9 @@ export interface Project extends BaseRecord {
   published: boolean
   published_at?: string
 
+  // Link to studio infrastructure (FIXED: proper FK)
+  studio_project_id?: string
+
   // Portfolio Management (Strategyzer Portfolio Map)
   portfolio_type?: PortfolioType
   horizon?: Horizon
