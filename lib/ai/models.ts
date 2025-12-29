@@ -97,26 +97,24 @@ export const models: Record<string, ModelConfig> = {
   },
 
   // Google Models
-  // NOTE: AI SDK 5 currently has compatibility issues with Google's v3 model spec
-  // These models are disabled until @ai-sdk/google supports v3
-  // 'gemini-flash': {
-  //   id: 'gemini-1.5-flash',
-  //   provider: 'google',
-  //   name: 'Gemini 1.5 Flash',
-  //   description: 'Fast and cost-effective for high-volume tasks',
-  //   capabilities: ['fast', 'vision', 'long-context', 'structured'],
-  //   contextWindow: 1000000,
-  //   costTier: 'low',
-  // },
-  // 'gemini-pro': {
-  //   id: 'gemini-1.5-pro',
-  //   provider: 'google',
-  //   name: 'Gemini 1.5 Pro',
-  //   description: 'High capability with massive context window',
-  //   capabilities: ['reasoning', 'coding', 'vision', 'long-context'],
-  //   contextWindow: 2000000,
-  //   costTier: 'medium',
-  // },
+  'gemini-flash': {
+    id: 'gemini-2.0-flash',
+    provider: 'google',
+    name: 'Gemini 2.0 Flash',
+    description: 'Fast multimodal with large context',
+    capabilities: ['fast', 'vision', 'long-context', 'structured'],
+    contextWindow: 1000000,
+    costTier: 'low',
+  },
+  'gemini-pro': {
+    id: 'gemini-1.5-pro',
+    provider: 'google',
+    name: 'Gemini 1.5 Pro',
+    description: 'High capability with massive context window',
+    capabilities: ['reasoning', 'coding', 'vision', 'long-context'],
+    contextWindow: 2000000,
+    costTier: 'medium',
+  },
 }
 
 // Get model instance by key
@@ -157,10 +155,10 @@ export const useCaseModels: Record<UseCase, string> = {
   'assumption-extraction': 'claude-sonnet',
   'hypothesis-generation': 'claude-sonnet',
   'experiment-design': 'claude-sonnet',
-  'content-summary': 'claude-haiku',      // TODO: Switch to gemini-flash when AI SDK supports v3
+  'content-summary': 'gemini-flash',
   'quick-classification': 'claude-haiku',
   'code-generation': 'claude-sonnet',
-  'document-analysis': 'claude-sonnet',   // TODO: Switch to gemini-pro when AI SDK supports v3
+  'document-analysis': 'gemini-pro',
 }
 
 export function getModelForUseCase(useCase: UseCase) {
