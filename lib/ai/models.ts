@@ -29,29 +29,29 @@ export interface ModelConfig {
 
 // Model catalog
 export const models: Record<string, ModelConfig> = {
-  // Anthropic Models
+  // Anthropic Models (4.5 series - latest)
   'claude-sonnet': {
-    id: 'claude-sonnet-4-20250514',
+    id: 'claude-sonnet-4-5-20250929',
     provider: 'anthropic',
-    name: 'Claude Sonnet 4',
+    name: 'Claude Sonnet 4.5',
     description: 'Best balance of capability and speed for most tasks',
     capabilities: ['reasoning', 'coding', 'creative', 'vision', 'structured'],
     contextWindow: 200000,
     costTier: 'medium',
   },
   'claude-haiku': {
-    id: 'claude-haiku-3-5-20241022',
+    id: 'claude-haiku-4-5-20251001',
     provider: 'anthropic',
-    name: 'Claude Haiku 3.5',
+    name: 'Claude Haiku 4.5',
     description: 'Fast and efficient for simple tasks',
     capabilities: ['fast', 'structured', 'coding'],
     contextWindow: 200000,
     costTier: 'low',
   },
   'claude-opus': {
-    id: 'claude-opus-4-20250514',
+    id: 'claude-opus-4-5-20251101',
     provider: 'anthropic',
-    name: 'Claude Opus 4',
+    name: 'Claude Opus 4.5',
     description: 'Most capable model for complex reasoning',
     capabilities: ['reasoning', 'coding', 'creative', 'vision', 'long-context'],
     contextWindow: 200000,
@@ -97,33 +97,26 @@ export const models: Record<string, ModelConfig> = {
   },
 
   // Google Models
-  'gemini-2-flash': {
-    id: 'gemini-2.0-flash',
-    provider: 'google',
-    name: 'Gemini 2.0 Flash',
-    description: 'Fast multimodal with large context',
-    capabilities: ['fast', 'vision', 'long-context', 'structured'],
-    contextWindow: 1000000,
-    costTier: 'low',
-  },
-  'gemini-2-flash-thinking': {
-    id: 'gemini-2.0-flash-thinking-exp',
-    provider: 'google',
-    name: 'Gemini 2.0 Flash Thinking',
-    description: 'Enhanced reasoning capabilities',
-    capabilities: ['reasoning', 'coding', 'long-context'],
-    contextWindow: 1000000,
-    costTier: 'medium',
-  },
-  'gemini-1.5-pro': {
-    id: 'gemini-1.5-pro',
-    provider: 'google',
-    name: 'Gemini 1.5 Pro',
-    description: 'High capability with massive context',
-    capabilities: ['reasoning', 'coding', 'vision', 'long-context'],
-    contextWindow: 2000000,
-    costTier: 'medium',
-  },
+  // NOTE: AI SDK 5 currently has compatibility issues with Google's v3 model spec
+  // These models are disabled until @ai-sdk/google supports v3
+  // 'gemini-flash': {
+  //   id: 'gemini-1.5-flash',
+  //   provider: 'google',
+  //   name: 'Gemini 1.5 Flash',
+  //   description: 'Fast and cost-effective for high-volume tasks',
+  //   capabilities: ['fast', 'vision', 'long-context', 'structured'],
+  //   contextWindow: 1000000,
+  //   costTier: 'low',
+  // },
+  // 'gemini-pro': {
+  //   id: 'gemini-1.5-pro',
+  //   provider: 'google',
+  //   name: 'Gemini 1.5 Pro',
+  //   description: 'High capability with massive context window',
+  //   capabilities: ['reasoning', 'coding', 'vision', 'long-context'],
+  //   contextWindow: 2000000,
+  //   costTier: 'medium',
+  // },
 }
 
 // Get model instance by key
@@ -164,10 +157,10 @@ export const useCaseModels: Record<UseCase, string> = {
   'assumption-extraction': 'claude-sonnet',
   'hypothesis-generation': 'claude-sonnet',
   'experiment-design': 'claude-sonnet',
-  'content-summary': 'gemini-2-flash',
+  'content-summary': 'claude-haiku',      // TODO: Switch to gemini-flash when AI SDK supports v3
   'quick-classification': 'claude-haiku',
   'code-generation': 'claude-sonnet',
-  'document-analysis': 'gemini-1.5-pro',
+  'document-analysis': 'claude-sonnet',   // TODO: Switch to gemini-pro when AI SDK supports v3
 }
 
 export function getModelForUseCase(useCase: UseCase) {
