@@ -7,7 +7,7 @@ export default function NewValuePropositionCanvasPage() {
         <div className="mb-8">
           <h1 className="text-3xl font-bold mb-2">Create Value Proposition Canvas</h1>
           <p className="text-muted-foreground">
-            Map how your products and services create value for customers
+            Analyze product-market fit between a Value Map and Customer Profile
           </p>
         </div>
 

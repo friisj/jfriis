@@ -14,11 +14,12 @@ interface CanvasTypeCard {
 export default async function AdminCanvasesPage() {
   const supabase = await createClient()
 
-  // Fetch counts for all three canvas types in parallel
-  const [bmcResult, cpResult, vpcResult] = await Promise.all([
+  // Fetch counts for all canvas types in parallel
+  const [bmcResult, cpResult, vmResult, vpcResult] = await Promise.all([
     supabase.from('business_model_canvases').select('id', { count: 'exact', head: true }),
     supabase.from('customer_profiles').select('id', { count: 'exact', head: true }),
-    supabase.from('value_proposition_canvases').select('id', { count: 'exact', head: true }),
+    (supabase.from('value_maps') as any).select('id', { count: 'exact', head: true }),
+    (supabase.from('value_proposition_canvases') as any).select('id', { count: 'exact', head: true }),
   ])
 
   const canvasTypes: CanvasTypeCard[] = [
@@ -45,8 +46,19 @@ export default async function AdminCanvasesPage() {
       ),
     },
     {
+      title: 'Value Maps',
+      description: 'Products, pain relievers, gain creators',
+      href: '/admin/canvases/value-maps',
+      count: vmResult.count ?? 0,
+      icon: (
+        <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z" />
+        </svg>
+      ),
+    },
+    {
       title: 'Value Proposition Canvases',
-      description: 'Product-market fit mapping',
+      description: 'Product-market fit analysis',
       href: '/admin/canvases/value-propositions',
       count: vpcResult.count ?? 0,
       icon: (
@@ -67,7 +79,7 @@ export default async function AdminCanvasesPage() {
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {canvasTypes.map((type) => (
             <Link
               key={type.href}
@@ -90,12 +102,37 @@ export default async function AdminCanvasesPage() {
 
         <div className="mt-8 p-4 rounded-lg border bg-muted/50">
           <h3 className="font-medium mb-2">About Strategyzer Canvases</h3>
-          <p className="text-sm text-muted-foreground">
-            These tools help design and test business models and value propositions.
-            Business Model Canvas maps how you create, deliver, and capture value.
-            Value Proposition Canvas ensures product-market fit by mapping customer needs to your offering.
-            Customer Profiles capture detailed understanding of your target segments.
+          <p className="text-sm text-muted-foreground mb-4">
+            These tools follow the Strategyzer methodology for designing and testing business models
+            and value propositions.
           </p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+            <div>
+              <h4 className="font-medium text-foreground">Business Model Canvas</h4>
+              <p className="text-muted-foreground">
+                Maps how you create, deliver, and capture value through 9 building blocks.
+              </p>
+            </div>
+            <div>
+              <h4 className="font-medium text-foreground">Customer Profile</h4>
+              <p className="text-muted-foreground">
+                Captures customer jobs, pains, and gains - the "circle" side of the VPC.
+              </p>
+            </div>
+            <div>
+              <h4 className="font-medium text-foreground">Value Map</h4>
+              <p className="text-muted-foreground">
+                Defines your products/services, pain relievers, and gain creators - the "square"
+                side.
+              </p>
+            </div>
+            <div>
+              <h4 className="font-medium text-foreground">Value Proposition Canvas</h4>
+              <p className="text-muted-foreground">
+                Analyzes FIT between a Value Map and Customer Profile for product-market fit.
+              </p>
+            </div>
+          </div>
         </div>
       </div>
     </div>

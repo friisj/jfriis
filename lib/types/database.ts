@@ -345,17 +345,38 @@ export interface BusinessModelCanvas extends BaseCanvas {
 export type BusinessModelCanvasInsert = Omit<BusinessModelCanvas, keyof BaseRecord>
 export type BusinessModelCanvasUpdate = Partial<BusinessModelCanvasInsert>
 
-// Value Proposition Canvas
-export interface ValuePropositionCanvas extends BaseCanvas {
-  fit_score?: number
-  customer_jobs: CanvasBlock
-  pains: CanvasBlock
-  gains: CanvasBlock
+// Value Map (the "square" side - what you offer)
+export interface ValueMap extends BaseCanvas {
   products_services: CanvasBlock
   pain_relievers: CanvasBlock
   gain_creators: CanvasBlock
   business_model_canvas_id?: string
-  customer_profile_id?: string
+}
+
+export type ValueMapInsert = Omit<ValueMap, keyof BaseRecord>
+export type ValueMapUpdate = Partial<ValueMapInsert>
+
+// Value Proposition Canvas (FIT analysis between Value Map + Customer Profile)
+export interface ValuePropositionCanvas extends BaseRecord {
+  slug: string
+  name: string
+  description?: string
+  studio_project_id?: string
+  hypothesis_id?: string
+  value_map_id: string
+  customer_profile_id: string
+  status: 'draft' | 'active' | 'validated' | 'archived'
+  fit_score?: number
+  fit_analysis: any // JSONB
+  addressed_jobs: { items: string[]; coverage?: number }
+  addressed_pains: { items: string[]; coverage?: number }
+  addressed_gains: { items: string[]; coverage?: number }
+  assumptions: { items: Assumption[] }
+  evidence: { items: Evidence[] }
+  validation_status: 'untested' | 'testing' | 'validated' | 'invalidated'
+  last_validated_at?: string
+  tags: string[]
+  metadata: any
 }
 
 export type ValuePropositionCanvasInsert = Omit<ValuePropositionCanvas, keyof BaseRecord>
@@ -477,6 +498,11 @@ export interface Database {
         Row: BusinessModelCanvas
         Insert: BusinessModelCanvasInsert
         Update: BusinessModelCanvasUpdate
+      }
+      value_maps: {
+        Row: ValueMap
+        Insert: ValueMapInsert
+        Update: ValueMapUpdate
       }
       value_proposition_canvases: {
         Row: ValuePropositionCanvas

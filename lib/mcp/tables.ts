@@ -79,6 +79,9 @@ import {
   BusinessModelCanvasSchema,
   BusinessModelCanvasCreateSchema,
   BusinessModelCanvasUpdateSchema,
+  ValueMapSchema,
+  ValueMapCreateSchema,
+  ValueMapUpdateSchema,
   ValuePropositionCanvasSchema,
   ValuePropositionCanvasCreateSchema,
   ValuePropositionCanvasUpdateSchema,
@@ -251,8 +254,16 @@ export const tables: Record<string, TableDefinition> = {
     hasSlug: true,
     hasProjectId: false, // Admin only
   },
+  value_maps: {
+    description: 'Value Map (products/services, pain relievers, gain creators)',
+    schema: ValueMapSchema,
+    createSchema: ValueMapCreateSchema,
+    updateSchema: ValueMapUpdateSchema,
+    hasSlug: true,
+    hasProjectId: false, // Admin only
+  },
   value_proposition_canvases: {
-    description: 'Value Proposition Canvas (customer profile + value map)',
+    description: 'Value Proposition Canvas (FIT analysis: value map + customer profile)',
     schema: ValuePropositionCanvasSchema,
     createSchema: ValuePropositionCanvasCreateSchema,
     updateSchema: ValuePropositionCanvasUpdateSchema,
