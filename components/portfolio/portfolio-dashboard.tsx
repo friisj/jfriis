@@ -1,13 +1,13 @@
 'use client'
 
 import { useState } from 'react'
-import type { Project } from '@/lib/types/database'
+import type { PortfolioEvidenceSummary } from '@/lib/types/database'
 import { PortfolioMetricsSummary } from './portfolio-metrics-summary'
 import { PortfolioFilters, type PortfolioFilterState } from './portfolio-filters'
 import { PortfolioTableView } from './portfolio-table-view'
 
 interface PortfolioDashboardProps {
-  projects: Project[]
+  projects: PortfolioEvidenceSummary[]
 }
 
 export function PortfolioDashboard({ projects }: PortfolioDashboardProps) {

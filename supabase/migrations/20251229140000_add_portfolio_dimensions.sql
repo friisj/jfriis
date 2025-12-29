@@ -91,6 +91,18 @@ SELECT
   p.studio_project_id,
   sp.status as studio_status,
 
+  -- Portfolio Management Fields
+  p.horizon,
+  p.expected_return,
+  p.profitability,
+  p.sustainability,
+  p.innovation_risk,
+  p.strategic_value_score,
+  p.total_investment,
+  p.allocated_fte,
+  p.current_phase,
+  p.next_review_due_at,
+
   -- Hypothesis Validation Stats
   COUNT(DISTINCT h.id) as total_hypotheses,
   COUNT(DISTINCT h.id) FILTER (WHERE h.status = 'validated') as validated_hypotheses,
@@ -174,7 +186,11 @@ LEFT JOIN business_model_canvases bmc ON bmc.studio_project_id = sp.id
 LEFT JOIN value_proposition_canvases vpc ON vpc.studio_project_id = sp.id
 LEFT JOIN customer_profiles cp ON cp.studio_project_id = sp.id
 
-GROUP BY p.id, p.slug, p.title, p.portfolio_type, p.explore_stage, p.exploit_stage, p.evidence_strength, p.studio_project_id, sp.status;
+GROUP BY
+  p.id, p.slug, p.title, p.portfolio_type, p.explore_stage, p.exploit_stage, p.evidence_strength,
+  p.studio_project_id, sp.status,
+  p.horizon, p.expected_return, p.profitability, p.sustainability, p.innovation_risk,
+  p.strategic_value_score, p.total_investment, p.allocated_fte, p.current_phase, p.next_review_due_at;
 
 -- Create unique index for fast lookups
 CREATE UNIQUE INDEX idx_portfolio_evidence_id ON portfolio_evidence_summary(id);

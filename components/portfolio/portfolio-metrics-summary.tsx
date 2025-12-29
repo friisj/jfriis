@@ -1,11 +1,11 @@
 'use client'
 
 import { useMemo } from 'react'
-import type { Project } from '@/lib/types/database'
+import type { PortfolioEvidenceSummary } from '@/lib/types/database'
 import { RECOMMENDED_ALLOCATION } from '@/lib/portfolio/constants'
 
 interface PortfolioMetricsSummaryProps {
-  projects: Project[]
+  projects: PortfolioEvidenceSummary[]
 }
 
 export function PortfolioMetricsSummary({ projects }: PortfolioMetricsSummaryProps) {

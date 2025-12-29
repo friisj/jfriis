@@ -4,11 +4,6 @@ import { createClient } from '@/lib/supabase-server'
 import { PortfolioDashboard } from '@/components/portfolio/portfolio-dashboard'
 import { PortfolioErrorState } from '@/components/portfolio/portfolio-error-state'
 import { PortfolioErrorBoundary } from '@/components/portfolio/portfolio-error-boundary'
-import type { Project, PortfolioEvidenceSummary } from '@/lib/types/database'
-
-type EnrichedProject = Project & {
-  evidence_summary?: PortfolioEvidenceSummary
-}
 
 export default async function AdminPortfolioPage() {
   const supabase = await createClient()
@@ -22,34 +17,18 @@ export default async function AdminPortfolioPage() {
 
     console.log('Portfolio page - User:', user?.email)
 
-    // Fetch projects with enriched evidence summary data from materialized view
+    // Query the materialized view which already includes all project data + evidence summaries
     const { data: projects, error: projectsError } = await supabase
-      .from('projects')
-      .select(`
-        *,
-        evidence_summary:portfolio_evidence_summary!portfolio_evidence_summary_id_fkey(
-          total_hypotheses,
-          validated_hypotheses,
-          hypothesis_validation_rate,
-          total_experiments,
-          successful_experiments,
-          experiment_success_rate,
-          avg_bmc_fit_score,
-          avg_vpc_fit_score,
-          computed_evidence_score,
-          refreshed_at
-        )
-      `)
-      .order('updated_at', { ascending: false })
-      .returns<EnrichedProject[]>()
+      .from('portfolio_evidence_summary')
+      .select('*')
+      .order('refreshed_at', { ascending: false })
 
     if (projectsError) {
-      console.error('Error fetching projects:', projectsError)
+      console.error('Error fetching portfolio data:', projectsError)
       throw new Error(`Failed to load portfolio projects: ${projectsError.message}`)
     }
 
     console.log('Portfolio projects fetched:', projects?.length || 0)
-    console.log('Evidence summaries loaded:', projects?.filter(p => p.evidence_summary).length || 0)
 
     return (
       <div className="p-8">

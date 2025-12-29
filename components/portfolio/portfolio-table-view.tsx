@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import type { Project } from '@/lib/types/database'
+import type { PortfolioEvidenceSummary } from '@/lib/types/database'
 import { AdminDataView, AdminTableColumn, AdminEmptyState, StatusBadge } from '@/components/admin'
 import { formatDate } from '@/lib/utils'
 import {
@@ -12,11 +12,11 @@ import {
 } from '@/lib/portfolio/colors'
 
 interface PortfolioTableViewProps {
-  projects: Project[]
+  projects: PortfolioEvidenceSummary[]
 }
 
 export function PortfolioTableView({ projects }: PortfolioTableViewProps) {
-  const columns: AdminTableColumn<Project>[] = [
+  const columns: AdminTableColumn<PortfolioEvidenceSummary>[] = [
     {
       key: 'title',
       header: 'Project',
