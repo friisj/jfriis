@@ -8,6 +8,10 @@
 // Re-export everything
 export * from './providers'
 export * from './models'
+export * from './actions'
+
+// Register actions on import
+import './actions/generate-field'
 
 // Re-export commonly used AI SDK functions
 export {
@@ -17,5 +21,5 @@ export {
   streamObject,
 } from 'ai'
 
-// Export types
-export type { CoreMessage, TextPart, ImagePart } from 'ai'
+// Export types - AI SDK 6 uses different type names
+export type { TextPart, ImagePart } from 'ai'
