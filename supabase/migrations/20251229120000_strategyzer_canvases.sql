@@ -69,70 +69,7 @@ CREATE TRIGGER update_bmc_updated_at
   EXECUTE FUNCTION update_updated_at_column();
 
 -- ============================================================================
--- 2. VALUE PROPOSITION CANVASES
--- ============================================================================
-
-CREATE TABLE value_proposition_canvases (
-  -- Identity
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  slug TEXT NOT NULL,
-  name TEXT NOT NULL,
-  description TEXT,
-
-  -- Studio Context (optional soft links)
-  studio_project_id UUID REFERENCES studio_projects(id) ON DELETE SET NULL,
-  hypothesis_id UUID REFERENCES studio_hypotheses(id) ON DELETE SET NULL,
-
-  -- Canvas Metadata
-  status TEXT NOT NULL DEFAULT 'draft' CHECK (status IN ('draft', 'active', 'validated', 'archived')),
-  version INTEGER NOT NULL DEFAULT 1,
-  parent_version_id UUID REFERENCES value_proposition_canvases(id) ON DELETE SET NULL,
-  fit_score DECIMAL(3,2) CHECK (fit_score >= 0 AND fit_score <= 1), -- 0.0-1.0 alignment score
-
-  -- Customer Profile (Right Side) - Understanding the customer
-  -- Each block: { items: [...], evidence: [...], assumptions: [], validation_status: '...' }
-  customer_jobs JSONB NOT NULL DEFAULT '{"items": [], "evidence": [], "assumptions": [], "validation_status": "untested"}'::jsonb,
-  pains JSONB NOT NULL DEFAULT '{"items": [], "evidence": [], "assumptions": [], "validation_status": "untested"}'::jsonb,
-  gains JSONB NOT NULL DEFAULT '{"items": [], "evidence": [], "assumptions": [], "validation_status": "untested"}'::jsonb,
-
-  -- Value Map (Left Side) - What we offer
-  products_services JSONB NOT NULL DEFAULT '{"items": [], "assumptions": [], "validation_status": "untested"}'::jsonb,
-  pain_relievers JSONB NOT NULL DEFAULT '{"items": [], "assumptions": [], "validation_status": "untested"}'::jsonb,
-  gain_creators JSONB NOT NULL DEFAULT '{"items": [], "assumptions": [], "validation_status": "untested"}'::jsonb,
-
-  -- Cross-canvas Relationships
-  business_model_canvas_id UUID REFERENCES business_model_canvases(id) ON DELETE SET NULL,
-  customer_profile_id UUID REFERENCES customer_profiles(id) ON DELETE SET NULL,
-
-  -- Extended Metadata
-  tags TEXT[] DEFAULT '{}',
-  metadata JSONB DEFAULT '{}'::jsonb,
-
-  -- Timestamps
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-
-  -- Constraints
-  CONSTRAINT unique_vpc_slug_per_project UNIQUE (studio_project_id, slug)
-);
-
--- Indexes
-CREATE INDEX idx_vpc_project ON value_proposition_canvases(studio_project_id);
-CREATE INDEX idx_vpc_hypothesis ON value_proposition_canvases(hypothesis_id);
-CREATE INDEX idx_vpc_status ON value_proposition_canvases(status);
-CREATE INDEX idx_vpc_bmc ON value_proposition_canvases(business_model_canvas_id);
-CREATE INDEX idx_vpc_customer_profile ON value_proposition_canvases(customer_profile_id);
-CREATE INDEX idx_vpc_version_lineage ON value_proposition_canvases(parent_version_id);
-CREATE INDEX idx_vpc_fit_score ON value_proposition_canvases(fit_score) WHERE fit_score IS NOT NULL;
-
--- Triggers
-CREATE TRIGGER update_vpc_updated_at
-  BEFORE UPDATE ON value_proposition_canvases
-  FOR EACH ROW
-  EXECUTE FUNCTION update_updated_at_column();
-
--- ============================================================================
--- 3. CUSTOMER PROFILES
+-- 2. CUSTOMER PROFILES (before VPC due to FK dependency)
 -- ============================================================================
 
 CREATE TABLE customer_profiles (
@@ -205,6 +142,69 @@ CREATE INDEX idx_customer_profile_confidence ON customer_profiles(validation_con
 -- Triggers
 CREATE TRIGGER update_customer_profile_updated_at
   BEFORE UPDATE ON customer_profiles
+  FOR EACH ROW
+  EXECUTE FUNCTION update_updated_at_column();
+
+-- ============================================================================
+-- 3. VALUE PROPOSITION CANVASES (after customer_profiles due to FK dependency)
+-- ============================================================================
+
+CREATE TABLE value_proposition_canvases (
+  -- Identity
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  slug TEXT NOT NULL,
+  name TEXT NOT NULL,
+  description TEXT,
+
+  -- Studio Context (optional soft links)
+  studio_project_id UUID REFERENCES studio_projects(id) ON DELETE SET NULL,
+  hypothesis_id UUID REFERENCES studio_hypotheses(id) ON DELETE SET NULL,
+
+  -- Canvas Metadata
+  status TEXT NOT NULL DEFAULT 'draft' CHECK (status IN ('draft', 'active', 'validated', 'archived')),
+  version INTEGER NOT NULL DEFAULT 1,
+  parent_version_id UUID REFERENCES value_proposition_canvases(id) ON DELETE SET NULL,
+  fit_score DECIMAL(3,2) CHECK (fit_score >= 0 AND fit_score <= 1), -- 0.0-1.0 alignment score
+
+  -- Customer Profile (Right Side) - Understanding the customer
+  -- Each block: { items: [...], evidence: [...], assumptions: [], validation_status: '...' }
+  customer_jobs JSONB NOT NULL DEFAULT '{"items": [], "evidence": [], "assumptions": [], "validation_status": "untested"}'::jsonb,
+  pains JSONB NOT NULL DEFAULT '{"items": [], "evidence": [], "assumptions": [], "validation_status": "untested"}'::jsonb,
+  gains JSONB NOT NULL DEFAULT '{"items": [], "evidence": [], "assumptions": [], "validation_status": "untested"}'::jsonb,
+
+  -- Value Map (Left Side) - What we offer
+  products_services JSONB NOT NULL DEFAULT '{"items": [], "assumptions": [], "validation_status": "untested"}'::jsonb,
+  pain_relievers JSONB NOT NULL DEFAULT '{"items": [], "assumptions": [], "validation_status": "untested"}'::jsonb,
+  gain_creators JSONB NOT NULL DEFAULT '{"items": [], "assumptions": [], "validation_status": "untested"}'::jsonb,
+
+  -- Cross-canvas Relationships
+  business_model_canvas_id UUID REFERENCES business_model_canvases(id) ON DELETE SET NULL,
+  customer_profile_id UUID REFERENCES customer_profiles(id) ON DELETE SET NULL,
+
+  -- Extended Metadata
+  tags TEXT[] DEFAULT '{}',
+  metadata JSONB DEFAULT '{}'::jsonb,
+
+  -- Timestamps
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+
+  -- Constraints
+  CONSTRAINT unique_vpc_slug_per_project UNIQUE (studio_project_id, slug)
+);
+
+-- Indexes
+CREATE INDEX idx_vpc_project ON value_proposition_canvases(studio_project_id);
+CREATE INDEX idx_vpc_hypothesis ON value_proposition_canvases(hypothesis_id);
+CREATE INDEX idx_vpc_status ON value_proposition_canvases(status);
+CREATE INDEX idx_vpc_bmc ON value_proposition_canvases(business_model_canvas_id);
+CREATE INDEX idx_vpc_customer_profile ON value_proposition_canvases(customer_profile_id);
+CREATE INDEX idx_vpc_version_lineage ON value_proposition_canvases(parent_version_id);
+CREATE INDEX idx_vpc_fit_score ON value_proposition_canvases(fit_score) WHERE fit_score IS NOT NULL;
+
+-- Triggers
+CREATE TRIGGER update_vpc_updated_at
+  BEFORE UPDATE ON value_proposition_canvases
   FOR EACH ROW
   EXECUTE FUNCTION update_updated_at_column();
 
