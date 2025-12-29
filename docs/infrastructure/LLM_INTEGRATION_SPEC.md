@@ -2,678 +2,650 @@
 
 > Architectural decisions and patterns for AI-augmented administration
 
-## 1. Design Philosophy
+## 1. Overview
 
-### 1.1 Core Principles
+### 1.1 Two Contexts for AI
 
-**AI Enhances, Never Blocks**
-LLM features are additive. Every admin workflow must function without AI. When AI is unavailable (API down, rate limited, keys missing), the system degrades gracefully to manual operation.
+**MCP Context (Claude Code, External LLM)**
+When an admin works with Claude Code or another LLM client via MCP, the LLM already has reasoning capabilities. Our MCP tools provide data access. No additional augmentation layer needed - the LLM IS the intelligence.
+
+**Web Admin Context (No External LLM)**
+When an admin uses the web interface directly, there's no reasoning layer. This is where LLM augmentation adds value - the app invokes LLMs on behalf of the user for specific actions.
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│ MCP Context                                                 │
+│ ┌─────────┐    MCP Tools    ┌──────────┐                   │
+│ │ Claude  │ ──────────────► │ Database │                   │
+│ │  Code   │ ◄────────────── │          │                   │
+│ └─────────┘                 └──────────┘                   │
+│ LLM reasoning happens in Claude Code                       │
+└─────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────┐
+│ Web Admin Context                                           │
+│ ┌─────────┐   Action    ┌──────────┐   MCP    ┌──────────┐ │
+│ │  Admin  │ ──────────► │   LLM    │ ───────► │ Database │ │
+│ │   UI    │ ◄────────── │  Action  │ ◄─────── │          │ │
+│ └─────────┘             └──────────┘          └──────────┘ │
+│ App invokes LLM, LLM uses MCP tools for data               │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### 1.2 Design Principles
+
+**Reuse MCP Infrastructure**
+LLM actions invoke the same MCP tools used by Claude Code. One set of tools, multiple consumers.
+
+**Graceful Degradation**
+Every workflow works without AI. Augmentation enhances, never blocks.
 
 **Predictable Behavior**
-Admins should understand when and why AI is invoked. No magic. Clear indicators when content is AI-generated or AI-augmented. Ability to preview, edit, or reject AI suggestions before committing.
+Clear indicators when AI is involved. Admin can always preview, edit, or reject.
 
-**Configurable Granularity**
-Different entities, fields, and workflows have different augmentation needs. The system supports configuration at multiple levels: global defaults, entity-type rules, field-level policies, and per-instance overrides.
-
-**Tool-Based Architecture**
-Rather than building bespoke logic for each use case, LLMs are given access to a set of reusable tools. This enables emergent capabilities - the same tools that extract assumptions from a canvas can analyze a log entry or suggest tags for a specimen.
-
-### 1.2 Key Architectural Decisions
-
-| Decision | Choice | Rationale |
-|----------|--------|-----------|
-| SDK | Vercel AI SDK | Provider-agnostic, streaming, structured output, active development |
-| Prompt Storage | Code (TypeScript modules) | Version control, type safety, testable, co-located with logic |
-| Model Selection | Task-type based, not entity-based | Complexity of task determines model needs, not what entity it touches |
-| Execution | Server-side only | Keep API keys secure, enable logging, rate limiting |
-| Output Handling | Structured (Zod schemas) | Predictable parsing, validation, direct database writes |
+**Start Simple**
+Two modes (manual/auto), one primary provider, expand based on real needs.
 
 ---
 
-## 2. Augmentation Modes
+## 2. Architecture
 
-The system supports three augmentation modes, configurable per entity type, per field, or per action.
+### 2.1 Core Components
 
-### 2.1 Mode Definitions
+```
+lib/ai/
+├── index.ts              # Main exports
+├── providers.ts          # Provider instances
+├── models.ts             # Model registry
+├── actions/
+│   ├── index.ts          # Action registry and executor
+│   ├── types.ts          # Action type definitions
+│   └── [action-name].ts  # Individual action definitions
+└── prompts/
+    ├── base.ts           # Shared system instructions
+    └── [action-name].ts  # Action-specific prompts
+```
 
-**Passive (Off)**
-No AI involvement. Field is purely manual entry. Use for sensitive data, user preferences, or where AI adds no value.
+### 2.2 Action Definition
 
-**Suggested (Manual Trigger)**
-AI assistance available on demand. Admin clicks a button to request suggestions. Can accept, edit, or reject. Use for creative fields where human judgment matters.
+An action is a discrete LLM operation with typed inputs and outputs:
 
-**Active (Auto-Augment)**
-AI automatically runs when conditions are met (e.g., on create, on field change). Results are applied but can be overridden. Use for tedious tasks like slug generation, tag extraction, categorization.
+```typescript
+interface Action<TInput, TOutput> {
+  id: string
+  name: string
+  description: string
 
-### 2.2 Configuration Schema
+  // What entities this action applies to
+  entityTypes: string[]
+
+  // Model selection
+  taskType: 'classification' | 'extraction' | 'generation' | 'analysis'
+  model?: string  // Override default for task type
+
+  // Schemas
+  inputSchema: z.ZodType<TInput>
+  outputSchema: z.ZodType<TOutput>
+
+  // Prompt construction
+  buildPrompt: (input: TInput, context: ActionContext) => {
+    system: string
+    user: string
+  }
+
+  // MCP tools this action can use (optional)
+  tools?: string[]
+
+  // How to apply results
+  applyResult?: (output: TOutput, context: ActionContext) => Promise<ApplyResult>
+}
+
+interface ActionContext {
+  entityType: string
+  entityId?: string
+  entityData?: Record<string, any>
+  relatedData?: Record<string, any>
+}
+
+interface ApplyResult {
+  updates?: Record<string, any>      // Fields to update on entity
+  creates?: Array<{                   // New entities to create
+    entityType: string
+    data: Record<string, any>
+  }>
+  message?: string                    // Feedback for user
+}
+```
+
+### 2.3 Action Executor
+
+```typescript
+interface ExecuteOptions {
+  action: string
+  entityType: string
+  entityId?: string
+  input?: Record<string, any>
+  preview?: boolean  // Return result without applying
+}
+
+interface ExecuteResult<T> {
+  success: boolean
+  output?: T
+  applied?: ApplyResult
+  error?: ActionError
+  meta: {
+    model: string
+    inputTokens: number
+    outputTokens: number
+    latencyMs: number
+    cost: number
+  }
+}
+```
+
+---
+
+## 3. Augmentation Modes
+
+Two modes, configurable per entity type and field:
+
+### 3.1 Manual Mode (Default)
+
+Admin explicitly triggers action via button click. Reviews output before applying.
+
+**Use for**: Creative generation, complex extraction, anything where human judgment matters.
+
+### 3.2 Auto Mode
+
+Action runs automatically on trigger. Results applied but can be overridden.
+
+**Use for**: Low-risk, high-confidence tasks - slug generation, tag extraction, categorization.
+
+**Triggers**:
+- `on-create` - When entity is first saved
+- `on-empty` - When specific field is empty on save
+
+### 3.3 Configuration
 
 ```typescript
 interface AugmentationConfig {
-  // Global default mode
-  defaultMode: 'passive' | 'suggested' | 'active'
-
-  // Entity-level overrides
   entities: {
     [entityType: string]: {
-      mode?: 'passive' | 'suggested' | 'active'
-      fields?: {
+      // Manual actions available for this entity
+      actions?: string[]
+
+      // Auto-augmented fields
+      autoFields?: {
         [fieldName: string]: {
-          mode?: 'passive' | 'suggested' | 'active'
-          action?: string  // Which AI action to use
-          trigger?: 'on-create' | 'on-update' | 'on-empty' | 'manual'
+          action: string
+          trigger: 'on-create' | 'on-empty'
         }
       }
-      actions?: string[]  // Available manual actions for this entity
     }
   }
 }
-```
 
-### 2.3 Configuration Example
-
-```typescript
-const augmentationConfig: AugmentationConfig = {
-  defaultMode: 'suggested',
-
+// Example
+const config: AugmentationConfig = {
   entities: {
     studio_projects: {
-      mode: 'suggested',
-      fields: {
-        slug: { mode: 'active', action: 'generate-slug', trigger: 'on-empty' },
-        tags: { mode: 'active', action: 'extract-tags', trigger: 'on-create' },
+      actions: ['generate-hypotheses', 'generate-prd'],
+      autoFields: {
+        slug: { action: 'generate-slug', trigger: 'on-empty' },
+        tags: { action: 'extract-tags', trigger: 'on-create' },
       },
-      actions: ['generate-hypotheses', 'generate-prd', 'summarize-learnings'],
     },
-
-    assumptions: {
-      mode: 'suggested',
-      fields: {
-        category: { mode: 'active', action: 'classify-assumption', trigger: 'on-create' },
-        importance: { mode: 'suggested' },
-      },
-      actions: ['suggest-validation-criteria', 'prioritize'],
-    },
-
     business_model_canvases: {
-      mode: 'suggested',
-      actions: ['extract-assumptions', 'identify-gaps', 'suggest-next-steps'],
+      actions: ['extract-assumptions', 'identify-gaps'],
     },
-
-    // Passive by default - no AI augmentation
-    profiles: {
-      mode: 'passive',
+    assumptions: {
+      actions: ['suggest-validation', 'prioritize'],
+      autoFields: {
+        category: { action: 'classify-assumption', trigger: 'on-create' },
+      },
     },
   },
 }
 ```
 
-### 2.4 UI Indicators
-
-The admin interface must clearly communicate augmentation state:
-
-- **Field-level**: Icon indicating available AI action, loading state during generation
-- **Form-level**: Section showing available actions for current entity
-- **Output attribution**: Visual distinction for AI-generated vs human-entered content
-- **Override controls**: Easy way to disable auto-augmentation per instance
-
 ---
 
-## 3. Model Selection Strategy
+## 4. Model Strategy
 
-### 3.1 Task Type Classification
+### 4.1 Provider Roles
 
-Models are selected based on task characteristics, not entity types:
+| Provider | Role | Use Cases |
+|----------|------|-----------|
+| **Anthropic** | Primary | Most actions - structured output, instruction following |
+| **Google** | Long context, Studio assets | Document analysis, studio project asset generation |
+| **OpenAI** | Fallback, specific capabilities | When Anthropic unavailable, vision tasks |
 
-| Task Type | Characteristics | Preferred Tier |
-|-----------|-----------------|----------------|
-| Classification | Single label from fixed set, fast | Low |
-| Extraction | Parse unstructured → structured | Medium |
-| Generation | Create new content | Medium |
-| Analysis | Multi-step reasoning, synthesis | High |
-| Summarization | Condense long content | Low-Medium |
-| Transformation | Format conversion, rewriting | Low-Medium |
-
-### 3.2 Model Registry
+### 4.2 Task-to-Model Defaults
 
 ```typescript
-interface ModelConfig {
-  id: string                    // Provider's model ID
-  provider: 'anthropic' | 'openai' | 'google'
-  tier: 'low' | 'medium' | 'high'
-  capabilities: string[]        // What this model is good at
-  contextWindow: number
-  supportsStructuredOutput: boolean
-  supportsVision: boolean
-  costPer1kInput: number
-  costPer1kOutput: number
-}
-
-interface TaskModelMapping {
-  [taskType: string]: {
-    default: string             // Model key
-    fallbacks: string[]         // Ordered fallback list
-    constraints?: {
-      maxInputTokens?: number
-      requiresStructuredOutput?: boolean
-      requiresVision?: boolean
-    }
-  }
-}
-```
-
-### 3.3 Default Task Mappings
-
-Configurable defaults that can be overridden:
-
-```typescript
-const defaultTaskModels: TaskModelMapping = {
+const taskModels: Record<string, ModelSelection> = {
   classification: {
     default: 'claude-haiku',
-    fallbacks: ['gpt-4o-mini', 'gemini-2-flash'],
+    fallback: 'gemini-2-flash',
   },
   extraction: {
     default: 'claude-sonnet',
-    fallbacks: ['gpt-4o', 'gemini-1.5-pro'],
-    constraints: { requiresStructuredOutput: true },
+    fallback: 'gpt-4o',
   },
   generation: {
     default: 'claude-sonnet',
-    fallbacks: ['gpt-4o', 'gemini-1.5-pro'],
+    fallback: 'gpt-4o',
   },
   analysis: {
     default: 'claude-sonnet',
-    fallbacks: ['claude-opus', 'o1'],
-  },
-  summarization: {
-    default: 'gemini-2-flash',
-    fallbacks: ['claude-haiku', 'gpt-4o-mini'],
+    fallback: 'gemini-1.5-pro',
   },
   'long-context': {
-    default: 'gemini-1.5-pro',
-    fallbacks: ['gemini-2-flash', 'claude-sonnet'],
-    constraints: { maxInputTokens: 500000 },
+    default: 'gemini-2-flash',
+    fallback: 'gemini-1.5-pro',
+  },
+  'studio-asset': {
+    default: 'gemini-2-flash',  // Fast, cheap for iterative generation
+    fallback: 'claude-sonnet',
   },
 }
 ```
 
-### 3.4 Selection Algorithm
+### 4.3 Model Selection Flow
 
 ```
-1. Determine task type from action definition
-2. Check for action-specific model override
-3. Check for entity-type model override
-4. Fall back to task type default
-5. Validate model meets constraints (context window, capabilities)
-6. If primary unavailable, try fallbacks in order
+1. Check action-specific model override
+2. Determine task type from action
+3. Get default model for task type
+4. Validate provider is available (has API key)
+5. If unavailable, try fallback
+6. If all unavailable, return error (don't block workflow)
 ```
 
 ---
 
-## 4. Tool Architecture
+## 5. MCP Tool Integration
 
-### 4.1 Rationale
+LLM actions can use MCP tools for data access. This reuses existing infrastructure.
 
-Rather than building prompt logic for each specific use case, we provide LLMs with a set of reusable tools. Benefits:
+### 5.1 Available Tools
 
-- **Composability**: Same tools work across different workflows
-- **Maintainability**: Fix a tool once, all workflows benefit
-- **Emergent capabilities**: LLM can combine tools in novel ways
-- **Testability**: Tools can be unit tested independently
+From existing MCP implementation:
+- `db_query` - Search/filter entities
+- `db_get` - Fetch single entity
+- `db_create` - Create entity
+- `db_update` - Update entity
 
-### 4.2 Tool Categories
-
-**Data Tools** - Read and write platform data
-- `query_entities` - Search/filter any entity type
-- `get_entity` - Fetch single entity by ID
-- `update_entity` - Modify entity fields
-- `create_entity` - Create new entity
-
-**Analysis Tools** - Process and analyze content
-- `extract_structured` - Parse unstructured text into schema
-- `classify` - Categorize content against defined taxonomy
-- `compare` - Find similarities/differences between items
-- `summarize` - Condense content to key points
-
-**Content Tools** - Generate and transform content
-- `generate_text` - Create content given constraints
-- `rewrite` - Transform content (tone, format, length)
-- `translate_format` - Convert between formats (markdown ↔ JSON)
-
-**Validation Tools** - Check and verify
-- `check_consistency` - Verify internal consistency
-- `identify_gaps` - Find missing elements
-- `validate_against_schema` - Check data against rules
-
-### 4.3 Tool Definition Schema
+### 5.2 Tool Access in Actions
 
 ```typescript
-interface Tool {
-  name: string
-  description: string           // For LLM to understand when to use
-  category: 'data' | 'analysis' | 'content' | 'validation'
-  inputSchema: z.ZodType        // What the tool accepts
-  outputSchema: z.ZodType       // What the tool returns
-  execute: (input: any, context: ExecutionContext) => Promise<any>
+// Action with tool access
+const extractAssumptions: Action<ExtractInput, ExtractOutput> = {
+  id: 'extract-assumptions',
+  // ...
+  tools: ['db_query', 'db_create'],  // Can query existing, create new
 
-  // Safety
-  requiresConfirmation?: boolean  // Prompt user before executing
-  sideEffects?: 'none' | 'read' | 'write'
+  applyResult: async (output, context) => {
+    // Action executor handles tool calls
+    // Results returned for preview or auto-applied
+    return {
+      creates: output.assumptions.map(a => ({
+        entityType: 'assumptions',
+        data: {
+          ...a,
+          source_type: context.entityType,
+          source_id: context.entityId,
+        },
+      })),
+    }
+  },
 }
 ```
 
-### 4.4 Execution Context
+### 5.3 Tool Execution
 
-Tools receive context about the current operation:
+When an action needs data:
 
 ```typescript
-interface ExecutionContext {
-  entityType?: string
+// During action execution
+async function executeWithTools(action: Action, input: any, context: ActionContext) {
+  // If action needs current entity data, load it
+  if (context.entityId && !context.entityData) {
+    context.entityData = await mcpTools.db_get(context.entityType, context.entityId)
+  }
+
+  // Build prompt with context
+  const prompt = action.buildPrompt(input, context)
+
+  // Execute LLM call
+  const result = await generateObject({
+    model: getModel(action),
+    system: prompt.system,
+    prompt: prompt.user,
+    schema: action.outputSchema,
+  })
+
+  return result
+}
+```
+
+---
+
+## 6. States and Error Handling
+
+### 6.1 Action States
+
+```typescript
+type ActionState =
+  | { status: 'idle' }
+  | { status: 'loading', message?: string }
+  | { status: 'preview', output: any }           // Manual mode: showing preview
+  | { status: 'applying' }                        // Writing results
+  | { status: 'success', output: any, applied: ApplyResult }
+  | { status: 'error', error: ActionError }
+```
+
+### 6.2 Error Types
+
+```typescript
+interface ActionError {
+  code: ActionErrorCode
+  message: string
+  details?: Record<string, any>
+  recoverable: boolean
+  suggestion?: string
+}
+
+type ActionErrorCode =
+  | 'PROVIDER_UNAVAILABLE'    // API key missing or provider down
+  | 'RATE_LIMITED'            // Too many requests
+  | 'CONTEXT_TOO_LARGE'       // Input exceeds model context
+  | 'INVALID_INPUT'           // Input doesn't match schema
+  | 'INVALID_OUTPUT'          // LLM output doesn't match schema
+  | 'GENERATION_FAILED'       // LLM returned error
+  | 'APPLY_FAILED'            // Failed to write results
+  | 'TIMEOUT'                 // Request took too long
+```
+
+### 6.3 Error Recovery
+
+| Error | Recovery |
+|-------|----------|
+| `PROVIDER_UNAVAILABLE` | Try fallback model, or show manual fallback |
+| `RATE_LIMITED` | Queue for retry, show "try again later" |
+| `CONTEXT_TOO_LARGE` | Truncate context, warn user |
+| `INVALID_OUTPUT` | Retry once with stricter prompt, then fail gracefully |
+| `GENERATION_FAILED` | Try fallback model |
+| `TIMEOUT` | Allow retry, suggest smaller scope |
+
+### 6.4 Graceful Degradation
+
+When AI fails, admin can always:
+1. Complete the task manually
+2. Retry the action
+3. Continue without that field/feature
+
+```typescript
+// UI pattern for degraded state
+interface DegradedState {
+  action: string
+  reason: string
+  manualFallback: {
+    label: string
+    description: string
+  }
+}
+```
+
+---
+
+## 7. Observability
+
+### 7.1 Action Logging
+
+Every action execution is logged:
+
+```typescript
+interface ActionLog {
+  id: string
+  timestamp: string
+
+  // What
+  actionId: string
+  entityType: string
   entityId?: string
-  userId: string
-  sessionId: string
 
-  // For data tools - scope what they can access
-  allowedEntityTypes: string[]
-  allowedOperations: ('read' | 'write' | 'delete')[]
+  // Model
+  model: string
+  provider: string
 
-  // For logging
-  parentActionId: string
-  traceId: string
+  // Performance
+  inputTokens: number
+  outputTokens: number
+  latencyMs: number
+  estimatedCost: number
+
+  // Result
+  status: 'success' | 'error'
+  errorCode?: ActionErrorCode
+
+  // Context (for debugging, may be redacted)
+  inputHash: string  // Hash of input for deduplication
+  outputPreview?: string  // First N chars of output
 }
 ```
 
----
+### 7.2 Metrics to Track
 
-## 5. Prompt Architecture
+**Reliability**
+- Success rate per action
+- Error rate by type
+- Fallback trigger rate
 
-### 5.1 Prompt Components
-
-Prompts are assembled from composable parts:
-
-```
-┌─────────────────────────────────────────┐
-│ System Prompt                           │
-│ ├─ Base instructions (shared)          │
-│ ├─ Task-specific instructions          │
-│ └─ Tool definitions (when applicable)  │
-├─────────────────────────────────────────┤
-│ Context                                 │
-│ ├─ Entity data (serialized)            │
-│ ├─ Related entities (if needed)        │
-│ └─ Historical context (if needed)      │
-├─────────────────────────────────────────┤
-│ User Prompt                             │
-│ └─ Specific request / input            │
-└─────────────────────────────────────────┘
-```
-
-### 5.2 Base System Instructions
-
-Shared across all prompts to establish consistent behavior:
-
-```typescript
-const BASE_SYSTEM = `
-You are an AI assistant integrated into a project management platform.
-
-Behavioral guidelines:
-- Be concise and actionable
-- When uncertain, ask clarifying questions or offer options
-- Never fabricate data - work only with provided context
-- Prefer structured output over prose when a schema is provided
-
-Safety guidelines:
-- Do not execute actions without explicit request
-- Flag potentially destructive operations
-- Respect entity boundaries - don't access unrelated data
-`
-```
-
-### 5.3 Prompt Template Structure
-
-```typescript
-interface PromptTemplate {
-  id: string
-  version: string
-
-  // Task classification for model selection
-  taskType: 'classification' | 'extraction' | 'generation' | 'analysis'
-
-  // Optional model override
-  model?: string
-
-  // Schema definitions
-  inputSchema: z.ZodType
-  outputSchema: z.ZodType
-
-  // Prompt builders
-  systemPrompt: (input: any) => string
-  userPrompt: (input: any) => string
-
-  // What context to load
-  contextRequirements: {
-    includeRelated?: string[]   // Related entity types to load
-    maxContextTokens?: number
-  }
-
-  // Available tools (if agentic)
-  tools?: string[]
-}
-```
-
----
-
-## 6. Guardrails
-
-### 6.1 Input Guardrails
-
-Protect against problematic inputs before LLM processing:
-
-**Content Filtering**
-- Reject inputs containing obvious prompt injection attempts
-- Sanitize user-provided content before including in prompts
-- Limit input length to reasonable bounds
-
-**Rate Limiting**
-- Per-user limits on AI actions per time window
-- Per-entity limits to prevent abuse
-- Global circuit breaker for cost protection
-
-**Validation**
-- All inputs validated against Zod schemas
-- Reject malformed or suspicious payloads
-- Log rejected requests for analysis
-
-### 6.2 Output Guardrails
-
-Validate and constrain LLM outputs:
-
-**Schema Enforcement**
-- All outputs must parse against defined schema
-- Retry with clarified prompt on parse failure
-- Fall back to manual mode after N failures
-
-**Content Validation**
-- Check for PII leakage in outputs
-- Validate generated content doesn't contain harmful patterns
-- Ensure outputs reference only provided context
-
-**Consistency Checks**
-- Generated IDs must not conflict with existing data
-- Foreign key references must be valid
-- Enum values must be from allowed set
-
-### 6.3 Operational Guardrails
-
-**Cost Controls**
-- Set maximum spend per action, per day, per month
-- Alert when approaching limits
-- Auto-disable expensive operations at threshold
-
-**Audit Trail**
-- Log all LLM inputs and outputs
-- Track which content was AI-generated
-- Enable rollback of AI-generated changes
-
----
-
-## 7. Evaluation Strategy
-
-### 7.1 Evaluation Types
-
-**Functional Evals**
-Does the output meet requirements?
-- Schema compliance (automated)
-- Correctness against known answers (automated)
-- Task completion (LLM-as-judge)
-
-**Quality Evals**
-Is the output good?
-- Coherence and readability (LLM-as-judge)
-- Actionability - can admin use this? (human review)
-- Tone and style consistency (LLM-as-judge)
-
-**Safety Evals**
-Is the output safe?
-- No PII leakage (automated)
-- No harmful content (automated + LLM-as-judge)
-- No prompt injection in output (automated)
-
-**Performance Evals**
-Is it efficient?
-- Latency (automated)
-- Token usage (automated)
-- Cost per action (automated)
-
-### 7.2 Golden Dataset
-
-Maintain curated test cases for each prompt template:
-
-```typescript
-interface GoldenTestCase {
-  id: string
-  promptTemplateId: string
-
-  // Input for the prompt
-  input: Record<string, any>
-
-  // Expected characteristics (not exact match)
-  expectations: {
-    schemaCompliant: boolean
-    mustContain?: string[]
-    mustNotContain?: string[]
-    minItems?: number
-    maxItems?: number
-    qualityThreshold?: number  // 0-1 from LLM-as-judge
-  }
-
-  // Optional: exact expected output for deterministic cases
-  expectedOutput?: Record<string, any>
-}
-```
-
-### 7.3 Eval Execution
-
-**Development**: Run evals on prompt changes before merge
-**Staging**: Full eval suite on deployment
-**Production**: Sample-based continuous evaluation
-
-```typescript
-interface EvalResult {
-  promptTemplateId: string
-  testCaseId: string
-  passed: boolean
-
-  metrics: {
-    schemaCompliant: boolean
-    qualityScore?: number
-    latencyMs: number
-    inputTokens: number
-    outputTokens: number
-  }
-
-  failures?: string[]  // What specifically failed
-}
-```
-
----
-
-## 8. Related: Admin Activity Dashboard
-
-> This section outlines requirements for a separate project: an admin dashboard for observability and activity tracking.
-
-### 8.1 Scope
-
-A dedicated interface for tracking:
-- All admin actions (manual and AI-augmented)
-- LLM call logs with inputs, outputs, metrics
-- Content change history with attribution
-- Cost tracking and budget management
-- System health and error rates
-
-### 8.2 Key Features
-
-**Activity Feed**
-Chronological log of all admin actions with filtering by entity type, user, action type, AI involvement.
-
-**LLM Analytics**
-- Calls per model, per action, per entity type
+**Performance**
+- P50/P95/P99 latency per action
 - Token usage trends
-- Cost breakdown and projections
-- Latency percentiles
-- Error rates and types
+- Cost per action type
 
-**Content Attribution**
-- Which content was AI-generated vs human-written
-- Edit history showing human modifications to AI content
-- Confidence/quality scores where applicable
+**Usage**
+- Actions per day/week
+- Most used actions
+- Auto vs manual ratio
 
-**Alerting**
-- Cost threshold alerts
-- Error rate spikes
-- Unusual usage patterns
+---
 
-### 8.3 Implementation Note
+## 8. Guardrails
 
-This should be specced and implemented as a separate project. Key dependencies:
-- Logging infrastructure for AI calls
-- Event system for admin actions
-- Database tables for activity storage
-- Scheduled jobs for aggregation
+### 8.1 Input Protection
+
+- **Schema validation**: All inputs validated before LLM call
+- **Size limits**: Max input size per action to prevent cost blowup
+- **Rate limiting**: Per-user, per-action limits
+
+### 8.2 Output Protection
+
+- **Schema enforcement**: Output must parse against defined schema
+- **Retry on failure**: One retry with clarified prompt on parse failure
+- **Fallback**: Return error rather than invalid data
+
+### 8.3 Cost Protection
+
+```typescript
+interface CostLimits {
+  perAction: number      // Max cost per single action
+  perDay: number         // Daily budget
+  perMonth: number       // Monthly budget
+}
+
+// On limit breach:
+// - perAction: Reject with "action too expensive" error
+// - perDay/perMonth: Disable auto-actions, warn on manual
+```
+
+---
+
+## 9. UI/UX Patterns
+
+> To be explored in detail separately. Key patterns to define:
+
+### 9.1 Action Triggers
+
+- Button placement for manual actions
+- Visual indicator for auto-augmented fields
+- Keyboard shortcuts
+
+### 9.2 Loading States
+
+- Inline loading for field-level actions
+- Modal/drawer for complex multi-output actions
+- Progress indication for long-running actions
+
+### 9.3 Preview and Approval
+
+- Diff view showing proposed changes
+- Accept/Edit/Reject controls
+- Partial acceptance (for multi-item outputs)
+
+### 9.4 Attribution
+
+- Visual marker for AI-generated content
+- Hover/click to see generation metadata
+- Edit history showing AI vs human changes
+
+### 9.5 Error States
+
+- Inline error with retry option
+- Graceful fallback to manual
+- Help text explaining what went wrong
+
+---
+
+## 10. Implementation Phases
+
+### Phase 1: Foundation
+- [ ] Action executor with MCP tool integration
+- [ ] Model selection with fallbacks
+- [ ] Error handling and states
+- [ ] Basic logging (console/DB)
+- [ ] One action: `extract-tags` (simple, validates plumbing)
+
+### Phase 2: Core Actions
+- [ ] `generate-slug`
+- [ ] `classify-assumption`
+- [ ] `extract-assumptions` (from canvases)
+- [ ] `generate-hypotheses`
+- [ ] Auto-augmentation for configured fields
+
+### Phase 3: Studio Support
+- [ ] Google model integration for studio assets
+- [ ] Studio-specific actions
+- [ ] Long-context support
+
+### Phase 4: Observability
+- [ ] Action log database table
+- [ ] Basic dashboard (logs, costs)
+- [ ] Alerting on errors/costs
+
+### Phase 5: Advanced
+- [ ] Streaming for long generations
+- [ ] Prompt caching
+- [ ] A/B testing prompts
+- [ ] Eval framework
 
 ---
 
 ## Appendices
 
-### A. Example Use Cases
-
-These illustrate how the architecture applies to concrete scenarios. They are not prescriptive - the actual implementation may differ.
-
-#### A.1 Auto-Tag Generation
-
-**Scenario**: When a log entry is created, automatically suggest relevant tags.
-
-**Configuration**:
-```typescript
-log_entries: {
-  fields: {
-    tags: { mode: 'active', action: 'extract-tags', trigger: 'on-create' }
-  }
-}
-```
-
-**Flow**:
-1. Admin creates log entry with title and content
-2. System detects `on-create` trigger for `tags` field
-3. Invokes `extract-tags` action (classification task → haiku)
-4. Tags are applied, admin can modify before saving
-
-#### A.2 Assumption Extraction from Canvas
-
-**Scenario**: Admin completes a Business Model Canvas and wants to extract testable assumptions.
-
-**Configuration**:
-```typescript
-business_model_canvases: {
-  actions: ['extract-assumptions']
-}
-```
-
-**Flow**:
-1. Admin clicks "Extract Assumptions" action button
-2. System loads BMC content, invokes extraction prompt (extraction task → sonnet)
-3. LLM uses `extract_structured` and `create_entity` tools
-4. Admin reviews proposed assumptions, confirms or edits
-5. Assumptions created with source tracking back to canvas blocks
-
-#### A.3 Hypothesis Generation
-
-**Scenario**: Admin has filled in a studio project's problem statement and wants hypothesis suggestions.
-
-**Configuration**:
-```typescript
-studio_projects: {
-  actions: ['generate-hypotheses']
-}
-```
-
-**Flow**:
-1. Admin clicks "Generate Hypotheses" in project form
-2. System loads project context, invokes generation prompt (generation task → sonnet)
-3. LLM generates 3-5 hypotheses with validation criteria
-4. Admin reviews, edits, selects which to create
-5. Selected hypotheses created as `studio_hypotheses` records
-
-### B. Model Comparison Reference
-
-| Model | Provider | Tier | Best For | Context | Cost (input/output per 1M) |
-|-------|----------|------|----------|---------|---------------------------|
-| claude-haiku-3.5 | Anthropic | Low | Classification, simple extraction | 200K | $0.25 / $1.25 |
-| claude-sonnet-4 | Anthropic | Medium | General tasks, structured output | 200K | $3 / $15 |
-| claude-opus-4 | Anthropic | High | Complex reasoning | 200K | $15 / $75 |
-| gpt-4o-mini | OpenAI | Low | Bulk operations, simple tasks | 128K | $0.15 / $0.60 |
-| gpt-4o | OpenAI | Medium | General tasks, vision | 128K | $2.50 / $10 |
-| o1 | OpenAI | High | Deep reasoning | 200K | $15 / $60 |
-| gemini-2-flash | Google | Low | Fast, long context | 1M | $0.10 / $0.40 |
-| gemini-1.5-pro | Google | Medium | Long documents | 2M | $1.25 / $5 |
-
-### C. Prompt Template Example
+### A. Example Action Definition
 
 ```typescript
-// lib/ai/prompts/extract-assumptions.ts
+// lib/ai/actions/extract-tags.ts
 import { z } from 'zod'
-import { BASE_SYSTEM } from './base'
+import { BASE_SYSTEM } from '../prompts/base'
 
-export const extractAssumptions = {
-  id: 'extract-assumptions',
-  version: '1.0.0',
-  taskType: 'extraction',
+export const extractTags: Action<ExtractTagsInput, ExtractTagsOutput> = {
+  id: 'extract-tags',
+  name: 'Extract Tags',
+  description: 'Suggest relevant tags based on content',
+
+  entityTypes: ['log_entries', 'studio_projects', 'specimens'],
+  taskType: 'classification',
 
   inputSchema: z.object({
-    canvasType: z.enum(['business_model_canvas', 'value_map', 'customer_profile']),
-    canvasData: z.record(z.any()),
-    existingAssumptions: z.array(z.string()).optional(),
+    title: z.string(),
+    content: z.string().optional(),
+    existingTags: z.array(z.string()).optional(),
   }),
 
   outputSchema: z.object({
-    assumptions: z.array(z.object({
-      statement: z.string(),
-      category: z.enum(['desirability', 'viability', 'feasibility', 'usability', 'ethical']),
-      sourceBlock: z.string(),
-      importance: z.enum(['critical', 'high', 'medium', 'low']),
-    })),
+    tags: z.array(z.string()).max(10),
+    reasoning: z.string().optional(),
   }),
 
-  systemPrompt: () => `${BASE_SYSTEM}
+  buildPrompt: (input) => ({
+    system: `${BASE_SYSTEM}
+You are tagging content for a portfolio/project management platform.
+Generate relevant, lowercase tags. Prefer existing tags when applicable.`,
 
-You are analyzing a business canvas to extract implicit assumptions that should be tested.
+    user: `Title: ${input.title}
+${input.content ? `Content: ${input.content.slice(0, 1000)}` : ''}
+${input.existingTags?.length ? `Existing tags to prefer: ${input.existingTags.join(', ')}` : ''}
 
-An assumption is a belief that must be true for the business model to work. Good assumptions are:
-- Specific and testable
-- Not already validated facts
-- Critical to the success of one or more canvas blocks
+Suggest 3-7 relevant tags.`,
+  }),
 
-Categories:
-- desirability: Do customers want this?
-- viability: Can we sustain this economically?
-- feasibility: Can we build/deliver this?
-- usability: Can customers use this effectively?
-- ethical: Are there potential harms?
-`,
+  applyResult: async (output) => ({
+    updates: { tags: output.tags },
+    message: `Added ${output.tags.length} tags`,
+  }),
+}
+```
 
-  userPrompt: (input) => `
-Analyze this ${input.canvasType.replace(/_/g, ' ')} and extract assumptions:
+### B. Model Reference
 
-${JSON.stringify(input.canvasData, null, 2)}
+| Model | Provider | Tier | Best For | Context |
+|-------|----------|------|----------|---------|
+| claude-haiku-3.5 | Anthropic | Low | Classification, simple tasks | 200K |
+| claude-sonnet-4 | Anthropic | Medium | Most actions | 200K |
+| gemini-2-flash | Google | Low | Fast, long context, studio assets | 1M |
+| gemini-1.5-pro | Google | Medium | Document analysis | 2M |
+| gpt-4o | OpenAI | Medium | Fallback, vision | 128K |
 
-${input.existingAssumptions?.length
-  ? `Already identified assumptions (don't duplicate):\n${input.existingAssumptions.join('\n')}`
-  : ''}
+### C. Configuration Example
 
-Extract 5-10 assumptions, prioritizing those that are high-risk and untested.
-`,
-
-  contextRequirements: {
-    maxContextTokens: 4000,
+```typescript
+// lib/ai/config.ts
+export const augmentationConfig: AugmentationConfig = {
+  entities: {
+    log_entries: {
+      actions: ['summarize', 'extract-insights'],
+      autoFields: {
+        slug: { action: 'generate-slug', trigger: 'on-empty' },
+        tags: { action: 'extract-tags', trigger: 'on-create' },
+      },
+    },
+    studio_projects: {
+      actions: ['generate-hypotheses', 'generate-prd', 'summarize-learnings'],
+      autoFields: {
+        slug: { action: 'generate-slug', trigger: 'on-empty' },
+        tags: { action: 'extract-tags', trigger: 'on-create' },
+      },
+    },
+    business_model_canvases: {
+      actions: ['extract-assumptions', 'identify-gaps'],
+    },
+    customer_profiles: {
+      actions: ['extract-assumptions', 'suggest-jobs'],
+    },
+    value_proposition_canvases: {
+      actions: ['calculate-fit', 'extract-assumptions'],
+    },
+    assumptions: {
+      actions: ['suggest-validation', 'suggest-experiments'],
+      autoFields: {
+        category: { action: 'classify-assumption', trigger: 'on-create' },
+      },
+    },
   },
 }
 ```
@@ -682,9 +654,6 @@ Extract 5-10 assumptions, prioritizing those that are high-risk and untested.
 
 ## References
 
-- [Anthropic: Effective Context Engineering](https://www.anthropic.com/engineering/effective-context-engineering-for-ai-agents)
-- [Agenta: Prompt Management Systems](https://agenta.ai/blog/the-definitive-guide-to-prompt-management-systems)
+- [Anthropic: Context Engineering](https://www.anthropic.com/engineering/effective-context-engineering-for-ai-agents)
+- [Vercel AI SDK Documentation](https://sdk.vercel.ai/docs)
 - [Datadog: LLM Evaluation Framework](https://www.datadoghq.com/blog/llm-evaluation-framework-best-practices/)
-- [Label Your Data: LLM Orchestration](https://labelyourdata.com/articles/llm-orchestration)
-- [Evidently AI: LLM-as-a-Judge](https://www.evidentlyai.com/llm-guide/llm-as-a-judge)
-- [Chroma Research: Context Rot](https://research.trychroma.com/context-rot)
