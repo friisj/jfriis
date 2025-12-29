@@ -1,49 +1,97 @@
 'use client'
 
+import { useMemo } from 'react'
 import type { Project } from '@/lib/types/database'
+import { RECOMMENDED_ALLOCATION } from '@/lib/portfolio/constants'
 
 interface PortfolioMetricsSummaryProps {
   projects: Project[]
 }
 
 export function PortfolioMetricsSummary({ projects }: PortfolioMetricsSummaryProps) {
-  // Calculate portfolio metrics
-  const exploreCount = projects.filter((p) => p.portfolio_type === 'explore').length
-  const exploitCount = projects.filter((p) => p.portfolio_type === 'exploit').length
-  const uncategorizedCount = projects.filter((p) => !p.portfolio_type).length
+  // Memoize portfolio type counts
+  const portfolioCounts = useMemo(() => {
+    const exploreCount = projects.filter((p) => p.portfolio_type === 'explore').length
+    const exploitCount = projects.filter((p) => p.portfolio_type === 'exploit').length
+    const uncategorizedCount = projects.filter((p) => !p.portfolio_type).length
+    return { exploreCount, exploitCount, uncategorizedCount }
+  }, [projects])
 
-  const h1Count = projects.filter((p) => p.horizon === 'h1').length
-  const h2Count = projects.filter((p) => p.horizon === 'h2').length
-  const h3Count = projects.filter((p) => p.horizon === 'h3').length
-  const totalHorizonCount = h1Count + h2Count + h3Count
+  // Memoize horizon counts and percentages
+  const horizonMetrics = useMemo(() => {
+    const h1Count = projects.filter((p) => p.horizon === 'h1').length
+    const h2Count = projects.filter((p) => p.horizon === 'h2').length
+    const h3Count = projects.filter((p) => p.horizon === 'h3').length
+    const totalHorizonCount = h1Count + h2Count + h3Count
 
-  const strongEvidenceCount = projects.filter((p) => p.evidence_strength === 'strong').length
-  const moderateEvidenceCount = projects.filter((p) => p.evidence_strength === 'moderate').length
-  const weakEvidenceCount = projects.filter((p) => p.evidence_strength === 'weak').length
-  const noEvidenceCount = projects.filter((p) => !p.evidence_strength || p.evidence_strength === 'none').length
+    const h1Percentage = totalHorizonCount > 0 ? Math.round((h1Count / totalHorizonCount) * 100) : 0
+    const h2Percentage = totalHorizonCount > 0 ? Math.round((h2Count / totalHorizonCount) * 100) : 0
+    const h3Percentage = totalHorizonCount > 0 ? Math.round((h3Count / totalHorizonCount) * 100) : 0
 
-  const needsReviewCount = projects.filter((p) => {
-    if (!p.next_review_due_at) return false
-    const dueDate = new Date(p.next_review_due_at)
-    return dueDate <= new Date()
-  }).length
+    // Check if horizon balance is off (too far from 70-20-10)
+    const horizonImbalance =
+      Math.abs(h1Percentage - RECOMMENDED_ALLOCATION.H1) > 20 ||
+      Math.abs(h2Percentage - RECOMMENDED_ALLOCATION.H2) > 15 ||
+      Math.abs(h3Percentage - RECOMMENDED_ALLOCATION.H3) > 10
 
-  const totalInvestment = projects.reduce((sum, p) => sum + (p.total_investment || 0), 0)
-  const exploreInvestment = projects
-    .filter((p) => p.portfolio_type === 'explore')
-    .reduce((sum, p) => sum + (p.total_investment || 0), 0)
-  const exploitInvestment = projects
-    .filter((p) => p.portfolio_type === 'exploit')
-    .reduce((sum, p) => sum + (p.total_investment || 0), 0)
+    return {
+      h1Count,
+      h2Count,
+      h3Count,
+      totalHorizonCount,
+      h1Percentage,
+      h2Percentage,
+      h3Percentage,
+      horizonImbalance,
+    }
+  }, [projects])
 
-  // Calculate horizon percentages (for 70-20-10 rule)
-  const h1Percentage = totalHorizonCount > 0 ? Math.round((h1Count / totalHorizonCount) * 100) : 0
-  const h2Percentage = totalHorizonCount > 0 ? Math.round((h2Count / totalHorizonCount) * 100) : 0
-  const h3Percentage = totalHorizonCount > 0 ? Math.round((h3Count / totalHorizonCount) * 100) : 0
+  // Memoize evidence strength counts
+  const evidenceCounts = useMemo(() => {
+    const strongEvidenceCount = projects.filter((p) => p.evidence_strength === 'strong').length
+    const moderateEvidenceCount = projects.filter((p) => p.evidence_strength === 'moderate').length
+    const weakEvidenceCount = projects.filter((p) => p.evidence_strength === 'weak').length
+    const noEvidenceCount = projects.filter(
+      (p) => !p.evidence_strength || p.evidence_strength === 'none'
+    ).length
+    return { strongEvidenceCount, moderateEvidenceCount, weakEvidenceCount, noEvidenceCount }
+  }, [projects])
 
-  // Check if horizon balance is off (too far from 70-20-10)
-  const horizonImbalance =
-    Math.abs(h1Percentage - 70) > 20 || Math.abs(h2Percentage - 20) > 15 || Math.abs(h3Percentage - 10) > 10
+  // Memoize review needs count (uses current date, so depends on time)
+  const needsReviewCount = useMemo(() => {
+    const now = new Date()
+    return projects.filter((p) => {
+      if (!p.next_review_due_at) return false
+      const dueDate = new Date(p.next_review_due_at)
+      return dueDate <= now
+    }).length
+  }, [projects])
+
+  // Memoize investment calculations
+  const investmentMetrics = useMemo(() => {
+    const totalInvestment = projects.reduce((sum, p) => sum + (p.total_investment || 0), 0)
+    const exploreInvestment = projects
+      .filter((p) => p.portfolio_type === 'explore')
+      .reduce((sum, p) => sum + (p.total_investment || 0), 0)
+    const exploitInvestment = projects
+      .filter((p) => p.portfolio_type === 'exploit')
+      .reduce((sum, p) => sum + (p.total_investment || 0), 0)
+    return { totalInvestment, exploreInvestment, exploitInvestment }
+  }, [projects])
+
+  const { exploreCount, exploitCount, uncategorizedCount } = portfolioCounts
+  const {
+    h1Count,
+    h2Count,
+    h3Count,
+    h1Percentage,
+    h2Percentage,
+    h3Percentage,
+    horizonImbalance,
+  } = horizonMetrics
+  const { strongEvidenceCount, moderateEvidenceCount, weakEvidenceCount, noEvidenceCount } =
+    evidenceCounts
+  const { totalInvestment, exploreInvestment, exploitInvestment } = investmentMetrics
 
   return (
     <div className="rounded-lg border bg-card">
