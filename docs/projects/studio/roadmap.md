@@ -103,11 +103,12 @@ studio_projects (
    - Success criteria (how we'll know)
    - Scope boundaries (what's out)
 
-2. **Roadmap** (sequenced, not time-boxed)
-   - Phases or milestones
-   - Each phase decomposed into spikes/experiments
+2. **Roadmap** (hypothesis-driven, not time-boxed)
+   - Sequence of hypotheses to validate
+   - Each hypothesis has validation criteria
+   - Hypotheses spawn experiments
 
-3. **Then:** Directory, tables, MCP registration
+3. **Then:** Directory, pages, MCP registration
 
 **Template locations:**
 - `docs/studio/templates/prd.md`
@@ -142,8 +143,10 @@ studio_projects (
 -- Hypotheses to test
 studio_hypotheses (
   id, project_id,
-  statement,       -- "If we X, then Y"
-  status,          -- proposed, testing, validated, invalidated
+  statement,            -- "If we X, then Y"
+  validation_criteria,  -- How we'll know it's true/false
+  sequence,             -- Order in roadmap (1, 2, 3...)
+  status,               -- proposed, testing, validated, invalidated
   created_at, updated_at
 )
 
@@ -177,39 +180,62 @@ studio_notes (
 
 ---
 
-### 5. Consistent Layouts for Spikes
+### 5. Hypothesis-Driven Project Structure
 
-**Directory structure for experiments:**
+**Principle:** Project roadmaps are sequences of hypotheses to validate, not arbitrary phases. Each hypothesis spawns experiments.
 
+**Hierarchy:**
 ```
-components/studio/{project}/
-├── experiments/
-│   ├── {experiment-slug}/
-│   │   ├── README.md      -- Auto-generated from DB
-│   │   ├── index.tsx      -- Entry point if UI
-│   │   └── ...
-│   └── ...
-├── src/                   -- Graduated/production code
+Studio Project
+├── Hypothesis 1 (validation criteria)
+│   ├── Experiment A
+│   └── Experiment B
+├── Hypothesis 2 (validation criteria)
+│   └── Experiment C
 └── ...
 ```
 
-**Experiment README template:**
-```markdown
-# {Experiment Name}
+**Pages (template + DB data):**
 
-**Status:** {status}
-**Hypothesis:** {link to hypothesis}
-**Outcome:** {outcome}
-
-## Question
-What are we trying to learn?
-
-## Approach
-How we're testing it.
-
-## Learnings
-What we discovered.
 ```
+/studio/{project}/                  ← Project cover page
+/studio/{project}/{experiment}/     ← Experiment detail page
+```
+
+**Project cover page shows:**
+- Name, description, status from `studio_projects`
+- PRD summary (problem, hypothesis, success criteria)
+- List of hypotheses with status
+- List of experiments grouped by hypothesis
+- Links to related logs, specimens
+
+**Experiment page shows:**
+- Name, description, status from `studio_experiments`
+- Parent hypothesis and validation criteria
+- Outcome, learnings
+- Feedback/notes from `studio_notes`
+- State changes, logs
+
+**Directory structure:**
+
+```
+components/studio/{project}/
+├── prd.md                 -- Generated from DB PRD fields
+├── roadmap.md             -- Hypothesis sequence
+├── experiments/
+│   └── {experiment-slug}/
+│       └── ...            -- Experiment code/assets
+└── src/                   -- Graduated production code
+
+app/(studio)/{project}/
+├── page.tsx               -- Cover page (uses template)
+└── [experiment]/
+    └── page.tsx           -- Experiment page (uses template)
+```
+
+**Templates:**
+- `components/studio/_templates/project-cover.tsx`
+- `components/studio/_templates/experiment-page.tsx`
 
 ---
 
