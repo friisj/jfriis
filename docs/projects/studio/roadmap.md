@@ -4,140 +4,206 @@
 
 ---
 
-## Current State Summary
-
-### What is Studio?
-
-Studio is a collection of experimental projects hosted within the jonfriis.com codebase. Each project lives under `components/studio/` and follows shared conventions for database naming, MCP integration, and documentation.
-
-### Active Projects
-
-| Project | Status | Temperature | Purpose |
-|---------|--------|-------------|---------|
-| Design System Tool | Active (Phase 5) | Hot | Theme builder with token architecture |
-| Experience Systems | Paused | Warm | Conceptual framework (8 whitepaper iterations) |
-| Hando | Planning | Warm | Home management platform |
-| Hando/Twin | Planning | Warm | Digital building model (sub-project) |
-| Trux | Planning | Warm | TBD |
+## Current State
 
 ### Existing Infrastructure
 
-#### 1. Studio Registry
-**Location:** `.claude/STUDIO_REGISTRY.md`
-
-Central source of truth for all studio projects. Tracks:
-- Project paths and status
-- Temperature (Hot/Warm/Cold)
-- Current focus and next milestones
-- Blockers and deferred items
-- Cross-project synergies
-
-**Maintenance cadence:** Update on project start/pause or major milestones, not every commit.
-
-#### 2. Studio Project Protocol
-**Location:** `docs/infrastructure/STUDIO_PROJECT_PROTOCOL.md`
-
-Step-by-step guide for creating new studio projects:
-1. Create project directory (`components/studio/{name}/`)
-2. Database tables with `studio_{project}_*` prefix
-3. MCP schema registration
-4. Registry update
-
-Includes templates for:
-- README structure
-- SQL migrations
-- Zod schemas
-- Common table patterns (config, items, junction)
-
-#### 3. Database Conventions
-
-All studio tables use prefix: `studio_{project-short-name}_{table-name}`
-
-Examples:
-- `studio_dst_configs` (Design System Tool)
-- `studio_hando_twin_*` (Hando/Twin sub-project)
-
-Standard fields on all tables:
-- `id` (UUID, primary key)
-- `created_at` (timestamptz)
-- `updated_at` (timestamptz with trigger)
-
-#### 4. MCP Integration
-
-Studio tables are registered with the Remote MCP server, enabling:
-- CRUD operations via Claude connectors
-- Schema validation with Zod
-- Role-based access control
-
-Schema files: `lib/mcp/schemas/` (to be migrated from `mcp/src/schemas/`)
-
-#### 5. Studio Manager Agent
-
-**Agent:** `studio-mgr` (defined in Claude Code Task tool)
-
-**Purpose:** Strategic guidance for portfolio management:
-- Project prioritization decisions
-- Identifying synergies between projects
-- Planning shared infrastructure
-- Understanding project dependencies
-- Deciding what to focus on next
-
-**When to use:**
-- "What should I work on next?"
-- "How does this new project fit with existing work?"
-- "I keep rewriting the same code across projects"
-- "Just shipped a milestone, what now?"
-
----
-
-## Infrastructure Inventory
-
 | Component | Location | Status |
 |-----------|----------|--------|
+| Registry | `.claude/STUDIO_REGISTRY.md` | Markdown file, manual updates |
+| Protocol | `docs/infrastructure/STUDIO_PROJECT_PROTOCOL.md` | Basic creation guide |
 | Project code | `components/studio/` | Active |
-| Documentation | `docs/studio/` | Partial |
-| Registry | `.claude/STUDIO_REGISTRY.md` | Active |
-| Protocol | `docs/infrastructure/STUDIO_PROJECT_PROTOCOL.md` | Active |
 | MCP schemas | `lib/mcp/schemas/` | Active |
-| Migrations | `supabase/migrations/` | Active |
 | Studio-mgr agent | Claude Code config | Active |
 
----
+### Pain Points
 
-## Identified Gaps
-
-*To be discussed and prioritized:*
-
-- [ ] No automated registry validation
-- [ ] Protocol references old MCP path (`mcp/src/schemas/`)
-- [ ] No project template/scaffolding command
-- [ ] Sub-project patterns not fully documented (Hando/Twin)
-- [ ] No shared component extraction process
-- [ ] Studio-mgr agent lacks access to current registry state
-- [ ] No versioning strategy for shared infrastructure
+- Registry is disconnected from DB (can't relate projects to experiments, logs, etc.)
+- Projects start without clear definition, leading to drift
+- Learnings from experiments are scattered or lost
+- No structured way to capture hypotheses and validate them
+- Context gets buried in conversations, not persisted
 
 ---
 
-## Vision & Improvements
+## Planned Improvements
 
-*Section to be expanded after discussion*
+### 1. Migrate Registry to Supabase
 
-### Questions to Address
+**Why:** Enable relations, MCP access, structured queries.
 
-1. What friction points exist in the current workflow?
-2. Should studio-mgr have deeper integration (auto-read registry)?
-3. Is there value in a CLI/script for project scaffolding?
-4. How should sub-projects be handled systematically?
-5. What shared infrastructure should be extracted?
+**Tables:**
+
+```sql
+-- Core project registry
+studio_projects (
+  id, slug, name, description,
+  status,        -- planning, active, paused, archived
+  temperature,   -- hot, warm, cold
+  current_focus,
+  path,          -- components/studio/{slug}/
+  created_at, updated_at
+)
+
+-- Optional: keep markdown snapshot auto-generated for quick reference
+```
+
+**Benefits:**
+- Projects can be related to experiments, logs, specimens
+- Query via MCP ("show me all active projects")
+- Easier to update (no file editing)
+- Studio-mgr agent can read current state
+
+**Migration:** Export current registry data, create table, deprecate markdown file.
+
+---
+
+### 2. Upgrade Protocol: Require PRD + Roadmap
+
+**New project creation flow:**
+
+1. **PRD first** (lightweight)
+   - Problem statement
+   - Hypothesis (what we believe)
+   - Success criteria (how we'll know)
+   - Scope boundaries (what's out)
+
+2. **Roadmap** (sequenced, not time-boxed)
+   - Phases or milestones
+   - Each phase decomposed into spikes/experiments
+
+3. **Then:** Directory, tables, MCP registration
+
+**Template locations:**
+- `docs/studio/templates/prd.md`
+- `docs/studio/templates/roadmap.md`
+
+---
+
+### 3. Decompose Work into Spikes/Experiments
+
+**Principle:** Big fuzzy projects stall. Small experiments:
+- Have clear pass/fail criteria
+- Generate learnings even when they fail
+- Can be paused/resumed cleanly
+
+**Spike definition:**
+- Time-bounded exploration (hours to days, not weeks)
+- Single question to answer
+- Outputs: working code, learnings, or "don't pursue"
+
+**Experiment definition:**
+- Tests a hypothesis
+- Has measurable outcome
+- Captures observations
+
+---
+
+### 4. Experiments & Hypotheses in DB
+
+**Tables:**
+
+```sql
+-- Hypotheses to test
+studio_hypotheses (
+  id, project_id,
+  statement,       -- "If we X, then Y"
+  status,          -- proposed, testing, validated, invalidated
+  created_at, updated_at
+)
+
+-- Experiments/spikes that test hypotheses
+studio_experiments (
+  id, project_id, hypothesis_id,
+  name, description,
+  type,            -- spike, experiment, prototype
+  status,          -- planned, in_progress, completed, abandoned
+  outcome,         -- success, failure, inconclusive, null
+  learnings,       -- what we discovered
+  created_at, updated_at
+)
+
+-- Observations, notes, annotations
+studio_notes (
+  id,
+  parent_type,     -- project, hypothesis, experiment
+  parent_id,
+  content,
+  note_type,       -- observation, question, decision, feedback
+  created_at
+)
+```
+
+**Benefits:**
+- Rich context is captured and queryable
+- Learnings persist across sessions
+- Can review "what did we learn about X?"
+- Hypotheses track validation state
+
+---
+
+### 5. Consistent Layouts for Spikes
+
+**Directory structure for experiments:**
+
+```
+components/studio/{project}/
+├── experiments/
+│   ├── {experiment-slug}/
+│   │   ├── README.md      -- Auto-generated from DB
+│   │   ├── index.tsx      -- Entry point if UI
+│   │   └── ...
+│   └── ...
+├── src/                   -- Graduated/production code
+└── ...
+```
+
+**Experiment README template:**
+```markdown
+# {Experiment Name}
+
+**Status:** {status}
+**Hypothesis:** {link to hypothesis}
+**Outcome:** {outcome}
+
+## Question
+What are we trying to learn?
+
+## Approach
+How we're testing it.
+
+## Learnings
+What we discovered.
+```
+
+---
+
+## Implementation Order
+
+1. **Create DB tables** (projects, hypotheses, experiments, notes)
+2. **Migrate registry data** to `studio_projects`
+3. **Create templates** (PRD, roadmap, experiment README)
+4. **Update protocol** with new requirements
+5. **Build simple views** (list projects, list experiments)
+6. **Deprecate** markdown registry
+
+---
+
+## Open Questions
+
+- Should notes support threading/replies?
+- How to handle sub-projects (Hando/Twin pattern)?
+- Auto-generate experiment READMEs from DB or keep manual?
+- Integration with log entries (experiment → spawns log post)?
 
 ---
 
 ## References
 
-- [Studio Registry](/.claude/STUDIO_REGISTRY.md) - Project status tracking
-- [Studio Project Protocol](/docs/infrastructure/STUDIO_PROJECT_PROTOCOL.md) - Creation guide
-- [Remote MCP How-To](/docs/infrastructure/REMOTE_MCP_HOW_TO.md) - MCP implementation details
+- [Studio Registry](/.claude/STUDIO_REGISTRY.md) - Current (to be migrated)
+- [Studio Project Protocol](/docs/infrastructure/STUDIO_PROJECT_PROTOCOL.md) - Current (to be updated)
+- [DOCS_UI_SPEC](/docs/infrastructure/DOCS_UI_SPEC.md) - Studio architecture context
 
 ---
 
-*Created: 2025-12-28*
+*Updated: 2025-12-28*
