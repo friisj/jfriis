@@ -1,14 +1,108 @@
 # jonfriis.com System Control Panel Specification
 
-> **Version:** 2.0.0
+> **Version:** 2.1.0
 > **Status:** Specification
-> **Last Updated:** 2025-12-27
+> **Last Updated:** 2025-12-28
 
 ---
 
 ## Overview
 
 A visual control panel for jonfriis.com - combining public documentation with admin capabilities. Interactive diagrams, mindmap navigation, CRUD operations, and automated validation against source files.
+
+---
+
+## Studio Architecture
+
+### The Workshop Model
+
+The site is organized around a fundamental distinction: **Studio** (workshop) and **Public Site** (curated exposure).
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                              STUDIO                                      │
+│                         (The Workshop)                                   │
+│                                                                         │
+│   Where ideas are developed, prototyped, and refined.                   │
+│   Experimental. Work-in-progress. May fail or pivot.                    │
+│                                                                         │
+│   ┌─────────────┐  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐   │
+│   │ Design      │  │ Experience  │  │   Hando     │  │    Trux     │   │
+│   │ System Tool │  │  Systems    │  │   /Twin     │  │             │   │
+│   └─────────────┘  └─────────────┘  └─────────────┘  └─────────────┘   │
+│                                                                         │
+│   Infrastructure & Tooling (meta-research project)                      │
+│   ├── Project protocols                                                 │
+│   ├── MCP integration                                                   │
+│   ├── Studio manager agent                                              │
+│   └── Shared conventions                                                │
+│                                                                         │
+└────────────────────────────────┬────────────────────────────────────────┘
+                                 │
+                                 │  Curation
+                                 │  (selective exposure)
+                                 ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│                           PUBLIC SITE                                    │
+│                      (Curated Exposure)                                  │
+│                                                                         │
+│   Portfolio    Log         Gallery      Profile                         │
+│   (finished    (writing,   (visual      (about,                         │
+│   projects)    research)   specimens)   contact)                        │
+│                                                                         │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+### Studio as Meta-Research
+
+The studio is not just a container for projects—it is itself a research project. Developing the infrastructure, tooling, and protocols for creative digital exploration is an ongoing investigation into:
+
+- **AI-augmented development workflows** (Claude Code, MCP, agents)
+- **Personal knowledge management** (how to structure and surface work)
+- **Creative tooling** (what tools help vs. hinder exploration)
+- **Project lifecycle patterns** (starting, pausing, resuming, archiving)
+
+This meta-layer is tracked in:
+- `.claude/STUDIO_REGISTRY.md` - Project status and portfolio overview
+- `docs/infrastructure/STUDIO_PROJECT_PROTOCOL.md` - Creation procedures
+- `docs/projects/studio/roadmap.md` - Infrastructure improvement plans
+
+### Studio Manager Agent
+
+The `studio-mgr` agent provides strategic guidance for portfolio management:
+
+| Situation | Agent Helps With |
+|-----------|------------------|
+| "What should I work on next?" | Prioritization based on project states |
+| "Starting a new project" | Identifying synergies, shared infrastructure |
+| "Just shipped a milestone" | Recommending next focus areas |
+| "Duplicating code across projects" | Planning shared service extraction |
+
+### Content Flow
+
+```
+Workshop (Studio)          Curation                 Public Site
+─────────────────         ─────────                ─────────────
+
+Prototype
+    │
+    ▼
+Iterate ──────────────▶  Decision  ──────────────▶ Portfolio entry
+    │                    (publish?)                Log entry
+    ▼                        │                     Gallery specimen
+Pivot/Park                   │
+    │                        ▼
+    └─────────────────▶  Archive
+                         (not ready)
+```
+
+Projects in the studio may:
+1. **Graduate** to public portfolio (when complete/presentable)
+2. **Spawn content** for log (writing about the process) or gallery (visual artifacts)
+3. **Remain internal** (useful but not portfolio-worthy)
+4. **Be archived** (learned from, moved on)
+
+---
 
 ### Philosophy
 
@@ -100,26 +194,45 @@ Interactive visual diagram showing the entire system: services, technologies, an
 
 ### 2. Sitemap Mindmap
 
-React Flow-powered visualization of the entire site structure. The primary navigation interface.
+React Flow-powered visualization of the entire site structure. The primary navigation interface. Reflects the workshop/public site architecture.
 
 ```
-                              ┌─────────────┐
-                              │ jonfriis.com│
-                              └──────┬──────┘
-              ┌───────────────────┬──┴──┬───────────────────┐
-              ▼                   ▼     ▼                   ▼
-        ┌──────────┐        ┌─────────┐ ┌─────────┐   ┌──────────┐
-        │   Site   │        │ Studio  │ │  Admin  │   │   Docs   │
-        └────┬─────┘        └────┬────┘ └────┬────┘   └────┬─────┘
-             │                   │           │             │
-    ┌────────┼────────┐    ┌─────┼─────┐    ...           ...
-    ▼        ▼        ▼    ▼     ▼     ▼
-  [Home] [Projects] [Log] [DST] [Hando] [ES]
-           │               │
-        ┌──┴──┐         ┌──┴──┐
-        ▼     ▼         ▼     ▼
-      [P1]  [P2]     [Twin] [...]
+                                    ┌─────────────┐
+                                    │ jonfriis.com│
+                                    └──────┬──────┘
+                    ┌──────────────────────┼──────────────────────┐
+                    ▼                      ▼                      ▼
+           ┌────────────────┐      ┌──────────────┐       ┌────────────┐
+           │  PUBLIC SITE   │      │    STUDIO    │       │   SYSTEM   │
+           │  (Curated)     │      │  (Workshop)  │       │  (Admin)   │
+           └───────┬────────┘      └──────┬───────┘       └─────┬──────┘
+                   │                      │                     │
+     ┌─────────────┼─────────────┐        │               ┌─────┴─────┐
+     ▼             ▼             ▼        │               ▼           ▼
+ [Portfolio]    [Log]       [Gallery]     │           [Admin]    [Control
+     │            │             │         │                       Panel]
+  ┌──┴──┐      ┌──┴──┐      ┌──┴──┐      │
+  ▼     ▼      ▼     ▼      ▼     ▼      │
+[P1]  [P2]  [Entry] ...  [Spec] ...      │
+                                         │
+              ┌──────────────────────────┼──────────────────────────┐
+              ▼                          ▼                          ▼
+       ┌────────────┐            ┌────────────┐              ┌────────────┐
+       │    DST     │            │   Hando    │              │    ES      │
+       │  (Active)  │            │ (Planning) │              │ (Paused)   │
+       └────────────┘            └─────┬──────┘              └────────────┘
+                                       │
+                                    ┌──┴──┐
+                                    ▼     ▼
+                                 [Twin] [...]
 ```
+
+**Visual Distinction:**
+| Area | Visual Treatment | Purpose |
+|------|------------------|---------|
+| **Public Site** | Solid nodes, prominent | Published, curated content |
+| **Studio** | Dashed borders, workshop icon | Work-in-progress, experimental |
+| **System** | Muted, utility styling | Infrastructure, admin |
 
 **Features:**
 - **Collapsible sections**: Click to expand/collapse children
@@ -136,10 +249,21 @@ interface SitemapNode {
   title: string
   type: 'page' | 'section' | 'project' | 'component'
 
+  // Site area
+  area: 'public' | 'studio' | 'system'
+
   // Metadata
   createdAt: Date
   updatedAt: Date
   author?: string
+
+  // Studio-specific (for area === 'studio')
+  studio?: {
+    status: 'planning' | 'active' | 'paused' | 'archived'
+    temperature: 'hot' | 'warm' | 'cold'
+    currentFocus?: string
+    isMetaProject?: boolean  // true for infrastructure/tooling work
+  }
 
   // Relationships
   relatedProjects?: string[]
@@ -960,24 +1084,37 @@ React Flow diagrams are complex on mobile. Options:
 │  │                                                  │  │           ││
 │  │                 jonfriis.com                     │  │  Detail   ││
 │  │                      │                           │  │  Panel    ││
-│  │         ┌────────────┼────────────┐              │  │           ││
-│  │         │            │            │              │  │ ─────────-││
-│  │      ┌──┴──┐      ┌──┴──┐      ┌──┴──┐          │  │           ││
-│  │      │Site │      │Studio│      │Admin│          │  │ projects  ││
-│  │      └──┬──┘      └──┬──┘      └─────┘          │  │           ││
-│  │    ┌────┼────┐   ┌───┼───┐                      │  │ Path:     ││
-│  │    │    │    │   │   │   │                      │  │ /projects ││
-│  │  [Home][Log][●]  [DST][Hando]                   │  │           ││
-│  │              │        │                         │  │ Created:  ││
-│  │         [Projects]  [Twin]                      │  │ 2025-01   ││
-│  │                                                  │  │           ││
-│  │  [─][+][🔍]                              [Mini] │  │ Related:  ││
-│  └──────────────────────────────────────────────────┘  │ • 3 logs  ││
-│                                                        │ • 5 specs ││
-│  Validation: ✅ Synced  |  Last updated: Dec 27, 2025  │           ││
-│                                                        │ [View →]  ││
-└────────────────────────────────────────────────────────┴───────────┘│
+│  │    ┌─────────────────┼─────────────────┐         │  │           ││
+│  │    │                 │                 │         │  │ ─────────-││
+│  │ ┌──┴────┐      ┌─────┴─────┐      ┌────┴───┐    │  │           ││
+│  │ │PUBLIC │      │  STUDIO   │      │ SYSTEM │    │  │ DST       ││
+│  │ │ SITE  │      │ (Workshop)│      │        │    │  │ ══════════││
+│  │ └───┬───┘      └─────┬─────┘      └────────┘    │  │           ││
+│  │     │                │                          │  │ Status:   ││
+│  │ ┌───┼───┐    ┌───────┼───────┐                  │  │ 🔥 Active ││
+│  │ │   │   │    │       │       │                  │  │           ││
+│  │[●] [Log][Gal][DST]  [Hando] [ES]                │  │ Focus:    ││
+│  │ │        │    │       │     ┊                   │  │ Phase 5   ││
+│  │[Port]    │  [Twin]  [...]  (paused)             │  │           ││
+│  │folio     │                                      │  │ Meta:     ││
+│  │          │  ┌──────────────────┐                │  │ ☐ Infra   ││
+│  │          └──│ Infrastructure   │ (meta-project) │  │           ││
+│  │             │ • Protocols      │                │  │ Spawned:  ││
+│  │             │ • MCP            │                │  │ • 2 logs  ││
+│  │             │ • Agents         │                │  │ • 1 spec  ││
+│  │             └──────────────────┘                │  │           ││
+│  │  [─][+][🔍]                              [Mini] │  │ [Open →]  ││
+│  └──────────────────────────────────────────────────┘  └───────────┘│
+│                                                                      │
+│  Validation: ✅ Synced  |  Last updated: Dec 28, 2025                │
+└──────────────────────────────────────────────────────────────────────┘
 ```
+
+**Legend:**
+- Solid boxes = Public site (curated, published)
+- Dashed boxes = Studio (workshop, experimental)
+- `🔥` Hot / `🌡️` Warm / `❄️` Cold temperature indicators
+- `(paused)` = Inactive studio projects shown muted
 
 ---
 
@@ -995,3 +1132,5 @@ React Flow diagrams are complex on mobile. Options:
 ---
 
 *This spec defines a System Control Panel combining visual documentation with admin capabilities. Routes at `/system`, React Flow for diagrams, validation agent for sync checking.*
+
+*Key architectural principle: The site distinguishes between **Studio** (workshop for experimentation) and **Public Site** (curated exposure). The studio infrastructure itself is a meta-research project exploring AI-augmented creative workflows.*
