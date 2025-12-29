@@ -11,6 +11,32 @@ export interface BaseRecord {
   updated_at: string
 }
 
+// Portfolio Management Types
+export type PortfolioType = 'explore' | 'exploit'
+export type Horizon = 'h1' | 'h2' | 'h3'
+export type InnovationAmbition = 'core' | 'adjacent' | 'transformational'
+export type ExploreStage = 'ideation' | 'discovery' | 'validation' | 'acceleration'
+export type ExploitStage = 'launch' | 'sustaining' | 'efficiency' | 'mature' | 'declining' | 'renovation'
+export type EvidenceStrength = 'none' | 'weak' | 'moderate' | 'strong'
+export type ExpectedReturn = 'low' | 'medium' | 'high' | 'breakthrough'
+export type Profitability = 'low' | 'medium' | 'high'
+export type DisruptionRisk = 'protected' | 'moderate' | 'at_risk'
+export type InnovationRisk = 'low' | 'medium' | 'high'
+
+export interface PortfolioDecision {
+  date: string
+  decision: 'pivot' | 'persevere' | 'kill'
+  rationale: string
+  reviewer?: string
+}
+
+export interface TargetMetrics {
+  revenue_target?: number
+  customer_target?: number
+  validation_target?: string
+  timeline_target?: string
+}
+
 // Projects
 export interface Project extends BaseRecord {
   title: string
@@ -29,6 +55,42 @@ export interface Project extends BaseRecord {
   seo_description?: string
   published: boolean
   published_at?: string
+
+  // Portfolio Management (Strategyzer Portfolio Map)
+  portfolio_type?: PortfolioType
+  horizon?: Horizon
+  innovation_ambition?: InnovationAmbition
+
+  // Explore Portfolio Dimensions
+  explore_stage?: ExploreStage
+  evidence_strength?: EvidenceStrength
+  expected_return?: ExpectedReturn
+
+  // Exploit Portfolio Dimensions
+  exploit_stage?: ExploitStage
+  profitability?: Profitability
+  disruption_risk?: DisruptionRisk
+
+  // Risk & Value
+  innovation_risk?: InnovationRisk
+  strategic_value_score?: number // 1-10
+  market_size_estimate?: string
+
+  // Investment & Resources
+  current_investment?: number
+  total_investment?: number
+  allocated_fte?: number // Full-time equivalents
+
+  // Lifecycle Tracking
+  last_stage_transition_at?: string
+  last_portfolio_review_at?: string
+  next_review_due_at?: string
+
+  // Decision History
+  decision_history?: PortfolioDecision[]
+
+  // Target Metrics
+  target_metrics?: TargetMetrics
 }
 
 export type ProjectInsert = Omit<Project, keyof BaseRecord | 'published_at'>
@@ -469,6 +531,138 @@ export interface AssumptionEvidence extends BaseRecord {
 
 export type AssumptionEvidenceInsert = Omit<AssumptionEvidence, keyof BaseRecord>
 export type AssumptionEvidenceUpdate = Partial<AssumptionEvidenceInsert>
+
+// Portfolio Evidence Summary (from database view)
+export type Sustainability = 'fragile' | 'stable' | 'resilient'
+
+export interface PortfolioEvidenceSummary {
+  id: string
+  slug: string
+  title: string
+  portfolio_type?: PortfolioType
+  explore_stage?: ExploreStage
+  exploit_stage?: ExploitStage
+  manual_evidence_strength?: EvidenceStrength
+
+  // Studio Project Link
+  studio_project_id?: string
+  studio_status?: string
+
+  // Portfolio Management Fields
+  horizon?: Horizon
+  expected_return?: ExpectedReturn
+  profitability?: Profitability
+  sustainability?: Sustainability
+  innovation_risk?: InnovationRisk
+  strategic_value_score?: number
+  total_investment?: number
+  allocated_fte?: number
+  current_phase?: string
+  next_review_due_at?: string
+
+  // Hypothesis Stats
+  total_hypotheses: number
+  validated_hypotheses: number
+  invalidated_hypotheses: number
+  testing_hypotheses: number
+  proposed_hypotheses: number
+
+  // Experiment Stats
+  total_experiments: number
+  successful_experiments: number
+  failed_experiments: number
+  inconclusive_experiments: number
+  active_experiments: number
+  completed_experiments: number
+
+  // Canvas Stats
+  total_business_models: number
+  validated_business_models: number
+  active_business_models: number
+  total_value_propositions: number
+  validated_value_propositions: number
+  avg_bmc_fit_score?: number
+  avg_vpc_fit_score?: number
+  total_customer_profiles: number
+  validated_customer_profiles: number
+
+  // Log Entry Stats
+  total_log_entries: number
+  experiment_log_entries: number
+  research_log_entries: number
+
+  // Computed Evidence
+  computed_evidence_score?: number // 0-100
+  hypothesis_validation_rate?: number // percentage
+  experiment_success_rate?: number // percentage
+  last_evidence_activity_at?: string
+  refreshed_at: string // When the materialized view was last refreshed
+}
+
+// Portfolio Metrics (from get_portfolio_metrics function)
+export interface PortfolioMetrics {
+  // Portfolio Balance
+  explore_count: number
+  exploit_count: number
+  uncategorized_count: number
+  total_count: number
+
+  // Horizon Balance
+  h1_count: number
+  h2_count: number
+  h3_count: number
+
+  // Investment
+  total_investment: number
+  explore_investment: number
+  exploit_investment: number
+
+  // Risk Distribution
+  low_risk_count: number
+  medium_risk_count: number
+  high_risk_count: number
+
+  // Evidence Strength
+  strong_evidence_count: number
+  moderate_evidence_count: number
+  weak_evidence_count: number
+  no_evidence_count: number
+
+  // Stage Distribution (Explore)
+  ideation_count: number
+  discovery_count: number
+  validation_count: number
+  acceleration_count: number
+
+  // Stage Distribution (Exploit)
+  launch_count: number
+  sustaining_count: number
+  mature_count: number
+  declining_count: number
+
+  // Projects Needing Attention
+  needs_review_count: number
+  stale_projects_count: number
+
+  // Timestamp
+  computed_at: string
+}
+
+// Stage Transition Suggestion (from suggest_explore_stage_transition function)
+export interface StageTransitionSuggestion {
+  current_stage: ExploreStage
+  suggested_stage: ExploreStage
+  rationale: string
+  confidence: 'low' | 'medium' | 'high'
+  criteria_met?: string[]
+  evidence_summary?: {
+    hypotheses: string
+    experiments: string
+    vpc_fit_score?: number
+    business_models: string
+  }
+  error?: string
+}
 
 // Database schema (for type-safe table references)
 export interface Database {
