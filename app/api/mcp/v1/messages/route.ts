@@ -300,6 +300,7 @@ export async function POST(request: Request) {
 
     // Handle initialize method (MCP protocol handshake)
     if (body.method === 'initialize') {
+      const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://www.jonfriis.com'
       return Response.json(
         jsonRpcSuccess(requestId, {
           protocolVersion: '2024-11-05',
@@ -309,6 +310,12 @@ export async function POST(request: Request) {
           serverInfo: {
             name: 'jfriis',
             version: '1.0.0',
+            icons: [
+              {
+                src: `${baseUrl}/jf-badge.svg`,
+                mimeType: 'image/svg+xml',
+              },
+            ],
           },
         }),
         { status: 200 }

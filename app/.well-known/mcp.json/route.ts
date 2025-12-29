@@ -15,14 +15,6 @@ export async function GET() {
     description: 'Database CRUD tools for jonfriis.com',
     homepage: BASE_URL,
 
-    // Server icon
-    icons: [
-      {
-        src: `${BASE_URL}/jf-badge.svg`,
-        mimeType: 'image/svg+xml',
-      },
-    ],
-
     // OAuth 2.0 authentication via our authorization server
     authentication: {
       type: 'oauth2',
