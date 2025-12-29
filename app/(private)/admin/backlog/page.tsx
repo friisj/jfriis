@@ -28,6 +28,7 @@ export default async function AdminBacklogPage() {
 
   const columns: AdminTableColumn<BacklogItem>[] = [
     {
+      key: 'title',
       header: 'Title',
       cell: (item) => (
         <Link
@@ -46,10 +47,12 @@ export default async function AdminBacklogPage() {
       ),
     },
     {
+      key: 'status',
       header: 'Status',
       cell: (item) => <StatusBadge value={item.status} />,
     },
     {
+      key: 'tags',
       header: 'Tags',
       cell: (item) =>
         item.tags && item.tags.length > 0 ? (
@@ -70,10 +73,12 @@ export default async function AdminBacklogPage() {
         ),
     },
     {
+      key: 'created',
       header: 'Created',
       cell: (item) => <span className="text-sm text-muted-foreground">{formatDate(item.created_at)}</span>,
     },
     {
+      key: 'updated',
       header: 'Updated',
       cell: (item) => <span className="text-sm text-muted-foreground">{formatDate(item.updated_at)}</span>,
     },

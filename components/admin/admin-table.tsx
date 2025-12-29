@@ -1,6 +1,7 @@
 import { ReactNode } from 'react'
 
 export interface AdminTableColumn<T = any> {
+  key: string
   header: string
   accessor?: keyof T | ((row: T) => any)
   cell?: (row: T) => ReactNode
@@ -47,7 +48,7 @@ export function AdminTable<T extends { id: string } = any>({
             <tr>
               {columns.map((column) => (
                 <th
-                  key={column.header}
+                  key={column.key}
                   className={`px-6 py-3 text-sm font-medium ${getAlignClass(column.align)} ${column.headerClassName || ''}`}
                 >
                   {column.header}
@@ -60,7 +61,7 @@ export function AdminTable<T extends { id: string } = any>({
               <tr key={getRowKey(row)} className="hover:bg-accent transition-colors">
                 {columns.map((column) => (
                   <td
-                    key={column.header}
+                    key={column.key}
                     className={`px-6 py-4 ${getAlignClass(column.align)} ${column.cellClassName || ''}`}
                   >
                     {getCellValue(row, column)}

@@ -45,10 +45,12 @@ export default async function AdminLogPage() {
 
   if (error) {
     console.error('Error fetching log entries:', error)
+    return <div className="p-8">Error loading log entries</div>
   }
 
   const columns: AdminTableColumn<LogEntry>[] = [
     {
+      key: 'title',
       header: 'Title',
       cell: (entry) => (
         <div className="flex flex-col">
@@ -58,10 +60,12 @@ export default async function AdminLogPage() {
       ),
     },
     {
+      key: 'date',
       header: 'Date',
       cell: (entry) => <span className="text-sm">{formatDate(entry.entry_date)}</span>,
     },
     {
+      key: 'type',
       header: 'Type',
       cell: (entry) =>
         entry.type ? (
@@ -71,6 +75,7 @@ export default async function AdminLogPage() {
         ),
     },
     {
+      key: 'links',
       header: 'Links',
       cell: (entry) => (
         <div className="flex flex-col gap-1 text-xs text-muted-foreground">
@@ -80,6 +85,7 @@ export default async function AdminLogPage() {
       ),
     },
     {
+      key: 'published',
       header: 'Published',
       cell: (entry) =>
         entry.published ? (
@@ -94,6 +100,7 @@ export default async function AdminLogPage() {
         ),
     },
     {
+      key: 'actions',
       header: 'Actions',
       align: 'right',
       cell: (entry) => (

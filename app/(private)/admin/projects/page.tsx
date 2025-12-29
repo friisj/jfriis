@@ -48,12 +48,14 @@ export default async function AdminProjectsPage() {
 
   if (error) {
     console.error('Error fetching projects:', error)
+    return <div className="p-8">Error loading projects</div>
   }
 
   console.log('Projects fetched:', projects?.length || 0)
 
   const columns: AdminTableColumn<Project>[] = [
     {
+      key: 'title',
       header: 'Title',
       cell: (project) => (
         <div className="flex flex-col">
@@ -63,14 +65,17 @@ export default async function AdminProjectsPage() {
       ),
     },
     {
+      key: 'status',
       header: 'Status',
       cell: (project) => <StatusBadge value={project.status} />,
     },
     {
+      key: 'type',
       header: 'Type',
       cell: (project) => <span className="text-sm">{project.type || '-'}</span>,
     },
     {
+      key: 'links',
       header: 'Links',
       cell: (project) => (
         <div className="flex flex-col gap-1 text-xs text-muted-foreground">
@@ -80,6 +85,7 @@ export default async function AdminProjectsPage() {
       ),
     },
     {
+      key: 'published',
       header: 'Published',
       cell: (project) =>
         project.published ? (
@@ -94,10 +100,12 @@ export default async function AdminProjectsPage() {
         ),
     },
     {
+      key: 'updated',
       header: 'Updated',
       cell: (project) => <span className="text-sm text-muted-foreground">{formatDate(project.updated_at)}</span>,
     },
     {
+      key: 'actions',
       header: 'Actions',
       align: 'right',
       cell: (project) => (

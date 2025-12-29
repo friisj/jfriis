@@ -51,10 +51,12 @@ export default async function AdminStudioPage() {
 
   if (error) {
     console.error('Error fetching studio projects:', error)
+    return <div className="p-8">Error loading studio projects</div>
   }
 
   const columns: AdminTableColumn<StudioProject>[] = [
     {
+      key: 'name',
       header: 'Name',
       cell: (project) => (
         <div className="flex flex-col">
@@ -64,10 +66,12 @@ export default async function AdminStudioPage() {
       ),
     },
     {
+      key: 'status',
       header: 'Status',
       cell: (project) => <StatusBadge value={project.status} />,
     },
     {
+      key: 'temperature',
       header: 'Temp',
       align: 'center',
       cell: (project) =>
@@ -80,6 +84,7 @@ export default async function AdminStudioPage() {
         ),
     },
     {
+      key: 'focus',
       header: 'Focus',
       cell: (project) => (
         <span className="text-sm text-muted-foreground line-clamp-1 max-w-xs">
@@ -88,6 +93,7 @@ export default async function AdminStudioPage() {
       ),
     },
     {
+      key: 'scaffolded',
       header: 'Scaffolded',
       cell: (project) =>
         project.scaffolded_at ? (
@@ -102,10 +108,12 @@ export default async function AdminStudioPage() {
         ),
     },
     {
+      key: 'updated',
       header: 'Updated',
       cell: (project) => <span className="text-sm text-muted-foreground">{formatDate(project.updated_at)}</span>,
     },
     {
+      key: 'actions',
       header: 'Actions',
       align: 'right',
       cell: (project) => (
