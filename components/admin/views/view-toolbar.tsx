@@ -1,6 +1,7 @@
 'use client'
 
-type ViewType = 'table' | 'grid' | 'kanban' | 'canvas'
+import { KeyboardEvent } from 'react'
+import { ViewType } from '../types'
 
 interface ViewToolbarProps {
   currentView: ViewType
@@ -44,20 +45,61 @@ export function ViewToolbar({ currentView, availableViews, onViewChange }: ViewT
     return null
   }
 
+  const handleKeyDown = (event: KeyboardEvent<HTMLButtonElement>) => {
+    const currentIndex = availableViews.indexOf(currentView)
+    let newIndex = currentIndex
+
+    switch (event.key) {
+      case 'ArrowLeft':
+      case 'ArrowUp':
+        event.preventDefault()
+        newIndex = currentIndex > 0 ? currentIndex - 1 : availableViews.length - 1
+        break
+      case 'ArrowRight':
+      case 'ArrowDown':
+        event.preventDefault()
+        newIndex = currentIndex < availableViews.length - 1 ? currentIndex + 1 : 0
+        break
+      case 'Home':
+        event.preventDefault()
+        newIndex = 0
+        break
+      case 'End':
+        event.preventDefault()
+        newIndex = availableViews.length - 1
+        break
+      default:
+        return
+    }
+
+    onViewChange(availableViews[newIndex])
+  }
+
   return (
     <div className="flex items-center gap-2 mb-4">
-      <span className="text-sm text-muted-foreground mr-2">View:</span>
-      <div className="inline-flex rounded-lg border bg-card p-1">
+      <span id="view-toolbar-label" className="text-sm text-muted-foreground mr-2">
+        View:
+      </span>
+      <div
+        className="inline-flex rounded-lg border bg-card p-1"
+        role="tablist"
+        aria-labelledby="view-toolbar-label"
+      >
         {availableViews.map((view) => (
           <button
             key={view}
             onClick={() => onViewChange(view)}
+            onKeyDown={handleKeyDown}
             className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
               currentView === view
                 ? 'bg-primary text-primary-foreground'
                 : 'text-muted-foreground hover:text-foreground hover:bg-accent'
             }`}
-            title={viewLabels[view]}
+            role="tab"
+            aria-selected={currentView === view}
+            aria-label={`${viewLabels[view]} view`}
+            aria-current={currentView === view ? 'page' : undefined}
+            tabIndex={currentView === view ? 0 : -1}
           >
             {viewIcons[view]}
             <span className="hidden sm:inline">{viewLabels[view]}</span>
