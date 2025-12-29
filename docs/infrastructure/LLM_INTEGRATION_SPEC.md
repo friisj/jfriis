@@ -145,42 +145,28 @@ interface ExecuteResult<T> {
 
 ---
 
-## 3. Augmentation Modes
+## 3. Augmentation Mode
 
-Two modes, configurable per entity type and field:
+### 3.1 Manual Only (To Start)
 
-### 3.1 Manual Mode (Default)
+All generation is manually triggered. Admin clicks to generate, reviews result, can edit or regenerate.
 
-Admin explicitly triggers action via button click. Reviews output before applying.
+**Rationale**: Simpler implementation, predictable behavior, respects user control. Auto-generation can be added later if clear patterns emerge.
 
-**Use for**: Creative generation, complex extraction, anything where human judgment matters.
-
-### 3.2 Auto Mode
-
-Action runs automatically on trigger. Results applied but can be overridden.
-
-**Use for**: Low-risk, high-confidence tasks - slug generation, tag extraction, categorization.
-
-**Triggers**:
-- `on-create` - When entity is first saved
-- `on-empty` - When specific field is empty on save
-
-### 3.3 Configuration
+### 3.2 Configuration
 
 ```typescript
 interface AugmentationConfig {
   entities: {
     [entityType: string]: {
-      // Manual actions available for this entity
-      actions?: string[]
-
-      // Auto-augmented fields
-      autoFields?: {
+      // Fields that have AI generation available
+      fields?: {
         [fieldName: string]: {
           action: string
-          trigger: 'on-create' | 'on-empty'
         }
       }
+      // Entity-level actions (extract assumptions, etc.)
+      actions?: string[]
     }
   }
 }
@@ -189,20 +175,20 @@ interface AugmentationConfig {
 const config: AugmentationConfig = {
   entities: {
     studio_projects: {
-      actions: ['generate-hypotheses', 'generate-prd'],
-      autoFields: {
-        slug: { action: 'generate-slug', trigger: 'on-empty' },
-        tags: { action: 'extract-tags', trigger: 'on-create' },
+      fields: {
+        description: { action: 'generate-description' },
+        tags: { action: 'extract-tags' },
       },
+      actions: ['generate-hypotheses', 'generate-prd'],
     },
     business_model_canvases: {
       actions: ['extract-assumptions', 'identify-gaps'],
     },
     assumptions: {
-      actions: ['suggest-validation', 'prioritize'],
-      autoFields: {
-        category: { action: 'classify-assumption', trigger: 'on-create' },
+      fields: {
+        category: { action: 'classify-assumption' },
       },
+      actions: ['suggest-validation', 'prioritize'],
     },
   },
 }

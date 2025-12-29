@@ -11,398 +11,354 @@ User always knows when AI is involved. No silent generation.
 Existing content is context, not garbage. Generate builds on what's there.
 
 **Per-field Control**
-Each field can be generated independently. User chooses when and what.
+Each field is generated independently. User chooses when and what.
 
-**Graceful Interruption**
-Can stop mid-generation. Partial results are still useful.
+**Manual First**
+All generation is manually triggered. No auto-generation to start.
 
 ---
 
 ## 2. Field Modes
 
-### 2.1 Mode Types
+### 2.1 Two Modes Only
 
-**Manual (default)**
-Standard input. No AI involvement unless explicitly triggered.
+**Standard (default)**
+Normal input field. No AI involvement.
 
 **AI-Assisted**
-Field has a generate button. User can trigger AI anytime.
+Field has generate button. User triggers AI when ready.
 - If empty: Generate from context (other fields, entity data)
 - If has content: Iterate/improve using content as starting point
 
-**Auto-Generate**
-Field is generated on entity save. Shown as read-only with override option.
-- Indicated by lock icon + "Auto-generated" label
-- User can unlock to edit manually
-- Re-locks on next save if empty
-
-### 2.2 Visual Indicators
+### 2.2 Visual Design
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│ Manual Field (default)                                      │
+│ Standard Field                                              │
+│                                                             │
+│ Title                                                       │
 │ ┌─────────────────────────────────────────────────────────┐ │
-│ │ Title                                                   │ │
-│ │ ┌─────────────────────────────────────────────────────┐ │ │
-│ │ │ My Project                                          │ │ │
-│ │ └─────────────────────────────────────────────────────┘ │ │
+│ │ My Project                                              │ │
 │ └─────────────────────────────────────────────────────────┘ │
 └─────────────────────────────────────────────────────────────┘
 
 ┌─────────────────────────────────────────────────────────────┐
 │ AI-Assisted Field                                           │
+│                                                             │
+│ Description                                   [✨] [⚙️ ▾]   │
 │ ┌─────────────────────────────────────────────────────────┐ │
-│ │ Description                              [✨ Generate]  │ │
-│ │ ┌─────────────────────────────────────────────────────┐ │ │
-│ │ │ A tool for managing design tokens...                │ │ │
-│ │ └─────────────────────────────────────────────────────┘ │ │
+│ │ A tool for managing design tokens...                    │ │
 │ └─────────────────────────────────────────────────────────┘ │
 └─────────────────────────────────────────────────────────────┘
 
+[✨] = Quick generate (one click)
+[⚙️ ▾] = Custom instructions dropdown
+```
+
+---
+
+## 3. Generation Controls
+
+### 3.1 Quick Generate
+
+Single click to generate using default prompt:
+
+```
+[✨] → Loading → Result appears in field
+```
+
+- Uses field context + other form fields
+- If content exists, improves/expands it
+- If empty, generates fresh
+
+### 3.2 Custom Instructions
+
+Dropdown reveals instruction input:
+
+```
 ┌─────────────────────────────────────────────────────────────┐
-│ Auto-Generated Field                                        │
+│ Description                                   [✨] [⚙️ ▾]   │
 │ ┌─────────────────────────────────────────────────────────┐ │
-│ │ 🔒 Slug (auto-generated)                    [✏️ Edit]   │ │
-│ │ ┌─────────────────────────────────────────────────────┐ │ │
-│ │ │ my-project                                 (locked) │ │ │
-│ │ └─────────────────────────────────────────────────────┘ │ │
+│ │ Current content here...                                 │ │
 │ └─────────────────────────────────────────────────────────┘ │
+│                                                             │
+│   ┌─────────────────────────────────────────────────────┐   │
+│   │ Instructions                                        │   │
+│   │ ┌─────────────────────────────────────────────────┐ │   │
+│   │ │ Focus on the problem, not features. Keep it     │ │   │
+│   │ │ under 2 sentences.                              │ │   │
+│   │ └─────────────────────────────────────────────────┘ │   │
+│   │                                                     │   │
+│   │                                    [Generate]       │   │
+│   └─────────────────────────────────────────────────────┘   │
 └─────────────────────────────────────────────────────────────┘
 ```
 
----
-
-## 3. Generation Flow
-
-### 3.1 Per-Field Generation (Recommended)
-
-User triggers generation for specific field:
-
-```
-1. User clicks [✨ Generate] on Description field
-2. Button changes to [⏹ Stop] + spinner
-3. Field shows shimmer/skeleton state
-4. Response streams in (or appears on complete)
-5. Button returns to [✨ Regenerate]
-6. User can edit result freely
-```
-
-**Why per-field:**
-- Immediate feedback
-- Can iterate on one field without regenerating others
-- Clear cause and effect
-- Works well with partial form completion
-
-### 3.2 On-Submit Auto-Generation
-
-For auto-generated fields only (slug, tags, category):
-
-```
-1. User clicks [Save]
-2. Form validates
-3. Auto-fields generate (quick, low-cost operations)
-4. Entity saves with generated values
-5. Success toast shows what was auto-generated
-```
-
-**Why on-submit for auto:**
-- These are low-stakes, fast operations
-- Don't need preview/approval
-- Reduces friction for common fields
-
-### 3.3 Batch Generation (Optional)
-
-For forms with multiple AI-assisted fields, offer batch:
-
-```
-[✨ Generate All Empty Fields]
-```
-
-Runs generation for all AI-assisted fields that are currently empty. Shows unified progress, reveals fields as each completes.
-
----
-
-## 4. Interaction Patterns
-
-### 4.1 Generate Button States
+### 3.3 Button States
 
 ```typescript
 type GenerateButtonState =
-  | 'generate'      // Ready to generate (field empty or has content)
-  | 'generating'    // In progress
-  | 'regenerate'    // After successful generation (same as generate, different label)
-  | 'disabled'      // Can't generate (missing context, rate limited)
+  | 'ready'       // Can generate
+  | 'loading'     // In progress (show spinner)
+  | 'disabled'    // Missing required context or rate limited
 ```
 
-### 4.2 Field States During Generation
+When loading:
+- Show spinner on button
+- Optionally disable field input
+- Show [Stop] to cancel
 
-```typescript
-type FieldGenerationState =
-  | 'idle'          // Normal editable state
-  | 'generating'    // Showing shimmer, input may be disabled
-  | 'streaming'     // Content appearing progressively
-  | 'complete'      // Generation done, fully editable
-  | 'error'         // Failed, showing error + retry
-```
+---
 
-### 4.3 Stop/Cancel Behavior
+## 4. Generation Flow
 
-When user clicks Stop during generation:
-- Immediately stop the request
-- Keep any partial content received
-- Return field to editable state
-- Show subtle indicator: "Generation stopped"
-
-```typescript
-interface CancelResult {
-  partialContent?: string
-  tokensUsed: number
-  reason: 'user_cancelled' | 'timeout' | 'error'
-}
-```
-
-### 4.4 Iterate/Improve Pattern
-
-When field has content and user clicks Generate:
+### 4.1 Empty Field
 
 ```
+1. User clicks [✨] on empty Description field
+2. Button shows spinner
+3. LLM generates based on: title, type, other filled fields
+4. Content appears in field
+5. User can edit freely
+```
+
+### 4.2 Field with Content
+
+```
+1. User has typed "design tokens" in Description
+2. Clicks [✨]
+3. LLM receives: "Existing content: design tokens. Expand/improve this."
+4. Returns: "A visual tool for managing and synchronizing design tokens..."
+5. Field updates with improved content
+6. User can edit or regenerate
+```
+
+### 4.3 With Custom Instructions
+
+```
+1. User clicks [⚙️ ▾] dropdown
+2. Types: "Make it more technical, mention CSS variables"
+3. Clicks [Generate]
+4. LLM receives context + custom instructions
+5. Result reflects instructions
+```
+
+---
+
+## 5. States and Feedback
+
+### 5.1 Loading State
+
+Simple spinner on button. Field remains visible with current content (if any).
+
+```
+[Description]                              [◌] [⚙️ ▾]
 ┌─────────────────────────────────────────────────────────────┐
-│ Description                                                 │
-│ ┌─────────────────────────────────────────────────────────┐ │
-│ │ A tool for tokens                                       │ │
-│ └─────────────────────────────────────────────────────────┘ │
+│ Current content still visible while generating...           │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### 5.2 Success
+
+Content appears/updates. Brief subtle highlight on field (optional). No toast or modal needed.
+
+### 5.3 Error
+
+Inline message below field:
+
+```
+[Description]                              [✨] [⚙️ ▾]
+┌─────────────────────────────────────────────────────────────┐
 │                                                             │
-│ ┌─────────────────────────────────────────────────────────┐ │
-│ │ [✨ Expand] [📝 Rewrite] [⚙️ Custom...]                 │ │
-│ └─────────────────────────────────────────────────────────┘ │
 └─────────────────────────────────────────────────────────────┘
+⚠️ Generation failed: Rate limited. Try again in 30s.
 ```
 
-**Quick actions:**
-- **Expand**: Make it longer/more detailed
-- **Rewrite**: Different phrasing, same meaning
-- **Custom**: Opens instruction input
+### 5.4 Stop/Cancel
 
-Or simpler: single [✨ Improve] that expands/refines based on content length.
-
-### 4.5 Custom Instructions (Advanced)
-
-Popover for specific guidance:
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│ Description                              [✨ Generate ▾]   │
-│ ┌─────────────────────────────────────────────────────────┐ │
-│ │                                                         │ │
-│ └──────────────────────────────────┬────────────────────┘ │
-│                                    │                       │
-│   ┌────────────────────────────────▼────────────────────┐  │
-│   │ Custom instructions (optional)                      │  │
-│   │ ┌─────────────────────────────────────────────────┐ │  │
-│   │ │ Focus on the problem it solves, not features    │ │  │
-│   │ └─────────────────────────────────────────────────┘ │  │
-│   │                                                     │  │
-│   │ [Cancel]                              [Generate]    │  │
-│   └─────────────────────────────────────────────────────┘  │
-└─────────────────────────────────────────────────────────────┘
-```
-
-**When to show:**
-- Dropdown arrow on Generate button
-- Or after failed generation ("Try again with instructions")
-- Power users can expand by default
+If generation is taking long, user can cancel:
+- Button changes to [Stop] during loading
+- Clicking Stop cancels request
+- Any partial content is discarded
+- Field returns to previous state
 
 ---
 
-## 5. Progress and Feedback
+## 6. Supported Field Types
 
-### 5.1 Loading States
+### 6.1 Text Fields
 
-**Field-level shimmer:**
-```css
-.generating {
-  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
-  background-size: 200% 100%;
-  animation: shimmer 1.5s infinite;
-}
+Single line and textarea - straightforward generate/improve.
+
+### 6.2 Tags / Arrays
+
+Generate button suggests tags. Returns array that populates the tag input.
+
+```
+Tags                                        [✨] [⚙️ ▾]
+┌─────────────────────────────────────────────────────────────┐
+│ [design-systems] [tokens] [+]                               │
+└─────────────────────────────────────────────────────────────┘
 ```
 
-**Button spinner:**
-Replace icon with spinner, keep text: `[◌ Generating...]`
+Clicking [✨] adds suggested tags (doesn't replace existing).
 
-### 5.2 Streaming Display
+### 6.3 Canvas Blocks
 
-If streaming, show text appearing character by character or chunk by chunk:
-- Cursor blink at end of content
-- Smooth scroll to keep new content visible
-- Disable editing until complete
-
-### 5.3 Success Feedback
-
-Subtle confirmation that generation completed:
-- Brief highlight/flash on field
-- Toast for batch operations: "Generated 3 fields"
-- No modal or blocking confirmation
-
-### 5.4 Error Handling
-
-Inline error below field:
+Each block in BMC/VPC has its own generate button:
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│ Description                              [✨ Generate]      │
+│ Key Partners                                  [✨] [⚙️ ▾]   │
 │ ┌─────────────────────────────────────────────────────────┐ │
-│ │                                                         │ │
+│ │ • Design tool vendors                                   │ │
+│ │ • Component library maintainers                         │ │
+│ │ [+ Add item]                                            │ │
 │ └─────────────────────────────────────────────────────────┘ │
-│ ⚠️ Generation failed. [Retry] [Try different model]        │
+└─────────────────────────────────────────────────────────────┘
+```
+
+Generate suggests items based on other blocks and project context.
+
+### 6.4 Structured Fields (Jobs, Pains, Gains)
+
+Same pattern - generate button per section:
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│ Customer Jobs                                 [✨] [⚙️ ▾]   │
+│ ┌─────────────────────────────────────────────────────────┐ │
+│ │ • Maintain consistent design tokens across products     │ │
+│ │ • Communicate design decisions to developers            │ │
+│ │ [+ Add job]                                             │ │
+│ └─────────────────────────────────────────────────────────┘ │
 └─────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## 6. Settings
+## 7. Settings
 
-### 6.1 Admin Settings Page
+### 7.1 Admin Settings Page
 
-`/admin/settings/ai` or section in `/admin/settings`:
+`/admin/settings` with AI section:
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│ AI Augmentation Settings                                    │
+│ AI Settings                                                 │
 ├─────────────────────────────────────────────────────────────┤
 │                                                             │
-│ Default Behavior                                            │
+│ Status                                                      │
 │ ┌─────────────────────────────────────────────────────────┐ │
-│ │ ○ All fields manual (AI available on demand)           │ │
-│ │ ● Auto-generate slugs and tags                         │ │
-│ │ ○ Suggest for all supported fields                     │ │
+│ │ ✓ Anthropic connected                                   │ │
+│ │ ✓ Google connected                                      │ │
+│ │ ○ OpenAI not configured                                 │ │
 │ └─────────────────────────────────────────────────────────┘ │
 │                                                             │
-│ Per-Entity Overrides                                        │
+│ Usage This Month                                            │
 │ ┌─────────────────────────────────────────────────────────┐ │
-│ │ Studio Projects                                        │ │
-│ │   Auto: slug, tags                                     │ │
-│ │   Manual: description, hypotheses          [Configure] │ │
-│ │                                                        │ │
-│ │ Business Model Canvases                                │ │
-│ │   Auto: none                                           │ │
-│ │   Manual: extract assumptions              [Configure] │ │
-│ └─────────────────────────────────────────────────────────┘ │
-│                                                             │
-│ Cost & Limits                                               │
-│ ┌─────────────────────────────────────────────────────────┐ │
-│ │ Daily budget: $5.00                        [Change]    │ │
-│ │ Used today: $0.42                                      │ │
-│ │ This month: $12.30                                     │ │
+│ │ Tokens: 45,230                                          │ │
+│ │ Estimated cost: $0.42                                   │ │
+│ │ Actions: 23                                             │ │
 │ └─────────────────────────────────────────────────────────┘ │
 │                                                             │
 └─────────────────────────────────────────────────────────────┘
 ```
 
-### 6.2 Per-Form Override
+### 7.2 Per-Form Toggle (Optional)
 
-Small toggle in form header for quick override:
+Quick way to hide AI buttons if user wants pure manual session:
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│ New Studio Project              [AI: On ▾] [Save] [Cancel] │
+│ New Studio Project                    [AI ✓]  [Save]        │
 ├─────────────────────────────────────────────────────────────┤
 ```
 
-Dropdown options:
-- On (default settings)
-- Suggest all (show generate buttons everywhere)
-- Off (pure manual, no AI features)
+Toggle off = all generate buttons hidden for this form.
 
 ---
 
-## 7. Implementation Components
+## 8. Implementation Components
 
-### 7.1 Core Components
+### 8.1 AIFieldControls
 
-```typescript
-// Field wrapper that adds AI capabilities
-<AIField
-  name="description"
-  mode="assisted"  // 'manual' | 'assisted' | 'auto'
-  action="generate-description"
-  context={{ title, type }}
->
-  <Textarea />
-</AIField>
+Render generate buttons for a field:
 
-// Generate button (can be used standalone)
-<GenerateButton
-  action="generate-description"
-  input={{ title, existingContent }}
-  onResult={(result) => setDescription(result)}
-  onError={(error) => showError(error)}
-/>
+```tsx
+interface AIFieldControlsProps {
+  fieldName: string
+  entityType: string
+  context: Record<string, any>  // Other form values
+  currentValue: any
+  onGenerate: (result: any) => void
+  onError: (error: ActionError) => void
+}
 
-// Form wrapper that handles batch and auto generation
-<AIForm
+<AIFieldControls
+  fieldName="description"
   entityType="studio_projects"
-  onAutoGenerate={['slug', 'tags']}
->
-  {/* form fields */}
-</AIForm>
+  context={{ title, type }}
+  currentValue={description}
+  onGenerate={setDescription}
+  onError={showError}
+/>
 ```
 
-### 7.2 Hooks
+### 8.2 useGenerate Hook
 
-```typescript
-// For individual field generation
-const { generate, stop, state, result, error } = useFieldGeneration({
+```tsx
+const {
+  generate,
+  generateWithInstructions,
+  stop,
+  isLoading,
+  error,
+} = useGenerate({
   action: 'generate-description',
-  onStream: (chunk) => appendContent(chunk),
+  entityType: 'studio_projects',
 })
 
-// For form-level AI state
-const {
-  isAnyGenerating,
-  generatingFields,
-  generateAll,
-  stopAll
-} = useFormGeneration(formId)
+// Quick generate
+await generate({ title, existingContent: description })
+
+// With instructions
+await generateWithInstructions(
+  { title, existingContent: description },
+  "Keep it under 2 sentences"
+)
 ```
 
-### 7.3 State Management
+### 8.3 Form Integration
 
-```typescript
-interface AIFormState {
-  fields: {
-    [fieldName: string]: {
-      mode: 'manual' | 'assisted' | 'auto'
-      state: FieldGenerationState
-      lastGenerated?: {
-        content: string
-        timestamp: string
-        model: string
-      }
-    }
-  }
-  isSubmitting: boolean
-  autoGenerateOnSubmit: string[]  // field names
-}
+```tsx
+<FormField name="description">
+  <Label>
+    Description
+    <AIFieldControls
+      fieldName="description"
+      entityType="studio_projects"
+      context={{ title: form.title }}
+      currentValue={form.description}
+      onGenerate={(v) => form.setDescription(v)}
+    />
+  </Label>
+  <Textarea {...register('description')} />
+</FormField>
 ```
 
 ---
 
-## 8. Decisions Summary
+## 9. Summary
 
-| Question | Decision | Rationale |
-|----------|----------|-----------|
-| Per-field or on-submit? | **Per-field** for assisted, on-submit for auto only | Control + immediate feedback |
-| Clear or iterate on existing? | **Iterate** - use existing as context | Respects user work |
-| Streaming? | **Progressive reveal** (simpler than true streaming) | Good UX, less complexity |
-| Custom instructions? | **Optional popover** on generate dropdown | Power users can access, not in the way |
-| Settings location? | **Admin settings page** + per-form override | Centralized defaults, quick overrides |
-
----
-
-## 9. Open Questions
-
-- Should generate buttons be visible by default or revealed on field focus?
-- For multi-field entities (canvas blocks), generate per-block or per-item?
-- How to handle generation for array fields (tags, items lists)?
-- Should there be keyboard shortcuts? (Cmd+G to generate focused field?)
+| Aspect | Decision |
+|--------|----------|
+| Trigger | Manual only - click to generate |
+| Auto-generation | None to start |
+| Per-field or batch | Per-field |
+| Existing content | Iterate/improve, don't clear |
+| Custom instructions | Dropdown popover with [Generate] |
+| Quick generate | Single [✨] button |
+| Streaming | No - simple loading → complete |
+| Tags/arrays | Generate adds to existing |
+| Keyboard shortcuts | None to start |
