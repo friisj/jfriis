@@ -6,6 +6,7 @@ import { supabase } from '@/lib/supabase'
 import { getAllSpecimens, type SpecimenMetadata } from '@/components/specimens/registry'
 import { toast } from 'sonner'
 import { RelationshipSelector } from './relationship-selector'
+import { FormFieldWithAI } from '@/components/forms'
 
 interface SpecimenFormData {
   title: string
@@ -243,20 +244,27 @@ export function SpecimenForm({ specimenId, initialData }: SpecimenFormProps) {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Main Content */}
         <div className="lg:col-span-2 space-y-6">
-          <div>
-            <label htmlFor="title" className="block text-sm font-medium mb-2">
-              Title *
-            </label>
+          <FormFieldWithAI
+            label="Title *"
+            fieldName="title"
+            entityType="specimens"
+            context={{
+              type: formData.type,
+              component_id: formData.component_id,
+            }}
+            currentValue={formData.title}
+            onGenerate={(content) => handleTitleChange(content)}
+            disabled={isSubmitting}
+          >
             <input
               type="text"
-              id="title"
               required
               value={formData.title}
               onChange={(e) => handleTitleChange(e.target.value)}
               className="w-full px-3 py-2 rounded-lg border bg-background"
               placeholder="Animated Card Component"
             />
-          </div>
+          </FormFieldWithAI>
 
           <div>
             <label htmlFor="slug" className="block text-sm font-medium mb-2">
@@ -311,22 +319,28 @@ export function SpecimenForm({ specimenId, initialData }: SpecimenFormProps) {
             </p>
           </div>
 
-          <div>
-            <label htmlFor="description" className="block text-sm font-medium mb-2">
-              Description
-            </label>
+          <FormFieldWithAI
+            label="Description"
+            fieldName="description"
+            entityType="specimens"
+            context={{
+              title: formData.title,
+              type: formData.type,
+              component_id: formData.component_id,
+            }}
+            currentValue={formData.description}
+            onGenerate={(content) => setFormData({ ...formData, description: content })}
+            disabled={isSubmitting}
+            description="Auto-filled from registry, but you can customize it"
+          >
             <textarea
-              id="description"
               value={formData.description}
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
               rows={4}
               className="w-full px-3 py-2 rounded-lg border bg-background resize-none"
               placeholder="A brief description of this component..."
             />
-            <p className="text-xs text-muted-foreground mt-1">
-              Auto-filled from registry, but you can customize it
-            </p>
-          </div>
+          </FormFieldWithAI>
         </div>
 
         {/* Sidebar */}
@@ -369,8 +383,20 @@ export function SpecimenForm({ specimenId, initialData }: SpecimenFormProps) {
           </div>
 
           <div className="rounded-lg border bg-card p-4 space-y-4">
-            <h3 className="font-medium">Tags</h3>
-            <div>
+            <FormFieldWithAI
+              label="Tags"
+              fieldName="tags"
+              entityType="specimens"
+              context={{
+                title: formData.title,
+                description: formData.description,
+                type: formData.type,
+              }}
+              currentValue={formData.tags}
+              onGenerate={(content) => setFormData({ ...formData, tags: content })}
+              disabled={isSubmitting}
+              description="Comma-separated tags"
+            >
               <input
                 type="text"
                 value={formData.tags}
@@ -378,10 +404,7 @@ export function SpecimenForm({ specimenId, initialData }: SpecimenFormProps) {
                 className="w-full px-3 py-2 rounded-lg border bg-background"
                 placeholder="react, animation, ui"
               />
-              <p className="text-xs text-muted-foreground mt-1">
-                Comma-separated tags
-              </p>
-            </div>
+            </FormFieldWithAI>
           </div>
 
           <div className="rounded-lg border bg-card p-4">

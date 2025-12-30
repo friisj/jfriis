@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { FitMappingEditor } from './fit-mapping-editor'
+import { FormFieldWithAI } from '@/components/forms'
 
 interface ValueMap {
   id: string
@@ -252,15 +253,25 @@ export function ValuePropositionCanvasForm({ vpcId, initialData }: VPCFormProps)
           </div>
         </div>
 
-        <div>
-          <label className="block text-sm font-medium mb-1">Description</label>
+        <FormFieldWithAI
+          label="Description"
+          fieldName="description"
+          entityType="value_proposition_canvases"
+          context={{
+            name: formData.name,
+            status: formData.status,
+          }}
+          currentValue={formData.description}
+          onGenerate={(content) => setFormData({ ...formData, description: content })}
+          disabled={saving}
+        >
           <textarea
             value={formData.description}
             onChange={(e) => setFormData({ ...formData, description: e.target.value })}
             className="w-full px-3 py-2 rounded-lg border bg-background"
             rows={2}
           />
-        </div>
+        </FormFieldWithAI>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
@@ -293,8 +304,19 @@ export function ValuePropositionCanvasForm({ vpcId, initialData }: VPCFormProps)
               ))}
             </select>
           </div>
-          <div>
-            <label className="block text-sm font-medium mb-1">Tags</label>
+          <FormFieldWithAI
+            label="Tags"
+            fieldName="tags"
+            entityType="value_proposition_canvases"
+            context={{
+              name: formData.name,
+              description: formData.description,
+              status: formData.status,
+            }}
+            currentValue={formData.tags}
+            onGenerate={(content) => setFormData({ ...formData, tags: content })}
+            disabled={saving}
+          >
             <input
               type="text"
               value={formData.tags}
@@ -302,7 +324,7 @@ export function ValuePropositionCanvasForm({ vpcId, initialData }: VPCFormProps)
               className="w-full px-3 py-2 rounded-lg border bg-background"
               placeholder="tag1, tag2"
             />
-          </div>
+          </FormFieldWithAI>
         </div>
       </div>
 

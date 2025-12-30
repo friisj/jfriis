@@ -6,6 +6,7 @@ import { supabase } from '@/lib/supabase'
 import { toast } from 'sonner'
 import { MdxEditor } from '@/components/forms/mdx-editor'
 import { RelationshipSelector } from './relationship-selector'
+import { FormFieldWithAI } from '@/components/forms'
 
 interface LogEntryFormData {
   title: string
@@ -238,20 +239,27 @@ export function LogEntryForm({ entryId, initialData }: LogEntryFormProps) {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Main Content */}
         <div className="lg:col-span-2 space-y-6">
-          <div>
-            <label htmlFor="title" className="block text-sm font-medium mb-2">
-              Title *
-            </label>
+          <FormFieldWithAI
+            label="Title *"
+            fieldName="title"
+            entityType="log_entries"
+            context={{
+              type: formData.type,
+              entry_date: formData.entry_date,
+            }}
+            currentValue={formData.title}
+            onGenerate={(content) => handleTitleChange(content)}
+            disabled={isSubmitting}
+          >
             <input
               type="text"
-              id="title"
               required
               value={formData.title}
               onChange={(e) => handleTitleChange(e.target.value)}
               className="w-full px-3 py-2 rounded-lg border bg-background"
               placeholder="Today's experiment with..."
             />
-          </div>
+          </FormFieldWithAI>
 
           <div>
             <label htmlFor="slug" className="block text-sm font-medium mb-2">
@@ -336,8 +344,19 @@ export function LogEntryForm({ entryId, initialData }: LogEntryFormProps) {
           </div>
 
           <div className="rounded-lg border bg-card p-4 space-y-4">
-            <h3 className="font-medium">Tags</h3>
-            <div>
+            <FormFieldWithAI
+              label="Tags"
+              fieldName="tags"
+              entityType="log_entries"
+              context={{
+                title: formData.title,
+                type: formData.type,
+              }}
+              currentValue={formData.tags}
+              onGenerate={(content) => setFormData({ ...formData, tags: content })}
+              disabled={isSubmitting}
+              description="Comma-separated tags"
+            >
               <input
                 type="text"
                 value={formData.tags}
@@ -345,10 +364,7 @@ export function LogEntryForm({ entryId, initialData }: LogEntryFormProps) {
                 className="w-full px-3 py-2 rounded-lg border bg-background"
                 placeholder="learning, coding, design"
               />
-              <p className="text-xs text-muted-foreground mt-1">
-                Comma-separated tags
-              </p>
-            </div>
+            </FormFieldWithAI>
           </div>
 
           <div className="rounded-lg border bg-card p-4">

@@ -6,6 +6,7 @@ import { supabase } from '@/lib/supabase'
 import { syncCanvasPlacements } from '@/lib/utils/canvas-placements'
 import { AssumptionLinker } from './assumption-linker'
 import { CanvasItemSelector, getAllowedTypesForBlock } from './canvas-item-selector'
+import { FormFieldWithAI } from '@/components/forms'
 
 interface CanvasBlock {
   item_ids: string[]
@@ -352,8 +353,19 @@ export function ValueMapForm({ valueMapId, initialData }: ValueMapFormProps) {
           </div>
         </div>
 
-        <div>
-          <label className="block text-sm font-medium mb-1">Description</label>
+        <FormFieldWithAI
+          label="Description"
+          fieldName="description"
+          entityType="value_maps"
+          context={{
+            name: formData.name,
+            status: formData.status,
+          }}
+          currentValue={formData.description}
+          onGenerate={(content) => setFormData({ ...formData, description: content })}
+          disabled={saving}
+          description="Describe this value map..."
+        >
           <textarea
             value={formData.description}
             onChange={(e) => setFormData({ ...formData, description: e.target.value })}
@@ -361,7 +373,7 @@ export function ValueMapForm({ valueMapId, initialData }: ValueMapFormProps) {
             rows={2}
             placeholder="Describe this value map..."
           />
-        </div>
+        </FormFieldWithAI>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
@@ -394,8 +406,19 @@ export function ValueMapForm({ valueMapId, initialData }: ValueMapFormProps) {
               ))}
             </select>
           </div>
-          <div>
-            <label className="block text-sm font-medium mb-1">Tags</label>
+          <FormFieldWithAI
+            label="Tags"
+            fieldName="tags"
+            entityType="value_maps"
+            context={{
+              name: formData.name,
+              description: formData.description,
+              status: formData.status,
+            }}
+            currentValue={formData.tags}
+            onGenerate={(content) => setFormData({ ...formData, tags: content })}
+            disabled={saving}
+          >
             <input
               type="text"
               value={formData.tags}
@@ -403,7 +426,7 @@ export function ValueMapForm({ valueMapId, initialData }: ValueMapFormProps) {
               className="w-full px-3 py-2 rounded-lg border bg-background"
               placeholder="tag1, tag2"
             />
-          </div>
+          </FormFieldWithAI>
         </div>
 
         <div>
