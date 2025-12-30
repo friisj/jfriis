@@ -84,20 +84,41 @@ If you need more context about projects, their states, or relationships:
 
 ## Key Resources
 
-### Studio Registry
-Read `.claude/STUDIO_REGISTRY.md` to understand current project states, temperatures, blockers, and strategic notes. This is your primary source of truth for portfolio status.
+### Studio Projects Database
+Query `studio_projects` table via MCP to get current project states:
+```json
+{"tool": "db_query", "table": "studio_projects"}
+```
 
-### Creating New Projects
-When advising on creating a new studio project, reference the **Studio Project Protocol** at `app/docs/infrastructure/STUDIO_PROJECT_PROTOCOL.md`. This covers:
-- Directory structure and naming conventions
-- Database table setup (migrations, naming)
-- MCP schema registration
-- Registry updates
+Key fields: `status` (draft/active/paused/completed/archived), `temperature` (hot/warm/cold), `current_focus`, `scaffolded_at`
 
-Your role is to advise on *whether* a project should be created and how it fits the portfolio. The protocol handles the *how* of setup.
+Related tables: `studio_hypotheses`, `studio_experiments`
+
+> Note: The markdown registry at `.claude/STUDIO_REGISTRY.md` is deprecated. Use the database.
+
+### Creating & Scaffolding Projects
+The workflow is now database-first:
+
+1. **Capture** (MCP anywhere): Create `studio_project` record with status=draft
+2. **Shape** (MCP conversations): Fill PRD fields over time
+3. **Scaffold** (Claude Code): When ready to work, run the scaffolding process
+
+**Scaffolding checklist** (when status moves draft → active):
+- [ ] Create `components/studio/{slug}/` directory with README.md, roadmap.md, experiments/, src/
+- [ ] Create app routes at `app/(private)/studio/{slug}/` if needed
+- [ ] Update project record: `status=active`, `path=...`, `scaffolded_at=now()`
+
+Reference: `docs/infrastructure/STUDIO_PROJECT_PROTOCOL.md` (v2.0)
+
+### Admin UI
+Studio projects can also be managed via `/admin/studio` - useful for quick edits to PRD fields.
 
 ### MCP Server
-The project has a private MCP server for database operations. See `app/docs/infrastructure/MCP_SPEC.md` for details. When recommending data-related work, you can reference MCP tools (`db_query`, `db_create`, etc.) that are available.
+The project has a private MCP server for database operations. Tables available:
+- `studio_projects` - Main project records
+- `studio_hypotheses` - Testable hypotheses per project
+- `studio_experiments` - Experiments that test hypotheses
+- Plus all other site tables (log_entries, specimens, etc.)
 
 ---
 

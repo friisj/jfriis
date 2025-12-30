@@ -2,7 +2,7 @@
   "mcpServers": {
     "jfriis": {
       "command": "node",
-      "args": ["app/mcp/dist/index.js"],
+      "args": ["mcp/dist/index.js"],
       "env": {
         "NEXT_PUBLIC_SUPABASE_URL": "${NEXT_PUBLIC_SUPABASE_URL}",
         "NEXT_PUBLIC_SUPABASE_ANON_KEY": "${NEXT_PUBLIC_SUPABASE_ANON_KEY}",

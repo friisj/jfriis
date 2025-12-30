@@ -1,6 +1,13 @@
 # Studio Project Registry
 
-> **Last updated:** 2025-12-27
+> ⚠️ **DEPRECATED:** This markdown registry has been replaced by the `studio_projects` database table.
+> Use MCP tools (`db_query`, `db_update`) or the admin UI at `/admin/studio` to manage projects.
+> See `docs/infrastructure/STUDIO_PROJECT_PROTOCOL.md` for the new workflow.
+> This file is kept for reference only and will not be updated.
+
+---
+
+> **Last updated:** 2025-12-27 (FINAL - migrated to database)
 > **Quick pulse:** DST hot (Phase 5). ES paused. Hando (home platform) starting with Twin (digital building model). Trux (new project) in planning.
 
 ---
@@ -11,7 +18,7 @@
 
 | Field | Value |
 |-------|-------|
-| **Path** | `/app/components/studio/`, `/app/docs/studio/design-system-tool/` |
+| **Path** | `/components/studio/`, `/docs/studio/design-system-tool/` |
 | **Status** | Active - Phase 5 in progress |
 | **Temperature** | Hot |
 | **Public URL** | `/studio/design-system-tool` |
@@ -38,7 +45,7 @@
 
 | Field | Value |
 |-------|-------|
-| **Path** | `/app/docs/studio/experience-systems/exploration/` |
+| **Path** | `/docs/studio/experience-systems/exploration/` |
 | **Status** | Paused - exploration complete |
 | **Temperature** | Warm |
 
@@ -64,7 +71,7 @@
 
 | Field | Value |
 |-------|-------|
-| **Path** | `/app/components/studio/hando/` |
+| **Path** | `/components/studio/hando/` |
 | **Status** | Planning - platform foundation |
 | **Temperature** | Warm |
 | **Database Tables** | Sub-projects use `studio_hando_{subproject}_*` |
@@ -86,7 +93,7 @@
 
 | Field | Value |
 |-------|-------|
-| **Path** | `/app/components/studio/trux/` |
+| **Path** | `/components/studio/trux/` |
 | **Status** | Planning |
 | **Temperature** | Warm |
 
