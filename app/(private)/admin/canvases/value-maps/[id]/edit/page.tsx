@@ -26,9 +26,7 @@ export default async function EditValueMapPage({ params }: PageProps) {
 
   // Normalize canvas blocks to ensure all required arrays exist
   const normalizeBlock = (block: any) => ({
-    items: block?.items || [],
     item_ids: block?.item_ids || [],
-    assumptions: block?.assumptions || [],
     assumption_ids: block?.assumption_ids || [],
     validation_status: block?.validation_status || 'untested',
   })

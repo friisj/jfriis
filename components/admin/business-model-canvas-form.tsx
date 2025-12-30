@@ -8,10 +8,8 @@ import { AssumptionLinker } from './assumption-linker'
 import { CanvasItemSelector, getAllowedTypesForBlock } from './canvas-item-selector'
 
 interface CanvasBlock {
-  items: string[] // Legacy text items (deprecated)
-  item_ids: string[] // Canvas item IDs (new approach)
-  assumptions: string[] // Legacy text assumptions
-  assumption_ids: string[] // Linked assumption object IDs
+  item_ids: string[]
+  assumption_ids: string[]
   validation_status: 'untested' | 'testing' | 'validated' | 'invalidated'
 }
 
@@ -45,9 +43,7 @@ interface BusinessModelCanvasFormProps {
 }
 
 const defaultBlock = (): CanvasBlock => ({
-  items: [],
   item_ids: [],
-  assumptions: [],
   assumption_ids: [],
   validation_status: 'untested',
 })
@@ -77,18 +73,12 @@ function CanvasBlockEditor({
   canvasId?: string
   projectId?: string
 }) {
-  const [isOpen, setIsOpen] = useState(
-    value.items.length > 0 || (value.item_ids?.length || 0) > 0 || (value.assumption_ids?.length || 0) > 0
-  )
   const label = BLOCK_LABELS[blockKey]
-
-  // Ensure new fields exist (migration from old data)
   const itemIds = value.item_ids || []
   const assumptionIds = value.assumption_ids || []
   const allowedTypes = getAllowedTypesForBlock(blockKey)
 
-  // Calculate total item count (legacy + new)
-  const totalItems = value.items.length + itemIds.length
+  const [isOpen, setIsOpen] = useState(itemIds.length > 0 || assumptionIds.length > 0)
 
   return (
     <div className="rounded-lg border bg-card">
@@ -102,8 +92,8 @@ function CanvasBlockEditor({
           <p className="text-sm text-muted-foreground">{label.description}</p>
         </div>
         <div className="flex items-center gap-2">
-          {totalItems > 0 && (
-            <span className="text-xs bg-muted px-2 py-1 rounded">{totalItems} items</span>
+          {itemIds.length > 0 && (
+            <span className="text-xs bg-muted px-2 py-1 rounded">{itemIds.length} items</span>
           )}
           {assumptionIds.length > 0 && (
             <span className="text-xs bg-amber-500/10 text-amber-700 dark:text-amber-400 px-2 py-1 rounded">
@@ -123,9 +113,8 @@ function CanvasBlockEditor({
 
       {isOpen && (
         <div className="px-4 pb-4 space-y-4 border-t pt-4">
-          {/* Canvas Items (new approach) */}
           <div>
-            <label className="block text-sm font-medium mb-2">Canvas Items</label>
+            <label className="block text-sm font-medium mb-2">Items</label>
             <CanvasItemSelector
               placedItemIds={itemIds}
               canvasType="business_model_canvas"
@@ -142,81 +131,6 @@ function CanvasBlockEditor({
             />
           </div>
 
-          {/* Legacy text items - show if they exist */}
-          {value.items.length > 0 && (
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <label className="block text-sm font-medium">
-                  Legacy Text Items
-                  <span className="ml-2 text-xs text-muted-foreground">(deprecated)</span>
-                </label>
-                <button
-                  type="button"
-                  onClick={async () => {
-                    if (!confirm(`Convert ${value.items.length} legacy items to canvas items?`)) return
-
-                    try {
-                      // Create canvas items for each legacy text item
-                      const newItems = await Promise.all(
-                        value.items.map(async (itemText) => {
-                          const { data, error } = await supabase
-                            .from('canvas_items')
-                            .insert([
-                              {
-                                title: itemText.slice(0, 100), // Limit to 100 chars
-                                item_type: allowedTypes[0], // Use first allowed type for this block
-                                importance: 'medium',
-                                validation_status: 'untested',
-                                tags: [],
-                                metadata: { migrated_from: 'legacy_text_item' },
-                                studio_project_id: projectId || null,
-                              },
-                            ])
-                            .select('id')
-                            .single()
-
-                          if (error) throw error
-                          return data.id
-                        })
-                      )
-
-                      // Update block with new item IDs and clear legacy items
-                      onChange({
-                        ...value,
-                        item_ids: [...itemIds, ...newItems],
-                        items: [], // Clear legacy items
-                      })
-
-                      alert(`Successfully migrated ${newItems.length} items!`)
-                    } catch (err) {
-                      console.error('Migration error:', err)
-                      alert('Failed to migrate items. Please try again.')
-                    }
-                  }}
-                  className="px-3 py-1 text-xs bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
-                >
-                  Convert to Canvas Items
-                </button>
-              </div>
-              <textarea
-                value={value.items.join('\n')}
-                onChange={(e) =>
-                  onChange({
-                    ...value,
-                    items: e.target.value.split('\n').filter((item) => item.trim()),
-                  })
-                }
-                className="w-full px-3 py-2 rounded-lg border bg-background text-sm"
-                rows={3}
-                placeholder="Legacy items (one per line)"
-              />
-              <p className="text-xs text-muted-foreground">
-                Click "Convert to Canvas Items" to migrate these to the new system.
-              </p>
-            </div>
-          )}
-
-          {/* Linked Assumptions */}
           <div>
             <label className="block text-sm font-medium mb-2">Linked Assumptions</label>
             <AssumptionLinker
@@ -233,7 +147,6 @@ function CanvasBlockEditor({
             />
           </div>
 
-          {/* Validation Status */}
           <div>
             <label className="block text-sm font-medium mb-1">Validation Status</label>
             <select
