@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
+import { FormFieldWithAI } from '@/components/forms'
 
 interface StudioProject {
   id: string
@@ -242,8 +243,19 @@ export function AssumptionForm({ assumption, mode }: AssumptionFormProps) {
       <div className="space-y-4">
         <h2 className="text-lg font-semibold border-b pb-2">Assumption Statement</h2>
 
-        <div>
-          <label className="block text-sm font-medium mb-1">Statement *</label>
+        <FormFieldWithAI
+          label="Statement *"
+          fieldName="statement"
+          entityType="assumptions"
+          context={{
+            category: formData.category,
+            importance: formData.importance,
+          }}
+          currentValue={formData.statement}
+          onGenerate={(content) => setFormData({ ...formData, statement: content })}
+          disabled={saving}
+          description='Frame as a testable belief: "We believe [audience] will [behavior] because [reason]"'
+        >
           <textarea
             value={formData.statement}
             onChange={(e) => setFormData({ ...formData, statement: e.target.value })}
@@ -252,10 +264,7 @@ export function AssumptionForm({ assumption, mode }: AssumptionFormProps) {
             required
             placeholder="We believe that..."
           />
-          <p className="text-xs text-muted-foreground mt-1">
-            Frame as a testable belief: "We believe [audience] will [behavior] because [reason]"
-          </p>
-        </div>
+        </FormFieldWithAI>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
@@ -431,8 +440,19 @@ export function AssumptionForm({ assumption, mode }: AssumptionFormProps) {
           </div>
         </div>
 
-        <div>
-          <label className="block text-sm font-medium mb-1">Validation Criteria</label>
+        <FormFieldWithAI
+          label="Validation Criteria"
+          fieldName="validation_criteria"
+          entityType="assumptions"
+          context={{
+            statement: formData.statement,
+            category: formData.category,
+            importance: formData.importance,
+          }}
+          currentValue={formData.validation_criteria}
+          onGenerate={(content) => setFormData({ ...formData, validation_criteria: content })}
+          disabled={saving}
+        >
           <textarea
             value={formData.validation_criteria}
             onChange={(e) => setFormData({ ...formData, validation_criteria: e.target.value })}
@@ -440,11 +460,23 @@ export function AssumptionForm({ assumption, mode }: AssumptionFormProps) {
             rows={2}
             placeholder="What evidence would prove this true or false?"
           />
-        </div>
+        </FormFieldWithAI>
 
         {formData.decision && (
-          <div>
-            <label className="block text-sm font-medium mb-1">Decision Notes</label>
+          <FormFieldWithAI
+            label="Decision Notes"
+            fieldName="decision_notes"
+            entityType="assumptions"
+            context={{
+              statement: formData.statement,
+              validation_criteria: formData.validation_criteria,
+              decision: formData.decision,
+              status: formData.status,
+            }}
+            currentValue={formData.decision_notes}
+            onGenerate={(content) => setFormData({ ...formData, decision_notes: content })}
+            disabled={saving}
+          >
             <textarea
               value={formData.decision_notes}
               onChange={(e) => setFormData({ ...formData, decision_notes: e.target.value })}
@@ -452,7 +484,7 @@ export function AssumptionForm({ assumption, mode }: AssumptionFormProps) {
               rows={2}
               placeholder="What did we learn? What are we doing next?"
             />
-          </div>
+          </FormFieldWithAI>
         )}
       </div>
 
@@ -492,18 +524,40 @@ export function AssumptionForm({ assumption, mode }: AssumptionFormProps) {
       <div className="space-y-4">
         <h2 className="text-lg font-semibold border-b pb-2">Notes & Tags</h2>
 
-        <div>
-          <label className="block text-sm font-medium mb-1">Notes</label>
+        <FormFieldWithAI
+          label="Notes"
+          fieldName="notes"
+          entityType="assumptions"
+          context={{
+            statement: formData.statement,
+            category: formData.category,
+            status: formData.status,
+          }}
+          currentValue={formData.notes}
+          onGenerate={(content) => setFormData({ ...formData, notes: content })}
+          disabled={saving}
+        >
           <textarea
             value={formData.notes}
             onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
             className="w-full px-3 py-2 rounded-lg border bg-background"
             rows={3}
           />
-        </div>
+        </FormFieldWithAI>
 
-        <div>
-          <label className="block text-sm font-medium mb-1">Tags</label>
+        <FormFieldWithAI
+          label="Tags"
+          fieldName="tags"
+          entityType="assumptions"
+          context={{
+            statement: formData.statement,
+            category: formData.category,
+            importance: formData.importance,
+          }}
+          currentValue={formData.tags}
+          onGenerate={(content) => setFormData({ ...formData, tags: content })}
+          disabled={saving}
+        >
           <input
             type="text"
             value={formData.tags}
@@ -511,7 +565,7 @@ export function AssumptionForm({ assumption, mode }: AssumptionFormProps) {
             className="w-full px-3 py-2 rounded-lg border bg-background"
             placeholder="pricing, technical, user-need (comma-separated)"
           />
-        </div>
+        </FormFieldWithAI>
       </div>
 
       {/* Actions */}
