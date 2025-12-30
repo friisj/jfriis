@@ -107,6 +107,7 @@ export function CanvasItemSelector({
   const [searchOpen, setSearchOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [creating, setCreating] = useState(false)
+  const [createError, setCreateError] = useState<string | null>(null)
   const [newItemTitle, setNewItemTitle] = useState('')
   const [newItemType, setNewItemType] = useState<CanvasItemType>(allowedTypes[0])
   const [detailsOpen, setDetailsOpen] = useState<string | null>(null)
@@ -195,6 +196,7 @@ export function CanvasItemSelector({
     if (!newItemTitle.trim()) return
 
     setCreating(true)
+    setCreateError(null)
     try {
       const { data, error } = await supabase
         .from('canvas_items')
@@ -227,10 +229,11 @@ export function CanvasItemSelector({
       setAllItems(allData || [])
 
       setNewItemTitle('')
+      setCreateError(null)
       setSearchOpen(false)
     } catch (err) {
       console.error('Error creating canvas item:', err)
-      alert('Failed to create item. Please try again.')
+      setCreateError('Failed to create item. Please try again.')
     } finally {
       setCreating(false)
     }
@@ -426,10 +429,18 @@ export function CanvasItemSelector({
 
               <CommandGroup heading="Create New">
                 <div className="p-2 space-y-2">
+                  {createError && (
+                    <div className="px-3 py-2 text-sm text-red-600 dark:text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg">
+                      {createError}
+                    </div>
+                  )}
                   <input
                     type="text"
                     value={newItemTitle}
-                    onChange={(e) => setNewItemTitle(e.target.value)}
+                    onChange={(e) => {
+                      setNewItemTitle(e.target.value)
+                      if (createError) setCreateError(null)
+                    }}
                     onKeyDown={(e) => {
                       if (e.key === 'Enter' && newItemTitle.trim()) {
                         handleCreateItem()
