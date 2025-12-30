@@ -111,23 +111,30 @@ export function CanvasItemSelector({
   const [newItemTitle, setNewItemTitle] = useState('')
   const [newItemType, setNewItemType] = useState<CanvasItemType>(allowedTypes[0])
   const [detailsOpen, setDetailsOpen] = useState<string | null>(null)
+  const [loadingItems, setLoadingItems] = useState(true)
+  const [loadingPlaced, setLoadingPlaced] = useState(false)
 
   // Fetch all items for search (filtered by allowed types)
   useEffect(() => {
     async function fetchItems() {
-      let query = supabase
-        .from('canvas_items')
-        .select('id, title, description, item_type, importance, validation_status, tags, studio_project_id')
-        .in('item_type', allowedTypes)
-        .order('updated_at', { ascending: false })
-        .limit(100)
+      setLoadingItems(true)
+      try {
+        let query = supabase
+          .from('canvas_items')
+          .select('id, title, description, item_type, importance, validation_status, tags, studio_project_id')
+          .in('item_type', allowedTypes)
+          .order('updated_at', { ascending: false })
+          .limit(100)
 
-      if (projectId) {
-        query = query.or(`studio_project_id.eq.${projectId},studio_project_id.is.null`)
+        if (projectId) {
+          query = query.or(`studio_project_id.eq.${projectId},studio_project_id.is.null`)
+        }
+
+        const { data } = await query
+        setAllItems(data || [])
+      } finally {
+        setLoadingItems(false)
       }
-
-      const { data } = await query
-      setAllItems(data || [])
     }
     fetchItems()
   }, [allowedTypes, projectId])
@@ -136,20 +143,26 @@ export function CanvasItemSelector({
   useEffect(() => {
     if (placedItemIds.length === 0) {
       setPlacedItems([])
+      setLoadingPlaced(false)
       return
     }
 
     async function fetchPlaced() {
-      const { data } = await supabase
-        .from('canvas_items')
-        .select('id, title, description, item_type, importance, validation_status, tags, studio_project_id')
-        .in('id', placedItemIds)
+      setLoadingPlaced(true)
+      try {
+        const { data } = await supabase
+          .from('canvas_items')
+          .select('id, title, description, item_type, importance, validation_status, tags, studio_project_id')
+          .in('id', placedItemIds)
 
-      // Preserve order from placedItemIds
-      const ordered = placedItemIds
-        .map((id) => data?.find((item) => item.id === id))
-        .filter(Boolean) as CanvasItem[]
-      setPlacedItems(ordered)
+        // Preserve order from placedItemIds
+        const ordered = placedItemIds
+          .map((id) => data?.find((item) => item.id === id))
+          .filter(Boolean) as CanvasItem[]
+        setPlacedItems(ordered)
+      } finally {
+        setLoadingPlaced(false)
+      }
     }
     fetchPlaced()
   }, [placedItemIds])
@@ -242,17 +255,31 @@ export function CanvasItemSelector({
   // Filter available items (not already placed)
   const availableItems = allItems.filter((item) => !placedItemIds.includes(item.id))
 
-  // Filter by search query
+  // Filter by search query - search in title, description, and tags
   const filteredItems = searchQuery
-    ? availableItems.filter((item) =>
-        item.title.toLowerCase().includes(searchQuery.toLowerCase())
-      )
+    ? availableItems.filter((item) => {
+        const query = searchQuery.toLowerCase()
+        const matchesTitle = item.title.toLowerCase().includes(query)
+        const matchesDescription = item.description?.toLowerCase().includes(query)
+        const matchesTags = item.tags?.some((tag) => tag.toLowerCase().includes(query))
+        return matchesTitle || matchesDescription || matchesTags
+      })
     : availableItems
 
   return (
     <div className="space-y-2">
       {/* Placed Items */}
-      {placedItems.length > 0 && (
+      {loadingPlaced ? (
+        <div className="p-4 rounded-lg border bg-background">
+          <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
+            <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+            </svg>
+            Loading placed items...
+          </div>
+        </div>
+      ) : placedItems.length > 0 ? (
         <div className="space-y-2">
           {placedItems.map((item, index) => (
             <div
@@ -358,7 +385,7 @@ export function CanvasItemSelector({
             </div>
           ))}
         </div>
-      )}
+      ) : null}
 
       {/* Add Item Button */}
       <Popover open={searchOpen} onOpenChange={setSearchOpen}>
@@ -383,25 +410,37 @@ export function CanvasItemSelector({
               onValueChange={setSearchQuery}
             />
             <CommandList>
-              <CommandEmpty>
+              {loadingItems ? (
                 <div className="p-4 text-center">
-                  <p className="text-sm text-muted-foreground mb-3">No items found</p>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setSearchQuery('')
-                      // Trigger create mode - show create form
-                    }}
-                    className="text-sm text-primary hover:underline"
-                  >
-                    Create new item
-                  </button>
+                  <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
+                    <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                    </svg>
+                    Loading items...
+                  </div>
                 </div>
-              </CommandEmpty>
+              ) : (
+                <>
+                  <CommandEmpty>
+                    <div className="p-4 text-center">
+                      <p className="text-sm text-muted-foreground mb-3">No items found</p>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSearchQuery('')
+                          // Trigger create mode - show create form
+                        }}
+                        className="text-sm text-primary hover:underline"
+                      >
+                        Create new item
+                      </button>
+                    </div>
+                  </CommandEmpty>
 
-              {filteredItems.length > 0 && (
-                <CommandGroup heading="Existing Items">
-                  {filteredItems.slice(0, 10).map((item) => (
+                  {filteredItems.length > 0 && (
+                    <CommandGroup heading="Existing Items">
+                      {filteredItems.slice(0, 10).map((item) => (
                     <CommandItem
                       key={item.id}
                       value={item.id}
@@ -425,53 +464,55 @@ export function CanvasItemSelector({
                 </CommandGroup>
               )}
 
-              <CommandSeparator />
+                  <CommandSeparator />
 
-              <CommandGroup heading="Create New">
-                <div className="p-2 space-y-2">
-                  {createError && (
-                    <div className="px-3 py-2 text-sm text-red-600 dark:text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg">
-                      {createError}
+                  <CommandGroup heading="Create New">
+                    <div className="p-2 space-y-2">
+                      {createError && (
+                        <div className="px-3 py-2 text-sm text-red-600 dark:text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg">
+                          {createError}
+                        </div>
+                      )}
+                      <input
+                        type="text"
+                        value={newItemTitle}
+                        onChange={(e) => {
+                          setNewItemTitle(e.target.value)
+                          if (createError) setCreateError(null)
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' && newItemTitle.trim()) {
+                            handleCreateItem()
+                          }
+                        }}
+                        placeholder="Enter item title..."
+                        className="w-full px-3 py-2 text-sm rounded-lg border bg-background"
+                      />
+                      {allowedTypes.length > 1 && (
+                        <select
+                          value={newItemType}
+                          onChange={(e) => setNewItemType(e.target.value as CanvasItemType)}
+                          className="w-full px-3 py-2 text-sm rounded-lg border bg-background"
+                        >
+                          {allowedTypes.map((type) => (
+                            <option key={type} value={type}>
+                              {itemTypeLabels[type]}
+                            </option>
+                          ))}
+                        </select>
+                      )}
+                      <button
+                        type="button"
+                        onClick={handleCreateItem}
+                        disabled={!newItemTitle.trim() || creating}
+                        className="w-full px-3 py-2 text-sm bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {creating ? 'Creating...' : 'Create & Add'}
+                      </button>
                     </div>
-                  )}
-                  <input
-                    type="text"
-                    value={newItemTitle}
-                    onChange={(e) => {
-                      setNewItemTitle(e.target.value)
-                      if (createError) setCreateError(null)
-                    }}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' && newItemTitle.trim()) {
-                        handleCreateItem()
-                      }
-                    }}
-                    placeholder="Enter item title..."
-                    className="w-full px-3 py-2 text-sm rounded-lg border bg-background"
-                  />
-                  {allowedTypes.length > 1 && (
-                    <select
-                      value={newItemType}
-                      onChange={(e) => setNewItemType(e.target.value as CanvasItemType)}
-                      className="w-full px-3 py-2 text-sm rounded-lg border bg-background"
-                    >
-                      {allowedTypes.map((type) => (
-                        <option key={type} value={type}>
-                          {itemTypeLabels[type]}
-                        </option>
-                      ))}
-                    </select>
-                  )}
-                  <button
-                    type="button"
-                    onClick={handleCreateItem}
-                    disabled={!newItemTitle.trim() || creating}
-                    className="w-full px-3 py-2 text-sm bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {creating ? 'Creating...' : 'Create & Add'}
-                  </button>
-                </div>
-              </CommandGroup>
+                  </CommandGroup>
+                </>
+              )}
             </CommandList>
           </Command>
         </PopoverContent>

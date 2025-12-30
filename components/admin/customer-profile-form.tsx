@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
+import { syncCanvasPlacements } from '@/lib/utils/canvas-placements'
 import { AssumptionLinker } from './assumption-linker'
 import { CanvasItemSelector, getAllowedTypesForBlock } from './canvas-item-selector'
 
@@ -365,7 +366,12 @@ export function CustomerProfileForm({ profileId, initialData }: CustomerProfileF
       }
 
       // Sync canvas item placements
-      await syncCanvasPlacements(savedProfileId)
+      await syncCanvasPlacements({
+        canvasId: savedProfileId,
+        canvasType: 'customer_profile',
+        blockKeys: ['jobs', 'pains', 'gains'],
+        formData,
+      })
 
       router.push('/admin/canvases/customer-profiles')
       router.refresh()
@@ -374,42 +380,6 @@ export function CustomerProfileForm({ profileId, initialData }: CustomerProfileF
       setError(err instanceof Error ? err.message : 'Failed to save profile')
     } finally {
       setSaving(false)
-    }
-  }
-
-  const syncCanvasPlacements = async (savedProfileId: string) => {
-    const blockKeys = ['jobs', 'pains', 'gains'] as const
-
-    for (const blockKey of blockKeys) {
-      const itemIds = formData[blockKey].item_ids || []
-
-      // Delete existing placements for this block
-      await supabase
-        .from('canvas_item_placements')
-        .delete()
-        .eq('canvas_id', savedProfileId)
-        .eq('canvas_type', 'customer_profile')
-        .eq('block_name', blockKey)
-
-      // Create new placements if there are items
-      if (itemIds.length > 0) {
-        const placements = itemIds.map((itemId, index) => ({
-          canvas_item_id: itemId,
-          canvas_type: 'customer_profile' as const,
-          canvas_id: savedProfileId,
-          block_name: blockKey,
-          position: index,
-        }))
-
-        const { error } = await supabase
-          .from('canvas_item_placements')
-          .insert(placements)
-
-        if (error) {
-          console.error(`Error syncing placements for ${blockKey}:`, error)
-          // Don't throw - continue with other blocks
-        }
-      }
     }
   }
 

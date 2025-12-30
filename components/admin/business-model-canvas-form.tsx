@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
+import { syncCanvasPlacements } from '@/lib/utils/canvas-placements'
 import { AssumptionLinker } from './assumption-linker'
 import { CanvasItemSelector, getAllowedTypesForBlock } from './canvas-item-selector'
 
@@ -351,7 +352,22 @@ export function BusinessModelCanvasForm({ canvasId, initialData }: BusinessModel
       }
 
       // Sync canvas item placements
-      await syncCanvasPlacements(savedCanvasId)
+      await syncCanvasPlacements({
+        canvasId: savedCanvasId,
+        canvasType: 'business_model_canvas',
+        blockKeys: [
+          'key_partners',
+          'key_activities',
+          'key_resources',
+          'value_propositions',
+          'customer_segments',
+          'customer_relationships',
+          'channels',
+          'cost_structure',
+          'revenue_streams',
+        ],
+        formData,
+      })
 
       router.push('/admin/canvases/business-models')
       router.refresh()
@@ -360,52 +376,6 @@ export function BusinessModelCanvasForm({ canvasId, initialData }: BusinessModel
       setError(err instanceof Error ? err.message : 'Failed to save canvas')
     } finally {
       setSaving(false)
-    }
-  }
-
-  const syncCanvasPlacements = async (savedCanvasId: string) => {
-    const blockKeys = [
-      'key_partners',
-      'key_activities',
-      'key_resources',
-      'value_propositions',
-      'customer_segments',
-      'customer_relationships',
-      'channels',
-      'cost_structure',
-      'revenue_streams',
-    ] as const
-
-    for (const blockKey of blockKeys) {
-      const itemIds = formData[blockKey].item_ids || []
-
-      // Delete existing placements for this block
-      await supabase
-        .from('canvas_item_placements')
-        .delete()
-        .eq('canvas_id', savedCanvasId)
-        .eq('canvas_type', 'business_model_canvas')
-        .eq('block_name', blockKey)
-
-      // Create new placements if there are items
-      if (itemIds.length > 0) {
-        const placements = itemIds.map((itemId, index) => ({
-          canvas_item_id: itemId,
-          canvas_type: 'business_model_canvas' as const,
-          canvas_id: savedCanvasId,
-          block_name: blockKey,
-          position: index,
-        }))
-
-        const { error } = await supabase
-          .from('canvas_item_placements')
-          .insert(placements)
-
-        if (error) {
-          console.error(`Error syncing placements for ${blockKey}:`, error)
-          // Don't throw - continue with other blocks
-        }
-      }
     }
   }
 

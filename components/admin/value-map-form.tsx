@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
+import { syncCanvasPlacements } from '@/lib/utils/canvas-placements'
 import { AssumptionLinker } from './assumption-linker'
 import { CanvasItemSelector, getAllowedTypesForBlock } from './canvas-item-selector'
 
@@ -341,7 +342,12 @@ export function ValueMapForm({ valueMapId, initialData }: ValueMapFormProps) {
       }
 
       // Sync canvas item placements
-      await syncCanvasPlacements(savedValueMapId)
+      await syncCanvasPlacements({
+        canvasId: savedValueMapId,
+        canvasType: 'value_map',
+        blockKeys: ['products_services', 'pain_relievers', 'gain_creators'],
+        formData,
+      })
 
       router.push('/admin/canvases/value-maps')
       router.refresh()
@@ -350,42 +356,6 @@ export function ValueMapForm({ valueMapId, initialData }: ValueMapFormProps) {
       setError(err instanceof Error ? err.message : 'Failed to save value map')
     } finally {
       setSaving(false)
-    }
-  }
-
-  const syncCanvasPlacements = async (savedValueMapId: string) => {
-    const blockKeys = ['products_services', 'pain_relievers', 'gain_creators'] as const
-
-    for (const blockKey of blockKeys) {
-      const itemIds = formData[blockKey].item_ids || []
-
-      // Delete existing placements for this block
-      await supabase
-        .from('canvas_item_placements')
-        .delete()
-        .eq('canvas_id', savedValueMapId)
-        .eq('canvas_type', 'value_map')
-        .eq('block_name', blockKey)
-
-      // Create new placements if there are items
-      if (itemIds.length > 0) {
-        const placements = itemIds.map((itemId, index) => ({
-          canvas_item_id: itemId,
-          canvas_type: 'value_map' as const,
-          canvas_id: savedValueMapId,
-          block_name: blockKey,
-          position: index,
-        }))
-
-        const { error } = await supabase
-          .from('canvas_item_placements')
-          .insert(placements)
-
-        if (error) {
-          console.error(`Error syncing placements for ${blockKey}:`, error)
-          // Don't throw - continue with other blocks
-        }
-      }
     }
   }
 
