@@ -102,6 +102,24 @@ import {
   AssumptionEvidenceUpdateSchema,
 } from './schemas/assumptions'
 
+import {
+  CanvasItemSchema,
+  CanvasItemCreateSchema,
+  CanvasItemUpdateSchema,
+  CanvasItemPlacementSchema,
+  CanvasItemPlacementCreateSchema,
+  CanvasItemPlacementUpdateSchema,
+  CanvasItemAssumptionSchema,
+  CanvasItemAssumptionCreateSchema,
+  CanvasItemAssumptionUpdateSchema,
+  CanvasItemMappingSchema,
+  CanvasItemMappingCreateSchema,
+  CanvasItemMappingUpdateSchema,
+  CanvasItemEvidenceSchema,
+  CanvasItemEvidenceCreateSchema,
+  CanvasItemEvidenceUpdateSchema,
+} from './schemas/canvas-items'
+
 export interface TableDefinition {
   description: string
   schema: z.ZodObject<any>
@@ -313,6 +331,48 @@ export const tables: Record<string, TableDefinition> = {
     schema: AssumptionEvidenceSchema,
     createSchema: AssumptionEvidenceCreateSchema,
     updateSchema: AssumptionEvidenceUpdateSchema,
+    hasSlug: false,
+    hasProjectId: false, // Admin only
+  },
+
+  // Canvas Items tables (first-class entities for canvas block items)
+  canvas_items: {
+    description: 'First-class entities for canvas block items with individual validation tracking',
+    schema: CanvasItemSchema,
+    createSchema: CanvasItemCreateSchema,
+    updateSchema: CanvasItemUpdateSchema,
+    hasSlug: false,
+    hasProjectId: false, // Admin only
+  },
+  canvas_item_placements: {
+    description: 'Tracks where items appear across canvases (BMC, Customer Profile, Value Map)',
+    schema: CanvasItemPlacementSchema,
+    createSchema: CanvasItemPlacementCreateSchema,
+    updateSchema: CanvasItemPlacementUpdateSchema,
+    hasSlug: false,
+    hasProjectId: false, // Admin only
+  },
+  canvas_item_assumptions: {
+    description: 'Links canvas items to assumptions for granular validation tracking',
+    schema: CanvasItemAssumptionSchema,
+    createSchema: CanvasItemAssumptionCreateSchema,
+    updateSchema: CanvasItemAssumptionUpdateSchema,
+    hasSlug: false,
+    hasProjectId: false, // Admin only
+  },
+  canvas_item_mappings: {
+    description: 'FIT mappings between Value Map items and Customer Profile items',
+    schema: CanvasItemMappingSchema,
+    createSchema: CanvasItemMappingCreateSchema,
+    updateSchema: CanvasItemMappingUpdateSchema,
+    hasSlug: false,
+    hasProjectId: false, // Admin only
+  },
+  canvas_item_evidence: {
+    description: 'Direct evidence linked to canvas items',
+    schema: CanvasItemEvidenceSchema,
+    createSchema: CanvasItemEvidenceCreateSchema,
+    updateSchema: CanvasItemEvidenceUpdateSchema,
     hasSlug: false,
     hasProjectId: false, // Admin only
   },

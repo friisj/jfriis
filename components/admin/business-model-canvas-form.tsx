@@ -3,10 +3,13 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
+import { syncCanvasPlacements } from '@/lib/utils/canvas-placements'
 import { AssumptionLinker } from './assumption-linker'
+import { CanvasItemSelector, getAllowedTypesForBlock } from './canvas-item-selector'
 
 interface CanvasBlock {
-  items: string[]
+  items: string[] // Legacy text items (deprecated)
+  item_ids: string[] // Canvas item IDs (new approach)
   assumptions: string[] // Legacy text assumptions
   assumption_ids: string[] // Linked assumption object IDs
   validation_status: 'untested' | 'testing' | 'validated' | 'invalidated'
@@ -43,6 +46,7 @@ interface BusinessModelCanvasFormProps {
 
 const defaultBlock = (): CanvasBlock => ({
   items: [],
+  item_ids: [],
   assumptions: [],
   assumption_ids: [],
   validation_status: 'untested',
@@ -64,18 +68,27 @@ function CanvasBlockEditor({
   blockKey,
   value,
   onChange,
+  canvasId,
   projectId,
 }: {
   blockKey: string
   value: CanvasBlock
   onChange: (value: CanvasBlock) => void
+  canvasId?: string
   projectId?: string
 }) {
-  const [isOpen, setIsOpen] = useState(value.items.length > 0 || (value.assumption_ids?.length || 0) > 0)
+  const [isOpen, setIsOpen] = useState(
+    value.items.length > 0 || (value.item_ids?.length || 0) > 0 || (value.assumption_ids?.length || 0) > 0
+  )
   const label = BLOCK_LABELS[blockKey]
 
-  // Ensure assumption_ids exists (migration from old data)
+  // Ensure new fields exist (migration from old data)
+  const itemIds = value.item_ids || []
   const assumptionIds = value.assumption_ids || []
+  const allowedTypes = getAllowedTypesForBlock(blockKey)
+
+  // Calculate total item count (legacy + new)
+  const totalItems = value.items.length + itemIds.length
 
   return (
     <div className="rounded-lg border bg-card">
@@ -89,8 +102,8 @@ function CanvasBlockEditor({
           <p className="text-sm text-muted-foreground">{label.description}</p>
         </div>
         <div className="flex items-center gap-2">
-          {value.items.length > 0 && (
-            <span className="text-xs bg-muted px-2 py-1 rounded">{value.items.length} items</span>
+          {totalItems > 0 && (
+            <span className="text-xs bg-muted px-2 py-1 rounded">{totalItems} items</span>
           )}
           {assumptionIds.length > 0 && (
             <span className="text-xs bg-amber-500/10 text-amber-700 dark:text-amber-400 px-2 py-1 rounded">
@@ -110,22 +123,100 @@ function CanvasBlockEditor({
 
       {isOpen && (
         <div className="px-4 pb-4 space-y-4 border-t pt-4">
+          {/* Canvas Items (new approach) */}
           <div>
-            <label className="block text-sm font-medium mb-1">Items (one per line)</label>
-            <textarea
-              value={value.items.join('\n')}
-              onChange={(e) =>
+            <label className="block text-sm font-medium mb-2">Canvas Items</label>
+            <CanvasItemSelector
+              placedItemIds={itemIds}
+              canvasType="business_model_canvas"
+              canvasId={canvasId}
+              blockName={blockKey}
+              allowedTypes={allowedTypes}
+              projectId={projectId}
+              onItemsChange={(ids) =>
                 onChange({
                   ...value,
-                  items: e.target.value.split('\n').filter((item) => item.trim()),
+                  item_ids: ids,
                 })
               }
-              className="w-full px-3 py-2 rounded-lg border bg-background text-sm"
-              rows={4}
-              placeholder="Enter each item on a new line..."
             />
           </div>
 
+          {/* Legacy text items - show if they exist */}
+          {value.items.length > 0 && (
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <label className="block text-sm font-medium">
+                  Legacy Text Items
+                  <span className="ml-2 text-xs text-muted-foreground">(deprecated)</span>
+                </label>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    if (!confirm(`Convert ${value.items.length} legacy items to canvas items?`)) return
+
+                    try {
+                      // Create canvas items for each legacy text item
+                      const newItems = await Promise.all(
+                        value.items.map(async (itemText) => {
+                          const { data, error } = await supabase
+                            .from('canvas_items')
+                            .insert([
+                              {
+                                title: itemText.slice(0, 100), // Limit to 100 chars
+                                item_type: allowedTypes[0], // Use first allowed type for this block
+                                importance: 'medium',
+                                validation_status: 'untested',
+                                tags: [],
+                                metadata: { migrated_from: 'legacy_text_item' },
+                                studio_project_id: projectId || null,
+                              },
+                            ])
+                            .select('id')
+                            .single()
+
+                          if (error) throw error
+                          return data.id
+                        })
+                      )
+
+                      // Update block with new item IDs and clear legacy items
+                      onChange({
+                        ...value,
+                        item_ids: [...itemIds, ...newItems],
+                        items: [], // Clear legacy items
+                      })
+
+                      alert(`Successfully migrated ${newItems.length} items!`)
+                    } catch (err) {
+                      console.error('Migration error:', err)
+                      alert('Failed to migrate items. Please try again.')
+                    }
+                  }}
+                  className="px-3 py-1 text-xs bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
+                >
+                  Convert to Canvas Items
+                </button>
+              </div>
+              <textarea
+                value={value.items.join('\n')}
+                onChange={(e) =>
+                  onChange({
+                    ...value,
+                    items: e.target.value.split('\n').filter((item) => item.trim()),
+                  })
+                }
+                className="w-full px-3 py-2 rounded-lg border bg-background text-sm"
+                rows={3}
+                placeholder="Legacy items (one per line)"
+              />
+              <p className="text-xs text-muted-foreground">
+                Click "Convert to Canvas Items" to migrate these to the new system.
+              </p>
+            </div>
+          )}
+
+          {/* Linked Assumptions */}
           <div>
             <label className="block text-sm font-medium mb-2">Linked Assumptions</label>
             <AssumptionLinker
@@ -142,6 +233,7 @@ function CanvasBlockEditor({
             />
           </div>
 
+          {/* Validation Status */}
           <div>
             <label className="block text-sm font-medium mb-1">Validation Status</label>
             <select
@@ -237,7 +329,10 @@ export function BusinessModelCanvasForm({ canvasId, initialData }: BusinessModel
         revenue_streams: formData.revenue_streams,
       }
 
+      let savedCanvasId = canvasId
+
       if (canvasId) {
+        // Update existing canvas
         const { error } = await (supabase
           .from('business_model_canvases') as any)
           .update(data)
@@ -245,9 +340,43 @@ export function BusinessModelCanvasForm({ canvasId, initialData }: BusinessModel
 
         if (error) throw error
       } else {
-        const { error } = await (supabase.from('business_model_canvases') as any).insert([data])
+        // Create new canvas and get the ID
+        const { data: newCanvas, error } = await (supabase
+          .from('business_model_canvases') as any)
+          .insert([data])
+          .select('id')
+          .single()
 
         if (error) throw error
+        savedCanvasId = newCanvas.id
+      }
+
+      // Sync canvas item placements
+      const placementResult = await syncCanvasPlacements({
+        canvasId: savedCanvasId,
+        canvasType: 'business_model_canvas',
+        blockKeys: [
+          'key_partners',
+          'key_activities',
+          'key_resources',
+          'value_propositions',
+          'customer_segments',
+          'customer_relationships',
+          'channels',
+          'cost_structure',
+          'revenue_streams',
+        ],
+        formData,
+      })
+
+      // Check for placement errors
+      if (!placementResult.success) {
+        const failedBlocks = placementResult.errors.map((e) => e.blockKey).join(', ')
+        console.error('Failed to save placements for blocks:', failedBlocks, placementResult.errors)
+        setError(
+          `Canvas saved but some items failed to place (${placementResult.successfulBlocks}/${placementResult.totalBlocks} blocks succeeded). Failed blocks: ${failedBlocks}`
+        )
+        // Still navigate but with error message visible
       }
 
       router.push('/admin/canvases/business-models')
@@ -392,18 +521,21 @@ export function BusinessModelCanvasForm({ canvasId, initialData }: BusinessModel
               blockKey="key_partners"
               value={formData.key_partners}
               onChange={(value) => setFormData({ ...formData, key_partners: value })}
+              canvasId={canvasId}
               projectId={formData.studio_project_id}
             />
             <CanvasBlockEditor
               blockKey="key_activities"
               value={formData.key_activities}
               onChange={(value) => setFormData({ ...formData, key_activities: value })}
+              canvasId={canvasId}
               projectId={formData.studio_project_id}
             />
             <CanvasBlockEditor
               blockKey="key_resources"
               value={formData.key_resources}
               onChange={(value) => setFormData({ ...formData, key_resources: value })}
+              canvasId={canvasId}
               projectId={formData.studio_project_id}
             />
           </div>
@@ -414,18 +546,21 @@ export function BusinessModelCanvasForm({ canvasId, initialData }: BusinessModel
               blockKey="customer_segments"
               value={formData.customer_segments}
               onChange={(value) => setFormData({ ...formData, customer_segments: value })}
+              canvasId={canvasId}
               projectId={formData.studio_project_id}
             />
             <CanvasBlockEditor
               blockKey="customer_relationships"
               value={formData.customer_relationships}
               onChange={(value) => setFormData({ ...formData, customer_relationships: value })}
+              canvasId={canvasId}
               projectId={formData.studio_project_id}
             />
             <CanvasBlockEditor
               blockKey="channels"
               value={formData.channels}
               onChange={(value) => setFormData({ ...formData, channels: value })}
+              canvasId={canvasId}
               projectId={formData.studio_project_id}
             />
           </div>
@@ -436,6 +571,7 @@ export function BusinessModelCanvasForm({ canvasId, initialData }: BusinessModel
           blockKey="value_propositions"
           value={formData.value_propositions}
           onChange={(value) => setFormData({ ...formData, value_propositions: value })}
+          canvasId={canvasId}
           projectId={formData.studio_project_id}
         />
 
@@ -445,12 +581,14 @@ export function BusinessModelCanvasForm({ canvasId, initialData }: BusinessModel
             blockKey="cost_structure"
             value={formData.cost_structure}
             onChange={(value) => setFormData({ ...formData, cost_structure: value })}
+            canvasId={canvasId}
             projectId={formData.studio_project_id}
           />
           <CanvasBlockEditor
             blockKey="revenue_streams"
             value={formData.revenue_streams}
             onChange={(value) => setFormData({ ...formData, revenue_streams: value })}
+            canvasId={canvasId}
             projectId={formData.studio_project_id}
           />
         </div>
