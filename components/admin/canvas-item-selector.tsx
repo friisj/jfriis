@@ -14,6 +14,7 @@ import {
 } from '@/components/ui/command'
 import { BLOCK_ITEM_TYPES, type CanvasItemType, type CanvasType } from '@/lib/types/canvas-items'
 import { AssumptionLinker } from './assumption-linker'
+import { EvidenceLinker } from './evidence-linker'
 
 interface CanvasItem {
   id: string
@@ -25,6 +26,7 @@ interface CanvasItem {
   tags: string[] | null
   studio_project_id: string | null
   assumption_count?: number
+  evidence_count?: number
 }
 
 interface CanvasItemSelectorProps {
@@ -158,14 +160,25 @@ export function CanvasItemSelector({
           .in('id', placedItemIds)
 
         // Fetch assumption counts for these items
-        const { data: counts } = await supabase
+        const { data: assumptionCounts } = await supabase
           .from('canvas_item_assumptions')
           .select('canvas_item_id')
           .in('canvas_item_id', placedItemIds)
 
-        const countMap: Record<string, number> = {}
-        counts?.forEach((row) => {
-          countMap[row.canvas_item_id] = (countMap[row.canvas_item_id] || 0) + 1
+        const assumptionCountMap: Record<string, number> = {}
+        assumptionCounts?.forEach((row) => {
+          assumptionCountMap[row.canvas_item_id] = (assumptionCountMap[row.canvas_item_id] || 0) + 1
+        })
+
+        // Fetch evidence counts for these items
+        const { data: evidenceCounts } = await supabase
+          .from('canvas_item_evidence')
+          .select('canvas_item_id')
+          .in('canvas_item_id', placedItemIds)
+
+        const evidenceCountMap: Record<string, number> = {}
+        evidenceCounts?.forEach((row) => {
+          evidenceCountMap[row.canvas_item_id] = (evidenceCountMap[row.canvas_item_id] || 0) + 1
         })
 
         // Preserve order from placedItemIds and add counts
@@ -173,7 +186,11 @@ export function CanvasItemSelector({
           .map((id) => {
             const item = data?.find((item) => item.id === id)
             if (item) {
-              return { ...item, assumption_count: countMap[id] || 0 }
+              return {
+                ...item,
+                assumption_count: assumptionCountMap[id] || 0,
+                evidence_count: evidenceCountMap[id] || 0,
+              }
             }
             return null
           })
@@ -346,6 +363,11 @@ export function CanvasItemSelector({
                       {item.assumption_count} assumption{item.assumption_count !== 1 ? 's' : ''}
                     </span>
                   )}
+                  {(item.evidence_count || 0) > 0 && (
+                    <span className="text-xs px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-700 dark:text-blue-400 border border-blue-500/20">
+                      {item.evidence_count} evidence
+                    </span>
+                  )}
                 </div>
                 {item.description && (
                   <p className="text-xs text-muted-foreground truncate mt-0.5">{item.description}</p>
@@ -402,6 +424,12 @@ export function CanvasItemSelector({
                         projectId={projectId}
                         compact
                       />
+                    </div>
+
+                    {/* Evidence */}
+                    <div className="pt-2 border-t">
+                      <h5 className="text-xs font-medium text-muted-foreground mb-2">Evidence</h5>
+                      <EvidenceLinker canvasItemId={item.id} compact />
                     </div>
                   </div>
                 </PopoverContent>
