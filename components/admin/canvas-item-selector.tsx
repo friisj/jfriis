@@ -13,6 +13,7 @@ import {
   CommandSeparator,
 } from '@/components/ui/command'
 import { BLOCK_ITEM_TYPES, type CanvasItemType, type CanvasType } from '@/lib/types/canvas-items'
+import { AssumptionLinker } from './assumption-linker'
 
 interface CanvasItem {
   id: string
@@ -23,6 +24,7 @@ interface CanvasItem {
   validation_status: string
   tags: string[] | null
   studio_project_id: string | null
+  assumption_count?: number
 }
 
 interface CanvasItemSelectorProps {
@@ -155,9 +157,26 @@ export function CanvasItemSelector({
           .select('id, title, description, item_type, importance, validation_status, tags, studio_project_id')
           .in('id', placedItemIds)
 
-        // Preserve order from placedItemIds
+        // Fetch assumption counts for these items
+        const { data: counts } = await supabase
+          .from('canvas_item_assumptions')
+          .select('canvas_item_id')
+          .in('canvas_item_id', placedItemIds)
+
+        const countMap: Record<string, number> = {}
+        counts?.forEach((row) => {
+          countMap[row.canvas_item_id] = (countMap[row.canvas_item_id] || 0) + 1
+        })
+
+        // Preserve order from placedItemIds and add counts
         const ordered = placedItemIds
-          .map((id) => data?.find((item) => item.id === id))
+          .map((id) => {
+            const item = data?.find((item) => item.id === id)
+            if (item) {
+              return { ...item, assumption_count: countMap[id] || 0 }
+            }
+            return null
+          })
           .filter(Boolean) as CanvasItem[]
         setPlacedItems(ordered)
       } finally {
@@ -322,6 +341,11 @@ export function CanvasItemSelector({
                   <span className={`text-xs ${importanceColors[item.importance]}`}>
                     {item.importance}
                   </span>
+                  {(item.assumption_count || 0) > 0 && (
+                    <span className="text-xs px-1.5 py-0.5 rounded bg-purple-500/10 text-purple-700 dark:text-purple-400 border border-purple-500/20">
+                      {item.assumption_count} assumption{item.assumption_count !== 1 ? 's' : ''}
+                    </span>
+                  )}
                 </div>
                 {item.description && (
                   <p className="text-xs text-muted-foreground truncate mt-0.5">{item.description}</p>
@@ -342,7 +366,7 @@ export function CanvasItemSelector({
                   </button>
                 </PopoverTrigger>
                 <PopoverContent className="w-80" align="end">
-                  <div className="space-y-2">
+                  <div className="space-y-3">
                     <div>
                       <h4 className="font-medium">{item.title}</h4>
                       <p className="text-xs text-muted-foreground">
@@ -367,6 +391,18 @@ export function CanvasItemSelector({
                         ))}
                       </div>
                     )}
+
+                    {/* Assumptions */}
+                    <div className="pt-2 border-t">
+                      <h5 className="text-xs font-medium text-muted-foreground mb-2">Linked Assumptions</h5>
+                      <AssumptionLinker
+                        canvasItemId={item.id}
+                        sourceType={canvasType as any}
+                        sourceBlock={blockName}
+                        projectId={projectId}
+                        compact
+                      />
+                    </div>
                   </div>
                 </PopoverContent>
               </Popover>

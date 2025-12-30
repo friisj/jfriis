@@ -25,10 +25,12 @@ interface Assumption {
 }
 
 interface AssumptionLinkerProps {
-  /** Currently linked assumption IDs */
-  linkedIds: string[]
-  /** Called when links change */
-  onChange: (ids: string[]) => void
+  /** Currently linked assumption IDs (for block-level linking) */
+  linkedIds?: string[]
+  /** Called when links change (for block-level linking) */
+  onChange?: (ids: string[]) => void
+  /** Canvas item ID (for item-level linking via canvas_item_assumptions table) */
+  canvasItemId?: string
   /** Source context for new assumptions */
   sourceType: 'business_model_canvas' | 'value_map' | 'customer_profile' | 'value_proposition_canvas'
   /** Block name within the canvas (e.g., 'customer_segments') */
@@ -79,8 +81,9 @@ const statusLabels: Record<string, string> = {
 }
 
 export function AssumptionLinker({
-  linkedIds,
+  linkedIds = [],
   onChange,
+  canvasItemId,
   sourceType,
   sourceBlock,
   projectId,
@@ -93,6 +96,10 @@ export function AssumptionLinker({
   const [creating, setCreating] = useState(false)
   const [newStatement, setNewStatement] = useState('')
   const [newCategory, setNewCategory] = useState('desirability')
+  const [itemLinkedIds, setItemLinkedIds] = useState<string[]>([])
+
+  const isItemMode = !!canvasItemId
+  const activeLinkedIds = isItemMode ? itemLinkedIds : linkedIds
 
   // Fetch all assumptions for search
   useEffect(() => {
@@ -112,9 +119,25 @@ export function AssumptionLinker({
     fetchAssumptions()
   }, [projectId])
 
+  // Fetch item-level linked assumptions from canvas_item_assumptions table
+  useEffect(() => {
+    if (!canvasItemId) return
+
+    async function fetchItemAssumptions() {
+      const { data } = await supabase
+        .from('canvas_item_assumptions')
+        .select('assumption_id')
+        .eq('canvas_item_id', canvasItemId)
+
+      const ids = (data || []).map((row) => row.assumption_id)
+      setItemLinkedIds(ids)
+    }
+    fetchItemAssumptions()
+  }, [canvasItemId])
+
   // Fetch linked assumptions details
   useEffect(() => {
-    if (linkedIds.length === 0) {
+    if (activeLinkedIds.length === 0) {
       setLinkedAssumptions([])
       return
     }
@@ -123,33 +146,57 @@ export function AssumptionLinker({
       const { data } = await supabase
         .from('assumptions')
         .select('id, slug, statement, category, importance, evidence_level, status, is_leap_of_faith')
-        .in('id', linkedIds)
+        .in('id', activeLinkedIds)
 
-      // Preserve order from linkedIds
-      const ordered = linkedIds
+      // Preserve order from activeLinkedIds
+      const ordered = activeLinkedIds
         .map((id) => data?.find((a) => a.id === id))
         .filter(Boolean) as Assumption[]
       setLinkedAssumptions(ordered)
     }
     fetchLinked()
-  }, [linkedIds])
+  }, [activeLinkedIds])
 
   const handleLink = useCallback(
-    (assumptionId: string) => {
-      if (!linkedIds.includes(assumptionId)) {
+    async (assumptionId: string) => {
+      if (activeLinkedIds.includes(assumptionId)) return
+
+      if (isItemMode && canvasItemId) {
+        // Item-level linking: save to canvas_item_assumptions table
+        await supabase.from('canvas_item_assumptions').insert([
+          {
+            canvas_item_id: canvasItemId,
+            assumption_id: assumptionId,
+          },
+        ])
+        setItemLinkedIds([...itemLinkedIds, assumptionId])
+      } else if (onChange) {
+        // Block-level linking: update array via onChange
         onChange([...linkedIds, assumptionId])
       }
+
       setSearchOpen(false)
       setSearchQuery('')
     },
-    [linkedIds, onChange]
+    [activeLinkedIds, isItemMode, canvasItemId, itemLinkedIds, onChange, linkedIds]
   )
 
   const handleUnlink = useCallback(
-    (assumptionId: string) => {
-      onChange(linkedIds.filter((id) => id !== assumptionId))
+    async (assumptionId: string) => {
+      if (isItemMode && canvasItemId) {
+        // Item-level unlinking: delete from canvas_item_assumptions table
+        await supabase
+          .from('canvas_item_assumptions')
+          .delete()
+          .eq('canvas_item_id', canvasItemId)
+          .eq('assumption_id', assumptionId)
+        setItemLinkedIds(itemLinkedIds.filter((id) => id !== assumptionId))
+      } else if (onChange) {
+        // Block-level unlinking: update array via onChange
+        onChange(linkedIds.filter((id) => id !== assumptionId))
+      }
     },
-    [linkedIds, onChange]
+    [isItemMode, canvasItemId, itemLinkedIds, onChange, linkedIds]
   )
 
   const handleCreate = async () => {
@@ -184,7 +231,19 @@ export function AssumptionLinker({
       if (error) throw error
 
       // Link the new assumption
-      onChange([...linkedIds, data.id])
+      if (isItemMode && canvasItemId) {
+        // Item-level linking
+        await supabase.from('canvas_item_assumptions').insert([
+          {
+            canvas_item_id: canvasItemId,
+            assumption_id: data.id,
+          },
+        ])
+        setItemLinkedIds([...itemLinkedIds, data.id])
+      } else if (onChange) {
+        // Block-level linking
+        onChange([...linkedIds, data.id])
+      }
 
       // Refresh the list
       const { data: allData } = await supabase
@@ -205,7 +264,7 @@ export function AssumptionLinker({
   // Filter assumptions for search
   const unlinkedAssumptions = allAssumptions.filter(
     (a) =>
-      !linkedIds.includes(a.id) &&
+      !activeLinkedIds.includes(a.id) &&
       (searchQuery === '' ||
         a.statement.toLowerCase().includes(searchQuery.toLowerCase()) ||
         a.category.toLowerCase().includes(searchQuery.toLowerCase()))
