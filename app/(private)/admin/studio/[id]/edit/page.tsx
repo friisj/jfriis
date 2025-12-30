@@ -60,31 +60,51 @@ export default async function EditStudioProjectPage({ params }: PageProps) {
             <div className="rounded-lg border bg-card p-4">
               <div className="flex items-center justify-between mb-3">
                 <h3 className="font-semibold">Hypotheses</h3>
-                <span className="text-sm text-muted-foreground">
-                  {hypotheses?.length || 0}
-                </span>
+                <Link
+                  href={`/admin/hypotheses/new?project=${id}`}
+                  className="text-xs px-2 py-1 bg-primary/10 text-primary rounded hover:bg-primary/20 transition-colors"
+                >
+                  + Add
+                </Link>
               </div>
               {hypotheses && hypotheses.length > 0 ? (
-                <ul className="space-y-2 text-sm">
-                  {hypotheses.map((h) => (
-                    <li key={h.id} className="flex items-start gap-2">
-                      <span className={`mt-0.5 ${
-                        h.status === 'validated' ? 'text-green-500' :
-                        h.status === 'invalidated' ? 'text-red-500' :
-                        h.status === 'testing' ? 'text-blue-500' :
-                        'text-gray-400'
-                      }`}>
-                        {h.status === 'validated' ? '✓' :
-                         h.status === 'invalidated' ? '✗' :
-                         h.status === 'testing' ? '◐' : '○'}
-                      </span>
-                      <span className="line-clamp-2">H{h.sequence}: {h.statement}</span>
-                    </li>
-                  ))}
-                </ul>
+                <>
+                  <ul className="space-y-2 text-sm">
+                    {hypotheses.slice(0, 5).map((h) => (
+                      <li key={h.id}>
+                        <Link
+                          href={`/admin/hypotheses/${h.id}/edit`}
+                          className="flex items-start gap-2 group"
+                        >
+                          <span className={`mt-0.5 ${
+                            h.status === 'validated' ? 'text-green-500' :
+                            h.status === 'invalidated' ? 'text-red-500' :
+                            h.status === 'testing' ? 'text-blue-500' :
+                            'text-gray-400'
+                          }`}>
+                            {h.status === 'validated' ? '✓' :
+                             h.status === 'invalidated' ? '✗' :
+                             h.status === 'testing' ? '◐' : '○'}
+                          </span>
+                          <span className="line-clamp-2 group-hover:text-primary transition-colors">
+                            H{h.sequence}: {h.statement}
+                          </span>
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+                  {hypotheses.length > 5 && (
+                    <Link
+                      href={`/admin/hypotheses?project=${id}`}
+                      className="block mt-3 text-xs text-muted-foreground hover:text-primary transition-colors"
+                    >
+                      View all {hypotheses.length} hypotheses →
+                    </Link>
+                  )}
+                </>
               ) : (
                 <p className="text-sm text-muted-foreground">
-                  No hypotheses yet. Add via MCP.
+                  No hypotheses yet.
                 </p>
               )}
             </div>
@@ -93,29 +113,49 @@ export default async function EditStudioProjectPage({ params }: PageProps) {
             <div className="rounded-lg border bg-card p-4">
               <div className="flex items-center justify-between mb-3">
                 <h3 className="font-semibold">Experiments</h3>
-                <span className="text-sm text-muted-foreground">
-                  {experiments?.length || 0}
-                </span>
+                <Link
+                  href={`/admin/experiments/new?project=${id}`}
+                  className="text-xs px-2 py-1 bg-primary/10 text-primary rounded hover:bg-primary/20 transition-colors"
+                >
+                  + Add
+                </Link>
               </div>
               {experiments && experiments.length > 0 ? (
-                <ul className="space-y-2 text-sm">
-                  {experiments.map((e) => (
-                    <li key={e.id} className="flex items-center justify-between">
-                      <span className="truncate">{e.name}</span>
-                      <span className={`text-xs px-1.5 py-0.5 rounded ${
-                        e.status === 'completed' ? 'bg-green-500/10 text-green-600' :
-                        e.status === 'in_progress' ? 'bg-blue-500/10 text-blue-600' :
-                        e.status === 'abandoned' ? 'bg-red-500/10 text-red-600' :
-                        'bg-gray-500/10 text-gray-600'
-                      }`}>
-                        {e.status}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
+                <>
+                  <ul className="space-y-2 text-sm">
+                    {experiments.slice(0, 5).map((e) => (
+                      <li key={e.id}>
+                        <Link
+                          href={`/admin/experiments/${e.id}/edit`}
+                          className="flex items-center justify-between group"
+                        >
+                          <span className="truncate group-hover:text-primary transition-colors">
+                            {e.name}
+                          </span>
+                          <span className={`text-xs px-1.5 py-0.5 rounded ${
+                            e.status === 'completed' ? 'bg-green-500/10 text-green-600' :
+                            e.status === 'in_progress' ? 'bg-blue-500/10 text-blue-600' :
+                            e.status === 'abandoned' ? 'bg-red-500/10 text-red-600' :
+                            'bg-gray-500/10 text-gray-600'
+                          }`}>
+                            {e.status.replace('_', ' ')}
+                          </span>
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+                  {experiments.length > 5 && (
+                    <Link
+                      href={`/admin/experiments?project=${id}`}
+                      className="block mt-3 text-xs text-muted-foreground hover:text-primary transition-colors"
+                    >
+                      View all {experiments.length} experiments →
+                    </Link>
+                  )}
+                </>
               ) : (
                 <p className="text-sm text-muted-foreground">
-                  No experiments yet. Add via MCP.
+                  No experiments yet.
                 </p>
               )}
             </div>
