@@ -4,6 +4,56 @@
  * TypeScript interfaces for all database tables
  */
 
+import type {
+  CanvasItem,
+  CanvasItemInsert,
+  CanvasItemUpdate,
+  CanvasItemPlacement,
+  CanvasItemPlacementInsert,
+  CanvasItemPlacementUpdate,
+  CanvasItemAssumption,
+  CanvasItemAssumptionInsert,
+  CanvasItemAssumptionUpdate,
+  CanvasItemMapping,
+  CanvasItemMappingInsert,
+  CanvasItemMappingUpdate,
+  CanvasItemEvidence,
+  CanvasItemEvidenceInsert,
+  CanvasItemEvidenceUpdate,
+} from './canvas-items'
+
+// Re-export canvas item types for convenience
+export type {
+  CanvasItem,
+  CanvasItemInsert,
+  CanvasItemUpdate,
+  CanvasItemPlacement,
+  CanvasItemPlacementInsert,
+  CanvasItemPlacementUpdate,
+  CanvasItemAssumption,
+  CanvasItemAssumptionInsert,
+  CanvasItemAssumptionUpdate,
+  CanvasItemMapping,
+  CanvasItemMappingInsert,
+  CanvasItemMappingUpdate,
+  CanvasItemEvidence,
+  CanvasItemEvidenceInsert,
+  CanvasItemEvidenceUpdate,
+  CanvasItemType,
+  CanvasType,
+  JobType,
+  Intensity,
+  Importance,
+  ValidationStatus,
+  Frequency,
+  AssumptionRelationshipType,
+  MappingType,
+  FitStrength,
+  ValidationMethod,
+  EvidenceType,
+  Confidence,
+} from './canvas-items'
+
 // Base fields present in most tables
 export interface BaseRecord {
   id: string
@@ -790,6 +840,31 @@ export interface Database {
         Row: AssumptionEvidence
         Insert: AssumptionEvidenceInsert
         Update: AssumptionEvidenceUpdate
+      }
+      canvas_items: {
+        Row: CanvasItem
+        Insert: CanvasItemInsert
+        Update: CanvasItemUpdate
+      }
+      canvas_item_placements: {
+        Row: CanvasItemPlacement
+        Insert: CanvasItemPlacementInsert
+        Update: CanvasItemPlacementUpdate
+      }
+      canvas_item_assumptions: {
+        Row: CanvasItemAssumption
+        Insert: CanvasItemAssumptionInsert
+        Update: CanvasItemAssumptionUpdate
+      }
+      canvas_item_mappings: {
+        Row: CanvasItemMapping
+        Insert: CanvasItemMappingInsert
+        Update: CanvasItemMappingUpdate
+      }
+      canvas_item_evidence: {
+        Row: CanvasItemEvidence
+        Insert: CanvasItemEvidenceInsert
+        Update: CanvasItemEvidenceUpdate
       }
     }
   }
