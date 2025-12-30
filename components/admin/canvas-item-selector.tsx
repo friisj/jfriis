@@ -154,32 +154,58 @@ export function CanvasItemSelector({
     async function fetchPlaced() {
       setLoadingPlaced(true)
       try {
-        const { data } = await supabase
+        const { data, error: itemsError } = await supabase
           .from('canvas_items')
           .select('id, title, description, item_type, importance, validation_status, tags, studio_project_id')
           .in('id', placedItemIds)
 
-        // Fetch assumption counts for these items
-        const { data: assumptionCounts } = await supabase
-          .from('canvas_item_assumptions')
-          .select('canvas_item_id')
-          .in('canvas_item_id', placedItemIds)
+        if (itemsError) {
+          console.error('Error fetching placed items:', itemsError)
+          setPlacedItems([])
+          return
+        }
 
-        const assumptionCountMap: Record<string, number> = {}
-        assumptionCounts?.forEach((row) => {
-          assumptionCountMap[row.canvas_item_id] = (assumptionCountMap[row.canvas_item_id] || 0) + 1
-        })
+        // PERFORMANCE FIX: Use RPC function for aggregated counts
+        // This replaces the N+1 query pattern with a single database call
+        const { data: counts, error: countsError } = await supabase.rpc(
+          'get_canvas_item_counts',
+          { item_ids: placedItemIds }
+        )
 
-        // Fetch evidence counts for these items
-        const { data: evidenceCounts } = await supabase
-          .from('canvas_item_evidence')
-          .select('canvas_item_id')
-          .in('canvas_item_id', placedItemIds)
+        // Fallback to manual counting if RPC function doesn't exist yet
+        let assumptionCountMap: Record<string, number> = {}
+        let evidenceCountMap: Record<string, number> = {}
 
-        const evidenceCountMap: Record<string, number> = {}
-        evidenceCounts?.forEach((row) => {
-          evidenceCountMap[row.canvas_item_id] = (evidenceCountMap[row.canvas_item_id] || 0) + 1
-        })
+        if (countsError) {
+          // RPC function not available - use fallback queries
+          // TODO: This should be removed once database migration is complete
+          console.warn('RPC function not available, using fallback queries:', countsError)
+
+          const [assumptionsResult, evidenceResult] = await Promise.all([
+            supabase
+              .from('canvas_item_assumptions')
+              .select('canvas_item_id')
+              .in('canvas_item_id', placedItemIds),
+            supabase
+              .from('canvas_item_evidence')
+              .select('canvas_item_id')
+              .in('canvas_item_id', placedItemIds),
+          ])
+
+          assumptionsResult.data?.forEach((row) => {
+            assumptionCountMap[row.canvas_item_id] = (assumptionCountMap[row.canvas_item_id] || 0) + 1
+          })
+
+          evidenceResult.data?.forEach((row) => {
+            evidenceCountMap[row.canvas_item_id] = (evidenceCountMap[row.canvas_item_id] || 0) + 1
+          })
+        } else {
+          // Use RPC function results
+          counts?.forEach((row: { item_id: string; assumption_count: number; evidence_count: number }) => {
+            assumptionCountMap[row.item_id] = row.assumption_count || 0
+            evidenceCountMap[row.item_id] = row.evidence_count || 0
+          })
+        }
 
         // Preserve order from placedItemIds and add counts
         const ordered = placedItemIds
@@ -419,7 +445,7 @@ export function CanvasItemSelector({
                       <h5 className="text-xs font-medium text-muted-foreground mb-2">Linked Assumptions</h5>
                       <AssumptionLinker
                         canvasItemId={item.id}
-                        sourceType={canvasType as any}
+                        sourceType={canvasType}
                         sourceBlock={blockName}
                         projectId={projectId}
                         compact

@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 import type { CanvasItemType } from '@/lib/types/canvas-items'
+import { showErrorToast, showSuccessToast } from '@/lib/utils/error-handling'
 
 type FitStrength = 'weak' | 'partial' | 'strong' | 'perfect'
 type MappingType = 'relieves' | 'creates' | 'addresses' | 'enables'
@@ -50,28 +51,50 @@ export function FitMappingEditor({ valueMapId, customerProfileId }: FitMappingEd
   const [gains, setGains] = useState<CanvasItem[]>([])
   const [mappings, setMappings] = useState<CanvasItemMapping[]>([])
   const [loading, setLoading] = useState(true)
+  const [creating, setCreating] = useState(false)
+  const [updating, setUpdating] = useState<string | null>(null)
+  const [deleting, setDeleting] = useState<string | null>(null)
   const [selectedSource, setSelectedSource] = useState<string | null>(null)
   const [editingMapping, setEditingMapping] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
 
   // Fetch all items and mappings
   useEffect(() => {
     async function fetchData() {
       setLoading(true)
+      setError(null)
+
       try {
         // Fetch Value Map items (pain_relievers, gain_creators)
-        const { data: vmPlacements } = await supabase
+        const { data: vmPlacements, error: vmPlacementsError } = await supabase
           .from('canvas_item_placements')
           .select('canvas_item_id, block_name')
           .eq('canvas_id', valueMapId)
           .eq('canvas_type', 'value_map')
           .in('block_name', ['pain_relievers', 'gain_creators'])
 
+        if (vmPlacementsError) {
+          console.error('Error fetching Value Map placements:', vmPlacementsError)
+          setError('Failed to load Value Map items')
+          return
+        }
+
+        let allSourceIds: string[] = []
+
         if (vmPlacements && vmPlacements.length > 0) {
           const vmItemIds = vmPlacements.map((p) => p.canvas_item_id)
-          const { data: vmItems } = await supabase
+          allSourceIds = vmItemIds
+
+          const { data: vmItems, error: vmItemsError } = await supabase
             .from('canvas_items')
             .select('id, title, description, item_type, importance')
             .in('id', vmItemIds)
+
+          if (vmItemsError) {
+            console.error('Error fetching Value Map items:', vmItemsError)
+            setError('Failed to load Value Map item details')
+            return
+          }
 
           setPainRelievers(
             vmItems?.filter((item) =>
@@ -86,19 +109,35 @@ export function FitMappingEditor({ valueMapId, customerProfileId }: FitMappingEd
         }
 
         // Fetch Customer Profile items (pains, gains)
-        const { data: cpPlacements } = await supabase
+        const { data: cpPlacements, error: cpPlacementsError } = await supabase
           .from('canvas_item_placements')
           .select('canvas_item_id, block_name')
           .eq('canvas_id', customerProfileId)
           .eq('canvas_type', 'customer_profile')
           .in('block_name', ['pains', 'gains'])
 
+        if (cpPlacementsError) {
+          console.error('Error fetching Customer Profile placements:', cpPlacementsError)
+          setError('Failed to load Customer Profile items')
+          return
+        }
+
+        let allTargetIds: string[] = []
+
         if (cpPlacements && cpPlacements.length > 0) {
           const cpItemIds = cpPlacements.map((p) => p.canvas_item_id)
-          const { data: cpItems } = await supabase
+          allTargetIds = cpItemIds
+
+          const { data: cpItems, error: cpItemsError } = await supabase
             .from('canvas_items')
             .select('id, title, description, item_type, importance')
             .in('id', cpItemIds)
+
+          if (cpItemsError) {
+            console.error('Error fetching Customer Profile items:', cpItemsError)
+            setError('Failed to load Customer Profile item details')
+            return
+          }
 
           setPains(
             cpItems?.filter((item) =>
@@ -112,19 +151,25 @@ export function FitMappingEditor({ valueMapId, customerProfileId }: FitMappingEd
           )
         }
 
-        // Fetch existing mappings
-        const allSourceIds = [...(vmPlacements?.map((p) => p.canvas_item_id) || [])]
-        const allTargetIds = [...(cpPlacements?.map((p) => p.canvas_item_id) || [])]
+        // SECURITY FIX: Always fetch mappings, even if one side is empty
+        // This prevents orphaned mappings from being invisible
+        const { data: existingMappings, error: mappingsError } = await supabase
+          .from('canvas_item_mappings')
+          .select('*')
+          .or(
+            `source_item_id.in.(${allSourceIds.join(',')}),target_item_id.in.(${allTargetIds.join(',')})`
+          )
 
-        if (allSourceIds.length > 0 && allTargetIds.length > 0) {
-          const { data: existingMappings } = await supabase
-            .from('canvas_item_mappings')
-            .select('*')
-            .in('source_item_id', allSourceIds)
-            .in('target_item_id', allTargetIds)
-
+        if (mappingsError) {
+          console.error('Error fetching mappings:', mappingsError)
+          // Don't set error here - mappings are optional
+          setMappings([])
+        } else {
           setMappings(existingMappings || [])
         }
+      } catch (err) {
+        console.error('Unexpected error loading FIT mapping data:', err)
+        setError('An unexpected error occurred while loading data')
       } finally {
         setLoading(false)
       }
@@ -136,14 +181,33 @@ export function FitMappingEditor({ valueMapId, customerProfileId }: FitMappingEd
     if (isSource) {
       // Select source item
       setSelectedSource(itemId)
-    } else if (selectedSource) {
-      // Create mapping
+      return
+    }
+
+    // Target clicked - need a source selected
+    if (!selectedSource) return
+
+    // Prevent concurrent operations
+    if (creating) return
+
+    setCreating(true)
+    try {
+      // SAFETY FIX: Null checks before property access
       const sourceItem = [...painRelievers, ...gainCreators].find((i) => i.id === selectedSource)
       const targetItem = [...pains, ...gains].find((i) => i.id === itemId)
 
-      if (!sourceItem || !targetItem) return
+      if (!sourceItem) {
+        showErrorToast('Source item not found')
+        setSelectedSource(null)
+        return
+      }
 
-      // Determine mapping type
+      if (!targetItem) {
+        showErrorToast('Target item not found')
+        return
+      }
+
+      // Determine mapping type based on item types
       let mappingType: MappingType = 'addresses'
       if (sourceItem.item_type === 'pain_reliever' && targetItem.item_type === 'pain') {
         mappingType = 'relieves'
@@ -157,50 +221,100 @@ export function FitMappingEditor({ valueMapId, customerProfileId }: FitMappingEd
       )
 
       if (existing) {
-        // Edit existing
+        // Edit existing mapping
         setEditingMapping(existing.id || null)
         setSelectedSource(null)
-      } else {
-        // Create new
-        const { data, error } = await supabase
-          .from('canvas_item_mappings')
-          .insert([
-            {
-              source_item_id: selectedSource,
-              target_item_id: itemId,
-              mapping_type: mappingType,
-              fit_strength: 'partial',
-            },
-          ])
-          .select()
-          .single()
-
-        if (!error && data) {
-          setMappings([...mappings, data])
-        }
-        setSelectedSource(null)
+        showSuccessToast('Editing existing connection')
+        return
       }
+
+      // Create new mapping
+      const { data, error } = await supabase
+        .from('canvas_item_mappings')
+        .insert([
+          {
+            source_item_id: selectedSource,
+            target_item_id: itemId,
+            mapping_type: mappingType,
+            fit_strength: 'partial',
+          },
+        ])
+        .select()
+        .single()
+
+      if (error) {
+        console.error('Error creating mapping:', error)
+        showErrorToast('Failed to create connection')
+        return
+      }
+
+      // Only update state after successful DB operation
+      if (data) {
+        setMappings([...mappings, data])
+        showSuccessToast('Connection created')
+      }
+
+      setSelectedSource(null)
+    } catch (err) {
+      console.error('Unexpected error creating mapping:', err)
+      showErrorToast('An unexpected error occurred')
+    } finally {
+      setCreating(false)
     }
   }
 
   const handleUpdateFitStrength = async (mappingId: string, fitStrength: FitStrength) => {
-    const { error } = await supabase
-      .from('canvas_item_mappings')
-      .update({ fit_strength: fitStrength })
-      .eq('id', mappingId)
+    // Prevent concurrent operations
+    if (updating) return
 
-    if (!error) {
+    setUpdating(mappingId)
+    try {
+      const { error } = await supabase
+        .from('canvas_item_mappings')
+        .update({ fit_strength: fitStrength })
+        .eq('id', mappingId)
+
+      if (error) {
+        console.error('Error updating fit strength:', error)
+        showErrorToast('Failed to update fit strength')
+        return
+      }
+
+      // Only update state after successful DB operation
       setMappings(mappings.map((m) => (m.id === mappingId ? { ...m, fit_strength: fitStrength } : m)))
       setEditingMapping(null)
+      showSuccessToast('Fit strength updated')
+    } catch (err) {
+      console.error('Unexpected error updating fit strength:', err)
+      showErrorToast('An unexpected error occurred')
+    } finally {
+      setUpdating(null)
     }
   }
 
   const handleDeleteMapping = async (mappingId: string) => {
-    const { error } = await supabase.from('canvas_item_mappings').delete().eq('id', mappingId)
+    // Prevent concurrent operations
+    if (deleting) return
 
-    if (!error) {
+    setDeleting(mappingId)
+    try {
+      const { error } = await supabase.from('canvas_item_mappings').delete().eq('id', mappingId)
+
+      if (error) {
+        console.error('Error deleting mapping:', error)
+        showErrorToast('Failed to delete connection')
+        return
+      }
+
+      // Only update state after successful DB operation
       setMappings(mappings.filter((m) => m.id !== mappingId))
       setEditingMapping(null)
+      showSuccessToast('Connection deleted')
+    } catch (err) {
+      console.error('Unexpected error deleting mapping:', err)
+      showErrorToast('An unexpected error occurred')
+    } finally {
+      setDeleting(null)
     }
   }
 
@@ -224,6 +338,20 @@ export function FitMappingEditor({ valueMapId, customerProfileId }: FitMappingEd
           </svg>
           Loading FIT mapping...
         </div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="p-4 rounded-lg bg-red-500/10 border border-red-500/20">
+        <div className="text-sm text-red-700 dark:text-red-400">{error}</div>
+        <button
+          onClick={() => window.location.reload()}
+          className="mt-2 text-xs text-red-700 dark:text-red-400 hover:underline"
+        >
+          Reload page
+        </button>
       </div>
     )
   }

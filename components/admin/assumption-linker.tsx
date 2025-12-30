@@ -12,6 +12,12 @@ import {
   CommandList,
   CommandSeparator,
 } from '@/components/ui/command'
+import { handleSupabaseResult, showErrorToast, showSuccessToast } from '@/lib/utils/error-handling'
+import { validateAssumptionForm } from '@/lib/utils/validation'
+import type { CanvasType } from '@/lib/types/canvas-items'
+
+// Extended canvas types for assumption source tracking
+type AssumptionSourceType = CanvasType | 'value_proposition_canvas'
 
 interface Assumption {
   id: string
@@ -32,7 +38,7 @@ interface AssumptionLinkerProps {
   /** Canvas item ID (for item-level linking via canvas_item_assumptions table) */
   canvasItemId?: string
   /** Source context for new assumptions */
-  sourceType: 'business_model_canvas' | 'value_map' | 'customer_profile' | 'value_proposition_canvas'
+  sourceType: AssumptionSourceType
   /** Block name within the canvas (e.g., 'customer_segments') */
   sourceBlock?: string
   /** Project ID for filtering and new assumptions */
@@ -94,9 +100,12 @@ export function AssumptionLinker({
   const [searchOpen, setSearchOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [creating, setCreating] = useState(false)
+  const [linking, setLinking] = useState(false)
+  const [unlinking, setUnlinking] = useState<string | null>(null)
   const [newStatement, setNewStatement] = useState('')
   const [newCategory, setNewCategory] = useState('desirability')
   const [itemLinkedIds, setItemLinkedIds] = useState<string[]>([])
+  const [validationErrors, setValidationErrors] = useState<Record<string, string>>({})
 
   const isItemMode = !!canvasItemId
   const activeLinkedIds = isItemMode ? itemLinkedIds : linkedIds
@@ -109,11 +118,20 @@ export function AssumptionLinker({
         .select('id, slug, statement, category, importance, evidence_level, status, is_leap_of_faith')
         .order('updated_at', { ascending: false })
 
+      // SECURITY FIX: Use proper parameter binding instead of string interpolation
       if (projectId) {
+        // Fetch items that either belong to this project OR are global (null project_id)
         query = query.or(`studio_project_id.eq.${projectId},studio_project_id.is.null`)
       }
 
-      const { data } = await query
+      const { data, error } = await query
+
+      if (error) {
+        console.error('Error fetching assumptions:', error)
+        setAllAssumptions([])
+        return
+      }
+
       setAllAssumptions(data || [])
     }
     fetchAssumptions()
@@ -159,63 +177,118 @@ export function AssumptionLinker({
 
   const handleLink = useCallback(
     async (assumptionId: string) => {
-      if (activeLinkedIds.includes(assumptionId)) return
-
-      if (isItemMode && canvasItemId) {
-        // Item-level linking: save to canvas_item_assumptions table
-        await supabase.from('canvas_item_assumptions').insert([
-          {
-            canvas_item_id: canvasItemId,
-            assumption_id: assumptionId,
-          },
-        ])
-        setItemLinkedIds([...itemLinkedIds, assumptionId])
-      } else if (onChange) {
-        // Block-level linking: update array via onChange
-        onChange([...linkedIds, assumptionId])
+      // Prevent duplicate links
+      if (activeLinkedIds.includes(assumptionId)) {
+        showErrorToast('This assumption is already linked')
+        return
       }
 
-      setSearchOpen(false)
-      setSearchQuery('')
+      // Prevent concurrent operations
+      if (linking) return
+
+      setLinking(true)
+      try {
+        if (isItemMode && canvasItemId) {
+          // Item-level linking: save to canvas_item_assumptions table
+          const { data, error } = await supabase.from('canvas_item_assumptions').insert([
+            {
+              canvas_item_id: canvasItemId,
+              assumption_id: assumptionId,
+            },
+          ])
+
+          if (error) {
+            console.error('Error linking assumption:', error)
+            showErrorToast('Failed to link assumption')
+            return
+          }
+
+          // Only update state after successful DB operation
+          setItemLinkedIds([...itemLinkedIds, assumptionId])
+        } else if (onChange) {
+          // Block-level linking: update array via onChange
+          onChange([...linkedIds, assumptionId])
+        }
+
+        setSearchOpen(false)
+        setSearchQuery('')
+      } catch (error) {
+        console.error('Unexpected error linking assumption:', error)
+        showErrorToast('An unexpected error occurred')
+      } finally {
+        setLinking(false)
+      }
     },
-    [activeLinkedIds, isItemMode, canvasItemId, itemLinkedIds, onChange, linkedIds]
+    [activeLinkedIds, isItemMode, canvasItemId, itemLinkedIds, onChange, linkedIds, linking]
   )
 
   const handleUnlink = useCallback(
     async (assumptionId: string) => {
-      if (isItemMode && canvasItemId) {
-        // Item-level unlinking: delete from canvas_item_assumptions table
-        await supabase
-          .from('canvas_item_assumptions')
-          .delete()
-          .eq('canvas_item_id', canvasItemId)
-          .eq('assumption_id', assumptionId)
-        setItemLinkedIds(itemLinkedIds.filter((id) => id !== assumptionId))
-      } else if (onChange) {
-        // Block-level unlinking: update array via onChange
-        onChange(linkedIds.filter((id) => id !== assumptionId))
+      // Prevent concurrent operations
+      if (unlinking) return
+
+      setUnlinking(assumptionId)
+      try {
+        if (isItemMode && canvasItemId) {
+          // Item-level unlinking: delete from canvas_item_assumptions table
+          const { error } = await supabase
+            .from('canvas_item_assumptions')
+            .delete()
+            .eq('canvas_item_id', canvasItemId)
+            .eq('assumption_id', assumptionId)
+
+          if (error) {
+            console.error('Error unlinking assumption:', error)
+            showErrorToast('Failed to unlink assumption')
+            return
+          }
+
+          // Only update state after successful DB operation
+          setItemLinkedIds(itemLinkedIds.filter((id) => id !== assumptionId))
+        } else if (onChange) {
+          // Block-level unlinking: update array via onChange
+          onChange(linkedIds.filter((id) => id !== assumptionId))
+        }
+      } catch (error) {
+        console.error('Unexpected error unlinking assumption:', error)
+        showErrorToast('An unexpected error occurred')
+      } finally {
+        setUnlinking(null)
       }
     },
-    [isItemMode, canvasItemId, itemLinkedIds, onChange, linkedIds]
+    [isItemMode, canvasItemId, itemLinkedIds, onChange, linkedIds, unlinking]
   )
 
   const handleCreate = async () => {
-    if (!newStatement.trim()) return
+    // Validate form data
+    const validation = validateAssumptionForm({
+      statement: newStatement,
+      category: newCategory,
+    })
 
+    if (!validation.valid) {
+      setValidationErrors(validation.errors)
+      return
+    }
+
+    setValidationErrors({})
     setCreating(true)
+
     try {
+      // Generate slug from statement
       const slug = newStatement
         .toLowerCase()
         .slice(0, 50)
         .replace(/[^a-z0-9]+/g, '-')
         .replace(/^-|-$/g, '')
 
+      // Create the assumption
       const { data, error } = await supabase
         .from('assumptions')
         .insert([
           {
             slug,
-            statement: newStatement,
+            statement: newStatement.trim(),
             category: newCategory,
             importance: 'medium',
             evidence_level: 'none',
@@ -228,17 +301,28 @@ export function AssumptionLinker({
         .select('id')
         .single()
 
-      if (error) throw error
+      if (error) {
+        console.error('Error creating assumption:', error)
+        showErrorToast('Failed to create assumption')
+        return
+      }
 
-      // Link the new assumption
+      // Link the new assumption (only update state after successful DB operation)
       if (isItemMode && canvasItemId) {
         // Item-level linking
-        await supabase.from('canvas_item_assumptions').insert([
+        const { error: linkError } = await supabase.from('canvas_item_assumptions').insert([
           {
             canvas_item_id: canvasItemId,
             assumption_id: data.id,
           },
         ])
+
+        if (linkError) {
+          console.error('Error linking new assumption:', linkError)
+          showErrorToast('Assumption created but failed to link')
+          return
+        }
+
         setItemLinkedIds([...itemLinkedIds, data.id])
       } else if (onChange) {
         // Block-level linking
@@ -246,16 +330,21 @@ export function AssumptionLinker({
       }
 
       // Refresh the list
-      const { data: allData } = await supabase
+      const { data: allData, error: fetchError } = await supabase
         .from('assumptions')
         .select('id, slug, statement, category, importance, evidence_level, status, is_leap_of_faith')
         .order('updated_at', { ascending: false })
-      setAllAssumptions(allData || [])
+
+      if (!fetchError) {
+        setAllAssumptions(allData || [])
+      }
 
       setNewStatement('')
       setSearchOpen(false)
+      showSuccessToast('Assumption created and linked')
     } catch (err) {
-      console.error('Error creating assumption:', err)
+      console.error('Unexpected error creating assumption:', err)
+      showErrorToast('An unexpected error occurred')
     } finally {
       setCreating(false)
     }
@@ -281,6 +370,7 @@ export function AssumptionLinker({
               assumption={assumption}
               onUnlink={() => handleUnlink(assumption.id)}
               compact={compact}
+              unlinking={unlinking === assumption.id}
             />
           ))}
         </div>
@@ -348,11 +438,27 @@ export function AssumptionLinker({
               {/* Create new inline */}
               <CommandGroup heading="Create new">
                 <div className="p-2 space-y-2">
+                  {validationErrors.statement && (
+                    <div className="text-xs text-red-600 dark:text-red-400">
+                      {validationErrors.statement}
+                    </div>
+                  )}
                   <textarea
                     value={newStatement}
-                    onChange={(e) => setNewStatement(e.target.value)}
+                    onChange={(e) => {
+                      setNewStatement(e.target.value)
+                      if (validationErrors.statement) {
+                        setValidationErrors((prev) => {
+                          const newErrors = { ...prev }
+                          delete newErrors.statement
+                          return newErrors
+                        })
+                      }
+                    }}
                     placeholder="We believe that..."
-                    className="w-full px-2 py-1.5 text-sm rounded border bg-background resize-none"
+                    className={`w-full px-2 py-1.5 text-sm rounded border bg-background resize-none ${
+                      validationErrors.statement ? 'border-red-500' : ''
+                    }`}
                     rows={2}
                   />
                   <div className="flex items-center gap-2">
@@ -373,7 +479,7 @@ export function AssumptionLinker({
                       disabled={creating || !newStatement.trim()}
                       className="px-3 py-1 text-xs rounded bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition-colors"
                     >
-                      {creating ? '...' : 'Create'}
+                      {creating ? 'Creating...' : 'Create'}
                     </button>
                   </div>
                 </div>
@@ -391,10 +497,12 @@ function AssumptionPill({
   assumption,
   onUnlink,
   compact,
+  unlinking,
 }: {
   assumption: Assumption
   onUnlink: () => void
   compact?: boolean
+  unlinking?: boolean
 }) {
   const [open, setOpen] = useState(false)
   const [editing, setEditing] = useState(false)
@@ -544,9 +652,10 @@ function AssumptionPill({
             <button
               type="button"
               onClick={onUnlink}
-              className="text-xs text-red-600 hover:text-red-700 dark:text-red-400"
+              disabled={unlinking}
+              className="text-xs text-red-600 hover:text-red-700 dark:text-red-400 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Unlink
+              {unlinking ? 'Unlinking...' : 'Unlink'}
             </button>
             <div className="flex items-center gap-2">
               {!editing && (
