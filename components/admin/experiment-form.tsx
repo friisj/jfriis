@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
+import { FormFieldWithAI } from '@/components/forms'
 
 interface StudioProject {
   id: string
@@ -233,8 +234,19 @@ export function ExperimentForm({ experiment, mode }: ExperimentFormProps) {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div>
-          <label className="block text-sm font-medium mb-1">Name *</label>
+        <FormFieldWithAI
+          label="Name *"
+          fieldName="name"
+          entityType="studio_experiments"
+          context={{
+            project_id: formData.project_id,
+            hypothesis_id: formData.hypothesis_id,
+            type: formData.type,
+          }}
+          currentValue={formData.name}
+          onGenerate={(content) => setFormData({ ...formData, name: content })}
+          disabled={saving}
+        >
           <input
             type="text"
             value={formData.name}
@@ -243,7 +255,7 @@ export function ExperimentForm({ experiment, mode }: ExperimentFormProps) {
             required
             placeholder="e.g., Landing page A/B test"
           />
-        </div>
+        </FormFieldWithAI>
 
         <div>
           <label className="block text-sm font-medium mb-1">Slug</label>
@@ -261,8 +273,20 @@ export function ExperimentForm({ experiment, mode }: ExperimentFormProps) {
         </div>
       </div>
 
-      <div>
-        <label className="block text-sm font-medium mb-1">Description</label>
+      <FormFieldWithAI
+        label="Description"
+        fieldName="description"
+        entityType="studio_experiments"
+        context={{
+          project_id: formData.project_id,
+          hypothesis_id: formData.hypothesis_id,
+          name: formData.name,
+          type: formData.type,
+        }}
+        currentValue={formData.description}
+        onGenerate={(content) => setFormData({ ...formData, description: content })}
+        disabled={saving}
+      >
         <textarea
           value={formData.description}
           onChange={(e) => setFormData({ ...formData, description: e.target.value })}
@@ -270,7 +294,7 @@ export function ExperimentForm({ experiment, mode }: ExperimentFormProps) {
           rows={3}
           placeholder="What are we testing and how?"
         />
-      </div>
+      </FormFieldWithAI>
 
       <div>
         <label className="block text-sm font-medium mb-2">Type</label>
@@ -347,8 +371,22 @@ export function ExperimentForm({ experiment, mode }: ExperimentFormProps) {
         </div>
       </div>
 
-      <div>
-        <label className="block text-sm font-medium mb-1">Learnings</label>
+      <FormFieldWithAI
+        label="Learnings"
+        fieldName="learnings"
+        entityType="studio_experiments"
+        context={{
+          name: formData.name,
+          description: formData.description,
+          type: formData.type,
+          status: formData.status,
+          outcome: formData.outcome,
+        }}
+        currentValue={formData.learnings}
+        onGenerate={(content) => setFormData({ ...formData, learnings: content })}
+        disabled={saving}
+        description="Document key insights regardless of outcome"
+      >
         <textarea
           value={formData.learnings}
           onChange={(e) => setFormData({ ...formData, learnings: e.target.value })}
@@ -356,10 +394,7 @@ export function ExperimentForm({ experiment, mode }: ExperimentFormProps) {
           rows={4}
           placeholder="What did we learn from this experiment?"
         />
-        <p className="text-xs text-muted-foreground mt-1">
-          Document key insights regardless of outcome
-        </p>
-      </div>
+      </FormFieldWithAI>
 
       <div className="flex items-center justify-between pt-4 border-t">
         <div>

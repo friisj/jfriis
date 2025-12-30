@@ -14,14 +14,14 @@ Extend the current LLM implementation (currently only in `studio-project-form.ts
 
 ### Current State
 - ✅ **Implemented:** `studio-project-form.tsx` (6 fields with AI)
-- ❌ **Not Implemented:** 10 other admin forms
+- ❌ **Not Implemented:** 12 other admin forms
 
 ### Goals
 1. Create reusable form field wrapper component
 2. Extend field prompts for all entity types
 3. Add AI controls to all forms systematically
 4. Maintain consistent UX across all forms
-5. Avoid code duplication (~11 forms × average 5 fields = 55 field integrations)
+5. Avoid code duplication (~13 forms × average 5 fields = 60 field integrations)
 
 ---
 
@@ -113,7 +113,40 @@ For specific input types:
 
 ---
 
-### 2. Business Model Canvas
+### 2. Studio Hypotheses
+**Entity:** `studio_hypotheses`
+**Form:** `components/admin/hypothesis-form.tsx`
+**AI Fields:**
+- `statement` - Testable hypothesis statement (line 183)
+- `validation_criteria` - How to validate (line 197)
+
+**Context considerations:**
+- Project context helps frame hypothesis
+- Status (proposed/testing/validated/invalidated) affects tone
+- Format: "If we... then... because..."
+
+**Priority:** Very High (core to studio methodology)
+
+---
+
+### 3. Studio Experiments
+**Entity:** `studio_experiments`
+**Form:** `components/admin/experiment-form.tsx`
+**AI Fields:**
+- `name` - Experiment name (line 240)
+- `description` - What we're testing (line 267)
+- `learnings` - Key insights (line 353)
+
+**Context considerations:**
+- Type (spike/experiment/prototype) affects scope
+- Linked hypothesis provides context
+- Status and outcome inform learnings generation
+
+**Priority:** Very High (paired with hypotheses)
+
+---
+
+### 4. Business Model Canvas
 **Entity:** `business_model_canvases`
 **Form:** `components/admin/business-model-canvas-form.tsx`
 **AI Fields:**
@@ -320,6 +353,17 @@ Location: `lib/ai/actions/generate-field.ts:12-41`
 ```typescript
 const fieldPrompts: Record<string, Record<string, string>> = {
   // ... existing studio_projects prompts ...
+
+  studio_hypotheses: {
+    statement: 'A clear, testable hypothesis statement. Format: "If we [action], then [result] because [rationale]."',
+    validation_criteria: 'Specific, measurable criteria that would validate or invalidate this hypothesis.',
+  },
+
+  studio_experiments: {
+    name: 'A clear, descriptive name for this experiment or spike.',
+    description: 'What are we testing, how, and what success looks like.',
+    learnings: 'Key insights and lessons learned from running this experiment, regardless of outcome.',
+  },
 
   business_model_canvases: {
     description: 'A brief description of this business model canvas and what it explores.',

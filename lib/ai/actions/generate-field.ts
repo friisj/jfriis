@@ -16,6 +16,16 @@ const fieldPrompts: Record<string, Record<string, string>> = {
     hypothesis: 'A testable hypothesis about how this project will create value. Format: "We believe [action] will result in [outcome] for [audience]."',
     success_criteria: 'Measurable criteria that define success for this project. Be specific and quantifiable.',
     current_focus: 'The current priority or focus area for this project.',
+    scope_out: 'What is explicitly out of scope for this project.',
+  },
+  studio_hypotheses: {
+    statement: 'A clear, testable hypothesis statement. Format: "If we [action], then [result] because [rationale]."',
+    validation_criteria: 'Specific, measurable criteria that would validate or invalidate this hypothesis.',
+  },
+  studio_experiments: {
+    name: 'A clear, descriptive name for this experiment or spike.',
+    description: 'What are we testing, how, and what success looks like.',
+    learnings: 'Key insights and lessons learned from running this experiment, regardless of outcome.',
   },
   business_model_canvases: {
     key_partners: 'Key partners and suppliers needed to make this business model work.',
@@ -34,9 +44,50 @@ const fieldPrompts: Record<string, Record<string, string>> = {
     gains: 'Benefits the customer expects, desires, or would be surprised by.',
   },
   value_maps: {
+    description: 'Description of the value proposition being mapped.',
+    tags: 'Tags for this value map (e.g., onboarding, retention, acquisition).',
     products_services: 'Products and services that help customers get jobs done.',
     pain_relievers: 'How products and services alleviate customer pains.',
     gain_creators: 'How products and services create customer gains.',
+  },
+  value_proposition_canvases: {
+    description: 'Overview of what value proposition fit is being explored.',
+    tags: 'Tags for categorizing this canvas.',
+  },
+  canvas_items: {
+    title: 'A clear, concise title for this canvas item.',
+    description: 'Detailed description of this item and its significance.',
+    job_context: 'Context about when and why the customer performs this job.',
+    notes: 'Additional observations, insights, or considerations about this item.',
+    tags: 'Relevant tags for this item.',
+  },
+  assumptions: {
+    statement: 'A clear, testable assumption statement. Format: "We believe [assumption]."',
+    validation_criteria: 'Specific criteria that would validate or invalidate this assumption.',
+    decision_notes: 'Reasoning behind the decision (persevere/pivot/kill) based on validation.',
+    notes: 'Additional context, observations, or related insights.',
+    tags: 'Tags for categorizing this assumption.',
+  },
+  projects: {
+    title: 'A clear, descriptive title for this project.',
+    description: 'Brief overview of what this project is and its goals.',
+    content: 'Detailed project content, background, process, or learnings.',
+    tags: 'Relevant tags for categorizing this project.',
+  },
+  log_entries: {
+    title: 'A descriptive title for this log entry.',
+    content: 'The main content of this log entry - observations, learnings, or notes.',
+    tags: 'Tags for categorizing this entry (e.g., learning, decision, experiment).',
+  },
+  specimens: {
+    title: 'A descriptive title for this specimen.',
+    description: 'What this specimen demonstrates or explores.',
+    tags: 'Tags describing this specimen (e.g., interaction, animation, layout).',
+  },
+  backlog_items: {
+    title: 'A clear title for this backlog item.',
+    content: 'Description of what needs to be done or explored.',
+    tags: 'Tags for categorizing this item.',
   },
 }
 
