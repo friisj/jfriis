@@ -4,9 +4,11 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { AssumptionLinker } from './assumption-linker'
+import { CanvasItemSelector, getAllowedTypesForBlock } from './canvas-item-selector'
 
 interface CanvasBlock {
-  items: string[]
+  items: string[] // Legacy text items (deprecated)
+  item_ids: string[] // Canvas item IDs (new approach)
   assumptions: string[] // Legacy text assumptions
   assumption_ids: string[] // Linked assumption object IDs
   validation_status: 'untested' | 'testing' | 'validated' | 'invalidated'
@@ -43,6 +45,7 @@ interface ValueMapFormProps {
 
 const defaultBlock = (): CanvasBlock => ({
   items: [],
+  item_ids: [],
   assumptions: [],
   assumption_ids: [],
   validation_status: 'untested',
@@ -67,18 +70,27 @@ function CanvasBlockEditor({
   blockKey,
   value,
   onChange,
+  valueMapId,
   projectId,
 }: {
   blockKey: string
   value: CanvasBlock
   onChange: (value: CanvasBlock) => void
+  valueMapId?: string
   projectId?: string
 }) {
-  const [isOpen, setIsOpen] = useState(value.items.length > 0 || (value.assumption_ids?.length || 0) > 0)
+  const [isOpen, setIsOpen] = useState(
+    value.items.length > 0 || (value.item_ids?.length || 0) > 0 || (value.assumption_ids?.length || 0) > 0
+  )
   const label = BLOCK_LABELS[blockKey]
 
-  // Ensure assumption_ids exists (migration from old data)
+  // Ensure new fields exist (migration from old data)
+  const itemIds = value.item_ids || []
   const assumptionIds = value.assumption_ids || []
+  const allowedTypes = getAllowedTypesForBlock(blockKey)
+
+  // Calculate total item count (legacy + new)
+  const totalItems = value.items.length + itemIds.length
 
   return (
     <div className="rounded-lg border bg-card">
@@ -92,8 +104,8 @@ function CanvasBlockEditor({
           <p className="text-sm text-muted-foreground">{label.description}</p>
         </div>
         <div className="flex items-center gap-2">
-          {value.items.length > 0 && (
-            <span className="text-xs bg-muted px-2 py-1 rounded">{value.items.length} items</span>
+          {totalItems > 0 && (
+            <span className="text-xs bg-muted px-2 py-1 rounded">{totalItems} items</span>
           )}
           {assumptionIds.length > 0 && (
             <span className="text-xs bg-amber-500/10 text-amber-700 dark:text-amber-400 px-2 py-1 rounded">
@@ -113,22 +125,48 @@ function CanvasBlockEditor({
 
       {isOpen && (
         <div className="px-4 pb-4 space-y-4 border-t pt-4">
+          {/* Canvas Items (new approach) */}
           <div>
-            <label className="block text-sm font-medium mb-1">Items (one per line)</label>
-            <textarea
-              value={value.items.join('\n')}
-              onChange={(e) =>
+            <label className="block text-sm font-medium mb-2">Canvas Items</label>
+            <CanvasItemSelector
+              placedItemIds={itemIds}
+              canvasType="value_map"
+              canvasId={valueMapId}
+              blockName={blockKey}
+              allowedTypes={allowedTypes}
+              projectId={projectId}
+              onItemsChange={(ids) =>
                 onChange({
                   ...value,
-                  items: e.target.value.split('\n').filter((item) => item.trim()),
+                  item_ids: ids,
                 })
               }
-              className="w-full px-3 py-2 rounded-lg border bg-background text-sm"
-              rows={4}
-              placeholder="Enter each item on a new line..."
             />
           </div>
 
+          {/* Legacy text items - show if they exist */}
+          {value.items.length > 0 && (
+            <div>
+              <label className="block text-sm font-medium mb-1">
+                Legacy Text Items
+                <span className="ml-2 text-xs text-muted-foreground">(deprecated - migrate to canvas items above)</span>
+              </label>
+              <textarea
+                value={value.items.join('\n')}
+                onChange={(e) =>
+                  onChange({
+                    ...value,
+                    items: e.target.value.split('\n').filter((item) => item.trim()),
+                  })
+                }
+                className="w-full px-3 py-2 rounded-lg border bg-background text-sm"
+                rows={3}
+                placeholder="Legacy items (one per line)"
+              />
+            </div>
+          )}
+
+          {/* Linked Assumptions */}
           <div>
             <label className="block text-sm font-medium mb-2">Linked Assumptions</label>
             <AssumptionLinker
@@ -405,18 +443,21 @@ export function ValueMapForm({ valueMapId, initialData }: ValueMapFormProps) {
           blockKey="products_services"
           value={formData.products_services}
           onChange={(value) => setFormData({ ...formData, products_services: value })}
+          valueMapId={valueMapId}
           projectId={formData.studio_project_id}
         />
         <CanvasBlockEditor
           blockKey="pain_relievers"
           value={formData.pain_relievers}
           onChange={(value) => setFormData({ ...formData, pain_relievers: value })}
+          valueMapId={valueMapId}
           projectId={formData.studio_project_id}
         />
         <CanvasBlockEditor
           blockKey="gain_creators"
           value={formData.gain_creators}
           onChange={(value) => setFormData({ ...formData, gain_creators: value })}
+          valueMapId={valueMapId}
           projectId={formData.studio_project_id}
         />
       </div>
