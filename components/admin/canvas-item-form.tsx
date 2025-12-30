@@ -409,7 +409,7 @@ export function CanvasItemForm({ item, mode }: CanvasItemFormProps) {
             currentValue={formData.job_context}
             onGenerate={(content) => setFormData({ ...formData, job_context: content })}
             disabled={saving}
-            description='Example: "When I\'m preparing a weekly status report"'
+            description="Example: When I'm preparing a weekly status report"
           >
             <input
               type="text"

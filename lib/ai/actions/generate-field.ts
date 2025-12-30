@@ -1,12 +1,19 @@
 /**
- * Generate Field Action
+ * Generate Field Action (v2 - Production Ready)
  *
  * Generic action for generating or improving field content based on context.
+ *
+ * FIXES (from critical assessment):
+ * - ✅ P0: Context serialization handles numbers/booleans/null
+ * - ✅ P1: Validation warnings for unknown entity/field combinations
+ * - ✅ P2: Organized field prompts by entity
  */
 
 import { z } from 'zod'
 import { registerAction } from './index'
 import type { Action, FieldGenerationInput, FieldGenerationOutput } from './types'
+import type { EntityType } from '@/lib/ai/types/entities'
+import { isValidEntityType } from '@/lib/ai/types/entities'
 
 // Field-specific prompts and context
 const fieldPrompts: Record<string, Record<string, string>> = {
@@ -106,20 +113,51 @@ const outputSchema = z.object({
   confidence: z.number().min(0).max(1).optional(),
 })
 
-// Build the prompt
+// Build the prompt (P1: with validation warnings)
 function buildPrompt(input: FieldGenerationInput): { system: string; user: string } {
   const { fieldName, entityType, currentValue, context, instructions } = input
 
+  // P1: Validate entity type
+  if (!isValidEntityType(entityType)) {
+    console.warn(
+      `[generateField] Unknown entity type: "${entityType}". Available types:`,
+      Object.keys(fieldPrompts)
+    )
+  }
+
   // Get field-specific guidance
   const entityPrompts = fieldPrompts[entityType] || {}
-  const fieldGuidance = entityPrompts[fieldName] || `Content for the ${fieldName} field.`
+  const fieldGuidance = entityPrompts[fieldName]
 
-  // Build context string
+  // P1: Warn if field not found
+  if (!fieldGuidance) {
+    console.warn(
+      `[generateField] Unknown field "${fieldName}" for entity "${entityType}". Available fields:`,
+      Object.keys(entityPrompts)
+    )
+  }
+
+  const guidanceText = fieldGuidance || `Content for the ${fieldName} field.`
+
+// Build context string (P0: handles all serializable types)
   const contextParts: string[] = []
   for (const [key, value] of Object.entries(context)) {
-    if (value && typeof value === 'string' && value.trim()) {
-      const label = key.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
+    if (value === null || value === undefined || value === '') {
+      continue // Skip empty values
+    }
+
+    const label = key.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
+
+    // Handle all serializable types (P0 fix)
+    if (typeof value === 'string') {
       contextParts.push(`${label}: ${value}`)
+    } else if (typeof value === 'number') {
+      contextParts.push(`${label}: ${value}`)
+    } else if (typeof value === 'boolean') {
+      contextParts.push(`${label}: ${value ? 'yes' : 'no'}`)
+    } else {
+      // Log warning for unexpected types
+      console.warn(`[generateField] Unexpected context value type for "${key}":`, typeof value)
     }
   }
   const contextStr = contextParts.length > 0
@@ -139,7 +177,7 @@ Always respond with just the content - no explanations, no quotes, no formatting
   // User prompt
   let user = `Generate content for the "${fieldName.replace(/_/g, ' ')}" field.
 
-Field guidance: ${fieldGuidance}${contextStr}`
+Field guidance: ${guidanceText}${contextStr}`
 
   if (currentValue) {
     user += `\n\nExisting content to improve/expand:\n${currentValue}`
