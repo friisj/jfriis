@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
+import { FormFieldWithAI } from '@/components/forms'
 
 interface StudioProject {
   id: string
@@ -177,8 +178,19 @@ export function HypothesisForm({ hypothesis, mode }: HypothesisFormProps) {
         </div>
       </div>
 
-      <div>
-        <label className="block text-sm font-medium mb-1">Hypothesis Statement *</label>
+      <FormFieldWithAI
+        label="Hypothesis Statement *"
+        fieldName="statement"
+        entityType="studio_hypotheses"
+        context={{
+          project_id: formData.project_id,
+          status: formData.status,
+        }}
+        currentValue={formData.statement}
+        onGenerate={(content) => setFormData({ ...formData, statement: content })}
+        disabled={saving}
+        description='Use "If we... then... because..." format'
+      >
         <textarea
           value={formData.statement}
           onChange={(e) => setFormData({ ...formData, statement: e.target.value })}
@@ -187,13 +199,21 @@ export function HypothesisForm({ hypothesis, mode }: HypothesisFormProps) {
           required
           placeholder="If we [do X], then [Y will happen] because [rationale]..."
         />
-        <p className="text-xs text-muted-foreground mt-1">
-          Use "If we... then... because..." format
-        </p>
-      </div>
+      </FormFieldWithAI>
 
-      <div>
-        <label className="block text-sm font-medium mb-1">Validation Criteria</label>
+      <FormFieldWithAI
+        label="Validation Criteria"
+        fieldName="validation_criteria"
+        entityType="studio_hypotheses"
+        context={{
+          project_id: formData.project_id,
+          statement: formData.statement,
+          status: formData.status,
+        }}
+        currentValue={formData.validation_criteria}
+        onGenerate={(content) => setFormData({ ...formData, validation_criteria: content })}
+        disabled={saving}
+      >
         <textarea
           value={formData.validation_criteria}
           onChange={(e) => setFormData({ ...formData, validation_criteria: e.target.value })}
@@ -201,7 +221,7 @@ export function HypothesisForm({ hypothesis, mode }: HypothesisFormProps) {
           rows={3}
           placeholder="How will we know if this hypothesis is validated or invalidated?"
         />
-      </div>
+      </FormFieldWithAI>
 
       <div>
         <label className="block text-sm font-medium mb-2">Status</label>

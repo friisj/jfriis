@@ -6,6 +6,7 @@ import { supabase } from '@/lib/supabase'
 import { syncCanvasPlacements } from '@/lib/utils/canvas-placements'
 import { AssumptionLinker } from './assumption-linker'
 import { CanvasItemSelector, getAllowedTypesForBlock } from './canvas-item-selector'
+import { FormFieldWithAI } from '@/components/forms'
 
 interface ProfileBlock {
   item_ids: string[]
@@ -360,15 +361,26 @@ export function CustomerProfileForm({ profileId, initialData }: CustomerProfileF
           </div>
         </div>
 
-        <div>
-          <label className="block text-sm font-medium mb-1">Description</label>
+        <FormFieldWithAI
+          label="Description"
+          fieldName="description"
+          entityType="customer_profiles"
+          context={{
+            name: formData.name,
+            profile_type: formData.profile_type,
+            status: formData.status,
+          }}
+          currentValue={formData.description}
+          onGenerate={(content) => setFormData({ ...formData, description: content })}
+          disabled={saving}
+        >
           <textarea
             value={formData.description}
             onChange={(e) => setFormData({ ...formData, description: e.target.value })}
             className="w-full px-3 py-2 rounded-lg border bg-background"
             rows={2}
           />
-        </div>
+        </FormFieldWithAI>
 
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <div>
@@ -417,8 +429,20 @@ export function CustomerProfileForm({ profileId, initialData }: CustomerProfileF
               ))}
             </select>
           </div>
-          <div>
-            <label className="block text-sm font-medium mb-1">Tags</label>
+          <FormFieldWithAI
+            label="Tags"
+            fieldName="tags"
+            entityType="customer_profiles"
+            context={{
+              name: formData.name,
+              description: formData.description,
+              profile_type: formData.profile_type,
+              status: formData.status,
+            }}
+            currentValue={formData.tags}
+            onGenerate={(content) => setFormData({ ...formData, tags: content })}
+            disabled={saving}
+          >
             <input
               type="text"
               value={formData.tags}
@@ -426,7 +450,7 @@ export function CustomerProfileForm({ profileId, initialData }: CustomerProfileF
               className="w-full px-3 py-2 rounded-lg border bg-background"
               placeholder="tag1, tag2"
             />
-          </div>
+          </FormFieldWithAI>
         </div>
       </div>
 

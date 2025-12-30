@@ -6,6 +6,7 @@ import { supabase } from '@/lib/supabase'
 import { toast } from 'sonner'
 import { MdxEditor } from '@/components/forms/mdx-editor'
 import { RelationshipSelector } from './relationship-selector'
+import { FormFieldWithAI } from '@/components/forms'
 
 interface ProjectFormData {
   title: string
@@ -247,20 +248,27 @@ export function ProjectForm({ projectId, initialData }: ProjectFormProps) {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Main Content */}
         <div className="lg:col-span-2 space-y-6">
-          <div>
-            <label htmlFor="title" className="block text-sm font-medium mb-2">
-              Title *
-            </label>
+          <FormFieldWithAI
+            label="Title *"
+            fieldName="title"
+            entityType="projects"
+            context={{
+              status: formData.status,
+              type: formData.type,
+            }}
+            currentValue={formData.title}
+            onGenerate={(content) => handleTitleChange(content)}
+            disabled={isSubmitting}
+          >
             <input
               type="text"
-              id="title"
               required
               value={formData.title}
               onChange={(e) => handleTitleChange(e.target.value)}
               className="w-full px-3 py-2 rounded-lg border bg-background"
               placeholder="My Awesome Project"
             />
-          </div>
+          </FormFieldWithAI>
 
           <div>
             <label htmlFor="slug" className="block text-sm font-medium mb-2">
@@ -283,19 +291,27 @@ export function ProjectForm({ projectId, initialData }: ProjectFormProps) {
             </p>
           </div>
 
-          <div>
-            <label htmlFor="description" className="block text-sm font-medium mb-2">
-              Description
-            </label>
+          <FormFieldWithAI
+            label="Description"
+            fieldName="description"
+            entityType="projects"
+            context={{
+              title: formData.title,
+              status: formData.status,
+              type: formData.type,
+            }}
+            currentValue={formData.description}
+            onGenerate={(content) => setFormData({ ...formData, description: content })}
+            disabled={isSubmitting}
+          >
             <textarea
-              id="description"
               value={formData.description}
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
               rows={3}
               className="w-full px-3 py-2 rounded-lg border bg-background resize-none"
               placeholder="A brief description of your project..."
             />
-          </div>
+          </FormFieldWithAI>
 
           <MdxEditor
             value={formData.content}
@@ -388,8 +404,20 @@ export function ProjectForm({ projectId, initialData }: ProjectFormProps) {
           </div>
 
           <div className="rounded-lg border bg-card p-4 space-y-4">
-            <h3 className="font-medium">Tags</h3>
-            <div>
+            <FormFieldWithAI
+              label="Tags"
+              fieldName="tags"
+              entityType="projects"
+              context={{
+                title: formData.title,
+                description: formData.description,
+                type: formData.type,
+              }}
+              currentValue={formData.tags}
+              onGenerate={(content) => setFormData({ ...formData, tags: content })}
+              disabled={isSubmitting}
+              description="Comma-separated tags"
+            >
               <input
                 type="text"
                 value={formData.tags}
@@ -397,10 +425,7 @@ export function ProjectForm({ projectId, initialData }: ProjectFormProps) {
                 className="w-full px-3 py-2 rounded-lg border bg-background"
                 placeholder="react, typescript, design"
               />
-              <p className="text-xs text-muted-foreground mt-1">
-                Comma-separated tags
-              </p>
-            </div>
+            </FormFieldWithAI>
           </div>
 
           <div className="rounded-lg border bg-card p-4">

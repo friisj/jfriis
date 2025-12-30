@@ -208,8 +208,18 @@ export function CanvasItemForm({ item, mode }: CanvasItemFormProps) {
       <div className="space-y-4">
         <h2 className="text-lg font-semibold border-b pb-2">Basic Information</h2>
 
-        <div>
-          <label className="block text-sm font-medium mb-1">Title *</label>
+        <FormFieldWithAI
+          label="Title *"
+          fieldName="title"
+          entityType="canvas_items"
+          context={{
+            item_type: formData.item_type,
+            studio_project_id: formData.studio_project_id,
+          }}
+          currentValue={formData.title}
+          onGenerate={(content) => setFormData({ ...formData, title: content })}
+          disabled={saving}
+        >
           <input
             type="text"
             value={formData.title}
@@ -218,10 +228,21 @@ export function CanvasItemForm({ item, mode }: CanvasItemFormProps) {
             required
             placeholder="e.g., Small Business Owners, Auto-backup feature"
           />
-        </div>
+        </FormFieldWithAI>
 
-        <div>
-          <label className="block text-sm font-medium mb-1">Description</label>
+        <FormFieldWithAI
+          label="Description"
+          fieldName="description"
+          entityType="canvas_items"
+          context={{
+            title: formData.title,
+            item_type: formData.item_type,
+            importance: formData.importance,
+          }}
+          currentValue={formData.description}
+          onGenerate={(content) => setFormData({ ...formData, description: content })}
+          disabled={saving}
+        >
           <textarea
             value={formData.description}
             onChange={(e) => setFormData({ ...formData, description: e.target.value })}
@@ -229,7 +250,7 @@ export function CanvasItemForm({ item, mode }: CanvasItemFormProps) {
             rows={3}
             placeholder="Detailed description of this item"
           />
-        </div>
+        </FormFieldWithAI>
 
         <div>
           <label className="block text-sm font-medium mb-1">Project</label>
@@ -376,8 +397,20 @@ export function CanvasItemForm({ item, mode }: CanvasItemFormProps) {
             </div>
           </div>
 
-          <div>
-            <label className="block text-sm font-medium mb-1">Job Context</label>
+          <FormFieldWithAI
+            label="Job Context"
+            fieldName="job_context"
+            entityType="canvas_items"
+            context={{
+              title: formData.title,
+              description: formData.description,
+              job_type: formData.job_type,
+            }}
+            currentValue={formData.job_context}
+            onGenerate={(content) => setFormData({ ...formData, job_context: content })}
+            disabled={saving}
+            description="Example: When I'm preparing a weekly status report"
+          >
             <input
               type="text"
               value={formData.job_context}
@@ -385,10 +418,7 @@ export function CanvasItemForm({ item, mode }: CanvasItemFormProps) {
               className="w-full px-3 py-2 rounded-lg border bg-background"
               placeholder="When I'm... (context or trigger)"
             />
-            <p className="text-xs text-muted-foreground mt-1">
-              Example: "When I'm preparing a weekly status report"
-            </p>
-          </div>
+          </FormFieldWithAI>
         </div>
       )}
 
@@ -526,8 +556,20 @@ export function CanvasItemForm({ item, mode }: CanvasItemFormProps) {
       <div className="space-y-4">
         <h2 className="text-lg font-semibold border-b pb-2">Notes & Tags</h2>
 
-        <div>
-          <label className="block text-sm font-medium mb-1">Notes</label>
+        <FormFieldWithAI
+          label="Notes"
+          fieldName="notes"
+          entityType="canvas_items"
+          context={{
+            title: formData.title,
+            description: formData.description,
+            item_type: formData.item_type,
+            validation_status: formData.validation_status,
+          }}
+          currentValue={formData.notes}
+          onGenerate={(content) => setFormData({ ...formData, notes: content })}
+          disabled={saving}
+        >
           <textarea
             value={formData.notes}
             onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
@@ -535,10 +577,21 @@ export function CanvasItemForm({ item, mode }: CanvasItemFormProps) {
             rows={3}
             placeholder="Additional context, insights, or observations"
           />
-        </div>
+        </FormFieldWithAI>
 
-        <div>
-          <label className="block text-sm font-medium mb-1">Tags</label>
+        <FormFieldWithAI
+          label="Tags"
+          fieldName="tags"
+          entityType="canvas_items"
+          context={{
+            title: formData.title,
+            item_type: formData.item_type,
+            importance: formData.importance,
+          }}
+          currentValue={formData.tags}
+          onGenerate={(content) => setFormData({ ...formData, tags: content })}
+          disabled={saving}
+        >
           <input
             type="text"
             value={formData.tags}
@@ -546,7 +599,7 @@ export function CanvasItemForm({ item, mode }: CanvasItemFormProps) {
             className="w-full px-3 py-2 rounded-lg border bg-background"
             placeholder="premium, b2b, technical (comma-separated)"
           />
-        </div>
+        </FormFieldWithAI>
       </div>
 
       {/* Actions */}

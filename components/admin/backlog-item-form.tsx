@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { toast } from 'sonner'
+import { FormFieldWithAI } from '@/components/forms'
 
 interface BacklogItemFormData {
   title: string
@@ -121,36 +122,47 @@ export function BacklogItemForm({ itemId, initialData }: BacklogItemFormProps) {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Main Content */}
         <div className="lg:col-span-2 space-y-6">
-          <div>
-            <label htmlFor="title" className="block text-sm font-medium mb-2">
-              Title
-            </label>
+          <FormFieldWithAI
+            label="Title"
+            fieldName="title"
+            entityType="backlog_items"
+            context={{
+              status: formData.status,
+            }}
+            currentValue={formData.title}
+            onGenerate={(content) => setFormData({ ...formData, title: content })}
+            disabled={isSubmitting}
+            description="Optional - can be left blank for quick capture"
+          >
             <input
               type="text"
-              id="title"
               value={formData.title}
               onChange={(e) => setFormData({ ...formData, title: e.target.value })}
               className="w-full px-3 py-2 rounded-lg border bg-background"
               placeholder="Quick idea or title..."
             />
-            <p className="text-xs text-muted-foreground mt-1">
-              Optional - can be left blank for quick capture
-            </p>
-          </div>
+          </FormFieldWithAI>
 
-          <div>
-            <label htmlFor="content" className="block text-sm font-medium mb-2">
-              Content
-            </label>
+          <FormFieldWithAI
+            label="Content"
+            fieldName="content"
+            entityType="backlog_items"
+            context={{
+              title: formData.title,
+              status: formData.status,
+            }}
+            currentValue={formData.content}
+            onGenerate={(content) => setFormData({ ...formData, content })}
+            disabled={isSubmitting}
+          >
             <textarea
-              id="content"
               value={formData.content}
               onChange={(e) => setFormData({ ...formData, content: e.target.value })}
               rows={16}
               className="w-full px-3 py-2 rounded-lg border bg-background resize-none"
               placeholder="Capture your idea, thoughts, or notes here..."
             />
-          </div>
+          </FormFieldWithAI>
         </div>
 
         {/* Sidebar */}
@@ -180,8 +192,20 @@ export function BacklogItemForm({ itemId, initialData }: BacklogItemFormProps) {
           </div>
 
           <div className="rounded-lg border bg-card p-4 space-y-4">
-            <h3 className="font-medium">Tags</h3>
-            <div>
+            <FormFieldWithAI
+              label="Tags"
+              fieldName="tags"
+              entityType="backlog_items"
+              context={{
+                title: formData.title,
+                content: formData.content,
+                status: formData.status,
+              }}
+              currentValue={formData.tags}
+              onGenerate={(content) => setFormData({ ...formData, tags: content })}
+              disabled={isSubmitting}
+              description="Comma-separated tags"
+            >
               <input
                 type="text"
                 value={formData.tags}
@@ -189,10 +213,7 @@ export function BacklogItemForm({ itemId, initialData }: BacklogItemFormProps) {
                 className="w-full px-3 py-2 rounded-lg border bg-background"
                 placeholder="idea, prototype, research"
               />
-              <p className="text-xs text-muted-foreground mt-1">
-                Comma-separated tags
-              </p>
-            </div>
+            </FormFieldWithAI>
           </div>
         </div>
       </div>
