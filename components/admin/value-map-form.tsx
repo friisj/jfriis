@@ -342,12 +342,22 @@ export function ValueMapForm({ valueMapId, initialData }: ValueMapFormProps) {
       }
 
       // Sync canvas item placements
-      await syncCanvasPlacements({
+      const placementResult = await syncCanvasPlacements({
         canvasId: savedValueMapId,
         canvasType: 'value_map',
         blockKeys: ['products_services', 'pain_relievers', 'gain_creators'],
         formData,
       })
+
+      // Check for placement errors
+      if (!placementResult.success) {
+        const failedBlocks = placementResult.errors.map((e) => e.blockKey).join(', ')
+        console.error('Failed to save placements for blocks:', failedBlocks, placementResult.errors)
+        setError(
+          `Value Map saved but some items failed to place (${placementResult.successfulBlocks}/${placementResult.totalBlocks} blocks succeeded). Failed blocks: ${failedBlocks}`
+        )
+        // Still navigate but with error message visible
+      }
 
       router.push('/admin/canvases/value-maps')
       router.refresh()

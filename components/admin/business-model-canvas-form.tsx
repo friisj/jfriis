@@ -352,7 +352,7 @@ export function BusinessModelCanvasForm({ canvasId, initialData }: BusinessModel
       }
 
       // Sync canvas item placements
-      await syncCanvasPlacements({
+      const placementResult = await syncCanvasPlacements({
         canvasId: savedCanvasId,
         canvasType: 'business_model_canvas',
         blockKeys: [
@@ -368,6 +368,16 @@ export function BusinessModelCanvasForm({ canvasId, initialData }: BusinessModel
         ],
         formData,
       })
+
+      // Check for placement errors
+      if (!placementResult.success) {
+        const failedBlocks = placementResult.errors.map((e) => e.blockKey).join(', ')
+        console.error('Failed to save placements for blocks:', failedBlocks, placementResult.errors)
+        setError(
+          `Canvas saved but some items failed to place (${placementResult.successfulBlocks}/${placementResult.totalBlocks} blocks succeeded). Failed blocks: ${failedBlocks}`
+        )
+        // Still navigate but with error message visible
+      }
 
       router.push('/admin/canvases/business-models')
       router.refresh()
