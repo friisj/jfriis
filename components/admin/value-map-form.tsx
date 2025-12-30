@@ -146,11 +146,58 @@ function CanvasBlockEditor({
 
           {/* Legacy text items - show if they exist */}
           {value.items.length > 0 && (
-            <div>
-              <label className="block text-sm font-medium mb-1">
-                Legacy Text Items
-                <span className="ml-2 text-xs text-muted-foreground">(deprecated - migrate to canvas items above)</span>
-              </label>
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <label className="block text-sm font-medium">
+                  Legacy Text Items
+                  <span className="ml-2 text-xs text-muted-foreground">(deprecated)</span>
+                </label>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    if (!confirm(`Convert ${value.items.length} legacy items to canvas items?`)) return
+
+                    try {
+                      const newItems = await Promise.all(
+                        value.items.map(async (itemText) => {
+                          const { data, error } = await supabase
+                            .from('canvas_items')
+                            .insert([
+                              {
+                                title: itemText.slice(0, 100),
+                                item_type: allowedTypes[0],
+                                importance: 'medium',
+                                validation_status: 'untested',
+                                tags: [],
+                                metadata: { migrated_from: 'legacy_text_item' },
+                                studio_project_id: projectId || null,
+                              },
+                            ])
+                            .select('id')
+                            .single()
+
+                          if (error) throw error
+                          return data.id
+                        })
+                      )
+
+                      onChange({
+                        ...value,
+                        item_ids: [...itemIds, ...newItems],
+                        items: [],
+                      })
+
+                      alert(`Successfully migrated ${newItems.length} items!`)
+                    } catch (err) {
+                      console.error('Migration error:', err)
+                      alert('Failed to migrate items. Please try again.')
+                    }
+                  }}
+                  className="px-3 py-1 text-xs bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
+                >
+                  Convert to Canvas Items
+                </button>
+              </div>
               <textarea
                 value={value.items.join('\n')}
                 onChange={(e) =>
@@ -163,6 +210,9 @@ function CanvasBlockEditor({
                 rows={3}
                 placeholder="Legacy items (one per line)"
               />
+              <p className="text-xs text-muted-foreground">
+                Click "Convert to Canvas Items" to migrate these to the new system.
+              </p>
             </div>
           )}
 
@@ -271,15 +321,27 @@ export function ValueMapForm({ valueMapId, initialData }: ValueMapFormProps) {
         gain_creators: formData.gain_creators,
       }
 
+      let savedValueMapId = valueMapId
+
       if (valueMapId) {
+        // Update existing value map
         const { error } = await (supabase.from('value_maps') as any).update(data).eq('id', valueMapId)
 
         if (error) throw error
       } else {
-        const { error } = await (supabase.from('value_maps') as any).insert([data])
+        // Create new value map and get the ID
+        const { data: newValueMap, error } = await (supabase
+          .from('value_maps') as any)
+          .insert([data])
+          .select('id')
+          .single()
 
         if (error) throw error
+        savedValueMapId = newValueMap.id
       }
+
+      // Sync canvas item placements
+      await syncCanvasPlacements(savedValueMapId)
 
       router.push('/admin/canvases/value-maps')
       router.refresh()
@@ -288,6 +350,42 @@ export function ValueMapForm({ valueMapId, initialData }: ValueMapFormProps) {
       setError(err instanceof Error ? err.message : 'Failed to save value map')
     } finally {
       setSaving(false)
+    }
+  }
+
+  const syncCanvasPlacements = async (savedValueMapId: string) => {
+    const blockKeys = ['products_services', 'pain_relievers', 'gain_creators'] as const
+
+    for (const blockKey of blockKeys) {
+      const itemIds = formData[blockKey].item_ids || []
+
+      // Delete existing placements for this block
+      await supabase
+        .from('canvas_item_placements')
+        .delete()
+        .eq('canvas_id', savedValueMapId)
+        .eq('canvas_type', 'value_map')
+        .eq('block_name', blockKey)
+
+      // Create new placements if there are items
+      if (itemIds.length > 0) {
+        const placements = itemIds.map((itemId, index) => ({
+          canvas_item_id: itemId,
+          canvas_type: 'value_map' as const,
+          canvas_id: savedValueMapId,
+          block_name: blockKey,
+          position: index,
+        }))
+
+        const { error } = await supabase
+          .from('canvas_item_placements')
+          .insert(placements)
+
+        if (error) {
+          console.error(`Error syncing placements for ${blockKey}:`, error)
+          // Don't throw - continue with other blocks
+        }
+      }
     }
   }
 
