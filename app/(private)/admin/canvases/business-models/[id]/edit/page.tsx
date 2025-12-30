@@ -25,6 +25,15 @@ export default async function EditBusinessModelCanvasPage({ params }: PageProps)
 
   const canvas = data as unknown as BusinessModelCanvas
 
+  // Normalize canvas blocks to ensure all required arrays exist
+  const normalizeBlock = (block: any) => ({
+    items: block?.items || [],
+    item_ids: block?.item_ids || [],
+    assumptions: block?.assumptions || [],
+    assumption_ids: block?.assumption_ids || [],
+    validation_status: block?.validation_status || 'untested',
+  })
+
   const initialData = {
     slug: canvas.slug,
     name: canvas.name,
@@ -32,15 +41,15 @@ export default async function EditBusinessModelCanvasPage({ params }: PageProps)
     status: canvas.status as 'draft' | 'active' | 'validated' | 'archived',
     tags: canvas.tags?.join(', ') || '',
     studio_project_id: canvas.studio_project_id || '',
-    key_partners: canvas.key_partners,
-    key_activities: canvas.key_activities,
-    key_resources: canvas.key_resources,
-    value_propositions: canvas.value_propositions,
-    customer_segments: canvas.customer_segments,
-    customer_relationships: canvas.customer_relationships,
-    channels: canvas.channels,
-    cost_structure: canvas.cost_structure,
-    revenue_streams: canvas.revenue_streams,
+    key_partners: normalizeBlock(canvas.key_partners),
+    key_activities: normalizeBlock(canvas.key_activities),
+    key_resources: normalizeBlock(canvas.key_resources),
+    value_propositions: normalizeBlock(canvas.value_propositions),
+    customer_segments: normalizeBlock(canvas.customer_segments),
+    customer_relationships: normalizeBlock(canvas.customer_relationships),
+    channels: normalizeBlock(canvas.channels),
+    cost_structure: normalizeBlock(canvas.cost_structure),
+    revenue_streams: normalizeBlock(canvas.revenue_streams),
   }
 
   return (

@@ -24,6 +24,15 @@ export default async function EditValueMapPage({ params }: PageProps) {
 
   const valueMap = data
 
+  // Normalize canvas blocks to ensure all required arrays exist
+  const normalizeBlock = (block: any) => ({
+    items: block?.items || [],
+    item_ids: block?.item_ids || [],
+    assumptions: block?.assumptions || [],
+    assumption_ids: block?.assumption_ids || [],
+    validation_status: block?.validation_status || 'untested',
+  })
+
   const initialData = {
     slug: valueMap.slug,
     name: valueMap.name,
@@ -32,9 +41,9 @@ export default async function EditValueMapPage({ params }: PageProps) {
     tags: valueMap.tags?.join(', ') || '',
     studio_project_id: valueMap.studio_project_id || '',
     business_model_canvas_id: valueMap.business_model_canvas_id || '',
-    products_services: valueMap.products_services,
-    pain_relievers: valueMap.pain_relievers,
-    gain_creators: valueMap.gain_creators,
+    products_services: normalizeBlock(valueMap.products_services),
+    pain_relievers: normalizeBlock(valueMap.pain_relievers),
+    gain_creators: normalizeBlock(valueMap.gain_creators),
   }
 
   return (

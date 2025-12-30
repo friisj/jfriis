@@ -25,6 +25,15 @@ export default async function EditCustomerProfilePage({ params }: PageProps) {
 
   const profile = data as unknown as CustomerProfile
 
+  // Normalize profile blocks to ensure all required arrays exist
+  const normalizeBlock = (block: any) => ({
+    items: block?.items || [],
+    item_ids: block?.item_ids || [],
+    evidence: block?.evidence || [],
+    assumption_ids: block?.assumption_ids || [],
+    validation_status: block?.validation_status || 'untested',
+  })
+
   const initialData = {
     slug: profile.slug,
     name: profile.name,
@@ -37,9 +46,9 @@ export default async function EditCustomerProfilePage({ params }: PageProps) {
     psychographics_text: JSON.stringify(profile.psychographics || {}, null, 2),
     behaviors_text: JSON.stringify(profile.behaviors || {}, null, 2),
     environment_text: JSON.stringify(profile.environment || {}, null, 2),
-    jobs: profile.jobs,
-    pains: profile.pains,
-    gains: profile.gains,
+    jobs: normalizeBlock(profile.jobs),
+    pains: normalizeBlock(profile.pains),
+    gains: normalizeBlock(profile.gains),
     market_size_estimate: profile.market_size_estimate || '',
     addressable_percentage: profile.addressable_percentage?.toString() || '',
     validation_confidence: (profile.validation_confidence || '') as 'low' | 'medium' | 'high' | '',
