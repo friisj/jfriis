@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
+import { FitMappingEditor } from './fit-mapping-editor'
 
 interface ValueMap {
   id: string
@@ -349,6 +350,21 @@ export function ValuePropositionCanvasForm({ vpcId, initialData }: VPCFormProps)
           </div>
         </div>
       </div>
+
+      {/* FIT Mapping Editor */}
+      {formData.value_map_id && formData.customer_profile_id && (
+        <div className="space-y-4">
+          <h2 className="text-lg font-semibold border-b pb-2">FIT Mapping</h2>
+          <p className="text-sm text-muted-foreground">
+            Create connections between your value proposition and customer needs to analyze product-market
+            fit
+          </p>
+          <FitMappingEditor
+            valueMapId={formData.value_map_id}
+            customerProfileId={formData.customer_profile_id}
+          />
+        </div>
+      )}
 
       {/* Fit Score */}
       <div className="space-y-4">
