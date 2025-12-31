@@ -4,6 +4,21 @@
 
 ---
 
+## 🚨 Codebase Improvement Initiative (NEW)
+
+**Status**: Ready to implement (as of 2025-12-31)
+
+Following a comprehensive audit, we've created a phased plan to improve code quality, security, and maintainability:
+
+- **[Start Here: Quick Start Guide](./QUICK_START_IMPROVEMENTS.md)** - Get started in 5 minutes
+- **[Full Improvement Plan](./CODEBASE_IMPROVEMENT_PLAN.md)** - Detailed 8-phase roadmap
+- **[Progress Tracker](./IMPROVEMENT_PROGRESS.md)** - Track implementation progress
+- **[Improvements Overview](./README_IMPROVEMENTS.md)** - Executive summary
+
+**Priority**: Fix TypeScript errors and add tests before production deployment.
+
+---
+
 ## What This Repository Contains
 
 This is a multi-purpose monorepo serving two primary functions:
