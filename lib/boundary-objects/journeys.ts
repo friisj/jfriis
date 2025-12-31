@@ -2,6 +2,7 @@
  * CRUD Operations for User Journeys
  *
  * Handles journeys, stages, touchpoints, and their relationships
+ * Updated: 2025-12-31 - Fixed N+1 queries, added pagination, type safety
  */
 
 import { supabase } from '@/lib/supabase'
@@ -18,12 +19,14 @@ import type {
   JourneyWithStages,
   StageWithTouchpoints,
   TouchpointWithRelations,
-  JourneySummary,
+  JourneySummaryView,
   JourneyFilters,
   TouchpointFilters,
   SortConfig,
   JourneySortField,
   TouchpointSortField,
+  PaginationParams,
+  PaginatedResponse,
 } from '@/lib/types/boundary-objects'
 
 // ============================================================================
@@ -70,10 +73,11 @@ export async function getJourneyWithStages(id: string): Promise<JourneyWithStage
   if (stagesError) throw stagesError
 
   // Count touchpoints across all stages
+  const stageIds = (stages || []).map(s => s.id)
   const { count: touchpointCount } = await supabase
     .from('touchpoints')
     .select('*', { count: 'exact', head: true })
-    .in('journey_stage_id', stages.map(s => s.id))
+    .in('journey_stage_id', stageIds)
 
   return {
     ...journey,
@@ -83,11 +87,26 @@ export async function getJourneyWithStages(id: string): Promise<JourneyWithStage
   }
 }
 
+/**
+ * List journeys with pagination and filtering
+ * Use this for programmatic access or when you need full journey objects
+ */
 export async function listJourneys(
   filters?: JourneyFilters,
-  sort?: SortConfig<JourneySortField>
-): Promise<UserJourney[]> {
-  let query = supabase.from('user_journeys').select('*')
+  sort?: SortConfig<JourneySortField>,
+  pagination?: PaginationParams
+): Promise<PaginatedResponse<UserJourney>> {
+  const limit = pagination?.limit || 50
+
+  let query = supabase
+    .from('user_journeys')
+    .select('*')
+    .limit(limit + 1) // Fetch one extra to check if there's more
+
+  // Apply cursor
+  if (pagination?.cursor) {
+    query = query.gt('id', pagination.cursor)
+  }
 
   // Apply filters
   if (filters?.status && filters.status.length > 0) {
@@ -106,7 +125,9 @@ export async function listJourneys(
     query = query.overlaps('tags', filters.tags)
   }
   if (filters?.search) {
-    query = query.or(`name.ilike.%${filters.search}%,description.ilike.%${filters.search}%,goal.ilike.%${filters.search}%`)
+    query = query.or(
+      `name.ilike.%${filters.search}%,description.ilike.%${filters.search}%,goal.ilike.%${filters.search}%`
+    )
   }
 
   // Apply sorting
@@ -119,84 +140,81 @@ export async function listJourneys(
   const { data, error } = await query
 
   if (error) throw error
-  return data || []
+
+  const hasMore = (data?.length || 0) > limit
+  const results = hasMore ? data!.slice(0, limit) : data || []
+  const nextCursor = hasMore && results.length > 0 ? results[results.length - 1].id : undefined
+
+  return {
+    data: results,
+    nextCursor,
+    hasMore,
+  }
 }
 
+/**
+ * List journey summaries using optimized database view
+ * PREFERRED method for list displays - eliminates N+1 query problem
+ */
 export async function listJourneySummaries(
   filters?: JourneyFilters,
-  sort?: SortConfig<JourneySortField>
-): Promise<JourneySummary[]> {
-  const journeys = await listJourneys(filters, sort)
+  sort?: SortConfig<JourneySortField>,
+  pagination?: PaginationParams
+): Promise<PaginatedResponse<JourneySummaryView>> {
+  const limit = pagination?.limit || 50
 
-  // Fetch counts and customer profile names in parallel
-  const summaries = await Promise.all(
-    journeys.map(async (journey) => {
-      const [stageCount, touchpointCount, highPainCount, customerProfile] = await Promise.all([
-        // Count stages
-        supabase
-          .from('journey_stages')
-          .select('*', { count: 'exact', head: true })
-          .eq('user_journey_id', journey.id)
-          .then(({ count }) => count || 0),
+  let query = supabase
+    .from('journey_summaries')
+    .select('*')
+    .limit(limit + 1)
 
-        // Count touchpoints
-        supabase
-          .from('journey_stages')
-          .select('id')
-          .eq('user_journey_id', journey.id)
-          .then(async ({ data: stages }) => {
-            if (!stages || stages.length === 0) return 0
-            const { count } = await supabase
-              .from('touchpoints')
-              .select('*', { count: 'exact', head: true })
-              .in('journey_stage_id', stages.map(s => s.id))
-            return count || 0
-          }),
+  // Apply cursor
+  if (pagination?.cursor) {
+    query = query.gt('id', pagination.cursor)
+  }
 
-        // Count high-pain touchpoints
-        supabase
-          .from('journey_stages')
-          .select('id')
-          .eq('user_journey_id', journey.id)
-          .then(async ({ data: stages }) => {
-            if (!stages || stages.length === 0) return 0
-            const { count } = await supabase
-              .from('touchpoints')
-              .select('*', { count: 'exact', head: true })
-              .in('journey_stage_id', stages.map(s => s.id))
-              .in('pain_level', ['major', 'critical'])
-            return count || 0
-          }),
+  // Apply filters
+  if (filters?.status && filters.status.length > 0) {
+    query = query.in('status', filters.status)
+  }
+  if (filters?.validation_status && filters.validation_status.length > 0) {
+    query = query.in('validation_status', filters.validation_status)
+  }
+  if (filters?.customer_profile_id) {
+    query = query.eq('customer_profile_id', filters.customer_profile_id)
+  }
+  if (filters?.journey_type && filters.journey_type.length > 0) {
+    query = query.in('journey_type', filters.journey_type)
+  }
+  if (filters?.tags && filters.tags.length > 0) {
+    query = query.overlaps('tags', filters.tags)
+  }
+  if (filters?.search) {
+    query = query.or(
+      `name.ilike.%${filters.search}%,description.ilike.%${filters.search}%,goal.ilike.%${filters.search}%`
+    )
+  }
 
-        // Get customer profile name
-        journey.customer_profile_id
-          ? supabase
-              .from('customer_profiles')
-              .select('name')
-              .eq('id', journey.customer_profile_id)
-              .single()
-              .then(({ data }) => data?.name)
-          : Promise.resolve(undefined),
-      ])
+  // Apply sorting
+  if (sort) {
+    query = query.order(sort.field, { ascending: sort.direction === 'asc' })
+  } else {
+    query = query.order('updated_at', { ascending: false })
+  }
 
-      return {
-        id: journey.id,
-        slug: journey.slug,
-        name: journey.name,
-        status: journey.status,
-        validation_status: journey.validation_status,
-        customer_profile_id: journey.customer_profile_id,
-        customer_profile_name: customerProfile,
-        stage_count: stageCount,
-        touchpoint_count: touchpointCount,
-        high_pain_count: highPainCount,
-        updated_at: journey.updated_at,
-        tags: journey.tags,
-      }
-    })
-  )
+  const { data, error } = await query
 
-  return summaries
+  if (error) throw error
+
+  const hasMore = (data?.length || 0) > limit
+  const results = hasMore ? data!.slice(0, limit) : data || []
+  const nextCursor = hasMore && results.length > 0 ? results[results.length - 1].id : undefined
+
+  return {
+    data: results,
+    nextCursor,
+    hasMore,
+  }
 }
 
 export async function updateJourney(id: string, updates: UserJourneyUpdate): Promise<UserJourney> {
@@ -212,10 +230,7 @@ export async function updateJourney(id: string, updates: UserJourneyUpdate): Pro
 }
 
 export async function deleteJourney(id: string): Promise<void> {
-  const { error } = await supabase
-    .from('user_journeys')
-    .delete()
-    .eq('id', id)
+  const { error } = await supabase.from('user_journeys').delete().eq('id', id)
 
   if (error) throw error
 }
@@ -294,10 +309,36 @@ export async function updateStage(id: string, updates: JourneyStageUpdate): Prom
 }
 
 export async function deleteStage(id: string): Promise<void> {
-  const { error } = await supabase
-    .from('journey_stages')
-    .delete()
-    .eq('id', id)
+  const { error } = await supabase.from('journey_stages').delete().eq('id', id)
+
+  if (error) throw error
+}
+
+/**
+ * Reorder stages in a journey
+ * Accepts array of stage IDs in desired order
+ */
+export async function reorderStages(journeyId: string, stageIds: string[]): Promise<void> {
+  // Update each stage with new sequence
+  const updates = stageIds.map((id, index) => ({
+    id,
+    sequence: index,
+    user_journey_id: journeyId,
+  }))
+
+  const { error } = await supabase.from('journey_stages').upsert(updates)
+
+  if (error) throw error
+}
+
+/**
+ * Resequence stages to eliminate gaps
+ * Called after deletions or when sequences get messy
+ */
+export async function resequenceStages(journeyId: string): Promise<void> {
+  const { error } = await supabase.rpc('resequence_journey_stages', {
+    p_journey_id: journeyId,
+  })
 
   if (error) throw error
 }
@@ -337,31 +378,44 @@ export async function getTouchpointWithRelations(id: string): Promise<Touchpoint
 
   if (touchpointError) throw touchpointError
 
-  const [mappings, assumptions, evidence] = await Promise.all([
-    supabase
-      .from('touchpoint_mappings')
-      .select('*')
-      .eq('touchpoint_id', id)
-      .then(({ data }) => data || []),
-    supabase
-      .from('touchpoint_assumptions')
-      .select('*')
-      .eq('touchpoint_id', id)
-      .then(({ data }) => data || []),
-    supabase
-      .from('touchpoint_evidence')
-      .select('*')
-      .eq('touchpoint_id', id)
-      .order('created_at', { ascending: false })
-      .then(({ data }) => data || []),
-  ])
+  const [canvasItems, customerProfiles, valuePropositions, assumptions, evidence] =
+    await Promise.all([
+      supabase
+        .from('touchpoint_canvas_items')
+        .select('*')
+        .eq('touchpoint_id', id)
+        .then(({ data }) => data || []),
+      supabase
+        .from('touchpoint_customer_profiles')
+        .select('*')
+        .eq('touchpoint_id', id)
+        .then(({ data }) => data || []),
+      supabase
+        .from('touchpoint_value_propositions')
+        .select('*')
+        .eq('touchpoint_id', id)
+        .then(({ data }) => data || []),
+      supabase
+        .from('touchpoint_assumptions')
+        .select('*')
+        .eq('touchpoint_id', id)
+        .then(({ data }) => data || []),
+      supabase
+        .from('touchpoint_evidence')
+        .select('*')
+        .eq('touchpoint_id', id)
+        .order('created_at', { ascending: false })
+        .then(({ data }) => data || []),
+    ])
 
   return {
     ...touchpoint,
-    mappings,
+    canvas_items: canvasItems,
+    customer_profiles: customerProfiles,
+    value_propositions: valuePropositions,
     assumptions,
     evidence,
-    mapping_count: mappings.length,
+    mapping_count: canvasItems.length + customerProfiles.length + valuePropositions.length,
     assumption_count: assumptions.length,
     evidence_count: evidence.length,
   }
@@ -372,10 +426,7 @@ export async function listTouchpoints(
   filters?: TouchpointFilters,
   sort?: SortConfig<TouchpointSortField>
 ): Promise<Touchpoint[]> {
-  let query = supabase
-    .from('touchpoints')
-    .select('*')
-    .eq('journey_stage_id', stageId)
+  let query = supabase.from('touchpoints').select('*').eq('journey_stage_id', stageId)
 
   // Apply filters
   if (filters?.channel_type && filters.channel_type.length > 0) {
@@ -420,10 +471,33 @@ export async function updateTouchpoint(id: string, updates: TouchpointUpdate): P
 }
 
 export async function deleteTouchpoint(id: string): Promise<void> {
-  const { error } = await supabase
-    .from('touchpoints')
-    .delete()
-    .eq('id', id)
+  const { error } = await supabase.from('touchpoints').delete().eq('id', id)
+
+  if (error) throw error
+}
+
+/**
+ * Reorder touchpoints within a stage
+ */
+export async function reorderTouchpoints(stageId: string, touchpointIds: string[]): Promise<void> {
+  const updates = touchpointIds.map((id, index) => ({
+    id,
+    sequence: index,
+    journey_stage_id: stageId,
+  }))
+
+  const { error } = await supabase.from('touchpoints').upsert(updates)
+
+  if (error) throw error
+}
+
+/**
+ * Resequence touchpoints to eliminate gaps
+ */
+export async function resequenceTouchpoints(stageId: string): Promise<void> {
+  const { error } = await supabase.rpc('resequence_stage_touchpoints', {
+    p_stage_id: stageId,
+  })
 
   if (error) throw error
 }
@@ -443,7 +517,7 @@ export async function createJourneyWithStages(
   const stagesWithJourneyId = stages.map((stage, index) => ({
     ...stage,
     user_journey_id: createdJourney.id,
-    sequence: stage.sequence ?? index + 1,
+    sequence: stage.sequence ?? index,
   }))
 
   if (stagesWithJourneyId.length > 0) {
@@ -481,7 +555,7 @@ export async function createStageWithTouchpoints(
   const touchpointsWithStageId = touchpoints.map((touchpoint, index) => ({
     ...touchpoint,
     journey_stage_id: createdStage.id,
-    sequence: touchpoint.sequence ?? index + 1,
+    sequence: touchpoint.sequence ?? index,
   }))
 
   if (touchpointsWithStageId.length > 0) {

@@ -3,6 +3,8 @@
  *
  * Types for user journeys, service blueprints, and story maps
  * Part of the three-layer cascade: Journey → Blueprint → Story Map
+ *
+ * Updated: 2025-12-31 - Fixed polymorphic refs, JSONB types, pagination
  */
 
 import type { BaseRecord } from './database'
@@ -67,6 +69,51 @@ export type EvidenceType =
 export type BoundaryObjectStatus = 'draft' | 'active' | 'validated' | 'archived'
 
 // ============================================================================
+// STRUCTURED JSONB TYPES (Type Safety for JSONB fields)
+// ============================================================================
+
+/**
+ * Journey context - situation and constraints around the journey
+ */
+export interface JourneyContext {
+  environment?: 'web' | 'mobile' | 'in_person' | 'hybrid'
+  device_types?: string[]
+  time_constraints?: string
+  location_constraints?: string
+  triggers?: string[] // What initiates this journey
+  [key: string]: unknown // Allow extensibility
+}
+
+/**
+ * User action in a touchpoint
+ */
+export interface TouchpointUserAction {
+  step: number
+  action: string
+  expected_outcome: string
+  alternative_actions?: string[]
+}
+
+/**
+ * System response at a touchpoint
+ */
+export interface TouchpointSystemResponse {
+  ui_change?: string
+  notification?: string
+  data_update?: string
+  next_state?: string
+  error_handling?: string
+  [key: string]: unknown
+}
+
+/**
+ * Generic metadata with type safety
+ */
+export interface EntityMetadata {
+  [key: string]: unknown
+}
+
+// ============================================================================
 // USER JOURNEY ENTITIES
 // ============================================================================
 
@@ -82,7 +129,7 @@ export interface UserJourney extends BaseRecord {
   version: number
   parent_version_id?: string
   goal?: string
-  context: Record<string, any>
+  context: JourneyContext
   duration_estimate?: string
   validation_status: ValidationStatus
   validated_at?: string
@@ -90,7 +137,7 @@ export interface UserJourney extends BaseRecord {
   related_value_proposition_ids: string[]
   related_business_model_ids: string[]
   tags: string[]
-  metadata: Record<string, any>
+  metadata: EntityMetadata
 }
 
 export interface JourneyStage extends BaseRecord {
@@ -105,7 +152,7 @@ export interface JourneyStage extends BaseRecord {
   duration_estimate?: string
   drop_off_risk?: DropOffRisk
   validation_status: ValidationStatus
-  metadata: Record<string, any>
+  metadata: EntityMetadata
 }
 
 export interface Touchpoint extends BaseRecord {
@@ -119,33 +166,63 @@ export interface Touchpoint extends BaseRecord {
   current_experience_quality?: ExperienceQuality
   pain_level?: PainLevel
   delight_potential?: DelightPotential
-  user_actions: any[]
-  system_response: Record<string, any>
+  user_actions: TouchpointUserAction[]
+  system_response: TouchpointSystemResponse
   validation_status: ValidationStatus
   validated_at?: string
-  metadata: Record<string, any>
+  metadata: EntityMetadata
 }
 
-export interface TouchpointMapping extends BaseRecord {
+// ============================================================================
+// JUNCTION TABLE TYPES (Replaced polymorphic TouchpointMapping)
+// ============================================================================
+
+/**
+ * Base interface for all touchpoint mappings
+ */
+interface TouchpointMappingBase extends BaseRecord {
   touchpoint_id: string
-  target_type: 'canvas_item' | 'customer_profile' | 'value_proposition_canvas'
-  target_id: string
   mapping_type: TouchpointMappingType
   strength?: Strength
   validated: boolean
   notes?: string
-  metadata: Record<string, any>
+  metadata: EntityMetadata
 }
 
-export interface TouchpointAssumption {
-  id: string
+/**
+ * Link touchpoint to canvas item (job, pain, gain, etc.)
+ */
+export interface TouchpointCanvasItem extends TouchpointMappingBase {
+  canvas_item_id: string
+}
+
+/**
+ * Link touchpoint to customer profile
+ */
+export interface TouchpointCustomerProfile extends TouchpointMappingBase {
+  customer_profile_id: string
+}
+
+/**
+ * Link touchpoint to value proposition canvas
+ */
+export interface TouchpointValueProposition extends TouchpointMappingBase {
+  value_proposition_canvas_id: string
+}
+
+/**
+ * Link touchpoint to assumption (now extends BaseRecord for consistency)
+ */
+export interface TouchpointAssumption extends BaseRecord {
   touchpoint_id: string
   assumption_id: string
-  relationship_type: AssumptionRelationshipType
+  relationship_type?: AssumptionRelationshipType
   notes?: string
-  created_at: string
 }
 
+/**
+ * Evidence collected for a touchpoint
+ */
 export interface TouchpointEvidence extends BaseRecord {
   touchpoint_id: string
   evidence_type: EvidenceType
@@ -155,7 +232,7 @@ export interface TouchpointEvidence extends BaseRecord {
   supports_design?: boolean
   confidence?: ValidationConfidence
   collected_at?: string
-  metadata: Record<string, any>
+  metadata: EntityMetadata
 }
 
 // ============================================================================
@@ -171,10 +248,16 @@ export type JourneyStageUpdate = Partial<JourneyStageInsert>
 export type TouchpointInsert = Omit<Touchpoint, keyof BaseRecord>
 export type TouchpointUpdate = Partial<TouchpointInsert>
 
-export type TouchpointMappingInsert = Omit<TouchpointMapping, keyof BaseRecord>
-export type TouchpointMappingUpdate = Partial<TouchpointMappingInsert>
+export type TouchpointCanvasItemInsert = Omit<TouchpointCanvasItem, keyof BaseRecord>
+export type TouchpointCanvasItemUpdate = Partial<TouchpointCanvasItemInsert>
 
-export type TouchpointAssumptionInsert = Omit<TouchpointAssumption, 'id' | 'created_at'>
+export type TouchpointCustomerProfileInsert = Omit<TouchpointCustomerProfile, keyof BaseRecord>
+export type TouchpointCustomerProfileUpdate = Partial<TouchpointCustomerProfileInsert>
+
+export type TouchpointValuePropositionInsert = Omit<TouchpointValueProposition, keyof BaseRecord>
+export type TouchpointValuePropositionUpdate = Partial<TouchpointValuePropositionInsert>
+
+export type TouchpointAssumptionInsert = Omit<TouchpointAssumption, keyof BaseRecord>
 export type TouchpointAssumptionUpdate = Partial<TouchpointAssumptionInsert>
 
 export type TouchpointEvidenceInsert = Omit<TouchpointEvidence, keyof BaseRecord>
@@ -196,12 +279,43 @@ export interface StageWithTouchpoints extends JourneyStage {
 }
 
 export interface TouchpointWithRelations extends Touchpoint {
-  mappings: TouchpointMapping[]
+  canvas_items: TouchpointCanvasItem[]
+  customer_profiles: TouchpointCustomerProfile[]
+  value_propositions: TouchpointValueProposition[]
   assumptions: TouchpointAssumption[]
   evidence: TouchpointEvidence[]
   mapping_count: number
   assumption_count: number
   evidence_count: number
+}
+
+// ============================================================================
+// DATABASE VIEW TYPES
+// ============================================================================
+
+/**
+ * Journey summary from optimized database view
+ * Eliminates N+1 query problem
+ */
+export interface JourneySummaryView {
+  id: string
+  slug: string
+  name: string
+  description?: string
+  status: BoundaryObjectStatus
+  validation_status: ValidationStatus
+  journey_type: JourneyType
+  goal?: string
+  customer_profile_id?: string
+  customer_profile_name?: string
+  studio_project_id?: string
+  studio_project_name?: string
+  tags: string[]
+  created_at: string
+  updated_at: string
+  stage_count: number
+  touchpoint_count: number
+  high_pain_count: number
 }
 
 // ============================================================================
@@ -219,24 +333,6 @@ export interface TouchpointTableRow extends Touchpoint {
   stage_sequence: number
   mapping_count: number
   story_count?: number // Will be populated in later phases
-}
-
-/**
- * Journey summary for list views
- */
-export interface JourneySummary {
-  id: string
-  slug: string
-  name: string
-  status: BoundaryObjectStatus
-  validation_status: ValidationStatus
-  customer_profile_id?: string
-  customer_profile_name?: string
-  stage_count: number
-  touchpoint_count: number
-  high_pain_count: number // Count of touchpoints with pain_level 'major' or 'critical'
-  updated_at: string
-  tags: string[]
 }
 
 // ============================================================================
@@ -268,7 +364,9 @@ export type JourneySortField =
   | 'validation_status'
   | 'stage_count'
   | 'touchpoint_count'
+  | 'high_pain_count'
   | 'updated_at'
+  | 'created_at'
 
 export type TouchpointSortField =
   | 'name'
@@ -281,4 +379,36 @@ export type TouchpointSortField =
 export interface SortConfig<T = string> {
   field: T
   direction: 'asc' | 'desc'
+}
+
+// ============================================================================
+// PAGINATION TYPES
+// ============================================================================
+
+/**
+ * Cursor-based pagination parameters
+ */
+export interface PaginationParams {
+  limit?: number
+  cursor?: string // ID of last item from previous page
+}
+
+/**
+ * Paginated response wrapper
+ */
+export interface PaginatedResponse<T> {
+  data: T[]
+  nextCursor?: string
+  hasMore: boolean
+  total?: number // Optional total count
+}
+
+/**
+ * Page info for UI
+ */
+export interface PageInfo {
+  hasNextPage: boolean
+  hasPreviousPage: boolean
+  startCursor?: string
+  endCursor?: string
 }
