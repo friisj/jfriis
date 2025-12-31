@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import Link from 'next/link'
 import { StatusBadge } from '@/components/admin'
 import { formatDate } from '@/lib/utils'
 
@@ -275,7 +276,11 @@ export function JourneyDetailView({ journey, stages }: JourneyDetailViewProps) {
                       ) : (
                         <div className="divide-y">
                           {stage.touchpoints.map((touchpoint) => (
-                            <div key={touchpoint.id} className="p-4 hover:bg-muted/30">
+                            <Link
+                              key={touchpoint.id}
+                              href={`/admin/journeys/${journey.id}/touchpoints/${touchpoint.id}`}
+                              className="block p-4 hover:bg-muted/30 transition-colors"
+                            >
                               <div className="flex items-start justify-between">
                                 <div className="flex-1">
                                   <div className="flex items-center gap-2">
@@ -283,6 +288,19 @@ export function JourneyDetailView({ journey, stages }: JourneyDetailViewProps) {
                                       {stage.sequence}.{touchpoint.sequence}
                                     </span>
                                     <span className="font-medium">{touchpoint.name}</span>
+                                    <svg
+                                      className="w-4 h-4 text-muted-foreground"
+                                      fill="none"
+                                      stroke="currentColor"
+                                      viewBox="0 0 24 24"
+                                    >
+                                      <path
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        strokeWidth={2}
+                                        d="M9 5l7 7-7 7"
+                                      />
+                                    </svg>
                                   </div>
                                   {touchpoint.description && (
                                     <p className="text-sm text-muted-foreground mt-2">
@@ -316,7 +334,7 @@ export function JourneyDetailView({ journey, stages }: JourneyDetailViewProps) {
                                   </div>
                                 </div>
                               </div>
-                            </div>
+                            </Link>
                           ))}
                         </div>
                       )}

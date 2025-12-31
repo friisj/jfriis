@@ -177,6 +177,23 @@ export interface Touchpoint extends BaseRecord {
 // JUNCTION TABLE TYPES (Replaced polymorphic TouchpointMapping)
 // ============================================================================
 
+export type TouchpointMappingTargetType = 'canvas_item' | 'customer_profile' | 'value_proposition_canvas'
+
+/**
+ * Generic touchpoint mapping - polymorphic via target_type discriminator
+ * Used when target_type varies at runtime (e.g., in touchpoint_mappings table)
+ */
+export interface TouchpointMapping extends BaseRecord {
+  touchpoint_id: string
+  target_type: TouchpointMappingTargetType
+  target_id: string
+  mapping_type: TouchpointMappingType
+  strength?: Strength
+  validated: boolean
+  notes?: string
+  metadata: EntityMetadata
+}
+
 /**
  * Base interface for all touchpoint mappings
  */

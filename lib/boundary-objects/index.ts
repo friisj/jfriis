@@ -5,3 +5,4 @@
  */
 
 export * from './journeys'
+export * from './mappings'
