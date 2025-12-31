@@ -4,6 +4,11 @@ import { notFound } from 'next/navigation'
 import { createClient } from '@/lib/supabase-server'
 import { AdminDetailLayout } from '@/components/admin'
 import { JourneyDetailView } from '@/components/admin/views/journey-detail-view'
+import type { JourneyStage, Touchpoint } from '@/lib/types/boundary-objects'
+
+interface StageWithTouchpoints extends JourneyStage {
+  touchpoints: Touchpoint[]
+}
 
 export default async function JourneyDetailPage({ params }: { params: { id: string } }) {
   const supabase = await createClient()
@@ -11,12 +16,14 @@ export default async function JourneyDetailPage({ params }: { params: { id: stri
   // Fetch journey with relationships
   const { data: journey, error: journeyError } = await supabase
     .from('user_journeys')
-    .select(`
+    .select(
+      `
       *,
       customer_profile:customer_profiles(id, name, slug),
       studio_project:studio_projects(id, name, slug),
       hypothesis:studio_hypotheses(id, statement)
-    `)
+    `
+    )
     .eq('id', params.id)
     .single()
 
@@ -25,22 +32,31 @@ export default async function JourneyDetailPage({ params }: { params: { id: stri
   }
 
   // Fetch stages with touchpoints
-  const { data: stages } = await supabase
+  const { data: stages, error: stagesError } = await supabase
     .from('journey_stages')
-    .select(`
+    .select(
+      `
       *,
       touchpoints(*)
-    `)
+    `
+    )
     .eq('user_journey_id', params.id)
     .order('sequence', { ascending: true })
 
-  // Enhance stages with touchpoint ordering
-  const stagesWithOrderedTouchpoints = (stages || []).map((stage: any) => ({
-    ...stage,
-    touchpoints: (stage.touchpoints || []).sort(
-      (a: any, b: any) => a.sequence - b.sequence
-    ),
-  }))
+  if (stagesError) {
+    console.error('Error fetching stages:', stagesError)
+  }
+
+  // Enhance stages with touchpoint ordering (properly typed)
+  const stagesWithOrderedTouchpoints: StageWithTouchpoints[] = (stages || []).map((stage) => {
+    const stageData = stage as StageWithTouchpoints
+    return {
+      ...stageData,
+      touchpoints: [...(stageData.touchpoints || [])].sort(
+        (a, b) => a.sequence - b.sequence
+      ),
+    }
+  })
 
   return (
     <AdminDetailLayout
@@ -50,10 +66,7 @@ export default async function JourneyDetailPage({ params }: { params: { id: stri
       backLabel="Back to Journeys"
       editHref={`/admin/journeys/${params.id}/edit`}
     >
-      <JourneyDetailView
-        journey={journey}
-        stages={stagesWithOrderedTouchpoints}
-      />
+      <JourneyDetailView journey={journey} stages={stagesWithOrderedTouchpoints} />
     </AdminDetailLayout>
   )
 }
