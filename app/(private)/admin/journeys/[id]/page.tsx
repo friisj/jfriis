@@ -1,8 +1,14 @@
 export const dynamic = 'force-dynamic'
 
+import { Suspense } from 'react'
 import { notFound } from 'next/navigation'
 import { createClient } from '@/lib/supabase-server'
-import { AdminDetailLayout } from '@/components/admin'
+import {
+  AdminDetailLayout,
+  AdminErrorBoundary,
+  JourneyDetailSkeleton,
+  ErrorState,
+} from '@/components/admin'
 import { JourneyDetailView } from '@/components/admin/views/journey-detail-view'
 import type { JourneyStage, Touchpoint } from '@/lib/types/boundary-objects'
 
@@ -45,6 +51,20 @@ export default async function JourneyDetailPage({ params }: { params: { id: stri
 
   if (stagesError) {
     console.error('Error fetching stages:', stagesError)
+    return (
+      <AdminDetailLayout
+        title="Error"
+        description=""
+        backHref="/admin/journeys"
+        backLabel="Back to Journeys"
+      >
+        <ErrorState
+          title="Failed to load journey stages"
+          message={stagesError.message}
+          onRetry={() => window.location.reload()}
+        />
+      </AdminDetailLayout>
+    )
   }
 
   // Enhance stages with touchpoint ordering (properly typed)
@@ -66,7 +86,11 @@ export default async function JourneyDetailPage({ params }: { params: { id: stri
       backLabel="Back to Journeys"
       editHref={`/admin/journeys/${params.id}/edit`}
     >
-      <JourneyDetailView journey={journey} stages={stagesWithOrderedTouchpoints} />
+      <AdminErrorBoundary>
+        <Suspense fallback={<JourneyDetailSkeleton />}>
+          <JourneyDetailView journey={journey} stages={stagesWithOrderedTouchpoints} />
+        </Suspense>
+      </AdminErrorBoundary>
     </AdminDetailLayout>
   )
 }

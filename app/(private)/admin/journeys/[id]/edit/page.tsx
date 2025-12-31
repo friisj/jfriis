@@ -1,8 +1,9 @@
 export const dynamic = 'force-dynamic'
 
+import { Suspense } from 'react'
 import { notFound } from 'next/navigation'
 import { createClient } from '@/lib/supabase-server'
-import { AdminFormLayout } from '@/components/admin'
+import { AdminFormLayout, AdminErrorBoundary, JourneyFormSkeleton } from '@/components/admin'
 import { JourneyForm } from '@/components/admin/journey-form'
 
 export default async function EditJourneyPage({ params }: { params: { id: string } }) {
@@ -38,11 +39,15 @@ export default async function EditJourneyPage({ params }: { params: { id: string
       backHref={`/admin/journeys/${params.id}`}
       backLabel="Back to Journey"
     >
-      <JourneyForm
-        journey={journey}
-        customerProfiles={customerProfiles || []}
-        studioProjects={studioProjects || []}
-      />
+      <AdminErrorBoundary>
+        <Suspense fallback={<JourneyFormSkeleton />}>
+          <JourneyForm
+            journey={journey}
+            customerProfiles={customerProfiles || []}
+            studioProjects={studioProjects || []}
+          />
+        </Suspense>
+      </AdminErrorBoundary>
     </AdminFormLayout>
   )
 }

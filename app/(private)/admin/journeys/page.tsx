@@ -2,7 +2,7 @@ export const dynamic = 'force-dynamic'
 
 import { Suspense } from 'react'
 import { createClient } from '@/lib/supabase-server'
-import { AdminListLayout } from '@/components/admin'
+import { AdminListLayout, AdminErrorBoundary, JourneysListSkeleton, ErrorState } from '@/components/admin'
 import { JourneysListView } from '@/components/admin/views/journeys-list-view'
 import type { BoundaryObjectStatus, ValidationStatus, JourneyType } from '@/lib/types/boundary-objects'
 
@@ -71,7 +71,20 @@ export default async function AdminJourneysPage({
 
   if (error) {
     console.error('Error fetching journeys:', error)
-    return <div className="p-8">Error loading journeys</div>
+    return (
+      <AdminListLayout
+        title="User Journeys"
+        description="Map customer experiences through stages and touchpoints"
+        actionHref="/admin/journeys/new"
+        actionLabel="New Journey"
+      >
+        <ErrorState
+          title="Failed to load journeys"
+          message={error.message}
+          onRetry={() => window.location.reload()}
+        />
+      </AdminListLayout>
+    )
   }
 
   const hasMore = (data?.length || 0) > pagination.limit
@@ -85,14 +98,16 @@ export default async function AdminJourneysPage({
       actionHref="/admin/journeys/new"
       actionLabel="New Journey"
     >
-      <Suspense fallback={<div className="p-8">Loading journeys...</div>}>
-        <JourneysListView
-          journeys={journeys}
-          initialFilters={filters}
-          nextCursor={nextCursor}
-          hasMore={hasMore}
-        />
-      </Suspense>
+      <AdminErrorBoundary>
+        <Suspense fallback={<JourneysListSkeleton />}>
+          <JourneysListView
+            journeys={journeys}
+            initialFilters={filters}
+            nextCursor={nextCursor}
+            hasMore={hasMore}
+          />
+        </Suspense>
+      </AdminErrorBoundary>
     </AdminListLayout>
   )
 }
