@@ -22,6 +22,27 @@ import type {
   CanvasItemEvidenceUpdate,
 } from './canvas-items'
 
+import type {
+  UserJourney,
+  UserJourneyInsert,
+  UserJourneyUpdate,
+  JourneyStage,
+  JourneyStageInsert,
+  JourneyStageUpdate,
+  Touchpoint,
+  TouchpointInsert,
+  TouchpointUpdate,
+  TouchpointMapping,
+  TouchpointMappingInsert,
+  TouchpointMappingUpdate,
+  TouchpointAssumption,
+  TouchpointAssumptionInsert,
+  TouchpointAssumptionUpdate,
+  TouchpointEvidence,
+  TouchpointEvidenceInsert,
+  TouchpointEvidenceUpdate,
+} from './boundary-objects'
+
 // Re-export canvas item types for convenience
 export type {
   CanvasItem,
@@ -53,6 +74,37 @@ export type {
   EvidenceType,
   Confidence,
 } from './canvas-items'
+
+// Re-export boundary object types for convenience
+export type {
+  UserJourney,
+  UserJourneyInsert,
+  UserJourneyUpdate,
+  JourneyStage,
+  JourneyStageInsert,
+  JourneyStageUpdate,
+  Touchpoint,
+  TouchpointInsert,
+  TouchpointUpdate,
+  TouchpointMapping,
+  TouchpointMappingInsert,
+  TouchpointMappingUpdate,
+  TouchpointAssumption,
+  TouchpointAssumptionInsert,
+  TouchpointAssumptionUpdate,
+  TouchpointEvidence,
+  TouchpointEvidenceInsert,
+  TouchpointEvidenceUpdate,
+  JourneyType,
+  StageType,
+  ChannelType,
+  InteractionType,
+  PainLevel,
+  DelightPotential,
+  ExperienceQuality,
+  BoundaryObjectStatus,
+  TouchpointMappingType,
+} from './boundary-objects'
 
 // Base fields present in most tables
 export interface BaseRecord {
@@ -865,6 +917,36 @@ export interface Database {
         Row: CanvasItemEvidence
         Insert: CanvasItemEvidenceInsert
         Update: CanvasItemEvidenceUpdate
+      }
+      user_journeys: {
+        Row: UserJourney
+        Insert: UserJourneyInsert
+        Update: UserJourneyUpdate
+      }
+      journey_stages: {
+        Row: JourneyStage
+        Insert: JourneyStageInsert
+        Update: JourneyStageUpdate
+      }
+      touchpoints: {
+        Row: Touchpoint
+        Insert: TouchpointInsert
+        Update: TouchpointUpdate
+      }
+      touchpoint_mappings: {
+        Row: TouchpointMapping
+        Insert: TouchpointMappingInsert
+        Update: TouchpointMappingUpdate
+      }
+      touchpoint_assumptions: {
+        Row: TouchpointAssumption
+        Insert: TouchpointAssumptionInsert
+        Update: TouchpointAssumptionUpdate
+      }
+      touchpoint_evidence: {
+        Row: TouchpointEvidence
+        Insert: TouchpointEvidenceInsert
+        Update: TouchpointEvidenceUpdate
       }
     }
   }
