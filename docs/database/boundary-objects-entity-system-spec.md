@@ -1,19 +1,22 @@
 # Boundary Objects Entity System Specification
 
-**Version:** 1.0
+**Version:** 2.0 (Simplified)
 **Date:** 2025-12-31
 **Status:** Draft for Review
 **Author:** Claude (Session: claude/entity-system-design-M9tkA)
 
 ## Executive Summary
 
-This specification proposes a comprehensive entity system for managing **boundary objects** - artifacts that bridge customer understanding and value delivery. These include:
+This specification proposes a **table-optimized, hierarchical entity system** for managing boundary objects that bridge customer understanding and product delivery:
 
-- **User Journeys** - End-to-end customer experience maps
-- **Service Blueprints** - Multi-layer service delivery visualization
-- **Process Flows** - Workflow and interaction sequences
+- **User Journeys** - Customer experience maps (stages → touchpoints)
+- **Service Blueprints** - Service delivery design (steps with layers)
+- **User Story Maps** - Product planning (activities → stories → releases)
 
-These entities integrate with existing Strategyzer canvases (Business Model Canvas, Value Proposition Canvas, Customer Profiles) and the Studio infrastructure to enable hypothesis-driven experience design with the same rigor as business model validation.
+These entities follow a **three-layer cascade**:
+1. **Journey** (customer perspective) → 2. **Blueprint** (delivery design) → 3. **Story Map** (product implementation)
+
+**Design Philosophy**: Table-first UX (spreadsheet-like), explicit hierarchy, practical over visual.
 
 ## Problem Statement
 
@@ -29,70 +32,107 @@ The existing system has:
 2. **Limited Journey Modeling**
    - `journey_stages` field in CustomerProfile (simple JSONB array)
    - No structured touchpoint management
-   - No service blueprint or process flow capabilities
-   - No linking between journey moments and value propositions
+   - No service blueprint or story mapping capabilities
+   - No linking between customer moments and product features
 
-3. **View System Ready for Expansion**
+3. **View System Ready for Tables**
    - ViewType: 'table' | 'grid' | 'kanban' | 'canvas'
-   - Canvas view placeholder awaiting implementation
-   - AdminDataView component supports multiple view types
+   - Table view well-developed, canvas placeholder
 
 ### Gaps
 
-- **No first-class journey entities** - journeys embedded in customer profiles, not reusable
-- **Missing service design artifacts** - no blueprints, touchpoint maps, service layers
-- **Weak journey-to-value linkage** - can't map touchpoints to value propositions or assumptions
-- **No journey validation** - can't test journey assumptions or track evidence
-- **Limited cross-canvas insights** - hard to see how journeys relate to business model blocks
+- **No customer-to-product traceability** - Can't connect customer pain to features being built
+- **Missing service design layer** - No way to design how value is delivered
+- **Weak journey validation** - Can't test journey assumptions or track evidence
+- **No product planning integration** - Story maps disconnected from customer insights
 
 ## Design Principles
 
-Building on existing patterns:
+1. **Table-First UX** - Optimize for spreadsheet-like interactions (not freeform canvas)
+2. **Explicit Hierarchy** - Clear parent-child relationships (Journey → Blueprint → Story Map)
+3. **Practical Over Visual** - Simple structured views, bulk operations, inline editing
+4. **Rich Cross-Linking** - Connect customer insights to product features
+5. **Validation-Driven** - Every artifact supports hypothesis testing
+6. **Flexible Structure** - Core fields as columns, extensibility via JSONB
+7. **Export-Friendly** - Easy CSV/spreadsheet export for external tools
 
-1. **First-Class Entities** - Journeys, blueprints, flows as top-level records (not embedded JSONB)
-2. **Reusable Components** - Journey stages, touchpoints, blueprint layers as composable entities
-3. **Rich Relationships** - Link to customer profiles, value props, assumptions, experiments
-4. **Validation-Driven** - Every artifact supports hypothesis testing with evidence
-5. **Flexible Structure** - Core fields as columns, extensible data as JSONB
-6. **View-Ready** - Design entities for multiple view types (table, kanban, canvas)
-7. **CanvasItems Compatible** - Integrate with existing CanvasItems system where appropriate
+## Conceptual Hierarchy
+
+### Three-Layer Cascade
+
+```
+┌─────────────────────────────────────────────────────┐
+│ LAYER 1: USER JOURNEY (Customer Perspective)       │
+│ "What does the customer experience?"               │
+│                                                     │
+│ Journey → Stages → Touchpoints                     │
+│ Focus: Customer jobs, pains, gains, emotions       │
+└─────────────────────┬───────────────────────────────┘
+                      ↓
+┌─────────────────────────────────────────────────────┐
+│ LAYER 2: SERVICE BLUEPRINT (Delivery Design)       │
+│ "How do we deliver that experience?"               │
+│                                                     │
+│ Blueprint → Steps → Layers (customer/front/back)   │
+│ Focus: Service delivery, processes, touchpoints    │
+└─────────────────────┬───────────────────────────────┘
+                      ↓
+┌─────────────────────────────────────────────────────┐
+│ LAYER 3: STORY MAP (Product Implementation)        │
+│ "What do we build to enable the delivery?"         │
+│                                                     │
+│ Story Map → Activities → User Stories → Releases   │
+│ Focus: Features, development, sprints              │
+└─────────────────────────────────────────────────────┘
+```
+
+### Relationship Model
+
+**Journey ← Blueprint ← Story Map**
+
+- One Journey can have multiple Blueprints (different touchpoints/stages)
+- One Blueprint implements part of a Journey and links to multiple Stories
+- Stories can support multiple Blueprint steps and Touchpoints
+- All relationships are many-to-many with explicit junction tables
 
 ## Entity Architecture
 
-### Entity Hierarchy
+### Simplified Hierarchy
 
 ```
-Boundary Objects (Top Level)
-├── UserJourney (end-to-end customer experience)
-│   ├── JourneyStage (phase in journey: awareness, consideration, purchase, etc.)
-│   │   └── Touchpoint (interaction moment)
-│   │       ├── TouchpointAssumptions (junction to assumptions)
-│   │       └── TouchpointEvidence (evidence for touchpoint)
-│   └── JourneyMapping (links to canvas items, customer jobs, etc.)
+User Journey (top level)
+├── JourneyStage (phase: awareness, consideration, purchase, etc.)
+│   └── Touchpoint (interaction moment)
+│       ├── → TouchpointMapping (to canvas items)
+│       ├── → TouchpointAssumption (to assumptions)
+│       ├── → TouchpointEvidence (validation data)
+│       └── → TouchpointStoryLink (to user stories)
 │
-├── ServiceBlueprint (service delivery design)
-│   ├── BlueprintLayer (frontstage, backstage, support)
-│   │   └── BlueprintActivity (action in layer)
-│   │       └── BlueprintActivityLink (connects activities across layers)
-│   └── BlueprintMapping (links to business model activities, resources)
+Service Blueprint (delivery design)
+├── BlueprintStep (time-sequenced step)
+│   ├── layers: customer_action, frontstage, backstage, support (JSONB)
+│   ├── touchpoint_id (which touchpoint this delivers)
+│   └── → BlueprintStoryLink (to user stories)
 │
-└── ProcessFlow (workflow/interaction sequence)
-    ├── FlowNode (step, decision, action)
-    │   └── FlowConnection (edge between nodes)
-    └── FlowMapping (links to assumptions, experiments)
+Story Map (product planning)
+├── Activity (high-level user activity)
+│   └── UserStory (feature/task)
+│       ├── → StoryRelease (which release/sprint)
+│       ├── → TouchpointStoryLink (to touchpoints)
+│       └── → BlueprintStoryLink (to blueprint steps)
 ```
 
-### Relationships to Existing Entities
+### Cross-Entity Relationships
 
 ```
-Boundary Objects Link To:
-├── CustomerProfile (journey belongs to customer segment)
+Boundary Objects Link To Existing Entities:
+├── CustomerProfile (journey belongs to segment)
 ├── ValuePropositionCanvas (touchpoints deliver value props)
 ├── BusinessModelCanvas (blueprints implement BMC blocks)
-├── CanvasItem (touchpoints use/deliver canvas items)
-├── Assumption (journeys test assumptions)
+├── CanvasItem (touchpoints map to jobs/pains/gains)
+├── Assumption (touchpoints test assumptions)
 ├── Experiment (blueprints validated through experiments)
-├── StudioProject (all boundary objects part of project)
+├── StudioProject (all boundary objects scoped to project)
 └── Hypothesis (boundary objects validate hypotheses)
 ```
 
@@ -100,7 +140,7 @@ Boundary Objects Link To:
 
 ### 1. user_journeys
 
-End-to-end customer experience maps showing how customers progress through stages.
+End-to-end customer experience maps.
 
 ```sql
 CREATE TABLE user_journeys (
@@ -119,7 +159,7 @@ CREATE TABLE user_journeys (
 
   -- Journey Scope
   journey_type TEXT DEFAULT 'end_to_end' CHECK (
-    journey_type IN ('end_to_end', 'sub_journey', 'micro_moment', 'service_journey')
+    journey_type IN ('end_to_end', 'sub_journey', 'micro_moment')
   ),
 
   -- Lifecycle
@@ -173,7 +213,7 @@ CREATE TRIGGER update_user_journeys_updated_at
 
 ### 2. journey_stages
 
-Phases in a user journey (awareness, consideration, purchase, usage, advocacy, etc.)
+Phases in a user journey.
 
 ```sql
 CREATE TABLE journey_stages (
@@ -182,7 +222,7 @@ CREATE TABLE journey_stages (
   user_journey_id UUID NOT NULL REFERENCES user_journeys(id) ON DELETE CASCADE,
 
   -- Stage Info
-  name TEXT NOT NULL, -- "Awareness", "Research", "Purchase", "Onboarding", etc.
+  name TEXT NOT NULL, -- "Awareness", "Research", "Purchase", "Onboarding"
   description TEXT,
   sequence INTEGER NOT NULL, -- Order in journey
 
@@ -194,10 +234,10 @@ CREATE TABLE journey_stages (
   -- Customer State
   customer_emotion TEXT, -- "frustrated", "excited", "confused", "confident"
   customer_mindset TEXT, -- What they're thinking
-  customer_goal TEXT, -- What they want to accomplish in this stage
+  customer_goal TEXT, -- What they want to accomplish
 
   -- Metrics
-  duration_estimate TEXT, -- "5 minutes", "2 hours"
+  duration_estimate TEXT,
   drop_off_risk TEXT CHECK (drop_off_risk IN ('low', 'medium', 'high')),
 
   -- Validation
@@ -255,7 +295,7 @@ CREATE TABLE touchpoints (
     )
   ),
 
-  -- Experience Metrics
+  -- Experience Metrics (for table sorting/filtering)
   importance TEXT CHECK (importance IN ('critical', 'high', 'medium', 'low')),
   current_experience_quality TEXT CHECK (
     current_experience_quality IN ('poor', 'fair', 'good', 'excellent', 'unknown')
@@ -288,6 +328,7 @@ CREATE INDEX idx_touchpoints_stage ON touchpoints(journey_stage_id);
 CREATE INDEX idx_touchpoints_sequence ON touchpoints(journey_stage_id, sequence);
 CREATE INDEX idx_touchpoints_channel ON touchpoints(channel_type);
 CREATE INDEX idx_touchpoints_importance ON touchpoints(importance);
+CREATE INDEX idx_touchpoints_pain ON touchpoints(pain_level);
 
 CREATE TRIGGER update_touchpoints_updated_at
   BEFORE UPDATE ON touchpoints
@@ -295,36 +336,32 @@ CREATE TRIGGER update_touchpoints_updated_at
   EXECUTE FUNCTION update_updated_at_column();
 ```
 
-### 4. journey_mappings
+### 4. touchpoint_mappings
 
-Links journey elements to canvas items, customer jobs, value propositions, etc.
+Links touchpoints to canvas items (jobs, pains, gains, value propositions).
 
 ```sql
-CREATE TABLE journey_mappings (
+CREATE TABLE touchpoint_mappings (
   -- Identity
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
 
-  -- Source (journey element)
-  source_type TEXT NOT NULL CHECK (
-    source_type IN ('user_journey', 'journey_stage', 'touchpoint')
-  ),
-  source_id UUID NOT NULL, -- Polymorphic reference
+  -- Source (touchpoint)
+  touchpoint_id UUID NOT NULL REFERENCES touchpoints(id) ON DELETE CASCADE,
 
   -- Target (canvas element)
   target_type TEXT NOT NULL CHECK (
-    target_type IN (
-      'canvas_item', 'customer_profile', 'value_proposition_canvas',
-      'business_model_canvas', 'value_map'
-    )
+    target_type IN ('canvas_item', 'customer_profile', 'value_proposition_canvas')
   ),
   target_id UUID NOT NULL, -- Polymorphic reference
 
   -- Mapping Details
   mapping_type TEXT NOT NULL CHECK (
     mapping_type IN (
-      'addresses_job', 'triggers_pain', 'delivers_gain',
-      'uses_channel', 'requires_resource', 'performed_by_partner',
-      'generates_revenue', 'incurs_cost', 'builds_relationship'
+      'addresses_job',       -- Touchpoint helps customer do a job
+      'triggers_pain',       -- Touchpoint causes customer pain
+      'delivers_gain',       -- Touchpoint delivers customer gain
+      'tests_assumption',    -- Touchpoint tests an assumption
+      'delivers_value_prop'  -- Touchpoint delivers value proposition
     )
   ),
 
@@ -339,386 +376,22 @@ CREATE TABLE journey_mappings (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
 
   -- Constraints
-  CONSTRAINT unique_journey_mapping UNIQUE (source_type, source_id, target_type, target_id, mapping_type)
+  CONSTRAINT unique_touchpoint_mapping UNIQUE (touchpoint_id, target_type, target_id, mapping_type)
 );
 
-CREATE INDEX idx_journey_mappings_source ON journey_mappings(source_type, source_id);
-CREATE INDEX idx_journey_mappings_target ON journey_mappings(target_type, target_id);
-CREATE INDEX idx_journey_mappings_type ON journey_mappings(mapping_type);
+CREATE INDEX idx_touchpoint_mappings_touchpoint ON touchpoint_mappings(touchpoint_id);
+CREATE INDEX idx_touchpoint_mappings_target ON touchpoint_mappings(target_type, target_id);
+CREATE INDEX idx_touchpoint_mappings_type ON touchpoint_mappings(mapping_type);
 
-CREATE TRIGGER update_journey_mappings_updated_at
-  BEFORE UPDATE ON journey_mappings
+CREATE TRIGGER update_touchpoint_mappings_updated_at
+  BEFORE UPDATE ON touchpoint_mappings
   FOR EACH ROW
   EXECUTE FUNCTION update_updated_at_column();
 ```
 
-### 5. service_blueprints
+### 5. touchpoint_assumptions (Junction)
 
-Service delivery design showing frontstage (customer-facing), backstage (internal), and support layers.
-
-```sql
-CREATE TABLE service_blueprints (
-  -- Identity
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  slug TEXT NOT NULL,
-  name TEXT NOT NULL,
-  description TEXT,
-
-  -- Context
-  studio_project_id UUID REFERENCES studio_projects(id) ON DELETE SET NULL,
-  hypothesis_id UUID REFERENCES studio_hypotheses(id) ON DELETE SET NULL,
-
-  -- Blueprint Relationships
-  user_journey_id UUID REFERENCES user_journeys(id) ON DELETE SET NULL,
-  business_model_canvas_id UUID REFERENCES business_model_canvases(id) ON DELETE SET NULL,
-
-  -- Blueprint Type
-  blueprint_type TEXT DEFAULT 'service' CHECK (
-    blueprint_type IN ('service', 'product', 'hybrid', 'digital', 'physical')
-  ),
-
-  -- Lifecycle
-  status TEXT NOT NULL DEFAULT 'draft' CHECK (
-    status IN ('draft', 'active', 'validated', 'archived')
-  ),
-  version INTEGER NOT NULL DEFAULT 1,
-  parent_version_id UUID REFERENCES service_blueprints(id) ON DELETE SET NULL,
-
-  -- Service Scope
-  service_scope TEXT,
-  service_duration TEXT,
-
-  -- Validation
-  validation_status TEXT DEFAULT 'untested' CHECK (
-    validation_status IN ('untested', 'testing', 'validated', 'invalidated')
-  ),
-  validated_at TIMESTAMPTZ,
-
-  -- Metadata
-  tags TEXT[] DEFAULT '{}',
-  metadata JSONB DEFAULT '{}'::jsonb,
-
-  -- Timestamps
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-
-  -- Constraints
-  CONSTRAINT unique_blueprint_slug_per_project UNIQUE (studio_project_id, slug)
-);
-
-CREATE INDEX idx_service_blueprints_project ON service_blueprints(studio_project_id);
-CREATE INDEX idx_service_blueprints_journey ON service_blueprints(user_journey_id);
-CREATE INDEX idx_service_blueprints_bmc ON service_blueprints(business_model_canvas_id);
-
-CREATE TRIGGER update_service_blueprints_updated_at
-  BEFORE UPDATE ON service_blueprints
-  FOR EACH ROW
-  EXECUTE FUNCTION update_updated_at_column();
-```
-
-### 6. blueprint_layers
-
-Horizontal layers in service blueprint (customer actions, frontstage, backstage, support)
-
-```sql
-CREATE TABLE blueprint_layers (
-  -- Identity
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  service_blueprint_id UUID NOT NULL REFERENCES service_blueprints(id) ON DELETE CASCADE,
-
-  -- Layer Info
-  name TEXT NOT NULL,
-  layer_type TEXT NOT NULL CHECK (
-    layer_type IN (
-      'customer_actions',     -- What customer does
-      'frontstage',          -- Visible service delivery
-      'backstage',           -- Invisible service delivery
-      'support_processes',   -- Enabling systems/processes
-      'technology'           -- Technology layer (optional)
-    )
-  ),
-  sequence INTEGER NOT NULL, -- Order from top (customer) to bottom (support)
-
-  -- Layer Details
-  description TEXT,
-  visibility_to_customer BOOLEAN DEFAULT false,
-
-  -- Metadata
-  metadata JSONB DEFAULT '{}'::jsonb,
-
-  -- Timestamps
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-
-  -- Constraints
-  CONSTRAINT unique_layer_sequence UNIQUE (service_blueprint_id, sequence),
-  CONSTRAINT unique_layer_type_per_blueprint UNIQUE (service_blueprint_id, layer_type)
-);
-
-CREATE INDEX idx_blueprint_layers_blueprint ON blueprint_layers(service_blueprint_id);
-CREATE INDEX idx_blueprint_layers_sequence ON blueprint_layers(service_blueprint_id, sequence);
-```
-
-### 7. blueprint_activities
-
-Actions/steps within blueprint layers
-
-```sql
-CREATE TABLE blueprint_activities (
-  -- Identity
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  blueprint_layer_id UUID NOT NULL REFERENCES blueprint_layers(id) ON DELETE CASCADE,
-
-  -- Activity Info
-  name TEXT NOT NULL,
-  description TEXT,
-  sequence INTEGER NOT NULL, -- Horizontal position (time order)
-
-  -- Activity Details
-  actor TEXT, -- Who performs: "Customer", "Agent", "System", "Partner"
-  duration_estimate TEXT,
-
-  -- Business Impact
-  cost_implication TEXT CHECK (cost_implication IN ('none', 'low', 'medium', 'high')),
-  customer_value_delivery TEXT CHECK (
-    customer_value_delivery IN ('none', 'low', 'medium', 'high')
-  ),
-
-  -- Risk
-  failure_risk TEXT CHECK (failure_risk IN ('low', 'medium', 'high', 'critical')),
-  failure_impact TEXT, -- What happens if this fails
-
-  -- Validation
-  validation_status TEXT DEFAULT 'untested' CHECK (
-    validation_status IN ('untested', 'testing', 'validated', 'invalidated')
-  ),
-
-  -- Metadata
-  metadata JSONB DEFAULT '{}'::jsonb,
-
-  -- Timestamps
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-
-  -- Constraints
-  CONSTRAINT unique_activity_sequence UNIQUE (blueprint_layer_id, sequence)
-);
-
-CREATE INDEX idx_blueprint_activities_layer ON blueprint_activities(blueprint_layer_id);
-CREATE INDEX idx_blueprint_activities_sequence ON blueprint_activities(blueprint_layer_id, sequence);
-
-CREATE TRIGGER update_blueprint_activities_updated_at
-  BEFORE UPDATE ON blueprint_activities
-  FOR EACH ROW
-  EXECUTE FUNCTION update_updated_at_column();
-```
-
-### 8. blueprint_activity_links
-
-Connections between activities (across layers or within layer)
-
-```sql
-CREATE TABLE blueprint_activity_links (
-  -- Identity
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-
-  -- Link endpoints
-  from_activity_id UUID NOT NULL REFERENCES blueprint_activities(id) ON DELETE CASCADE,
-  to_activity_id UUID NOT NULL REFERENCES blueprint_activities(id) ON DELETE CASCADE,
-
-  -- Link Type
-  link_type TEXT NOT NULL CHECK (
-    link_type IN (
-      'triggers',        -- From activity triggers to activity
-      'enables',         -- From activity enables to activity
-      'depends_on',      -- From activity depends on to activity
-      'informs',         -- From activity informs to activity
-      'validates'        -- From activity validates to activity
-    )
-  ),
-
-  -- Link Details
-  description TEXT,
-  is_critical BOOLEAN DEFAULT false, -- Critical path
-
-  -- Metadata
-  metadata JSONB DEFAULT '{}'::jsonb,
-
-  -- Timestamps
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-
-  -- Constraints
-  CONSTRAINT no_self_links CHECK (from_activity_id != to_activity_id),
-  CONSTRAINT unique_activity_link UNIQUE (from_activity_id, to_activity_id, link_type)
-);
-
-CREATE INDEX idx_blueprint_activity_links_from ON blueprint_activity_links(from_activity_id);
-CREATE INDEX idx_blueprint_activity_links_to ON blueprint_activity_links(to_activity_id);
-CREATE INDEX idx_blueprint_activity_links_type ON blueprint_activity_links(link_type);
-```
-
-### 9. process_flows
-
-Workflow and interaction sequences (can be linked to journeys or blueprints)
-
-```sql
-CREATE TABLE process_flows (
-  -- Identity
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  slug TEXT NOT NULL,
-  name TEXT NOT NULL,
-  description TEXT,
-
-  -- Context
-  studio_project_id UUID REFERENCES studio_projects(id) ON DELETE SET NULL,
-  hypothesis_id UUID REFERENCES studio_hypotheses(id) ON DELETE SET NULL,
-
-  -- Flow Type
-  flow_type TEXT DEFAULT 'process' CHECK (
-    flow_type IN (
-      'process',          -- Business process
-      'user_interaction', -- UI/UX flow
-      'decision',         -- Decision tree
-      'data',             -- Data flow
-      'system'            -- System integration
-    )
-  ),
-
-  -- Relationships
-  user_journey_id UUID REFERENCES user_journeys(id) ON DELETE SET NULL,
-  service_blueprint_id UUID REFERENCES service_blueprints(id) ON DELETE SET NULL,
-
-  -- Lifecycle
-  status TEXT NOT NULL DEFAULT 'draft' CHECK (
-    status IN ('draft', 'active', 'validated', 'archived')
-  ),
-  version INTEGER NOT NULL DEFAULT 1,
-  parent_version_id UUID REFERENCES process_flows(id) ON DELETE SET NULL,
-
-  -- Flow Details
-  start_trigger TEXT, -- What initiates this flow
-  end_condition TEXT, -- How flow completes
-
-  -- Validation
-  validation_status TEXT DEFAULT 'untested' CHECK (
-    validation_status IN ('untested', 'testing', 'validated', 'invalidated')
-  ),
-  validated_at TIMESTAMPTZ,
-
-  -- Metadata
-  tags TEXT[] DEFAULT '{}',
-  metadata JSONB DEFAULT '{}'::jsonb,
-
-  -- Timestamps
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-
-  -- Constraints
-  CONSTRAINT unique_flow_slug_per_project UNIQUE (studio_project_id, slug)
-);
-
-CREATE INDEX idx_process_flows_project ON process_flows(studio_project_id);
-CREATE INDEX idx_process_flows_journey ON process_flows(user_journey_id);
-CREATE INDEX idx_process_flows_blueprint ON process_flows(service_blueprint_id);
-
-CREATE TRIGGER update_process_flows_updated_at
-  BEFORE UPDATE ON process_flows
-  FOR EACH ROW
-  EXECUTE FUNCTION update_updated_at_column();
-```
-
-### 10. flow_nodes
-
-Individual steps/actions in a process flow
-
-```sql
-CREATE TABLE flow_nodes (
-  -- Identity
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  process_flow_id UUID NOT NULL REFERENCES process_flows(id) ON DELETE CASCADE,
-
-  -- Node Info
-  name TEXT NOT NULL,
-  description TEXT,
-
-  -- Node Type
-  node_type TEXT NOT NULL CHECK (
-    node_type IN (
-      'start', 'end', 'action', 'decision',
-      'wait', 'parallel', 'merge', 'subprocess'
-    )
-  ),
-
-  -- Position (for canvas view)
-  position_x DECIMAL(10,2),
-  position_y DECIMAL(10,2),
-
-  -- Node Details
-  actor TEXT, -- Who/what performs this
-  duration_estimate TEXT,
-
-  -- Decision node specifics
-  decision_criteria JSONB, -- For decision nodes
-
-  -- Validation
-  validation_status TEXT DEFAULT 'untested' CHECK (
-    validation_status IN ('untested', 'testing', 'validated', 'invalidated')
-  ),
-
-  -- Metadata
-  metadata JSONB DEFAULT '{}'::jsonb,
-
-  -- Timestamps
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-
-CREATE INDEX idx_flow_nodes_flow ON flow_nodes(process_flow_id);
-CREATE INDEX idx_flow_nodes_type ON flow_nodes(node_type);
-
-CREATE TRIGGER update_flow_nodes_updated_at
-  BEFORE UPDATE ON flow_nodes
-  FOR EACH ROW
-  EXECUTE FUNCTION update_updated_at_column();
-```
-
-### 11. flow_connections
-
-Edges between flow nodes
-
-```sql
-CREATE TABLE flow_connections (
-  -- Identity
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-
-  -- Connection endpoints
-  from_node_id UUID NOT NULL REFERENCES flow_nodes(id) ON DELETE CASCADE,
-  to_node_id UUID NOT NULL REFERENCES flow_nodes(id) ON DELETE CASCADE,
-
-  -- Connection Details
-  label TEXT, -- For decision branches: "Yes", "No", "Error"
-  condition TEXT, -- Condition for this path
-
-  -- Metrics
-  probability DECIMAL(5,2) CHECK (probability >= 0 AND probability <= 100),
-
-  -- Metadata
-  metadata JSONB DEFAULT '{}'::jsonb,
-
-  -- Timestamps
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-
-  -- Constraints
-  CONSTRAINT no_self_connections CHECK (from_node_id != to_node_id),
-  CONSTRAINT unique_flow_connection UNIQUE (from_node_id, to_node_id, label)
-);
-
-CREATE INDEX idx_flow_connections_from ON flow_connections(from_node_id);
-CREATE INDEX idx_flow_connections_to ON flow_connections(to_node_id);
-```
-
-### 12. touchpoint_assumptions (Junction Table)
-
-Links touchpoints to assumptions for validation
+Links touchpoints to assumptions for validation.
 
 ```sql
 CREATE TABLE touchpoint_assumptions (
@@ -745,9 +418,9 @@ CREATE INDEX idx_touchpoint_assumptions_touchpoint ON touchpoint_assumptions(tou
 CREATE INDEX idx_touchpoint_assumptions_assumption ON touchpoint_assumptions(assumption_id);
 ```
 
-### 13. touchpoint_evidence
+### 6. touchpoint_evidence
 
-Evidence collected about touchpoint experiences
+Evidence collected about touchpoint experiences.
 
 ```sql
 CREATE TABLE touchpoint_evidence (
@@ -790,6 +463,429 @@ CREATE TRIGGER update_touchpoint_evidence_updated_at
   EXECUTE FUNCTION update_updated_at_column();
 ```
 
+### 7. service_blueprints
+
+Service delivery design (bridges journey to story map).
+
+```sql
+CREATE TABLE service_blueprints (
+  -- Identity
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  slug TEXT NOT NULL,
+  name TEXT NOT NULL,
+  description TEXT,
+
+  -- Context
+  studio_project_id UUID REFERENCES studio_projects(id) ON DELETE SET NULL,
+  hypothesis_id UUID REFERENCES studio_hypotheses(id) ON DELETE SET NULL,
+
+  -- HIERARCHY: Blueprint implements a Journey
+  user_journey_id UUID REFERENCES user_journeys(id) ON DELETE SET NULL,
+
+  -- Optional link to business model
+  business_model_canvas_id UUID REFERENCES business_model_canvases(id) ON DELETE SET NULL,
+
+  -- Blueprint Type
+  blueprint_type TEXT DEFAULT 'service' CHECK (
+    blueprint_type IN ('service', 'product', 'hybrid', 'digital', 'physical')
+  ),
+
+  -- Lifecycle
+  status TEXT NOT NULL DEFAULT 'draft' CHECK (
+    status IN ('draft', 'active', 'validated', 'archived')
+  ),
+  version INTEGER NOT NULL DEFAULT 1,
+  parent_version_id UUID REFERENCES service_blueprints(id) ON DELETE SET NULL,
+
+  -- Service Scope
+  service_scope TEXT,
+  service_duration TEXT,
+
+  -- Validation
+  validation_status TEXT DEFAULT 'untested' CHECK (
+    validation_status IN ('untested', 'testing', 'validated', 'invalidated')
+  ),
+  validated_at TIMESTAMPTZ,
+
+  -- Metadata
+  tags TEXT[] DEFAULT '{}',
+  metadata JSONB DEFAULT '{}'::jsonb,
+
+  -- Timestamps
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+
+  -- Constraints
+  CONSTRAINT unique_blueprint_slug_per_project UNIQUE (studio_project_id, slug)
+);
+
+CREATE INDEX idx_service_blueprints_project ON service_blueprints(studio_project_id);
+CREATE INDEX idx_service_blueprints_journey ON service_blueprints(user_journey_id);
+CREATE INDEX idx_service_blueprints_bmc ON service_blueprints(business_model_canvas_id);
+CREATE INDEX idx_service_blueprints_status ON service_blueprints(status);
+
+CREATE TRIGGER update_service_blueprints_updated_at
+  BEFORE UPDATE ON service_blueprints
+  FOR EACH ROW
+  EXECUTE FUNCTION update_updated_at_column();
+```
+
+### 8. blueprint_steps
+
+Time-sequenced steps in a blueprint (SIMPLIFIED - layers as JSONB).
+
+```sql
+CREATE TABLE blueprint_steps (
+  -- Identity
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  service_blueprint_id UUID NOT NULL REFERENCES service_blueprints(id) ON DELETE CASCADE,
+
+  -- Step Info
+  name TEXT NOT NULL,
+  description TEXT,
+  sequence INTEGER NOT NULL, -- Time order (horizontal position in blueprint)
+
+  -- HIERARCHY: Which touchpoint does this step deliver?
+  touchpoint_id UUID REFERENCES touchpoints(id) ON DELETE SET NULL,
+
+  -- Service Layers (JSONB for table-friendly editing)
+  layers JSONB NOT NULL DEFAULT '{
+    "customer_action": null,
+    "frontstage": null,
+    "backstage": null,
+    "support_process": null
+  }'::jsonb,
+
+  -- Example:
+  -- {
+  --   "customer_action": "Enters credit card details",
+  --   "frontstage": "Real-time validation feedback shown",
+  --   "backstage": "Call fraud detection API",
+  --   "support_process": "Stripe payment gateway integration"
+  -- }
+
+  -- Actors (who performs each layer)
+  actors JSONB DEFAULT '{}'::jsonb,
+  -- Example: {"frontstage": "Support Agent", "backstage": "Payment System"}
+
+  -- Business Impact
+  duration_estimate TEXT,
+  cost_implication TEXT CHECK (cost_implication IN ('none', 'low', 'medium', 'high')),
+  customer_value_delivery TEXT CHECK (
+    customer_value_delivery IN ('none', 'low', 'medium', 'high')
+  ),
+
+  -- Risk
+  failure_risk TEXT CHECK (failure_risk IN ('low', 'medium', 'high', 'critical')),
+  failure_impact TEXT,
+
+  -- Validation
+  validation_status TEXT DEFAULT 'untested' CHECK (
+    validation_status IN ('untested', 'testing', 'validated', 'invalidated')
+  ),
+
+  -- Metadata
+  metadata JSONB DEFAULT '{}'::jsonb,
+
+  -- Timestamps
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+
+  -- Constraints
+  CONSTRAINT unique_blueprint_step_sequence UNIQUE (service_blueprint_id, sequence)
+);
+
+CREATE INDEX idx_blueprint_steps_blueprint ON blueprint_steps(service_blueprint_id);
+CREATE INDEX idx_blueprint_steps_sequence ON blueprint_steps(service_blueprint_id, sequence);
+CREATE INDEX idx_blueprint_steps_touchpoint ON blueprint_steps(touchpoint_id);
+
+CREATE TRIGGER update_blueprint_steps_updated_at
+  BEFORE UPDATE ON blueprint_steps
+  FOR EACH ROW
+  EXECUTE FUNCTION update_updated_at_column();
+```
+
+### 9. story_maps
+
+Product planning and feature organization (replaces process_flows).
+
+```sql
+CREATE TABLE story_maps (
+  -- Identity
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  slug TEXT NOT NULL,
+  name TEXT NOT NULL,
+  description TEXT,
+
+  -- Context
+  studio_project_id UUID REFERENCES studio_projects(id) ON DELETE SET NULL,
+  hypothesis_id UUID REFERENCES studio_hypotheses(id) ON DELETE SET NULL,
+
+  -- HIERARCHY: Story map implements a Blueprint (and transitively a Journey)
+  service_blueprint_id UUID REFERENCES service_blueprints(id) ON DELETE SET NULL,
+  user_journey_id UUID REFERENCES user_journeys(id) ON DELETE SET NULL, -- Can link directly too
+
+  -- Map Type
+  map_type TEXT DEFAULT 'feature' CHECK (
+    map_type IN ('feature', 'product', 'release', 'discovery')
+  ),
+
+  -- Lifecycle
+  status TEXT NOT NULL DEFAULT 'draft' CHECK (
+    status IN ('draft', 'active', 'validated', 'archived')
+  ),
+  version INTEGER NOT NULL DEFAULT 1,
+  parent_version_id UUID REFERENCES story_maps(id) ON DELETE SET NULL,
+
+  -- Validation
+  validation_status TEXT DEFAULT 'untested' CHECK (
+    validation_status IN ('untested', 'testing', 'validated', 'invalidated')
+  ),
+  validated_at TIMESTAMPTZ,
+
+  -- Metadata
+  tags TEXT[] DEFAULT '{}',
+  metadata JSONB DEFAULT '{}'::jsonb,
+
+  -- Timestamps
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+
+  -- Constraints
+  CONSTRAINT unique_story_map_slug_per_project UNIQUE (studio_project_id, slug)
+);
+
+CREATE INDEX idx_story_maps_project ON story_maps(studio_project_id);
+CREATE INDEX idx_story_maps_blueprint ON story_maps(service_blueprint_id);
+CREATE INDEX idx_story_maps_journey ON story_maps(user_journey_id);
+CREATE INDEX idx_story_maps_status ON story_maps(status);
+
+CREATE TRIGGER update_story_maps_updated_at
+  BEFORE UPDATE ON story_maps
+  FOR EACH ROW
+  EXECUTE FUNCTION update_updated_at_column();
+```
+
+### 10. activities
+
+High-level user activities in a story map (backbone).
+
+```sql
+CREATE TABLE activities (
+  -- Identity
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  story_map_id UUID NOT NULL REFERENCES story_maps(id) ON DELETE CASCADE,
+
+  -- Activity Info
+  name TEXT NOT NULL, -- "Search for Products", "Checkout", "Manage Account"
+  description TEXT,
+  sequence INTEGER NOT NULL, -- Left-to-right order in story map
+
+  -- Activity Details
+  user_goal TEXT, -- What user is trying to accomplish
+
+  -- Optional link to journey stage (activities often map to stages)
+  journey_stage_id UUID REFERENCES journey_stages(id) ON DELETE SET NULL,
+
+  -- Metadata
+  metadata JSONB DEFAULT '{}'::jsonb,
+
+  -- Timestamps
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+
+  -- Constraints
+  CONSTRAINT unique_activity_sequence UNIQUE (story_map_id, sequence)
+);
+
+CREATE INDEX idx_activities_story_map ON activities(story_map_id);
+CREATE INDEX idx_activities_sequence ON activities(story_map_id, sequence);
+CREATE INDEX idx_activities_journey_stage ON activities(journey_stage_id);
+
+CREATE TRIGGER update_activities_updated_at
+  BEFORE UPDATE ON activities
+  FOR EACH ROW
+  EXECUTE FUNCTION update_updated_at_column();
+```
+
+### 11. user_stories
+
+Individual features/tasks under activities.
+
+```sql
+CREATE TABLE user_stories (
+  -- Identity
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  activity_id UUID NOT NULL REFERENCES activities(id) ON DELETE CASCADE,
+
+  -- Story Info
+  title TEXT NOT NULL, -- "As a user, I want to..."
+  description TEXT,
+  acceptance_criteria TEXT,
+
+  -- Story Details
+  story_type TEXT CHECK (
+    story_type IN ('feature', 'enhancement', 'bug', 'tech_debt', 'spike')
+  ),
+
+  -- Priority & Effort
+  priority TEXT CHECK (priority IN ('critical', 'high', 'medium', 'low')),
+  story_points INTEGER CHECK (story_points > 0),
+
+  -- Status
+  status TEXT DEFAULT 'backlog' CHECK (
+    status IN ('backlog', 'ready', 'in_progress', 'review', 'done', 'archived')
+  ),
+
+  -- Vertical Position (for story map visualization)
+  vertical_position INTEGER, -- Higher priority = lower number (top of column)
+
+  -- Validation
+  validation_status TEXT DEFAULT 'untested' CHECK (
+    validation_status IN ('untested', 'testing', 'validated', 'invalidated')
+  ),
+  validated_at TIMESTAMPTZ,
+
+  -- Metadata
+  tags TEXT[] DEFAULT '{}',
+  metadata JSONB DEFAULT '{}'::jsonb,
+
+  -- Timestamps
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX idx_user_stories_activity ON user_stories(activity_id);
+CREATE INDEX idx_user_stories_priority ON user_stories(priority);
+CREATE INDEX idx_user_stories_status ON user_stories(status);
+CREATE INDEX idx_user_stories_vertical_position ON user_stories(activity_id, vertical_position);
+
+CREATE TRIGGER update_user_stories_updated_at
+  BEFORE UPDATE ON user_stories
+  FOR EACH ROW
+  EXECUTE FUNCTION update_updated_at_column();
+```
+
+### 12. story_releases
+
+Maps stories to releases/sprints.
+
+```sql
+CREATE TABLE story_releases (
+  -- Identity
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_story_id UUID NOT NULL REFERENCES user_stories(id) ON DELETE CASCADE,
+
+  -- Release Info
+  release_name TEXT NOT NULL, -- "MVP", "Sprint 3", "Q2 Release"
+  release_date DATE,
+  release_order INTEGER, -- Sequential release number
+
+  -- Metadata
+  metadata JSONB DEFAULT '{}'::jsonb,
+
+  -- Timestamps
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+
+  -- Constraints
+  CONSTRAINT unique_story_release UNIQUE (user_story_id, release_name)
+);
+
+CREATE INDEX idx_story_releases_story ON story_releases(user_story_id);
+CREATE INDEX idx_story_releases_name ON story_releases(release_name);
+CREATE INDEX idx_story_releases_order ON story_releases(release_order);
+```
+
+### 13. touchpoint_story_links (HIERARCHY LINK)
+
+Direct links from touchpoints to user stories.
+
+```sql
+CREATE TABLE touchpoint_story_links (
+  -- Identity
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+
+  -- HIERARCHY: Which story enables/improves which touchpoint?
+  touchpoint_id UUID NOT NULL REFERENCES touchpoints(id) ON DELETE CASCADE,
+  user_story_id UUID NOT NULL REFERENCES user_stories(id) ON DELETE CASCADE,
+
+  -- Impact Type
+  impact_type TEXT CHECK (
+    impact_type IN (
+      'enables',      -- Story enables the touchpoint to exist
+      'improves',     -- Story improves existing touchpoint
+      'fixes_pain',   -- Story fixes pain at this touchpoint
+      'delivers_gain' -- Story delivers gain at this touchpoint
+    )
+  ),
+
+  -- Details
+  notes TEXT,
+  metadata JSONB DEFAULT '{}'::jsonb,
+
+  -- Timestamps
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+
+  -- Constraints
+  CONSTRAINT unique_touchpoint_story_link UNIQUE (touchpoint_id, user_story_id)
+);
+
+CREATE INDEX idx_touchpoint_story_links_touchpoint ON touchpoint_story_links(touchpoint_id);
+CREATE INDEX idx_touchpoint_story_links_story ON touchpoint_story_links(user_story_id);
+CREATE INDEX idx_touchpoint_story_links_impact ON touchpoint_story_links(impact_type);
+
+CREATE TRIGGER update_touchpoint_story_links_updated_at
+  BEFORE UPDATE ON touchpoint_story_links
+  FOR EACH ROW
+  EXECUTE FUNCTION update_updated_at_column();
+```
+
+### 14. blueprint_story_links (HIERARCHY LINK)
+
+Links blueprint steps to user stories (which story implements which step).
+
+```sql
+CREATE TABLE blueprint_story_links (
+  -- Identity
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+
+  -- HIERARCHY: Which story implements which blueprint step?
+  blueprint_step_id UUID NOT NULL REFERENCES blueprint_steps(id) ON DELETE CASCADE,
+  user_story_id UUID NOT NULL REFERENCES user_stories(id) ON DELETE CASCADE,
+
+  -- Which layer of the step does this story implement?
+  implements_layer TEXT CHECK (
+    implements_layer IN ('customer_action', 'frontstage', 'backstage', 'support_process', 'all')
+  ),
+
+  -- Relationship Type
+  relationship_type TEXT CHECK (
+    relationship_type IN ('enables', 'supports', 'validates', 'required_for')
+  ),
+
+  -- Details
+  notes TEXT,
+  metadata JSONB DEFAULT '{}'::jsonb,
+
+  -- Timestamps
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+
+  -- Constraints
+  CONSTRAINT unique_blueprint_story_link UNIQUE (blueprint_step_id, user_story_id, implements_layer)
+);
+
+CREATE INDEX idx_blueprint_story_links_step ON blueprint_story_links(blueprint_step_id);
+CREATE INDEX idx_blueprint_story_links_story ON blueprint_story_links(user_story_id);
+CREATE INDEX idx_blueprint_story_links_layer ON blueprint_story_links(implements_layer);
+
+CREATE TRIGGER update_blueprint_story_links_updated_at
+  BEFORE UPDATE ON blueprint_story_links
+  FOR EACH ROW
+  EXECUTE FUNCTION update_updated_at_column();
+```
+
 ## TypeScript Type Definitions
 
 ### Core Types
@@ -797,18 +893,55 @@ CREATE TRIGGER update_touchpoint_evidence_updated_at
 ```typescript
 // lib/types/boundary-objects.ts
 
-export type JourneyType = 'end_to_end' | 'sub_journey' | 'micro_moment' | 'service_journey'
+import type { BaseRecord } from './database'
+
+// ============================================================================
+// ENUMS & CONSTANTS
+// ============================================================================
+
+export type JourneyType = 'end_to_end' | 'sub_journey' | 'micro_moment'
+export type StageType = 'pre_purchase' | 'purchase' | 'post_purchase' | 'ongoing'
 export type ChannelType = 'web' | 'mobile_app' | 'phone' | 'email' | 'in_person' | 'chat' | 'social' | 'physical_location' | 'mail' | 'other'
 export type InteractionType = 'browse' | 'search' | 'read' | 'watch' | 'listen' | 'form' | 'transaction' | 'conversation' | 'notification' | 'passive'
+export type Importance = 'critical' | 'high' | 'medium' | 'low'
 export type ExperienceQuality = 'poor' | 'fair' | 'good' | 'excellent' | 'unknown'
 export type PainLevel = 'none' | 'minor' | 'moderate' | 'major' | 'critical'
 export type DelightPotential = 'low' | 'medium' | 'high'
-export type StageType = 'pre_purchase' | 'purchase' | 'post_purchase' | 'ongoing'
+export type ValidationStatus = 'untested' | 'testing' | 'validated' | 'invalidated'
+export type ValidationConfidence = 'low' | 'medium' | 'high'
+export type Strength = 'weak' | 'moderate' | 'strong'
+
+export type TouchpointMappingType =
+  | 'addresses_job'
+  | 'triggers_pain'
+  | 'delivers_gain'
+  | 'tests_assumption'
+  | 'delivers_value_prop'
+
+export type EvidenceType =
+  | 'user_test'
+  | 'interview'
+  | 'survey'
+  | 'analytics'
+  | 'observation'
+  | 'prototype'
+  | 'ab_test'
+  | 'heuristic_eval'
+
 export type BlueprintType = 'service' | 'product' | 'hybrid' | 'digital' | 'physical'
-export type LayerType = 'customer_actions' | 'frontstage' | 'backstage' | 'support_processes' | 'technology'
-export type FlowType = 'process' | 'user_interaction' | 'decision' | 'data' | 'system'
-export type NodeType = 'start' | 'end' | 'action' | 'decision' | 'wait' | 'parallel' | 'merge' | 'subprocess'
-export type MappingType = 'addresses_job' | 'triggers_pain' | 'delivers_gain' | 'uses_channel' | 'requires_resource' | 'performed_by_partner' | 'generates_revenue' | 'incurs_cost' | 'builds_relationship'
+export type CostImplication = 'none' | 'low' | 'medium' | 'high'
+export type ValueDelivery = 'none' | 'low' | 'medium' | 'high'
+export type FailureRisk = 'low' | 'medium' | 'high' | 'critical'
+
+export type StoryMapType = 'feature' | 'product' | 'release' | 'discovery'
+export type StoryType = 'feature' | 'enhancement' | 'bug' | 'tech_debt' | 'spike'
+export type StoryStatus = 'backlog' | 'ready' | 'in_progress' | 'review' | 'done' | 'archived'
+export type ImpactType = 'enables' | 'improves' | 'fixes_pain' | 'delivers_gain'
+export type BlueprintLayer = 'customer_action' | 'frontstage' | 'backstage' | 'support_process' | 'all'
+
+// ============================================================================
+// USER JOURNEY ENTITIES
+// ============================================================================
 
 export interface UserJourney extends BaseRecord {
   slug: string
@@ -826,7 +959,7 @@ export interface UserJourney extends BaseRecord {
   duration_estimate?: string
   validation_status: ValidationStatus
   validated_at?: string
-  validation_confidence?: 'low' | 'medium' | 'high'
+  validation_confidence?: ValidationConfidence
   related_value_proposition_ids: string[]
   related_business_model_ids: string[]
   tags: string[]
@@ -866,16 +999,47 @@ export interface Touchpoint extends BaseRecord {
   metadata: Record<string, any>
 }
 
-export interface JourneyMapping extends BaseRecord {
-  source_type: 'user_journey' | 'journey_stage' | 'touchpoint'
-  source_id: string
-  target_type: 'canvas_item' | 'customer_profile' | 'value_proposition_canvas' | 'business_model_canvas' | 'value_map'
+export interface TouchpointMapping extends BaseRecord {
+  touchpoint_id: string
+  target_type: 'canvas_item' | 'customer_profile' | 'value_proposition_canvas'
   target_id: string
-  mapping_type: MappingType
-  strength?: 'weak' | 'moderate' | 'strong'
+  mapping_type: TouchpointMappingType
+  strength?: Strength
   validated: boolean
   notes?: string
   metadata: Record<string, any>
+}
+
+export interface TouchpointAssumption {
+  id: string
+  touchpoint_id: string
+  assumption_id: string
+  relationship_type: 'tests' | 'depends_on' | 'validates' | 'challenges'
+  notes?: string
+  created_at: string
+}
+
+export interface TouchpointEvidence extends BaseRecord {
+  touchpoint_id: string
+  evidence_type: EvidenceType
+  title: string
+  summary?: string
+  url?: string
+  supports_design?: boolean
+  confidence?: ValidationConfidence
+  collected_at?: string
+  metadata: Record<string, any>
+}
+
+// ============================================================================
+// SERVICE BLUEPRINT ENTITIES
+// ============================================================================
+
+export interface BlueprintLayers {
+  customer_action?: string
+  frontstage?: string
+  backstage?: string
+  support_process?: string
 }
 
 export interface ServiceBlueprint extends BaseRecord {
@@ -884,7 +1048,7 @@ export interface ServiceBlueprint extends BaseRecord {
   description?: string
   studio_project_id?: string
   hypothesis_id?: string
-  user_journey_id?: string
+  user_journey_id?: string // HIERARCHY: implements journey
   business_model_canvas_id?: string
   blueprint_type: BlueprintType
   status: 'draft' | 'active' | 'validated' | 'archived'
@@ -898,66 +1062,106 @@ export interface ServiceBlueprint extends BaseRecord {
   metadata: Record<string, any>
 }
 
-export interface BlueprintLayer extends BaseRecord {
+export interface BlueprintStep extends BaseRecord {
   service_blueprint_id: string
   name: string
-  layer_type: LayerType
-  sequence: number
-  description?: string
-  visibility_to_customer: boolean
-  metadata: Record<string, any>
-}
-
-export interface BlueprintActivity extends BaseRecord {
-  blueprint_layer_id: string
-  name: string
   description?: string
   sequence: number
-  actor?: string
+  touchpoint_id?: string // HIERARCHY: delivers touchpoint
+  layers: BlueprintLayers
+  actors: Record<string, string> // { frontstage: "Support Agent", backstage: "Payment System" }
   duration_estimate?: string
-  cost_implication?: 'none' | 'low' | 'medium' | 'high'
-  customer_value_delivery?: 'none' | 'low' | 'medium' | 'high'
-  failure_risk?: 'low' | 'medium' | 'high' | 'critical'
+  cost_implication?: CostImplication
+  customer_value_delivery?: ValueDelivery
+  failure_risk?: FailureRisk
   failure_impact?: string
   validation_status: ValidationStatus
   metadata: Record<string, any>
 }
 
-export interface ProcessFlow extends BaseRecord {
+// ============================================================================
+// STORY MAP ENTITIES
+// ============================================================================
+
+export interface StoryMap extends BaseRecord {
   slug: string
   name: string
   description?: string
   studio_project_id?: string
   hypothesis_id?: string
-  flow_type: FlowType
-  user_journey_id?: string
-  service_blueprint_id?: string
+  service_blueprint_id?: string // HIERARCHY: implements blueprint
+  user_journey_id?: string // Can link directly to journey too
+  map_type: StoryMapType
   status: 'draft' | 'active' | 'validated' | 'archived'
   version: number
   parent_version_id?: string
-  start_trigger?: string
-  end_condition?: string
   validation_status: ValidationStatus
   validated_at?: string
   tags: string[]
   metadata: Record<string, any>
 }
 
-export interface FlowNode extends BaseRecord {
-  process_flow_id: string
+export interface Activity extends BaseRecord {
+  story_map_id: string
   name: string
   description?: string
-  node_type: NodeType
-  position_x?: number
-  position_y?: number
-  actor?: string
-  duration_estimate?: string
-  decision_criteria?: Record<string, any>
-  validation_status: ValidationStatus
+  sequence: number
+  user_goal?: string
+  journey_stage_id?: string // Optional link to journey stage
   metadata: Record<string, any>
 }
 
-// Insert/Update types
+export interface UserStory extends BaseRecord {
+  activity_id: string
+  title: string
+  description?: string
+  acceptance_criteria?: string
+  story_type?: StoryType
+  priority?: Importance
+  story_points?: number
+  status: StoryStatus
+  vertical_position?: number
+  validation_status: ValidationStatus
+  validated_at?: string
+  tags: string[]
+  metadata: Record<string, any>
+}
+
+export interface StoryRelease {
+  id: string
+  user_story_id: string
+  release_name: string
+  release_date?: string
+  release_order?: number
+  metadata: Record<string, any>
+  created_at: string
+}
+
+// ============================================================================
+// HIERARCHY LINK ENTITIES
+// ============================================================================
+
+export interface TouchpointStoryLink extends BaseRecord {
+  touchpoint_id: string
+  user_story_id: string
+  impact_type?: ImpactType
+  notes?: string
+  metadata: Record<string, any>
+}
+
+export interface BlueprintStoryLink extends BaseRecord {
+  blueprint_step_id: string
+  user_story_id: string
+  implements_layer?: BlueprintLayer
+  relationship_type?: 'enables' | 'supports' | 'validates' | 'required_for'
+  notes?: string
+  metadata: Record<string, any>
+}
+
+// ============================================================================
+// INSERT/UPDATE TYPES
+// ============================================================================
+
 export type UserJourneyInsert = Omit<UserJourney, keyof BaseRecord>
 export type UserJourneyUpdate = Partial<UserJourneyInsert>
 
@@ -967,177 +1171,326 @@ export type JourneyStageUpdate = Partial<JourneyStageInsert>
 export type TouchpointInsert = Omit<Touchpoint, keyof BaseRecord>
 export type TouchpointUpdate = Partial<TouchpointInsert>
 
-// ... similar for other entities
+export type ServiceBlueprintInsert = Omit<ServiceBlueprint, keyof BaseRecord>
+export type ServiceBlueprintUpdate = Partial<ServiceBlueprintInsert>
+
+export type BlueprintStepInsert = Omit<BlueprintStep, keyof BaseRecord>
+export type BlueprintStepUpdate = Partial<BlueprintStepInsert>
+
+export type StoryMapInsert = Omit<StoryMap, keyof BaseRecord>
+export type StoryMapUpdate = Partial<StoryMapInsert>
+
+export type ActivityInsert = Omit<Activity, keyof BaseRecord>
+export type ActivityUpdate = Partial<ActivityInsert>
+
+export type UserStoryInsert = Omit<UserStory, keyof BaseRecord>
+export type UserStoryUpdate = Partial<UserStoryInsert>
+
+// ============================================================================
+// EXTENDED VIEWS (with relationships)
+// ============================================================================
+
+export interface JourneyWithStages extends UserJourney {
+  stages: JourneyStage[]
+  stage_count: number
+  touchpoint_count: number
+}
+
+export interface StageWithTouchpoints extends JourneyStage {
+  touchpoints: Touchpoint[]
+  touchpoint_count: number
+}
+
+export interface TouchpointWithRelations extends Touchpoint {
+  mappings: TouchpointMapping[]
+  assumptions: TouchpointAssumption[]
+  evidence: TouchpointEvidence[]
+  stories: TouchpointStoryLink[]
+  mapping_count: number
+  story_count: number
+}
+
+export interface BlueprintWithSteps extends ServiceBlueprint {
+  steps: BlueprintStep[]
+  step_count: number
+}
+
+export interface StoryMapWithActivities extends StoryMap {
+  activities: Activity[]
+  activity_count: number
+  story_count: number
+}
+
+export interface ActivityWithStories extends Activity {
+  stories: UserStory[]
+  story_count: number
+}
+
+export interface UserStoryWithRelations extends UserStory {
+  releases: StoryRelease[]
+  touchpoints: TouchpointStoryLink[]
+  blueprint_steps: BlueprintStoryLink[]
+  touchpoint_count: number
+  blueprint_count: number
+}
 ```
 
-## Integration with Existing Systems
+## Table View UX Design
 
-### 1. Canvas Items Integration
-
-Touchpoints and blueprint activities can reference CanvasItems:
-
-```sql
--- Add to journey_mappings examples
-INSERT INTO journey_mappings (
-  source_type, source_id,
-  target_type, target_id,
-  mapping_type
-) VALUES (
-  'touchpoint', '...touchpoint-uuid...',
-  'canvas_item', '...canvas-item-uuid...',
-  'delivers_gain'
-);
-```
-
-### 2. Assumptions & Evidence
-
-Link journey elements to assumptions for hypothesis testing:
-
-```sql
--- Touchpoint validates an assumption
-INSERT INTO touchpoint_assumptions (
-  touchpoint_id, assumption_id, relationship_type
-) VALUES (
-  '...touchpoint-uuid...',
-  '...assumption-uuid...',
-  'tests'
-);
-
--- Collect evidence
-INSERT INTO touchpoint_evidence (
-  touchpoint_id, evidence_type, title, summary, supports_design, confidence
-) VALUES (
-  '...touchpoint-uuid...',
-  'user_test',
-  'Usability test of checkout flow',
-  '8/10 users completed successfully',
-  true,
-  'high'
-);
-```
-
-### 3. View System Integration
-
-Boundary objects work with all view types:
-
-**Table View** (default)
-- List journeys, blueprints, flows
-- Sort/filter by status, validation, customer profile
-
-**Kanban View**
-- Group by status (draft → active → validated)
-- Group by validation_status
-- Drag to progress
-
-**Canvas View**
-- Journey: Linear/swimlane visualization
-- Blueprint: Layered swimlane (frontstage/backstage)
-- Flow: Node-edge diagram with FlowNode positions
-
-**Grid View**
-- Card-based display with key metrics
-- Visual indicators for pain points, validation status
-
-## Admin UI Components
-
-### New Admin Routes
+### Navigation Hierarchy (Breadcrumbs)
 
 ```
-/admin/journeys              - List user journeys
-/admin/journeys/new          - Create journey
-/admin/journeys/[id]         - View journey (canvas)
-/admin/journeys/[id]/edit    - Edit journey
-
-/admin/blueprints            - List service blueprints
-/admin/blueprints/new        - Create blueprint
-/admin/blueprints/[id]       - View blueprint (canvas)
-/admin/blueprints/[id]/edit  - Edit blueprint
-
-/admin/flows                 - List process flows
-/admin/flows/new             - Create flow
-/admin/flows/[id]            - View flow (canvas)
-/admin/flows/[id]/edit       - Edit flow
+Projects → [Project Name] → Journeys → [Journey Name] → Stages → [Stage Name] → Touchpoints
+                          ↓
+                     Blueprints → [Blueprint Name] → Steps
+                          ↓
+                     Story Maps → [Story Map Name] → Activities → Stories
 ```
 
-### Form Components
+### Primary Views (All Table-Based)
 
-```typescript
-// components/admin/user-journey-form.tsx
-// components/admin/service-blueprint-form.tsx
-// components/admin/process-flow-form.tsx
+#### 1. Journeys List View
+
+**Table Columns:**
+- Name (sortable, editable inline)
+- Customer Profile (linked chip)
+- # Stages
+- # Touchpoints
+- Status (draft/active/validated)
+- Validation Status (with icon)
+- Pain Points (count of high-pain touchpoints)
+- Last Updated
+
+**Filters:**
+- Status
+- Validation Status
+- Customer Profile
+- Tags
+
+**Bulk Actions:**
+- Change Status
+- Export to CSV
+- Delete
+
+**Row Actions:**
+- Edit
+- Duplicate
+- View Details (drill-down)
+
+#### 2. Journey Detail View (Nested Table)
+
+**Structure: Expandable Rows**
+
+```
+Journey: "E-commerce Checkout"
+└─ Stages Table
+   ├─ [Expandable] Stage: "Cart Review"
+   │  └─ Touchpoints Table
+   │     ├─ Touchpoint: "View Cart Summary" [pain: minor] [3 stories]
+   │     │  └─ [Expandable] Related Stories:
+   │     │     ├─ Story: "Improve cart layout"
+   │     │     ├─ Story: "Add quantity editor"
+   │     │     └─ Story: "Show shipping estimate"
+   │     └─ Touchpoint: "Apply Coupon" [pain: major] [1 story]
+   ├─ [Expandable] Stage: "Payment Entry"
+   └─ [Expandable] Stage: "Confirmation"
 ```
 
-Each follows the pattern of existing canvas forms with AI-assisted field generation.
+**Inline Editing:**
+- Click cell to edit
+- Tab to next field
+- Spreadsheet-like UX
 
-### Canvas Visualizations
+#### 3. Touchpoints Table View (Flat)
 
-```typescript
-// components/canvas/journey-canvas.tsx
-// - Horizontal swimlane with stages
-// - Touchpoints as cards within stages
-// - Emotion curve overlay
-// - Pain/delight indicators
+**All touchpoints across all journeys (useful for bulk management)**
 
-// components/canvas/blueprint-canvas.tsx
-// - Multi-layer swimlane
-// - Activities aligned vertically by time
-// - Connection lines between layers
-// - Line of visibility marker
+**Columns:**
+- Name
+- Journey → Stage (breadcrumb)
+- Channel Type
+- Pain Level (color-coded)
+- Experience Quality
+- Importance
+- # Stories (linked)
+- Validation Status
 
-// components/canvas/flow-canvas.tsx
-// - Node-edge diagram
-// - React Flow or similar library
-// - Zoomable/pannable
-// - Real-time layout
+**Filters:**
+- Journey
+- Stage
+- Channel Type
+- Pain Level (high pain = priority)
+- Importance
+
+**Bulk Edit:**
+- Update pain level
+- Assign to stories
+- Add evidence
+
+#### 4. Blueprints List View
+
+**Table Columns:**
+- Name
+- Journey (linked)
+- # Steps
+- Status
+- Validation Status
+- Last Updated
+
+#### 5. Blueprint Detail View (Grid Table)
+
+**Display: Time-sequenced grid**
+
+| Step | Customer | Frontstage | Backstage | Support | Stories |
+|------|----------|------------|-----------|---------|---------|
+| 1. Card Entry | Enters details | Show validation | Call fraud API | Stripe gateway | 3 stories |
+| 2. Verify | Waits | Display loading | Process payment | Payment processor | 2 stories |
+| 3. Confirm | Sees confirmation | Show receipt | Log transaction | Analytics | 1 story |
+
+**Inline Editing:**
+- Click cell to edit layer text
+- Add/remove steps (columns)
+- Link stories via multi-select
+
+#### 6. Story Maps List View
+
+**Table Columns:**
+- Name
+- Journey (linked)
+- Blueprint (linked)
+- # Activities
+- # Stories
+- Status
+- Last Updated
+
+#### 7. Story Map Detail View (Grouped Table)
+
+**Structure: Group by Activity**
+
 ```
+Story Map: "Checkout Features"
+
+Activity: "Cart Management" (sequence: 1)
+├─ Story: "Improve cart layout" [high] [Sprint 2] [in_progress]
+├─ Story: "Add quantity editor" [medium] [Sprint 2] [ready]
+└─ Story: "Show shipping estimate" [low] [Sprint 3] [backlog]
+
+Activity: "Payment Processing" (sequence: 2)
+├─ Story: "Implement Stripe" [critical] [Sprint 1] [done]
+├─ Story: "Card validation UI" [high] [Sprint 2] [in_progress]
+└─ Story: "Fraud detection" [high] [Sprint 3] [backlog]
+
+Activity: "Order Confirmation" (sequence: 3)
+└─ Story: "Email receipt" [medium] [Sprint 2] [ready]
+```
+
+**View Options:**
+- Group by: Activity / Release / Status / Priority
+- Sort by: Priority / Story Points / Status
+- Filter by: Release, Status, Tag
+
+**Bulk Actions:**
+- Assign to release
+- Update priority
+- Change status
+- Link to touchpoints
+
+#### 8. Cross-Reference Views
+
+**Touchpoint → Stories View**
+
+| Touchpoint | Pain Level | Stories Linked | Impact |
+|------------|-----------|----------------|---------|
+| "Enter card details" | major | 3 stories | fixes_pain, enables |
+| "Apply coupon" | major | 1 story | fixes_pain |
+| "View receipt" | minor | 1 story | improves |
+
+**Story → Touchpoints View**
+
+| Story | Priority | Touchpoints | Blueprint Steps |
+|-------|----------|-------------|-----------------|
+| "Card validation UI" | high | 1 touchpoint | 2 steps |
+| "Stripe integration" | critical | 2 touchpoints | 3 steps |
+
+## Simplified View Types
+
+### Table View (Primary)
+- Default for all lists
+- Inline editing
+- Bulk operations
+- Export to CSV
+- Filtering, sorting, grouping
+- Expandable rows for hierarchy
+
+### Grid View (Secondary)
+- Card-based display
+- Visual indicators (pain levels, validation status)
+- Good for overview/scanning
+- Less dense than table
+
+### Kanban View (Optional)
+- Story Maps: Group by status or release
+- Journeys: Group by validation status
+- Drag-and-drop to change status/release
+
+### Simple Visualization (No Freeform Canvas)
+- **Journey Timeline**: Horizontal stages with touchpoint counts
+- **Blueprint Grid**: Table with layer rows × time columns
+- **Story Map Hierarchy**: Tree/outline view with expand/collapse
+- All views are **structured, not freeform**
 
 ## Migration Strategy
 
-### Phase 1: Core Journey Entities (Week 1)
-- [ ] Create database migration for user_journeys, journey_stages, touchpoints
-- [ ] Add TypeScript types
-- [ ] Create basic CRUD operations
-- [ ] Admin table views for journeys
+### Phase 1: User Journeys (Week 1-2)
+- [ ] Database migration: user_journeys, journey_stages, touchpoints
+- [ ] TypeScript types
+- [ ] Basic CRUD operations
+- [ ] Admin table views (list, detail with nested stages/touchpoints)
+- [ ] Inline editing for touchpoints
+- [ ] CSV export
 
-### Phase 2: Journey Mappings & Evidence (Week 1-2)
-- [ ] journey_mappings table
+### Phase 2: Journey Mappings & Evidence (Week 2-3)
+- [ ] touchpoint_mappings table
 - [ ] touchpoint_assumptions junction
-- [ ] touchpoint_evidence
+- [ ] touchpoint_evidence table
 - [ ] Integration with CanvasItems
-- [ ] Journey detail view with mappings
+- [ ] Mapping UI in touchpoint detail
+- [ ] Evidence collection forms
 
-### Phase 3: Service Blueprints (Week 2-3)
-- [ ] Blueprint tables (service_blueprints, blueprint_layers, blueprint_activities, activity_links)
+### Phase 3: Service Blueprints (Week 3-4)
+- [ ] service_blueprints, blueprint_steps tables
 - [ ] Blueprint CRUD
-- [ ] Blueprint admin views
-- [ ] Blueprint canvas visualization
+- [ ] Blueprint grid view (layer × time table)
+- [ ] Inline editing for layers
+- [ ] Link blueprint steps to touchpoints
 
-### Phase 4: Process Flows (Week 3-4)
-- [ ] Flow tables (process_flows, flow_nodes, flow_connections)
-- [ ] Flow CRUD
-- [ ] Flow admin views
-- [ ] Flow canvas visualization (React Flow integration)
+### Phase 4: Story Maps (Week 4-5)
+- [ ] story_maps, activities, user_stories, story_releases tables
+- [ ] Story map CRUD
+- [ ] Grouped table view (by activity)
+- [ ] Bulk story operations
+- [ ] Release planning interface
 
-### Phase 5: Canvas Views & Visualization (Week 4-5)
-- [ ] Journey canvas component
-- [ ] Blueprint canvas component
-- [ ] Flow canvas component
-- [ ] View switcher integration
-- [ ] Export/sharing capabilities
+### Phase 5: Hierarchy Links (Week 5-6)
+- [ ] touchpoint_story_links table
+- [ ] blueprint_story_links table
+- [ ] Cross-reference views (touchpoint → stories, story → touchpoints)
+- [ ] Link management UI
+- [ ] Impact visualization
 
-### Phase 6: Polish & Integration (Week 5-6)
-- [ ] AI-assisted journey creation
-- [ ] Cross-entity navigation
+### Phase 6: Polish & Integration (Week 6-7)
+- [ ] AI-assisted journey/story creation
+- [ ] Cross-entity navigation improvements
 - [ ] Validation dashboards
-- [ ] Evidence aggregation views
+- [ ] Evidence aggregation
+- [ ] Export improvements
 - [ ] Documentation
 
-## Example Use Cases
+## Example Use Case: E-commerce Checkout
 
-### Use Case 1: E-commerce Checkout Journey
+### 1. Create Journey
 
 ```typescript
-// Create journey
 const journey = await createUserJourney({
   name: "E-commerce Checkout",
   customer_profile_id: "customer-profile-uuid",
@@ -1151,8 +1504,7 @@ const stage1 = await createJourneyStage({
   name: "Cart Review",
   sequence: 1,
   stage_type: "purchase",
-  customer_emotion: "cautious",
-  customer_goal: "Verify items and pricing"
+  customer_emotion: "cautious"
 })
 
 // Add touchpoints
@@ -1161,113 +1513,130 @@ const touchpoint1 = await createTouchpoint({
   name: "View Cart Summary",
   sequence: 1,
   channel_type: "web",
-  interaction_type: "browse",
-  importance: "high",
-  current_experience_quality: "good",
-  pain_level: "minor"
-})
-
-// Link to canvas item (e.g., "Fast Checkout" value proposition)
-await createJourneyMapping({
-  source_type: "touchpoint",
-  source_id: touchpoint1.id,
-  target_type: "canvas_item",
-  target_id: "canvas-item-uuid",
-  mapping_type: "delivers_gain"
+  pain_level: "minor",
+  importance: "high"
 })
 ```
 
-### Use Case 2: Service Blueprint for Customer Support
+### 2. Create Blueprint
 
 ```typescript
-// Create blueprint
 const blueprint = await createServiceBlueprint({
-  name: "Live Chat Support",
-  blueprint_type: "service",
-  user_journey_id: "journey-uuid"
+  name: "Checkout Flow Blueprint",
+  user_journey_id: journey.id, // HIERARCHY
+  blueprint_type: "digital"
 })
 
-// Add layers
-const customerLayer = await createBlueprintLayer({
+// Add step
+const step1 = await createBlueprintStep({
   service_blueprint_id: blueprint.id,
-  name: "Customer Actions",
-  layer_type: "customer_actions",
+  name: "Payment Entry",
   sequence: 1,
-  visibility_to_customer: true
-})
-
-const frontstageLayer = await createBlueprintLayer({
-  service_blueprint_id: blueprint.id,
-  name: "Support Agent",
-  layer_type: "frontstage",
-  sequence: 2,
-  visibility_to_customer: true
-})
-
-const backstageLayer = await createBlueprintLayer({
-  service_blueprint_id: blueprint.id,
-  name: "Knowledge Base System",
-  layer_type: "backstage",
-  sequence: 3,
-  visibility_to_customer: false
-})
-
-// Add activities
-const customerActivity = await createBlueprintActivity({
-  blueprint_layer_id: customerLayer.id,
-  name: "Initiate chat",
-  sequence: 1,
-  actor: "Customer"
-})
-
-const agentActivity = await createBlueprintActivity({
-  blueprint_layer_id: frontstageLayer.id,
-  name: "Greet customer, gather issue",
-  sequence: 1,
-  actor: "Support Agent",
-  customer_value_delivery: "high"
-})
-
-// Link activities
-await createActivityLink({
-  from_activity_id: customerActivity.id,
-  to_activity_id: agentActivity.id,
-  link_type: "triggers"
+  touchpoint_id: touchpoint1.id, // HIERARCHY
+  layers: {
+    customer_action: "Enters credit card details",
+    frontstage: "Real-time validation feedback",
+    backstage: "Call fraud detection API",
+    support_process: "Stripe payment gateway"
+  }
 })
 ```
 
-## Open Questions & Decisions Needed
+### 3. Create Story Map
 
-1. **CanvasItems Extension**: Should touchpoints be CanvasItems themselves? Or keep separate?
-   - **Recommendation**: Keep separate - touchpoints are temporal/sequential, canvas items are abstract
+```typescript
+const storyMap = await createStoryMap({
+  name: "Checkout Features",
+  service_blueprint_id: blueprint.id, // HIERARCHY
+  user_journey_id: journey.id
+})
 
-2. **Journey Stage Templates**: Create predefined stage templates (e.g., "Awareness-Consideration-Purchase")?
-   - **Recommendation**: Yes, add to metadata with common patterns
+// Add activity
+const activity1 = await createActivity({
+  story_map_id: storyMap.id,
+  name: "Payment Processing",
+  sequence: 1
+})
 
-3. **Emotion Tracking**: Use structured emotion taxonomy or free text?
-   - **Recommendation**: Start with free text, evolve to taxonomy based on usage
+// Add story
+const story1 = await createUserStory({
+  activity_id: activity1.id,
+  title: "As a customer, I want real-time card validation",
+  priority: "high",
+  story_points: 5
+})
 
-4. **Blueprint Visualization**: Build custom or use library like React Flow?
-   - **Recommendation**: React Flow for flows, custom SVG for blueprints (layered swimlanes)
+// Link story to touchpoint
+await createTouchpointStoryLink({
+  touchpoint_id: touchpoint1.id,
+  user_story_id: story1.id,
+  impact_type: "fixes_pain"
+})
 
-5. **AI Assistance**: Generate journey stages from customer profile? Suggest touchpoints?
-   - **Recommendation**: Phase 6 - yes, similar to canvas AI assistance
+// Link story to blueprint step
+await createBlueprintStoryLink({
+  blueprint_step_id: step1.id,
+  user_story_id: story1.id,
+  implements_layer: "frontstage"
+})
+```
+
+### 4. Table View Display
+
+**Journey Detail (Nested)**
+```
+Journey: "E-commerce Checkout"
+└─ Stage: "Cart Review" [cautious]
+   └─ Touchpoint: "View Cart Summary" [pain: minor] [high importance]
+      Related Stories: 1 story → "Real-time card validation"
+```
+
+**Blueprint Grid**
+| Step | Customer | Frontstage | Backstage | Support | Stories |
+|------|----------|------------|-----------|---------|---------|
+| Payment Entry | Enters card | Validation | Fraud API | Stripe | 1: Card validation |
+
+**Story Map (Grouped by Activity)**
+```
+Activity: "Payment Processing"
+└─ Story: "Real-time card validation" [high] [5 pts]
+   Enables: 1 touchpoint (View Cart Summary)
+   Implements: 1 blueprint step (Payment Entry → frontstage)
+```
 
 ## Success Metrics
 
 - **Adoption**: 5+ journeys mapped per active project
-- **Integration**: 80%+ of touchpoints linked to canvas items
-- **Validation**: 60%+ of journey assumptions tested with evidence
-- **Usage**: Canvas view used for 40%+ of journey/blueprint sessions
-- **Insight**: Cross-references between journeys and value props used in planning
+- **Integration**: 70%+ of touchpoints linked to stories
+- **Validation**: 60%+ of touchpoints have evidence
+- **Table Usage**: 90%+ of interactions via table views (not canvas)
+- **Insight**: Cross-references (touchpoint → story) used in sprint planning
+
+## Open Questions
+
+1. **Story Independence**: Can stories exist without journeys/blueprints? (e.g., tech debt)
+   - **Recommendation**: Yes, make all links optional
+
+2. **Blueprint Requirement**: Required for every journey or optional?
+   - **Recommendation**: Optional - journeys can exist alone
+
+3. **Grid Editing UX**: Should blueprint layer cells be textarea or modal?
+   - **Recommendation**: Textarea for quick edits, modal for longer content
+
+4. **Release Management**: Integrate with existing sprint/release tracking?
+   - **Recommendation**: Phase 2 - simple text field initially, integrate later
+
+5. **AI Assistance Scope**: Generate journeys from customer profiles? Suggest stories from touchpoints?
+   - **Recommendation**: Phase 6 - start with touchpoint → story suggestions
 
 ## References
 
-- Existing canvas system: `/docs/database/strategyzer-canvas-schema.md`
-- Canvas items spec: `/docs/database/canvas-items-spec.md`
+- Original spec (v1.0): `/docs/database/boundary-objects-entity-system-spec.md`
+- Strategyzer canvases: `/docs/database/strategyzer-canvas-schema.md`
+- Canvas items: `/docs/database/canvas-items-spec.md`
 - View system: `/components/admin/admin-data-view.tsx`
-- Experience systems research: `/docs/studio/experience-systems/exploration/`
 
 ---
 
-**Next Steps**: Review this spec, gather feedback, prioritize phases, begin Phase 1 implementation.
+**Status**: Ready for review and feedback
+**Next Steps**: Review hierarchy, confirm table-first approach, begin Phase 1 implementation
