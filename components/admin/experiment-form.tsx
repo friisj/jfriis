@@ -4,17 +4,9 @@ import { useState, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { FormFieldWithAI } from '@/components/forms'
-
-interface StudioProject {
-  id: string
-  name: string
-}
-
-interface Hypothesis {
-  id: string
-  statement: string
-  sequence: number
-}
+import { SidebarCard } from './sidebar-card'
+import { FormActions } from './form-actions'
+import { RelationshipField } from './relationship-field'
 
 interface Experiment {
   id: string
@@ -67,8 +59,6 @@ export function ExperimentForm({ experiment, mode }: ExperimentFormProps) {
   const searchParams = useSearchParams()
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [projects, setProjects] = useState<StudioProject[]>([])
-  const [hypotheses, setHypotheses] = useState<Hypothesis[]>([])
 
   // Get project from URL if creating new
   const projectFromUrl = searchParams.get('project')
@@ -85,34 +75,6 @@ export function ExperimentForm({ experiment, mode }: ExperimentFormProps) {
     outcome: experiment?.outcome || '',
     learnings: experiment?.learnings || '',
   })
-
-  useEffect(() => {
-    async function loadProjects() {
-      const { data } = await supabase
-        .from('studio_projects')
-        .select('id, name')
-        .order('name')
-      if (data) setProjects(data)
-    }
-    loadProjects()
-  }, [])
-
-  // Load hypotheses when project changes
-  useEffect(() => {
-    if (formData.project_id) {
-      async function loadHypotheses() {
-        const { data } = await supabase
-          .from('studio_hypotheses')
-          .select('id, statement, sequence')
-          .eq('project_id', formData.project_id)
-          .order('sequence')
-        if (data) setHypotheses(data)
-      }
-      loadHypotheses()
-    } else {
-      setHypotheses([])
-    }
-  }, [formData.project_id])
 
   // Auto-generate slug from name in create mode
   useEffect(() => {
@@ -165,7 +127,7 @@ export function ExperimentForm({ experiment, mode }: ExperimentFormProps) {
   }
 
   const handleDelete = async () => {
-    if (!experiment || !confirm('Are you sure you want to delete this experiment?')) return
+    if (!experiment) return
 
     setSaving(true)
     try {
@@ -194,238 +156,206 @@ export function ExperimentForm({ experiment, mode }: ExperimentFormProps) {
         </div>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div>
-          <label className="block text-sm font-medium mb-1">Studio Project *</label>
-          <select
-            value={formData.project_id}
-            onChange={(e) => setFormData({ ...formData, project_id: e.target.value, hypothesis_id: '' })}
-            className="w-full px-3 py-2 rounded-lg border bg-background"
-            required
-          >
-            <option value="">Select a project...</option>
-            {projects.map((project) => (
-              <option key={project.id} value={project.id}>
-                {project.name}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium mb-1">Linked Hypothesis</label>
-          <select
-            value={formData.hypothesis_id}
-            onChange={(e) => setFormData({ ...formData, hypothesis_id: e.target.value })}
-            className="w-full px-3 py-2 rounded-lg border bg-background"
-            disabled={!formData.project_id}
-          >
-            <option value="">No hypothesis (standalone experiment)</option>
-            {hypotheses.map((h) => (
-              <option key={h.id} value={h.id}>
-                #{h.sequence}: {h.statement.slice(0, 60)}...
-              </option>
-            ))}
-          </select>
-          <p className="text-xs text-muted-foreground mt-1">
-            {formData.project_id ? 'Optional: Link to a hypothesis being tested' : 'Select a project first'}
-          </p>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <FormFieldWithAI
-          label="Name *"
-          fieldName="name"
-          entityType="studio_experiments"
-          context={{
-            project_id: formData.project_id,
-            hypothesis_id: formData.hypothesis_id,
-            type: formData.type,
-          }}
-          currentValue={formData.name}
-          onGenerate={(content) => setFormData({ ...formData, name: content })}
-          disabled={saving}
-        >
-          <input
-            type="text"
-            value={formData.name}
-            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-            className="w-full px-3 py-2 rounded-lg border bg-background"
-            required
-            placeholder="e.g., Landing page A/B test"
-          />
-        </FormFieldWithAI>
-
-        <div>
-          <label className="block text-sm font-medium mb-1">Slug</label>
-          <input
-            type="text"
-            value={formData.slug}
-            onChange={(e) => setFormData({ ...formData, slug: e.target.value })}
-            className="w-full px-3 py-2 rounded-lg border bg-background font-mono text-sm"
-            required
-            placeholder="landing-page-ab-test"
-          />
-          <p className="text-xs text-muted-foreground mt-1">
-            URL-friendly identifier (auto-generated from name)
-          </p>
-        </div>
-      </div>
-
-      <FormFieldWithAI
-        label="Description"
-        fieldName="description"
-        entityType="studio_experiments"
-        context={{
-          project_id: formData.project_id,
-          hypothesis_id: formData.hypothesis_id,
-          name: formData.name,
-          type: formData.type,
-        }}
-        currentValue={formData.description}
-        onGenerate={(content) => setFormData({ ...formData, description: content })}
-        disabled={saving}
-      >
-        <textarea
-          value={formData.description}
-          onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-          className="w-full px-3 py-2 rounded-lg border bg-background"
-          rows={3}
-          placeholder="What are we testing and how?"
-        />
-      </FormFieldWithAI>
-
-      <div>
-        <label className="block text-sm font-medium mb-2">Type</label>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
-          {types.map((t) => (
-            <label
-              key={t.value}
-              className={`flex flex-col p-3 rounded-lg border cursor-pointer transition-colors ${
-                formData.type === t.value
-                  ? 'border-primary bg-primary/5'
-                  : 'border-border hover:border-primary/50'
-              }`}
-            >
-              <input
-                type="radio"
-                name="type"
-                value={t.value}
-                checked={formData.type === t.value}
-                onChange={(e) => setFormData({ ...formData, type: e.target.value })}
-                className="sr-only"
-              />
-              <span className="font-medium text-sm">{t.label}</span>
-              <span className="text-xs text-muted-foreground">{t.description}</span>
-            </label>
-          ))}
-        </div>
-      </div>
-
-      <div>
-        <label className="block text-sm font-medium mb-2">Status</label>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-          {statuses.map((s) => (
-            <label
-              key={s.value}
-              className={`flex flex-col p-3 rounded-lg border cursor-pointer transition-colors ${
-                formData.status === s.value
-                  ? 'border-primary bg-primary/5'
-                  : 'border-border hover:border-primary/50'
-              }`}
-            >
-              <input
-                type="radio"
-                name="status"
-                value={s.value}
-                checked={formData.status === s.value}
-                onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-                className="sr-only"
-              />
-              <span className="font-medium text-sm">{s.label}</span>
-              <span className="text-xs text-muted-foreground">{s.description}</span>
-            </label>
-          ))}
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div>
-          <label className="block text-sm font-medium mb-1">Outcome</label>
-          <select
-            value={formData.outcome}
-            onChange={(e) => setFormData({ ...formData, outcome: e.target.value })}
-            className="w-full px-3 py-2 rounded-lg border bg-background"
-          >
-            {outcomes.map((o) => (
-              <option key={o.value} value={o.value}>
-                {o.label}
-                {o.description ? ` - ${o.description}` : ''}
-              </option>
-            ))}
-          </select>
-          <p className="text-xs text-muted-foreground mt-1">
-            Set after experiment completes
-          </p>
-        </div>
-      </div>
-
-      <FormFieldWithAI
-        label="Learnings"
-        fieldName="learnings"
-        entityType="studio_experiments"
-        context={{
-          name: formData.name,
-          description: formData.description,
-          type: formData.type,
-          status: formData.status,
-          outcome: formData.outcome,
-        }}
-        currentValue={formData.learnings}
-        onGenerate={(content) => setFormData({ ...formData, learnings: content })}
-        disabled={saving}
-        description="Document key insights regardless of outcome"
-      >
-        <textarea
-          value={formData.learnings}
-          onChange={(e) => setFormData({ ...formData, learnings: e.target.value })}
-          className="w-full px-3 py-2 rounded-lg border bg-background"
-          rows={4}
-          placeholder="What did we learn from this experiment?"
-        />
-      </FormFieldWithAI>
-
-      <div className="flex items-center justify-between pt-4 border-t">
-        <div>
-          {mode === 'edit' && (
-            <button
-              type="button"
-              onClick={handleDelete}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Main Content */}
+        <div className="lg:col-span-2 space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <FormFieldWithAI
+              label="Name *"
+              fieldName="name"
+              entityType="studio_experiments"
+              context={{
+                project_id: formData.project_id,
+                hypothesis_id: formData.hypothesis_id,
+                type: formData.type,
+              }}
+              currentValue={formData.name}
+              onGenerate={(content) => setFormData({ ...formData, name: content })}
               disabled={saving}
-              className="px-4 py-2 text-red-600 hover:bg-red-500/10 rounded-lg transition-colors"
             >
-              Delete
-            </button>
-          )}
-        </div>
-        <div className="flex items-center gap-3">
-          <button
-            type="button"
-            onClick={() => router.back()}
-            className="px-4 py-2 border rounded-lg hover:bg-accent transition-colors"
-          >
-            Cancel
-          </button>
-          <button
-            type="submit"
+              <input
+                type="text"
+                value={formData.name}
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                className="w-full px-3 py-2 rounded-lg border bg-background"
+                required
+                placeholder="e.g., Landing page A/B test"
+              />
+            </FormFieldWithAI>
+
+            <div>
+              <label className="block text-sm font-medium mb-1">Slug</label>
+              <input
+                type="text"
+                value={formData.slug}
+                onChange={(e) => setFormData({ ...formData, slug: e.target.value })}
+                className="w-full px-3 py-2 rounded-lg border bg-background font-mono text-sm"
+                required
+                placeholder="landing-page-ab-test"
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                URL-friendly identifier (auto-generated from name)
+              </p>
+            </div>
+          </div>
+
+          <FormFieldWithAI
+            label="Description"
+            fieldName="description"
+            entityType="studio_experiments"
+            context={{
+              project_id: formData.project_id,
+              hypothesis_id: formData.hypothesis_id,
+              name: formData.name,
+              type: formData.type,
+            }}
+            currentValue={formData.description}
+            onGenerate={(content) => setFormData({ ...formData, description: content })}
             disabled={saving}
-            className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50"
           >
-            {saving ? 'Saving...' : mode === 'edit' ? 'Save Changes' : 'Create Experiment'}
-          </button>
+            <textarea
+              value={formData.description}
+              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+              className="w-full px-3 py-2 rounded-lg border bg-background"
+              rows={3}
+              placeholder="What are we testing and how?"
+            />
+          </FormFieldWithAI>
+
+          <FormFieldWithAI
+            label="Learnings"
+            fieldName="learnings"
+            entityType="studio_experiments"
+            context={{
+              name: formData.name,
+              description: formData.description,
+              type: formData.type,
+              status: formData.status,
+              outcome: formData.outcome,
+            }}
+            currentValue={formData.learnings}
+            onGenerate={(content) => setFormData({ ...formData, learnings: content })}
+            disabled={saving}
+            description="Document key insights regardless of outcome"
+          >
+            <textarea
+              value={formData.learnings}
+              onChange={(e) => setFormData({ ...formData, learnings: e.target.value })}
+              className="w-full px-3 py-2 rounded-lg border bg-background"
+              rows={4}
+              placeholder="What did we learn from this experiment?"
+            />
+          </FormFieldWithAI>
+        </div>
+
+        {/* Sidebar */}
+        <div className="space-y-6">
+          <SidebarCard title="Relationships">
+            <RelationshipField
+              label="Studio Project"
+              value={formData.project_id}
+              onChange={(id) => setFormData({ ...formData, project_id: id as string, hypothesis_id: '' })}
+              tableName="studio_projects"
+              displayField="name"
+              mode="single"
+              required
+              placeholder="Select a project..."
+            />
+            <RelationshipField
+              label="Linked Hypothesis"
+              value={formData.hypothesis_id}
+              onChange={(id) => setFormData({ ...formData, hypothesis_id: id as string })}
+              tableName="studio_hypotheses"
+              displayField="statement"
+              mode="single"
+              filterBy={{ field: 'project_id', value: formData.project_id || null }}
+              disabled={!formData.project_id}
+              placeholder="No hypothesis (standalone)"
+              helperText={formData.project_id ? 'Optional: Link to a hypothesis' : 'Select a project first'}
+            />
+          </SidebarCard>
+
+          <SidebarCard title="Type">
+            <div className="space-y-2">
+              {types.map((t) => (
+                <label
+                  key={t.value}
+                  className={`flex flex-col p-3 rounded-lg border cursor-pointer transition-colors ${
+                    formData.type === t.value
+                      ? 'border-primary bg-primary/5'
+                      : 'border-border hover:border-primary/50'
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="type"
+                    value={t.value}
+                    checked={formData.type === t.value}
+                    onChange={(e) => setFormData({ ...formData, type: e.target.value })}
+                    className="sr-only"
+                  />
+                  <span className="font-medium text-sm">{t.label}</span>
+                  <span className="text-xs text-muted-foreground">{t.description}</span>
+                </label>
+              ))}
+            </div>
+          </SidebarCard>
+
+          <SidebarCard title="Status">
+            <div className="space-y-2">
+              {statuses.map((s) => (
+                <label
+                  key={s.value}
+                  className={`flex flex-col p-3 rounded-lg border cursor-pointer transition-colors ${
+                    formData.status === s.value
+                      ? 'border-primary bg-primary/5'
+                      : 'border-border hover:border-primary/50'
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="status"
+                    value={s.value}
+                    checked={formData.status === s.value}
+                    onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+                    className="sr-only"
+                  />
+                  <span className="font-medium text-sm">{s.label}</span>
+                  <span className="text-xs text-muted-foreground">{s.description}</span>
+                </label>
+              ))}
+            </div>
+          </SidebarCard>
+
+          <SidebarCard title="Outcome">
+            <div>
+              <select
+                value={formData.outcome}
+                onChange={(e) => setFormData({ ...formData, outcome: e.target.value })}
+                className="w-full px-3 py-2 rounded-lg border bg-background"
+              >
+                {outcomes.map((o) => (
+                  <option key={o.value} value={o.value}>
+                    {o.label}
+                    {o.description ? ` - ${o.description}` : ''}
+                  </option>
+                ))}
+              </select>
+              <p className="text-xs text-muted-foreground mt-2">
+                Set after experiment completes
+              </p>
+            </div>
+          </SidebarCard>
         </div>
       </div>
+
+      <FormActions
+        isSubmitting={saving}
+        submitLabel={mode === 'edit' ? 'Save Changes' : 'Create Experiment'}
+        onCancel={() => router.back()}
+        onDelete={mode === 'edit' ? handleDelete : undefined}
+        deleteConfirmMessage="Are you sure you want to delete this experiment?"
+      />
     </form>
   )
 }

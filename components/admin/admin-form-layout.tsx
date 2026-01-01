@@ -7,6 +7,7 @@ interface AdminFormLayoutProps {
   backHref: string
   backLabel: string
   children: ReactNode
+  sidebar?: ReactNode
 }
 
 export function AdminFormLayout({
@@ -15,10 +16,13 @@ export function AdminFormLayout({
   backHref,
   backLabel,
   children,
+  sidebar,
 }: AdminFormLayoutProps) {
+  const hasSidebar = !!sidebar
+
   return (
     <div className="p-8">
-      <div className="max-w-4xl mx-auto">
+      <div className={hasSidebar ? 'max-w-7xl mx-auto' : 'max-w-4xl mx-auto'}>
         {/* Back navigation */}
         <Link
           href={backHref}
@@ -36,8 +40,19 @@ export function AdminFormLayout({
           {description && <p className="text-muted-foreground">{description}</p>}
         </div>
 
-        {/* Form content */}
-        {children}
+        {/* Content with optional sidebar */}
+        {hasSidebar ? (
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="lg:col-span-2">
+              {children}
+            </div>
+            <div className="space-y-6">
+              {sidebar}
+            </div>
+          </div>
+        ) : (
+          children
+        )}
       </div>
     </div>
   )

@@ -4,11 +4,9 @@ import { useState, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { FormFieldWithAI } from '@/components/forms'
-
-interface StudioProject {
-  id: string
-  name: string
-}
+import { SidebarCard } from './sidebar-card'
+import { FormActions } from './form-actions'
+import { RelationshipField } from './relationship-field'
 
 interface Hypothesis {
   id: string
@@ -36,7 +34,6 @@ export function HypothesisForm({ hypothesis, mode }: HypothesisFormProps) {
   const searchParams = useSearchParams()
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [projects, setProjects] = useState<StudioProject[]>([])
 
   // Get project from URL if creating new
   const projectFromUrl = searchParams.get('project')
@@ -48,17 +45,6 @@ export function HypothesisForm({ hypothesis, mode }: HypothesisFormProps) {
     sequence: hypothesis?.sequence || 1,
     status: hypothesis?.status || 'proposed',
   })
-
-  useEffect(() => {
-    async function loadProjects() {
-      const { data } = await supabase
-        .from('studio_projects')
-        .select('id, name')
-        .order('name')
-      if (data) setProjects(data)
-    }
-    loadProjects()
-  }, [])
 
   // Auto-calculate next sequence when project changes
   useEffect(() => {
@@ -118,7 +104,7 @@ export function HypothesisForm({ hypothesis, mode }: HypothesisFormProps) {
   }
 
   const handleDelete = async () => {
-    if (!hypothesis || !confirm('Are you sure you want to delete this hypothesis?')) return
+    if (!hypothesis) return
 
     setSaving(true)
     try {
@@ -147,139 +133,119 @@ export function HypothesisForm({ hypothesis, mode }: HypothesisFormProps) {
         </div>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div>
-          <label className="block text-sm font-medium mb-1">Studio Project *</label>
-          <select
-            value={formData.project_id}
-            onChange={(e) => setFormData({ ...formData, project_id: e.target.value })}
-            className="w-full px-3 py-2 rounded-lg border bg-background"
-            required
-          >
-            <option value="">Select a project...</option>
-            {projects.map((project) => (
-              <option key={project.id} value={project.id}>
-                {project.name}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium mb-1">Sequence</label>
-          <input
-            type="number"
-            min="1"
-            value={formData.sequence}
-            onChange={(e) => setFormData({ ...formData, sequence: parseInt(e.target.value) || 1 })}
-            className="w-full px-3 py-2 rounded-lg border bg-background"
-          />
-          <p className="text-xs text-muted-foreground mt-1">Order in the validation roadmap</p>
-        </div>
-      </div>
-
-      <FormFieldWithAI
-        label="Hypothesis Statement *"
-        fieldName="statement"
-        entityType="studio_hypotheses"
-        context={{
-          project_id: formData.project_id,
-          status: formData.status,
-        }}
-        currentValue={formData.statement}
-        onGenerate={(content) => setFormData({ ...formData, statement: content })}
-        disabled={saving}
-        description='Use "If we... then... because..." format'
-      >
-        <textarea
-          value={formData.statement}
-          onChange={(e) => setFormData({ ...formData, statement: e.target.value })}
-          className="w-full px-3 py-2 rounded-lg border bg-background"
-          rows={3}
-          required
-          placeholder="If we [do X], then [Y will happen] because [rationale]..."
-        />
-      </FormFieldWithAI>
-
-      <FormFieldWithAI
-        label="Validation Criteria"
-        fieldName="validation_criteria"
-        entityType="studio_hypotheses"
-        context={{
-          project_id: formData.project_id,
-          statement: formData.statement,
-          status: formData.status,
-        }}
-        currentValue={formData.validation_criteria}
-        onGenerate={(content) => setFormData({ ...formData, validation_criteria: content })}
-        disabled={saving}
-      >
-        <textarea
-          value={formData.validation_criteria}
-          onChange={(e) => setFormData({ ...formData, validation_criteria: e.target.value })}
-          className="w-full px-3 py-2 rounded-lg border bg-background"
-          rows={3}
-          placeholder="How will we know if this hypothesis is validated or invalidated?"
-        />
-      </FormFieldWithAI>
-
-      <div>
-        <label className="block text-sm font-medium mb-2">Status</label>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-          {statuses.map((s) => (
-            <label
-              key={s.value}
-              className={`flex flex-col p-3 rounded-lg border cursor-pointer transition-colors ${
-                formData.status === s.value
-                  ? 'border-primary bg-primary/5'
-                  : 'border-border hover:border-primary/50'
-              }`}
-            >
-              <input
-                type="radio"
-                name="status"
-                value={s.value}
-                checked={formData.status === s.value}
-                onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-                className="sr-only"
-              />
-              <span className="font-medium text-sm">{s.label}</span>
-              <span className="text-xs text-muted-foreground">{s.description}</span>
-            </label>
-          ))}
-        </div>
-      </div>
-
-      <div className="flex items-center justify-between pt-4 border-t">
-        <div>
-          {mode === 'edit' && (
-            <button
-              type="button"
-              onClick={handleDelete}
-              disabled={saving}
-              className="px-4 py-2 text-red-600 hover:bg-red-500/10 rounded-lg transition-colors"
-            >
-              Delete
-            </button>
-          )}
-        </div>
-        <div className="flex items-center gap-3">
-          <button
-            type="button"
-            onClick={() => router.back()}
-            className="px-4 py-2 border rounded-lg hover:bg-accent transition-colors"
-          >
-            Cancel
-          </button>
-          <button
-            type="submit"
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Main Content */}
+        <div className="lg:col-span-2 space-y-6">
+          <FormFieldWithAI
+            label="Hypothesis Statement *"
+            fieldName="statement"
+            entityType="studio_hypotheses"
+            context={{
+              project_id: formData.project_id,
+              status: formData.status,
+            }}
+            currentValue={formData.statement}
+            onGenerate={(content) => setFormData({ ...formData, statement: content })}
             disabled={saving}
-            className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50"
+            description='Use "If we... then... because..." format'
           >
-            {saving ? 'Saving...' : mode === 'edit' ? 'Save Changes' : 'Create Hypothesis'}
-          </button>
+            <textarea
+              value={formData.statement}
+              onChange={(e) => setFormData({ ...formData, statement: e.target.value })}
+              className="w-full px-3 py-2 rounded-lg border bg-background"
+              rows={4}
+              required
+              placeholder="If we [do X], then [Y will happen] because [rationale]..."
+            />
+          </FormFieldWithAI>
+
+          <FormFieldWithAI
+            label="Validation Criteria"
+            fieldName="validation_criteria"
+            entityType="studio_hypotheses"
+            context={{
+              project_id: formData.project_id,
+              statement: formData.statement,
+              status: formData.status,
+            }}
+            currentValue={formData.validation_criteria}
+            onGenerate={(content) => setFormData({ ...formData, validation_criteria: content })}
+            disabled={saving}
+          >
+            <textarea
+              value={formData.validation_criteria}
+              onChange={(e) => setFormData({ ...formData, validation_criteria: e.target.value })}
+              className="w-full px-3 py-2 rounded-lg border bg-background"
+              rows={4}
+              placeholder="How will we know if this hypothesis is validated or invalidated?"
+            />
+          </FormFieldWithAI>
+        </div>
+
+        {/* Sidebar */}
+        <div className="space-y-6">
+          <SidebarCard title="Project">
+            <RelationshipField
+              label="Studio Project"
+              value={formData.project_id}
+              onChange={(id) => setFormData({ ...formData, project_id: id as string })}
+              tableName="studio_projects"
+              displayField="name"
+              mode="single"
+              required
+              placeholder="Select a project..."
+            />
+          </SidebarCard>
+
+          <SidebarCard title="Settings">
+            <div>
+              <label className="block text-sm font-medium mb-1">Sequence</label>
+              <input
+                type="number"
+                min="1"
+                value={formData.sequence}
+                onChange={(e) => setFormData({ ...formData, sequence: parseInt(e.target.value) || 1 })}
+                className="w-full px-3 py-2 rounded-lg border bg-background"
+              />
+              <p className="text-xs text-muted-foreground mt-1">Order in the validation roadmap</p>
+            </div>
+          </SidebarCard>
+
+          <SidebarCard title="Status">
+            <div className="space-y-2">
+              {statuses.map((s) => (
+                <label
+                  key={s.value}
+                  className={`flex flex-col p-3 rounded-lg border cursor-pointer transition-colors ${
+                    formData.status === s.value
+                      ? 'border-primary bg-primary/5'
+                      : 'border-border hover:border-primary/50'
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="status"
+                    value={s.value}
+                    checked={formData.status === s.value}
+                    onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+                    className="sr-only"
+                  />
+                  <span className="font-medium text-sm">{s.label}</span>
+                  <span className="text-xs text-muted-foreground">{s.description}</span>
+                </label>
+              ))}
+            </div>
+          </SidebarCard>
         </div>
       </div>
+
+      <FormActions
+        isSubmitting={saving}
+        submitLabel={mode === 'edit' ? 'Save Changes' : 'Create Hypothesis'}
+        onCancel={() => router.back()}
+        onDelete={mode === 'edit' ? handleDelete : undefined}
+        deleteConfirmMessage="Are you sure you want to delete this hypothesis?"
+      />
     </form>
   )
 }

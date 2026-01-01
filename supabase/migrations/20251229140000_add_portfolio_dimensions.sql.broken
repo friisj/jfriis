@@ -23,6 +23,7 @@ ALTER TABLE projects
   -- Exploit Portfolio Dimensions (Existing Businesses)
   ADD COLUMN exploit_stage TEXT CHECK (exploit_stage IN ('launch', 'sustaining', 'efficiency', 'mature', 'declining', 'renovation')),
   ADD COLUMN profitability TEXT CHECK (profitability IN ('low', 'medium', 'high')),
+  ADD COLUMN sustainability TEXT CHECK (sustainability IN ('low', 'medium', 'high')),
   ADD COLUMN disruption_risk TEXT CHECK (disruption_risk IN ('protected', 'moderate', 'at_risk')),
 
   -- Risk & Value Metrics

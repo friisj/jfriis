@@ -5,8 +5,10 @@ import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { toast } from 'sonner'
 import { MdxEditor } from '@/components/forms/mdx-editor'
-import { RelationshipSelector } from './relationship-selector'
 import { FormFieldWithAI } from '@/components/forms'
+import { SidebarCard } from './sidebar-card'
+import { FormActions } from './form-actions'
+import { RelationshipField } from './relationship-field'
 
 interface ProjectFormData {
   title: string
@@ -212,9 +214,6 @@ export function ProjectForm({ projectId, initialData }: ProjectFormProps) {
   const handleDelete = async () => {
     if (!projectId) return
 
-    const confirmed = confirm('Are you sure you want to delete this project? This action cannot be undone.')
-    if (!confirmed) return
-
     setIsSubmitting(true)
     setError(null)
 
@@ -323,9 +322,7 @@ export function ProjectForm({ projectId, initialData }: ProjectFormProps) {
 
         {/* Sidebar */}
         <div className="space-y-6">
-          <div className="rounded-lg border bg-card p-4 space-y-4">
-            <h3 className="font-medium">Settings</h3>
-
+          <SidebarCard title="Settings">
             <div>
               <label htmlFor="status" className="block text-sm font-medium mb-2">
                 Status
@@ -371,11 +368,9 @@ export function ProjectForm({ projectId, initialData }: ProjectFormProps) {
                 Make this project visible to the public
               </p>
             </div>
-          </div>
+          </SidebarCard>
 
-          <div className="rounded-lg border bg-card p-4 space-y-4">
-            <h3 className="font-medium">Dates</h3>
-
+          <SidebarCard title="Dates">
             <div>
               <label htmlFor="start_date" className="block text-sm font-medium mb-2">
                 Start Date
@@ -401,11 +396,11 @@ export function ProjectForm({ projectId, initialData }: ProjectFormProps) {
                 className="w-full px-3 py-2 rounded-lg border bg-background"
               />
             </div>
-          </div>
+          </SidebarCard>
 
-          <div className="rounded-lg border bg-card p-4 space-y-4">
+          <SidebarCard title="Tags">
             <FormFieldWithAI
-              label="Tags"
+              label=""
               fieldName="tags"
               entityType="projects"
               context={{
@@ -426,59 +421,41 @@ export function ProjectForm({ projectId, initialData }: ProjectFormProps) {
                 placeholder="react, typescript, design"
               />
             </FormFieldWithAI>
-          </div>
+          </SidebarCard>
 
-          <div className="rounded-lg border bg-card p-4">
-            <RelationshipSelector
-              label="Link Specimens"
+          <SidebarCard title="Linked Specimens">
+            <RelationshipField
+              label=""
+              value={formData.specimenIds}
+              onChange={(ids) => setFormData({ ...formData, specimenIds: ids as string[] })}
               tableName="specimens"
-              selectedIds={formData.specimenIds}
-              onChange={(ids) => setFormData({ ...formData, specimenIds: ids })}
+              displayField="title"
+              mode="multi"
               helperText="Select specimens to showcase in this project"
             />
-          </div>
+          </SidebarCard>
 
-          <div className="rounded-lg border bg-card p-4">
-            <RelationshipSelector
-              label="Link Log Entries"
+          <SidebarCard title="Linked Log Entries">
+            <RelationshipField
+              label=""
+              value={formData.logEntryIds}
+              onChange={(ids) => setFormData({ ...formData, logEntryIds: ids as string[] })}
               tableName="log_entries"
-              selectedIds={formData.logEntryIds}
-              onChange={(ids) => setFormData({ ...formData, logEntryIds: ids })}
+              displayField="title"
+              mode="multi"
               helperText="Select log entries related to this project"
             />
-          </div>
+          </SidebarCard>
         </div>
       </div>
 
-      <div className="flex items-center justify-between pt-6 border-t">
-        <div className="flex items-center gap-3">
-          <button
-            type="submit"
-            disabled={isSubmitting}
-            className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50"
-          >
-            {isSubmitting ? 'Saving...' : projectId ? 'Update Project' : 'Create Project'}
-          </button>
-          <button
-            type="button"
-            onClick={handleCancel}
-            className="px-4 py-2 border rounded-lg hover:bg-accent transition-colors"
-          >
-            Cancel
-          </button>
-        </div>
-
-        {projectId && (
-          <button
-            type="button"
-            onClick={handleDelete}
-            disabled={isSubmitting}
-            className="px-4 py-2 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/20 rounded-lg transition-colors disabled:opacity-50"
-          >
-            Delete Project
-          </button>
-        )}
-      </div>
+      <FormActions
+        isSubmitting={isSubmitting}
+        submitLabel={projectId ? 'Update Project' : 'Create Project'}
+        onCancel={handleCancel}
+        onDelete={projectId ? handleDelete : undefined}
+        deleteConfirmMessage="Are you sure you want to delete this project? This action cannot be undone."
+      />
     </form>
   )
 }

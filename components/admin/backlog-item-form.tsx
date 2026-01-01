@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { toast } from 'sonner'
 import { FormFieldWithAI } from '@/components/forms'
+import { SidebarCard } from './sidebar-card'
+import { FormActions } from './form-actions'
 
 interface BacklogItemFormData {
   title: string
@@ -86,9 +88,6 @@ export function BacklogItemForm({ itemId, initialData }: BacklogItemFormProps) {
   const handleDelete = async () => {
     if (!itemId) return
 
-    const confirmed = confirm('Are you sure you want to delete this backlog item? This action cannot be undone.')
-    if (!confirmed) return
-
     setIsSubmitting(true)
     setError(null)
 
@@ -167,9 +166,7 @@ export function BacklogItemForm({ itemId, initialData }: BacklogItemFormProps) {
 
         {/* Sidebar */}
         <div className="space-y-6">
-          <div className="rounded-lg border bg-card p-4 space-y-4">
-            <h3 className="font-medium">Settings</h3>
-
+          <SidebarCard title="Settings">
             <div>
               <label htmlFor="status" className="block text-sm font-medium mb-2">
                 Status
@@ -189,11 +186,11 @@ export function BacklogItemForm({ itemId, initialData }: BacklogItemFormProps) {
                 Track the state of this idea
               </p>
             </div>
-          </div>
+          </SidebarCard>
 
-          <div className="rounded-lg border bg-card p-4 space-y-4">
+          <SidebarCard title="Tags">
             <FormFieldWithAI
-              label="Tags"
+              label=""
               fieldName="tags"
               entityType="backlog_items"
               context={{
@@ -214,39 +211,17 @@ export function BacklogItemForm({ itemId, initialData }: BacklogItemFormProps) {
                 placeholder="idea, prototype, research"
               />
             </FormFieldWithAI>
-          </div>
+          </SidebarCard>
         </div>
       </div>
 
-      <div className="flex items-center justify-between pt-6 border-t">
-        <div className="flex items-center gap-3">
-          <button
-            type="submit"
-            disabled={isSubmitting}
-            className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50"
-          >
-            {isSubmitting ? 'Saving...' : itemId ? 'Update Item' : 'Create Item'}
-          </button>
-          <button
-            type="button"
-            onClick={handleCancel}
-            className="px-4 py-2 border rounded-lg hover:bg-accent transition-colors"
-          >
-            Cancel
-          </button>
-        </div>
-
-        {itemId && (
-          <button
-            type="button"
-            onClick={handleDelete}
-            disabled={isSubmitting}
-            className="px-4 py-2 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/20 rounded-lg transition-colors disabled:opacity-50"
-          >
-            Delete Item
-          </button>
-        )}
-      </div>
+      <FormActions
+        isSubmitting={isSubmitting}
+        submitLabel={itemId ? 'Update Item' : 'Create Item'}
+        onCancel={handleCancel}
+        onDelete={itemId ? handleDelete : undefined}
+        deleteConfirmMessage="Are you sure you want to delete this backlog item? This action cannot be undone."
+      />
     </form>
   )
 }
