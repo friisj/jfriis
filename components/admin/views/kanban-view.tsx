@@ -1,6 +1,6 @@
 'use client'
 
-import { ReactNode, useState } from 'react'
+import { ReactNode, useState, useMemo } from 'react'
 import {
   DndContext,
   DragEndEvent,
@@ -12,6 +12,7 @@ import {
   closestCorners,
 } from '@dnd-kit/core'
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
+import { toast } from 'sonner'
 
 export interface KanbanGroup {
   id: string
@@ -123,13 +124,17 @@ export function KanbanView<T extends { id: string }>({
     return String(item[groupBy])
   }
 
-  // Group items by their status/group
-  const groupedItems = groups.reduce(
-    (acc, group) => {
-      acc[group.id] = data.filter((item) => getItemGroup(item) === group.id)
-      return acc
-    },
-    {} as Record<string, T[]>
+  // Group items by their status/group (memoized for performance)
+  const groupedItems = useMemo(
+    () =>
+      groups.reduce(
+        (acc, group) => {
+          acc[group.id] = data.filter((item) => getItemGroup(item) === group.id)
+          return acc
+        },
+        {} as Record<string, T[]>
+      ),
+    [data, groups, groupBy]
   )
 
   const handleDragStart = (event: DragStartEvent) => {
@@ -176,9 +181,10 @@ export function KanbanView<T extends { id: string }>({
     if (onMove) {
       try {
         await onMove(item, fromGroup, targetGroupId)
+        toast.success('Item moved successfully')
       } catch (error) {
         console.error('Failed to move item:', error)
-        // You could add toast notification here
+        toast.error('Failed to move item. Please try again.')
       }
     }
   }

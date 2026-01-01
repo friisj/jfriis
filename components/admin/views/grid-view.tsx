@@ -31,7 +31,7 @@ export function GridView<T extends { id: string }>({
 
   return (
     <div
-      className={`grid gap-${gap} grid-cols-1 sm:grid-cols-2 lg:grid-cols-${columns}`}
+      className="grid"
       style={{
         gridTemplateColumns: `repeat(auto-fill, minmax(min(100%, 300px), 1fr))`,
         gap: `${gap * 0.25}rem`,
