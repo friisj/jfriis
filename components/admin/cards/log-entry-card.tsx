@@ -25,7 +25,7 @@ export function LogEntryCard({ entry }: LogEntryCardProps) {
   return (
     <Link
       href={`/admin/log/${entry.id}/edit`}
-      className="block rounded-lg border bg-card p-4 hover:bg-accent/50 transition-colors"
+      className="block rounded-lg border bg-card p-4 hover:bg-accent/50 hover:border-primary/30 hover:shadow-md transition-all duration-200"
     >
       <div className="flex flex-col gap-3">
         {/* Title and slug */}
