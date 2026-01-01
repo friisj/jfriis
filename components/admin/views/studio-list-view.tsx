@@ -6,9 +6,11 @@ import {
   AdminTableColumn,
   AdminEmptyState,
   StatusBadge,
+  KanbanGroup,
 } from '@/components/admin'
 import { StudioProjectCard } from '@/components/admin/cards'
 import { formatDate } from '@/lib/utils'
+import { updateStudioProjectStatus } from '@/app/actions/studio'
 
 interface StudioProject {
   id: string
@@ -34,6 +36,21 @@ const temperatureEmoji: Record<string, string> = {
 }
 
 export function StudioListView({ projects }: StudioListViewProps) {
+  const kanbanGroups: KanbanGroup[] = [
+    { id: 'draft', label: 'Draft', color: 'bg-gray-500' },
+    { id: 'active', label: 'Active', color: 'bg-blue-500' },
+    { id: 'completed', label: 'Completed', color: 'bg-green-500' },
+    { id: 'archived', label: 'Archived', color: 'bg-gray-400' },
+  ]
+
+  const handleKanbanMove = async (
+    project: StudioProject,
+    fromStatus: string,
+    toStatus: string
+  ) => {
+    await updateStudioProjectStatus(project.id, toStatus)
+  }
+
   const columns: AdminTableColumn<StudioProject>[] = [
     {
       key: 'name',
@@ -126,6 +143,12 @@ export function StudioListView({ projects }: StudioListViewProps) {
         },
         grid: {
           renderCard: (project) => <StudioProjectCard project={project} />,
+        },
+        kanban: {
+          groupBy: 'status',
+          groups: kanbanGroups,
+          renderCard: (project) => <StudioProjectCard project={project} />,
+          onMove: handleKanbanMove,
         },
       }}
       defaultView="table"

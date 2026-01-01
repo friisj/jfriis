@@ -7,15 +7,35 @@ import {
   AdminTableColumn,
   AdminEmptyState,
   StatusBadge,
+  KanbanGroup,
 } from '@/components/admin'
 import { BacklogItemCard } from '@/components/admin/cards'
 import { formatDate } from '@/lib/utils'
+import { updateBacklogItemStatus } from '@/app/actions/backlog'
 
 interface BacklogListViewProps {
   items: BacklogItem[]
 }
 
 export function BacklogListView({ items }: BacklogListViewProps) {
+  const kanbanGroups: KanbanGroup[] = [
+    { id: 'inbox', label: 'Inbox', color: 'bg-gray-500' },
+    { id: 'in-progress', label: 'In Progress', color: 'bg-blue-500' },
+    { id: 'shaped', label: 'Shaped', color: 'bg-green-500' },
+    { id: 'archived', label: 'Archived', color: 'bg-gray-400' },
+  ]
+
+  const handleKanbanMove = async (
+    item: BacklogItem,
+    fromStatus: string,
+    toStatus: string
+  ) => {
+    await updateBacklogItemStatus(
+      item.id,
+      toStatus as 'inbox' | 'in-progress' | 'shaped' | 'archived'
+    )
+  }
+
   const columns: AdminTableColumn<BacklogItem>[] = [
     {
       key: 'title',
@@ -83,6 +103,12 @@ export function BacklogListView({ items }: BacklogListViewProps) {
         },
         grid: {
           renderCard: (item) => <BacklogItemCard item={item} />,
+        },
+        kanban: {
+          groupBy: 'status',
+          groups: kanbanGroups,
+          renderCard: (item) => <BacklogItemCard item={item} />,
+          onMove: handleKanbanMove,
         },
       }}
       defaultView="table"
