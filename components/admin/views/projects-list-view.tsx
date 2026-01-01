@@ -7,6 +7,7 @@ import {
   AdminEmptyState,
   StatusBadge,
 } from '@/components/admin'
+import { ProjectCard } from '@/components/admin/cards'
 import { formatDate } from '@/lib/utils'
 
 interface Project {
@@ -99,6 +100,9 @@ export function ProjectsListView({ projects }: ProjectsListViewProps) {
       views={{
         table: {
           columns,
+        },
+        grid: {
+          renderCard: (project) => <ProjectCard project={project} />,
         },
       }}
       defaultView="table"
