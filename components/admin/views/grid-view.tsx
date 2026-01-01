@@ -1,6 +1,7 @@
 'use client'
 
 import { ReactNode } from 'react'
+import { ViewErrorBoundary } from './view-error-boundary'
 
 export interface GridViewConfig<T> {
   renderCard: (item: T) => ReactNode
@@ -38,7 +39,9 @@ export function GridView<T extends { id: string }>({
       }}
     >
       {data.map((item) => (
-        <div key={item.id}>{renderCard(item)}</div>
+        <ViewErrorBoundary key={item.id} viewType="card">
+          <div>{renderCard(item)}</div>
+        </ViewErrorBoundary>
       ))}
     </div>
   )

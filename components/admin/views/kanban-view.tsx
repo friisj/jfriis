@@ -10,9 +10,17 @@ import {
   useSensor,
   useSensors,
   closestCorners,
+  useDroppable,
+  DragOverEvent,
 } from '@dnd-kit/core'
-import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
+import {
+  SortableContext,
+  verticalListSortingStrategy,
+  useSortable,
+} from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
 import { toast } from 'sonner'
+import { ViewErrorBoundary } from './view-error-boundary'
 
 export interface KanbanGroup {
   id: string
@@ -35,19 +43,49 @@ interface KanbanViewProps<T extends { id: string }> {
   onMove?: (item: T, fromGroup: string, toGroup: string) => Promise<void>
 }
 
+interface SortableCardProps {
+  id: string
+  children: ReactNode
+}
+
+function SortableCard({ id, children }: SortableCardProps) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
+    useSortable({ id })
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  }
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className="kanban-card"
+      {...attributes}
+      {...listeners}
+    >
+      {children}
+    </div>
+  )
+}
+
 interface KanbanColumnProps<T> {
   group: KanbanGroup
   items: T[]
   renderCard: (item: T) => ReactNode
-  isOver?: boolean
 }
 
 function KanbanColumn<T extends { id: string }>({
   group,
   items,
   renderCard,
-  isOver,
 }: KanbanColumnProps<T>) {
+  const { setNodeRef, isOver } = useDroppable({
+    id: group.id,
+  })
+
   return (
     <div className="flex-1 min-w-[280px] max-w-[400px]">
       <div className="flex flex-col h-full">
@@ -67,8 +105,9 @@ function KanbanColumn<T extends { id: string }>({
           </span>
         </div>
 
-        {/* Column content */}
+        {/* Column content - now a proper droppable zone */}
         <div
+          ref={setNodeRef}
           className={`flex-1 min-h-[200px] rounded-lg border-2 border-dashed p-2 transition-colors ${
             isOver
               ? 'border-primary bg-primary/5'
@@ -81,9 +120,11 @@ function KanbanColumn<T extends { id: string }>({
           >
             <div className="space-y-2">
               {items.map((item) => (
-                <div key={item.id} className="kanban-card">
-                  {renderCard(item)}
-                </div>
+                <SortableCard key={item.id} id={item.id}>
+                  <ViewErrorBoundary viewType="card">
+                    {renderCard(item)}
+                  </ViewErrorBoundary>
+                </SortableCard>
               ))}
               {items.length === 0 && (
                 <div className="flex items-center justify-center h-32 text-sm text-muted-foreground">
@@ -106,7 +147,7 @@ export function KanbanView<T extends { id: string }>({
   onMove,
 }: KanbanViewProps<T>) {
   const [activeId, setActiveId] = useState<string | null>(null)
-  const [overId, setOverId] = useState<string | null>(null)
+  const [announcement, setAnnouncement] = useState<string>('')
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -138,20 +179,26 @@ export function KanbanView<T extends { id: string }>({
   )
 
   const handleDragStart = (event: DragStartEvent) => {
-    setActiveId(event.active.id as string)
-  }
+    const id = event.active.id as string
+    setActiveId(id)
 
-  const handleDragOver = (event: any) => {
-    const { over } = event
-    setOverId(over?.id || null)
+    // Announce to screen readers
+    const item = data.find((d) => d.id === id)
+    if (item) {
+      const fromGroup = getItemGroup(item)
+      const groupLabel = groups.find((g) => g.id === fromGroup)?.label || fromGroup
+      setAnnouncement(`Picked up item from ${groupLabel}`)
+    }
   }
 
   const handleDragEnd = async (event: DragEndEvent) => {
     const { active, over } = event
     setActiveId(null)
-    setOverId(null)
 
-    if (!over || active.id === over.id) return
+    if (!over || active.id === over.id) {
+      setAnnouncement('Drag cancelled')
+      return
+    }
 
     // Find the item being dragged
     const item = data.find((d) => d.id === active.id)
@@ -175,16 +222,25 @@ export function KanbanView<T extends { id: string }>({
     if (!targetGroupId) return
 
     const fromGroup = getItemGroup(item)
-    if (fromGroup === targetGroupId) return // No change
+    if (fromGroup === targetGroupId) {
+      setAnnouncement('Item returned to same column')
+      return // No change
+    }
+
+    // Get group labels for announcements
+    const fromLabel = groups.find((g) => g.id === fromGroup)?.label || fromGroup
+    const toLabel = groups.find((g) => g.id === targetGroupId)?.label || targetGroupId
 
     // Call the onMove handler
     if (onMove) {
       try {
         await onMove(item, fromGroup, targetGroupId)
         toast.success('Item moved successfully')
+        setAnnouncement(`Item moved from ${fromLabel} to ${toLabel}`)
       } catch (error) {
         console.error('Failed to move item:', error)
         toast.error('Failed to move item. Please try again.')
+        setAnnouncement(`Failed to move item from ${fromLabel} to ${toLabel}`)
       }
     }
   }
@@ -204,7 +260,6 @@ export function KanbanView<T extends { id: string }>({
       sensors={sensors}
       collisionDetection={closestCorners}
       onDragStart={handleDragStart}
-      onDragOver={handleDragOver}
       onDragEnd={handleDragEnd}
     >
       <div className="overflow-x-auto">
@@ -215,7 +270,6 @@ export function KanbanView<T extends { id: string }>({
               group={group}
               items={groupedItems[group.id] || []}
               renderCard={renderCard}
-              isOver={overId === group.id}
             />
           ))}
         </div>
@@ -228,6 +282,16 @@ export function KanbanView<T extends { id: string }>({
           </div>
         ) : null}
       </DragOverlay>
+
+      {/* Screen reader announcements */}
+      <div
+        role="status"
+        aria-live="assertive"
+        aria-atomic="true"
+        className="sr-only"
+      >
+        {announcement}
+      </div>
     </DndContext>
   )
 }

@@ -1,6 +1,6 @@
 'use client'
 
-import { KeyboardEvent } from 'react'
+import { KeyboardEvent, useEffect, useRef } from 'react'
 import { ViewType } from '../types'
 
 interface ViewToolbarProps {
@@ -40,6 +40,17 @@ const viewLabels: Record<ViewType, string> = {
 }
 
 export function ViewToolbar({ currentView, availableViews, onViewChange }: ViewToolbarProps) {
+  const buttonRefs = useRef<Map<ViewType, HTMLButtonElement | null>>(new Map())
+
+  // Focus management: Focus the active button when view changes
+  useEffect(() => {
+    const activeButton = buttonRefs.current.get(currentView)
+    if (activeButton && document.activeElement?.closest('[role="tablist"]')) {
+      // Only focus if the user is currently focused within the toolbar
+      activeButton.focus()
+    }
+  }, [currentView])
+
   if (availableViews.length <= 1) {
     // Don't show toolbar if only one view is available
     return null
@@ -88,6 +99,7 @@ export function ViewToolbar({ currentView, availableViews, onViewChange }: ViewT
         {availableViews.map((view) => (
           <button
             key={view}
+            ref={(el) => buttonRefs.current.set(view, el)}
             onClick={() => onViewChange(view)}
             onKeyDown={handleKeyDown}
             className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
