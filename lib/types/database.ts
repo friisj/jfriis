@@ -426,13 +426,15 @@ export type StudioHypothesisInsert = Omit<StudioHypothesis, keyof BaseRecord>
 export type StudioHypothesisUpdate = Partial<StudioHypothesisInsert>
 
 // Studio Experiments
+export type StudioExperimentType = 'experiment' | 'prototype' | 'discovery_interviews' | 'landing_page'
+
 export interface StudioExperiment extends BaseRecord {
   project_id: string
   hypothesis_id?: string
   slug: string
   name: string
   description?: string
-  type: 'spike' | 'experiment' | 'prototype'
+  type: StudioExperimentType
   status: 'planned' | 'in_progress' | 'completed' | 'abandoned'
   outcome?: 'success' | 'failure' | 'inconclusive'
   learnings?: string

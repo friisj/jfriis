@@ -8,23 +8,35 @@
 
 ```
 1. CAPTURE    →  Create studio_project record (status: draft)
-2. SHAPE      →  Fill PRD fields via MCP conversations
-3. SCAFFOLD   →  Create directories, files, routes in Claude Code
-4. WORK       →  Status: active, add hypotheses & experiments
+2. SHAPE      →  Fill PRD fields, add hypotheses & experiments
+3. SCAFFOLD   →  Run scaffold script to generate components & routes
+4. WORK       →  Status: active, implement experiments
 5. COMPLETE   →  Status: completed/archived
 ```
 
 **Environments:**
-- **MCP (anywhere):** Capture ideas, shape PRD fields conversationally
-- **Claude Code:** Scaffold when ready to work, manage code
+- **Admin UI / MCP:** Capture ideas, shape PRD fields, add hypotheses/experiments
+- **Claude Code:** Run scaffold script, implement code
 
 ---
 
 ## 1. Capture: Create Draft Project
 
-### Via MCP
+### Via Admin UI
 
-Use `db_create` to add a new studio project:
+Navigate to `/admin/studio-projects/new` and create a project with:
+
+**Required fields:**
+- `slug` - URL-friendly identifier (kebab-case)
+- `name` - Display name
+- `status` - Start with `draft`
+
+**Optional at this stage:**
+- `description` - Brief overview
+- `temperature` - hot, warm, cold
+- `current_focus` - What's top of mind
+
+### Via MCP
 
 ```json
 {
@@ -40,39 +52,11 @@ Use `db_create` to add a new studio project:
 }
 ```
 
-**Required fields:**
-- `slug` - URL-friendly identifier (kebab-case)
-- `name` - Display name
-- `status` - Always start with `draft`
-
-**Optional at this stage:**
-- `description` - Brief overview
-- `temperature` - hot, warm, cold
-- `current_focus` - What's top of mind
-
 ---
 
-## 2. Shape: Define PRD Fields
+## 2. Shape: Define PRD & Structure
 
-### Via MCP conversations
-
-Use `db_update` to fill in PRD fields as you refine the idea:
-
-```json
-{
-  "tool": "db_update",
-  "table": "studio_projects",
-  "id": "{project-id}",
-  "data": {
-    "problem_statement": "The problem this project solves...",
-    "hypothesis": "If we build X, then Y will happen...",
-    "success_criteria": "We'll know it works when...",
-    "scope_out": "Explicitly not building: ..."
-  }
-}
-```
-
-**PRD fields:**
+### Fill PRD Fields
 
 | Field | Purpose | Example |
 |-------|---------|---------|
@@ -99,94 +83,9 @@ Break the project into testable hypotheses:
 }
 ```
 
----
+### Add Experiments
 
-## 3. Scaffold: Create Project Structure
-
-### When to Scaffold
-
-Scaffold when:
-- PRD fields are reasonably complete
-- Ready to write code
-- Status moving from `draft` → `active`
-
-### In Claude Code
-
-Run the scaffolding process:
-
-1. **Create directory structure:**
-
-```
-components/studio/{slug}/
-├── README.md                 # Generated from DB PRD fields
-├── roadmap.md               # Generated from hypotheses
-├── experiments/             # For experiment code
-└── src/                     # Production code
-```
-
-2. **Create app routes (if needed):**
-
-```
-app/(private)/studio/{slug}/
-├── page.tsx                 # Uses ProjectCover template
-└── [experiment]/
-    └── page.tsx             # Uses ExperimentPage template
-```
-
-3. **Update project record:**
-
-```json
-{
-  "tool": "db_update",
-  "table": "studio_projects",
-  "id": "{project-id}",
-  "data": {
-    "status": "active",
-    "path": "components/studio/{slug}/",
-    "scaffolded_at": "2025-01-01T00:00:00Z"
-  }
-}
-```
-
-### Directory README Template
-
-Generate `README.md` from DB fields:
-
-```markdown
-# {name}
-
-> {description}
-
-**Status:** {status} | **Temperature:** {temperature}
-
-## Problem
-
-{problem_statement}
-
-## Hypothesis
-
-{hypothesis}
-
-## Success Criteria
-
-{success_criteria}
-
-## Out of Scope
-
-{scope_out}
-
----
-
-*This README is generated from the studio_projects database record.*
-```
-
----
-
-## 4. Work: Experiments & Progress
-
-### Create Experiments
-
-Each experiment tests a hypothesis:
+Create experiments that will test hypotheses:
 
 ```json
 {
@@ -198,23 +97,99 @@ Each experiment tests a hypothesis:
     "slug": "oklch-palette-generator",
     "name": "OKLCH Palette Generator",
     "description": "Test if OKLCH can generate accessible palettes",
-    "type": "spike",
+    "type": "prototype",
     "status": "planned"
   }
 }
 ```
 
-**Experiment types:**
-- `spike` - Time-boxed exploration (hours)
-- `experiment` - Tests a hypothesis
-- `prototype` - Working demo
+**Experiment Types:**
 
-**Status progression:**
-```
-planned → in_progress → completed/abandoned
+| Type | Purpose | What Gets Scaffolded |
+|------|---------|---------------------|
+| `experiment` | Standard hypothesis test | Basic experiment page |
+| `prototype` | Working code demo | Experiment page + prototype component in `src/prototypes/` |
+| `discovery_interviews` | User research | Experiment page with interview tools (future) |
+| `landing_page` | Market validation | Experiment page with metrics tracking (future) |
+
+---
+
+## 3. Scaffold: Generate Project Structure
+
+### When to Scaffold
+
+Scaffold when:
+- PRD fields are reasonably complete
+- Hypotheses and experiments are defined in DB
+- Ready to write code
+- Status moving from `draft` → `active`
+
+### Run the Scaffold Script
+
+```bash
+npm run scaffold:studio <project-slug>
 ```
 
-### Record Outcomes
+**What it creates:**
+
+```
+components/studio/{slug}/
+├── page.tsx                      # Homepage component
+├── experiments/
+│   └── {exp-slug}.tsx           # Per-experiment page components
+└── src/
+    └── prototypes/
+        └── {exp-slug}.tsx       # Prototype components (for prototype type only)
+
+app/(private)/studio/{slug}/
+├── page.tsx                      # Route to homepage
+└── [experiment]/
+    └── page.tsx                  # Dynamic experiment route
+```
+
+### The Script Also:
+- Updates `scaffolded_at` timestamp in DB
+- Sets `path` to component directory
+- Outputs next steps including Linear project creation suggestion
+
+### Claude Code Hook
+
+When running the scaffold command via Claude Code, a hook fires that suggests:
+1. Creating a Linear project for task tracking
+2. Enriching generated files with project-specific content
+3. Implementing prototype components
+
+---
+
+## 4. Work: Implement & Track
+
+### Implement Prototypes
+
+For `prototype` type experiments, implement the component:
+
+```tsx
+// components/studio/{slug}/src/prototypes/{exp-slug}.tsx
+export default function MyPrototype() {
+  // Your prototype implementation
+}
+```
+
+### Create Linear Project
+
+Use Linear MCP to create a project for task tracking:
+
+```
+mcp__linear__create_project({
+  name: "Project Name",
+  team: "Oji",
+  description: "...",
+  state: "started"
+})
+```
+
+Reference: See `.claude/rules/linear-tracking.md` for Linear workflow.
+
+### Record Experiment Outcomes
 
 After completing an experiment:
 
@@ -226,7 +201,7 @@ After completing an experiment:
   "data": {
     "status": "completed",
     "outcome": "success",
-    "learnings": "OKLCH perceptual uniformity makes contrast calculations reliable. L channel directly maps to luminance."
+    "learnings": "Key findings from the experiment..."
   }
 }
 ```
@@ -311,25 +286,6 @@ For abandoned projects:
 
 ---
 
-## Templates
-
-### Markdown (for scaffolding)
-
-| Template | Location | Use |
-|----------|----------|-----|
-| PRD | `docs/studio/templates/prd.md` | Project PRD document |
-| Roadmap | `docs/studio/templates/roadmap.md` | Hypothesis roadmap |
-| Experiment | `docs/studio/templates/experiment.md` | Experiment README |
-
-### React (for pages)
-
-| Template | Location | Use |
-|----------|----------|-----|
-| ProjectCover | `components/studio/_templates/project-cover.tsx` | Project home page |
-| ExperimentPage | `components/studio/_templates/experiment-page.tsx` | Experiment detail page |
-
----
-
 ## Status Reference
 
 ### Project Status
@@ -359,6 +315,15 @@ For abandoned projects:
 | `validated` | Proved true |
 | `invalidated` | Proved false (still valuable!) |
 
+### Experiment Types
+
+| Type | Purpose |
+|------|---------|
+| `experiment` | Standard hypothesis test |
+| `prototype` | Working code demonstration |
+| `discovery_interviews` | User research and interviews |
+| `landing_page` | Market validation via landing page |
+
 ### Experiment Status
 
 | Status | Meaning |
@@ -378,28 +343,28 @@ For abandoned projects:
 
 ---
 
-## Quick Commands
+## Quick Reference
 
-### List draft projects
-```json
-{"tool": "db_query", "table": "studio_projects", "filters": {"status": "draft"}}
+### Scaffold a project
+```bash
+npm run scaffold:studio <slug>
 ```
 
-### List active projects
-```json
-{"tool": "db_query", "table": "studio_projects", "filters": {"status": "active"}}
+### View generated pages
+```
+/studio/{slug}              # Project homepage
+/studio/{slug}/{exp-slug}   # Experiment page
 ```
 
-### Get project with hypotheses
-```json
-{"tool": "db_query", "table": "studio_hypotheses", "filters": {"project_id": "{id}"}}
+### File locations
 ```
-
-### Get experiments for hypothesis
-```json
-{"tool": "db_query", "table": "studio_experiments", "filters": {"hypothesis_id": "{id}"}}
+components/studio/{slug}/page.tsx                    # Homepage
+components/studio/{slug}/experiments/{exp}.tsx       # Experiment pages
+components/studio/{slug}/src/prototypes/{exp}.tsx    # Prototype components
+app/(private)/studio/{slug}/page.tsx                 # Homepage route
+app/(private)/studio/{slug}/[experiment]/page.tsx    # Dynamic experiment route
 ```
 
 ---
 
-*Protocol version: 2.0 | Last updated: 2025-12-29*
+*Protocol version: 3.0 | Last updated: 2026-01-02*
