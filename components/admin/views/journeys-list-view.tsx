@@ -4,11 +4,12 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import {
-  AdminTable,
+  AdminDataView,
   AdminTableColumn,
   AdminEmptyState,
   StatusBadge,
 } from '@/components/admin'
+import { JourneyCard } from '@/components/admin/cards'
 import { useDebounce } from '@/lib/hooks/use-debounce'
 import { formatDate } from '@/lib/utils'
 import {
@@ -288,7 +289,19 @@ export function JourneysListView({
         </div>
       )}
 
-      <AdminTable columns={columns} data={journeys} />
+      <AdminDataView
+        data={journeys}
+        views={{
+          table: {
+            columns,
+          },
+          grid: {
+            renderCard: (journey) => <JourneyCard journey={journey} />,
+          },
+        }}
+        defaultView="table"
+        persistenceKey="admin-journeys-view"
+      />
 
       {/* Pagination */}
       {hasMore && (

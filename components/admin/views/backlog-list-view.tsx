@@ -3,18 +3,39 @@
 import Link from 'next/link'
 import type { BacklogItem } from '@/lib/types/database'
 import {
-  AdminTable,
+  AdminDataView,
   AdminTableColumn,
   AdminEmptyState,
   StatusBadge,
+  KanbanGroup,
 } from '@/components/admin'
+import { BacklogItemCard } from '@/components/admin/cards'
 import { formatDate } from '@/lib/utils'
+import { updateBacklogItemStatus } from '@/app/actions/backlog'
 
 interface BacklogListViewProps {
   items: BacklogItem[]
 }
 
 export function BacklogListView({ items }: BacklogListViewProps) {
+  const kanbanGroups: KanbanGroup[] = [
+    { id: 'inbox', label: 'Inbox', color: 'bg-gray-500' },
+    { id: 'in-progress', label: 'In Progress', color: 'bg-blue-500' },
+    { id: 'shaped', label: 'Shaped', color: 'bg-green-500' },
+    { id: 'archived', label: 'Archived', color: 'bg-gray-400' },
+  ]
+
+  const handleKanbanMove = async (
+    item: BacklogItem,
+    fromStatus: string,
+    toStatus: string
+  ) => {
+    await updateBacklogItemStatus(
+      item.id,
+      toStatus as 'inbox' | 'in-progress' | 'shaped' | 'archived'
+    )
+  }
+
   const columns: AdminTableColumn<BacklogItem>[] = [
     {
       key: 'title',
@@ -73,21 +94,38 @@ export function BacklogListView({ items }: BacklogListViewProps) {
     },
   ]
 
-  if (!items || items.length === 0) {
-    return (
-      <AdminEmptyState
-        icon={
-          <svg className="w-8 h-8 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
-          </svg>
-        }
-        title="No backlog items yet"
-        description="Capture ideas and possibilities before shaping them into projects"
-        actionHref="/admin/backlog/new"
-        actionLabel="Create Item"
-      />
-    )
-  }
-
-  return <AdminTable columns={columns} data={items} />
+  return (
+    <AdminDataView
+      data={items}
+      views={{
+        table: {
+          columns,
+        },
+        grid: {
+          renderCard: (item) => <BacklogItemCard item={item} />,
+        },
+        kanban: {
+          groupBy: 'status',
+          groups: kanbanGroups,
+          renderCard: (item) => <BacklogItemCard item={item} />,
+          onMove: handleKanbanMove,
+        },
+      }}
+      defaultView="table"
+      persistenceKey="admin-backlog-view"
+      emptyState={
+        <AdminEmptyState
+          icon={
+            <svg className="w-8 h-8 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+            </svg>
+          }
+          title="No backlog items yet"
+          description="Capture ideas and possibilities before shaping them into projects"
+          actionHref="/admin/backlog/new"
+          actionLabel="Create Item"
+        />
+      }
+    />
+  )
 }

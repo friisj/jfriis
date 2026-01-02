@@ -2,27 +2,11 @@
 
 import { ReactNode } from 'react'
 import { TableView, TableViewConfig } from './views/table-view'
+import { GridView, GridViewConfig } from './views/grid-view'
+import { KanbanView, KanbanViewConfig } from './views/kanban-view'
 import { ViewSwitcher } from './views/view-switcher'
 import { ViewErrorBoundary } from './views/view-error-boundary'
 import { ViewType } from './types'
-
-// Placeholder configs for future views
-interface GridViewConfig<T> {
-  renderCard: (item: T) => ReactNode
-  columns?: number
-  gap?: number
-}
-
-interface KanbanViewConfig<T> {
-  groupBy: keyof T | ((item: T) => string)
-  groups: Array<{
-    id: string
-    label: string
-    color?: string
-  }>
-  renderCard: (item: T) => ReactNode
-  onMove?: (item: T, fromGroup: string, toGroup: string) => Promise<void>
-}
 
 interface CanvasViewConfig<T> {
   renderCard: (item: T) => ReactNode
@@ -83,15 +67,11 @@ export function AdminDataView<T extends { id: string }>({
             )}
 
             {activeView === 'grid' && views.grid && (
-              <div className="rounded-lg border bg-card p-8 text-center">
-                <p className="text-muted-foreground">Grid view coming soon...</p>
-              </div>
+              <GridView {...views.grid} data={data} />
             )}
 
             {activeView === 'kanban' && views.kanban && (
-              <div className="rounded-lg border bg-card p-8 text-center">
-                <p className="text-muted-foreground">Kanban view coming soon...</p>
-              </div>
+              <KanbanView {...views.kanban} data={data} />
             )}
 
             {activeView === 'canvas' && views.canvas && (
