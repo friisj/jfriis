@@ -139,8 +139,8 @@ export interface TargetMetrics {
   timeline_target?: string
 }
 
-// Projects
-export interface Project extends BaseRecord {
+// Ventures (Portfolio businesses/products/services)
+export interface Venture extends BaseRecord {
   title: string
   slug: string
   description?: string
@@ -198,8 +198,16 @@ export interface Project extends BaseRecord {
   target_metrics?: TargetMetrics
 }
 
-export type ProjectInsert = Omit<Project, keyof BaseRecord | 'published_at'>
-export type ProjectUpdate = Partial<ProjectInsert>
+export type VentureInsert = Omit<Venture, keyof BaseRecord | 'published_at'>
+export type VentureUpdate = Partial<VentureInsert>
+
+// Backwards compatibility (deprecated, use Venture instead)
+/** @deprecated Use Venture instead */
+export type Project = Venture
+/** @deprecated Use VentureInsert instead */
+export type ProjectInsert = VentureInsert
+/** @deprecated Use VentureUpdate instead */
+export type ProjectUpdate = VentureUpdate
 
 // Log Entries
 export interface LogEntry extends BaseRecord {
@@ -379,20 +387,26 @@ export interface LogEntrySpecimen {
   created_at: string
 }
 
-export interface ProjectSpecimen {
+export interface VentureSpecimen {
   id: string
-  project_id: string
+  venture_id: string
   specimen_id: string
   position?: number
   created_at: string
 }
 
-export interface LogEntryProject {
+export interface LogEntryVenture {
   id: string
   log_entry_id: string
-  project_id: string
+  venture_id: string
   created_at: string
 }
+
+// Backwards compatibility (deprecated)
+/** @deprecated Use VentureSpecimen instead */
+export type ProjectSpecimen = VentureSpecimen
+/** @deprecated Use LogEntryVenture instead */
+export type LogEntryProject = LogEntryVenture
 
 // Studio Projects
 export interface StudioProject extends BaseRecord {
@@ -641,7 +655,7 @@ export type AssumptionEvidenceUpdate = Partial<AssumptionEvidenceInsert>
 export type Sustainability = 'fragile' | 'stable' | 'resilient'
 
 export interface PortfolioEvidenceSummary {
-  id: string
+  venture_id: string
   slug: string
   title: string
   portfolio_type?: PortfolioType
@@ -773,10 +787,10 @@ export interface StageTransitionSuggestion {
 export interface Database {
   public: {
     Tables: {
-      projects: {
-        Row: Project
-        Insert: ProjectInsert
-        Update: ProjectUpdate
+      ventures: {
+        Row: Venture
+        Insert: VentureInsert
+        Update: VentureUpdate
       }
       log_entries: {
         Row: LogEntry
@@ -833,15 +847,15 @@ export interface Database {
         Insert: Omit<LogEntrySpecimen, 'id' | 'created_at'>
         Update: Partial<Omit<LogEntrySpecimen, 'id' | 'created_at'>>
       }
-      project_specimens: {
-        Row: ProjectSpecimen
-        Insert: Omit<ProjectSpecimen, 'id' | 'created_at'>
-        Update: Partial<Omit<ProjectSpecimen, 'id' | 'created_at'>>
+      venture_specimens: {
+        Row: VentureSpecimen
+        Insert: Omit<VentureSpecimen, 'id' | 'created_at'>
+        Update: Partial<Omit<VentureSpecimen, 'id' | 'created_at'>>
       }
-      log_entry_projects: {
-        Row: LogEntryProject
-        Insert: Omit<LogEntryProject, 'id' | 'created_at'>
-        Update: Partial<Omit<LogEntryProject, 'id' | 'created_at'>>
+      log_entry_ventures: {
+        Row: LogEntryVenture
+        Insert: Omit<LogEntryVenture, 'id' | 'created_at'>
+        Update: Partial<Omit<LogEntryVenture, 'id' | 'created_at'>>
       }
       studio_projects: {
         Row: StudioProject

@@ -1,35 +1,14 @@
-import { z } from 'zod'
+/**
+ * @deprecated This file is deprecated. Use ventures.ts instead.
+ * This file is kept for backwards compatibility only.
+ */
 
-export const ProjectSchema = z.object({
-  id: z.string().uuid().optional(),
-  created_at: z.string().datetime().optional(),
-  updated_at: z.string().datetime().optional(),
-  title: z.string().min(1),
-  slug: z.string().min(1).regex(/^[a-z0-9-]+$/),
-  description: z.string().optional().nullable(),
-  content: z.any().optional().nullable(),
-  status: z.enum(['draft', 'active', 'archived', 'completed']).default('draft'),
-  type: z.string().optional().nullable(),
-  start_date: z.string().optional().nullable(),
-  end_date: z.string().optional().nullable(),
-  featured_image: z.string().optional().nullable(),
-  images: z.array(z.any()).optional().nullable(),
-  tags: z.array(z.string()).optional().nullable(),
-  metadata: z.any().optional().nullable(),
-  seo_title: z.string().optional().nullable(),
-  seo_description: z.string().optional().nullable(),
-  published: z.boolean().default(false),
-  published_at: z.string().datetime().optional().nullable(),
-})
-
-export const ProjectCreateSchema = ProjectSchema.omit({
-  id: true,
-  created_at: true,
-  updated_at: true,
-})
-
-export const ProjectUpdateSchema = ProjectCreateSchema.partial()
-
-export type Project = z.infer<typeof ProjectSchema>
-export type ProjectCreate = z.infer<typeof ProjectCreateSchema>
-export type ProjectUpdate = z.infer<typeof ProjectUpdateSchema>
+// Re-export everything from ventures.ts
+export {
+  VentureSchema as ProjectSchema,
+  VentureCreateSchema as ProjectCreateSchema,
+  VentureUpdateSchema as ProjectUpdateSchema,
+  type Venture as Project,
+  type VentureCreate as ProjectCreate,
+  type VentureUpdate as ProjectUpdate,
+} from './ventures'
