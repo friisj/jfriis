@@ -9,7 +9,7 @@
 ```
 1. CAPTURE    →  Create studio_project record (status: draft)
 2. SHAPE      →  Fill PRD fields, add hypotheses & experiments
-3. SCAFFOLD   →  Run scaffold script to generate components & routes
+3. SCAFFOLD   →  Run scaffold script to generate pages
 4. WORK       →  Status: active, implement experiments
 5. COMPLETE   →  Status: completed/archived
 ```
@@ -61,7 +61,6 @@ Navigate to `/admin/studio-projects/new` and create a project with:
 | Field | Purpose | Example |
 |-------|---------|---------|
 | `problem_statement` | What problem exists | "Design tokens are hard to manage" |
-| `hypothesis` | What we believe | "If we build an interactive configurator..." |
 | `success_criteria` | How we'll know success | "Theme export works, site uses it" |
 | `scope_out` | What's NOT in scope | "Figma sync, marketplace features" |
 
@@ -107,10 +106,10 @@ Create experiments that will test hypotheses:
 
 | Type | Purpose | What Gets Scaffolded |
 |------|---------|---------------------|
-| `experiment` | Standard hypothesis test | Basic experiment page |
-| `prototype` | Working code demo | Experiment page + prototype component in `src/prototypes/` |
-| `discovery_interviews` | User research | Experiment page with interview tools (future) |
-| `landing_page` | Market validation | Experiment page with metrics tracking (future) |
+| `experiment` | Standard hypothesis test | Experiment page section |
+| `prototype` | Working code demo | Experiment page + prototype component in `_components/` |
+| `discovery_interviews` | User research | Experiment page with placeholder for interview tools |
+| `landing_page` | Market validation | Experiment page with placeholder for metrics |
 
 ---
 
@@ -139,31 +138,29 @@ npm run scaffold:studio:sync <project-slug>
 - When you want to add experiment pages without losing customizations
 - The dynamic route is always updated to include all experiments
 
-**What it creates:**
+**What it creates (co-located structure):**
 
 ```
-components/studio/{slug}/
-├── page.tsx                      # Homepage component
-├── experiments/
-│   └── {exp-slug}.tsx           # Per-experiment page components
-└── src/
-    └── prototypes/
-        └── {exp-slug}.tsx       # Prototype components (for prototype type only)
-
 app/(private)/studio/{slug}/
-├── page.tsx                      # Route to homepage
+├── page.tsx                    # Homepage (server component)
+├── _components/                # Project-specific components
+│   └── {exp-slug}-prototype.tsx  # Prototype components (for prototype type only)
 └── [experiment]/
-    └── page.tsx                  # Dynamic experiment route
+    └── page.tsx                # Dynamic experiment route
 ```
 
 ### The Script Also:
 - Updates `scaffolded_at` timestamp in DB
-- Sets `path` to component directory
+- Sets `path` to project directory
 - Outputs next steps including Linear project creation suggestion
 
 ### Claude Code Hook
 
-When running the scaffold command via Claude Code, a hook fires that suggests:
+When you say "scaffold studio project" or similar, a hook queries the database and shows:
+- Projects ready for scaffolding (draft, never scaffolded)
+- Projects needing sync (new experiments added since scaffold)
+
+After scaffolding, a PostToolUse hook suggests:
 1. Creating a Linear project for task tracking
 2. Enriching generated files with project-specific content
 3. Implementing prototype components
@@ -177,7 +174,9 @@ When running the scaffold command via Claude Code, a hook fires that suggests:
 For `prototype` type experiments, implement the component:
 
 ```tsx
-// components/studio/{slug}/src/prototypes/{exp-slug}.tsx
+// app/(private)/studio/{slug}/_components/{exp-slug}-prototype.tsx
+'use client'
+
 export default function MyPrototype() {
   // Your prototype implementation
 }
@@ -357,6 +356,7 @@ For abandoned projects:
 ### Scaffold a project
 ```bash
 npm run scaffold:studio <slug>
+npm run scaffold:studio:sync <slug>  # Add new experiments only
 ```
 
 ### View generated pages
@@ -365,15 +365,16 @@ npm run scaffold:studio <slug>
 /studio/{slug}/{exp-slug}   # Experiment page
 ```
 
-### File locations
+### File locations (co-located)
 ```
-components/studio/{slug}/page.tsx                    # Homepage
-components/studio/{slug}/experiments/{exp}.tsx       # Experiment pages
-components/studio/{slug}/src/prototypes/{exp}.tsx    # Prototype components
-app/(private)/studio/{slug}/page.tsx                 # Homepage route
-app/(private)/studio/{slug}/[experiment]/page.tsx    # Dynamic experiment route
+app/(private)/studio/{slug}/
+├── page.tsx                        # Homepage
+├── _components/
+│   └── {exp-slug}-prototype.tsx    # Prototype components
+└── [experiment]/
+    └── page.tsx                    # Dynamic experiment route
 ```
 
 ---
 
-*Protocol version: 3.0 | Last updated: 2026-01-02*
+*Protocol version: 4.0 | Last updated: 2026-01-02*

@@ -1,19 +1,21 @@
 #!/usr/bin/env npx tsx
 /**
- * Studio Project Scaffold Script
+ * Studio Project Scaffold Script (Co-located Structure)
  *
- * Creates the directory structure, components, and routes for a studio project.
+ * Creates the directory structure and routes for a studio project.
+ * All files are co-located under app/(private)/studio/{slug}/
  *
  * Usage:
  *   npx tsx scripts/scaffold-studio.ts <project-slug>
+ *   npx tsx scripts/scaffold-studio.ts <project-slug> --sync
  *
- * What it does:
- * 1. Fetches project and experiments from database
- * 2. Creates component structure in components/studio/{slug}/
- * 3. Creates app routes in app/(private)/studio/{slug}/
- * 4. Generates type-specific experiment pages
- * 5. Creates prototype components for prototype-type experiments
- * 6. Updates database with scaffolded_at timestamp
+ * Structure created:
+ *   app/(private)/studio/{slug}/
+ *   ├── page.tsx                    # Homepage
+ *   ├── _components/                # Project-specific components
+ *   │   └── {exp-slug}-prototype.tsx  # Prototype components
+ *   └── [experiment]/
+ *       └── page.tsx                # Dynamic experiment route
  */
 
 import * as fs from 'fs'
@@ -90,11 +92,38 @@ interface StudioExperiment {
   learnings?: string
 }
 
-// Template generators
-function generateProjectHomepage(project: StudioProject, hypotheses: StudioHypothesis[], experiments: StudioExperiment[]): string {
+// Utility functions
+function toPascalCase(str: string): string {
+  return str
+    .split(/[-_]/)
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join('')
+}
+
+function ensureDir(dirPath: string) {
+  if (!fs.existsSync(dirPath)) {
+    fs.mkdirSync(dirPath, { recursive: true })
+    console.log(`  Created: ${dirPath}`)
+  }
+}
+
+function writeFile(filePath: string, content: string, force = true) {
+  if (!force && fs.existsSync(filePath)) {
+    console.log(`  Skipped (exists): ${filePath}`)
+    return false
+  }
+  fs.writeFileSync(filePath, content)
+  console.log(`  Created: ${filePath}`)
+  return true
+}
+
+// Template: Homepage (page.tsx)
+function generateHomepage(project: StudioProject): string {
+  const pascalName = toPascalCase(project.slug)
+
   return `import Link from 'next/link'
-import { createClient } from '@/lib/supabase/server'
-import type { StudioProject, StudioHypothesis, StudioExperiment } from '@/lib/types/database'
+import { createClient } from '@/lib/supabase-server'
+import { notFound } from 'next/navigation'
 
 function getStatusColor(status: string) {
   switch (status) {
@@ -122,19 +151,35 @@ function getTypeLabel(type: string) {
     case 'prototype': return 'Prototype'
     case 'discovery_interviews': return 'Discovery'
     case 'landing_page': return 'Landing Page'
-    case 'experiment':
     default: return 'Experiment'
   }
 }
 
-interface Props {
-  project: StudioProject
-  hypotheses: StudioHypothesis[]
-  experiments: StudioExperiment[]
-}
+export default async function ${pascalName}StudioPage() {
+  const supabase = await createClient()
 
-export default function ${toPascalCase(project.slug)}Homepage({ project, hypotheses, experiments }: Props) {
-  const sortedHypotheses = [...hypotheses].sort((a, b) => a.sequence - b.sequence)
+  const { data: project } = await supabase
+    .from('studio_projects')
+    .select('*')
+    .eq('slug', '${project.slug}')
+    .single()
+
+  if (!project) {
+    notFound()
+  }
+
+  const { data: hypotheses } = await supabase
+    .from('studio_hypotheses')
+    .select('*')
+    .eq('project_id', project.id)
+    .order('sequence')
+
+  const { data: experiments } = await supabase
+    .from('studio_experiments')
+    .select('*')
+    .eq('project_id', project.id)
+
+  const sortedHypotheses = [...(hypotheses || [])].sort((a, b) => a.sequence - b.sequence)
 
   return (
     <div className="min-h-screen bg-white text-black p-8">
@@ -192,7 +237,7 @@ export default function ${toPascalCase(project.slug)}Homepage({ project, hypothe
             </h2>
             <div className="space-y-8">
               {sortedHypotheses.map((hypothesis) => {
-                const relatedExperiments = experiments.filter(e => e.hypothesis_id === hypothesis.id)
+                const relatedExperiments = (experiments || []).filter(e => e.hypothesis_id === hypothesis.id)
                 return (
                   <div key={hypothesis.id} className="border-l-4 border-gray-200 pl-4">
                     <div className="flex items-start gap-3">
@@ -243,13 +288,13 @@ export default function ${toPascalCase(project.slug)}Homepage({ project, hypothe
         )}
 
         {/* Standalone Experiments */}
-        {experiments.filter(e => !e.hypothesis_id).length > 0 && (
+        {(experiments || []).filter(e => !e.hypothesis_id).length > 0 && (
           <section className="mb-12">
             <h2 className="text-2xl font-bold mb-6 border-b-2 border-black pb-2">
               Experiments
             </h2>
             <div className="space-y-3">
-              {experiments.filter(e => !e.hypothesis_id).map((experiment) => (
+              {(experiments || []).filter(e => !e.hypothesis_id).map((experiment) => (
                 <Link
                   key={experiment.id}
                   href={\`/studio/${project.slug}/\${experiment.slug}\`}
@@ -275,12 +320,10 @@ export default function ${toPascalCase(project.slug)}Homepage({ project, hypothe
 
         {/* Footer */}
         <footer className="mt-16 pt-8 border-t-2 border-gray-300 text-sm text-gray-500">
-          {project.path && (
-            <p className="mb-2">
-              <span className="font-medium">Path:</span>{' '}
-              <code className="bg-gray-100 px-1">{project.path}</code>
-            </p>
-          )}
+          <p>
+            <span className="font-medium">Path:</span>{' '}
+            <code className="bg-gray-100 px-1">app/(private)/studio/${project.slug}/</code>
+          </p>
         </footer>
       </div>
     </div>
@@ -289,72 +332,29 @@ export default function ${toPascalCase(project.slug)}Homepage({ project, hypothe
 `
 }
 
-function generateExperimentPage(project: StudioProject, experiment: StudioExperiment): string {
-  const typeLabel = experiment.type === 'prototype' ? 'Prototype' :
-                    experiment.type === 'discovery_interviews' ? 'Discovery' :
-                    experiment.type === 'landing_page' ? 'Landing Page' : 'Experiment'
+// Template: Dynamic experiment route
+function generateExperimentRoute(project: StudioProject, experiments: StudioExperiment[]): string {
+  const prototypeExperiments = experiments.filter(e => e.type === 'prototype')
 
-  // For prototype type, import the prototype component
-  const prototypeImport = experiment.type === 'prototype'
-    ? `import ${toPascalCase(experiment.slug)}Prototype from '../src/prototypes/${experiment.slug}'`
+  // Generate imports for prototype components
+  const prototypeImports = prototypeExperiments.length > 0
+    ? prototypeExperiments.map(e =>
+        `import ${toPascalCase(e.slug)}Prototype from '../_components/${e.slug}-prototype'`
+      ).join('\n')
     : ''
 
-  const prototypeRender = experiment.type === 'prototype'
-    ? `
-        {/* Prototype Component */}
-        <section className="mb-12 p-6 border-2 border-black">
-          <h2 className="text-lg font-bold mb-4 uppercase tracking-wide">Prototype</h2>
-          <${toPascalCase(experiment.slug)}Prototype />
-        </section>`
-    : ''
-
-  const discoverySection = experiment.type === 'discovery_interviews'
-    ? `
-        {/* Interview Tools - TODO: Add interview tracking */}
-        <section className="mb-12 p-6 border-2 border-dashed border-gray-300">
-          <h2 className="text-lg font-bold mb-4 uppercase tracking-wide text-gray-400">
-            Discovery Tools (Coming Soon)
-          </h2>
-          <p className="text-gray-400">Interview scheduling, note-taking, and synthesis tools</p>
-        </section>`
-    : ''
-
-  const landingPageSection = experiment.type === 'landing_page'
-    ? `
-        {/* Landing Page Preview - TODO: Add preview/metrics */}
-        <section className="mb-12 p-6 border-2 border-dashed border-gray-300">
-          <h2 className="text-lg font-bold mb-4 uppercase tracking-wide text-gray-400">
-            Landing Page Metrics (Coming Soon)
-          </h2>
-          <p className="text-gray-400">Conversion tracking, A/B testing results, signup metrics</p>
-        </section>`
+  // Generate prototype map
+  const prototypeMap = prototypeExperiments.length > 0
+    ? `\nconst prototypeComponents: Record<string, React.ComponentType> = {\n${
+        prototypeExperiments.map(e => `  '${e.slug}': ${toPascalCase(e.slug)}Prototype,`).join('\n')
+      }\n}\n`
     : ''
 
   return `import Link from 'next/link'
-${prototypeImport}
-
-interface Props {
-  project: {
-    slug: string
-    name: string
-  }
-  experiment: {
-    name: string
-    description?: string
-    type: string
-    status: string
-    outcome?: string
-    learnings?: string
-    created_at: string
-    updated_at: string
-  }
-  hypothesis?: {
-    sequence: number
-    statement: string
-    validation_criteria?: string
-  }
-}
-
+import { createClient } from '@/lib/supabase-server'
+import { notFound } from 'next/navigation'
+${prototypeImports}
+${prototypeMap}
 function getStatusColor(status: string) {
   switch (status) {
     case 'planned': return 'text-gray-400 bg-gray-100'
@@ -374,8 +374,58 @@ function getOutcomeDisplay(outcome?: string) {
   }
 }
 
-export default function ${toPascalCase(experiment.slug)}Page({ project, experiment, hypothesis }: Props) {
+function getTypeLabel(type: string) {
+  switch (type) {
+    case 'prototype': return 'Prototype'
+    case 'discovery_interviews': return 'Discovery'
+    case 'landing_page': return 'Landing Page'
+    default: return 'Experiment'
+  }
+}
+
+interface Props {
+  params: Promise<{ experiment: string }>
+}
+
+export default async function ExperimentPage({ params }: Props) {
+  const { experiment: experimentSlug } = await params
+  const supabase = await createClient()
+
+  const { data: project } = await supabase
+    .from('studio_projects')
+    .select('id, slug, name')
+    .eq('slug', '${project.slug}')
+    .single()
+
+  if (!project) {
+    notFound()
+  }
+
+  const { data: experiment } = await supabase
+    .from('studio_experiments')
+    .select('*')
+    .eq('project_id', project.id)
+    .eq('slug', experimentSlug)
+    .single()
+
+  if (!experiment) {
+    notFound()
+  }
+
+  let hypothesis = null
+  if (experiment.hypothesis_id) {
+    const { data } = await supabase
+      .from('studio_hypotheses')
+      .select('sequence, statement, validation_criteria')
+      .eq('id', experiment.hypothesis_id)
+      .single()
+    hypothesis = data
+  }
+
   const outcomeDisplay = getOutcomeDisplay(experiment.outcome)
+  const PrototypeComponent = experiment.type === 'prototype'
+    ? ${prototypeExperiments.length > 0 ? 'prototypeComponents[experimentSlug]' : 'null'}
+    : null
 
   return (
     <div className="min-h-screen bg-white text-black p-8">
@@ -393,7 +443,7 @@ export default function ${toPascalCase(experiment.slug)}Page({ project, experime
         <header className="mb-12">
           <div className="flex items-center gap-3 mb-2">
             <span className="text-sm font-medium uppercase text-gray-500">
-              ${typeLabel}
+              {getTypeLabel(experiment.type)}
             </span>
             <span className={\`text-sm font-medium px-2 py-0.5 rounded \${getStatusColor(experiment.status)}\`}>
               {experiment.status.replace('_', ' ')}
@@ -424,7 +474,35 @@ export default function ${toPascalCase(experiment.slug)}Page({ project, experime
             )}
           </section>
         )}
-${prototypeRender}${discoverySection}${landingPageSection}
+
+        {/* Prototype Component */}
+        {PrototypeComponent && (
+          <section className="mb-12 p-6 border-2 border-black">
+            <h2 className="text-lg font-bold mb-4 uppercase tracking-wide">Prototype</h2>
+            <PrototypeComponent />
+          </section>
+        )}
+
+        {/* Discovery Tools Placeholder */}
+        {experiment.type === 'discovery_interviews' && (
+          <section className="mb-12 p-6 border-2 border-dashed border-gray-300">
+            <h2 className="text-lg font-bold mb-4 uppercase tracking-wide text-gray-400">
+              Discovery Tools (Coming Soon)
+            </h2>
+            <p className="text-gray-400">Interview scheduling, note-taking, and synthesis tools</p>
+          </section>
+        )}
+
+        {/* Landing Page Placeholder */}
+        {experiment.type === 'landing_page' && (
+          <section className="mb-12 p-6 border-2 border-dashed border-gray-300">
+            <h2 className="text-lg font-bold mb-4 uppercase tracking-wide text-gray-400">
+              Landing Page Metrics (Coming Soon)
+            </h2>
+            <p className="text-gray-400">Conversion tracking, A/B testing results, signup metrics</p>
+          </section>
+        )}
+
         {/* Outcome & Learnings */}
         {(experiment.outcome || experiment.learnings) && (
           <section className="mb-12">
@@ -472,8 +550,11 @@ ${prototypeRender}${discoverySection}${landingPageSection}
 `
 }
 
+// Template: Prototype component
 function generatePrototypeComponent(experiment: StudioExperiment): string {
-  return `/**
+  return `'use client'
+
+/**
  * ${experiment.name} Prototype
  *
  * ${experiment.description || 'A prototype component for experimentation.'}
@@ -493,126 +574,6 @@ export default function ${toPascalCase(experiment.slug)}Prototype() {
   )
 }
 `
-}
-
-function generateAppRoute(projectSlug: string): string {
-  return `import { createClient } from '@/lib/supabase/server'
-import { notFound } from 'next/navigation'
-import ${toPascalCase(projectSlug)}Homepage from '@/components/studio/${projectSlug}/page'
-
-export default async function ${toPascalCase(projectSlug)}StudioPage() {
-  const supabase = await createClient()
-
-  const { data: project } = await supabase
-    .from('studio_projects')
-    .select('*')
-    .eq('slug', '${projectSlug}')
-    .single()
-
-  if (!project) {
-    notFound()
-  }
-
-  const { data: hypotheses } = await supabase
-    .from('studio_hypotheses')
-    .select('*')
-    .eq('project_id', project.id)
-    .order('sequence')
-
-  const { data: experiments } = await supabase
-    .from('studio_experiments')
-    .select('*')
-    .eq('project_id', project.id)
-
-  return (
-    <${toPascalCase(projectSlug)}Homepage
-      project={project}
-      hypotheses={hypotheses || []}
-      experiments={experiments || []}
-    />
-  )
-}
-`
-}
-
-function generateExperimentRoute(projectSlug: string, experimentSlug: string): string {
-  return `import { createClient } from '@/lib/supabase/server'
-import { notFound } from 'next/navigation'
-import ${toPascalCase(experimentSlug)}Page from '@/components/studio/${projectSlug}/experiments/${experimentSlug}'
-
-interface Props {
-  params: Promise<{ experiment: string }>
-}
-
-export default async function ${toPascalCase(experimentSlug)}ExperimentRoute({ params }: Props) {
-  const { experiment: experimentSlug } = await params
-  const supabase = await createClient()
-
-  const { data: project } = await supabase
-    .from('studio_projects')
-    .select('id, slug, name')
-    .eq('slug', '${projectSlug}')
-    .single()
-
-  if (!project) {
-    notFound()
-  }
-
-  const { data: experiment } = await supabase
-    .from('studio_experiments')
-    .select('*')
-    .eq('project_id', project.id)
-    .eq('slug', experimentSlug)
-    .single()
-
-  if (!experiment) {
-    notFound()
-  }
-
-  let hypothesis = null
-  if (experiment.hypothesis_id) {
-    const { data } = await supabase
-      .from('studio_hypotheses')
-      .select('sequence, statement, validation_criteria')
-      .eq('id', experiment.hypothesis_id)
-      .single()
-    hypothesis = data
-  }
-
-  return (
-    <${toPascalCase(experimentSlug)}Page
-      project={project}
-      experiment={experiment}
-      hypothesis={hypothesis}
-    />
-  )
-}
-`
-}
-
-// Utility functions
-function toPascalCase(str: string): string {
-  return str
-    .split(/[-_]/)
-    .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
-    .join('')
-}
-
-function ensureDir(dirPath: string) {
-  if (!fs.existsSync(dirPath)) {
-    fs.mkdirSync(dirPath, { recursive: true })
-    console.log(`  Created: ${dirPath}`)
-  }
-}
-
-function writeFile(filePath: string, content: string, force = true) {
-  if (!force && fs.existsSync(filePath)) {
-    console.log(`  Skipped (exists): ${filePath}`)
-    return false
-  }
-  fs.writeFileSync(filePath, content)
-  console.log(`  Created: ${filePath}`)
-  return true
 }
 
 // Main scaffold function
@@ -655,49 +616,37 @@ async function scaffold(projectSlug: string, syncMode = false) {
 
   console.log(`Found ${experiments?.length || 0} experiments`)
 
-  // 4. Create directory structure
+  // 4. Create directory structure (co-located)
   const basePath = process.cwd()
-  const componentPath = path.join(basePath, 'components', 'studio', projectSlug)
-  const experimentsPath = path.join(componentPath, 'experiments')
-  const prototypesPath = path.join(componentPath, 'src', 'prototypes')
-  const appRoutePath = path.join(basePath, 'app', '(private)', 'studio', projectSlug)
-  const experimentRoutePath = path.join(appRoutePath, '[experiment]')
+  const projectPath = path.join(basePath, 'app', '(private)', 'studio', projectSlug)
+  const componentsPath = path.join(projectPath, '_components')
+  const experimentRoutePath = path.join(projectPath, '[experiment]')
 
   console.log('\nCreating directories...')
-  ensureDir(componentPath)
-  ensureDir(experimentsPath)
-  ensureDir(prototypesPath)
-  ensureDir(appRoutePath)
+  ensureDir(projectPath)
+  ensureDir(componentsPath)
   ensureDir(experimentRoutePath)
 
-  // 5. Generate project homepage
-  console.log('\nGenerating components...')
-  const homepageContent = generateProjectHomepage(project, hypotheses || [], experiments || [])
-  writeFile(path.join(componentPath, 'page.tsx'), homepageContent, !syncMode)
+  // 5. Generate homepage
+  console.log('\nGenerating files...')
+  const homepageContent = generateHomepage(project)
+  writeFile(path.join(projectPath, 'page.tsx'), homepageContent, !syncMode)
 
-  // 6. Generate experiment pages by type
-  let newExperiments = 0
-  for (const experiment of experiments || []) {
-    const experimentContent = generateExperimentPage(project, experiment)
-    const created = writeFile(path.join(experimentsPath, `${experiment.slug}.tsx`), experimentContent, !syncMode)
-    if (created) newExperiments++
-
-    // For prototype type, also create the prototype component
-    if (experiment.type === 'prototype') {
-      const prototypeContent = generatePrototypeComponent(experiment)
-      writeFile(path.join(prototypesPath, `${experiment.slug}.tsx`), prototypeContent, !syncMode)
-    }
+  // 6. Generate experiment route (always regenerate to include all experiments)
+  if (experiments && experiments.length > 0) {
+    const experimentRouteContent = generateExperimentRoute(project, experiments)
+    writeFile(path.join(experimentRoutePath, 'page.tsx'), experimentRouteContent, true)
   }
 
-  // 7. Generate app routes
-  console.log('\nGenerating app routes...')
-  const appRouteContent = generateAppRoute(projectSlug)
-  writeFile(path.join(appRoutePath, 'page.tsx'), appRouteContent, !syncMode)
-
-  // Generate dynamic experiment route - always regenerate to include all experiments
-  if (experiments && experiments.length > 0) {
-    const dynamicRouteContent = generateDynamicExperimentRoute(projectSlug, experiments)
-    writeFile(path.join(experimentRoutePath, 'page.tsx'), dynamicRouteContent, true) // Always update
+  // 7. Generate prototype components
+  const prototypeExperiments = (experiments || []).filter(e => e.type === 'prototype')
+  for (const experiment of prototypeExperiments) {
+    const prototypeContent = generatePrototypeComponent(experiment)
+    writeFile(
+      path.join(componentsPath, `${experiment.slug}-prototype.tsx`),
+      prototypeContent,
+      !syncMode
+    )
   }
 
   // 8. Update database with scaffolded info
@@ -705,7 +654,7 @@ async function scaffold(projectSlug: string, syncMode = false) {
   const { error: updateError } = await supabase
     .from('studio_projects')
     .update({
-      path: `components/studio/${projectSlug}/`,
+      path: `app/(private)/studio/${projectSlug}/`,
       scaffolded_at: new Date().toISOString(),
     })
     .eq('id', project.id)
@@ -719,97 +668,21 @@ async function scaffold(projectSlug: string, syncMode = false) {
   // 9. Output summary
   console.log('\n✓ Scaffold complete!')
   console.log(`\nCreated files:`)
-  console.log(`  - components/studio/${projectSlug}/page.tsx (homepage)`)
-  for (const experiment of experiments || []) {
-    console.log(`  - components/studio/${projectSlug}/experiments/${experiment.slug}.tsx`)
-    if (experiment.type === 'prototype') {
-      console.log(`  - components/studio/${projectSlug}/src/prototypes/${experiment.slug}.tsx`)
-    }
+  console.log(`  - app/(private)/studio/${projectSlug}/page.tsx (homepage)`)
+  if (experiments && experiments.length > 0) {
+    console.log(`  - app/(private)/studio/${projectSlug}/[experiment]/page.tsx (dynamic route)`)
   }
-  console.log(`  - app/(private)/studio/${projectSlug}/page.tsx`)
-  console.log(`  - app/(private)/studio/${projectSlug}/[experiment]/page.tsx`)
+  for (const experiment of prototypeExperiments) {
+    console.log(`  - app/(private)/studio/${projectSlug}/_components/${experiment.slug}-prototype.tsx`)
+  }
 
   console.log(`\nNext steps:`)
   console.log(`  1. Review generated files`)
-  console.log(`  2. Implement prototype components`)
-  console.log(`  3. Run 'npm run dev' to test`)
+  if (prototypeExperiments.length > 0) {
+    console.log(`  2. Implement prototype components in _components/`)
+  }
+  console.log(`  3. Run 'npm run dev' to test at /studio/${projectSlug}`)
   console.log(`  4. Consider creating a Linear project for task tracking`)
-}
-
-// Generate a single dynamic route that handles all experiments
-function generateDynamicExperimentRoute(projectSlug: string, experiments: StudioExperiment[]): string {
-  // Create imports for all experiment pages
-  const imports = experiments.map(exp =>
-    `import ${toPascalCase(exp.slug)}Page from '@/components/studio/${projectSlug}/experiments/${exp.slug}'`
-  ).join('\n')
-
-  // Create the component map
-  const componentMap = experiments.map(exp =>
-    `  '${exp.slug}': ${toPascalCase(exp.slug)}Page,`
-  ).join('\n')
-
-  return `import { createClient } from '@/lib/supabase/server'
-import { notFound } from 'next/navigation'
-${imports}
-
-const experimentComponents: Record<string, React.ComponentType<any>> = {
-${componentMap}
-}
-
-interface Props {
-  params: Promise<{ experiment: string }>
-}
-
-export default async function ExperimentRoute({ params }: Props) {
-  const { experiment: experimentSlug } = await params
-  const supabase = await createClient()
-
-  const { data: project } = await supabase
-    .from('studio_projects')
-    .select('id, slug, name')
-    .eq('slug', '${projectSlug}')
-    .single()
-
-  if (!project) {
-    notFound()
-  }
-
-  const { data: experiment } = await supabase
-    .from('studio_experiments')
-    .select('*')
-    .eq('project_id', project.id)
-    .eq('slug', experimentSlug)
-    .single()
-
-  if (!experiment) {
-    notFound()
-  }
-
-  const ExperimentComponent = experimentComponents[experimentSlug]
-  if (!ExperimentComponent) {
-    // Fallback for experiments added after scaffold
-    notFound()
-  }
-
-  let hypothesis = null
-  if (experiment.hypothesis_id) {
-    const { data } = await supabase
-      .from('studio_hypotheses')
-      .select('sequence, statement, validation_criteria')
-      .eq('id', experiment.hypothesis_id)
-      .single()
-    hypothesis = data
-  }
-
-  return (
-    <ExperimentComponent
-      project={project}
-      experiment={experiment}
-      hypothesis={hypothesis}
-    />
-  )
-}
-`
 }
 
 // CLI entry point
@@ -822,11 +695,11 @@ if (!projectSlug) {
   console.log('\nOptions:')
   console.log('  --sync    Only add new experiment files, do not overwrite existing')
   console.log('\nExamples:')
-  console.log('  npx tsx scripts/scaffold-studio.ts trux')
-  console.log('  npx tsx scripts/scaffold-studio.ts trux --sync')
+  console.log('  npx tsx scripts/scaffold-studio.ts kokoro')
+  console.log('  npx tsx scripts/scaffold-studio.ts kokoro --sync')
   console.log('\nOr use npm scripts:')
-  console.log('  npm run scaffold:studio trux')
-  console.log('  npm run scaffold:studio:sync trux')
+  console.log('  npm run scaffold:studio kokoro')
+  console.log('  npm run scaffold:studio:sync kokoro')
   process.exit(1)
 }
 
