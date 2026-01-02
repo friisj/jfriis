@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import { useState } from 'react'
 import { StatusBadge } from '@/components/admin'
 import { formatDate } from '@/lib/utils'
 
@@ -25,6 +26,29 @@ const temperatureEmoji: Record<string, string> = {
   hot: '🔥',
   warm: '🌡️',
   cold: '❄️',
+}
+
+function ScaffoldButton({ slug }: { slug: string }) {
+  const [copied, setCopied] = useState(false)
+  const command = `npm run scaffold:studio ${slug}`
+
+  const handleClick = async (e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    await navigator.clipboard.writeText(command)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
+
+  return (
+    <button
+      onClick={handleClick}
+      className="text-blue-600 hover:underline text-xs"
+      title={`Copy: ${command}`}
+    >
+      {copied ? 'Copied!' : 'Scaffold →'}
+    </button>
+  )
 }
 
 export function StudioProjectCard({ project }: StudioProjectCardProps) {
@@ -75,7 +99,7 @@ export function StudioProjectCard({ project }: StudioProjectCardProps) {
         {/* Metadata */}
         <div className="flex items-center justify-between text-xs text-muted-foreground border-t pt-3">
           <span>{formatDate(project.updated_at)}</span>
-          {project.scaffolded_at && (
+          {project.scaffolded_at ? (
             <Link
               href={`/studio/${project.slug}`}
               className="text-primary hover:underline"
@@ -83,6 +107,8 @@ export function StudioProjectCard({ project }: StudioProjectCardProps) {
             >
               View →
             </Link>
+          ) : (
+            <ScaffoldButton slug={project.slug} />
           )}
         </div>
       </div>

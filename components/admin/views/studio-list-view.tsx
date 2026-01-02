@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import { useState } from 'react'
 import {
   AdminDataView,
   AdminTableColumn,
@@ -11,6 +12,41 @@ import {
 import { StudioProjectCard } from '@/components/admin/cards'
 import { formatDate } from '@/lib/utils'
 import { updateStudioProjectStatus } from '@/app/actions/studio'
+
+function ScaffoldButton({ slug }: { slug: string }) {
+  const [copied, setCopied] = useState(false)
+  const command = `npm run scaffold:studio ${slug}`
+
+  const handleClick = async () => {
+    await navigator.clipboard.writeText(command)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
+
+  return (
+    <button
+      onClick={handleClick}
+      className="inline-flex items-center gap-1 px-3 py-1.5 text-sm rounded-lg border border-blue-500 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950 transition-colors"
+      title={`Copy: ${command}`}
+    >
+      {copied ? (
+        <>
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+          </svg>
+          Copied
+        </>
+      ) : (
+        <>
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+          </svg>
+          Scaffold
+        </>
+      )}
+    </button>
+  )
+}
 
 interface StudioProject {
   id: string
@@ -114,20 +150,22 @@ export function StudioListView({ projects }: StudioListViewProps) {
       header: 'Actions',
       align: 'right',
       cell: (project) => (
-        <div className="space-x-2">
+        <div className="flex items-center gap-2 justify-end">
           <Link
             href={`/admin/studio/${project.id}/edit`}
             className="inline-flex items-center gap-1 px-3 py-1.5 text-sm rounded-lg border hover:bg-accent transition-colors"
           >
             Edit
           </Link>
-          {project.scaffolded_at && (
+          {project.scaffolded_at ? (
             <Link
               href={`/studio/${project.slug}`}
               className="inline-flex items-center gap-1 px-3 py-1.5 text-sm rounded-lg border hover:bg-accent transition-colors"
             >
               View
             </Link>
+          ) : (
+            <ScaffoldButton slug={project.slug} />
           )}
         </div>
       ),
