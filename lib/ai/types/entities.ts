@@ -16,7 +16,7 @@ export type EntityType =
   | 'value_proposition_canvases'
   | 'canvas_items'
   | 'assumptions'
-  | 'projects'
+  | 'ventures'
   | 'log_entries'
   | 'specimens'
   | 'backlog_items'
@@ -40,7 +40,7 @@ export type FieldNameFor<T extends EntityType> = T extends 'studio_projects'
   ? 'title' | 'description' | 'job_context' | 'notes' | 'tags'
   : T extends 'assumptions'
   ? 'statement' | 'validation_criteria' | 'decision_notes' | 'notes' | 'tags'
-  : T extends 'projects'
+  : T extends 'ventures'
   ? 'title' | 'description' | 'content' | 'tags'
   : T extends 'log_entries'
   ? 'title' | 'content' | 'tags'
@@ -71,7 +71,7 @@ export function isValidEntityType(type: string): type is EntityType {
     'value_proposition_canvases',
     'canvas_items',
     'assumptions',
-    'projects',
+    'ventures',
     'log_entries',
     'specimens',
     'backlog_items',
