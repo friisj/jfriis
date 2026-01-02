@@ -72,7 +72,7 @@ export default function ProjectCover({ project, hypotheses, experiments }: Proje
         </header>
 
         {/* PRD Summary */}
-        {(project.problem_statement || project.hypothesis) && (
+        {(project.problem_statement || project.success_criteria) && (
           <section className="mb-12 p-6 border-2 border-black">
             <h2 className="text-lg font-bold mb-4 uppercase tracking-wide">PRD Summary</h2>
 
@@ -80,13 +80,6 @@ export default function ProjectCover({ project, hypotheses, experiments }: Proje
               <div className="mb-4">
                 <h3 className="font-bold text-sm uppercase text-gray-500 mb-1">Problem</h3>
                 <p>{project.problem_statement}</p>
-              </div>
-            )}
-
-            {project.hypothesis && (
-              <div className="mb-4">
-                <h3 className="font-bold text-sm uppercase text-gray-500 mb-1">Hypothesis</h3>
-                <p className="italic">{project.hypothesis}</p>
               </div>
             )}
 

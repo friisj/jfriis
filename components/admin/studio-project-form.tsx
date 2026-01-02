@@ -24,7 +24,6 @@ export function StudioProjectForm({ project, mode }: StudioProjectFormProps) {
     temperature: project?.temperature || '',
     current_focus: project?.current_focus || '',
     problem_statement: project?.problem_statement || '',
-    hypothesis: project?.hypothesis || '',
     success_criteria: project?.success_criteria || '',
     scope_out: project?.scope_out || '',
     path: project?.path || '',
@@ -42,7 +41,6 @@ export function StudioProjectForm({ project, mode }: StudioProjectFormProps) {
         description: formData.description || null,
         current_focus: formData.current_focus || null,
         problem_statement: formData.problem_statement || null,
-        hypothesis: formData.hypothesis || null,
         success_criteria: formData.success_criteria || null,
         scope_out: formData.scope_out || null,
         path: formData.path || null,
@@ -240,31 +238,6 @@ export function StudioProjectForm({ project, mode }: StudioProjectFormProps) {
 
         <div>
           <label className="flex items-center justify-between text-sm font-medium mb-1">
-            <span>Hypothesis</span>
-            <AIFieldControls
-              fieldName="hypothesis"
-              entityType="studio_projects"
-              context={{
-                name: formData.name,
-                description: formData.description,
-                problem_statement: formData.problem_statement,
-              }}
-              currentValue={formData.hypothesis}
-              onGenerate={(content) => setFormData({ ...formData, hypothesis: content })}
-              disabled={saving}
-            />
-          </label>
-          <textarea
-            value={formData.hypothesis}
-            onChange={(e) => setFormData({ ...formData, hypothesis: e.target.value })}
-            className="w-full px-3 py-2 rounded-lg border bg-background"
-            rows={3}
-            placeholder="If we build X, then Y will happen..."
-          />
-        </div>
-
-        <div>
-          <label className="flex items-center justify-between text-sm font-medium mb-1">
             <span>Success Criteria</span>
             <AIFieldControls
               fieldName="success_criteria"
@@ -273,7 +246,6 @@ export function StudioProjectForm({ project, mode }: StudioProjectFormProps) {
                 name: formData.name,
                 description: formData.description,
                 problem_statement: formData.problem_statement,
-                hypothesis: formData.hypothesis,
               }}
               currentValue={formData.success_criteria}
               onGenerate={(content) => setFormData({ ...formData, success_criteria: content })}

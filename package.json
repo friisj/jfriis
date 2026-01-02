@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "scaffold:studio": "npx tsx scripts/scaffold-studio.ts"
+    "scaffold:studio": "npx tsx scripts/scaffold-studio.ts",
+    "scaffold:studio:sync": "npx tsx scripts/scaffold-studio.ts --sync"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^3.0.1",

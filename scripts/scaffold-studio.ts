@@ -62,7 +62,6 @@ interface StudioProject {
   temperature?: string
   current_focus?: string
   problem_statement?: string
-  hypothesis?: string
   success_criteria?: string
   scope_out?: string
   path?: string
@@ -159,19 +158,13 @@ export default function ${toPascalCase(project.slug)}Homepage({ project, hypothe
         </header>
 
         {/* PRD Summary */}
-        {(project.problem_statement || project.hypothesis) && (
+        {(project.problem_statement || project.success_criteria) && (
           <section className="mb-12 p-6 border-2 border-black">
             <h2 className="text-lg font-bold mb-4 uppercase tracking-wide">PRD Summary</h2>
             {project.problem_statement && (
               <div className="mb-4">
                 <h3 className="font-bold text-sm uppercase text-gray-500 mb-1">Problem</h3>
                 <p>{project.problem_statement}</p>
-              </div>
-            )}
-            {project.hypothesis && (
-              <div className="mb-4">
-                <h3 className="font-bold text-sm uppercase text-gray-500 mb-1">Hypothesis</h3>
-                <p className="italic">{project.hypothesis}</p>
               </div>
             )}
             {project.success_criteria && (
@@ -612,14 +605,23 @@ function ensureDir(dirPath: string) {
   }
 }
 
-function writeFile(filePath: string, content: string) {
+function writeFile(filePath: string, content: string, force = true) {
+  if (!force && fs.existsSync(filePath)) {
+    console.log(`  Skipped (exists): ${filePath}`)
+    return false
+  }
   fs.writeFileSync(filePath, content)
   console.log(`  Created: ${filePath}`)
+  return true
 }
 
 // Main scaffold function
-async function scaffold(projectSlug: string) {
-  console.log(`\nScaffolding studio project: ${projectSlug}\n`)
+async function scaffold(projectSlug: string, syncMode = false) {
+  const modeLabel = syncMode ? 'Syncing' : 'Scaffolding'
+  console.log(`\n${modeLabel} studio project: ${projectSlug}\n`)
+  if (syncMode) {
+    console.log('(Sync mode: only adding new files, not overwriting existing)\n')
+  }
 
   // 1. Fetch project
   const { data: project, error: projectError } = await supabase
@@ -671,29 +673,31 @@ async function scaffold(projectSlug: string) {
   // 5. Generate project homepage
   console.log('\nGenerating components...')
   const homepageContent = generateProjectHomepage(project, hypotheses || [], experiments || [])
-  writeFile(path.join(componentPath, 'page.tsx'), homepageContent)
+  writeFile(path.join(componentPath, 'page.tsx'), homepageContent, !syncMode)
 
   // 6. Generate experiment pages by type
+  let newExperiments = 0
   for (const experiment of experiments || []) {
     const experimentContent = generateExperimentPage(project, experiment)
-    writeFile(path.join(experimentsPath, `${experiment.slug}.tsx`), experimentContent)
+    const created = writeFile(path.join(experimentsPath, `${experiment.slug}.tsx`), experimentContent, !syncMode)
+    if (created) newExperiments++
 
     // For prototype type, also create the prototype component
     if (experiment.type === 'prototype') {
       const prototypeContent = generatePrototypeComponent(experiment)
-      writeFile(path.join(prototypesPath, `${experiment.slug}.tsx`), prototypeContent)
+      writeFile(path.join(prototypesPath, `${experiment.slug}.tsx`), prototypeContent, !syncMode)
     }
   }
 
   // 7. Generate app routes
   console.log('\nGenerating app routes...')
   const appRouteContent = generateAppRoute(projectSlug)
-  writeFile(path.join(appRoutePath, 'page.tsx'), appRouteContent)
+  writeFile(path.join(appRoutePath, 'page.tsx'), appRouteContent, !syncMode)
 
-  // Generate dynamic experiment route (only need one for all experiments)
+  // Generate dynamic experiment route - always regenerate to include all experiments
   if (experiments && experiments.length > 0) {
     const dynamicRouteContent = generateDynamicExperimentRoute(projectSlug, experiments)
-    writeFile(path.join(experimentRoutePath, 'page.tsx'), dynamicRouteContent)
+    writeFile(path.join(experimentRoutePath, 'page.tsx'), dynamicRouteContent, true) // Always update
   }
 
   // 8. Update database with scaffolded info
@@ -810,10 +814,20 @@ export default async function ExperimentRoute({ params }: Props) {
 
 // CLI entry point
 const args = process.argv.slice(2)
-if (args.length === 0) {
-  console.log('Usage: npx tsx scripts/scaffold-studio.ts <project-slug>')
-  console.log('\nExample: npx tsx scripts/scaffold-studio.ts trux')
+const syncMode = args.includes('--sync')
+const projectSlug = args.find(arg => !arg.startsWith('--'))
+
+if (!projectSlug) {
+  console.log('Usage: npx tsx scripts/scaffold-studio.ts <project-slug> [--sync]')
+  console.log('\nOptions:')
+  console.log('  --sync    Only add new experiment files, do not overwrite existing')
+  console.log('\nExamples:')
+  console.log('  npx tsx scripts/scaffold-studio.ts trux')
+  console.log('  npx tsx scripts/scaffold-studio.ts trux --sync')
+  console.log('\nOr use npm scripts:')
+  console.log('  npm run scaffold:studio trux')
+  console.log('  npm run scaffold:studio:sync trux')
   process.exit(1)
 }
 
-scaffold(args[0])
+scaffold(projectSlug, syncMode)

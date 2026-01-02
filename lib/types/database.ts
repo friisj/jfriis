@@ -417,7 +417,6 @@ export interface StudioProject extends BaseRecord {
   temperature?: 'hot' | 'warm' | 'cold'
   current_focus?: string
   problem_statement?: string
-  hypothesis?: string
   success_criteria?: string
   scope_out?: string
   path?: string

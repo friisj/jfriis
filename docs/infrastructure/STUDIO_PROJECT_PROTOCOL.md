@@ -127,8 +127,17 @@ Scaffold when:
 ### Run the Scaffold Script
 
 ```bash
+# Initial scaffold (creates all files)
 npm run scaffold:studio <project-slug>
+
+# Sync mode (only adds new experiments, doesn't overwrite existing)
+npm run scaffold:studio:sync <project-slug>
 ```
+
+**When to use sync mode:**
+- After adding new experiments to the database
+- When you want to add experiment pages without losing customizations
+- The dynamic route is always updated to include all experiments
 
 **What it creates:**
 
