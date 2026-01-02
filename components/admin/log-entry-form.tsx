@@ -17,7 +17,7 @@ interface LogEntryFormData {
   published: boolean
   tags: string
   specimenIds: string[]
-  projectIds: string[]
+  ventureIds: string[]
 }
 
 interface LogEntryFormProps {
@@ -39,7 +39,7 @@ export function LogEntryForm({ entryId, initialData }: LogEntryFormProps) {
     published: initialData?.published || false,
     tags: initialData?.tags || '',
     specimenIds: initialData?.specimenIds || [],
-    projectIds: initialData?.projectIds || [],
+    ventureIds: initialData?.ventureIds || [],
   })
 
   // Load existing relationships
@@ -59,16 +59,16 @@ export function LogEntryForm({ entryId, initialData }: LogEntryFormProps) {
       .eq('log_entry_id', entryId)
       .order('position')
 
-    // Load project relationships
-    const { data: projects } = await supabase
-      .from('log_entry_projects')
-      .select('project_id')
+    // Load venture relationships
+    const { data: ventures } = await supabase
+      .from('log_entry_ventures')
+      .select('venture_id')
       .eq('log_entry_id', entryId)
 
     setFormData(prev => ({
       ...prev,
       specimenIds: specimens?.map(r => r.specimen_id) || [],
-      projectIds: projects?.map(r => r.project_id) || [],
+      ventureIds: ventures?.map(r => r.venture_id) || [],
     }))
   }
 
@@ -158,24 +158,24 @@ export function LogEntryForm({ entryId, initialData }: LogEntryFormProps) {
           if (specimenError) throw specimenError
         }
 
-        // Delete existing project relationships
+        // Delete existing venture relationships
         await supabase
-          .from('log_entry_projects')
+          .from('log_entry_ventures')
           .delete()
           .eq('log_entry_id', savedEntryId)
 
-        // Insert new project relationships
-        if (formData.projectIds.length > 0) {
-          const projectRelations = formData.projectIds.map((projectId) => ({
+        // Insert new venture relationships
+        if (formData.ventureIds.length > 0) {
+          const ventureRelations = formData.ventureIds.map((ventureId) => ({
             log_entry_id: savedEntryId,
-            project_id: projectId
+            venture_id: ventureId
           }))
 
-          const { error: projectError } = await supabase
-            .from('log_entry_projects')
-            .insert(projectRelations)
+          const { error: ventureError } = await supabase
+            .from('log_entry_ventures')
+            .insert(ventureRelations)
 
-          if (projectError) throw projectError
+          if (ventureError) throw ventureError
         }
       }
 
@@ -379,11 +379,11 @@ export function LogEntryForm({ entryId, initialData }: LogEntryFormProps) {
 
           <div className="rounded-lg border bg-card p-4">
             <RelationshipSelector
-              label="Link Projects"
-              tableName="projects"
-              selectedIds={formData.projectIds}
-              onChange={(ids) => setFormData({ ...formData, projectIds: ids })}
-              helperText="Link related projects to this log entry"
+              label="Link Ventures"
+              tableName="ventures"
+              selectedIds={formData.ventureIds}
+              onChange={(ids) => setFormData({ ...formData, ventureIds: ids })}
+              helperText="Link related ventures to this log entry"
             />
           </div>
         </div>

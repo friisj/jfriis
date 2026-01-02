@@ -7,10 +7,10 @@ import {
   AdminEmptyState,
   StatusBadge,
 } from '@/components/admin'
-import { ProjectCard } from '@/components/admin/cards'
+import { VentureCard } from '@/components/admin/cards'
 import { formatDate } from '@/lib/utils'
 
-interface Project {
+interface Venture {
   id: string
   title: string
   slug: string
@@ -19,51 +19,51 @@ interface Project {
   published: boolean
   created_at: string
   updated_at: string
-  project_specimens?: Array<{ count: number }>
-  log_entry_projects?: Array<{ count: number }>
+  venture_specimens?: Array<{ count: number }>
+  log_entry_ventures?: Array<{ count: number }>
 }
 
-interface ProjectsListViewProps {
-  projects: Project[]
+interface VenturesListViewProps {
+  ventures: Venture[]
 }
 
-export function ProjectsListView({ projects }: ProjectsListViewProps) {
-  const columns: AdminTableColumn<Project>[] = [
+export function VenturesListView({ ventures }: VenturesListViewProps) {
+  const columns: AdminTableColumn<Venture>[] = [
     {
       key: 'title',
       header: 'Title',
-      cell: (project) => (
+      cell: (venture) => (
         <div className="flex flex-col">
-          <span className="font-medium">{project.title}</span>
-          <span className="text-sm text-muted-foreground">/{project.slug}</span>
+          <span className="font-medium">{venture.title}</span>
+          <span className="text-sm text-muted-foreground">/{venture.slug}</span>
         </div>
       ),
     },
     {
       key: 'status',
       header: 'Status',
-      cell: (project) => <StatusBadge value={project.status} />,
+      cell: (venture) => <StatusBadge value={venture.status} />,
     },
     {
       key: 'type',
       header: 'Type',
-      cell: (project) => <span className="text-sm">{project.type || '-'}</span>,
+      cell: (venture) => <span className="text-sm">{venture.type || '-'}</span>,
     },
     {
       key: 'links',
       header: 'Links',
-      cell: (project) => (
+      cell: (venture) => (
         <div className="flex flex-col gap-1 text-xs text-muted-foreground">
-          <span>{project.project_specimens?.[0]?.count || 0} specimens</span>
-          <span>{project.log_entry_projects?.[0]?.count || 0} log entries</span>
+          <span>{venture.venture_specimens?.[0]?.count || 0} specimens</span>
+          <span>{venture.log_entry_ventures?.[0]?.count || 0} log entries</span>
         </div>
       ),
     },
     {
       key: 'published',
       header: 'Published',
-      cell: (project) =>
-        project.published ? (
+      cell: (venture) =>
+        venture.published ? (
           <span className="inline-flex items-center gap-1 text-green-600 dark:text-green-400">
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
@@ -77,15 +77,15 @@ export function ProjectsListView({ projects }: ProjectsListViewProps) {
     {
       key: 'updated',
       header: 'Updated',
-      cell: (project) => <span className="text-sm text-muted-foreground">{formatDate(project.updated_at)}</span>,
+      cell: (venture) => <span className="text-sm text-muted-foreground">{formatDate(venture.updated_at)}</span>,
     },
     {
       key: 'actions',
       header: 'Actions',
       align: 'right',
-      cell: (project) => (
+      cell: (venture) => (
         <Link
-          href={`/admin/projects/${project.id}/edit`}
+          href={`/admin/ventures/${venture.id}/edit`}
           className="inline-flex items-center gap-1 px-3 py-1.5 text-sm rounded-lg border hover:bg-accent transition-colors"
         >
           Edit
@@ -96,17 +96,17 @@ export function ProjectsListView({ projects }: ProjectsListViewProps) {
 
   return (
     <AdminDataView
-      data={projects}
+      data={ventures}
       views={{
         table: {
           columns,
         },
         grid: {
-          renderCard: (project) => <ProjectCard project={project} />,
+          renderCard: (venture) => <VentureCard venture={venture} />,
         },
       }}
       defaultView="table"
-      persistenceKey="admin-projects-view"
+      persistenceKey="admin-ventures-view"
       emptyState={
         <AdminEmptyState
           icon={
@@ -114,10 +114,10 @@ export function ProjectsListView({ projects }: ProjectsListViewProps) {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
             </svg>
           }
-          title="No projects yet"
-          description="Get started by creating your first portfolio project"
-          actionHref="/admin/projects/new"
-          actionLabel="Create Project"
+          title="No ventures yet"
+          description="Get started by creating your first portfolio venture"
+          actionHref="/admin/ventures/new"
+          actionLabel="Create Venture"
         />
       }
     />
