@@ -27,12 +27,12 @@ export async function DashboardStats() {
 
   // Fetch counts from database
   const [
-    { count: projectsCount },
+    { count: venturesCount },
     { count: logEntriesCount },
     { count: specimensCount },
     { count: backlogCount },
   ] = await Promise.all([
-    supabase.from('projects').select('*', { count: 'exact', head: true }),
+    supabase.from('ventures').select('*', { count: 'exact', head: true }),
     supabase.from('log_entries').select('*', { count: 'exact', head: true }),
     supabase.from('specimens').select('*', { count: 'exact', head: true }),
     supabase.from('backlog_items').select('*', { count: 'exact', head: true }),
@@ -41,10 +41,10 @@ export async function DashboardStats() {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
       <StatCard
-        title="Projects"
-        count={projectsCount || 0}
-        description="Portfolio projects"
-        href="/admin/projects"
+        title="Ventures"
+        count={venturesCount || 0}
+        description="Portfolio ventures"
+        href="/admin/ventures"
       />
       <StatCard
         title="Log Entries"

@@ -3,20 +3,20 @@ import { createClient } from '@/lib/supabase-server'
 interface ActivityItem {
   id: string
   title: string
-  type: 'project' | 'log' | 'specimen' | 'backlog'
+  type: 'venture' | 'log' | 'specimen' | 'backlog'
   updated_at: string
   href: string
 }
 
 const typeLabels = {
-  project: 'Project',
+  venture: 'Venture',
   log: 'Log Entry',
   specimen: 'Specimen',
   backlog: 'Backlog',
 }
 
 const typeColors = {
-  project: 'bg-blue-500/10 text-blue-700 dark:text-blue-400',
+  venture: 'bg-blue-500/10 text-blue-700 dark:text-blue-400',
   log: 'bg-green-500/10 text-green-700 dark:text-green-400',
   specimen: 'bg-purple-500/10 text-purple-700 dark:text-purple-400',
   backlog: 'bg-orange-500/10 text-orange-700 dark:text-orange-400',
@@ -39,13 +39,13 @@ export async function RecentActivity() {
 
   // Fetch recent items from all tables
   const [
-    { data: projects },
+    { data: ventures },
     { data: logEntries },
     { data: specimens },
     { data: backlog },
   ] = await Promise.all([
     supabase
-      .from('projects')
+      .from('ventures')
       .select('id, title, updated_at')
       .order('updated_at', { ascending: false })
       .limit(3),
@@ -68,12 +68,12 @@ export async function RecentActivity() {
 
   // Combine and sort by updated_at
   const allItems: ActivityItem[] = [
-    ...(projects?.map((p) => ({
-      id: p.id,
-      title: p.title,
-      type: 'project' as const,
-      updated_at: p.updated_at,
-      href: `/admin/projects/${p.id}/edit`,
+    ...(ventures?.map((v) => ({
+      id: v.id,
+      title: v.title,
+      type: 'venture' as const,
+      updated_at: v.updated_at,
+      href: `/admin/ventures/${v.id}/edit`,
     })) || []),
     ...(logEntries?.map((l) => ({
       id: l.id,

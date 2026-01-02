@@ -4,34 +4,34 @@ import { createClient } from '@/lib/supabase-server'
 import { notFound } from 'next/navigation'
 import { MdxRenderer } from '@/components/mdx/mdx-renderer'
 import Link from 'next/link'
-import type { Project } from '@/lib/types/database'
+import type { Venture } from '@/lib/types/database'
 
-interface ProjectPageProps {
+interface VenturePageProps {
   params: Promise<{
     slug: string
   }>
 }
 
-export default async function ProjectPage({ params }: ProjectPageProps) {
+export default async function VenturePage({ params }: VenturePageProps) {
   const supabase = await createClient()
   const { slug } = await params
 
-  const { data: project, error } = await supabase
-    .from('projects')
+  const { data: venture, error } = await supabase
+    .from('ventures')
     .select('*')
     .eq('slug', slug)
     .eq('published', true)
-    .single<Project>()
+    .single<Venture>()
 
-  if (error || !project) {
+  if (error || !venture) {
     notFound()
   }
 
   // Extract markdown content
-  const content = project.content?.markdown || ''
+  const content = venture.content?.markdown || ''
 
   // Fetch linked specimens
-  interface ProjectSpecimenLink {
+  interface VentureSpecimenLink {
     specimen_id: string
     position: number
     specimens: {
@@ -44,7 +44,7 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
   }
 
   const { data: specimenLinks } = await supabase
-    .from('project_specimens')
+    .from('venture_specimens')
     .select(`
       specimen_id,
       position,
@@ -56,9 +56,9 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
         description
       )
     `)
-    .eq('project_id', project.id)
+    .eq('venture_id', venture.id)
     .order('position')
-    .returns<ProjectSpecimenLink[]>()
+    .returns<VentureSpecimenLink[]>()
 
   const linkedSpecimens = specimenLinks?.map(link => link.specimens).filter(Boolean) || []
 
@@ -74,45 +74,45 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
             ← Back to Portfolio
           </Link>
 
-          <h1 className="text-4xl font-bold mb-4">{project.title}</h1>
+          <h1 className="text-4xl font-bold mb-4">{venture.title}</h1>
 
-          {project.description && (
+          {venture.description && (
             <p className="text-lg text-muted-foreground mb-6">
-              {project.description}
+              {venture.description}
             </p>
           )}
 
           {/* Meta information */}
           <div className="flex flex-wrap items-center gap-4 text-sm">
-            {project.status && (
+            {venture.status && (
               <span className={`px-3 py-1 rounded-full ${
-                project.status === 'active' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' :
-                project.status === 'completed' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200' :
-                project.status === 'archived' ? 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200' :
+                venture.status === 'active' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' :
+                venture.status === 'completed' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200' :
+                venture.status === 'archived' ? 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200' :
                 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
               }`}>
-                {project.status}
+                {venture.status}
               </span>
             )}
 
-            {project.type && (
+            {venture.type && (
               <span className="text-muted-foreground capitalize">
-                {project.type}
+                {venture.type}
               </span>
             )}
 
-            {project.start_date && (
+            {venture.start_date && (
               <span className="text-muted-foreground">
-                {new Date(project.start_date).getFullYear()}
-                {project.end_date && ` - ${new Date(project.end_date).getFullYear()}`}
+                {new Date(venture.start_date).getFullYear()}
+                {venture.end_date && ` - ${new Date(venture.end_date).getFullYear()}`}
               </span>
             )}
           </div>
 
           {/* Tags */}
-          {project.tags && project.tags.length > 0 && (
+          {venture.tags && venture.tags.length > 0 && (
             <div className="flex flex-wrap gap-2 mt-4">
-              {project.tags.map((tag, idx) => (
+              {venture.tags.map((tag, idx) => (
                 <span
                   key={idx}
                   className="text-xs px-2.5 py-1 rounded-full bg-muted text-muted-foreground"

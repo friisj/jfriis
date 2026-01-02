@@ -10,7 +10,7 @@ import { SidebarCard } from './sidebar-card'
 import { FormActions } from './form-actions'
 import { RelationshipField } from './relationship-field'
 
-interface ProjectFormData {
+interface VentureFormData {
   title: string
   slug: string
   description: string
@@ -25,17 +25,17 @@ interface ProjectFormData {
   logEntryIds: string[]
 }
 
-interface ProjectFormProps {
-  projectId?: string
-  initialData?: Partial<ProjectFormData>
+interface VentureFormProps {
+  ventureId?: string
+  initialData?: Partial<VentureFormData>
 }
 
-export function ProjectForm({ projectId, initialData }: ProjectFormProps) {
+export function VentureForm({ ventureId, initialData }: VentureFormProps) {
   const router = useRouter()
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const [formData, setFormData] = useState<ProjectFormData>({
+  const [formData, setFormData] = useState<VentureFormData>({
     title: initialData?.title || '',
     slug: initialData?.slug || '',
     description: initialData?.description || '',
@@ -52,26 +52,26 @@ export function ProjectForm({ projectId, initialData }: ProjectFormProps) {
 
   // Load existing relationships
   useEffect(() => {
-    if (projectId) {
+    if (ventureId) {
       loadRelationships()
     }
-  }, [projectId])
+  }, [ventureId])
 
   const loadRelationships = async () => {
-    if (!projectId) return
+    if (!ventureId) return
 
     // Load specimen relationships
     const { data: specimens } = await supabase
-      .from('project_specimens')
+      .from('venture_specimens')
       .select('specimen_id')
-      .eq('project_id', projectId)
+      .eq('venture_id', ventureId)
       .order('position')
 
     // Load log entry relationships
     const { data: logEntries } = await supabase
-      .from('log_entry_projects')
+      .from('log_entry_ventures')
       .select('log_entry_id')
-      .eq('project_id', projectId)
+      .eq('venture_id', ventureId)
 
     setFormData(prev => ({
       ...prev,
@@ -89,7 +89,7 @@ export function ProjectForm({ projectId, initialData }: ProjectFormProps) {
 
   const handleTitleChange = (value: string) => {
     setFormData({ ...formData, title: value })
-    if (!projectId && !formData.slug) {
+    if (!ventureId && !formData.slug) {
       setFormData({ ...formData, title: value, slug: generateSlug(value) })
     }
   }
@@ -110,7 +110,7 @@ export function ProjectForm({ projectId, initialData }: ProjectFormProps) {
         .map(t => t.trim())
         .filter(t => t.length > 0)
 
-      const projectData = {
+      const ventureData = {
         title: formData.title,
         slug: formData.slug,
         description: formData.description,
@@ -124,46 +124,46 @@ export function ProjectForm({ projectId, initialData }: ProjectFormProps) {
         ...(formData.published && !initialData?.published ? { published_at: new Date().toISOString() } : {}),
       }
 
-      let savedProjectId = projectId
+      let savedVentureId = ventureId
 
-      if (projectId) {
-        // Update existing project
+      if (ventureId) {
+        // Update existing venture
         const { error: updateError } = await supabase
-          .from('projects')
-          .update(projectData)
-          .eq('id', projectId)
+          .from('ventures')
+          .update(ventureData)
+          .eq('id', ventureId)
 
         if (updateError) throw updateError
       } else {
-        // Create new project
-        const { data: newProject, error: insertError } = await supabase
-          .from('projects')
-          .insert([projectData])
+        // Create new venture
+        const { data: newVenture, error: insertError } = await supabase
+          .from('ventures')
+          .insert([ventureData])
           .select('id')
           .single()
 
         if (insertError) throw insertError
-        savedProjectId = newProject.id
+        savedVentureId = newVenture.id
       }
 
       // Update relationships
-      if (savedProjectId) {
+      if (savedVentureId) {
         // Delete existing specimen relationships
         await supabase
-          .from('project_specimens')
+          .from('venture_specimens')
           .delete()
-          .eq('project_id', savedProjectId)
+          .eq('venture_id', savedVentureId)
 
         // Insert new specimen relationships
         if (formData.specimenIds.length > 0) {
           const specimenRelations = formData.specimenIds.map((specimenId, index) => ({
-            project_id: savedProjectId,
+            venture_id: savedVentureId,
             specimen_id: specimenId,
             position: index
           }))
 
           const { error: specimenError } = await supabase
-            .from('project_specimens')
+            .from('venture_specimens')
             .insert(specimenRelations)
 
           if (specimenError) throw specimenError
@@ -171,67 +171,67 @@ export function ProjectForm({ projectId, initialData }: ProjectFormProps) {
 
         // Delete existing log entry relationships
         await supabase
-          .from('log_entry_projects')
+          .from('log_entry_ventures')
           .delete()
-          .eq('project_id', savedProjectId)
+          .eq('venture_id', savedVentureId)
 
         // Insert new log entry relationships
         if (formData.logEntryIds.length > 0) {
           const logEntryRelations = formData.logEntryIds.map((logEntryId) => ({
-            project_id: savedProjectId,
+            venture_id: savedVentureId,
             log_entry_id: logEntryId
           }))
 
           const { error: logEntryError } = await supabase
-            .from('log_entry_projects')
+            .from('log_entry_ventures')
             .insert(logEntryRelations)
 
           if (logEntryError) throw logEntryError
         }
       }
 
-      toast.success(projectId ? 'Project updated successfully!' : 'Project created successfully!')
-      router.push('/admin/projects')
+      toast.success(ventureId ? 'Venture updated successfully!' : 'Venture created successfully!')
+      router.push('/admin/ventures')
       router.refresh()
     } catch (err: any) {
-      console.error('Error saving project:', err)
+      console.error('Error saving venture:', err)
       // Provide user-friendly error for duplicate slug
       if (err.code === '23505' || err.message?.includes('duplicate key')) {
         setError(`The slug "${formData.slug}" is already in use. Please choose a different one.`)
         toast.error('Slug already in use')
       } else {
-        setError(err.message || 'Failed to save project')
-        toast.error(err.message || 'Failed to save project')
+        setError(err.message || 'Failed to save venture')
+        toast.error(err.message || 'Failed to save venture')
       }
       setIsSubmitting(false)
     }
   }
 
   const handleCancel = () => {
-    router.push('/admin/projects')
+    router.push('/admin/ventures')
   }
 
   const handleDelete = async () => {
-    if (!projectId) return
+    if (!ventureId) return
 
     setIsSubmitting(true)
     setError(null)
 
     try {
       const { error: deleteError } = await supabase
-        .from('projects')
+        .from('ventures')
         .delete()
-        .eq('id', projectId)
+        .eq('id', ventureId)
 
       if (deleteError) throw deleteError
 
-      toast.success('Project deleted successfully')
-      router.push('/admin/projects')
+      toast.success('Venture deleted successfully')
+      router.push('/admin/ventures')
       router.refresh()
     } catch (err: any) {
-      console.error('Error deleting project:', err)
-      setError(err.message || 'Failed to delete project')
-      toast.error(err.message || 'Failed to delete project')
+      console.error('Error deleting venture:', err)
+      setError(err.message || 'Failed to delete venture')
+      toast.error(err.message || 'Failed to delete venture')
       setIsSubmitting(false)
     }
   }
@@ -250,7 +250,7 @@ export function ProjectForm({ projectId, initialData }: ProjectFormProps) {
           <FormFieldWithAI
             label="Title *"
             fieldName="title"
-            entityType="projects"
+            entityType="ventures"
             context={{
               status: formData.status,
               type: formData.type,
@@ -265,7 +265,7 @@ export function ProjectForm({ projectId, initialData }: ProjectFormProps) {
               value={formData.title}
               onChange={(e) => handleTitleChange(e.target.value)}
               className="w-full px-3 py-2 rounded-lg border bg-background"
-              placeholder="My Awesome Project"
+              placeholder="My Awesome Venture"
             />
           </FormFieldWithAI>
 
@@ -282,7 +282,7 @@ export function ProjectForm({ projectId, initialData }: ProjectFormProps) {
                 value={formData.slug}
                 onChange={(e) => setFormData({ ...formData, slug: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '-') })}
                 className="flex-1 px-3 py-2 rounded-lg border bg-background"
-                placeholder="my-awesome-project"
+                placeholder="my-awesome-venture"
               />
             </div>
             <p className="text-xs text-muted-foreground mt-1">
@@ -293,7 +293,7 @@ export function ProjectForm({ projectId, initialData }: ProjectFormProps) {
           <FormFieldWithAI
             label="Description"
             fieldName="description"
-            entityType="projects"
+            entityType="ventures"
             context={{
               title: formData.title,
               status: formData.status,
@@ -308,14 +308,14 @@ export function ProjectForm({ projectId, initialData }: ProjectFormProps) {
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
               rows={3}
               className="w-full px-3 py-2 rounded-lg border bg-background resize-none"
-              placeholder="A brief description of your project..."
+              placeholder="A brief description of your venture..."
             />
           </FormFieldWithAI>
 
           <MdxEditor
             value={formData.content}
             onChange={(value) => setFormData({ ...formData, content: value })}
-            placeholder="# Project Details&#10;&#10;Write your project content here in Markdown...&#10;&#10;You can embed specimens using: <Specimen id=&quot;simple-card&quot; />"
+            placeholder="# Venture Details&#10;&#10;Write your venture content here in Markdown...&#10;&#10;You can embed specimens using: <Specimen id=&quot;simple-card&quot; />"
             rows={16}
           />
         </div>
@@ -365,7 +365,7 @@ export function ProjectForm({ projectId, initialData }: ProjectFormProps) {
                 <span className="text-sm font-medium">Published</span>
               </label>
               <p className="text-xs text-muted-foreground mt-1">
-                Make this project visible to the public
+                Make this venture visible to the public
               </p>
             </div>
           </SidebarCard>
@@ -402,7 +402,7 @@ export function ProjectForm({ projectId, initialData }: ProjectFormProps) {
             <FormFieldWithAI
               label=""
               fieldName="tags"
-              entityType="projects"
+              entityType="ventures"
               context={{
                 title: formData.title,
                 description: formData.description,
@@ -431,7 +431,7 @@ export function ProjectForm({ projectId, initialData }: ProjectFormProps) {
               tableName="specimens"
               displayField="title"
               mode="multi"
-              helperText="Select specimens to showcase in this project"
+              helperText="Select specimens to showcase in this venture"
             />
           </SidebarCard>
 
@@ -443,7 +443,7 @@ export function ProjectForm({ projectId, initialData }: ProjectFormProps) {
               tableName="log_entries"
               displayField="title"
               mode="multi"
-              helperText="Select log entries related to this project"
+              helperText="Select log entries related to this venture"
             />
           </SidebarCard>
         </div>
@@ -451,10 +451,10 @@ export function ProjectForm({ projectId, initialData }: ProjectFormProps) {
 
       <FormActions
         isSubmitting={isSubmitting}
-        submitLabel={projectId ? 'Update Project' : 'Create Project'}
+        submitLabel={ventureId ? 'Update Venture' : 'Create Venture'}
         onCancel={handleCancel}
-        onDelete={projectId ? handleDelete : undefined}
-        deleteConfirmMessage="Are you sure you want to delete this project? This action cannot be undone."
+        onDelete={ventureId ? handleDelete : undefined}
+        deleteConfirmMessage="Are you sure you want to delete this venture? This action cannot be undone."
       />
     </form>
   )
