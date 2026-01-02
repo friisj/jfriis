@@ -16,7 +16,7 @@ export default async function EditVenturePage({ params }: EditVenturePageProps) 
   const { id } = await params
 
   const { data: venture, error } = await supabase
-    .from('ventures')
+    .from('projects')
     .select('*')
     .eq('id', id)
     .single<Venture>()

@@ -11,7 +11,7 @@ export default async function AdminVenturesPage() {
   console.log('Ventures page - User:', user?.email)
 
   const { data: ventures, error } = await supabase
-    .from('ventures')
+    .from('projects')
     .select(`
       id,
       title,
@@ -21,8 +21,8 @@ export default async function AdminVenturesPage() {
       published,
       created_at,
       updated_at,
-      venture_specimens (count),
-      log_entry_ventures (count)
+      project_specimens (count),
+      log_entry_projects (count)
     `)
     .order('updated_at', { ascending: false })
 

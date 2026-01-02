@@ -20,7 +20,7 @@ interface LogEntry {
   created_at: string
   updated_at: string
   log_entry_specimens?: Array<{ count: number }>
-  log_entry_ventures?: Array<{ count: number }>
+  log_entry_projects?: Array<{ count: number }>
 }
 
 interface LogListViewProps {
@@ -60,7 +60,7 @@ export function LogListView({ entries }: LogListViewProps) {
       cell: (entry) => (
         <div className="flex flex-col gap-1 text-xs text-muted-foreground">
           <span>{entry.log_entry_specimens?.[0]?.count || 0} specimens</span>
-          <span>{entry.log_entry_ventures?.[0]?.count || 0} ventures</span>
+          <span>{entry.log_entry_projects?.[0]?.count || 0} projects</span>
         </div>
       ),
     },

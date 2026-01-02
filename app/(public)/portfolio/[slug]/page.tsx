@@ -17,7 +17,7 @@ export default async function VenturePage({ params }: VenturePageProps) {
   const { slug } = await params
 
   const { data: venture, error } = await supabase
-    .from('ventures')
+    .from('projects')
     .select('*')
     .eq('slug', slug)
     .eq('published', true)
@@ -44,7 +44,7 @@ export default async function VenturePage({ params }: VenturePageProps) {
   }
 
   const { data: specimenLinks } = await supabase
-    .from('venture_specimens')
+    .from('project_specimens')
     .select(`
       specimen_id,
       position,
@@ -56,7 +56,7 @@ export default async function VenturePage({ params }: VenturePageProps) {
         description
       )
     `)
-    .eq('venture_id', venture.id)
+    .eq('project_id', venture.id)
     .order('position')
     .returns<VentureSpecimenLink[]>()
 

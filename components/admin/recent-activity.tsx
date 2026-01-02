@@ -45,7 +45,7 @@ export async function RecentActivity() {
     { data: backlog },
   ] = await Promise.all([
     supabase
-      .from('ventures')
+      .from('projects')
       .select('id, title, updated_at')
       .order('updated_at', { ascending: false })
       .limit(3),

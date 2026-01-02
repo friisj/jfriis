@@ -43,6 +43,27 @@ import type {
   TouchpointEvidenceUpdate,
 } from './boundary-objects'
 
+// Re-export universal relationship types
+export type {
+  EvidenceEntityType,
+  UniversalEvidenceType,
+  UniversalEvidence,
+  UniversalEvidenceInsert,
+  UniversalEvidenceUpdate,
+  PendingEvidence,
+  LinkableEntityType,
+  LinkType,
+  LinkStrength,
+  EntityLink,
+  EntityLinkInsert,
+  EntityLinkUpdate,
+  PendingLink,
+  LinkedEntity,
+  EntityRef,
+} from './entity-relationships'
+
+export { ENTITY_TYPE_TABLE_MAP, getTableNameForType } from './entity-relationships'
+
 // Re-export canvas item types for convenience
 export type {
   CanvasItem,

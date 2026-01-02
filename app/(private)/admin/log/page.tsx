@@ -19,7 +19,7 @@ export default async function AdminLogPage() {
       created_at,
       updated_at,
       log_entry_specimens (count),
-      log_entry_ventures (count)
+      log_entry_projects (count)
     `)
     .order('entry_date', { ascending: false })
 

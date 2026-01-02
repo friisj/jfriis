@@ -45,12 +45,17 @@ CREATE TRIGGER update_ventures_updated_at
     FOR EACH ROW
     EXECUTE FUNCTION update_updated_at_column();
 
--- Portfolio evidence refresh trigger (if it exists)
+-- Portfolio evidence refresh trigger (only if function exists)
 DROP TRIGGER IF EXISTS trigger_refresh_portfolio_evidence_projects ON ventures;
-CREATE TRIGGER trigger_refresh_portfolio_evidence_ventures
-    AFTER INSERT OR UPDATE OR DELETE ON ventures
-    FOR EACH STATEMENT
-    EXECUTE FUNCTION refresh_portfolio_evidence();
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM pg_proc WHERE proname = 'refresh_portfolio_evidence') THEN
+        CREATE TRIGGER trigger_refresh_portfolio_evidence_ventures
+            AFTER INSERT OR UPDATE OR DELETE ON ventures
+            FOR EACH STATEMENT
+            EXECUTE FUNCTION refresh_portfolio_evidence();
+    END IF;
+END $$;
 
 -- ============================================================================
 -- STEP 4: RENAME JUNCTION TABLES

@@ -13,8 +13,8 @@ interface Venture {
   published: boolean
   created_at: string
   updated_at: string
-  venture_specimens?: Array<{ count: number }>
-  log_entry_ventures?: Array<{ count: number }>
+  project_specimens?: Array<{ count: number }>
+  log_entry_projects?: Array<{ count: number }>
 }
 
 interface VentureCardProps {
@@ -54,8 +54,8 @@ export function VentureCard({ venture }: VentureCardProps) {
 
         {/* Metadata */}
         <div className="flex items-center gap-4 text-xs text-muted-foreground border-t pt-3">
-          <span>{venture.venture_specimens?.[0]?.count || 0} specimens</span>
-          <span>{venture.log_entry_ventures?.[0]?.count || 0} logs</span>
+          <span>{venture.project_specimens?.[0]?.count || 0} specimens</span>
+          <span>{venture.log_entry_projects?.[0]?.count || 0} logs</span>
           <span className="ml-auto">{formatDate(venture.updated_at)}</span>
         </div>
       </div>

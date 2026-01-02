@@ -62,16 +62,16 @@ export function VentureForm({ ventureId, initialData }: VentureFormProps) {
 
     // Load specimen relationships
     const { data: specimens } = await supabase
-      .from('venture_specimens')
+      .from('project_specimens')
       .select('specimen_id')
-      .eq('venture_id', ventureId)
+      .eq('project_id', ventureId)
       .order('position')
 
     // Load log entry relationships
     const { data: logEntries } = await supabase
-      .from('log_entry_ventures')
+      .from('log_entry_projects')
       .select('log_entry_id')
-      .eq('venture_id', ventureId)
+      .eq('project_id', ventureId)
 
     setFormData(prev => ({
       ...prev,
@@ -129,7 +129,7 @@ export function VentureForm({ ventureId, initialData }: VentureFormProps) {
       if (ventureId) {
         // Update existing venture
         const { error: updateError } = await supabase
-          .from('ventures')
+          .from('projects')
           .update(ventureData)
           .eq('id', ventureId)
 
@@ -137,7 +137,7 @@ export function VentureForm({ ventureId, initialData }: VentureFormProps) {
       } else {
         // Create new venture
         const { data: newVenture, error: insertError } = await supabase
-          .from('ventures')
+          .from('projects')
           .insert([ventureData])
           .select('id')
           .single()
@@ -150,20 +150,20 @@ export function VentureForm({ ventureId, initialData }: VentureFormProps) {
       if (savedVentureId) {
         // Delete existing specimen relationships
         await supabase
-          .from('venture_specimens')
+          .from('project_specimens')
           .delete()
-          .eq('venture_id', savedVentureId)
+          .eq('project_id', savedVentureId)
 
         // Insert new specimen relationships
         if (formData.specimenIds.length > 0) {
           const specimenRelations = formData.specimenIds.map((specimenId, index) => ({
-            venture_id: savedVentureId,
+            project_id: savedVentureId,
             specimen_id: specimenId,
             position: index
           }))
 
           const { error: specimenError } = await supabase
-            .from('venture_specimens')
+            .from('project_specimens')
             .insert(specimenRelations)
 
           if (specimenError) throw specimenError
@@ -171,19 +171,19 @@ export function VentureForm({ ventureId, initialData }: VentureFormProps) {
 
         // Delete existing log entry relationships
         await supabase
-          .from('log_entry_ventures')
+          .from('log_entry_projects')
           .delete()
-          .eq('venture_id', savedVentureId)
+          .eq('project_id', savedVentureId)
 
         // Insert new log entry relationships
         if (formData.logEntryIds.length > 0) {
           const logEntryRelations = formData.logEntryIds.map((logEntryId) => ({
-            venture_id: savedVentureId,
+            project_id: savedVentureId,
             log_entry_id: logEntryId
           }))
 
           const { error: logEntryError } = await supabase
-            .from('log_entry_ventures')
+            .from('log_entry_projects')
             .insert(logEntryRelations)
 
           if (logEntryError) throw logEntryError
@@ -219,7 +219,7 @@ export function VentureForm({ ventureId, initialData }: VentureFormProps) {
 
     try {
       const { error: deleteError } = await supabase
-        .from('ventures')
+        .from('projects')
         .delete()
         .eq('id', ventureId)
 

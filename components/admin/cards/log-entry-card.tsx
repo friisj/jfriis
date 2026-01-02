@@ -14,7 +14,7 @@ interface LogEntry {
   created_at: string
   updated_at: string
   log_entry_specimens?: Array<{ count: number }>
-  log_entry_ventures?: Array<{ count: number }>
+  log_entry_projects?: Array<{ count: number }>
 }
 
 interface LogEntryCardProps {
@@ -55,7 +55,7 @@ export function LogEntryCard({ entry }: LogEntryCardProps) {
         {/* Metadata */}
         <div className="flex items-center gap-4 text-xs text-muted-foreground border-t pt-3">
           <span>{entry.log_entry_specimens?.[0]?.count || 0} specimens</span>
-          <span>{entry.log_entry_ventures?.[0]?.count || 0} ventures</span>
+          <span>{entry.log_entry_projects?.[0]?.count || 0} projects</span>
         </div>
       </div>
     </Link>

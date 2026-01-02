@@ -378,6 +378,468 @@ export type Database = {
           },
         ]
       }
+      canvas_item_assumptions: {
+        Row: {
+          assumption_id: string
+          canvas_item_id: string
+          created_at: string
+          id: string
+          notes: string | null
+          relationship_type: string | null
+        }
+        Insert: {
+          assumption_id: string
+          canvas_item_id: string
+          created_at?: string
+          id?: string
+          notes?: string | null
+          relationship_type?: string | null
+        }
+        Update: {
+          assumption_id?: string
+          canvas_item_id?: string
+          created_at?: string
+          id?: string
+          notes?: string | null
+          relationship_type?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "canvas_item_assumptions_assumption_id_fkey"
+            columns: ["assumption_id"]
+            isOneToOne: false
+            referencedRelation: "assumptions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "canvas_item_assumptions_canvas_item_id_fkey"
+            columns: ["canvas_item_id"]
+            isOneToOne: false
+            referencedRelation: "canvas_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "canvas_item_assumptions_canvas_item_id_fkey"
+            columns: ["canvas_item_id"]
+            isOneToOne: false
+            referencedRelation: "canvas_items_with_assumptions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "canvas_item_assumptions_canvas_item_id_fkey"
+            columns: ["canvas_item_id"]
+            isOneToOne: false
+            referencedRelation: "canvas_items_with_placements"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "canvas_item_assumptions_canvas_item_id_fkey"
+            columns: ["canvas_item_id"]
+            isOneToOne: false
+            referencedRelation: "fit_gain_creation"
+            referencedColumns: ["gain_creator_id"]
+          },
+          {
+            foreignKeyName: "canvas_item_assumptions_canvas_item_id_fkey"
+            columns: ["canvas_item_id"]
+            isOneToOne: false
+            referencedRelation: "fit_gain_creation"
+            referencedColumns: ["gain_id"]
+          },
+          {
+            foreignKeyName: "canvas_item_assumptions_canvas_item_id_fkey"
+            columns: ["canvas_item_id"]
+            isOneToOne: false
+            referencedRelation: "fit_pain_relief"
+            referencedColumns: ["pain_id"]
+          },
+          {
+            foreignKeyName: "canvas_item_assumptions_canvas_item_id_fkey"
+            columns: ["canvas_item_id"]
+            isOneToOne: false
+            referencedRelation: "fit_pain_relief"
+            referencedColumns: ["pain_reliever_id"]
+          },
+        ]
+      }
+      canvas_item_evidence: {
+        Row: {
+          canvas_item_id: string
+          collected_at: string | null
+          confidence: string | null
+          created_at: string
+          evidence_type: string
+          id: string
+          metadata: Json | null
+          summary: string | null
+          supports_item: boolean | null
+          title: string
+          updated_at: string
+          url: string | null
+        }
+        Insert: {
+          canvas_item_id: string
+          collected_at?: string | null
+          confidence?: string | null
+          created_at?: string
+          evidence_type: string
+          id?: string
+          metadata?: Json | null
+          summary?: string | null
+          supports_item?: boolean | null
+          title: string
+          updated_at?: string
+          url?: string | null
+        }
+        Update: {
+          canvas_item_id?: string
+          collected_at?: string | null
+          confidence?: string | null
+          created_at?: string
+          evidence_type?: string
+          id?: string
+          metadata?: Json | null
+          summary?: string | null
+          supports_item?: boolean | null
+          title?: string
+          updated_at?: string
+          url?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "canvas_item_evidence_canvas_item_id_fkey"
+            columns: ["canvas_item_id"]
+            isOneToOne: false
+            referencedRelation: "canvas_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "canvas_item_evidence_canvas_item_id_fkey"
+            columns: ["canvas_item_id"]
+            isOneToOne: false
+            referencedRelation: "canvas_items_with_assumptions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "canvas_item_evidence_canvas_item_id_fkey"
+            columns: ["canvas_item_id"]
+            isOneToOne: false
+            referencedRelation: "canvas_items_with_placements"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "canvas_item_evidence_canvas_item_id_fkey"
+            columns: ["canvas_item_id"]
+            isOneToOne: false
+            referencedRelation: "fit_gain_creation"
+            referencedColumns: ["gain_creator_id"]
+          },
+          {
+            foreignKeyName: "canvas_item_evidence_canvas_item_id_fkey"
+            columns: ["canvas_item_id"]
+            isOneToOne: false
+            referencedRelation: "fit_gain_creation"
+            referencedColumns: ["gain_id"]
+          },
+          {
+            foreignKeyName: "canvas_item_evidence_canvas_item_id_fkey"
+            columns: ["canvas_item_id"]
+            isOneToOne: false
+            referencedRelation: "fit_pain_relief"
+            referencedColumns: ["pain_id"]
+          },
+          {
+            foreignKeyName: "canvas_item_evidence_canvas_item_id_fkey"
+            columns: ["canvas_item_id"]
+            isOneToOne: false
+            referencedRelation: "fit_pain_relief"
+            referencedColumns: ["pain_reliever_id"]
+          },
+        ]
+      }
+      canvas_item_mappings: {
+        Row: {
+          created_at: string
+          fit_strength: string | null
+          id: string
+          mapping_type: string
+          notes: string | null
+          source_item_id: string
+          target_item_id: string
+          updated_at: string
+          validation_method: string | null
+        }
+        Insert: {
+          created_at?: string
+          fit_strength?: string | null
+          id?: string
+          mapping_type: string
+          notes?: string | null
+          source_item_id: string
+          target_item_id: string
+          updated_at?: string
+          validation_method?: string | null
+        }
+        Update: {
+          created_at?: string
+          fit_strength?: string | null
+          id?: string
+          mapping_type?: string
+          notes?: string | null
+          source_item_id?: string
+          target_item_id?: string
+          updated_at?: string
+          validation_method?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "canvas_item_mappings_source_item_id_fkey"
+            columns: ["source_item_id"]
+            isOneToOne: false
+            referencedRelation: "canvas_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "canvas_item_mappings_source_item_id_fkey"
+            columns: ["source_item_id"]
+            isOneToOne: false
+            referencedRelation: "canvas_items_with_assumptions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "canvas_item_mappings_source_item_id_fkey"
+            columns: ["source_item_id"]
+            isOneToOne: false
+            referencedRelation: "canvas_items_with_placements"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "canvas_item_mappings_source_item_id_fkey"
+            columns: ["source_item_id"]
+            isOneToOne: false
+            referencedRelation: "fit_gain_creation"
+            referencedColumns: ["gain_creator_id"]
+          },
+          {
+            foreignKeyName: "canvas_item_mappings_source_item_id_fkey"
+            columns: ["source_item_id"]
+            isOneToOne: false
+            referencedRelation: "fit_gain_creation"
+            referencedColumns: ["gain_id"]
+          },
+          {
+            foreignKeyName: "canvas_item_mappings_source_item_id_fkey"
+            columns: ["source_item_id"]
+            isOneToOne: false
+            referencedRelation: "fit_pain_relief"
+            referencedColumns: ["pain_id"]
+          },
+          {
+            foreignKeyName: "canvas_item_mappings_source_item_id_fkey"
+            columns: ["source_item_id"]
+            isOneToOne: false
+            referencedRelation: "fit_pain_relief"
+            referencedColumns: ["pain_reliever_id"]
+          },
+          {
+            foreignKeyName: "canvas_item_mappings_target_item_id_fkey"
+            columns: ["target_item_id"]
+            isOneToOne: false
+            referencedRelation: "canvas_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "canvas_item_mappings_target_item_id_fkey"
+            columns: ["target_item_id"]
+            isOneToOne: false
+            referencedRelation: "canvas_items_with_assumptions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "canvas_item_mappings_target_item_id_fkey"
+            columns: ["target_item_id"]
+            isOneToOne: false
+            referencedRelation: "canvas_items_with_placements"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "canvas_item_mappings_target_item_id_fkey"
+            columns: ["target_item_id"]
+            isOneToOne: false
+            referencedRelation: "fit_gain_creation"
+            referencedColumns: ["gain_creator_id"]
+          },
+          {
+            foreignKeyName: "canvas_item_mappings_target_item_id_fkey"
+            columns: ["target_item_id"]
+            isOneToOne: false
+            referencedRelation: "fit_gain_creation"
+            referencedColumns: ["gain_id"]
+          },
+          {
+            foreignKeyName: "canvas_item_mappings_target_item_id_fkey"
+            columns: ["target_item_id"]
+            isOneToOne: false
+            referencedRelation: "fit_pain_relief"
+            referencedColumns: ["pain_id"]
+          },
+          {
+            foreignKeyName: "canvas_item_mappings_target_item_id_fkey"
+            columns: ["target_item_id"]
+            isOneToOne: false
+            referencedRelation: "fit_pain_relief"
+            referencedColumns: ["pain_reliever_id"]
+          },
+        ]
+      }
+      canvas_item_placements: {
+        Row: {
+          block_name: string
+          canvas_id: string
+          canvas_item_id: string
+          canvas_type: string
+          created_at: string
+          id: string
+          position: number | null
+          validation_status_override: string | null
+        }
+        Insert: {
+          block_name: string
+          canvas_id: string
+          canvas_item_id: string
+          canvas_type: string
+          created_at?: string
+          id?: string
+          position?: number | null
+          validation_status_override?: string | null
+        }
+        Update: {
+          block_name?: string
+          canvas_id?: string
+          canvas_item_id?: string
+          canvas_type?: string
+          created_at?: string
+          id?: string
+          position?: number | null
+          validation_status_override?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "canvas_item_placements_canvas_item_id_fkey"
+            columns: ["canvas_item_id"]
+            isOneToOne: false
+            referencedRelation: "canvas_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "canvas_item_placements_canvas_item_id_fkey"
+            columns: ["canvas_item_id"]
+            isOneToOne: false
+            referencedRelation: "canvas_items_with_assumptions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "canvas_item_placements_canvas_item_id_fkey"
+            columns: ["canvas_item_id"]
+            isOneToOne: false
+            referencedRelation: "canvas_items_with_placements"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "canvas_item_placements_canvas_item_id_fkey"
+            columns: ["canvas_item_id"]
+            isOneToOne: false
+            referencedRelation: "fit_gain_creation"
+            referencedColumns: ["gain_creator_id"]
+          },
+          {
+            foreignKeyName: "canvas_item_placements_canvas_item_id_fkey"
+            columns: ["canvas_item_id"]
+            isOneToOne: false
+            referencedRelation: "fit_gain_creation"
+            referencedColumns: ["gain_id"]
+          },
+          {
+            foreignKeyName: "canvas_item_placements_canvas_item_id_fkey"
+            columns: ["canvas_item_id"]
+            isOneToOne: false
+            referencedRelation: "fit_pain_relief"
+            referencedColumns: ["pain_id"]
+          },
+          {
+            foreignKeyName: "canvas_item_placements_canvas_item_id_fkey"
+            columns: ["canvas_item_id"]
+            isOneToOne: false
+            referencedRelation: "fit_pain_relief"
+            referencedColumns: ["pain_reliever_id"]
+          },
+        ]
+      }
+      canvas_items: {
+        Row: {
+          created_at: string
+          description: string | null
+          frequency: string | null
+          id: string
+          importance: string | null
+          intensity: string | null
+          item_type: string
+          job_context: string | null
+          job_type: string | null
+          metadata: Json | null
+          notes: string | null
+          studio_project_id: string | null
+          tags: string[] | null
+          title: string
+          updated_at: string
+          validation_status: string | null
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          frequency?: string | null
+          id?: string
+          importance?: string | null
+          intensity?: string | null
+          item_type: string
+          job_context?: string | null
+          job_type?: string | null
+          metadata?: Json | null
+          notes?: string | null
+          studio_project_id?: string | null
+          tags?: string[] | null
+          title: string
+          updated_at?: string
+          validation_status?: string | null
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          frequency?: string | null
+          id?: string
+          importance?: string | null
+          intensity?: string | null
+          item_type?: string
+          job_context?: string | null
+          job_type?: string | null
+          metadata?: Json | null
+          notes?: string | null
+          studio_project_id?: string | null
+          tags?: string[] | null
+          title?: string
+          updated_at?: string
+          validation_status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "canvas_items_studio_project_id_fkey"
+            columns: ["studio_project_id"]
+            isOneToOne: false
+            referencedRelation: "studio_projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       channels: {
         Row: {
           config: Json | null
@@ -659,6 +1121,105 @@ export type Database = {
           },
         ]
       }
+      entity_links: {
+        Row: {
+          created_at: string | null
+          id: string
+          link_type: string
+          metadata: Json | null
+          notes: string | null
+          position: number | null
+          source_id: string
+          source_type: string
+          strength: string | null
+          target_id: string
+          target_type: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          link_type?: string
+          metadata?: Json | null
+          notes?: string | null
+          position?: number | null
+          source_id: string
+          source_type: string
+          strength?: string | null
+          target_id: string
+          target_type: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          link_type?: string
+          metadata?: Json | null
+          notes?: string | null
+          position?: number | null
+          source_id?: string
+          source_type?: string
+          strength?: string | null
+          target_id?: string
+          target_type?: string
+        }
+        Relationships: []
+      }
+      evidence: {
+        Row: {
+          collected_at: string | null
+          collector_notes: string | null
+          confidence: number | null
+          content: string | null
+          created_at: string | null
+          entity_id: string
+          entity_type: string
+          evidence_type: string
+          id: string
+          metadata: Json | null
+          source_reference: string | null
+          source_url: string | null
+          supports: boolean | null
+          tags: string[] | null
+          title: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          collected_at?: string | null
+          collector_notes?: string | null
+          confidence?: number | null
+          content?: string | null
+          created_at?: string | null
+          entity_id: string
+          entity_type: string
+          evidence_type: string
+          id?: string
+          metadata?: Json | null
+          source_reference?: string | null
+          source_url?: string | null
+          supports?: boolean | null
+          tags?: string[] | null
+          title?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          collected_at?: string | null
+          collector_notes?: string | null
+          confidence?: number | null
+          content?: string | null
+          created_at?: string | null
+          entity_id?: string
+          entity_type?: string
+          evidence_type?: string
+          id?: string
+          metadata?: Json | null
+          source_reference?: string | null
+          source_url?: string | null
+          supports?: boolean | null
+          tags?: string[] | null
+          title?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       gallery_sequences: {
         Row: {
           created_at: string
@@ -733,6 +1294,75 @@ export type Database = {
             columns: ["specimen_id"]
             isOneToOne: false
             referencedRelation: "specimens"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      journey_stages: {
+        Row: {
+          created_at: string
+          customer_emotion: string | null
+          customer_goal: string | null
+          customer_mindset: string | null
+          description: string | null
+          drop_off_risk: string | null
+          duration_estimate: string | null
+          id: string
+          metadata: Json | null
+          name: string
+          sequence: number
+          stage_type: string | null
+          updated_at: string
+          user_journey_id: string
+          validation_status: string | null
+        }
+        Insert: {
+          created_at?: string
+          customer_emotion?: string | null
+          customer_goal?: string | null
+          customer_mindset?: string | null
+          description?: string | null
+          drop_off_risk?: string | null
+          duration_estimate?: string | null
+          id?: string
+          metadata?: Json | null
+          name: string
+          sequence: number
+          stage_type?: string | null
+          updated_at?: string
+          user_journey_id: string
+          validation_status?: string | null
+        }
+        Update: {
+          created_at?: string
+          customer_emotion?: string | null
+          customer_goal?: string | null
+          customer_mindset?: string | null
+          description?: string | null
+          drop_off_risk?: string | null
+          duration_estimate?: string | null
+          id?: string
+          metadata?: Json | null
+          name?: string
+          sequence?: number
+          stage_type?: string | null
+          updated_at?: string
+          user_journey_id?: string
+          validation_status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "journey_stages_user_journey_id_fkey"
+            columns: ["user_journey_id"]
+            isOneToOne: false
+            referencedRelation: "journey_summaries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "journey_stages_user_journey_id_fkey"
+            columns: ["user_journey_id"]
+            isOneToOne: false
+            referencedRelation: "user_journeys"
             referencedColumns: ["id"]
           },
         ]
@@ -1250,7 +1880,6 @@ export type Database = {
           created_at: string
           current_focus: string | null
           description: string | null
-          hypothesis: string | null
           id: string
           name: string
           path: string | null
@@ -1267,7 +1896,6 @@ export type Database = {
           created_at?: string
           current_focus?: string | null
           description?: string | null
-          hypothesis?: string | null
           id?: string
           name: string
           path?: string | null
@@ -1284,7 +1912,6 @@ export type Database = {
           created_at?: string
           current_focus?: string | null
           description?: string | null
-          hypothesis?: string | null
           id?: string
           name?: string
           path?: string | null
@@ -1298,6 +1925,493 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      touchpoint_assumptions: {
+        Row: {
+          assumption_id: string
+          created_at: string
+          id: string
+          notes: string | null
+          relationship_type: string | null
+          touchpoint_id: string
+          updated_at: string
+        }
+        Insert: {
+          assumption_id: string
+          created_at?: string
+          id?: string
+          notes?: string | null
+          relationship_type?: string | null
+          touchpoint_id: string
+          updated_at?: string
+        }
+        Update: {
+          assumption_id?: string
+          created_at?: string
+          id?: string
+          notes?: string | null
+          relationship_type?: string | null
+          touchpoint_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "touchpoint_assumptions_assumption_id_fkey"
+            columns: ["assumption_id"]
+            isOneToOne: false
+            referencedRelation: "assumptions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "touchpoint_assumptions_touchpoint_id_fkey"
+            columns: ["touchpoint_id"]
+            isOneToOne: false
+            referencedRelation: "touchpoints"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      touchpoint_canvas_items: {
+        Row: {
+          canvas_item_id: string
+          created_at: string
+          id: string
+          mapping_type: string
+          metadata: Json | null
+          notes: string | null
+          strength: string | null
+          touchpoint_id: string
+          updated_at: string
+          validated: boolean | null
+        }
+        Insert: {
+          canvas_item_id: string
+          created_at?: string
+          id?: string
+          mapping_type: string
+          metadata?: Json | null
+          notes?: string | null
+          strength?: string | null
+          touchpoint_id: string
+          updated_at?: string
+          validated?: boolean | null
+        }
+        Update: {
+          canvas_item_id?: string
+          created_at?: string
+          id?: string
+          mapping_type?: string
+          metadata?: Json | null
+          notes?: string | null
+          strength?: string | null
+          touchpoint_id?: string
+          updated_at?: string
+          validated?: boolean | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "touchpoint_canvas_items_canvas_item_id_fkey"
+            columns: ["canvas_item_id"]
+            isOneToOne: false
+            referencedRelation: "canvas_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "touchpoint_canvas_items_canvas_item_id_fkey"
+            columns: ["canvas_item_id"]
+            isOneToOne: false
+            referencedRelation: "canvas_items_with_assumptions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "touchpoint_canvas_items_canvas_item_id_fkey"
+            columns: ["canvas_item_id"]
+            isOneToOne: false
+            referencedRelation: "canvas_items_with_placements"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "touchpoint_canvas_items_canvas_item_id_fkey"
+            columns: ["canvas_item_id"]
+            isOneToOne: false
+            referencedRelation: "fit_gain_creation"
+            referencedColumns: ["gain_creator_id"]
+          },
+          {
+            foreignKeyName: "touchpoint_canvas_items_canvas_item_id_fkey"
+            columns: ["canvas_item_id"]
+            isOneToOne: false
+            referencedRelation: "fit_gain_creation"
+            referencedColumns: ["gain_id"]
+          },
+          {
+            foreignKeyName: "touchpoint_canvas_items_canvas_item_id_fkey"
+            columns: ["canvas_item_id"]
+            isOneToOne: false
+            referencedRelation: "fit_pain_relief"
+            referencedColumns: ["pain_id"]
+          },
+          {
+            foreignKeyName: "touchpoint_canvas_items_canvas_item_id_fkey"
+            columns: ["canvas_item_id"]
+            isOneToOne: false
+            referencedRelation: "fit_pain_relief"
+            referencedColumns: ["pain_reliever_id"]
+          },
+          {
+            foreignKeyName: "touchpoint_canvas_items_touchpoint_id_fkey"
+            columns: ["touchpoint_id"]
+            isOneToOne: false
+            referencedRelation: "touchpoints"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      touchpoint_customer_profiles: {
+        Row: {
+          created_at: string
+          customer_profile_id: string
+          id: string
+          mapping_type: string
+          metadata: Json | null
+          notes: string | null
+          strength: string | null
+          touchpoint_id: string
+          updated_at: string
+          validated: boolean | null
+        }
+        Insert: {
+          created_at?: string
+          customer_profile_id: string
+          id?: string
+          mapping_type: string
+          metadata?: Json | null
+          notes?: string | null
+          strength?: string | null
+          touchpoint_id: string
+          updated_at?: string
+          validated?: boolean | null
+        }
+        Update: {
+          created_at?: string
+          customer_profile_id?: string
+          id?: string
+          mapping_type?: string
+          metadata?: Json | null
+          notes?: string | null
+          strength?: string | null
+          touchpoint_id?: string
+          updated_at?: string
+          validated?: boolean | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "touchpoint_customer_profiles_customer_profile_id_fkey"
+            columns: ["customer_profile_id"]
+            isOneToOne: false
+            referencedRelation: "customer_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "touchpoint_customer_profiles_touchpoint_id_fkey"
+            columns: ["touchpoint_id"]
+            isOneToOne: false
+            referencedRelation: "touchpoints"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      touchpoint_evidence: {
+        Row: {
+          collected_at: string | null
+          confidence: string | null
+          created_at: string
+          evidence_type: string
+          id: string
+          metadata: Json | null
+          summary: string | null
+          supports_design: boolean | null
+          title: string
+          touchpoint_id: string
+          updated_at: string
+          url: string | null
+        }
+        Insert: {
+          collected_at?: string | null
+          confidence?: string | null
+          created_at?: string
+          evidence_type: string
+          id?: string
+          metadata?: Json | null
+          summary?: string | null
+          supports_design?: boolean | null
+          title: string
+          touchpoint_id: string
+          updated_at?: string
+          url?: string | null
+        }
+        Update: {
+          collected_at?: string | null
+          confidence?: string | null
+          created_at?: string
+          evidence_type?: string
+          id?: string
+          metadata?: Json | null
+          summary?: string | null
+          supports_design?: boolean | null
+          title?: string
+          touchpoint_id?: string
+          updated_at?: string
+          url?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "touchpoint_evidence_touchpoint_id_fkey"
+            columns: ["touchpoint_id"]
+            isOneToOne: false
+            referencedRelation: "touchpoints"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      touchpoint_value_propositions: {
+        Row: {
+          created_at: string
+          id: string
+          mapping_type: string
+          metadata: Json | null
+          notes: string | null
+          strength: string | null
+          touchpoint_id: string
+          updated_at: string
+          validated: boolean | null
+          value_proposition_canvas_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          mapping_type: string
+          metadata?: Json | null
+          notes?: string | null
+          strength?: string | null
+          touchpoint_id: string
+          updated_at?: string
+          validated?: boolean | null
+          value_proposition_canvas_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          mapping_type?: string
+          metadata?: Json | null
+          notes?: string | null
+          strength?: string | null
+          touchpoint_id?: string
+          updated_at?: string
+          validated?: boolean | null
+          value_proposition_canvas_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "touchpoint_value_propositions_touchpoint_id_fkey"
+            columns: ["touchpoint_id"]
+            isOneToOne: false
+            referencedRelation: "touchpoints"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "touchpoint_value_propositions_value_proposition_canvas_id_fkey"
+            columns: ["value_proposition_canvas_id"]
+            isOneToOne: false
+            referencedRelation: "value_proposition_canvases"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      touchpoints: {
+        Row: {
+          channel_type: string | null
+          created_at: string
+          current_experience_quality: string | null
+          delight_potential: string | null
+          description: string | null
+          id: string
+          importance: string | null
+          interaction_type: string | null
+          journey_stage_id: string
+          metadata: Json | null
+          name: string
+          pain_level: string | null
+          sequence: number
+          system_response: Json | null
+          updated_at: string
+          user_actions: Json | null
+          validated_at: string | null
+          validation_status: string | null
+        }
+        Insert: {
+          channel_type?: string | null
+          created_at?: string
+          current_experience_quality?: string | null
+          delight_potential?: string | null
+          description?: string | null
+          id?: string
+          importance?: string | null
+          interaction_type?: string | null
+          journey_stage_id: string
+          metadata?: Json | null
+          name: string
+          pain_level?: string | null
+          sequence: number
+          system_response?: Json | null
+          updated_at?: string
+          user_actions?: Json | null
+          validated_at?: string | null
+          validation_status?: string | null
+        }
+        Update: {
+          channel_type?: string | null
+          created_at?: string
+          current_experience_quality?: string | null
+          delight_potential?: string | null
+          description?: string | null
+          id?: string
+          importance?: string | null
+          interaction_type?: string | null
+          journey_stage_id?: string
+          metadata?: Json | null
+          name?: string
+          pain_level?: string | null
+          sequence?: number
+          system_response?: Json | null
+          updated_at?: string
+          user_actions?: Json | null
+          validated_at?: string | null
+          validation_status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "touchpoints_journey_stage_id_fkey"
+            columns: ["journey_stage_id"]
+            isOneToOne: false
+            referencedRelation: "journey_stages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_journeys: {
+        Row: {
+          context: Json | null
+          created_at: string
+          customer_profile_id: string | null
+          description: string | null
+          duration_estimate: string | null
+          goal: string | null
+          hypothesis_id: string | null
+          id: string
+          journey_type: string | null
+          metadata: Json | null
+          name: string
+          parent_version_id: string | null
+          related_business_model_ids: string[] | null
+          related_value_proposition_ids: string[] | null
+          slug: string
+          status: string
+          studio_project_id: string | null
+          tags: string[] | null
+          updated_at: string
+          validated_at: string | null
+          validation_confidence: string | null
+          validation_status: string | null
+          version: number
+        }
+        Insert: {
+          context?: Json | null
+          created_at?: string
+          customer_profile_id?: string | null
+          description?: string | null
+          duration_estimate?: string | null
+          goal?: string | null
+          hypothesis_id?: string | null
+          id?: string
+          journey_type?: string | null
+          metadata?: Json | null
+          name: string
+          parent_version_id?: string | null
+          related_business_model_ids?: string[] | null
+          related_value_proposition_ids?: string[] | null
+          slug: string
+          status?: string
+          studio_project_id?: string | null
+          tags?: string[] | null
+          updated_at?: string
+          validated_at?: string | null
+          validation_confidence?: string | null
+          validation_status?: string | null
+          version?: number
+        }
+        Update: {
+          context?: Json | null
+          created_at?: string
+          customer_profile_id?: string | null
+          description?: string | null
+          duration_estimate?: string | null
+          goal?: string | null
+          hypothesis_id?: string | null
+          id?: string
+          journey_type?: string | null
+          metadata?: Json | null
+          name?: string
+          parent_version_id?: string | null
+          related_business_model_ids?: string[] | null
+          related_value_proposition_ids?: string[] | null
+          slug?: string
+          status?: string
+          studio_project_id?: string | null
+          tags?: string[] | null
+          updated_at?: string
+          validated_at?: string | null
+          validation_confidence?: string | null
+          validation_status?: string | null
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_journeys_customer_profile_id_fkey"
+            columns: ["customer_profile_id"]
+            isOneToOne: false
+            referencedRelation: "customer_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_journeys_hypothesis_id_fkey"
+            columns: ["hypothesis_id"]
+            isOneToOne: false
+            referencedRelation: "studio_hypotheses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_journeys_parent_version_id_fkey"
+            columns: ["parent_version_id"]
+            isOneToOne: false
+            referencedRelation: "journey_summaries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_journeys_parent_version_id_fkey"
+            columns: ["parent_version_id"]
+            isOneToOne: false
+            referencedRelation: "user_journeys"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_journeys_studio_project_id_fkey"
+            columns: ["studio_project_id"]
+            isOneToOne: false
+            referencedRelation: "studio_projects"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       value_maps: {
         Row: {
@@ -1516,10 +2630,195 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      canvas_items_with_assumptions: {
+        Row: {
+          assumption_count: number | null
+          created_at: string | null
+          description: string | null
+          frequency: string | null
+          id: string | null
+          importance: string | null
+          intensity: string | null
+          invalidated_assumption_count: number | null
+          item_type: string | null
+          job_context: string | null
+          job_type: string | null
+          metadata: Json | null
+          notes: string | null
+          studio_project_id: string | null
+          tags: string[] | null
+          title: string | null
+          updated_at: string | null
+          validated_assumption_count: number | null
+          validation_status: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "canvas_items_studio_project_id_fkey"
+            columns: ["studio_project_id"]
+            isOneToOne: false
+            referencedRelation: "studio_projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      canvas_items_with_placements: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          frequency: string | null
+          id: string | null
+          importance: string | null
+          intensity: string | null
+          item_type: string | null
+          job_context: string | null
+          job_type: string | null
+          metadata: Json | null
+          notes: string | null
+          placement_count: number | null
+          placements: Json | null
+          studio_project_id: string | null
+          tags: string[] | null
+          title: string | null
+          updated_at: string | null
+          validation_status: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "canvas_items_studio_project_id_fkey"
+            columns: ["studio_project_id"]
+            isOneToOne: false
+            referencedRelation: "studio_projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fit_gain_creation: {
+        Row: {
+          fit_strength: string | null
+          gain: string | null
+          gain_creator: string | null
+          gain_creator_id: string | null
+          gain_id: string | null
+          gain_intensity: string | null
+          mapping_id: string | null
+          notes: string | null
+          studio_project_id: string | null
+          validation_method: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "canvas_items_studio_project_id_fkey"
+            columns: ["studio_project_id"]
+            isOneToOne: false
+            referencedRelation: "studio_projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fit_pain_relief: {
+        Row: {
+          fit_strength: string | null
+          mapping_id: string | null
+          notes: string | null
+          pain: string | null
+          pain_id: string | null
+          pain_intensity: string | null
+          pain_reliever: string | null
+          pain_reliever_id: string | null
+          studio_project_id: string | null
+          validation_method: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "canvas_items_studio_project_id_fkey"
+            columns: ["studio_project_id"]
+            isOneToOne: false
+            referencedRelation: "studio_projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      journey_summaries: {
+        Row: {
+          created_at: string | null
+          customer_profile_id: string | null
+          customer_profile_name: string | null
+          description: string | null
+          goal: string | null
+          high_pain_count: number | null
+          id: string | null
+          journey_type: string | null
+          name: string | null
+          slug: string | null
+          stage_count: number | null
+          status: string | null
+          studio_project_id: string | null
+          studio_project_name: string | null
+          tags: string[] | null
+          touchpoint_count: number | null
+          updated_at: string | null
+          validation_status: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_journeys_customer_profile_id_fkey"
+            columns: ["customer_profile_id"]
+            isOneToOne: false
+            referencedRelation: "customer_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_journeys_studio_project_id_fkey"
+            columns: ["studio_project_id"]
+            isOneToOne: false
+            referencedRelation: "studio_projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
+      get_canvas_item_counts: {
+        Args: { item_ids: string[] }
+        Returns: {
+          assumption_count: number
+          evidence_count: number
+          item_id: string
+        }[]
+      }
+      get_canvas_items_with_counts: {
+        Args: never
+        Returns: {
+          assumption_count: number
+          created_at: string
+          description: string
+          evidence_count: number
+          id: string
+          importance: string
+          item_type: string
+          placement_count: number
+          studio_project: Json
+          studio_project_id: string
+          tags: string[]
+          title: string
+          updated_at: string
+          validation_status: string
+        }[]
+      }
       is_admin: { Args: never; Returns: boolean }
+      resequence_journey_stages: {
+        Args: { p_journey_id: string }
+        Returns: undefined
+      }
+      resequence_stage_touchpoints: {
+        Args: { p_stage_id: string }
+        Returns: undefined
+      }
+      user_has_project_access: {
+        Args: { project_id: string }
+        Returns: boolean
+      }
     }
     Enums: {
       [_ in never]: never
@@ -1655,3 +2954,5 @@ export const Constants = {
     Enums: {},
   },
 } as const
+A new version of Supabase CLI is available: v2.67.1 (currently installed v2.34.3)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli

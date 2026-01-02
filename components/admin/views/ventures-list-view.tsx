@@ -19,8 +19,8 @@ interface Venture {
   published: boolean
   created_at: string
   updated_at: string
-  venture_specimens?: Array<{ count: number }>
-  log_entry_ventures?: Array<{ count: number }>
+  project_specimens?: Array<{ count: number }>
+  log_entry_projects?: Array<{ count: number }>
 }
 
 interface VenturesListViewProps {
@@ -54,8 +54,8 @@ export function VenturesListView({ ventures }: VenturesListViewProps) {
       header: 'Links',
       cell: (venture) => (
         <div className="flex flex-col gap-1 text-xs text-muted-foreground">
-          <span>{venture.venture_specimens?.[0]?.count || 0} specimens</span>
-          <span>{venture.log_entry_ventures?.[0]?.count || 0} log entries</span>
+          <span>{venture.project_specimens?.[0]?.count || 0} specimens</span>
+          <span>{venture.log_entry_projects?.[0]?.count || 0} log entries</span>
         </div>
       ),
     },

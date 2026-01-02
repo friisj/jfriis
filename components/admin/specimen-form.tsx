@@ -16,7 +16,7 @@ interface SpecimenFormData {
   type: string
   published: boolean
   tags: string
-  ventureIds: string[]
+  projectIds: string[]
   logEntryIds: string[]
 }
 
@@ -39,7 +39,7 @@ export function SpecimenForm({ specimenId, initialData }: SpecimenFormProps) {
     type: initialData?.type || '',
     published: initialData?.published || false,
     tags: initialData?.tags || '',
-    ventureIds: initialData?.ventureIds || [],
+    projectIds: initialData?.projectIds || [],
     logEntryIds: initialData?.logEntryIds || [],
   })
 
@@ -58,10 +58,10 @@ export function SpecimenForm({ specimenId, initialData }: SpecimenFormProps) {
   const loadRelationships = async () => {
     if (!specimenId) return
 
-    // Load venture relationships
-    const { data: ventures } = await supabase
-      .from('venture_specimens')
-      .select('venture_id')
+    // Load project relationships
+    const { data: projects } = await supabase
+      .from('project_specimens')
+      .select('project_id')
       .eq('specimen_id', specimenId)
 
     // Load log entry relationships
@@ -72,7 +72,7 @@ export function SpecimenForm({ specimenId, initialData }: SpecimenFormProps) {
 
     setFormData(prev => ({
       ...prev,
-      ventureIds: ventures?.map(r => r.venture_id) || [],
+      projectIds: projects?.map(r => r.project_id) || [],
       logEntryIds: logEntries?.map(r => r.log_entry_id) || [],
     }))
   }
@@ -141,25 +141,25 @@ export function SpecimenForm({ specimenId, initialData }: SpecimenFormProps) {
 
       // Update relationships
       if (savedSpecimenId) {
-        // Delete existing venture relationships
+        // Delete existing project relationships
         await supabase
-          .from('venture_specimens')
+          .from('project_specimens')
           .delete()
           .eq('specimen_id', savedSpecimenId)
 
-        // Insert new venture relationships
-        if (formData.ventureIds.length > 0) {
-          const ventureRelations = formData.ventureIds.map((ventureId, index) => ({
-            venture_id: ventureId,
+        // Insert new project relationships
+        if (formData.projectIds.length > 0) {
+          const projectRelations = formData.projectIds.map((projectId, index) => ({
+            project_id: projectId,
             specimen_id: savedSpecimenId,
             position: index
           }))
 
-          const { error: ventureError } = await supabase
-            .from('venture_specimens')
-            .insert(ventureRelations)
+          const { error: projectError } = await supabase
+            .from('project_specimens')
+            .insert(projectRelations)
 
-          if (ventureError) throw ventureError
+          if (projectError) throw projectError
         }
 
         // Delete existing log entry relationships
@@ -409,11 +409,11 @@ export function SpecimenForm({ specimenId, initialData }: SpecimenFormProps) {
 
           <div className="rounded-lg border bg-card p-4">
             <RelationshipSelector
-              label="Link Ventures"
-              tableName="ventures"
-              selectedIds={formData.ventureIds}
-              onChange={(ids) => setFormData({ ...formData, ventureIds: ids })}
-              helperText="Select ventures that use this specimen"
+              label="Link Projects"
+              tableName="projects"
+              selectedIds={formData.projectIds}
+              onChange={(ids) => setFormData({ ...formData, projectIds: ids })}
+              helperText="Select projects that use this specimen"
             />
           </div>
 

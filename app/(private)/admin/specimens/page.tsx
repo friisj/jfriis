@@ -44,7 +44,7 @@ export default async function AdminSpecimensPage() {
       published,
       created_at,
       updated_at,
-      venture_specimens (count),
+      project_specimens (count),
       log_entry_specimens (count)
     `)
     .order('updated_at', { ascending: false })
@@ -122,7 +122,7 @@ export default async function AdminSpecimensPage() {
                         </span>
                       </div>
                       <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                        <span>{(specimen as any).venture_specimens?.[0]?.count || 0} ventures</span>
+                        <span>{(specimen as any).project_specimens?.[0]?.count || 0} projects</span>
                         <span>•</span>
                         <span>{(specimen as any).log_entry_specimens?.[0]?.count || 0} log entries</span>
                       </div>
