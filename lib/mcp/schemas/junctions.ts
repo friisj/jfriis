@@ -33,33 +33,47 @@ export const LogEntrySpecimenCreateSchema = LogEntrySpecimenSchema.omit({
 
 export const LogEntrySpecimenUpdateSchema = LogEntrySpecimenCreateSchema.partial()
 
-// Project Specimens
-export const ProjectSpecimenSchema = z.object({
+// Venture Specimens
+export const VentureSpecimenSchema = z.object({
   id: z.string().uuid().optional(),
   created_at: z.string().datetime().optional(),
-  project_id: z.string().uuid(),
+  venture_id: z.string().uuid(),
   specimen_id: z.string().uuid(),
   position: z.number().int().optional().nullable(),
 })
 
-export const ProjectSpecimenCreateSchema = ProjectSpecimenSchema.omit({
+export const VentureSpecimenCreateSchema = VentureSpecimenSchema.omit({
   id: true,
   created_at: true,
 })
 
-export const ProjectSpecimenUpdateSchema = ProjectSpecimenCreateSchema.partial()
+export const VentureSpecimenUpdateSchema = VentureSpecimenCreateSchema.partial()
 
-// Log Entry Projects
-export const LogEntryProjectSchema = z.object({
+// Log Entry Ventures
+export const LogEntryVentureSchema = z.object({
   id: z.string().uuid().optional(),
   created_at: z.string().datetime().optional(),
   log_entry_id: z.string().uuid(),
-  project_id: z.string().uuid(),
+  venture_id: z.string().uuid(),
 })
 
-export const LogEntryProjectCreateSchema = LogEntryProjectSchema.omit({
+export const LogEntryVentureCreateSchema = LogEntryVentureSchema.omit({
   id: true,
   created_at: true,
 })
 
-export const LogEntryProjectUpdateSchema = LogEntryProjectCreateSchema.partial()
+export const LogEntryVentureUpdateSchema = LogEntryVentureCreateSchema.partial()
+
+// Backwards compatibility (deprecated)
+/** @deprecated Use VentureSpecimenSchema instead */
+export const ProjectSpecimenSchema = VentureSpecimenSchema
+/** @deprecated Use VentureSpecimenCreateSchema instead */
+export const ProjectSpecimenCreateSchema = VentureSpecimenCreateSchema
+/** @deprecated Use VentureSpecimenUpdateSchema instead */
+export const ProjectSpecimenUpdateSchema = VentureSpecimenUpdateSchema
+/** @deprecated Use LogEntryVentureSchema instead */
+export const LogEntryProjectSchema = LogEntryVentureSchema
+/** @deprecated Use LogEntryVentureCreateSchema instead */
+export const LogEntryProjectCreateSchema = LogEntryVentureCreateSchema
+/** @deprecated Use LogEntryVentureUpdateSchema instead */
+export const LogEntryProjectUpdateSchema = LogEntryVentureUpdateSchema

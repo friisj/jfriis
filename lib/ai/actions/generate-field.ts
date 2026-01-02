@@ -75,11 +75,11 @@ const fieldPrompts: Record<string, Record<string, string>> = {
     notes: 'Additional context, observations, or related insights.',
     tags: 'Tags for categorizing this assumption.',
   },
-  projects: {
-    title: 'A clear, descriptive title for this project.',
-    description: 'Brief overview of what this project is and its goals.',
-    content: 'Detailed project content, background, process, or learnings.',
-    tags: 'Relevant tags for categorizing this project.',
+  ventures: {
+    title: 'A clear, descriptive title for this venture.',
+    description: 'Brief overview of what this venture is and its goals.',
+    content: 'Detailed venture content, background, process, or learnings.',
+    tags: 'Relevant tags for categorizing this venture.',
   },
   log_entries: {
     title: 'A descriptive title for this log entry.',

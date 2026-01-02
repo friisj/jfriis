@@ -2,10 +2,10 @@ import { z } from 'zod'
 
 // Import schemas
 import {
-  ProjectSchema,
-  ProjectCreateSchema,
-  ProjectUpdateSchema,
-} from './schemas/projects'
+  VentureSchema,
+  VentureCreateSchema,
+  VentureUpdateSchema,
+} from './schemas/ventures'
 
 import {
   LogEntrySchema,
@@ -55,12 +55,12 @@ import {
   LogEntrySpecimenSchema,
   LogEntrySpecimenCreateSchema,
   LogEntrySpecimenUpdateSchema,
-  ProjectSpecimenSchema,
-  ProjectSpecimenCreateSchema,
-  ProjectSpecimenUpdateSchema,
-  LogEntryProjectSchema,
-  LogEntryProjectCreateSchema,
-  LogEntryProjectUpdateSchema,
+  VentureSpecimenSchema,
+  VentureSpecimenCreateSchema,
+  VentureSpecimenUpdateSchema,
+  LogEntryVentureSchema,
+  LogEntryVentureCreateSchema,
+  LogEntryVentureUpdateSchema,
 } from './schemas/junctions'
 
 import {
@@ -132,13 +132,13 @@ export interface TableDefinition {
 
 export const tables: Record<string, TableDefinition> = {
   // Site content tables
-  projects: {
-    description: 'Portfolio projects and businesses',
-    schema: ProjectSchema,
-    createSchema: ProjectCreateSchema,
-    updateSchema: ProjectUpdateSchema,
+  ventures: {
+    description: 'Portfolio ventures (businesses, products, services)',
+    schema: VentureSchema,
+    createSchema: VentureCreateSchema,
+    updateSchema: VentureUpdateSchema,
     hasSlug: true,
-    hasProjectId: false, // Projects ARE the project - admin only for write
+    hasProjectId: false, // Ventures are the top-level portfolio items - admin only for write
   },
   log_entries: {
     description: 'Chronological log posts',
@@ -232,21 +232,21 @@ export const tables: Record<string, TableDefinition> = {
     hasSlug: false,
     hasProjectId: true, // Inherits from log_entry
   },
-  project_specimens: {
-    description: 'Specimens in projects',
-    schema: ProjectSpecimenSchema,
-    createSchema: ProjectSpecimenCreateSchema,
-    updateSchema: ProjectSpecimenUpdateSchema,
+  venture_specimens: {
+    description: 'Specimens in ventures',
+    schema: VentureSpecimenSchema,
+    createSchema: VentureSpecimenCreateSchema,
+    updateSchema: VentureSpecimenUpdateSchema,
     hasSlug: false,
-    hasProjectId: true, // Has project_id directly
+    hasProjectId: true, // Has venture_id directly
   },
-  log_entry_projects: {
-    description: 'Projects in log entries',
-    schema: LogEntryProjectSchema,
-    createSchema: LogEntryProjectCreateSchema,
-    updateSchema: LogEntryProjectUpdateSchema,
+  log_entry_ventures: {
+    description: 'Ventures linked to log entries',
+    schema: LogEntryVentureSchema,
+    createSchema: LogEntryVentureCreateSchema,
+    updateSchema: LogEntryVentureUpdateSchema,
     hasSlug: false,
-    hasProjectId: true, // Has project_id directly
+    hasProjectId: true, // Has venture_id directly
   },
 
   // Studio tables
