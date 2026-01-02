@@ -22,6 +22,7 @@ export type EvidenceEntityType =
   | 'journey_stage'
   | 'customer_profile'
   | 'value_proposition_canvas'
+  | 'value_map'
   | 'business_model_canvas'
 
 /**
@@ -108,6 +109,7 @@ export type LinkableEntityType =
   | 'business_model_canvas'
   | 'customer_profile'
   | 'value_proposition_canvas'
+  | 'value_map'  // Value Map (customer side of VPC)
   | 'canvas_item'
   // Journeys
   | 'user_journey'
@@ -215,6 +217,7 @@ export const ENTITY_TYPE_TABLE_MAP: Record<LinkableEntityType, string> = {
   business_model_canvas: 'business_model_canvases',
   customer_profile: 'customer_profiles',
   value_proposition_canvas: 'value_proposition_canvases',
+  value_map: 'value_maps',
   canvas_item: 'canvas_items',
   user_journey: 'user_journeys',
   journey_stage: 'journey_stages',
