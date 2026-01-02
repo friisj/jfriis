@@ -24,9 +24,9 @@ interface SpecimenLink {
   } | null
 }
 
-interface ProjectLink {
-  project_id: string
-  projects: {
+interface VentureLink {
+  venture_id: string
+  ventures: {
     id: string
     title: string
     slug: string
@@ -74,12 +74,12 @@ export default async function LogEntryPage({ params }: LogEntryPageProps) {
 
   const linkedSpecimens = specimenLinks?.map(link => link.specimens).filter(Boolean) || []
 
-  // Fetch linked projects
-  const { data: projectLinks } = await supabase
-    .from('log_entry_projects')
+  // Fetch linked ventures
+  const { data: ventureLinks } = await supabase
+    .from('log_entry_ventures')
     .select(`
-      project_id,
-      projects (
+      venture_id,
+      ventures (
         id,
         title,
         slug,
@@ -89,9 +89,9 @@ export default async function LogEntryPage({ params }: LogEntryPageProps) {
       )
     `)
     .eq('log_entry_id', entry.id)
-    .returns<ProjectLink[]>()
+    .returns<VentureLink[]>()
 
-  const linkedProjects = projectLinks?.map(link => link.projects).filter(Boolean) || []
+  const linkedVentures = ventureLinks?.map(link => link.ventures).filter(Boolean) || []
 
   return (
     <div className="min-h-screen">
@@ -188,43 +188,43 @@ export default async function LogEntryPage({ params }: LogEntryPageProps) {
         </div>
       )}
 
-      {/* Linked Projects */}
-      {linkedProjects.length > 0 && (
+      {/* Linked Ventures */}
+      {linkedVentures.length > 0 && (
         <div className="border-t">
           <div className="max-w-3xl mx-auto px-8 py-12">
-            <h2 className="text-2xl font-bold mb-6">Related Projects</h2>
+            <h2 className="text-2xl font-bold mb-6">Related Ventures</h2>
             <div className="grid grid-cols-1 gap-6">
-              {linkedProjects.map((project: any) => (
+              {linkedVentures.map((venture: any) => (
                 <Link
-                  key={project.id}
-                  href={`/portfolio/${project.slug}`}
+                  key={venture.id}
+                  href={`/portfolio/${venture.slug}`}
                   className="group border rounded-lg p-6 hover:border-primary transition-colors"
                 >
                   <div className="flex items-start justify-between mb-3">
                     <h3 className="font-semibold text-lg group-hover:text-primary transition-colors">
-                      {project.title}
+                      {venture.title}
                     </h3>
                     <div className="flex items-center gap-2">
-                      {project.status && (
+                      {venture.status && (
                         <span className={`text-xs px-2.5 py-1 rounded-full ${
-                          project.status === 'active' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' :
-                          project.status === 'completed' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200' :
-                          project.status === 'archived' ? 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200' :
+                          venture.status === 'active' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' :
+                          venture.status === 'completed' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200' :
+                          venture.status === 'archived' ? 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200' :
                           'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
                         }`}>
-                          {project.status}
+                          {venture.status}
                         </span>
                       )}
-                      {project.type && (
+                      {venture.type && (
                         <span className="text-xs px-2.5 py-1 rounded-full bg-muted text-muted-foreground">
-                          {project.type}
+                          {venture.type}
                         </span>
                       )}
                     </div>
                   </div>
-                  {project.description && (
+                  {venture.description && (
                     <p className="text-sm text-muted-foreground line-clamp-2">
-                      {project.description}
+                      {venture.description}
                     </p>
                   )}
                 </Link>
