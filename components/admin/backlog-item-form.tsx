@@ -7,6 +7,9 @@ import { toast } from 'sonner'
 import { FormFieldWithAI } from '@/components/forms'
 import { SidebarCard } from './sidebar-card'
 import { FormActions } from './form-actions'
+import { EntityLinkField } from './entity-link-field'
+import { syncEntityLinks } from '@/lib/entity-links'
+import type { PendingLink } from '@/lib/types/entity-relationships'
 
 interface BacklogItemFormData {
   title: string
@@ -24,6 +27,7 @@ export function BacklogItemForm({ itemId, initialData }: BacklogItemFormProps) {
   const router = useRouter()
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [pendingAssumptionLinks, setPendingAssumptionLinks] = useState<PendingLink[]>([])
 
   const [formData, setFormData] = useState<BacklogItemFormData>({
     title: initialData?.title || '',
@@ -62,11 +66,23 @@ export function BacklogItemForm({ itemId, initialData }: BacklogItemFormProps) {
         toast.success('Backlog item updated successfully!')
       } else {
         // Create new item
-        const { error: insertError } = await supabase
+        const { data: newItem, error: insertError } = await supabase
           .from('backlog_items')
           .insert([itemData])
+          .select('id')
+          .single()
 
         if (insertError) throw insertError
+
+        // Sync pending entity links for create mode
+        if (pendingAssumptionLinks.length > 0) {
+          await syncEntityLinks(
+            { type: 'backlog_item', id: newItem.id },
+            'assumption',
+            'related',
+            pendingAssumptionLinks.map(l => l.targetId)
+          )
+        }
 
         toast.success('Backlog item created successfully!')
       }
@@ -211,6 +227,22 @@ export function BacklogItemForm({ itemId, initialData }: BacklogItemFormProps) {
                 placeholder="idea, prototype, research"
               />
             </FormFieldWithAI>
+          </SidebarCard>
+
+          <SidebarCard title="Related Assumptions">
+            <EntityLinkField
+              label=""
+              sourceType="backlog_item"
+              sourceId={itemId}
+              targetType="assumption"
+              targetTableName="assumptions"
+              targetDisplayField="title"
+              linkType="related"
+              allowMultiple={true}
+              pendingLinks={pendingAssumptionLinks}
+              onPendingLinksChange={setPendingAssumptionLinks}
+              helperText="Link to related assumptions"
+            />
           </SidebarCard>
         </div>
       </div>

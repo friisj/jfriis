@@ -7,6 +7,9 @@ import { syncCanvasPlacements } from '@/lib/utils/canvas-placements'
 import { AssumptionLinker } from './assumption-linker'
 import { CanvasItemSelector, getAllowedTypesForBlock } from './canvas-item-selector'
 import { FormFieldWithAI } from '@/components/forms'
+import { EntityLinkField } from './entity-link-field'
+import { syncEntityLinks } from '@/lib/entity-links'
+import type { PendingLink } from '@/lib/types/entity-relationships'
 
 interface ProfileBlock {
   item_ids: string[]
@@ -172,6 +175,8 @@ export function CustomerProfileForm({ profileId, initialData }: CustomerProfileF
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [projects, setProjects] = useState<StudioProject[]>([])
+  const [pendingVpcLinks, setPendingVpcLinks] = useState<PendingLink[]>([])
+  const [pendingBmcLinks, setPendingBmcLinks] = useState<PendingLink[]>([])
 
   const [formData, setFormData] = useState<CustomerProfileFormData>({
     slug: initialData?.slug || '',
@@ -264,6 +269,24 @@ export function CustomerProfileForm({ profileId, initialData }: CustomerProfileF
 
         if (error) throw error
         savedProfileId = newProfile.id
+
+        // Sync pending entity links for create mode
+        if (pendingVpcLinks.length > 0) {
+          await syncEntityLinks(
+            { type: 'customer_profile', id: newProfile.id },
+            'value_proposition_canvas',
+            'related',
+            pendingVpcLinks.map(l => l.targetId)
+          )
+        }
+        if (pendingBmcLinks.length > 0) {
+          await syncEntityLinks(
+            { type: 'customer_profile', id: newProfile.id },
+            'business_model_canvas',
+            'related',
+            pendingBmcLinks.map(l => l.targetId)
+          )
+        }
       }
 
       // Sync canvas item placements
@@ -583,6 +606,40 @@ export function CustomerProfileForm({ profileId, initialData }: CustomerProfileF
               <option value="high">High</option>
             </select>
           </div>
+        </div>
+      </div>
+
+      {/* Related Canvases */}
+      <div className="space-y-4">
+        <h2 className="text-lg font-semibold border-b pb-2">Related Canvases</h2>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <EntityLinkField
+            label="Value Proposition Canvases"
+            sourceType="customer_profile"
+            sourceId={profileId}
+            targetType="value_proposition_canvas"
+            targetTableName="value_proposition_canvases"
+            targetDisplayField="name"
+            linkType="related"
+            allowMultiple={true}
+            pendingLinks={pendingVpcLinks}
+            onPendingLinksChange={setPendingVpcLinks}
+            helperText="Link to related value proposition canvases"
+          />
+          <EntityLinkField
+            label="Business Model Canvases"
+            sourceType="customer_profile"
+            sourceId={profileId}
+            targetType="business_model_canvas"
+            targetTableName="business_model_canvases"
+            targetDisplayField="name"
+            linkType="related"
+            allowMultiple={true}
+            pendingLinks={pendingBmcLinks}
+            onPendingLinksChange={setPendingBmcLinks}
+            helperText="Link to related business model canvases"
+          />
         </div>
       </div>
 

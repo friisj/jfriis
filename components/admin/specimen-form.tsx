@@ -7,6 +7,9 @@ import { getAllSpecimens, type SpecimenMetadata } from '@/components/specimens/r
 import { toast } from 'sonner'
 import { RelationshipSelector } from './relationship-selector'
 import { FormFieldWithAI } from '@/components/forms'
+import { EntityLinkField } from './entity-link-field'
+import { syncEntityLinks } from '@/lib/entity-links'
+import type { PendingLink } from '@/lib/types/entity-relationships'
 
 interface SpecimenFormData {
   title: string
@@ -30,6 +33,7 @@ export function SpecimenForm({ specimenId, initialData }: SpecimenFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [availableSpecimens, setAvailableSpecimens] = useState<SpecimenMetadata[]>([])
+  const [pendingAssumptionLinks, setPendingAssumptionLinks] = useState<PendingLink[]>([])
 
   const [formData, setFormData] = useState<SpecimenFormData>({
     title: initialData?.title || '',
@@ -137,6 +141,16 @@ export function SpecimenForm({ specimenId, initialData }: SpecimenFormProps) {
 
         if (insertError) throw insertError
         savedSpecimenId = newSpecimen.id
+
+        // Sync pending entity links for create mode
+        if (pendingAssumptionLinks.length > 0) {
+          await syncEntityLinks(
+            { type: 'specimen', id: newSpecimen.id },
+            'assumption',
+            'related',
+            pendingAssumptionLinks.map(l => l.targetId)
+          )
+        }
       }
 
       // Update relationships
@@ -424,6 +438,22 @@ export function SpecimenForm({ specimenId, initialData }: SpecimenFormProps) {
               selectedIds={formData.logEntryIds}
               onChange={(ids) => setFormData({ ...formData, logEntryIds: ids })}
               helperText="Select log entries that feature this specimen"
+            />
+          </div>
+
+          <div className="rounded-lg border bg-card p-4">
+            <EntityLinkField
+              label="Related Assumptions"
+              sourceType="specimen"
+              sourceId={specimenId}
+              targetType="assumption"
+              targetTableName="assumptions"
+              targetDisplayField="title"
+              linkType="related"
+              allowMultiple={true}
+              pendingLinks={pendingAssumptionLinks}
+              onPendingLinksChange={setPendingAssumptionLinks}
+              helperText="Link to related assumptions"
             />
           </div>
         </div>

@@ -7,6 +7,9 @@ import { toast } from 'sonner'
 import { MdxEditor } from '@/components/forms/mdx-editor'
 import { RelationshipSelector } from './relationship-selector'
 import { FormFieldWithAI } from '@/components/forms'
+import { EntityLinkField } from './entity-link-field'
+import { syncEntityLinks } from '@/lib/entity-links'
+import type { PendingLink } from '@/lib/types/entity-relationships'
 
 interface LogEntryFormData {
   title: string
@@ -29,6 +32,7 @@ export function LogEntryForm({ entryId, initialData }: LogEntryFormProps) {
   const router = useRouter()
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [pendingAssumptionLinks, setPendingAssumptionLinks] = useState<PendingLink[]>([])
 
   const [formData, setFormData] = useState<LogEntryFormData>({
     title: initialData?.title || '',
@@ -133,6 +137,16 @@ export function LogEntryForm({ entryId, initialData }: LogEntryFormProps) {
 
         if (insertError) throw insertError
         savedEntryId = newEntry.id
+
+        // Sync pending entity links for create mode
+        if (pendingAssumptionLinks.length > 0) {
+          await syncEntityLinks(
+            { type: 'log_entry', id: newEntry.id },
+            'assumption',
+            'related',
+            pendingAssumptionLinks.map(l => l.targetId)
+          )
+        }
       }
 
       // Update relationships
@@ -384,6 +398,22 @@ export function LogEntryForm({ entryId, initialData }: LogEntryFormProps) {
               selectedIds={formData.projectIds}
               onChange={(ids) => setFormData({ ...formData, projectIds: ids })}
               helperText="Link related projects to this log entry"
+            />
+          </div>
+
+          <div className="rounded-lg border bg-card p-4">
+            <EntityLinkField
+              label="Related Assumptions"
+              sourceType="log_entry"
+              sourceId={entryId}
+              targetType="assumption"
+              targetTableName="assumptions"
+              targetDisplayField="title"
+              linkType="related"
+              allowMultiple={true}
+              pendingLinks={pendingAssumptionLinks}
+              onPendingLinksChange={setPendingAssumptionLinks}
+              helperText="Link to related assumptions"
             />
           </div>
         </div>

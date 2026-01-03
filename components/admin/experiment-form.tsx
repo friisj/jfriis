@@ -7,6 +7,11 @@ import { FormFieldWithAI } from '@/components/forms'
 import { SidebarCard } from './sidebar-card'
 import { FormActions } from './form-actions'
 import { RelationshipField } from './relationship-field'
+import { EntityLinkField } from './entity-link-field'
+import { EvidenceManager } from './evidence-manager'
+import { syncEntityLinks } from '@/lib/entity-links'
+import { syncPendingEvidence } from '@/lib/evidence'
+import type { PendingLink, PendingEvidence } from '@/lib/types/entity-relationships'
 
 interface Experiment {
   id: string
@@ -59,6 +64,8 @@ export function ExperimentForm({ experiment, mode }: ExperimentFormProps) {
   const searchParams = useSearchParams()
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [pendingCanvasLinks, setPendingCanvasLinks] = useState<PendingLink[]>([])
+  const [pendingEvidence, setPendingEvidence] = useState<PendingEvidence[]>([])
 
   // Get project from URL if creating new
   const projectFromUrl = searchParams.get('project')
@@ -109,11 +116,28 @@ export function ExperimentForm({ experiment, mode }: ExperimentFormProps) {
 
         if (error) throw error
       } else {
-        const { error } = await supabase
+        const { data: newExperiment, error } = await supabase
           .from('studio_experiments')
           .insert([data])
+          .select('id')
+          .single()
 
         if (error) throw error
+
+        // Sync pending entity links for create mode
+        if (pendingCanvasLinks.length > 0) {
+          await syncEntityLinks(
+            { type: 'studio_experiment', id: newExperiment.id },
+            'canvas_item',
+            'related',
+            pendingCanvasLinks.map(l => l.targetId)
+          )
+        }
+
+        // Sync pending evidence
+        if (pendingEvidence.length > 0) {
+          await syncPendingEvidence({ type: 'studio_experiment', id: newExperiment.id }, pendingEvidence)
+        }
       }
 
       router.push('/admin/experiments')
@@ -345,6 +369,31 @@ export function ExperimentForm({ experiment, mode }: ExperimentFormProps) {
                 Set after experiment completes
               </p>
             </div>
+          </SidebarCard>
+
+          <SidebarCard title="Related Canvas Items">
+            <EntityLinkField
+              label=""
+              sourceType="studio_experiment"
+              sourceId={experiment?.id}
+              targetType="canvas_item"
+              targetTableName="canvas_items"
+              targetDisplayField="content"
+              linkType="related"
+              allowMultiple={true}
+              pendingLinks={pendingCanvasLinks}
+              onPendingLinksChange={setPendingCanvasLinks}
+              helperText="Link to related canvas items"
+            />
+          </SidebarCard>
+
+          <SidebarCard title="Evidence">
+            <EvidenceManager
+              entityType="studio_experiment"
+              entityId={experiment?.id}
+              pendingEvidence={pendingEvidence}
+              onPendingEvidenceChange={setPendingEvidence}
+            />
           </SidebarCard>
         </div>
       </div>

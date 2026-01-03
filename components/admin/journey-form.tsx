@@ -7,6 +7,9 @@ import { FormFieldWithAI } from '@/components/forms'
 import { SidebarCard } from './sidebar-card'
 import { FormActions } from './form-actions'
 import { RelationshipField } from './relationship-field'
+import { EntityLinkField } from './entity-link-field'
+import { syncEntityLinks } from '@/lib/entity-links'
+import type { PendingLink } from '@/lib/types/entity-relationships'
 
 interface Journey {
   id: string
@@ -52,6 +55,8 @@ export function JourneyForm({ journey }: JourneyFormProps) {
   const router = useRouter()
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [pendingVpcLinks, setPendingVpcLinks] = useState<PendingLink[]>([])
+  const [pendingBmcLinks, setPendingBmcLinks] = useState<PendingLink[]>([])
 
   const [formData, setFormData] = useState({
     slug: journey?.slug || '',
@@ -122,6 +127,25 @@ export function JourneyForm({ journey }: JourneyFormProps) {
           .select()
           .single()
         if (error) throw error
+
+        // Sync pending entity links for create mode
+        if (pendingVpcLinks.length > 0) {
+          await syncEntityLinks(
+            { type: 'user_journey', id: created.id },
+            'value_proposition_canvas',
+            'related',
+            pendingVpcLinks.map(l => l.targetId)
+          )
+        }
+        if (pendingBmcLinks.length > 0) {
+          await syncEntityLinks(
+            { type: 'user_journey', id: created.id },
+            'business_model_canvas',
+            'related',
+            pendingBmcLinks.map(l => l.targetId)
+          )
+        }
+
         router.push(`/admin/journeys/${created.id}`)
       }
 
@@ -292,6 +316,35 @@ export function JourneyForm({ journey }: JourneyFormProps) {
               displayField="name"
               mode="single"
               placeholder="Select project..."
+            />
+          </SidebarCard>
+
+          <SidebarCard title="Related Canvases">
+            <EntityLinkField
+              label="Value Propositions"
+              sourceType="user_journey"
+              sourceId={journey?.id}
+              targetType="value_proposition_canvas"
+              targetTableName="value_proposition_canvases"
+              targetDisplayField="name"
+              linkType="related"
+              allowMultiple={true}
+              pendingLinks={pendingVpcLinks}
+              onPendingLinksChange={setPendingVpcLinks}
+              helperText="Link to value proposition canvases"
+            />
+            <EntityLinkField
+              label="Business Models"
+              sourceType="user_journey"
+              sourceId={journey?.id}
+              targetType="business_model_canvas"
+              targetTableName="business_model_canvases"
+              targetDisplayField="name"
+              linkType="related"
+              allowMultiple={true}
+              pendingLinks={pendingBmcLinks}
+              onPendingLinksChange={setPendingBmcLinks}
+              helperText="Link to business model canvases"
             />
           </SidebarCard>
 
