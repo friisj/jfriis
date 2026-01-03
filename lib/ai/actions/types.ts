@@ -57,6 +57,7 @@ export interface ActionResult<T = unknown> {
 
 // Error types for field generation
 export type ActionErrorCode =
+  | 'unauthorized'
   | 'rate_limited'
   | 'provider_error'
   | 'timeout'
