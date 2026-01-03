@@ -2,8 +2,7 @@
 
 import { useState, useEffect, useCallback, use } from 'react'
 import Link from 'next/link'
-import { AdminDetailLayout, StatusBadge } from '@/components/admin'
-import { TouchpointEvidenceCollector } from '@/components/admin/touchpoint-evidence-collector'
+import { AdminDetailLayout, StatusBadge, EvidenceManager } from '@/components/admin'
 import { TouchpointAssumptionLinker } from '@/components/admin/touchpoint-assumption-linker'
 import { TouchpointMappingLinker } from '@/components/admin/touchpoint-mapping-linker'
 import { getTouchpoint } from '@/lib/boundary-objects/journeys'
@@ -12,7 +11,7 @@ import {
   type TouchpointMappingWithTarget,
   type TouchpointAssumptionWithDetails,
 } from '@/lib/boundary-objects/mappings'
-import type { Touchpoint, TouchpointEvidence } from '@/lib/types/boundary-objects'
+import type { Touchpoint } from '@/lib/types/boundary-objects'
 import { supabase } from '@/lib/supabase'
 
 interface TouchpointDetailPageProps {
@@ -45,7 +44,6 @@ export default function TouchpointDetailPage({ params }: TouchpointDetailPagePro
   const [stageInfo, setStageInfo] = useState<JourneyStageInfo | null>(null)
   const [mappings, setMappings] = useState<TouchpointMappingWithTarget[]>([])
   const [assumptions, setAssumptions] = useState<TouchpointAssumptionWithDetails[]>([])
-  const [evidence, setEvidence] = useState<TouchpointEvidence[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState<'overview' | 'mappings' | 'assumptions' | 'evidence'>('overview')
@@ -62,7 +60,6 @@ export default function TouchpointDetailPage({ params }: TouchpointDetailPagePro
       const relations = await getTouchpointWithAllRelations(touchpointId)
       setMappings(relations.mappings)
       setAssumptions(relations.assumptions)
-      setEvidence(relations.evidence)
 
       // Load stage and journey info
       const { data: stage, error: stageError } = await supabase
@@ -172,11 +169,6 @@ export default function TouchpointDetailPage({ params }: TouchpointDetailPagePro
                   {assumptions.length}
                 </span>
               )}
-              {tab === 'evidence' && evidence.length > 0 && (
-                <span className="ml-1.5 text-xs bg-muted px-1.5 py-0.5 rounded-full">
-                  {evidence.length}
-                </span>
-              )}
             </button>
           ))}
         </div>
@@ -251,7 +243,7 @@ export default function TouchpointDetailPage({ params }: TouchpointDetailPagePro
             </div>
 
             {/* Quick Stats */}
-            <div className="md:col-span-2 grid grid-cols-3 gap-4">
+            <div className="md:col-span-2 grid grid-cols-2 gap-4">
               <div className="rounded-lg border bg-card p-4 text-center">
                 <div className="text-2xl font-bold">{mappings.length}</div>
                 <div className="text-sm text-muted-foreground">Canvas Mappings</div>
@@ -259,10 +251,6 @@ export default function TouchpointDetailPage({ params }: TouchpointDetailPagePro
               <div className="rounded-lg border bg-card p-4 text-center">
                 <div className="text-2xl font-bold">{assumptions.length}</div>
                 <div className="text-sm text-muted-foreground">Linked Assumptions</div>
-              </div>
-              <div className="rounded-lg border bg-card p-4 text-center">
-                <div className="text-2xl font-bold">{evidence.length}</div>
-                <div className="text-sm text-muted-foreground">Evidence Items</div>
               </div>
             </div>
           </div>
@@ -292,10 +280,9 @@ export default function TouchpointDetailPage({ params }: TouchpointDetailPagePro
 
         {activeTab === 'evidence' && (
           <div className="rounded-lg border bg-card p-6">
-            <TouchpointEvidenceCollector
-              touchpointId={touchpointId}
-              evidence={evidence}
-              onEvidenceChange={handleRefresh}
+            <EvidenceManager
+              entityType="touchpoint"
+              entityId={touchpointId}
             />
           </div>
         )}

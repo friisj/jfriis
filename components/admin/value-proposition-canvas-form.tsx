@@ -8,6 +8,11 @@ import { FormFieldWithAI } from '@/components/forms'
 import { SidebarCard } from './sidebar-card'
 import { FormActions } from './form-actions'
 import { RelationshipField } from './relationship-field'
+import { EntityLinkField } from './entity-link-field'
+import { EvidenceManager } from './evidence-manager'
+import { syncEntityLinks } from '@/lib/entity-links'
+import { syncPendingEvidence } from '@/lib/evidence'
+import type { PendingLink, PendingEvidence } from '@/lib/types/entity-relationships'
 
 interface CustomerProfile {
   id: string
@@ -51,6 +56,8 @@ export function ValuePropositionCanvasForm({ vpcId, initialData }: VPCFormProps)
   const [error, setError] = useState<string | null>(null)
   const [customerProfiles, setCustomerProfiles] = useState<CustomerProfile[]>([])
   const [selectedProfile, setSelectedProfile] = useState<CustomerProfile | null>(null)
+  const [pendingBmcLinks, setPendingBmcLinks] = useState<PendingLink[]>([])
+  const [pendingEvidence, setPendingEvidence] = useState<PendingEvidence[]>([])
 
   const [formData, setFormData] = useState<VPCFormData>({
     slug: initialData?.slug || '',
@@ -144,9 +151,30 @@ export function ValuePropositionCanvasForm({ vpcId, initialData }: VPCFormProps)
 
         if (error) throw error
       } else {
-        const { error } = await (supabase.from('value_proposition_canvases') as any).insert([data])
+        const { data: created, error } = await (supabase.from('value_proposition_canvases') as any)
+          .insert([data])
+          .select('id')
+          .single()
 
         if (error) throw error
+
+        // Sync pending entity links for create mode
+        if (pendingBmcLinks.length > 0) {
+          await syncEntityLinks(
+            { type: 'value_proposition_canvas', id: created.id },
+            'business_model_canvas',
+            'related',
+            pendingBmcLinks.map(l => l.targetId)
+          )
+        }
+
+        // Sync pending evidence
+        if (pendingEvidence.length > 0) {
+          await syncPendingEvidence(
+            { type: 'value_proposition_canvas', id: created.id },
+            pendingEvidence
+          )
+        }
       }
 
       router.push('/admin/canvases/value-propositions')
@@ -430,6 +458,29 @@ export function ValuePropositionCanvasForm({ vpcId, initialData }: VPCFormProps)
               displayField="name"
               mode="single"
               placeholder="Select project..."
+            />
+            <EntityLinkField
+              label="Related Business Models"
+              sourceType="value_proposition_canvas"
+              sourceId={vpcId}
+              targetType="business_model_canvas"
+              targetTableName="business_model_canvases"
+              targetDisplayField="name"
+              linkType="related"
+              allowMultiple={true}
+              placeholder="Link to BMCs..."
+              helperText="Business models using this value proposition"
+              pendingLinks={pendingBmcLinks}
+              onPendingLinksChange={setPendingBmcLinks}
+            />
+          </SidebarCard>
+
+          <SidebarCard title="Evidence">
+            <EvidenceManager
+              entityType="value_proposition_canvas"
+              entityId={vpcId}
+              pendingEvidence={pendingEvidence}
+              onPendingEvidenceChange={setPendingEvidence}
             />
           </SidebarCard>
 

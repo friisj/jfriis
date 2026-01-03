@@ -4,6 +4,10 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import type { CanvasItemType, JobType, Intensity, Importance, ValidationStatus, Frequency } from '@/lib/types/canvas-items'
+import { FormFieldWithAI } from '@/components/forms'
+import { EvidenceManager } from './evidence-manager'
+import { syncPendingEvidence } from '@/lib/evidence'
+import type { PendingEvidence } from '@/lib/types/entity-relationships'
 
 interface StudioProject {
   id: string
@@ -89,6 +93,7 @@ export function CanvasItemForm({ item, mode }: CanvasItemFormProps) {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [projects, setProjects] = useState<StudioProject[]>([])
+  const [pendingEvidence, setPendingEvidence] = useState<PendingEvidence[]>([])
 
   const [formData, setFormData] = useState({
     title: item?.title || '',
@@ -149,8 +154,17 @@ export function CanvasItemForm({ item, mode }: CanvasItemFormProps) {
       }
 
       if (mode === 'create') {
-        const { error } = await supabase.from('canvas_items').insert([data])
+        const { data: created, error } = await supabase
+          .from('canvas_items')
+          .insert([data])
+          .select()
+          .single()
         if (error) throw error
+
+        // Sync pending evidence to the newly created entity
+        if (pendingEvidence.length > 0 && created) {
+          await syncPendingEvidence({ type: 'canvas_item', id: created.id }, pendingEvidence)
+        }
       } else {
         const { error } = await supabase
           .from('canvas_items')
@@ -600,6 +614,20 @@ export function CanvasItemForm({ item, mode }: CanvasItemFormProps) {
             placeholder="premium, b2b, technical (comma-separated)"
           />
         </FormFieldWithAI>
+      </div>
+
+      {/* Evidence */}
+      <div className="space-y-4">
+        <h2 className="text-lg font-semibold border-b pb-2">Evidence</h2>
+        <p className="text-sm text-muted-foreground -mt-2">
+          Attach evidence that supports or refutes this canvas item.
+        </p>
+        <EvidenceManager
+          entityType="canvas_item"
+          entityId={item?.id}
+          pendingEvidence={pendingEvidence}
+          onPendingEvidenceChange={setPendingEvidence}
+        />
       </div>
 
       {/* Actions */}

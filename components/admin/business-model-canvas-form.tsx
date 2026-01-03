@@ -10,6 +10,9 @@ import { FormFieldWithAI } from '@/components/forms'
 import { SidebarCard } from './sidebar-card'
 import { FormActions } from './form-actions'
 import { RelationshipField } from './relationship-field'
+import { EntityLinkField } from './entity-link-field'
+import { syncEntityLinks } from '@/lib/entity-links'
+import type { PendingLink } from '@/lib/types/entity-relationships'
 
 interface CanvasBlock {
   item_ids: string[]
@@ -174,6 +177,8 @@ export function BusinessModelCanvasForm({ canvasId, initialData }: BusinessModel
   const router = useRouter()
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [pendingVpcLinks, setPendingVpcLinks] = useState<PendingLink[]>([])
+  const [pendingCpLinks, setPendingCpLinks] = useState<PendingLink[]>([])
 
   const [formData, setFormData] = useState<BusinessModelCanvasFormData>({
     slug: initialData?.slug || '',
@@ -249,6 +254,24 @@ export function BusinessModelCanvasForm({ canvasId, initialData }: BusinessModel
 
         if (error) throw error
         savedCanvasId = newCanvas.id
+
+        // Sync pending entity links for create mode
+        if (pendingVpcLinks.length > 0) {
+          await syncEntityLinks(
+            { type: 'business_model_canvas', id: newCanvas.id },
+            'value_proposition_canvas',
+            'related',
+            pendingVpcLinks.map(l => l.targetId)
+          )
+        }
+        if (pendingCpLinks.length > 0) {
+          await syncEntityLinks(
+            { type: 'business_model_canvas', id: newCanvas.id },
+            'customer_profile',
+            'related',
+            pendingCpLinks.map(l => l.targetId)
+          )
+        }
       }
 
       // Sync canvas item placements
@@ -472,6 +495,34 @@ export function BusinessModelCanvasForm({ canvasId, initialData }: BusinessModel
               displayField="name"
               mode="single"
               placeholder="Select project..."
+            />
+            <EntityLinkField
+              label="Related Value Propositions"
+              sourceType="business_model_canvas"
+              sourceId={canvasId}
+              targetType="value_proposition_canvas"
+              targetTableName="value_proposition_canvases"
+              targetDisplayField="name"
+              linkType="related"
+              allowMultiple={true}
+              placeholder="Link to VPCs..."
+              helperText="Value propositions that this BMC addresses"
+              pendingLinks={pendingVpcLinks}
+              onPendingLinksChange={setPendingVpcLinks}
+            />
+            <EntityLinkField
+              label="Related Customer Profiles"
+              sourceType="business_model_canvas"
+              sourceId={canvasId}
+              targetType="customer_profile"
+              targetTableName="customer_profiles"
+              targetDisplayField="name"
+              linkType="related"
+              allowMultiple={true}
+              placeholder="Link to profiles..."
+              helperText="Customer profiles this model targets"
+              pendingLinks={pendingCpLinks}
+              onPendingLinksChange={setPendingCpLinks}
             />
           </SidebarCard>
 
