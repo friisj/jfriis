@@ -96,6 +96,16 @@ const fieldPrompts: Record<string, Record<string, string>> = {
     content: 'Description of what needs to be done or explored.',
     tags: 'Tags for categorizing this item.',
   },
+  journeys: {
+    name: 'A descriptive name for this customer journey.',
+    description: 'Overview of what this journey represents and its scope.',
+    goal: 'The primary goal or outcome the customer is trying to achieve in this journey.',
+    tags: 'Tags for categorizing this journey (e.g., onboarding, purchase, support).',
+  },
+  touchpoint_evidence: {
+    title: 'A clear, descriptive title for this evidence.',
+    summary: 'Brief summary of the key findings or insights from this evidence.',
+  },
 }
 
 // Input schema
