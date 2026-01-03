@@ -1926,7 +1926,206 @@ await linkEntities(
 
 ---
 
-## 11. Appendix: Full SQL Migrations
+## 11. Rollback Procedures
+
+This section documents how to roll back the entity relationship simplification if critical issues are discovered.
+
+### 11.1 When to Consider Rollback
+
+Consider rollback if:
+- Data integrity issues are discovered (orphaned links, duplicate entries)
+- Performance degradation in production (slow polymorphic queries)
+- Critical bugs in EvidenceManager or EntityLinkField components
+- Migration corrupted existing data
+
+**Do NOT rollback for:**
+- Minor UI bugs (fix forward)
+- Missing features (add incrementally)
+- Documentation gaps (update docs)
+
+### 11.2 Rollback Levels
+
+#### Level 1: Code-Only Rollback (No Data Loss)
+
+Revert to reading from old tables while keeping new tables in sync.
+
+```typescript
+// lib/evidence.ts - Add fallback to old tables
+export async function getEvidence(entity: EntityRef) {
+  const { data: newEvidence } = await supabase
+    .from('evidence')
+    .select('*')
+    .eq('entity_type', entity.type)
+    .eq('entity_id', entity.id);
+
+  // Fallback: also check old tables
+  if (newEvidence?.length === 0) {
+    const tableName = `${entity.type}_evidence`;
+    const { data: oldEvidence } = await supabase
+      .from(tableName)
+      .select('*')
+      .eq(`${entity.type}_id`, entity.id);
+    return oldEvidence;
+  }
+
+  return newEvidence;
+}
+```
+
+**When:** Use when new queries have bugs but data is intact.
+
+#### Level 2: UI Component Rollback
+
+Revert forms to use previous component patterns.
+
+```tsx
+// Before: EntityLinkField
+<EntityLinkField
+  sourceType="backlog_item"
+  sourceId={id}
+  targetType="assumption"
+  ...
+/>
+
+// After: Revert to JSONB array handling
+<MultiSelect
+  value={formData.related_assumption_ids || []}
+  onChange={(ids) => setFormData({ ...formData, related_assumption_ids: ids })}
+  options={assumptions}
+/>
+```
+
+**When:** Use when new components have critical bugs.
+
+#### Level 3: Full Database Rollback
+
+Restore old tables and abandon new tables.
+
+```sql
+-- Migration: 20260XXX_rollback_entity_relationships.sql
+
+-- 1. Restore evidence to old tables (if modified since migration)
+INSERT INTO assumption_evidence (assumption_id, evidence_type, content, ...)
+SELECT entity_id, evidence_type, content, ...
+FROM evidence
+WHERE entity_type = 'assumption'
+  AND created_at > (SELECT MAX(created_at) FROM assumption_evidence);
+
+INSERT INTO canvas_item_evidence (...)
+SELECT ... FROM evidence WHERE entity_type = 'canvas_item' AND ...;
+
+INSERT INTO touchpoint_evidence (...)
+SELECT ... FROM evidence WHERE entity_type = 'touchpoint' AND ...;
+
+-- 2. Restore JSONB arrays from entity_links
+UPDATE business_model_canvases bmc
+SET related_value_proposition_ids = (
+  SELECT array_agg(el.target_id)
+  FROM entity_links el
+  WHERE el.source_type = 'business_model_canvas'
+    AND el.source_id = bmc.id
+    AND el.target_type = 'value_proposition_canvas'
+);
+
+UPDATE business_model_canvases bmc
+SET related_customer_profile_ids = (
+  SELECT array_agg(el.target_id)
+  FROM entity_links el
+  WHERE el.source_type = 'business_model_canvas'
+    AND el.source_id = bmc.id
+    AND el.target_type = 'customer_profile'
+);
+
+-- Similar for customer_profiles, user_journeys...
+
+-- 3. Drop new tables and triggers (DESTRUCTIVE)
+-- Only do this after confirming old tables are restored!
+DROP TRIGGER IF EXISTS cleanup_assumption_links ON assumptions;
+DROP TRIGGER IF EXISTS cleanup_assumption_evidence ON assumptions;
+-- ... drop all cleanup triggers
+
+DROP TABLE IF EXISTS entity_links;
+DROP TABLE IF EXISTS evidence;
+
+DROP FUNCTION IF EXISTS cleanup_entity_links();
+DROP FUNCTION IF EXISTS cleanup_entity_evidence();
+```
+
+**When:** Use only as last resort when data corruption is severe.
+
+### 11.3 Emergency Rollback Checklist
+
+If rollback is needed during deprecation period:
+
+1. **Stop deployments** - Prevent new code from shipping
+2. **Assess scope** - Determine which level of rollback is needed
+3. **Create backup** - `pg_dump` of current state
+4. **Execute rollback migration** - Apply appropriate rollback SQL
+5. **Deploy reverted code** - Ship code that uses old tables
+6. **Verify data integrity** - Run validation queries
+7. **Update monitoring** - Add alerts for the rolled-back state
+8. **Document incident** - Record what went wrong
+
+### 11.4 Data Integrity Verification
+
+Before and after any rollback, run these verification queries:
+
+```sql
+-- Verify evidence counts match expectations
+SELECT
+  'assumption_evidence' as source,
+  (SELECT COUNT(*) FROM assumption_evidence) as old_count,
+  (SELECT COUNT(*) FROM evidence WHERE entity_type = 'assumption') as new_count
+UNION ALL
+SELECT
+  'canvas_item_evidence',
+  (SELECT COUNT(*) FROM canvas_item_evidence),
+  (SELECT COUNT(*) FROM evidence WHERE entity_type = 'canvas_item')
+UNION ALL
+SELECT
+  'touchpoint_evidence',
+  (SELECT COUNT(*) FROM touchpoint_evidence),
+  (SELECT COUNT(*) FROM evidence WHERE entity_type = 'touchpoint');
+
+-- Check for orphaned entity_links (links to non-existent entities)
+SELECT
+  el.id,
+  el.source_type,
+  el.source_id,
+  el.target_type,
+  el.target_id
+FROM entity_links el
+WHERE NOT EXISTS (
+  SELECT 1 FROM (
+    SELECT id FROM assumptions WHERE el.source_type = 'assumption'
+    UNION ALL SELECT id FROM canvas_items WHERE el.source_type = 'canvas_item'
+    UNION ALL SELECT id FROM business_model_canvases WHERE el.source_type = 'business_model_canvas'
+    -- Add all entity tables...
+  ) sources WHERE sources.id = el.source_id
+);
+
+-- Check for duplicate links
+SELECT
+  source_type, source_id, target_type, target_id, link_type,
+  COUNT(*) as duplicates
+FROM entity_links
+GROUP BY source_type, source_id, target_type, target_id, link_type
+HAVING COUNT(*) > 1;
+```
+
+### 11.5 Post-Rollback Recovery
+
+After rollback stabilizes:
+
+1. **Analyze root cause** - Why did rollback become necessary?
+2. **Create fix plan** - How to address the issues
+3. **Add tests** - Prevent regression
+4. **Re-migrate carefully** - Apply fixed migration in stages
+5. **Extended monitoring** - Watch for issues longer this time
+
+---
+
+## 12. Appendix: Full SQL Migrations
 
 See `supabase/migrations/` for implementation:
 - `20260102200000_create_universal_evidence.sql`

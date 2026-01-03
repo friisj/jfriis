@@ -21,6 +21,59 @@ import { isValidLinkType, getValidLinkTypes, validateLink } from './entity-links
 // Re-export validation functions
 export { isValidLinkType, getValidLinkTypes, validateLink }
 
+// ============================================================================
+// OBSERVABILITY
+// ============================================================================
+
+/**
+ * Observability logging for polymorphic queries.
+ * Logs query patterns, timing, and result counts for debugging.
+ */
+const ENABLE_QUERY_LOGGING = process.env.NODE_ENV === 'development' ||
+  process.env.ENTITY_LINKS_DEBUG === 'true'
+
+interface QueryLog {
+  operation: string
+  entityTypes: string[]
+  duration: number
+  resultCount: number
+  cached?: boolean
+}
+
+function logQuery(log: QueryLog) {
+  if (!ENABLE_QUERY_LOGGING) return
+
+  const slowThreshold = 100 // ms
+  const logLevel = log.duration > slowThreshold ? 'warn' : 'debug'
+
+  const message = `[entity_links] ${log.operation}: ${log.entityTypes.join(' → ')} (${log.duration}ms, ${log.resultCount} results)`
+
+  if (logLevel === 'warn') {
+    console.warn(`⚠️ SLOW QUERY ${message}`)
+  } else if (process.env.ENTITY_LINKS_VERBOSE === 'true') {
+    console.log(message)
+  }
+}
+
+async function withTiming<T>(
+  operation: string,
+  entityTypes: string[],
+  fn: () => Promise<T>
+): Promise<T> {
+  const start = performance.now()
+  try {
+    const result = await fn()
+    const duration = performance.now() - start
+    const resultCount = Array.isArray(result) ? result.length : (result ? 1 : 0)
+    logQuery({ operation, entityTypes, duration, resultCount })
+    return result
+  } catch (error) {
+    const duration = performance.now() - start
+    logQuery({ operation, entityTypes, duration, resultCount: 0 })
+    throw error
+  }
+}
+
 /**
  * Options for creating a link
  */
@@ -99,39 +152,43 @@ export async function getLinkedEntities(
   }
 ): Promise<EntityLink[]> {
   const direction = options?.direction || 'both'
-  const results: EntityLink[] = []
+  const entityTypes = [entity.type, options?.targetType || '*'].filter(Boolean) as string[]
 
-  if (direction === 'outgoing' || direction === 'both') {
-    let query = supabase
-      .from('entity_links')
-      .select('*')
-      .eq('source_type', entity.type)
-      .eq('source_id', entity.id)
+  return withTiming('getLinkedEntities', entityTypes, async () => {
+    const results: EntityLink[] = []
 
-    if (options?.linkType) query = query.eq('link_type', options.linkType)
-    if (options?.targetType) query = query.eq('target_type', options.targetType)
+    if (direction === 'outgoing' || direction === 'both') {
+      let query = supabase
+        .from('entity_links')
+        .select('*')
+        .eq('source_type', entity.type)
+        .eq('source_id', entity.id)
 
-    const { data, error } = await query.order('position', { nullsFirst: false })
-    if (error) throw error
-    if (data) results.push(...data)
-  }
+      if (options?.linkType) query = query.eq('link_type', options.linkType)
+      if (options?.targetType) query = query.eq('target_type', options.targetType)
 
-  if (direction === 'incoming' || direction === 'both') {
-    let query = supabase
-      .from('entity_links')
-      .select('*')
-      .eq('target_type', entity.type)
-      .eq('target_id', entity.id)
+      const { data, error } = await query.order('position', { nullsFirst: false })
+      if (error) throw error
+      if (data) results.push(...data)
+    }
 
-    if (options?.linkType) query = query.eq('link_type', options.linkType)
-    if (options?.targetType) query = query.eq('source_type', options.targetType)
+    if (direction === 'incoming' || direction === 'both') {
+      let query = supabase
+        .from('entity_links')
+        .select('*')
+        .eq('target_type', entity.type)
+        .eq('target_id', entity.id)
 
-    const { data, error } = await query
-    if (error) throw error
-    if (data) results.push(...data)
-  }
+      if (options?.linkType) query = query.eq('link_type', options.linkType)
+      if (options?.targetType) query = query.eq('source_type', options.targetType)
 
-  return results
+      const { data, error } = await query
+      if (error) throw error
+      if (data) results.push(...data)
+    }
+
+    return results
+  })
 }
 
 /**
@@ -142,43 +199,45 @@ export async function getLinkedEntitiesWithData<T = Record<string, unknown>>(
   targetType: LinkableEntityType,
   linkType?: LinkType
 ): Promise<LinkedEntity<T>[]> {
-  // 1. Get the links
-  let query = supabase
-    .from('entity_links')
-    .select('*')
-    .eq('source_type', source.type)
-    .eq('source_id', source.id)
-    .eq('target_type', targetType)
+  return withTiming('getLinkedEntitiesWithData', [source.type, targetType], async () => {
+    // 1. Get the links
+    let query = supabase
+      .from('entity_links')
+      .select('*')
+      .eq('source_type', source.type)
+      .eq('source_id', source.id)
+      .eq('target_type', targetType)
 
-  if (linkType) {
-    query = query.eq('link_type', linkType)
-  }
+    if (linkType) {
+      query = query.eq('link_type', linkType)
+    }
 
-  const { data: links, error: linksError } = await query.order('position', { nullsFirst: false })
-  if (linksError) throw linksError
-  if (!links?.length) return []
+    const { data: links, error: linksError } = await query.order('position', { nullsFirst: false })
+    if (linksError) throw linksError
+    if (!links?.length) return []
 
-  // 2. Get target entity table name
-  const tableName = getTableNameForType(targetType)
-  const targetIds = links.map(l => l.target_id)
+    // 2. Get target entity table name
+    const tableName = getTableNameForType(targetType)
+    const targetIds = links.map(l => l.target_id)
 
-  // 3. Fetch the target entities
-  const { data: entities, error: entitiesError } = await supabase
-    .from(tableName)
-    .select('*')
-    .in('id', targetIds)
+    // 3. Fetch the target entities
+    const { data: entities, error: entitiesError } = await supabase
+      .from(tableName)
+      .select('*')
+      .in('id', targetIds)
 
-  if (entitiesError) throw entitiesError
-  if (!entities) return []
+    if (entitiesError) throw entitiesError
+    if (!entities) return []
 
-  // 4. Combine links with entities
-  const entityMap = new Map(entities.map(e => [e.id, e]))
-  return links
-    .map(link => ({
-      link,
-      entity: entityMap.get(link.target_id) as T,
-    }))
-    .filter((le): le is LinkedEntity<T> => le.entity !== undefined)
+    // 4. Combine links with entities
+    const entityMap = new Map(entities.map(e => [e.id, e]))
+    return links
+      .map(link => ({
+        link,
+        entity: entityMap.get(link.target_id) as T,
+      }))
+      .filter((le): le is LinkedEntity<T> => le.entity !== undefined)
+  })
 }
 
 /**
@@ -432,34 +491,36 @@ export async function getRelatedEntities(
   outgoing: EntityLink[]
   incoming: EntityLink[]
 }> {
-  const [outgoing, incoming] = await Promise.all([
-    (async () => {
-      let query = supabase
-        .from('entity_links')
-        .select('*')
-        .eq('source_type', entity.type)
-        .eq('source_id', entity.id)
-        .eq('link_type', 'related')
+  return withTiming('getRelatedEntities', [entity.type, targetType || '*'], async () => {
+    const [outgoing, incoming] = await Promise.all([
+      (async () => {
+        let query = supabase
+          .from('entity_links')
+          .select('*')
+          .eq('source_type', entity.type)
+          .eq('source_id', entity.id)
+          .eq('link_type', 'related')
 
-      if (targetType) query = query.eq('target_type', targetType)
-      const { data, error } = await query
-      if (error) throw error
-      return data || []
-    })(),
-    (async () => {
-      let query = supabase
-        .from('entity_links')
-        .select('*')
-        .eq('target_type', entity.type)
-        .eq('target_id', entity.id)
-        .eq('link_type', 'related')
+        if (targetType) query = query.eq('target_type', targetType)
+        const { data, error } = await query
+        if (error) throw error
+        return data || []
+      })(),
+      (async () => {
+        let query = supabase
+          .from('entity_links')
+          .select('*')
+          .eq('target_type', entity.type)
+          .eq('target_id', entity.id)
+          .eq('link_type', 'related')
 
-      if (targetType) query = query.eq('source_type', targetType)
-      const { data, error } = await query
-      if (error) throw error
-      return data || []
-    })(),
-  ])
+        if (targetType) query = query.eq('source_type', targetType)
+        const { data, error } = await query
+        if (error) throw error
+        return data || []
+      })(),
+    ])
 
-  return { outgoing, incoming }
+    return { outgoing, incoming }
+  })
 }

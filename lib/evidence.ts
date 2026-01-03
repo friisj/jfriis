@@ -22,6 +22,58 @@ interface EvidenceEntityRef {
   id: string
 }
 
+// ============================================================================
+// OBSERVABILITY
+// ============================================================================
+
+/**
+ * Observability logging for evidence queries.
+ * Logs query patterns, timing, and result counts for debugging.
+ */
+const ENABLE_QUERY_LOGGING = process.env.NODE_ENV === 'development' ||
+  process.env.EVIDENCE_DEBUG === 'true'
+
+interface QueryLog {
+  operation: string
+  entityType: string
+  duration: number
+  resultCount: number
+}
+
+function logQuery(log: QueryLog) {
+  if (!ENABLE_QUERY_LOGGING) return
+
+  const slowThreshold = 100 // ms
+  const logLevel = log.duration > slowThreshold ? 'warn' : 'debug'
+
+  const message = `[evidence] ${log.operation}: ${log.entityType} (${log.duration}ms, ${log.resultCount} results)`
+
+  if (logLevel === 'warn') {
+    console.warn(`⚠️ SLOW QUERY ${message}`)
+  } else if (process.env.EVIDENCE_VERBOSE === 'true') {
+    console.log(message)
+  }
+}
+
+async function withTiming<T>(
+  operation: string,
+  entityType: string,
+  fn: () => Promise<T>
+): Promise<T> {
+  const start = performance.now()
+  try {
+    const result = await fn()
+    const duration = performance.now() - start
+    const resultCount = Array.isArray(result) ? result.length : (result ? 1 : 0)
+    logQuery({ operation, entityType, duration, resultCount })
+    return result
+  } catch (error) {
+    const duration = performance.now() - start
+    logQuery({ operation, entityType, duration, resultCount: 0 })
+    throw error
+  }
+}
+
 /**
  * Add evidence to an entity
  */
@@ -56,29 +108,31 @@ export async function getEvidence(
     ascending?: boolean
   }
 ): Promise<UniversalEvidence[]> {
-  let query = supabase
-    .from('evidence')
-    .select('*')
-    .eq('entity_type', entity.type)
-    .eq('entity_id', entity.id)
+  return withTiming('getEvidence', entity.type, async () => {
+    let query = supabase
+      .from('evidence')
+      .select('*')
+      .eq('entity_type', entity.type)
+      .eq('entity_id', entity.id)
 
-  if (options?.evidenceType) {
-    query = query.eq('evidence_type', options.evidenceType)
-  }
+    if (options?.evidenceType) {
+      query = query.eq('evidence_type', options.evidenceType)
+    }
 
-  if (options?.supportsOnly) {
-    query = query.eq('supports', true)
-  } else if (options?.refutesOnly) {
-    query = query.eq('supports', false)
-  }
+    if (options?.supportsOnly) {
+      query = query.eq('supports', true)
+    } else if (options?.refutesOnly) {
+      query = query.eq('supports', false)
+    }
 
-  const orderField = options?.orderBy || 'created_at'
-  query = query.order(orderField, { ascending: options?.ascending ?? false })
+    const orderField = options?.orderBy || 'created_at'
+    query = query.order(orderField, { ascending: options?.ascending ?? false })
 
-  const { data, error } = await query
+    const { data, error } = await query
 
-  if (error) throw error
-  return data || []
+    if (error) throw error
+    return data || []
+  })
 }
 
 /**
@@ -104,31 +158,33 @@ export async function getEvidenceSummary(entity: EvidenceEntityRef): Promise<{
   refuting: number
   byType: Record<string, number>
 }> {
-  const { data, error } = await supabase
-    .from('evidence')
-    .select('evidence_type, supports')
-    .eq('entity_type', entity.type)
-    .eq('entity_id', entity.id)
+  return withTiming('getEvidenceSummary', entity.type, async () => {
+    const { data, error } = await supabase
+      .from('evidence')
+      .select('evidence_type, supports')
+      .eq('entity_type', entity.type)
+      .eq('entity_id', entity.id)
 
-  if (error) throw error
-  if (!data) return { total: 0, supporting: 0, refuting: 0, byType: {} }
+    if (error) throw error
+    if (!data) return { total: 0, supporting: 0, refuting: 0, byType: {} }
 
-  const byType: Record<string, number> = {}
-  let supporting = 0
-  let refuting = 0
+    const byType: Record<string, number> = {}
+    let supporting = 0
+    let refuting = 0
 
-  for (const item of data) {
-    byType[item.evidence_type] = (byType[item.evidence_type] || 0) + 1
-    if (item.supports === true) supporting++
-    else if (item.supports === false) refuting++
-  }
+    for (const item of data) {
+      byType[item.evidence_type] = (byType[item.evidence_type] || 0) + 1
+      if (item.supports === true) supporting++
+      else if (item.supports === false) refuting++
+    }
 
-  return {
-    total: data.length,
-    supporting,
-    refuting,
-    byType,
-  }
+    return {
+      total: data.length,
+      supporting,
+      refuting,
+      byType,
+    }
+  })
 }
 
 /**

@@ -82,6 +82,7 @@ export type UniversalEvidenceUpdate = Partial<UniversalEvidenceInsert>
 export interface PendingEvidence {
   evidence_type: UniversalEvidenceType
   title?: string
+  displayLabel?: string // For UI display before save (auto-generated if not provided)
   content?: string
   source_url?: string
   confidence?: number

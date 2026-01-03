@@ -111,6 +111,7 @@ export function EvidenceManager({
     : existingEvidence.map((e) => ({
         evidence_type: e.evidence_type as UniversalEvidenceType,
         title: e.title,
+        displayLabel: e.title, // Use title as display label for existing evidence
         content: e.content,
         source_url: e.source_url,
         confidence: e.confidence || undefined,
@@ -207,7 +208,7 @@ export function EvidenceManager({
                 </span>
                 <div className="flex-1 min-w-0">
                   <div className="font-medium truncate">
-                    {evidence.title || EVIDENCE_TYPE_LABELS[evidence.evidence_type]}
+                    {evidence.displayLabel || evidence.title || EVIDENCE_TYPE_LABELS[evidence.evidence_type]}
                   </div>
                   <div className="text-xs text-muted-foreground">
                     {EVIDENCE_TYPE_LABELS[evidence.evidence_type]}
@@ -297,7 +298,7 @@ export function EvidenceManager({
                     )}
                   </div>
                   <h5 className="font-medium">
-                    {evidence.title || EVIDENCE_TYPE_LABELS[evidence.evidence_type]}
+                    {evidence.displayLabel || evidence.title || EVIDENCE_TYPE_LABELS[evidence.evidence_type]}
                   </h5>
                   {evidence.content && (
                     <p className="text-sm text-muted-foreground mt-1">{evidence.content}</p>
