@@ -7,6 +7,9 @@ import { FormFieldWithAI } from '@/components/forms'
 import { SidebarCard } from './sidebar-card'
 import { FormActions } from './form-actions'
 import { RelationshipField } from './relationship-field'
+import { EvidenceManager } from './evidence-manager'
+import { syncPendingEvidence } from '@/lib/evidence'
+import type { PendingEvidence } from '@/lib/types/entity-relationships'
 
 interface Assumption {
   id: string
@@ -87,6 +90,7 @@ export function AssumptionForm({ assumption }: AssumptionFormProps) {
   const router = useRouter()
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [pendingEvidence, setPendingEvidence] = useState<PendingEvidence[]>([])
 
   const [formData, setFormData] = useState({
     slug: assumption?.slug || '',
@@ -173,6 +177,12 @@ export function AssumptionForm({ assumption }: AssumptionFormProps) {
           .select()
           .single()
         if (error) throw error
+
+        // Sync pending evidence to the newly created entity
+        if (pendingEvidence.length > 0 && created) {
+          await syncPendingEvidence({ type: 'assumption', id: created.id }, pendingEvidence)
+        }
+
         router.push(`/admin/assumptions`)
       }
 
@@ -540,6 +550,15 @@ export function AssumptionForm({ assumption }: AssumptionFormProps) {
                 placeholder="pricing, technical, user-need"
               />
             </FormFieldWithAI>
+          </SidebarCard>
+
+          <SidebarCard title="Evidence">
+            <EvidenceManager
+              entityType="assumption"
+              entityId={assumption?.id}
+              pendingEvidence={pendingEvidence}
+              onPendingEvidenceChange={setPendingEvidence}
+            />
           </SidebarCard>
         </div>
       </div>

@@ -1334,7 +1334,7 @@ export async function deleteEvidence(evidenceId: string) {
 ### 6.1 Phase 1: Create Universal Tables (Non-Breaking)
 
 ```sql
--- Migration: 20260102000000_create_universal_evidence.sql
+-- Migration: 20260102200000_create_universal_evidence.sql
 
 -- Create universal evidence table
 CREATE TABLE evidence (...);
@@ -1346,7 +1346,7 @@ CREATE TABLE evidence (...);
 ```
 
 ```sql
--- Migration: 20260102000001_create_entity_links.sql
+-- Migration: 20260102200001_create_entity_links.sql
 
 -- Create entity links table
 CREATE TABLE entity_links (...);
@@ -1360,7 +1360,7 @@ CREATE TABLE entity_links (...);
 Since polymorphic references cannot have FK constraints, we MUST create triggers to clean up orphaned records when parent entities are deleted.
 
 ```sql
--- Migration: 20260102000002_create_orphan_cleanup.sql
+-- Migration: 20260102200002_create_orphan_cleanup.sql
 
 -- Generic function to clean up entity_links when an entity is deleted
 CREATE OR REPLACE FUNCTION cleanup_entity_links()
@@ -1928,10 +1928,10 @@ await linkEntities(
 ## 11. Appendix: Full SQL Migrations
 
 See `supabase/migrations/` for implementation:
-- `20260102000000_create_universal_evidence.sql`
-- `20260102000001_create_entity_links.sql`
-- `20260102000002_create_orphan_cleanup.sql`
-- `20260102100000_validate_jsonb_references.sql` (pre-migration validation)
-- `20260103000000_migrate_evidence_data.sql`
-- `20260103000001_migrate_jsonb_arrays_to_links.sql`
-- `20260301000000_cleanup_deprecated_tables.sql` (after 30+ day deprecation)
+- `20260102200000_create_universal_evidence.sql`
+- `20260102200001_create_entity_links.sql`
+- `20260102200002_create_orphan_cleanup.sql`
+- `20260102200003_fix_critical_issues.sql` (value_map triggers, RLS fixes)
+- `20260102200004_phase2_migrate_existing_data.sql` (data migration)
+- `20260102200005_critical_fixes_phase2.sql` (CHECK constraints, gallery_sequence trigger)
+- Future: `20260301000000_cleanup_deprecated_tables.sql` (after 30+ day deprecation)
