@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import type { TouchpointEvidence } from '@/lib/types/boundary-objects'
+import { FormFieldWithAI } from '@/components/forms'
 
 interface TouchpointEvidenceFormProps {
   evidence?: TouchpointEvidence
@@ -97,8 +98,18 @@ export function TouchpointEvidenceForm({
       </div>
 
       {/* Title */}
-      <div>
-        <label className="block text-sm font-medium mb-1">Title *</label>
+      <FormFieldWithAI
+        label="Title *"
+        fieldName="title"
+        entityType="touchpoint_evidence"
+        context={{
+          evidence_type: formData.evidence_type,
+          confidence: formData.confidence,
+        }}
+        currentValue={formData.title}
+        onGenerate={(content) => setFormData({ ...formData, title: content })}
+        disabled={saving}
+      >
         <input
           type="text"
           value={formData.title}
@@ -107,11 +118,23 @@ export function TouchpointEvidenceForm({
           required
           placeholder="e.g., User Test Session #4 - Checkout Flow"
         />
-      </div>
+      </FormFieldWithAI>
 
       {/* Summary */}
-      <div>
-        <label className="block text-sm font-medium mb-1">Summary</label>
+      <FormFieldWithAI
+        label="Summary"
+        fieldName="summary"
+        entityType="touchpoint_evidence"
+        context={{
+          title: formData.title,
+          evidence_type: formData.evidence_type,
+          supports_design: formData.supports_design,
+          confidence: formData.confidence,
+        }}
+        currentValue={formData.summary}
+        onGenerate={(content) => setFormData({ ...formData, summary: content })}
+        disabled={saving}
+      >
         <textarea
           value={formData.summary}
           onChange={(e) => setFormData({ ...formData, summary: e.target.value })}
@@ -119,7 +142,7 @@ export function TouchpointEvidenceForm({
           rows={3}
           placeholder="Key findings and observations..."
         />
-      </div>
+      </FormFieldWithAI>
 
       {/* URL */}
       <div>
