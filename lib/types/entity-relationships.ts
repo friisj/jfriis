@@ -6,6 +6,44 @@
  */
 
 // ============================================================================
+// BRANDED TYPES
+// ============================================================================
+
+/**
+ * Branded type for confidence values (0.0 - 1.0)
+ * Provides type safety to prevent accidentally using raw numbers
+ */
+declare const ConfidenceBrand: unique symbol
+export type Confidence = number & { readonly [ConfidenceBrand]: typeof ConfidenceBrand }
+
+/**
+ * Create a Confidence value from a number.
+ * Throws if value is outside valid range.
+ */
+export function confidence(value: number): Confidence {
+  if (value < 0 || value > 1) {
+    throw new Error(`Confidence must be between 0 and 1, got ${value}`)
+  }
+  return value as Confidence
+}
+
+/**
+ * Safely parse a confidence value, returning undefined for invalid inputs
+ */
+export function parseConfidence(value: unknown): Confidence | undefined {
+  if (typeof value !== 'number') return undefined
+  if (value < 0 || value > 1) return undefined
+  return value as Confidence
+}
+
+/**
+ * Check if a number is a valid confidence value
+ */
+export function isValidConfidence(value: number): value is Confidence {
+  return value >= 0 && value <= 1
+}
+
+// ============================================================================
 // EVIDENCE TYPES
 // ============================================================================
 
@@ -199,6 +237,85 @@ export interface EntityRef {
   type: LinkableEntityType
   id: string
 }
+
+// ============================================================================
+// ENTITY TYPE CONSTANTS
+// ============================================================================
+
+/**
+ * Entity type constants to avoid magic strings.
+ * Use these instead of string literals for better type safety and autocomplete.
+ *
+ * @example
+ * // Instead of:
+ * linkEntities({ type: 'assumption', id }, ...)
+ *
+ * // Use:
+ * linkEntities({ type: ENTITY_TYPES.ASSUMPTION, id }, ...)
+ */
+export const ENTITY_TYPES = {
+  // Portfolio
+  PROJECT: 'project' as const,
+  LOG_ENTRY: 'log_entry' as const,
+  BACKLOG_ITEM: 'backlog_item' as const,
+  SPECIMEN: 'specimen' as const,
+
+  // Studio
+  STUDIO_PROJECT: 'studio_project' as const,
+  HYPOTHESIS: 'hypothesis' as const,
+  EXPERIMENT: 'experiment' as const,
+
+  // Canvases
+  BUSINESS_MODEL_CANVAS: 'business_model_canvas' as const,
+  CUSTOMER_PROFILE: 'customer_profile' as const,
+  VALUE_PROPOSITION_CANVAS: 'value_proposition_canvas' as const,
+  VALUE_MAP: 'value_map' as const,
+  CANVAS_ITEM: 'canvas_item' as const,
+
+  // Journeys
+  USER_JOURNEY: 'user_journey' as const,
+  JOURNEY_STAGE: 'journey_stage' as const,
+  TOUCHPOINT: 'touchpoint' as const,
+
+  // Validation
+  ASSUMPTION: 'assumption' as const,
+
+  // Galleries
+  GALLERY_SEQUENCE: 'gallery_sequence' as const,
+} as const
+
+/**
+ * Link type constants to avoid magic strings.
+ */
+export const LINK_TYPES = {
+  // Generic associations
+  RELATED: 'related' as const,
+  REFERENCES: 'references' as const,
+
+  // Derivation/evolution
+  EVOLVED_FROM: 'evolved_from' as const,
+  INSPIRED_BY: 'inspired_by' as const,
+  DERIVED_FROM: 'derived_from' as const,
+
+  // Validation relationships
+  VALIDATES: 'validates' as const,
+  TESTS: 'tests' as const,
+  SUPPORTS: 'supports' as const,
+  CONTRADICTS: 'contradicts' as const,
+
+  // Composition
+  CONTAINS: 'contains' as const,
+  PART_OF: 'part_of' as const,
+
+  // Canvas-specific
+  ADDRESSES_JOB: 'addresses_job' as const,
+  RELIEVES_PAIN: 'relieves_pain' as const,
+  CREATES_GAIN: 'creates_gain' as const,
+
+  // Documentation
+  DOCUMENTS: 'documents' as const,
+  DEMONSTRATES: 'demonstrates' as const,
+} as const
 
 // ============================================================================
 // TABLE NAME MAPPING
