@@ -30,7 +30,7 @@
  * ```
  */
 
-import React, { useId, cloneElement, isValidElement, memo } from 'react'
+import React, { useId, cloneElement, isValidElement, memo, useMemo } from 'react'
 import { AIFieldControls } from '@/components/ai'
 import { AIFieldErrorBoundary } from '@/components/ai/AIFieldErrorBoundary'
 import type { AIContext, EntityType } from '@/lib/ai/types/entities'
@@ -100,17 +100,22 @@ function FormFieldWithAIComponent({
   const generatedId = useId()
   const inputId = providedId || generatedId
 
-  // Validate and sanitize context (P0: only serializable values)
-  const validatedContext: AIContext = validateContext(context)
+  // Validate and sanitize context (P0: only serializable values) - memoized to prevent redundant work
+  const validatedContext: AIContext = useMemo(() => validateContext(context), [context])
 
-  // Validate context size (P2)
-  if (warnOnLargeContext && process.env.NODE_ENV === 'development') {
-    const sizeCheck = validateContextSize(validatedContext)
-    if (!sizeCheck.valid) {
-      console.warn(
-        `[FormFieldWithAI] Large context for ${entityType}.${fieldName}: ${sizeCheck.size} tokens (max: ${sizeCheck.max}). Consider reducing context to improve performance.`
-      )
-    }
+  // Validate context size (P2) - memoized
+  const sizeCheck = useMemo(
+    () => (warnOnLargeContext && process.env.NODE_ENV === 'development'
+      ? validateContextSize(validatedContext)
+      : { valid: true, size: 0, max: 0 }),
+    [validatedContext, warnOnLargeContext]
+  )
+
+  // Warn about large context in development
+  if (sizeCheck && !sizeCheck.valid) {
+    console.warn(
+      `[FormFieldWithAI] Large context for ${entityType}.${fieldName}: ${sizeCheck.size} tokens (max: ${sizeCheck.max}). Consider reducing context to improve performance.`
+    )
   }
 
   // Clone child element and add ID for accessibility (P0)
@@ -141,6 +146,16 @@ function FormFieldWithAIComponent({
   )
 }
 
+// Shallow equality check for context objects (optimized vs JSON.stringify)
+function shallowEqualContext(prev: Record<string, unknown>, next: Record<string, unknown>): boolean {
+  const prevKeys = Object.keys(prev)
+  const nextKeys = Object.keys(next)
+
+  if (prevKeys.length !== nextKeys.length) return false
+
+  return prevKeys.every(key => prev[key] === next[key])
+}
+
 // Memoize to prevent unnecessary re-renders (P1)
 export const FormFieldWithAI = memo(FormFieldWithAIComponent, (prev, next) => {
   // Custom comparison for better performance
@@ -154,8 +169,8 @@ export const FormFieldWithAI = memo(FormFieldWithAIComponent, (prev, next) => {
     prev.description === next.description &&
     prev.className === next.className &&
     prev.inputId === next.inputId &&
-    // Deep compare context (only compare keys/values, not object identity)
-    JSON.stringify(prev.context) === JSON.stringify(next.context)
+    // Shallow compare context (optimized - no JSON.stringify)
+    shallowEqualContext(prev.context, next.context)
   )
 })
 

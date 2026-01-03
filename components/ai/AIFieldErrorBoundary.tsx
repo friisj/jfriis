@@ -41,22 +41,24 @@ export class AIFieldErrorBoundary extends Component<Props, State> {
 
   render() {
     if (this.state.hasError) {
-      // Return custom fallback or just the children without AI controls
-      if (this.props.fallback) {
+      // Return custom fallback if provided
+      if (this.props.fallback !== undefined) {
         return this.props.fallback
       }
 
-      // Default fallback: show a subtle warning
-      return (
-        <div>
-          {this.props.children}
-          {process.env.NODE_ENV === 'development' && (
-            <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">
-              ⚠ AI controls unavailable ({this.state.error?.message})
-            </p>
-          )}
-        </div>
-      )
+      // Default fallback: gracefully degrade (no AI controls)
+      // Don't render children - they caused the error
+      // In development, show a subtle warning indicator
+      if (process.env.NODE_ENV === 'development') {
+        return (
+          <span className="text-xs text-amber-600 dark:text-amber-400" title={this.state.error?.message}>
+            ⚠
+          </span>
+        )
+      }
+
+      // In production, silently degrade
+      return null
     }
 
     return this.props.children

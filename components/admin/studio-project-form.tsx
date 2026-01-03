@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import type { StudioProject } from '@/lib/types/database'
-import { AIFieldControls } from '@/components/ai'
+import { FormFieldWithAI } from '@/components/forms'
 
 interface StudioProjectFormProps {
   project?: StudioProject
@@ -129,25 +129,22 @@ export function StudioProjectForm({ project, mode }: StudioProjectFormProps) {
           </div>
         </div>
 
-        <div>
-          <label className="flex items-center justify-between text-sm font-medium mb-1">
-            <span>Description</span>
-            <AIFieldControls
-              fieldName="description"
-              entityType="studio_projects"
-              context={{ name: formData.name }}
-              currentValue={formData.description}
-              onGenerate={(content) => setFormData({ ...formData, description: content })}
-              disabled={saving}
-            />
-          </label>
+        <FormFieldWithAI
+          label="Description"
+          fieldName="description"
+          entityType="studio_projects"
+          context={{ name: formData.name }}
+          currentValue={formData.description}
+          onGenerate={(content) => setFormData({ ...formData, description: content })}
+          disabled={saving}
+        >
           <textarea
             value={formData.description}
             onChange={(e) => setFormData({ ...formData, description: e.target.value })}
             className="w-full px-3 py-2 rounded-lg border bg-background"
             rows={2}
           />
-        </div>
+        </FormFieldWithAI>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
@@ -189,18 +186,15 @@ export function StudioProjectForm({ project, mode }: StudioProjectFormProps) {
           </div>
         </div>
 
-        <div>
-          <label className="flex items-center justify-between text-sm font-medium mb-1">
-            <span>Current Focus</span>
-            <AIFieldControls
-              fieldName="current_focus"
-              entityType="studio_projects"
-              context={{ name: formData.name, description: formData.description }}
-              currentValue={formData.current_focus}
-              onGenerate={(content) => setFormData({ ...formData, current_focus: content })}
-              disabled={saving}
-            />
-          </label>
+        <FormFieldWithAI
+          label="Current Focus"
+          fieldName="current_focus"
+          entityType="studio_projects"
+          context={{ name: formData.name, description: formData.description }}
+          currentValue={formData.current_focus}
+          onGenerate={(content) => setFormData({ ...formData, current_focus: content })}
+          disabled={saving}
+        >
           <textarea
             value={formData.current_focus}
             onChange={(e) => setFormData({ ...formData, current_focus: e.target.value })}
@@ -208,25 +202,22 @@ export function StudioProjectForm({ project, mode }: StudioProjectFormProps) {
             rows={2}
             placeholder="What are you working on right now?"
           />
-        </div>
+        </FormFieldWithAI>
       </div>
 
       {/* PRD Fields */}
       <div className="space-y-4">
         <h2 className="text-lg font-semibold border-b pb-2">PRD</h2>
 
-        <div>
-          <label className="flex items-center justify-between text-sm font-medium mb-1">
-            <span>Problem Statement</span>
-            <AIFieldControls
-              fieldName="problem_statement"
-              entityType="studio_projects"
-              context={{ name: formData.name, description: formData.description }}
-              currentValue={formData.problem_statement}
-              onGenerate={(content) => setFormData({ ...formData, problem_statement: content })}
-              disabled={saving}
-            />
-          </label>
+        <FormFieldWithAI
+          label="Problem Statement"
+          fieldName="problem_statement"
+          entityType="studio_projects"
+          context={{ name: formData.name, description: formData.description }}
+          currentValue={formData.problem_statement}
+          onGenerate={(content) => setFormData({ ...formData, problem_statement: content })}
+          disabled={saving}
+        >
           <textarea
             value={formData.problem_statement}
             onChange={(e) => setFormData({ ...formData, problem_statement: e.target.value })}
@@ -234,24 +225,21 @@ export function StudioProjectForm({ project, mode }: StudioProjectFormProps) {
             rows={3}
             placeholder="What problem does this project solve?"
           />
-        </div>
+        </FormFieldWithAI>
 
-        <div>
-          <label className="flex items-center justify-between text-sm font-medium mb-1">
-            <span>Success Criteria</span>
-            <AIFieldControls
-              fieldName="success_criteria"
-              entityType="studio_projects"
-              context={{
-                name: formData.name,
-                description: formData.description,
-                problem_statement: formData.problem_statement,
-              }}
-              currentValue={formData.success_criteria}
-              onGenerate={(content) => setFormData({ ...formData, success_criteria: content })}
-              disabled={saving}
-            />
-          </label>
+        <FormFieldWithAI
+          label="Success Criteria"
+          fieldName="success_criteria"
+          entityType="studio_projects"
+          context={{
+            name: formData.name,
+            description: formData.description,
+            problem_statement: formData.problem_statement,
+          }}
+          currentValue={formData.success_criteria}
+          onGenerate={(content) => setFormData({ ...formData, success_criteria: content })}
+          disabled={saving}
+        >
           <textarea
             value={formData.success_criteria}
             onChange={(e) => setFormData({ ...formData, success_criteria: e.target.value })}
@@ -259,24 +247,21 @@ export function StudioProjectForm({ project, mode }: StudioProjectFormProps) {
             rows={3}
             placeholder="How will we know this succeeded?"
           />
-        </div>
+        </FormFieldWithAI>
 
-        <div>
-          <label className="flex items-center justify-between text-sm font-medium mb-1">
-            <span>Out of Scope</span>
-            <AIFieldControls
-              fieldName="scope_out"
-              entityType="studio_projects"
-              context={{
-                name: formData.name,
-                description: formData.description,
-                problem_statement: formData.problem_statement,
-              }}
-              currentValue={formData.scope_out}
-              onGenerate={(content) => setFormData({ ...formData, scope_out: content })}
-              disabled={saving}
-            />
-          </label>
+        <FormFieldWithAI
+          label="Out of Scope"
+          fieldName="scope_out"
+          entityType="studio_projects"
+          context={{
+            name: formData.name,
+            description: formData.description,
+            problem_statement: formData.problem_statement,
+          }}
+          currentValue={formData.scope_out}
+          onGenerate={(content) => setFormData({ ...formData, scope_out: content })}
+          disabled={saving}
+        >
           <textarea
             value={formData.scope_out}
             onChange={(e) => setFormData({ ...formData, scope_out: e.target.value })}
@@ -284,7 +269,7 @@ export function StudioProjectForm({ project, mode }: StudioProjectFormProps) {
             rows={3}
             placeholder="What are we explicitly NOT building?"
           />
-        </div>
+        </FormFieldWithAI>
       </div>
 
       {/* Actions */}
