@@ -6,7 +6,7 @@
  * React hook for AI field generation with state management.
  */
 
-import { useState, useCallback, useRef } from 'react'
+import { useState, useCallback, useRef, useEffect } from 'react'
 import type { ActionError, ActionResult, FieldGenerationOutput } from '../actions/types'
 
 export type FieldState = 'idle' | 'generating' | 'success' | 'error'
@@ -46,6 +46,16 @@ export function useGenerate({
   const [lastGeneratedAt, setLastGeneratedAt] = useState<Date | null>(null)
 
   const abortControllerRef = useRef<AbortController | null>(null)
+
+  // Cleanup on unmount to prevent memory leaks
+  useEffect(() => {
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort()
+        abortControllerRef.current = null
+      }
+    }
+  }, [])
 
   const clearError = useCallback(() => {
     setError(null)

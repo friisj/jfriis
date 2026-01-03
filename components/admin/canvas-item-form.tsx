@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import type { CanvasItemType, JobType, Intensity, Importance, ValidationStatus, Frequency } from '@/lib/types/canvas-items'
+import { FormFieldWithAI } from '@/components/forms'
 
 interface StudioProject {
   id: string
