@@ -1,8 +1,9 @@
 # Relationship Simplification Specification
 
-## Status: Draft
-## Version: 1.1
-## Date: 2026-01-01
+## Status: Complete
+## Version: 1.2
+## Date: 2026-01-03
+## Completed: 2026-01-03
 
 ---
 

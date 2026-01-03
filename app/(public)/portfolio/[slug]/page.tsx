@@ -30,37 +30,32 @@ export default async function VenturePage({ params }: VenturePageProps) {
   // Extract markdown content
   const content = venture.content?.markdown || ''
 
-  // Fetch linked specimens
-  interface VentureSpecimenLink {
-    specimen_id: string
-    position: number
-    specimens: {
-      id: string
-      title: string
-      slug: string
-      type?: string
-      description?: string
-    } | null
-  }
-
+  // Fetch linked specimens via entity_links
   const { data: specimenLinks } = await supabase
-    .from('project_specimens')
-    .select(`
-      specimen_id,
-      position,
-      specimens (
-        id,
-        title,
-        slug,
-        type,
-        description
-      )
-    `)
-    .eq('project_id', venture.id)
+    .from('entity_links')
+    .select('target_id, position')
+    .eq('source_type', 'project')
+    .eq('source_id', venture.id)
+    .eq('target_type', 'specimen')
     .order('position')
-    .returns<VentureSpecimenLink[]>()
 
-  const linkedSpecimens = specimenLinks?.map(link => link.specimens).filter(Boolean) || []
+  // Fetch specimen details
+  const specimenIds = specimenLinks?.map(l => l.target_id) || []
+  let linkedSpecimens: Array<{
+    id: string
+    title: string
+    slug: string
+    type?: string
+    description?: string
+  }> = []
+
+  if (specimenIds.length > 0) {
+    const { data: specimens } = await supabase
+      .from('specimens')
+      .select('id, title, slug, type, description')
+      .in('id', specimenIds)
+    linkedSpecimens = specimens || []
+  }
 
   return (
     <div className="min-h-screen">

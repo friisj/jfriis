@@ -310,6 +310,63 @@ export async function syncEntityLinks(
 }
 
 /**
+ * Sync entity links where the current entity is the TARGET
+ * Useful when editing from the target's perspective (e.g., editing a specimen
+ * and selecting which projects it belongs to)
+ */
+export async function syncEntityLinksAsTarget(
+  target: EntityRef,
+  sourceType: LinkableEntityType,
+  linkType: LinkType,
+  sourceIds: string[]
+): Promise<void> {
+  // Get existing links where this entity is the target
+  const { data: existing, error: fetchError } = await supabase
+    .from('entity_links')
+    .select('id, source_id')
+    .eq('source_type', sourceType)
+    .eq('target_type', target.type)
+    .eq('target_id', target.id)
+    .eq('link_type', linkType)
+
+  if (fetchError) throw fetchError
+
+  const existingIds = new Set(existing?.map(e => e.source_id) || [])
+  const newIds = new Set(sourceIds)
+
+  // Delete removed links
+  const toDelete = existing?.filter(e => !newIds.has(e.source_id)) || []
+  if (toDelete.length > 0) {
+    const { error: deleteError } = await supabase
+      .from('entity_links')
+      .delete()
+      .in('id', toDelete.map(e => e.id))
+
+    if (deleteError) throw deleteError
+  }
+
+  // Add new links
+  const toAdd = sourceIds.filter(id => !existingIds.has(id))
+  if (toAdd.length > 0) {
+    const { error: insertError } = await supabase
+      .from('entity_links')
+      .insert(
+        toAdd.map((sourceId, index) => ({
+          source_type: sourceType,
+          source_id: sourceId,
+          target_type: target.type,
+          target_id: target.id,
+          link_type: linkType,
+          position: index,
+          metadata: {},
+        }))
+      )
+
+    if (insertError) throw insertError
+  }
+}
+
+/**
  * Sync pending links to an entity (for use after entity creation)
  */
 export async function syncPendingLinks(

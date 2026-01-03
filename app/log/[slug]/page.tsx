@@ -12,30 +12,6 @@ interface LogEntryPageProps {
   }>
 }
 
-interface SpecimenLink {
-  specimen_id: string
-  position: number
-  specimens: {
-    id: string
-    title: string
-    slug: string
-    type?: string
-    description?: string
-  } | null
-}
-
-interface ProjectLink {
-  project_id: string
-  projects: {
-    id: string
-    title: string
-    slug: string
-    type?: string
-    description?: string
-    status?: string
-  } | null
-}
-
 export default async function LogEntryPage({ params }: LogEntryPageProps) {
   const supabase = await createClient()
   const { slug } = await params
@@ -54,44 +30,57 @@ export default async function LogEntryPage({ params }: LogEntryPageProps) {
   // Extract markdown content
   const content = entry.content?.markdown || ''
 
-  // Fetch linked specimens
+  // Fetch linked specimens via entity_links
   const { data: specimenLinks } = await supabase
-    .from('log_entry_specimens')
-    .select(`
-      specimen_id,
-      position,
-      specimens (
-        id,
-        title,
-        slug,
-        type,
-        description
-      )
-    `)
-    .eq('log_entry_id', entry.id)
+    .from('entity_links')
+    .select('target_id, position')
+    .eq('source_type', 'log_entry')
+    .eq('source_id', entry.id)
+    .eq('target_type', 'specimen')
     .order('position')
-    .returns<SpecimenLink[]>()
 
-  const linkedSpecimens = specimenLinks?.map(link => link.specimens).filter(Boolean) || []
+  const specimenIds = specimenLinks?.map(l => l.target_id) || []
+  let linkedSpecimens: Array<{
+    id: string
+    title: string
+    slug: string
+    type?: string
+    description?: string
+  }> = []
 
-  // Fetch linked projects
+  if (specimenIds.length > 0) {
+    const { data: specimens } = await supabase
+      .from('specimens')
+      .select('id, title, slug, type, description')
+      .in('id', specimenIds)
+    linkedSpecimens = specimens || []
+  }
+
+  // Fetch linked projects via entity_links
   const { data: projectLinks } = await supabase
-    .from('log_entry_projects')
-    .select(`
-      project_id,
-      projects (
-        id,
-        title,
-        slug,
-        type,
-        description,
-        status
-      )
-    `)
-    .eq('log_entry_id', entry.id)
-    .returns<ProjectLink[]>()
+    .from('entity_links')
+    .select('target_id')
+    .eq('source_type', 'log_entry')
+    .eq('source_id', entry.id)
+    .eq('target_type', 'project')
 
-  const linkedProjects = projectLinks?.map(link => link.projects).filter(Boolean) || []
+  const projectIds = projectLinks?.map(l => l.target_id) || []
+  let linkedProjects: Array<{
+    id: string
+    title: string
+    slug: string
+    type?: string
+    description?: string
+    status?: string
+  }> = []
+
+  if (projectIds.length > 0) {
+    const { data: projects } = await supabase
+      .from('projects')
+      .select('id, title, slug, type, description, status')
+      .in('id', projectIds)
+    linkedProjects = projects || []
+  }
 
   return (
     <div className="min-h-screen">

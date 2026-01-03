@@ -48,20 +48,7 @@ import {
   DistributionQueueUpdateSchema,
 } from './schemas/distribution.js'
 
-import {
-  GallerySpecimenItemSchema,
-  GallerySpecimenItemCreateSchema,
-  GallerySpecimenItemUpdateSchema,
-  LogEntrySpecimenSchema,
-  LogEntrySpecimenCreateSchema,
-  LogEntrySpecimenUpdateSchema,
-  ProjectSpecimenSchema,
-  ProjectSpecimenCreateSchema,
-  ProjectSpecimenUpdateSchema,
-  LogEntryProjectSchema,
-  LogEntryProjectCreateSchema,
-  LogEntryProjectUpdateSchema,
-} from './schemas/junctions.js'
+// Junction table schemas deprecated - use entity_links table instead
 
 export interface TableDefinition {
   description: string
@@ -146,35 +133,9 @@ export const tables: Record<string, TableDefinition> = {
     hasSlug: false,
   },
 
-  // Junction tables
-  gallery_specimen_items: {
-    description: 'Specimens in gallery sequences',
-    schema: GallerySpecimenItemSchema,
-    createSchema: GallerySpecimenItemCreateSchema,
-    updateSchema: GallerySpecimenItemUpdateSchema,
-    hasSlug: false,
-  },
-  log_entry_specimens: {
-    description: 'Specimens in log entries',
-    schema: LogEntrySpecimenSchema,
-    createSchema: LogEntrySpecimenCreateSchema,
-    updateSchema: LogEntrySpecimenUpdateSchema,
-    hasSlug: false,
-  },
-  project_specimens: {
-    description: 'Specimens in projects',
-    schema: ProjectSpecimenSchema,
-    createSchema: ProjectSpecimenCreateSchema,
-    updateSchema: ProjectSpecimenUpdateSchema,
-    hasSlug: false,
-  },
-  log_entry_projects: {
-    description: 'Projects in log entries',
-    schema: LogEntryProjectSchema,
-    createSchema: LogEntryProjectCreateSchema,
-    updateSchema: LogEntryProjectUpdateSchema,
-    hasSlug: false,
-  },
+  // Note: Junction tables (gallery_specimen_items, log_entry_specimens, project_specimens,
+  // log_entry_projects) have been deprecated and migrated to entity_links table.
+  // Use entity_links for all entity relationships.
 }
 
 // Helper to get schema columns for db_list_tables

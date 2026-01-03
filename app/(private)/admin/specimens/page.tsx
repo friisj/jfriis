@@ -43,11 +43,37 @@ export default async function AdminSpecimensPage() {
       type,
       published,
       created_at,
-      updated_at,
-      project_specimens (count),
-      log_entry_specimens (count)
+      updated_at
     `)
     .order('updated_at', { ascending: false })
+
+  // Fetch link counts for each specimen from entity_links
+  const specimenIds = specimens?.map(s => s.id) || []
+  let linkCounts: Record<string, { projects: number; logEntries: number }> = {}
+
+  if (specimenIds.length > 0) {
+    const { data: projectLinks } = await supabase
+      .from('entity_links')
+      .select('target_id')
+      .eq('source_type', 'project')
+      .eq('target_type', 'specimen')
+      .in('target_id', specimenIds)
+
+    const { data: logEntryLinks } = await supabase
+      .from('entity_links')
+      .select('target_id')
+      .eq('source_type', 'log_entry')
+      .eq('target_type', 'specimen')
+      .in('target_id', specimenIds)
+
+    // Count links per specimen
+    for (const id of specimenIds) {
+      linkCounts[id] = {
+        projects: projectLinks?.filter(l => l.target_id === id).length || 0,
+        logEntries: logEntryLinks?.filter(l => l.target_id === id).length || 0,
+      }
+    }
+  }
 
   if (error) {
     console.error('Error fetching specimens:', error)
@@ -122,9 +148,9 @@ export default async function AdminSpecimensPage() {
                         </span>
                       </div>
                       <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                        <span>{(specimen as any).project_specimens?.[0]?.count || 0} projects</span>
+                        <span>{linkCounts[specimen.id]?.projects || 0} projects</span>
                         <span>•</span>
-                        <span>{(specimen as any).log_entry_specimens?.[0]?.count || 0} log entries</span>
+                        <span>{linkCounts[specimen.id]?.logEntries || 0} log entries</span>
                       </div>
                     </div>
                   </div>

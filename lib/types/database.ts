@@ -17,9 +17,6 @@ import type {
   CanvasItemMapping,
   CanvasItemMappingInsert,
   CanvasItemMappingUpdate,
-  CanvasItemEvidence,
-  CanvasItemEvidenceInsert,
-  CanvasItemEvidenceUpdate,
 } from './canvas-items'
 
 import type {
@@ -38,9 +35,6 @@ import type {
   TouchpointAssumption,
   TouchpointAssumptionInsert,
   TouchpointAssumptionUpdate,
-  TouchpointEvidence,
-  TouchpointEvidenceInsert,
-  TouchpointEvidenceUpdate,
 } from './boundary-objects'
 
 // Re-export universal relationship types
@@ -78,9 +72,6 @@ export type {
   CanvasItemMapping,
   CanvasItemMappingInsert,
   CanvasItemMappingUpdate,
-  CanvasItemEvidence,
-  CanvasItemEvidenceInsert,
-  CanvasItemEvidenceUpdate,
   CanvasItemType,
   CanvasType,
   JobType,
@@ -113,9 +104,6 @@ export type {
   TouchpointAssumption,
   TouchpointAssumptionInsert,
   TouchpointAssumptionUpdate,
-  TouchpointEvidence,
-  TouchpointEvidenceInsert,
-  TouchpointEvidenceUpdate,
   JourneyType,
   StageType,
   ChannelType,
@@ -294,16 +282,6 @@ export interface GallerySequence extends BaseRecord {
 export type GallerySequenceInsert = Omit<GallerySequence, keyof BaseRecord>
 export type GallerySequenceUpdate = Partial<GallerySequenceInsert>
 
-// Gallery Specimen Items (junction table)
-export interface GallerySpecimenItem extends BaseRecord {
-  gallery_sequence_id: string
-  specimen_id: string
-  position: number
-  display_config?: any // JSONB
-}
-
-export type GallerySpecimenItemInsert = Omit<GallerySpecimenItem, keyof BaseRecord>
-
 // Landing Pages
 export interface LandingPage extends BaseRecord {
   title: string
@@ -398,36 +376,6 @@ export interface Profile extends BaseRecord {
 
 export type ProfileInsert = Omit<Profile, keyof BaseRecord>
 export type ProfileUpdate = Partial<ProfileInsert>
-
-// Junction Tables
-export interface LogEntrySpecimen {
-  id: string
-  log_entry_id: string
-  specimen_id: string
-  position?: number
-  created_at: string
-}
-
-export interface VentureSpecimen {
-  id: string
-  venture_id: string
-  specimen_id: string
-  position?: number
-  created_at: string
-}
-
-export interface LogEntryVenture {
-  id: string
-  log_entry_id: string
-  venture_id: string
-  created_at: string
-}
-
-// Backwards compatibility (deprecated)
-/** @deprecated Use VentureSpecimen instead */
-export type ProjectSpecimen = VentureSpecimen
-/** @deprecated Use LogEntryVenture instead */
-export type LogEntryProject = LogEntryVenture
 
 // Studio Projects
 export interface StudioProject extends BaseRecord {
@@ -655,24 +603,6 @@ export interface AssumptionExperiment extends BaseRecord {
 export type AssumptionExperimentInsert = Omit<AssumptionExperiment, keyof BaseRecord>
 export type AssumptionExperimentUpdate = Partial<AssumptionExperimentInsert>
 
-// Assumption Evidence
-export type AssumptionEvidenceType = 'interview' | 'survey' | 'analytics' | 'experiment' | 'observation' | 'research' | 'competitor' | 'expert'
-
-export interface AssumptionEvidence extends BaseRecord {
-  assumption_id: string
-  evidence_type: AssumptionEvidenceType
-  title: string
-  summary?: string
-  url?: string
-  supports_assumption?: boolean
-  confidence?: 'low' | 'medium' | 'high'
-  collected_at?: string
-  metadata: any
-}
-
-export type AssumptionEvidenceInsert = Omit<AssumptionEvidence, keyof BaseRecord>
-export type AssumptionEvidenceUpdate = Partial<AssumptionEvidenceInsert>
-
 // Portfolio Evidence Summary (from database view)
 export type Sustainability = 'fragile' | 'stable' | 'resilient'
 
@@ -829,11 +759,6 @@ export interface Database {
         Insert: GallerySequenceInsert
         Update: GallerySequenceUpdate
       }
-      gallery_specimen_items: {
-        Row: GallerySpecimenItem
-        Insert: GallerySpecimenItemInsert
-        Update: Partial<GallerySpecimenItemInsert>
-      }
       landing_pages: {
         Row: LandingPage
         Insert: LandingPageInsert
@@ -863,21 +788,6 @@ export interface Database {
         Row: Profile
         Insert: ProfileInsert
         Update: ProfileUpdate
-      }
-      log_entry_specimens: {
-        Row: LogEntrySpecimen
-        Insert: Omit<LogEntrySpecimen, 'id' | 'created_at'>
-        Update: Partial<Omit<LogEntrySpecimen, 'id' | 'created_at'>>
-      }
-      venture_specimens: {
-        Row: VentureSpecimen
-        Insert: Omit<VentureSpecimen, 'id' | 'created_at'>
-        Update: Partial<Omit<VentureSpecimen, 'id' | 'created_at'>>
-      }
-      log_entry_ventures: {
-        Row: LogEntryVenture
-        Insert: Omit<LogEntryVenture, 'id' | 'created_at'>
-        Update: Partial<Omit<LogEntryVenture, 'id' | 'created_at'>>
       }
       studio_projects: {
         Row: StudioProject
@@ -924,11 +834,6 @@ export interface Database {
         Insert: AssumptionExperimentInsert
         Update: AssumptionExperimentUpdate
       }
-      assumption_evidence: {
-        Row: AssumptionEvidence
-        Insert: AssumptionEvidenceInsert
-        Update: AssumptionEvidenceUpdate
-      }
       canvas_items: {
         Row: CanvasItem
         Insert: CanvasItemInsert
@@ -948,11 +853,6 @@ export interface Database {
         Row: CanvasItemMapping
         Insert: CanvasItemMappingInsert
         Update: CanvasItemMappingUpdate
-      }
-      canvas_item_evidence: {
-        Row: CanvasItemEvidence
-        Insert: CanvasItemEvidenceInsert
-        Update: CanvasItemEvidenceUpdate
       }
       user_journeys: {
         Row: UserJourney
@@ -978,11 +878,6 @@ export interface Database {
         Row: TouchpointAssumption
         Insert: TouchpointAssumptionInsert
         Update: TouchpointAssumptionUpdate
-      }
-      touchpoint_evidence: {
-        Row: TouchpointEvidence
-        Insert: TouchpointEvidenceInsert
-        Update: TouchpointEvidenceUpdate
       }
     }
   }

@@ -9,6 +9,7 @@ import { FormFieldWithAI } from '@/components/forms'
 import { SidebarCard } from './sidebar-card'
 import { FormActions } from './form-actions'
 import { RelationshipField } from './relationship-field'
+import { syncEntityLinks, syncEntityLinksAsTarget } from '@/lib/entity-links'
 
 interface VentureFormData {
   title: string
@@ -60,23 +61,27 @@ export function VentureForm({ ventureId, initialData }: VentureFormProps) {
   const loadRelationships = async () => {
     if (!ventureId) return
 
-    // Load specimen relationships
-    const { data: specimens } = await supabase
-      .from('project_specimens')
-      .select('specimen_id')
-      .eq('project_id', ventureId)
+    // Load specimen relationships via entity_links (project->specimen)
+    const { data: specimenLinks } = await supabase
+      .from('entity_links')
+      .select('target_id')
+      .eq('source_type', 'project')
+      .eq('source_id', ventureId)
+      .eq('target_type', 'specimen')
       .order('position')
 
-    // Load log entry relationships
-    const { data: logEntries } = await supabase
-      .from('log_entry_projects')
-      .select('log_entry_id')
-      .eq('project_id', ventureId)
+    // Load log entry relationships via entity_links (log_entry->project, project is target)
+    const { data: logEntryLinks } = await supabase
+      .from('entity_links')
+      .select('source_id')
+      .eq('source_type', 'log_entry')
+      .eq('target_type', 'project')
+      .eq('target_id', ventureId)
 
     setFormData(prev => ({
       ...prev,
-      specimenIds: specimens?.map(r => r.specimen_id) || [],
-      logEntryIds: logEntries?.map(r => r.log_entry_id) || [],
+      specimenIds: specimenLinks?.map(r => r.target_id) || [],
+      logEntryIds: logEntryLinks?.map(r => r.source_id) || [],
     }))
   }
 
@@ -146,48 +151,23 @@ export function VentureForm({ ventureId, initialData }: VentureFormProps) {
         savedVentureId = newVenture.id
       }
 
-      // Update relationships
+      // Update relationships via entity_links
       if (savedVentureId) {
-        // Delete existing specimen relationships
-        await supabase
-          .from('project_specimens')
-          .delete()
-          .eq('project_id', savedVentureId)
+        // Sync project->specimen links
+        await syncEntityLinks(
+          { type: 'project', id: savedVentureId },
+          'specimen',
+          'contains',
+          formData.specimenIds
+        )
 
-        // Insert new specimen relationships
-        if (formData.specimenIds.length > 0) {
-          const specimenRelations = formData.specimenIds.map((specimenId, index) => ({
-            project_id: savedVentureId,
-            specimen_id: specimenId,
-            position: index
-          }))
-
-          const { error: specimenError } = await supabase
-            .from('project_specimens')
-            .insert(specimenRelations)
-
-          if (specimenError) throw specimenError
-        }
-
-        // Delete existing log entry relationships
-        await supabase
-          .from('log_entry_projects')
-          .delete()
-          .eq('project_id', savedVentureId)
-
-        // Insert new log entry relationships
-        if (formData.logEntryIds.length > 0) {
-          const logEntryRelations = formData.logEntryIds.map((logEntryId) => ({
-            project_id: savedVentureId,
-            log_entry_id: logEntryId
-          }))
-
-          const { error: logEntryError } = await supabase
-            .from('log_entry_projects')
-            .insert(logEntryRelations)
-
-          if (logEntryError) throw logEntryError
-        }
+        // Sync log_entry->project links (project is the target)
+        await syncEntityLinksAsTarget(
+          { type: 'project', id: savedVentureId },
+          'log_entry',
+          'related',
+          formData.logEntryIds
+        )
       }
 
       toast.success(ventureId ? 'Venture updated successfully!' : 'Venture created successfully!')

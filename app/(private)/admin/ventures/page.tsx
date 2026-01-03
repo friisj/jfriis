@@ -20,9 +20,7 @@ export default async function AdminVenturesPage() {
       type,
       published,
       created_at,
-      updated_at,
-      project_specimens (count),
-      log_entry_projects (count)
+      updated_at
     `)
     .order('updated_at', { ascending: false })
 
@@ -30,6 +28,40 @@ export default async function AdminVenturesPage() {
     console.error('Error fetching ventures:', error)
     return <div className="p-8">Error loading ventures</div>
   }
+
+  // Fetch link counts from entity_links
+  const ventureIds = ventures?.map(v => v.id) || []
+  let linkCounts: Record<string, { specimens: number; logEntries: number }> = {}
+
+  if (ventureIds.length > 0) {
+    const { data: specimenLinks } = await supabase
+      .from('entity_links')
+      .select('source_id')
+      .eq('source_type', 'project')
+      .eq('target_type', 'specimen')
+      .in('source_id', ventureIds)
+
+    const { data: logEntryLinks } = await supabase
+      .from('entity_links')
+      .select('target_id')
+      .eq('source_type', 'log_entry')
+      .eq('target_type', 'project')
+      .in('target_id', ventureIds)
+
+    for (const id of ventureIds) {
+      linkCounts[id] = {
+        specimens: specimenLinks?.filter(l => l.source_id === id).length || 0,
+        logEntries: logEntryLinks?.filter(l => l.target_id === id).length || 0,
+      }
+    }
+  }
+
+  // Add link counts to ventures
+  const venturesWithCounts = ventures?.map(venture => ({
+    ...venture,
+    specimenCount: linkCounts[venture.id]?.specimens || 0,
+    logEntryCount: linkCounts[venture.id]?.logEntries || 0,
+  })) || []
 
   console.log('Ventures fetched:', ventures?.length || 0)
 
@@ -40,7 +72,7 @@ export default async function AdminVenturesPage() {
       actionHref="/admin/ventures/new"
       actionLabel="New Venture"
     >
-      <VenturesListView ventures={ventures || []} />
+      <VenturesListView ventures={venturesWithCounts} />
     </AdminListLayout>
   )
 }

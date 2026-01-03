@@ -48,20 +48,7 @@ import {
   DistributionQueueUpdateSchema,
 } from './schemas/distribution'
 
-import {
-  GallerySpecimenItemSchema,
-  GallerySpecimenItemCreateSchema,
-  GallerySpecimenItemUpdateSchema,
-  LogEntrySpecimenSchema,
-  LogEntrySpecimenCreateSchema,
-  LogEntrySpecimenUpdateSchema,
-  VentureSpecimenSchema,
-  VentureSpecimenCreateSchema,
-  VentureSpecimenUpdateSchema,
-  LogEntryVentureSchema,
-  LogEntryVentureCreateSchema,
-  LogEntryVentureUpdateSchema,
-} from './schemas/junctions'
+// Junction table schemas deprecated - use entity_links table instead
 
 import {
   StudioProjectSchema,
@@ -215,39 +202,9 @@ export const tables: Record<string, TableDefinition> = {
     hasProjectId: false, // Admin only
   },
 
-  // Junction tables
-  gallery_specimen_items: {
-    description: 'Specimens in gallery sequences',
-    schema: GallerySpecimenItemSchema,
-    createSchema: GallerySpecimenItemCreateSchema,
-    updateSchema: GallerySpecimenItemUpdateSchema,
-    hasSlug: false,
-    hasProjectId: false, // Admin only
-  },
-  log_entry_specimens: {
-    description: 'Specimens in log entries',
-    schema: LogEntrySpecimenSchema,
-    createSchema: LogEntrySpecimenCreateSchema,
-    updateSchema: LogEntrySpecimenUpdateSchema,
-    hasSlug: false,
-    hasProjectId: true, // Inherits from log_entry
-  },
-  venture_specimens: {
-    description: 'Specimens in ventures',
-    schema: VentureSpecimenSchema,
-    createSchema: VentureSpecimenCreateSchema,
-    updateSchema: VentureSpecimenUpdateSchema,
-    hasSlug: false,
-    hasProjectId: true, // Has venture_id directly
-  },
-  log_entry_ventures: {
-    description: 'Ventures linked to log entries',
-    schema: LogEntryVentureSchema,
-    createSchema: LogEntryVentureCreateSchema,
-    updateSchema: LogEntryVentureUpdateSchema,
-    hasSlug: false,
-    hasProjectId: true, // Has venture_id directly
-  },
+  // Note: Junction tables (gallery_specimen_items, log_entry_specimens, venture_specimens,
+  // log_entry_ventures) have been deprecated and migrated to entity_links table.
+  // Use entity_links for all entity relationships.
 
   // Studio tables
   studio_projects: {
@@ -326,14 +283,7 @@ export const tables: Record<string, TableDefinition> = {
     hasSlug: false,
     hasProjectId: false, // Admin only
   },
-  assumption_evidence: {
-    description: 'Evidence collected for or against assumptions',
-    schema: AssumptionEvidenceSchema,
-    createSchema: AssumptionEvidenceCreateSchema,
-    updateSchema: AssumptionEvidenceUpdateSchema,
-    hasSlug: false,
-    hasProjectId: false, // Admin only
-  },
+  // assumption_evidence has been deprecated - use universal `evidence` table instead
 
   // Canvas Items tables (first-class entities for canvas block items)
   canvas_items: {
@@ -368,14 +318,7 @@ export const tables: Record<string, TableDefinition> = {
     hasSlug: false,
     hasProjectId: false, // Admin only
   },
-  canvas_item_evidence: {
-    description: 'Direct evidence linked to canvas items',
-    schema: CanvasItemEvidenceSchema,
-    createSchema: CanvasItemEvidenceCreateSchema,
-    updateSchema: CanvasItemEvidenceUpdateSchema,
-    hasSlug: false,
-    hasProjectId: false, // Admin only
-  },
+  // canvas_item_evidence has been deprecated - use universal `evidence` table instead
 }
 
 // Helper to get schema columns for db_list_tables
