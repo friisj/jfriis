@@ -5,10 +5,9 @@ import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { toast } from 'sonner'
 import { MdxEditor } from '@/components/forms/mdx-editor'
-import { RelationshipSelector } from './relationship-selector'
 import { FormFieldWithAI } from '@/components/forms'
 import { EntityLinkField } from './entity-link-field'
-import { syncEntityLinks, syncEntityLinksAsTarget } from '@/lib/entity-links'
+import { syncEntityLinks } from '@/lib/entity-links'
 import type { PendingLink } from '@/lib/types/entity-relationships'
 
 interface LogEntryFormData {
@@ -19,8 +18,6 @@ interface LogEntryFormData {
   type: string
   published: boolean
   tags: string
-  specimenIds: string[]
-  projectIds: string[]
 }
 
 interface LogEntryFormProps {
@@ -32,6 +29,10 @@ export function LogEntryForm({ entryId, initialData }: LogEntryFormProps) {
   const router = useRouter()
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  // Pending links for create mode (EntityLinkField handles edit mode internally)
+  const [pendingSpecimenLinks, setPendingSpecimenLinks] = useState<PendingLink[]>([])
+  const [pendingProjectLinks, setPendingProjectLinks] = useState<PendingLink[]>([])
   const [pendingAssumptionLinks, setPendingAssumptionLinks] = useState<PendingLink[]>([])
 
   const [formData, setFormData] = useState<LogEntryFormData>({
@@ -42,43 +43,7 @@ export function LogEntryForm({ entryId, initialData }: LogEntryFormProps) {
     type: initialData?.type || '',
     published: initialData?.published || false,
     tags: initialData?.tags || '',
-    specimenIds: initialData?.specimenIds || [],
-    projectIds: initialData?.projectIds || [],
   })
-
-  // Load existing relationships
-  useEffect(() => {
-    if (entryId) {
-      loadRelationships()
-    }
-  }, [entryId])
-
-  const loadRelationships = async () => {
-    if (!entryId) return
-
-    // Load specimen relationships via entity_links (log_entry->specimen)
-    const { data: specimenLinks } = await supabase
-      .from('entity_links')
-      .select('target_id')
-      .eq('source_type', 'log_entry')
-      .eq('source_id', entryId)
-      .eq('target_type', 'specimen')
-      .order('position')
-
-    // Load project relationships via entity_links (log_entry->project)
-    const { data: projectLinks } = await supabase
-      .from('entity_links')
-      .select('target_id')
-      .eq('source_type', 'log_entry')
-      .eq('source_id', entryId)
-      .eq('target_type', 'project')
-
-    setFormData(prev => ({
-      ...prev,
-      specimenIds: specimenLinks?.map(r => r.target_id) || [],
-      projectIds: projectLinks?.map(r => r.target_id) || [],
-    }))
-  }
 
   const generateSlug = (title: string) => {
     return title
@@ -121,10 +86,8 @@ export function LogEntryForm({ entryId, initialData }: LogEntryFormProps) {
         ...(formData.published && !initialData?.published ? { published_at: new Date().toISOString() } : {}),
       }
 
-      let savedEntryId = entryId
-
       if (entryId) {
-        // Update existing entry
+        // Update existing entry (EntityLinkField handles its own syncing)
         const { error: updateError } = await supabase
           .from('log_entries')
           .update(entryData)
@@ -140,36 +103,19 @@ export function LogEntryForm({ entryId, initialData }: LogEntryFormProps) {
           .single()
 
         if (insertError) throw insertError
-        savedEntryId = newEntry.id
 
         // Sync pending entity links for create mode
-        if (pendingAssumptionLinks.length > 0) {
-          await syncEntityLinks(
-            { type: 'log_entry', id: newEntry.id },
-            'assumption',
-            'related',
-            pendingAssumptionLinks.map(l => l.targetId)
-          )
+        const entityRef = { type: 'log_entry' as const, id: newEntry.id }
+
+        if (pendingSpecimenLinks.length > 0) {
+          await syncEntityLinks(entityRef, 'specimen', 'contains', pendingSpecimenLinks.map(l => l.targetId))
         }
-      }
-
-      // Update relationships via entity_links
-      if (savedEntryId) {
-        // Sync log_entry->specimen links
-        await syncEntityLinks(
-          { type: 'log_entry', id: savedEntryId },
-          'specimen',
-          'contains',
-          formData.specimenIds
-        )
-
-        // Sync log_entry->project links
-        await syncEntityLinks(
-          { type: 'log_entry', id: savedEntryId },
-          'project',
-          'related',
-          formData.projectIds
-        )
+        if (pendingProjectLinks.length > 0) {
+          await syncEntityLinks(entityRef, 'project', 'related', pendingProjectLinks.map(l => l.targetId))
+        }
+        if (pendingAssumptionLinks.length > 0) {
+          await syncEntityLinks(entityRef, 'assumption', 'related', pendingAssumptionLinks.map(l => l.targetId))
+        }
       }
 
       toast.success(entryId ? 'Log entry updated successfully!' : 'Log entry created successfully!')
@@ -361,21 +307,33 @@ export function LogEntryForm({ entryId, initialData }: LogEntryFormProps) {
           </div>
 
           <div className="rounded-lg border bg-card p-4">
-            <RelationshipSelector
+            <EntityLinkField
               label="Link Specimens"
-              tableName="specimens"
-              selectedIds={formData.specimenIds}
-              onChange={(ids) => setFormData({ ...formData, specimenIds: ids })}
+              sourceType="log_entry"
+              sourceId={entryId}
+              targetType="specimen"
+              targetTableName="specimens"
+              targetDisplayField="name"
+              linkType="contains"
+              allowMultiple={true}
+              pendingLinks={pendingSpecimenLinks}
+              onPendingLinksChange={setPendingSpecimenLinks}
               helperText="Select specimens to showcase in this log entry"
             />
           </div>
 
           <div className="rounded-lg border bg-card p-4">
-            <RelationshipSelector
+            <EntityLinkField
               label="Link Projects"
-              tableName="projects"
-              selectedIds={formData.projectIds}
-              onChange={(ids) => setFormData({ ...formData, projectIds: ids })}
+              sourceType="log_entry"
+              sourceId={entryId}
+              targetType="project"
+              targetTableName="projects"
+              targetDisplayField="name"
+              linkType="related"
+              allowMultiple={true}
+              pendingLinks={pendingProjectLinks}
+              onPendingLinksChange={setPendingProjectLinks}
               helperText="Link related projects to this log entry"
             />
           </div>

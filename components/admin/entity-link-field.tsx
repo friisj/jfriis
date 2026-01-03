@@ -8,7 +8,7 @@ import type {
   PendingLink,
   EntityLink,
 } from '@/lib/types/entity-relationships'
-import { syncEntityLinks, deleteLink } from '@/lib/entity-links'
+import { syncEntityLinks, syncEntityLinksAsTarget, deleteLink } from '@/lib/entity-links'
 
 interface TargetItem {
   id: string
@@ -32,6 +32,11 @@ interface EntityLinkFieldProps {
   allowMultiple?: boolean // Default: true
   ordered?: boolean // Default: false
 
+  // Reverse relationship mode
+  // When true: form's entity is the TARGET, selecting SOURCE entities
+  // e.g., Specimen form selecting which Projects link TO this specimen
+  asTarget?: boolean
+
   // UI
   label: string
   placeholder?: string
@@ -53,6 +58,7 @@ export function EntityLinkField({
   linkType,
   allowMultiple = true,
   ordered = false,
+  asTarget = false,
   label,
   placeholder,
   helperText,
@@ -105,14 +111,26 @@ export function EntityLinkField({
     if (!isEditMode) return
 
     try {
-      const { data, error } = await supabase
-        .from('entity_links')
-        .select('*')
-        .eq('source_type', sourceType)
-        .eq('source_id', sourceId!)
-        .eq('target_type', targetType)
-        .eq('link_type', linkType)
-        .order('position', { nullsFirst: false })
+      let query = supabase.from('entity_links').select('*')
+
+      if (asTarget) {
+        // Form's entity is the TARGET, selecting SOURCE entities
+        // e.g., specimen is target, selecting projects that link TO it
+        query = query
+          .eq('target_type', sourceType)
+          .eq('target_id', sourceId!)
+          .eq('source_type', targetType)
+          .eq('link_type', linkType)
+      } else {
+        // Normal mode: form's entity is SOURCE, selecting TARGET entities
+        query = query
+          .eq('source_type', sourceType)
+          .eq('source_id', sourceId!)
+          .eq('target_type', targetType)
+          .eq('link_type', linkType)
+      }
+
+      const { data, error } = await query.order('position', { nullsFirst: false })
 
       if (!error && data) {
         setExistingLinks(data as EntityLink[])
@@ -120,7 +138,7 @@ export function EntityLinkField({
     } catch (err) {
       console.error('Error loading existing links:', err)
     }
-  }, [isEditMode, sourceType, sourceId, targetType, linkType])
+  }, [isEditMode, sourceType, sourceId, targetType, linkType, asTarget])
 
   useEffect(() => {
     loadItems()
@@ -141,7 +159,8 @@ export function EntityLinkField({
     if (isControlled) {
       return pendingLinks?.map((l) => l.targetId) || []
     }
-    return existingLinks.map((l) => l.target_id)
+    // When asTarget, we selected source_ids (the entities linking TO us)
+    return existingLinks.map((l) => asTarget ? l.source_id : l.target_id)
   }
 
   const selectedIds = getSelectedIds()
@@ -191,24 +210,29 @@ export function EntityLinkField({
 
     setSaving(true)
     try {
-      if (allowMultiple) {
-        const newIds = selectedIds.includes(id)
-          ? selectedIds.filter((selectedId) => selectedId !== id)
-          : [...selectedIds, id]
+      const newIds = selectedIds.includes(id)
+        ? selectedIds.filter((selectedId) => selectedId !== id)
+        : [...selectedIds, id]
 
-        await syncEntityLinks(
+      if (asTarget) {
+        // Form's entity is TARGET, sync entities that link TO us
+        await syncEntityLinksAsTarget(
           { type: sourceType, id: sourceId },
           targetType,
           linkType,
-          newIds
+          allowMultiple ? newIds : [id]
         )
       } else {
+        // Normal mode: form's entity is SOURCE
         await syncEntityLinks(
           { type: sourceType, id: sourceId },
           targetType,
           linkType,
-          [id]
+          allowMultiple ? newIds : [id]
         )
+      }
+
+      if (!allowMultiple) {
         setIsOpen(false)
         setSearchTerm('')
       }
@@ -245,18 +269,30 @@ export function EntityLinkField({
       setSaving(true)
       try {
         if (allowMultiple && id) {
-          const link = existingLinks.find((l) => l.target_id === id)
+          // Find link by the appropriate ID field
+          const link = existingLinks.find((l) =>
+            asTarget ? l.source_id === id : l.target_id === id
+          )
           if (link) {
             await deleteLink(link.id)
           }
         } else {
           // Clear all links of this type
-          await syncEntityLinks(
-            { type: sourceType, id: sourceId },
-            targetType,
-            linkType,
-            []
-          )
+          if (asTarget) {
+            await syncEntityLinksAsTarget(
+              { type: sourceType, id: sourceId },
+              targetType,
+              linkType,
+              []
+            )
+          } else {
+            await syncEntityLinks(
+              { type: sourceType, id: sourceId },
+              targetType,
+              linkType,
+              []
+            )
+          }
         }
 
         await loadExistingLinks()

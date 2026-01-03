@@ -5,7 +5,6 @@ import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { getAllSpecimens, type SpecimenMetadata } from '@/components/specimens/registry'
 import { toast } from 'sonner'
-import { RelationshipSelector } from './relationship-selector'
 import { FormFieldWithAI } from '@/components/forms'
 import { EntityLinkField } from './entity-link-field'
 import { syncEntityLinks, syncEntityLinksAsTarget } from '@/lib/entity-links'
@@ -19,8 +18,6 @@ interface SpecimenFormData {
   type: string
   published: boolean
   tags: string
-  projectIds: string[]
-  logEntryIds: string[]
 }
 
 interface SpecimenFormProps {
@@ -33,6 +30,10 @@ export function SpecimenForm({ specimenId, initialData }: SpecimenFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [availableSpecimens, setAvailableSpecimens] = useState<SpecimenMetadata[]>([])
+
+  // Pending links for create mode (EntityLinkField handles edit mode internally)
+  const [pendingProjectLinks, setPendingProjectLinks] = useState<PendingLink[]>([])
+  const [pendingLogEntryLinks, setPendingLogEntryLinks] = useState<PendingLink[]>([])
   const [pendingAssumptionLinks, setPendingAssumptionLinks] = useState<PendingLink[]>([])
 
   const [formData, setFormData] = useState<SpecimenFormData>({
@@ -43,47 +44,12 @@ export function SpecimenForm({ specimenId, initialData }: SpecimenFormProps) {
     type: initialData?.type || '',
     published: initialData?.published || false,
     tags: initialData?.tags || '',
-    projectIds: initialData?.projectIds || [],
-    logEntryIds: initialData?.logEntryIds || [],
   })
 
   useEffect(() => {
     // Load available specimens from registry
     setAvailableSpecimens(getAllSpecimens())
   }, [])
-
-  // Load existing relationships
-  useEffect(() => {
-    if (specimenId) {
-      loadRelationships()
-    }
-  }, [specimenId])
-
-  const loadRelationships = async () => {
-    if (!specimenId) return
-
-    // Load project relationships via entity_links
-    const { data: projectLinks } = await supabase
-      .from('entity_links')
-      .select('source_id')
-      .eq('source_type', 'project')
-      .eq('target_type', 'specimen')
-      .eq('target_id', specimenId)
-
-    // Load log entry relationships via entity_links
-    const { data: logEntryLinks } = await supabase
-      .from('entity_links')
-      .select('source_id')
-      .eq('source_type', 'log_entry')
-      .eq('target_type', 'specimen')
-      .eq('target_id', specimenId)
-
-    setFormData(prev => ({
-      ...prev,
-      projectIds: projectLinks?.map(r => r.source_id) || [],
-      logEntryIds: logEntryLinks?.map(r => r.source_id) || [],
-    }))
-  }
 
   const generateSlug = (title: string) => {
     return title
@@ -125,10 +91,8 @@ export function SpecimenForm({ specimenId, initialData }: SpecimenFormProps) {
         tags: tagsArray.length > 0 ? tagsArray : null,
       }
 
-      let savedSpecimenId = specimenId
-
       if (specimenId) {
-        // Update existing specimen
+        // Update existing specimen (EntityLinkField handles its own syncing)
         const { error: updateError } = await supabase
           .from('specimens')
           .update(specimenData)
@@ -144,36 +108,22 @@ export function SpecimenForm({ specimenId, initialData }: SpecimenFormProps) {
           .single()
 
         if (insertError) throw insertError
-        savedSpecimenId = newSpecimen.id
 
         // Sync pending entity links for create mode
+        const entityRef = { type: 'specimen' as const, id: newSpecimen.id }
+
+        // Specimen is SOURCE for assumptions
         if (pendingAssumptionLinks.length > 0) {
-          await syncEntityLinks(
-            { type: 'specimen', id: newSpecimen.id },
-            'assumption',
-            'related',
-            pendingAssumptionLinks.map(l => l.targetId)
-          )
+          await syncEntityLinks(entityRef, 'assumption', 'related', pendingAssumptionLinks.map(l => l.targetId))
         }
-      }
 
-      // Update relationships via entity_links
-      if (savedSpecimenId) {
-        // Sync project->specimen links (specimen is target)
-        await syncEntityLinksAsTarget(
-          { type: 'specimen', id: savedSpecimenId },
-          'project',
-          'contains',
-          formData.projectIds
-        )
-
-        // Sync log_entry->specimen links (specimen is target)
-        await syncEntityLinksAsTarget(
-          { type: 'specimen', id: savedSpecimenId },
-          'log_entry',
-          'contains',
-          formData.logEntryIds
-        )
+        // Specimen is TARGET for projects and log entries
+        if (pendingProjectLinks.length > 0) {
+          await syncEntityLinksAsTarget(entityRef, 'project', 'contains', pendingProjectLinks.map(l => l.targetId))
+        }
+        if (pendingLogEntryLinks.length > 0) {
+          await syncEntityLinksAsTarget(entityRef, 'log_entry', 'contains', pendingLogEntryLinks.map(l => l.targetId))
+        }
       }
 
       toast.success(specimenId ? 'Specimen updated successfully!' : 'Specimen created successfully!')
@@ -400,21 +350,35 @@ export function SpecimenForm({ specimenId, initialData }: SpecimenFormProps) {
           </div>
 
           <div className="rounded-lg border bg-card p-4">
-            <RelationshipSelector
+            <EntityLinkField
               label="Link Projects"
-              tableName="projects"
-              selectedIds={formData.projectIds}
-              onChange={(ids) => setFormData({ ...formData, projectIds: ids })}
+              sourceType="specimen"
+              sourceId={specimenId}
+              targetType="project"
+              targetTableName="projects"
+              targetDisplayField="name"
+              linkType="contains"
+              asTarget={true}
+              allowMultiple={true}
+              pendingLinks={pendingProjectLinks}
+              onPendingLinksChange={setPendingProjectLinks}
               helperText="Select projects that use this specimen"
             />
           </div>
 
           <div className="rounded-lg border bg-card p-4">
-            <RelationshipSelector
+            <EntityLinkField
               label="Link Log Entries"
-              tableName="log_entries"
-              selectedIds={formData.logEntryIds}
-              onChange={(ids) => setFormData({ ...formData, logEntryIds: ids })}
+              sourceType="specimen"
+              sourceId={specimenId}
+              targetType="log_entry"
+              targetTableName="log_entries"
+              targetDisplayField="title"
+              linkType="contains"
+              asTarget={true}
+              allowMultiple={true}
+              pendingLinks={pendingLogEntryLinks}
+              onPendingLinksChange={setPendingLogEntryLinks}
               helperText="Select log entries that feature this specimen"
             />
           </div>
