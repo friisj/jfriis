@@ -17,6 +17,25 @@ import {
   deleteExperiment,
 } from '@/app/actions/entity-generator'
 import type { PendingEntity } from '@/lib/ai/hooks/useEntityGenerator'
+import type { EntitySubtypeOption } from './entity-generator-field'
+
+// Hypothesis types - conceptual categories to guide generation
+const HYPOTHESIS_TYPE_OPTIONS: EntitySubtypeOption[] = [
+  { value: 'value', label: 'Value Hypothesis' },
+  { value: 'growth', label: 'Growth Hypothesis' },
+  { value: 'usability', label: 'Usability Hypothesis' },
+  { value: 'feasibility', label: 'Feasibility Hypothesis' },
+  { value: 'desirability', label: 'Desirability Hypothesis' },
+  { value: 'viability', label: 'Viability Hypothesis' },
+]
+
+// Experiment types - matches StudioExperimentType in database
+const EXPERIMENT_TYPE_OPTIONS: EntitySubtypeOption[] = [
+  { value: 'prototype', label: 'Prototype' },
+  { value: 'discovery_interviews', label: 'Discovery Interviews' },
+  { value: 'landing_page', label: 'Landing Page' },
+  { value: 'experiment', label: 'Other Experiment' },
+]
 
 interface StudioProjectSidebarProps {
   project: {
@@ -127,6 +146,8 @@ export function StudioProjectSidebar({
           editLinkPattern="/admin/hypotheses/{id}/edit"
           addLink={`/admin/hypotheses/new?project=${project.id}`}
           statusField="status"
+          subtypeOptions={HYPOTHESIS_TYPE_OPTIONS}
+          subtypeLabel="Hypothesis Type"
         />
       </div>
 
@@ -157,6 +178,8 @@ export function StudioProjectSidebar({
           editLinkPattern="/admin/experiments/{id}/edit"
           addLink={`/admin/experiments/new?project=${project.id}`}
           statusField="status"
+          subtypeOptions={EXPERIMENT_TYPE_OPTIONS}
+          subtypeLabel="Experiment Type"
         />
       </div>
 

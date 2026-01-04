@@ -9,10 +9,16 @@
  */
 
 import { useState, useRef, useEffect, useCallback } from 'react'
-import { useEntityGenerator, type PendingEntity } from '@/lib/ai/hooks/useEntityGenerator'
+import { useEntityGenerator, type PendingEntity, type GenerationOptions } from '@/lib/ai/hooks/useEntityGenerator'
 import { EntityGeneratorItem } from './entity-generator-item'
 import { getEntityGenerationConfig } from '@/lib/ai/prompts/entity-generation'
 import type { EntityType } from '@/lib/ai/types/entities'
+
+/** Entity subtype option */
+export interface EntitySubtypeOption {
+  value: string
+  label: string
+}
 
 export interface EntityGeneratorFieldProps {
   /** Field label */
@@ -47,6 +53,10 @@ export interface EntityGeneratorFieldProps {
   statusField?: string
   /** Whether the field is disabled */
   disabled?: boolean
+  /** Entity subtype options (e.g., hypothesis types, experiment types) */
+  subtypeOptions?: EntitySubtypeOption[]
+  /** Label for subtype selector */
+  subtypeLabel?: string
 }
 
 export function EntityGeneratorField({
@@ -64,10 +74,15 @@ export function EntityGeneratorField({
   addLink,
   statusField = 'status',
   disabled = false,
+  subtypeOptions,
+  subtypeLabel,
 }: EntityGeneratorFieldProps) {
   const [showBatchPopover, setShowBatchPopover] = useState(false)
   const [batchCount, setBatchCount] = useState(3)
   const [batchInstructions, setBatchInstructions] = useState('')
+  const [batchTemperature, setBatchTemperature] = useState(0.7)
+  const [batchModel, setBatchModel] = useState<'claude-sonnet' | 'claude-opus'>('claude-sonnet')
+  const [batchSubtype, setBatchSubtype] = useState<string>('')
   const [flushError, setFlushError] = useState<string | null>(null)
   const [deleteError, setDeleteError] = useState<string | null>(null)
   const popoverRef = useRef<HTMLDivElement>(null)
@@ -152,11 +167,23 @@ export function EntityGeneratorField({
       stop()
       return
     }
-    await generate()
+    // Quick generate uses current batch settings
+    const options: GenerationOptions = {
+      temperature: batchTemperature,
+      model: batchModel,
+      entitySubtype: batchSubtype || undefined,
+    }
+    await generate(options)
   }
 
   const handleBatchGenerate = async () => {
-    await generateBatch(batchCount, batchInstructions.trim() || undefined)
+    const options: GenerationOptions = {
+      instructions: batchInstructions.trim() || undefined,
+      temperature: batchTemperature,
+      model: batchModel,
+      entitySubtype: batchSubtype || undefined,
+    }
+    await generateBatch(batchCount, options)
     setShowBatchPopover(false)
     setBatchInstructions('')
   }
@@ -275,6 +302,62 @@ export function EntityGeneratorField({
                       placeholder="e.g., focus on onboarding experience..."
                       className="w-full h-16 px-2 py-1.5 text-sm rounded border bg-background resize-none"
                     />
+                  </div>
+
+                  {/* Entity Subtype Selector */}
+                  {subtypeOptions && subtypeOptions.length > 0 && (
+                    <div>
+                      <label className="block text-sm font-medium mb-1">
+                        {subtypeLabel || 'Type'}
+                      </label>
+                      <select
+                        value={batchSubtype}
+                        onChange={(e) => setBatchSubtype(e.target.value)}
+                        className="w-full px-2 py-1.5 text-sm rounded border bg-background"
+                      >
+                        <option value="">Any type</option>
+                        {subtypeOptions.map((option) => (
+                          <option key={option.value} value={option.value}>
+                            {option.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+
+                  {/* Temperature Control */}
+                  <div>
+                    <label className="block text-sm font-medium mb-1">
+                      Creativity: {batchTemperature.toFixed(1)}
+                    </label>
+                    <input
+                      type="range"
+                      min={0.3}
+                      max={1.0}
+                      step={0.1}
+                      value={batchTemperature}
+                      onChange={(e) => setBatchTemperature(parseFloat(e.target.value))}
+                      className="w-full"
+                    />
+                    <div className="flex justify-between text-[10px] text-muted-foreground">
+                      <span>Focused</span>
+                      <span>Creative</span>
+                    </div>
+                  </div>
+
+                  {/* Model Selection */}
+                  <div>
+                    <label className="block text-sm font-medium mb-1">
+                      Model
+                    </label>
+                    <select
+                      value={batchModel}
+                      onChange={(e) => setBatchModel(e.target.value as 'claude-sonnet' | 'claude-opus')}
+                      className="w-full px-2 py-1.5 text-sm rounded border bg-background"
+                    >
+                      <option value="claude-sonnet">Sonnet (faster)</option>
+                      <option value="claude-opus">Opus (smarter)</option>
+                    </select>
                   </div>
 
                   <button

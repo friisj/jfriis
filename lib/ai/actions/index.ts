@@ -145,8 +145,14 @@ export async function executeAction<TInput, TOutput>(
     }
   }
 
-  // Get model
-  const modelKey = action.model || defaultModels[action.taskType]
+  // Get model - check for input override first
+  const inputData = inputResult.data as Record<string, unknown>
+  const modelOverride = inputData.model as string | undefined
+  const modelKey = modelOverride || action.model || defaultModels[action.taskType]
+
+  // Get temperature - check for input override first
+  const temperatureOverride = inputData.temperature as number | undefined
+  const temperature = temperatureOverride ?? 0.7
 
   try {
     // Build prompt
@@ -158,23 +164,46 @@ export async function executeAction<TInput, TOutput>(
       system,
       prompt: user,
       maxOutputTokens: 2000,
-      temperature: 0.7,
+      temperature,
       abortSignal,
     })
 
     // Parse output
     let output: TOutput
     try {
-      // Try to parse as JSON first
-      output = JSON.parse(result.text) as TOutput
-    } catch {
+      // Strip markdown code fences if present (common LLM behavior)
+      let jsonText = result.text.trim()
+      if (jsonText.startsWith('```json')) {
+        jsonText = jsonText.slice(7) // Remove ```json
+      } else if (jsonText.startsWith('```')) {
+        jsonText = jsonText.slice(3) // Remove ```
+      }
+      if (jsonText.endsWith('```')) {
+        jsonText = jsonText.slice(0, -3) // Remove trailing ```
+      }
+      jsonText = jsonText.trim()
+
+      // Try to parse as JSON
+      output = JSON.parse(jsonText) as TOutput
+    } catch (parseError) {
       // If not JSON, wrap in expected structure
+      console.warn('[ai:action] JSON parse failed, wrapping as content:', {
+        action: actionId,
+        rawText: result.text.substring(0, 200),
+        error: parseError instanceof Error ? parseError.message : 'Unknown',
+      })
       output = { content: result.text } as TOutput
     }
 
     // Validate output
     const outputResult = action.outputSchema.safeParse(output)
     if (!outputResult.success) {
+      console.error('[ai:action] Output validation failed:', {
+        action: actionId,
+        rawText: result.text.substring(0, 500),
+        parsedOutput: output,
+        zodError: outputResult.error.format(),
+      })
       return {
         success: false,
         error: {

@@ -38,6 +38,14 @@ export interface UseEntityGeneratorOptions {
   onError?: (error: ActionError) => void
 }
 
+/** Options for generation requests */
+export interface GenerationOptions {
+  instructions?: string
+  temperature?: number // 0.3 - 1.0
+  model?: 'claude-sonnet' | 'claude-opus'
+  entitySubtype?: string // e.g., hypothesis type or experiment type
+}
+
 export interface UseEntityGeneratorReturn {
   // State
   state: GeneratorState
@@ -47,8 +55,8 @@ export interface UseEntityGeneratorReturn {
   isLoadingPending: boolean // Loading state for localStorage
 
   // Actions
-  generate: (instructions?: string) => Promise<PendingEntity[] | null>
-  generateBatch: (count: number, instructions?: string) => Promise<PendingEntity[] | null>
+  generate: (options?: GenerationOptions) => Promise<PendingEntity[] | null>
+  generateBatch: (count: number, options?: GenerationOptions) => Promise<PendingEntity[] | null>
   updatePending: (pendingId: string, updates: Record<string, unknown>) => void
   deletePending: (pendingId: string) => void
   clearPending: () => void
@@ -158,7 +166,7 @@ export function useEntityGenerator({
   }, [])
 
   const executeGeneration = useCallback(
-    async (count: number, instructions?: string): Promise<PendingEntity[] | null> => {
+    async (count: number, options?: GenerationOptions): Promise<PendingEntity[] | null> => {
       // Cancel any existing request
       if (abortControllerRef.current) {
         abortControllerRef.current.abort()
@@ -180,8 +188,11 @@ export function useEntityGenerator({
               targetType,
               existingItems, // HIGH-3: Pass existing DB items for anti-redundancy
               pendingItems,
-              instructions,
+              instructions: options?.instructions,
               count,
+              temperature: options?.temperature,
+              model: options?.model,
+              entitySubtype: options?.entitySubtype,
             },
           }),
           signal: abortControllerRef.current.signal,
@@ -245,12 +256,12 @@ export function useEntityGenerator({
   )
 
   const generate = useCallback(
-    (instructions?: string) => executeGeneration(1, instructions),
+    (options?: GenerationOptions) => executeGeneration(1, options),
     [executeGeneration]
   )
 
   const generateBatch = useCallback(
-    (count: number, instructions?: string) => executeGeneration(count, instructions),
+    (count: number, options?: GenerationOptions) => executeGeneration(count, options),
     [executeGeneration]
   )
 

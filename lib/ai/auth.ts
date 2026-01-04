@@ -25,7 +25,7 @@ export interface AuthResult {
  */
 export async function validateAuth(): Promise<AuthResult> {
   try {
-    const cookieStore = cookies()
+    const cookieStore = await cookies()
 
     const supabase = createServerClient<Database>(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,

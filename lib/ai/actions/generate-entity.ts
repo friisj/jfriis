@@ -25,6 +25,10 @@ const inputSchema = z.object({
   pendingItems: z.array(z.record(z.string(), z.unknown())).default([]),
   instructions: z.string().optional(),
   count: z.number().min(1).max(5).default(1),
+  // Generation options
+  temperature: z.number().min(0.1).max(1.0).optional(),
+  model: z.enum(['claude-sonnet', 'claude-opus']).optional(),
+  entitySubtype: z.string().optional(), // e.g., hypothesis type or experiment type
 })
 
 type EntityGenerationInput = z.infer<typeof inputSchema>
@@ -46,6 +50,7 @@ function buildPrompt(input: EntityGenerationInput): { system: string; user: stri
     pendingItems,
     instructions,
     count,
+    entitySubtype,
   } = input
 
   // Get config for target entity type
@@ -99,6 +104,11 @@ ${fieldsSpec}`
   let user = `Generate ${count} ${targetType.replace(/_/g, ' ')} based on this ${sourceType.replace(/_/g, ' ')}:
 
 ${sourceContext}${antiRedundancy}`
+
+  // Add subtype-specific guidance
+  if (entitySubtype) {
+    user += `\n\nFocus on generating ${entitySubtype} type ${targetType.replace(/_/g, ' ')}.`
+  }
 
   if (instructions) {
     user += `\n\nAdditional instructions: ${instructions}`

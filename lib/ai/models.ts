@@ -29,29 +29,29 @@ export interface ModelConfig {
 
 // Model catalog
 export const models: Record<string, ModelConfig> = {
-  // Anthropic Models (4.5 series - latest)
+  // Anthropic Models (Claude 4 series - latest)
   'claude-sonnet': {
-    id: 'claude-sonnet-4-5-20250929',
+    id: 'claude-sonnet-4-20250514',
     provider: 'anthropic',
-    name: 'Claude Sonnet 4.5',
+    name: 'Claude Sonnet 4',
     description: 'Best balance of capability and speed for most tasks',
     capabilities: ['reasoning', 'coding', 'creative', 'vision', 'structured'],
     contextWindow: 200000,
     costTier: 'medium',
   },
   'claude-haiku': {
-    id: 'claude-haiku-4-5-20251001',
+    id: 'claude-haiku-4-20250514',
     provider: 'anthropic',
-    name: 'Claude Haiku 4.5',
+    name: 'Claude Haiku 4',
     description: 'Fast and efficient for simple tasks',
     capabilities: ['fast', 'structured', 'coding'],
     contextWindow: 200000,
     costTier: 'low',
   },
   'claude-opus': {
-    id: 'claude-opus-4-5-20251101',
+    id: 'claude-opus-4-20250514',
     provider: 'anthropic',
-    name: 'Claude Opus 4.5',
+    name: 'Claude Opus 4',
     description: 'Most capable model for complex reasoning',
     capabilities: ['reasoning', 'coding', 'creative', 'vision', 'long-context'],
     contextWindow: 200000,
