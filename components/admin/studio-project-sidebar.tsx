@@ -8,8 +8,14 @@
  */
 
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { EntityGeneratorField } from './entity-generator-field'
-import { supabase } from '@/lib/supabase'
+import {
+  flushPendingHypotheses,
+  flushPendingExperiments,
+  deleteHypothesis,
+  deleteExperiment,
+} from '@/app/actions/entity-generator'
 import type { PendingEntity } from '@/lib/ai/hooks/useEntityGenerator'
 
 interface StudioProjectSidebarProps {
@@ -47,45 +53,47 @@ export function StudioProjectSidebar({
   hypotheses,
   experiments,
 }: StudioProjectSidebarProps) {
-  // Calculate next sequence number for hypotheses
+  const router = useRouter()
+
+  // Calculate next sequence number for hypotheses (defensive: handle empty array)
   const nextHypothesisSequence = hypotheses.length > 0
-    ? Math.max(...hypotheses.map((h) => h.sequence)) + 1
+    ? Math.max(...hypotheses.map((h) => h.sequence ?? 0)) + 1
     : 1
 
-  // Handle flushing pending hypotheses to DB
-  const handleFlushHypotheses = async (pending: PendingEntity[]) => {
-    for (const item of pending) {
-      const { _pendingId, _createdAt, ...data } = item
-      await supabase.from('studio_hypotheses').insert([{
-        ...data,
-        project_id: project.id,
-        sequence: nextHypothesisSequence + pending.indexOf(item),
-      }])
+  // Handle flushing pending hypotheses to DB via Server Action
+  const handleFlushHypotheses = async (pending: PendingEntity[]): Promise<{ success: boolean; error?: string }> => {
+    const result = await flushPendingHypotheses(project.id, pending, nextHypothesisSequence)
+    if (result.success) {
+      router.refresh()
     }
+    return result
   }
 
-  // Handle flushing pending experiments to DB
-  const handleFlushExperiments = async (pending: PendingEntity[]) => {
-    for (const item of pending) {
-      const { _pendingId, _createdAt, ...data } = item
-      await supabase.from('studio_experiments').insert([{
-        ...data,
-        project_id: project.id,
-      }])
+  // Handle flushing pending experiments to DB via Server Action
+  const handleFlushExperiments = async (pending: PendingEntity[]): Promise<{ success: boolean; error?: string }> => {
+    const result = await flushPendingExperiments(project.id, pending)
+    if (result.success) {
+      router.refresh()
     }
+    return result
   }
 
-  // Handle deleting a hypothesis
-  const handleDeleteHypothesis = async (id: string) => {
-    await supabase.from('studio_hypotheses').delete().eq('id', id)
-    // Note: In a real app, you'd want to refresh the data or use optimistic updates
-    window.location.reload()
+  // Handle deleting a hypothesis via Server Action
+  const handleDeleteHypothesis = async (id: string): Promise<{ success: boolean; error?: string }> => {
+    const result = await deleteHypothesis(id)
+    if (result.success) {
+      router.refresh()
+    }
+    return result
   }
 
-  // Handle deleting an experiment
-  const handleDeleteExperiment = async (id: string) => {
-    await supabase.from('studio_experiments').delete().eq('id', id)
-    window.location.reload()
+  // Handle deleting an experiment via Server Action
+  const handleDeleteExperiment = async (id: string): Promise<{ success: boolean; error?: string }> => {
+    const result = await deleteExperiment(id)
+    if (result.success) {
+      router.refresh()
+    }
+    return result
   }
 
   return (

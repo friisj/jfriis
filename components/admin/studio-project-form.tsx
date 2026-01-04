@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import type { StudioProject } from '@/lib/types/database'
 import { FormFieldWithAI } from '@/components/forms'
+import { flushEntityGenerator } from '@/components/admin/entity-generator-field'
 
 interface StudioProjectFormProps {
   project?: StudioProject
@@ -53,6 +54,25 @@ export function StudioProjectForm({ project, mode }: StudioProjectFormProps) {
 
         if (error) throw error
       } else {
+        // Flush any pending generated entities before saving project
+        const hypothesesFlush = await flushEntityGenerator(
+          'studio_projects',
+          project!.id,
+          'studio_hypotheses'
+        )
+        if (!hypothesesFlush.success) {
+          throw new Error(hypothesesFlush.error || 'Failed to save pending hypotheses')
+        }
+
+        const experimentsFlush = await flushEntityGenerator(
+          'studio_projects',
+          project!.id,
+          'studio_experiments'
+        )
+        if (!experimentsFlush.success) {
+          throw new Error(experimentsFlush.error || 'Failed to save pending experiments')
+        }
+
         const { error } = await supabase
           .from('studio_projects')
           .update(data)

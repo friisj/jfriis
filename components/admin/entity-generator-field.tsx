@@ -6,23 +6,9 @@
  * A field for managing child entities with LLM-assisted generation.
  * Displays existing DB items + pending (localStorage) items.
  * Supports quick generate, batch generate, inline editing, and deletion.
- *
- * Usage:
- * ```tsx
- * <EntityGeneratorField
- *   label="Hypotheses"
- *   sourceEntity={{ type: 'studio_projects', id: project.id, data: project }}
- *   targetType="studio_hypotheses"
- *   items={hypotheses}
- *   defaultValues={{ project_id: project.id }}
- *   onFlush={async (pending) => { await saveToDb(pending) }}
- *   displayField="statement"
- *   editableFields={['statement', 'rationale', 'validation_criteria']}
- * />
- * ```
  */
 
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
 import { useEntityGenerator, type PendingEntity } from '@/lib/ai/hooks/useEntityGenerator'
 import { EntityGeneratorItem } from './entity-generator-item'
 import { getEntityGenerationConfig } from '@/lib/ai/prompts/entity-generation'
@@ -43,10 +29,10 @@ export interface EntityGeneratorFieldProps {
   items: Array<{ id: string; [key: string]: unknown }>
   /** Default values for generated entities */
   defaultValues?: Record<string, unknown>
-  /** Called when parent saves - flush pending items */
-  onFlush?: (pending: PendingEntity[]) => Promise<void>
+  /** Called when flushing pending items - returns success/error */
+  onFlush?: (pending: PendingEntity[]) => Promise<{ success: boolean; error?: string }>
   /** Called when a DB item is deleted */
-  onDeleteItem?: (id: string) => Promise<void>
+  onDeleteItem?: (id: string) => Promise<{ success: boolean; error?: string }>
   /** Field to display in collapsed view */
   displayField?: string
   /** Fields to show in expanded edit view */
@@ -82,6 +68,8 @@ export function EntityGeneratorField({
   const [showBatchPopover, setShowBatchPopover] = useState(false)
   const [batchCount, setBatchCount] = useState(3)
   const [batchInstructions, setBatchInstructions] = useState('')
+  const [flushError, setFlushError] = useState<string | null>(null)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
   const popoverRef = useRef<HTMLDivElement>(null)
 
   // Get config for target type (for defaults)
@@ -90,22 +78,26 @@ export function EntityGeneratorField({
   const editableFields = editableFieldsProp || config?.editableFields || ['name', 'description']
   const fieldHints = fieldHintsProp || config?.fieldHints || {}
 
-  // Entity generator hook
+  // Entity generator hook - HIGH-3: pass existing items for anti-redundancy
   const {
     state,
     error,
+    storageError,
     pendingItems,
+    isLoadingPending,
     generate,
     generateBatch,
     updatePending,
     deletePending,
     clearError,
     stop,
+    flush,
   } = useEntityGenerator({
     sourceType: sourceEntity.type,
     sourceId: sourceEntity.id,
     sourceData: sourceEntity.data,
     targetType,
+    existingItems: items, // HIGH-3: Pass DB items for anti-redundancy
     defaultValues,
   })
 
@@ -125,23 +117,35 @@ export function EntityGeneratorField({
     }
   }, [showBatchPopover])
 
-  // Expose flush for parent form
+  // CRITICAL-1: Expose flush function for parent form to call
+  const handleFlush = useCallback(async (): Promise<{ success: boolean; error?: string }> => {
+    if (!onFlush || pendingItems.length === 0) {
+      return { success: true }
+    }
+
+    setFlushError(null)
+    const result = await onFlush(pendingItems)
+
+    if (result.success) {
+      // Clear pending items after successful flush
+      flush()
+    } else {
+      setFlushError(result.error || 'Failed to save pending items')
+    }
+
+    return result
+  }, [onFlush, pendingItems, flush])
+
+  // Register flush function on window for parent form access
   useEffect(() => {
-    // Store flush function for parent to call
     if (typeof window !== 'undefined') {
       const key = `entity-generator-flush:${sourceEntity.type}:${sourceEntity.id}:${targetType}`
-      ;(window as any)[key] = async () => {
-        if (onFlush && pendingItems.length > 0) {
-          await onFlush(pendingItems)
-          // Clear pending after successful flush
-          pendingItems.forEach((item) => deletePending(item._pendingId))
-        }
-      }
+      ;(window as any)[key] = handleFlush
       return () => {
         delete (window as any)[key]
       }
     }
-  }, [onFlush, pendingItems, deletePending, sourceEntity, targetType])
+  }, [handleFlush, sourceEntity.type, sourceEntity.id, targetType])
 
   const handleQuickGenerate = async () => {
     if (isGenerating) {
@@ -166,10 +170,15 @@ export function EntityGeneratorField({
   }
 
   const handleDeleteItem = async (item: { id: string } | PendingEntity) => {
+    setDeleteError(null)
+
     if ('_pendingId' in item) {
       deletePending(item._pendingId)
     } else if (onDeleteItem) {
-      await onDeleteItem(item.id)
+      const result = await onDeleteItem(item.id)
+      if (!result.success) {
+        setDeleteError(result.error || 'Failed to delete item')
+      }
     }
   }
 
@@ -191,6 +200,7 @@ export function EntityGeneratorField({
             type="button"
             onClick={handleQuickGenerate}
             disabled={disabled}
+            aria-label={isGenerating ? 'Stop generation' : 'Generate one item'}
             className={`
               inline-flex items-center justify-center
               w-7 h-7 rounded-md
@@ -205,9 +215,9 @@ export function EntityGeneratorField({
             title={isGenerating ? 'Stop generation' : 'Generate one'}
           >
             {isGenerating ? (
-              <span className="animate-spin">◌</span>
+              <span aria-hidden="true" className="animate-spin">◌</span>
             ) : (
-              <span>✨</span>
+              <span aria-hidden="true">✨</span>
             )}
           </button>
 
@@ -217,6 +227,7 @@ export function EntityGeneratorField({
               type="button"
               onClick={() => setShowBatchPopover(!showBatchPopover)}
               disabled={disabled || isGenerating}
+              aria-label="Generate multiple items"
               className={`
                 inline-flex items-center justify-center
                 w-7 h-7 rounded-md
@@ -227,7 +238,7 @@ export function EntityGeneratorField({
               `}
               title="Generate multiple"
             >
-              <span>⚙️</span>
+              <span aria-hidden="true">⚙️</span>
               <span className="text-[10px] ml-0.5">▾</span>
             </button>
 
@@ -280,7 +291,7 @@ export function EntityGeneratorField({
         </div>
       </div>
 
-      {/* Error Display */}
+      {/* Error Displays */}
       {error && (
         <div className="p-2 rounded-lg border border-red-200 bg-red-50 dark:bg-red-950/20 text-sm text-red-600 dark:text-red-400 flex items-center justify-between">
           <span>{error.message}</span>
@@ -294,8 +305,39 @@ export function EntityGeneratorField({
         </div>
       )}
 
-      {/* Items List */}
-      {allItems.length > 0 ? (
+      {storageError && (
+        <div className="p-2 rounded-lg border border-amber-200 bg-amber-50 dark:bg-amber-950/20 text-sm text-amber-600 dark:text-amber-400">
+          {storageError}
+        </div>
+      )}
+
+      {flushError && (
+        <div className="p-2 rounded-lg border border-red-200 bg-red-50 dark:bg-red-950/20 text-sm text-red-600 dark:text-red-400">
+          {flushError}
+        </div>
+      )}
+
+      {deleteError && (
+        <div className="p-2 rounded-lg border border-red-200 bg-red-50 dark:bg-red-950/20 text-sm text-red-600 dark:text-red-400 flex items-center justify-between">
+          <span>{deleteError}</span>
+          <button
+            type="button"
+            onClick={() => setDeleteError(null)}
+            className="text-red-400 hover:text-red-600"
+          >
+            ×
+          </button>
+        </div>
+      )}
+
+      {/* Loading Skeleton */}
+      {isLoadingPending ? (
+        <div className="space-y-2 animate-pulse">
+          <div className="h-10 bg-muted rounded" />
+          <div className="h-10 bg-muted rounded" />
+        </div>
+      ) : allItems.length > 0 ? (
+        /* Items List */
         <div className="space-y-2">
           {allItems.map((item) => (
             <EntityGeneratorItem
@@ -341,4 +383,26 @@ export function EntityGeneratorField({
       )}
     </div>
   )
+}
+
+/**
+ * Helper to call flush from parent form
+ */
+export async function flushEntityGenerator(
+  sourceType: string,
+  sourceId: string,
+  targetType: string
+): Promise<{ success: boolean; error?: string }> {
+  if (typeof window === 'undefined') {
+    return { success: true }
+  }
+
+  const key = `entity-generator-flush:${sourceType}:${sourceId}:${targetType}`
+  const flushFn = (window as any)[key]
+
+  if (flushFn) {
+    return await flushFn()
+  }
+
+  return { success: true }
 }

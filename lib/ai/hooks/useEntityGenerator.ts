@@ -28,6 +28,8 @@ export interface UseEntityGeneratorOptions {
   sourceData: Record<string, unknown>
   /** Target entity type (e.g., 'studio_hypotheses') */
   targetType: string
+  /** Existing DB items (for anti-redundancy) - HIGH-3 fix */
+  existingItems?: Array<Record<string, unknown>>
   /** Default values for generated entities */
   defaultValues?: Record<string, unknown>
   /** Callback when generation succeeds */
@@ -40,7 +42,9 @@ export interface UseEntityGeneratorReturn {
   // State
   state: GeneratorState
   error: ActionError | null
+  storageError: string | null // HIGH-2: localStorage error feedback
   pendingItems: PendingEntity[]
+  isLoadingPending: boolean // Loading state for localStorage
 
   // Actions
   generate: (instructions?: string) => Promise<PendingEntity[] | null>
@@ -68,19 +72,25 @@ export function useEntityGenerator({
   sourceId,
   sourceData,
   targetType,
+  existingItems = [], // HIGH-3: Accept existing items
   defaultValues = {},
   onSuccess,
   onError,
 }: UseEntityGeneratorOptions): UseEntityGeneratorReturn {
   const [state, setState] = useState<GeneratorState>('idle')
   const [error, setError] = useState<ActionError | null>(null)
+  const [storageError, setStorageError] = useState<string | null>(null) // HIGH-2
   const [pendingItems, setPendingItems] = useState<PendingEntity[]>([])
+  const [isLoadingPending, setIsLoadingPending] = useState(true)
 
   const abortControllerRef = useRef<AbortController | null>(null)
 
   // Load pending items from localStorage on mount
   useEffect(() => {
-    if (typeof window === 'undefined') return
+    if (typeof window === 'undefined') {
+      setIsLoadingPending(false)
+      return
+    }
 
     const key = getStorageKey(sourceType, sourceId, targetType)
     try {
@@ -89,14 +99,21 @@ export function useEntityGenerator({
         const items = JSON.parse(stored) as PendingEntity[]
         setPendingItems(items)
       }
+      setStorageError(null)
     } catch (err) {
       console.error('[useEntityGenerator] Failed to load from localStorage:', err)
+      // HIGH-2: User-visible error for localStorage issues
+      if (err instanceof Error && err.name === 'SecurityError') {
+        setStorageError('Storage access denied. Using private browsing? Pending items will not persist.')
+      }
+    } finally {
+      setIsLoadingPending(false)
     }
   }, [sourceType, sourceId, targetType])
 
   // Save pending items to localStorage when they change
   useEffect(() => {
-    if (typeof window === 'undefined') return
+    if (typeof window === 'undefined' || isLoadingPending) return
 
     const key = getStorageKey(sourceType, sourceId, targetType)
     try {
@@ -105,10 +122,17 @@ export function useEntityGenerator({
       } else {
         localStorage.removeItem(key)
       }
+      setStorageError(null)
     } catch (err) {
       console.error('[useEntityGenerator] Failed to save to localStorage:', err)
+      // HIGH-2: User-visible error for quota exceeded
+      if (err instanceof Error && err.name === 'QuotaExceededError') {
+        setStorageError('Storage full. Save your project to persist pending items.')
+      } else {
+        setStorageError('Unable to save pending items locally.')
+      }
     }
-  }, [pendingItems, sourceType, sourceId, targetType])
+  }, [pendingItems, sourceType, sourceId, targetType, isLoadingPending])
 
   // Cleanup on unmount
   useEffect(() => {
@@ -154,7 +178,7 @@ export function useEntityGenerator({
               sourceType,
               sourceData,
               targetType,
-              existingItems: [], // TODO: pass existing DB items
+              existingItems, // HIGH-3: Pass existing DB items for anti-redundancy
               pendingItems,
               instructions,
               count,
@@ -217,7 +241,7 @@ export function useEntityGenerator({
         abortControllerRef.current = null
       }
     },
-    [sourceType, sourceData, targetType, pendingItems, defaultValues, onSuccess, onError]
+    [sourceType, sourceData, targetType, existingItems, pendingItems, defaultValues, onSuccess, onError]
   )
 
   const generate = useCallback(
@@ -255,7 +279,9 @@ export function useEntityGenerator({
   return {
     state,
     error,
+    storageError,
     pendingItems,
+    isLoadingPending,
     generate,
     generateBatch,
     updatePending,
