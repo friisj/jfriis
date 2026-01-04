@@ -384,6 +384,7 @@ export type StudioProjectUpdate = Partial<StudioProjectInsert>
 export interface StudioHypothesis extends BaseRecord {
   project_id: string
   statement: string
+  rationale?: string
   validation_criteria?: string
   sequence: number
   status: 'proposed' | 'testing' | 'validated' | 'invalidated'
