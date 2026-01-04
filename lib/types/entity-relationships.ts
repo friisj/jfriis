@@ -138,7 +138,6 @@ export type LinkableEntityType =
   // Portfolio
   | 'project'
   | 'log_entry'
-  | 'backlog_item'
   | 'specimen'
   // Studio
   | 'studio_project'
@@ -257,7 +256,6 @@ export const ENTITY_TYPES = {
   // Portfolio
   PROJECT: 'project' as const,
   LOG_ENTRY: 'log_entry' as const,
-  BACKLOG_ITEM: 'backlog_item' as const,
   SPECIMEN: 'specimen' as const,
 
   // Studio
@@ -327,7 +325,6 @@ export const LINK_TYPES = {
 export const ENTITY_TYPE_TABLE_MAP: Record<LinkableEntityType, string> = {
   project: 'projects',
   log_entry: 'log_entries',
-  backlog_item: 'backlog_items',
   specimen: 'specimens',
   studio_project: 'studio_projects',
   hypothesis: 'studio_hypotheses',

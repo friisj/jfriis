@@ -3,7 +3,7 @@ import { createClient } from '@/lib/supabase-server'
 interface ActivityItem {
   id: string
   title: string
-  type: 'venture' | 'log' | 'specimen' | 'backlog'
+  type: 'venture' | 'log' | 'specimen'
   updated_at: string
   href: string
 }
@@ -12,14 +12,12 @@ const typeLabels = {
   venture: 'Venture',
   log: 'Log Entry',
   specimen: 'Specimen',
-  backlog: 'Backlog',
 }
 
 const typeColors = {
   venture: 'bg-blue-500/10 text-blue-700 dark:text-blue-400',
   log: 'bg-green-500/10 text-green-700 dark:text-green-400',
   specimen: 'bg-purple-500/10 text-purple-700 dark:text-purple-400',
-  backlog: 'bg-orange-500/10 text-orange-700 dark:text-orange-400',
 }
 
 function formatDate(dateString: string) {
@@ -42,7 +40,6 @@ export async function RecentActivity() {
     { data: ventures },
     { data: logEntries },
     { data: specimens },
-    { data: backlog },
   ] = await Promise.all([
     supabase
       .from('projects')
@@ -56,11 +53,6 @@ export async function RecentActivity() {
       .limit(3),
     supabase
       .from('specimens')
-      .select('id, title, updated_at')
-      .order('updated_at', { ascending: false })
-      .limit(3),
-    supabase
-      .from('backlog_items')
       .select('id, title, updated_at')
       .order('updated_at', { ascending: false })
       .limit(3),
@@ -88,13 +80,6 @@ export async function RecentActivity() {
       type: 'specimen' as const,
       updated_at: s.updated_at,
       href: `/admin/specimens/${s.id}/edit`,
-    })) || []),
-    ...(backlog?.map((b) => ({
-      id: b.id,
-      title: b.title,
-      type: 'backlog' as const,
-      updated_at: b.updated_at,
-      href: `/admin/backlog/${b.id}/edit`,
     })) || []),
   ]
 

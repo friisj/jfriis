@@ -91,11 +91,6 @@ const fieldPrompts: Record<string, Record<string, string>> = {
     description: 'What this specimen demonstrates or explores.',
     tags: 'Tags describing this specimen (e.g., interaction, animation, layout).',
   },
-  backlog_items: {
-    title: 'A clear title for this backlog item.',
-    content: 'Description of what needs to be done or explored.',
-    tags: 'Tags for categorizing this item.',
-  },
   user_journeys: {
     name: 'A descriptive name for this customer journey.',
     description: 'Overview of what this journey represents and its scope.',

@@ -30,16 +30,14 @@ export async function DashboardStats() {
     { count: venturesCount },
     { count: logEntriesCount },
     { count: specimensCount },
-    { count: backlogCount },
   ] = await Promise.all([
     supabase.from('projects').select('*', { count: 'exact', head: true }),
     supabase.from('log_entries').select('*', { count: 'exact', head: true }),
     supabase.from('specimens').select('*', { count: 'exact', head: true }),
-    supabase.from('backlog_items').select('*', { count: 'exact', head: true }),
   ])
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
       <StatCard
         title="Ventures"
         count={venturesCount || 0}
@@ -57,12 +55,6 @@ export async function DashboardStats() {
         count={specimensCount || 0}
         description="Reusable components"
         href="/admin/specimens"
-      />
-      <StatCard
-        title="Backlog"
-        count={backlogCount || 0}
-        description="Ideas & drafts"
-        href="/admin/backlog"
       />
     </div>
   )
