@@ -12,6 +12,7 @@ export * from './actions'
 
 // Register actions on import
 import './actions/generate-field'
+import './actions/generate-entity'
 
 // Re-export commonly used AI SDK functions
 export {

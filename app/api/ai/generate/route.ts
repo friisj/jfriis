@@ -17,6 +17,7 @@ import { checkAIRateLimit, getAIRateLimitHeaders } from '@/lib/ai/rate-limit'
 
 // Ensure actions are registered
 import '@/lib/ai/actions/generate-field'
+import '@/lib/ai/actions/generate-entity'
 
 export async function POST(request: Request) {
   try {
