@@ -31,7 +31,6 @@ export async function testTableAccess() {
     'specimens',
     'gallery_sequences',
     'landing_pages',
-    'backlog_items',
     'channels',
     'distribution_posts',
     'distribution_queue',

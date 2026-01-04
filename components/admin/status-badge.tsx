@@ -11,11 +11,6 @@ const defaultColorMap: Record<string, string> = {
   completed: 'bg-blue-500/10 text-blue-700 dark:text-blue-400',
   paused: 'bg-yellow-500/10 text-yellow-700 dark:text-yellow-400',
 
-  // Backlog statuses
-  inbox: 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200',
-  'in-progress': 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
-  shaped: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
-
   // Log entry types
   experiment: 'bg-purple-500/10 text-purple-700 dark:text-purple-400',
   idea: 'bg-yellow-500/10 text-yellow-700 dark:text-yellow-400',

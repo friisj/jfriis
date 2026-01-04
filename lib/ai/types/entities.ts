@@ -19,7 +19,6 @@ export type EntityType =
   | 'ventures'
   | 'log_entries'
   | 'specimens'
-  | 'backlog_items'
   | 'user_journeys'
   | 'touchpoint_evidence'
 
@@ -48,8 +47,6 @@ export type FieldNameFor<T extends EntityType> = T extends 'studio_projects'
   ? 'title' | 'content' | 'tags'
   : T extends 'specimens'
   ? 'title' | 'description' | 'tags'
-  : T extends 'backlog_items'
-  ? 'title' | 'content' | 'tags'
   : T extends 'user_journeys'
   ? 'name' | 'description' | 'goal' | 'tags'
   : T extends 'touchpoint_evidence'
@@ -80,7 +77,6 @@ export function isValidEntityType(type: string): type is EntityType {
     'ventures',
     'log_entries',
     'specimens',
-    'backlog_items',
     'user_journeys',
     'touchpoint_evidence',
   ]

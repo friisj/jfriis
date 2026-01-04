@@ -298,21 +298,6 @@ export interface LandingPage extends BaseRecord {
 export type LandingPageInsert = Omit<LandingPage, keyof BaseRecord | 'published_at'>
 export type LandingPageUpdate = Partial<LandingPageInsert>
 
-// Backlog Items
-export interface BacklogItem extends BaseRecord {
-  title?: string
-  content?: string
-  media?: any[] // JSONB
-  status: 'inbox' | 'in-progress' | 'shaped' | 'archived'
-  converted_to?: string
-  converted_id?: string
-  metadata?: any
-  tags?: string[]
-}
-
-export type BacklogItemInsert = Omit<BacklogItem, keyof BaseRecord>
-export type BacklogItemUpdate = Partial<BacklogItemInsert>
-
 // Channels
 export interface Channel extends BaseRecord {
   name: string
@@ -763,11 +748,6 @@ export interface Database {
         Row: LandingPage
         Insert: LandingPageInsert
         Update: LandingPageUpdate
-      }
-      backlog_items: {
-        Row: BacklogItem
-        Insert: BacklogItemInsert
-        Update: BacklogItemUpdate
       }
       channels: {
         Row: Channel

@@ -12,14 +12,6 @@ import type { LinkableEntityType, LinkType } from './types/entity-relationships'
  * If a source→target pair isn't listed, only 'related' and 'references' are allowed.
  */
 const VALID_LINK_TYPES: Partial<Record<LinkableEntityType, Partial<Record<LinkableEntityType, LinkType[]>>>> = {
-  // Backlog items can link to various entities
-  backlog_item: {
-    assumption: ['inspired_by', 'related'],
-    canvas_item: ['evolved_from', 'related'],
-    log_entry: ['related', 'references'],
-    hypothesis: ['inspired_by', 'related'],
-  },
-
   // Log entries document work
   log_entry: {
     assumption: ['documents', 'related'],
@@ -222,11 +214,6 @@ const COMMON_LINK_PATTERNS: Array<{
   // Collection patterns
   { source: 'gallery_sequence', target: 'specimen', description: 'Galleries contain specimens' },
   { source: 'project', target: 'specimen', description: 'Projects contain specimens' },
-
-  // Ideation patterns
-  { source: 'backlog_item', target: 'assumption', description: 'Backlog items inspire assumptions' },
-  { source: 'backlog_item', target: 'canvas_item', description: 'Backlog items evolve to canvas items' },
-  { source: 'backlog_item', target: 'hypothesis', description: 'Backlog items inspire hypotheses' },
 
   // Hypothesis patterns
   { source: 'hypothesis', target: 'assumption', description: 'Hypotheses relate to assumptions' },
