@@ -36,12 +36,18 @@ export async function flushPendingHypotheses(
       return { success: true }
     }
 
+    // Valid status values for hypotheses
+    const validStatuses = ['proposed', 'testing', 'validated', 'invalidated']
+
     // Prepare batch insert (CRITICAL-2: batch instead of loop)
     const inserts = hypotheses.map((h, index) => {
       // Remove internal fields
       const { _pendingId, _createdAt, _isPending, ...data } = h as Record<string, unknown>
+      // Sanitize status - coerce invalid values (like 'draft') to 'proposed'
+      const status = validStatuses.includes(data.status as string) ? data.status : 'proposed'
       return {
         ...data,
+        status,
         project_id: projectId,
         sequence: startSequence + index,
       }
