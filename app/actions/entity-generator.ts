@@ -15,6 +15,15 @@ interface PendingEntityData {
   [key: string]: unknown
 }
 
+// Generate slug from name
+function generateSlug(name: string): string {
+  return name
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '')
+    .slice(0, 50) + '-' + Date.now().toString(36)
+}
+
 /**
  * Flush pending hypotheses to database
  */
@@ -97,8 +106,11 @@ export async function flushPendingExperiments(
     const inserts = experiments.map((e) => {
       // Remove internal fields
       const { _pendingId, _createdAt, _isPending, ...data } = e as Record<string, unknown>
+      // Generate slug from name if not provided
+      const slug = data.slug || generateSlug((data.name as string) || 'experiment')
       return {
         ...data,
+        slug,
         project_id: projectId,
       }
     })
