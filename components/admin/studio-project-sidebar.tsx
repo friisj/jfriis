@@ -136,7 +136,7 @@ export function StudioProjectSidebar({
           items={hypotheses}
           defaultValues={{
             project_id: project.id,
-            status: 'draft',
+            status: 'proposed',
             sequence: nextHypothesisSequence,
           }}
           onFlush={handleFlushHypotheses}

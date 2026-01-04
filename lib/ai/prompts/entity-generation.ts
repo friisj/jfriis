@@ -48,7 +48,7 @@ Return a complete hypothesis object with all required fields.`,
     fieldsToGenerate: ['statement', 'rationale', 'validation_criteria'],
 
     defaultValues: {
-      status: 'draft',
+      status: 'proposed',
     },
 
     contextFields: ['name', 'description', 'problem_statement', 'success_criteria', 'current_focus'],
