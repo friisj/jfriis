@@ -9,8 +9,8 @@ DROP TABLE IF EXISTS backlog_items CASCADE;
 
 -- Clean up any orphaned entity_links records
 DELETE FROM entity_links
-WHERE source_entity_type = 'backlog_item'
-   OR target_entity_type = 'backlog_item';
+WHERE source_type = 'backlog_item'
+   OR target_type = 'backlog_item';
 
 -- Update entity_links CHECK constraints to remove backlog_item
 ALTER TABLE entity_links DROP CONSTRAINT IF EXISTS entity_links_source_type_valid;
