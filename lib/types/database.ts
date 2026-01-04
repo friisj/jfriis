@@ -404,6 +404,7 @@ export interface StudioExperiment extends BaseRecord {
   description?: string
   type: StudioExperimentType
   status: 'planned' | 'in_progress' | 'completed' | 'abandoned'
+  expected_outcome?: string
   outcome?: 'success' | 'failure' | 'inconclusive'
   learnings?: string
 }
