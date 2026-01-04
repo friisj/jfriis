@@ -29,9 +29,6 @@ import {
   LandingPageSchema,
   LandingPageCreateSchema,
   LandingPageUpdateSchema,
-  BacklogItemSchema,
-  BacklogItemCreateSchema,
-  BacklogItemUpdateSchema,
   ProfileSchema,
   ProfileUpdateSchema,
 } from './schemas/other.js'
@@ -94,13 +91,6 @@ export const tables: Record<string, TableDefinition> = {
     createSchema: LandingPageCreateSchema,
     updateSchema: LandingPageUpdateSchema,
     hasSlug: true,
-  },
-  backlog_items: {
-    description: 'Content inbox',
-    schema: BacklogItemSchema,
-    createSchema: BacklogItemCreateSchema,
-    updateSchema: BacklogItemUpdateSchema,
-    hasSlug: false,
   },
   profiles: {
     description: 'User profiles',
