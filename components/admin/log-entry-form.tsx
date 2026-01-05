@@ -1,14 +1,25 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { toast } from 'sonner'
 import { MdxEditor } from '@/components/forms/mdx-editor'
 import { FormFieldWithAI } from '@/components/forms'
 import { EntityLinkField } from './entity-link-field'
+import { DraftTabs } from './draft-tabs'
+import { DraftGenerationControls, type GenerationMetadata } from './draft-generation-controls'
 import { syncEntityLinks } from '@/lib/entity-links'
+import {
+  getDraftsForEntry,
+  createDraft,
+  updateDraft,
+  setDraftAsPrimary,
+  deleteDraft,
+  createInitialDraft,
+} from '@/app/actions/log-entry-drafts'
 import type { PendingLink } from '@/lib/types/entity-relationships'
+import type { LogEntryDraft } from '@/lib/types/database'
 
 interface LogEntryFormData {
   title: string
@@ -35,6 +46,13 @@ export function LogEntryForm({ entryId, initialData }: LogEntryFormProps) {
   const [pendingProjectLinks, setPendingProjectLinks] = useState<PendingLink[]>([])
   const [pendingAssumptionLinks, setPendingAssumptionLinks] = useState<PendingLink[]>([])
 
+  // Draft state
+  const [drafts, setDrafts] = useState<LogEntryDraft[]>([])
+  const [activeDraftId, setActiveDraftId] = useState<string | null>(null)
+  const [draftsLoading, setDraftsLoading] = useState(false)
+  const [draftContentChanged, setDraftContentChanged] = useState(false)
+  const contentBeforeEditRef = useRef<string>('')
+
   const [formData, setFormData] = useState<LogEntryFormData>({
     title: initialData?.title || '',
     slug: initialData?.slug || '',
@@ -44,6 +62,179 @@ export function LogEntryForm({ entryId, initialData }: LogEntryFormProps) {
     published: initialData?.published || false,
     tags: initialData?.tags || '',
   })
+
+  // Load drafts for existing entry
+  useEffect(() => {
+    if (entryId) {
+      setDraftsLoading(true)
+      getDraftsForEntry(entryId).then((result) => {
+        if (result.success && result.data) {
+          setDrafts(result.data)
+          // Select primary draft, or first draft if no primary
+          const primary = result.data.find((d) => d.is_primary)
+          const selected = primary || result.data[0]
+          if (selected) {
+            setActiveDraftId(selected.id)
+            setFormData((prev) => ({ ...prev, content: selected.content }))
+            contentBeforeEditRef.current = selected.content
+          }
+        }
+        setDraftsLoading(false)
+      })
+    }
+  }, [entryId])
+
+  // Track content changes
+  const handleContentChange = useCallback((value: string) => {
+    setFormData((prev) => ({ ...prev, content: value }))
+    setDraftContentChanged(value !== contentBeforeEditRef.current)
+  }, [])
+
+  // Save current draft content to server (for edit mode)
+  const saveDraftContent = useCallback(async () => {
+    if (!entryId || !activeDraftId || !draftContentChanged) return
+
+    const result = await updateDraft(activeDraftId, { content: formData.content })
+    if (result.success && result.data) {
+      setDrafts((prev) =>
+        prev.map((d) => (d.id === activeDraftId ? result.data! : d))
+      )
+      setDraftContentChanged(false)
+      contentBeforeEditRef.current = formData.content
+    }
+  }, [entryId, activeDraftId, draftContentChanged, formData.content])
+
+  // Handle draft selection
+  const handleSelectDraft = useCallback(async (draftId: string) => {
+    // Save current draft first if changed
+    if (draftContentChanged && activeDraftId) {
+      await saveDraftContent()
+    }
+
+    const draft = drafts.find((d) => d.id === draftId)
+    if (draft) {
+      setActiveDraftId(draftId)
+      setFormData((prev) => ({ ...prev, content: draft.content }))
+      contentBeforeEditRef.current = draft.content
+      setDraftContentChanged(false)
+    }
+  }, [draftContentChanged, activeDraftId, drafts, saveDraftContent])
+
+  // Create new blank draft
+  const handleCreateDraft = useCallback(async () => {
+    if (!entryId) return
+
+    // Save current draft first
+    if (draftContentChanged && activeDraftId) {
+      await saveDraftContent()
+    }
+
+    const result = await createDraft(entryId, '')
+    if (result.success && result.data) {
+      setDrafts((prev) => [...prev, result.data!])
+      setActiveDraftId(result.data.id)
+      setFormData((prev) => ({ ...prev, content: '' }))
+      contentBeforeEditRef.current = ''
+      setDraftContentChanged(false)
+      toast.success('New draft created')
+    } else {
+      toast.error(result.error || 'Failed to create draft')
+    }
+  }, [entryId, draftContentChanged, activeDraftId, saveDraftContent])
+
+  // Set draft as primary
+  const handleSetPrimary = useCallback(async (draftId: string) => {
+    const result = await setDraftAsPrimary(draftId)
+    if (result.success) {
+      setDrafts((prev) =>
+        prev.map((d) => ({ ...d, is_primary: d.id === draftId }))
+      )
+      toast.success('Draft set as primary')
+    } else {
+      toast.error(result.error || 'Failed to set primary')
+    }
+  }, [])
+
+  // Rename draft
+  const handleRenameDraft = useCallback(async (draftId: string, label: string) => {
+    const result = await updateDraft(draftId, { label })
+    if (result.success && result.data) {
+      setDrafts((prev) =>
+        prev.map((d) => (d.id === draftId ? result.data! : d))
+      )
+    } else {
+      toast.error(result.error || 'Failed to rename draft')
+    }
+  }, [])
+
+  // Delete draft
+  const handleDeleteDraft = useCallback(async (draftId: string) => {
+    const result = await deleteDraft(draftId)
+    if (result.success) {
+      setDrafts((prev) => prev.filter((d) => d.id !== draftId))
+      // If deleted the active draft, switch to first remaining
+      if (draftId === activeDraftId) {
+        const remaining = drafts.filter((d) => d.id !== draftId)
+        if (remaining.length > 0) {
+          handleSelectDraft(remaining[0].id)
+        }
+      }
+      toast.success('Draft deleted')
+    } else {
+      toast.error(result.error || 'Failed to delete draft')
+    }
+  }, [activeDraftId, drafts, handleSelectDraft])
+
+  // Handle LLM generation result
+  const handleGenerated = useCallback(async (
+    content: string,
+    asNewDraft: boolean,
+    metadata: GenerationMetadata
+  ) => {
+    if (!entryId) {
+      // Create mode - just update local content
+      setFormData((prev) => ({ ...prev, content }))
+      return
+    }
+
+    if (asNewDraft) {
+      // Create new draft with generated content
+      const result = await createDraft(entryId, content, {
+        generationInstructions: metadata.instructions,
+        generationModel: metadata.model,
+        generationTemperature: metadata.temperature,
+        generationMode: metadata.mode,
+        sourceDraftId: activeDraftId || undefined,
+      })
+      if (result.success && result.data) {
+        setDrafts((prev) => [...prev, result.data!])
+        setActiveDraftId(result.data.id)
+        setFormData((prev) => ({ ...prev, content }))
+        contentBeforeEditRef.current = content
+        setDraftContentChanged(false)
+        toast.success('Generated as new draft')
+      }
+    } else {
+      // Update current draft with generated content
+      if (activeDraftId) {
+        const result = await updateDraft(activeDraftId, {
+          content,
+          generationInstructions: metadata.instructions,
+          generationModel: metadata.model,
+          generationTemperature: metadata.temperature,
+          generationMode: metadata.mode,
+        })
+        if (result.success && result.data) {
+          setDrafts((prev) =>
+            prev.map((d) => (d.id === activeDraftId ? result.data! : d))
+          )
+          setFormData((prev) => ({ ...prev, content }))
+          contentBeforeEditRef.current = content
+          setDraftContentChanged(false)
+        }
+      }
+    }
+  }, [entryId, activeDraftId])
 
   const generateSlug = (title: string) => {
     return title
@@ -87,7 +278,12 @@ export function LogEntryForm({ entryId, initialData }: LogEntryFormProps) {
       }
 
       if (entryId) {
-        // Update existing entry (EntityLinkField handles its own syncing)
+        // Update existing entry
+        // Save current draft content first
+        if (activeDraftId && draftContentChanged) {
+          await updateDraft(activeDraftId, { content: formData.content })
+        }
+
         const { error: updateError } = await supabase
           .from('log_entries')
           .update(entryData)
@@ -103,6 +299,9 @@ export function LogEntryForm({ entryId, initialData }: LogEntryFormProps) {
           .single()
 
         if (insertError) throw insertError
+
+        // Create initial draft for the new entry
+        await createInitialDraft(newEntry.id, formData.content)
 
         // Sync pending entity links for create mode
         const entityRef = { type: 'log_entry' as const, id: newEntry.id }
@@ -221,12 +420,51 @@ export function LogEntryForm({ entryId, initialData }: LogEntryFormProps) {
             </p>
           </div>
 
-          <MdxEditor
-            value={formData.content}
-            onChange={(value) => setFormData({ ...formData, content: value })}
-            placeholder="# What I learned today&#10;&#10;Write your log entry content here in Markdown...&#10;&#10;Embed specimens: <Specimen id=&quot;simple-card&quot; />"
-            rows={20}
-          />
+          {/* Drafts Section */}
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <label className="block text-sm font-medium">Content</label>
+              <DraftGenerationControls
+                currentContent={formData.content}
+                context={{
+                  title: formData.title,
+                  type: formData.type || undefined,
+                  tags: formData.tags
+                    ? formData.tags.split(',').map((t) => t.trim()).filter(Boolean)
+                    : undefined,
+                }}
+                onGenerated={handleGenerated}
+                disabled={isSubmitting || draftsLoading}
+              />
+            </div>
+
+            {/* Draft tabs (only show in edit mode with drafts) */}
+            {entryId && drafts.length > 0 && (
+              <DraftTabs
+                drafts={drafts}
+                activeDraftId={activeDraftId}
+                onSelectDraft={handleSelectDraft}
+                onCreateDraft={handleCreateDraft}
+                onSetPrimary={handleSetPrimary}
+                onRenameDraft={handleRenameDraft}
+                onDeleteDraft={handleDeleteDraft}
+                disabled={isSubmitting || draftsLoading}
+              />
+            )}
+
+            {draftsLoading ? (
+              <div className="h-[400px] flex items-center justify-center border rounded-lg bg-muted/20">
+                <span className="text-muted-foreground">Loading drafts...</span>
+              </div>
+            ) : (
+              <MdxEditor
+                value={formData.content}
+                onChange={handleContentChange}
+                placeholder="# What I learned today&#10;&#10;Write your log entry content here in Markdown...&#10;&#10;Embed specimens: <Specimen id=&quot;simple-card&quot; />"
+                rows={20}
+              />
+            )}
+          </div>
         </div>
 
         {/* Sidebar */}

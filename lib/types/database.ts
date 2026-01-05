@@ -240,6 +240,24 @@ export interface LogEntry extends BaseRecord {
 export type LogEntryInsert = Omit<LogEntry, keyof BaseRecord | 'published_at'>
 export type LogEntryUpdate = Partial<LogEntryInsert>
 
+// Log Entry Drafts
+export type LogEntryDraftGenerationMode = 'rewrite' | 'additive'
+
+export interface LogEntryDraft extends BaseRecord {
+  log_entry_id: string
+  content: string
+  is_primary: boolean
+  label?: string
+  generation_instructions?: string
+  generation_model?: string
+  generation_temperature?: number
+  generation_mode?: LogEntryDraftGenerationMode
+  source_draft_id?: string
+}
+
+export type LogEntryDraftInsert = Omit<LogEntryDraft, keyof BaseRecord>
+export type LogEntryDraftUpdate = Partial<LogEntryDraftInsert>
+
 // Specimens
 export interface Specimen extends BaseRecord {
   title: string
