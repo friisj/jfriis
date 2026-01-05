@@ -20,6 +20,7 @@ const VALID_LINK_TYPES: Partial<Record<LinkableEntityType, Partial<Record<Linkab
     project: ['references', 'related'],
     hypothesis: ['documents', 'related'],
     canvas_item: ['documents', 'related'],
+    studio_project: ['documents', 'related'],
   },
 
   // Specimens demonstrate concepts
@@ -194,6 +195,7 @@ const COMMON_LINK_PATTERNS: Array<{
   { source: 'log_entry', target: 'experiment', description: 'Log entries document experiments' },
   { source: 'log_entry', target: 'assumption', description: 'Log entries document assumptions' },
   { source: 'log_entry', target: 'specimen', description: 'Log entries contain specimens' },
+  { source: 'log_entry', target: 'studio_project', description: 'Log entries document studio projects' },
 
   // Validation patterns
   { source: 'experiment', target: 'hypothesis', description: 'Experiments test hypotheses' },

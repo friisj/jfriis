@@ -14,6 +14,7 @@ export * from './actions'
 import './actions/generate-field'
 import './actions/generate-entity'
 import './actions/generate-draft'
+import './actions/generate-project-from-logs'
 
 // Re-export commonly used AI SDK functions
 export {
