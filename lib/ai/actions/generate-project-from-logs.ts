@@ -44,18 +44,20 @@ function buildPrompt(input: ProjectFromLogsInput): { system: string; user: strin
 
 A studio project represents a focused R&D initiative. Your task is to analyze the provided log entries and extract/synthesize the core project concept.
 
-Generate all fields in a practical, actionable style:
+Generate all fields as STRING values (not arrays):
 - name: A concise project title (2-5 words, no quotes)
-- description: 1-2 sentences explaining what this project is
-- problem_statement: What problem or opportunity does this address? Be specific.
-- success_criteria: How will we know if this succeeds? List measurable outcomes.
-- scope_out: What are we explicitly NOT doing? Keep the project focused.
-- current_focus: What's the immediate next step or priority?
+- description: 1-2 sentences explaining what this project is (string)
+- problem_statement: What problem or opportunity does this address? Be specific. (string)
+- success_criteria: How will we know if this succeeds? Describe measurable outcomes as a paragraph or bullet points within the string. (string, not an array)
+- scope_out: What are we explicitly NOT doing? Describe as a paragraph or bullet points within the string. (string, not an array)
+- current_focus: What's the immediate next step or priority? (string)
+
+IMPORTANT: All values must be strings. Do not use arrays for any field.
 
 Look for common themes, problems being explored, and potential solutions across all sources.
 If sources discuss different aspects, find the unifying thread.
 
-Output valid JSON matching the schema exactly. No markdown formatting, just raw JSON.`
+Output valid JSON matching the schema exactly. No markdown code fences, just raw JSON.`
 
   // Build source material section
   const sourceSections = sources.map((source, idx) => {
@@ -75,7 +77,7 @@ ${source.content}
 
 ${sourceSections}
 ${instructions ? `\nAdditional Instructions: ${instructions}\n` : ''}
-Generate a JSON object with: name, description, problem_statement, success_criteria, scope_out, current_focus`
+Generate a JSON object with: name, description, problem_statement, success_criteria, scope_out, current_focus (all string values, no arrays)`
 
   return { system, user }
 }
