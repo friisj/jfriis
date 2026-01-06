@@ -18,6 +18,7 @@ import { isValidEntityType } from '@/lib/ai/types/entities'
 // Field-specific prompts and context
 const fieldPrompts: Record<string, Record<string, string>> = {
   studio_projects: {
+    name: 'A simple, memorable project name. RULES: 1-3 words MAXIMUM, conceptually relevant to the project idea, unique from existing project names. No generic names like "My Project" or "New Idea".',
     description: 'A concise description of what this project is and what problem it solves.',
     problem_statement: 'A clear statement of the problem this project addresses. Focus on the user pain point, not the solution.',
     hypothesis: 'A testable hypothesis about how this project will create value. Format: "We believe [action] will result in [outcome] for [audience]."',

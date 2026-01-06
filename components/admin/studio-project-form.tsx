@@ -13,9 +13,11 @@ import { ENTITY_TYPES, LINK_TYPES } from '@/lib/types/entity-relationships'
 interface StudioProjectFormProps {
   project?: StudioProject
   mode: 'create' | 'edit'
+  /** Existing project names for AI context (helps generate unique names) */
+  existingProjectNames?: string[]
 }
 
-export function StudioProjectForm({ project, mode }: StudioProjectFormProps) {
+export function StudioProjectForm({ project, mode, existingProjectNames = [] }: StudioProjectFormProps) {
   const router = useRouter()
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -203,8 +205,24 @@ export function StudioProjectForm({ project, mode }: StudioProjectFormProps) {
             <h2 className="text-lg font-semibold border-b pb-2">Basic Information</h2>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium mb-1">Name *</label>
+              <FormFieldWithAI
+                label="Name *"
+                fieldName="name"
+                entityType="studio_projects"
+                context={{
+                  description: formData.description,
+                  existing_names: existingProjectNames.join(', '),
+                }}
+                currentValue={formData.name}
+                onGenerate={(name) => {
+                  setFormData({
+                    ...formData,
+                    name,
+                    slug: name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, ''),
+                  })
+                }}
+                disabled={saving || generating}
+              >
                 <input
                   type="text"
                   value={formData.name}
@@ -212,7 +230,7 @@ export function StudioProjectForm({ project, mode }: StudioProjectFormProps) {
                   className="w-full px-3 py-2 rounded-lg border bg-background"
                   required
                 />
-              </div>
+              </FormFieldWithAI>
               <div>
                 <label className="block text-sm font-medium mb-1">Slug *</label>
                 <input

@@ -36,6 +36,15 @@ export default async function EditStudioProjectPage({ params }: PageProps) {
     .eq('project_id', id)
     .order('created_at', { ascending: false })
 
+  // Fetch other project names for AI context (helps generate unique names)
+  const { data: otherProjects } = await supabase
+    .from('studio_projects')
+    .select('name')
+    .neq('id', id) // Exclude current project
+    .order('name')
+
+  const existingProjectNames = otherProjects?.map((p) => p.name) || []
+
   return (
     <div className="p-8">
       <div className="max-w-4xl mx-auto">
@@ -50,7 +59,7 @@ export default async function EditStudioProjectPage({ params }: PageProps) {
           {/* Main Form */}
           <div className="lg:col-span-2">
             <div className="rounded-lg border bg-card p-6">
-              <StudioProjectForm project={project} mode="edit" />
+              <StudioProjectForm project={project} mode="edit" existingProjectNames={existingProjectNames} />
             </div>
           </div>
 
