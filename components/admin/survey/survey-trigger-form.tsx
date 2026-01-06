@@ -91,7 +91,7 @@ export function SurveyTriggerForm() {
             <Label>Project Temperature</Label>
             <RadioGroup
               value={temperature}
-              onValueChange={(value) => setTemperature(value as 'hot' | 'warm' | 'cold')}
+              onValueChange={(value: string) => setTemperature(value as 'hot' | 'warm' | 'cold')}
               disabled={isGenerating}
               className="mt-2"
             >

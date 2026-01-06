@@ -192,6 +192,137 @@ export async function completeSurvey(surveyId: string) {
 }
 
 /**
+ * Get generated artifacts for a completed survey
+ */
+export async function getSurveyArtifacts(projectId: string) {
+  const supabase = await createClient()
+
+  // Auth check
+  const {
+    data: { user },
+    error: authError,
+  } = await supabase.auth.getUser()
+
+  if (authError || !user) {
+    return { success: false, error: 'Unauthorized', data: null }
+  }
+
+  // Fetch all artifacts linked to this project
+  const [hypotheses, assumptions, experiments, profiles] = await Promise.all([
+    supabase
+      .from('studio_hypotheses')
+      .select('id, statement, rationale, validation_criteria, status')
+      .eq('project_id', projectId)
+      .order('created_at'),
+    supabase
+      .from('assumptions')
+      .select('id, statement, category, importance, is_leap_of_faith, status')
+      .eq('studio_project_id', projectId)
+      .order('created_at'),
+    supabase
+      .from('studio_experiments')
+      .select('id, name, description, type, expected_outcome, status')
+      .eq('project_id', projectId)
+      .order('created_at'),
+    supabase
+      .from('customer_profiles')
+      .select('id, name, profile_type, jobs, pains, gains')
+      .eq('studio_project_id', projectId)
+      .order('created_at'),
+  ])
+
+  return {
+    success: true,
+    data: {
+      hypotheses: hypotheses.data || [],
+      assumptions: assumptions.data || [],
+      experiments: experiments.data || [],
+      customerProfiles: profiles.data || [],
+    },
+  }
+}
+
+/**
+ * Delete a survey-generated artifact
+ */
+export async function deleteSurveyArtifact(type: string, id: string) {
+  const supabase = await createClient()
+
+  // Auth check
+  const {
+    data: { user },
+    error: authError,
+  } = await supabase.auth.getUser()
+
+  if (authError || !user) {
+    return { success: false, error: 'Unauthorized' }
+  }
+
+  const tableMap: Record<string, string> = {
+    hypothesis: 'studio_hypotheses',
+    assumption: 'assumptions',
+    experiment: 'studio_experiments',
+    customer_profile: 'customer_profiles',
+  }
+
+  const table = tableMap[type]
+  if (!table) {
+    return { success: false, error: 'Invalid artifact type' }
+  }
+
+  const { error } = await supabase.from(table).delete().eq('id', id)
+
+  if (error) {
+    return { success: false, error: error.message }
+  }
+
+  revalidatePath('/admin/studio')
+  return { success: true }
+}
+
+/**
+ * Update a survey-generated artifact
+ */
+export async function updateSurveyArtifact(
+  type: string,
+  id: string,
+  data: Record<string, unknown>
+) {
+  const supabase = await createClient()
+
+  // Auth check
+  const {
+    data: { user },
+    error: authError,
+  } = await supabase.auth.getUser()
+
+  if (authError || !user) {
+    return { success: false, error: 'Unauthorized' }
+  }
+
+  const tableMap: Record<string, string> = {
+    hypothesis: 'studio_hypotheses',
+    assumption: 'assumptions',
+    experiment: 'studio_experiments',
+    customer_profile: 'customer_profiles',
+  }
+
+  const table = tableMap[type]
+  if (!table) {
+    return { success: false, error: 'Invalid artifact type' }
+  }
+
+  const { error } = await supabase.from(table).update(data).eq('id', id)
+
+  if (error) {
+    return { success: false, error: error.message }
+  }
+
+  revalidatePath('/admin/studio')
+  return { success: true }
+}
+
+/**
  * Get survey with responses for a project
  */
 export async function getSurveyForProject(projectSlug: string) {
@@ -210,7 +341,7 @@ export async function getSurveyForProject(projectSlug: string) {
   // Get project
   const { data: project, error: projectError } = await supabase
     .from('studio_projects')
-    .select('id, slug, name, has_pending_survey')
+    .select('id, slug, name, description, temperature, has_pending_survey')
     .eq('slug', projectSlug)
     .eq('user_id', user.id)
     .single()

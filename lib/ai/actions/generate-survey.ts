@@ -18,7 +18,7 @@ const SurveyQuestionSchema = z.object({
   help_text: z.string().optional(),
   category: z.enum(['problem', 'customer', 'solution', 'market', 'business_model', 'execution', 'meta']),
   type: z.enum(['text', 'textarea', 'select', 'multiselect', 'scale', 'boolean', 'entity_suggest', 'entity_create']),
-  config: z.record(z.unknown()),
+  config: z.record(z.string(), z.unknown()),
   required: z.boolean(),
   informs: z.array(
     z.object({
@@ -49,7 +49,7 @@ const GenerateSurveyInputSchema = z.object({
   project_name: z.string().min(1, 'Project name is required'),
   project_description: z.string().optional(),
   temperature: z.enum(['hot', 'warm', 'cold']).optional(),
-  existing_fields: z.record(z.string()).optional(),
+  existing_fields: z.record(z.string(), z.string()).optional(),
 })
 
 const SurveyDefinitionSchema = z.object({
@@ -59,7 +59,7 @@ const SurveyDefinitionSchema = z.object({
   description: z.string(),
   estimated_minutes: z.number().min(1).max(60),
   questions: z.array(SurveyQuestionSchema).min(3).max(15),
-  target_artifacts: z.array(z.record(z.unknown())),
+  target_artifacts: z.array(z.record(z.string(), z.unknown())),
 })
 
 export type GenerateSurveyInput = z.infer<typeof GenerateSurveyInputSchema>

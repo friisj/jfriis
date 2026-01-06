@@ -80,11 +80,11 @@ export async function POST(request: Request, { params }: { params: { surveyId: s
   })
 
   // 5. Stream artifact generation
-  const model = getModel('claude-sonnet')
+  const modelConfig = getModel('claude-sonnet')
 
   try {
     const result = await streamObject({
-      model: anthropic(model.id),
+      model: anthropic(modelConfig.modelId),
       schema: ProcessSurveyOutputSchema,
       system: SURVEY_PROMPTS.processing.system,
       prompt: SURVEY_PROMPTS.processing.userTemplate({
@@ -94,6 +94,11 @@ export async function POST(request: Request, { params }: { params: { surveyId: s
       }),
       onFinish: async ({ object }) => {
         // 6. Persist artifacts after streaming completes
+        if (!object) {
+          console.error('[survey:process] No object returned from stream')
+          return
+        }
+
         try {
           await persistSurveyArtifacts(supabase, params.surveyId, survey.project_id, object)
 
