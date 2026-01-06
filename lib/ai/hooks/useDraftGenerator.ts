@@ -17,7 +17,10 @@ export interface DraftGeneratorOptions {
   mode: 'rewrite' | 'additive'
   instructions?: string
   temperature?: number
-  model?: 'claude-sonnet' | 'claude-opus'
+  // Anthropic models (sonnet/opus) support web search, OpenAI models (o1/o3-mini) for deep reasoning
+  model?: 'claude-sonnet' | 'claude-opus' | 'o1' | 'o3-mini'
+  // Enable web search for current information (Anthropic models only)
+  webSearch?: boolean
 }
 
 export interface DraftGeneratorResult {
@@ -82,6 +85,7 @@ export function useDraftGenerator(): UseDraftGeneratorReturn {
               instructions: options.instructions,
               temperature: options.temperature,
               model: options.model,
+              webSearch: options.webSearch,
               title: context.title,
               type: context.type,
               tags: context.tags,

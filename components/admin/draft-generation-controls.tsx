@@ -21,11 +21,14 @@ export interface DraftGenerationControlsProps {
   disabled?: boolean
 }
 
+export type DraftModel = 'claude-sonnet' | 'claude-opus' | 'o1' | 'o3-mini'
+
 export interface GenerationMetadata {
   instructions?: string
-  model: 'claude-sonnet' | 'claude-opus'
+  model: DraftModel
   temperature: number
   mode: 'rewrite' | 'additive'
+  webSearch?: boolean
   suggestedTitle?: string
 }
 
@@ -38,10 +41,14 @@ export function DraftGenerationControls({
   const [showPopover, setShowPopover] = useState(false)
   const [mode, setMode] = useState<'rewrite' | 'additive'>('rewrite')
   const [temperature, setTemperature] = useState(0.7)
-  const [model, setModel] = useState<'claude-sonnet' | 'claude-opus'>('claude-sonnet')
+  const [model, setModel] = useState<DraftModel>('claude-sonnet')
+  const [webSearch, setWebSearch] = useState(false)
   const [instructions, setInstructions] = useState('')
   const [asNewDraft, setAsNewDraft] = useState(false)
   const popoverRef = useRef<HTMLDivElement>(null)
+
+  // Web search only works with Anthropic models
+  const isAnthropicModel = model === 'claude-sonnet' || model === 'claude-opus'
 
   const { state, error, generate, stop, clearError } = useDraftGenerator()
   const isGenerating = state === 'generating'
@@ -69,6 +76,7 @@ export function DraftGenerationControls({
       mode: 'rewrite',
       temperature,
       model,
+      webSearch: isAnthropicModel ? webSearch : undefined,
     })
 
     if (result) {
@@ -76,6 +84,7 @@ export function DraftGenerationControls({
         model,
         temperature,
         mode: 'rewrite',
+        webSearch: isAnthropicModel ? webSearch : undefined,
         suggestedTitle: result.suggestedTitle,
       })
     }
@@ -87,6 +96,7 @@ export function DraftGenerationControls({
       instructions: instructions.trim() || undefined,
       temperature,
       model,
+      webSearch: isAnthropicModel ? webSearch : undefined,
     })
 
     if (result) {
@@ -95,6 +105,7 @@ export function DraftGenerationControls({
         model,
         temperature,
         mode,
+        webSearch: isAnthropicModel ? webSearch : undefined,
         suggestedTitle: result.suggestedTitle,
       })
       setShowPopover(false)
@@ -225,13 +236,44 @@ export function DraftGenerationControls({
                 <label className="block text-sm font-medium mb-1">Model</label>
                 <select
                   value={model}
-                  onChange={(e) => setModel(e.target.value as 'claude-sonnet' | 'claude-opus')}
+                  onChange={(e) => {
+                    const newModel = e.target.value as DraftModel
+                    setModel(newModel)
+                    // Disable web search if switching to OpenAI model
+                    if (newModel === 'o1' || newModel === 'o3-mini') {
+                      setWebSearch(false)
+                    }
+                  }}
                   className="w-full px-2 py-1.5 text-sm rounded border bg-background"
                 >
-                  <option value="claude-sonnet">Sonnet (faster)</option>
-                  <option value="claude-opus">Opus (smarter)</option>
+                  <optgroup label="Anthropic">
+                    <option value="claude-sonnet">Sonnet (faster)</option>
+                    <option value="claude-opus">Opus (smarter)</option>
+                  </optgroup>
+                  <optgroup label="OpenAI (Deep Reasoning)">
+                    <option value="o3-mini">o3-mini (efficient)</option>
+                    <option value="o1">o1 (thorough)</option>
+                  </optgroup>
                 </select>
               </div>
+
+              {/* Web Search Toggle - only for Anthropic models */}
+              {isAnthropicModel && (
+                <label className="flex items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={webSearch}
+                    onChange={(e) => setWebSearch(e.target.checked)}
+                    className="rounded"
+                  />
+                  <span>
+                    Web search
+                    <span className="text-muted-foreground text-xs ml-1">
+                      (current info)
+                    </span>
+                  </span>
+                </label>
+              )}
 
               {/* As New Draft Checkbox */}
               <label className="flex items-center gap-2 text-sm">

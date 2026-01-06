@@ -50,6 +50,7 @@ export interface ActionResult<T = unknown> {
     inputTokens: number
     outputTokens: number
     totalTokens: number
+    webSearchRequests?: number
   }
   durationMs: number
   model: string

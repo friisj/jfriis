@@ -5,7 +5,8 @@
  */
 
 import { generateText } from 'ai'
-import { getModel } from '../models'
+import { getModel, models } from '../models'
+import { getAnthropic } from '../providers'
 import type {
   Action,
   ActionContext,
@@ -154,18 +155,33 @@ export async function executeAction<TInput, TOutput>(
   const temperatureOverride = inputData.temperature as number | undefined
   const temperature = temperatureOverride ?? 0.7
 
+  // Check for web search option
+  const webSearchEnabled = inputData.webSearch === true
+
   try {
     // Build prompt
     const { system, user } = action.buildPrompt(inputResult.data)
+
+    // Build tools config if web search is enabled
+    // Web search only works with Anthropic models
+    const modelConfig = models[modelKey]
+    const isAnthropicModel = modelConfig?.provider === 'anthropic'
+    const tools = webSearchEnabled && isAnthropicModel
+      ? { web_search: getAnthropic().tools.webSearch_20250305({ maxUses: 5 }) }
+      : undefined
 
     // Execute
     const result = await generateText({
       model: getModel(modelKey) as Parameters<typeof generateText>[0]['model'],
       system,
       prompt: user,
-      maxOutputTokens: 2000,
+      maxOutputTokens: 4000, // Increased for web search results
       temperature,
       abortSignal,
+      ...(tools && {
+        tools,
+        maxSteps: 5, // Allow model to process web search results and produce final answer
+      }),
     })
 
     // Parse output
@@ -173,6 +189,16 @@ export async function executeAction<TInput, TOutput>(
     try {
       // Strip markdown code fences if present (common LLM behavior)
       let jsonText = result.text.trim()
+
+      // When web search is used, model may output thinking text before JSON
+      // Find the first { and last } to extract just the JSON
+      const jsonStart = jsonText.indexOf('{')
+      const jsonEnd = jsonText.lastIndexOf('}')
+      if (jsonStart !== -1 && jsonEnd !== -1 && jsonEnd > jsonStart) {
+        jsonText = jsonText.slice(jsonStart, jsonEnd + 1)
+      }
+
+      // Also handle markdown code fences
       if (jsonText.startsWith('```json')) {
         jsonText = jsonText.slice(7) // Remove ```json
       } else if (jsonText.startsWith('```')) {
@@ -185,6 +211,21 @@ export async function executeAction<TInput, TOutput>(
 
       // Try to parse as JSON
       output = JSON.parse(jsonText) as TOutput
+
+      // Post-process: Convert Anthropic <cite> tags to markdown footnotes if present
+      if (output && typeof output === 'object' && 'content' in output) {
+        const content = (output as { content: string }).content
+        if (content && typeof content === 'string' && content.includes('<cite')) {
+          // Convert <cite index="X">text</cite> to text[^X]
+          let processed = content.replace(
+            /<cite\s+index="([^"]+)">([\s\S]*?)<\/cite>/g,
+            '$2[^$1]'
+          )
+          // Clean up any double footnote markers
+          processed = processed.replace(/\[\^([^\]]+)\]\[\^/g, '[^$1][^')
+          ;(output as { content: string }).content = processed
+        }
+      }
     } catch (parseError) {
       // If not JSON, wrap in expected structure
       console.warn('[ai:action] JSON parse failed, wrapping as content:', {
@@ -221,6 +262,11 @@ export async function executeAction<TInput, TOutput>(
       }
     }
 
+    // Count web search uses from tool calls in the response
+    const webSearchRequests = webSearchEnabled
+      ? (result.toolCalls?.filter(tc => tc.toolName === 'web_search').length ?? 0)
+      : undefined
+
     return {
       success: true,
       data: outputResult.data,
@@ -230,9 +276,17 @@ export async function executeAction<TInput, TOutput>(
         inputTokens: result.usage?.inputTokens ?? 0,
         outputTokens: result.usage?.outputTokens ?? 0,
         totalTokens: result.usage?.totalTokens ?? 0,
+        ...(webSearchRequests !== undefined && { webSearchRequests }),
       },
     }
   } catch (error) {
+    console.error('[ai:action] Execution error:', {
+      action: actionId,
+      model: modelKey,
+      webSearchEnabled,
+      error: error instanceof Error ? error.message : error,
+      stack: error instanceof Error ? error.stack : undefined,
+    })
     return {
       success: false,
       error: mapError(error),

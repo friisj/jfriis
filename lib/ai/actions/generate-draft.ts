@@ -15,7 +15,10 @@ const inputSchema = z.object({
   mode: z.enum(['rewrite', 'additive']),
   instructions: z.string().optional(),
   temperature: z.number().min(0.1).max(1.0).optional(),
-  model: z.enum(['claude-sonnet', 'claude-opus']).optional(),
+  // Model options: Anthropic (sonnet/opus) for standard/web search, OpenAI (o1/o3-mini) for deep reasoning
+  model: z.enum(['claude-sonnet', 'claude-opus', 'o1', 'o3-mini']).optional(),
+  // Enable web search for current information (Anthropic models only, $10/1000 searches)
+  webSearch: z.boolean().optional(),
   // Context from log entry
   title: z.string(),
   type: z.string().optional(),
@@ -34,12 +37,24 @@ type DraftGenerationOutput = z.infer<typeof outputSchema>
 
 // Build the prompt
 function buildPrompt(input: DraftGenerationInput): { system: string; user: string } {
-  const { currentContent, mode, instructions, title, type, tags } = input
+  const { currentContent, mode, instructions, title, type, tags, webSearch } = input
 
   const contextParts: string[] = [`Title: ${title}`]
   if (type) contextParts.push(`Type: ${type}`)
   if (tags && tags.length > 0) contextParts.push(`Tags: ${tags.join(', ')}`)
   const context = contextParts.join('\n')
+
+  // Web search capability notice (when enabled)
+  const webSearchNotice = webSearch
+    ? `\n\nYou have access to web search. Use it to find current information, recent developments, or to verify facts when relevant.
+
+IMPORTANT for web search:
+- Do NOT output any thinking, planning, or "I'll search for..." text
+- Go directly to producing the JSON output after searching
+- Format citations as markdown footnotes: [^1], [^2], etc.
+- Include a "## Sources" section at the end with the footnote URLs
+- Example: "The market is growing rapidly[^1]..." then at end: "[^1]: https://example.com/source"`
+    : ''
 
   let system: string
   let user: string
@@ -50,7 +65,7 @@ Your task is to rewrite the provided content while:
 - Maintaining the core information and meaning
 - Applying a fresh perspective or improved style
 - Following any specific instructions provided
-- Keeping the content appropriate for a professional log/journal
+- Keeping the content appropriate for a professional log/journal${webSearchNotice}
 
 Output JSON with:
 - "content": The rewritten markdown content
@@ -70,7 +85,7 @@ Your task is to add new sections/paragraphs that:
 - Complement and extend what's already written
 - Do NOT modify or repeat existing content
 - Follow any specific instructions provided
-- Maintain consistent tone and style with the existing content
+- Maintain consistent tone and style with the existing content${webSearchNotice}
 
 Output JSON with:
 - "content": Only the NEW content to append (markdown), not existing content
