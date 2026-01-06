@@ -32,13 +32,18 @@ function getTypeLabel(type: string) {
   }
 }
 
-export default async function KokoroStudioPage() {
+interface Props {
+  params: Promise<{ project: string }>
+}
+
+export default async function ProjectPage({ params }: Props) {
+  const { project: projectSlug } = await params
   const supabase = await createClient()
 
   const { data: project } = await supabase
     .from('studio_projects')
     .select('*')
-    .eq('slug', 'kokoro')
+    .eq('slug', projectSlug)
     .single()
 
   if (!project) {
@@ -139,7 +144,7 @@ export default async function KokoroStudioPage() {
                             {relatedExperiments.map((experiment) => (
                               <Link
                                 key={experiment.id}
-                                href={`/studio/kokoro/${experiment.slug}`}
+                                href={`/studio/${projectSlug}/${experiment.slug}`}
                                 className="block p-3 border border-gray-200 hover:border-black transition-colors"
                               >
                                 <div className="flex items-center justify-between">
@@ -174,7 +179,7 @@ export default async function KokoroStudioPage() {
               {(experiments || []).filter(e => !e.hypothesis_id).map((experiment) => (
                 <Link
                   key={experiment.id}
-                  href={`/studio/kokoro/${experiment.slug}`}
+                  href={`/studio/${projectSlug}/${experiment.slug}`}
                   className="block p-4 border-2 border-black hover:bg-gray-50 transition-colors"
                 >
                   <div className="flex items-center justify-between">
@@ -199,7 +204,7 @@ export default async function KokoroStudioPage() {
         <footer className="mt-16 pt-8 border-t-2 border-gray-300 text-sm text-gray-500">
           <p>
             <span className="font-medium">Path:</span>{' '}
-            <code className="bg-gray-100 px-1">app/(private)/studio/kokoro/</code>
+            <code className="bg-gray-100 px-1">app/(private)/studio/[project]/page.tsx</code>
           </p>
         </footer>
       </div>
