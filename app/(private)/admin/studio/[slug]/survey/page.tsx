@@ -8,6 +8,7 @@
 import { redirect } from 'next/navigation'
 import { getSurveyForProject } from '@/app/actions/surveys'
 import { SurveyPlayer } from './survey-player'
+import { SurveyErrorBoundary } from '@/components/admin/survey/survey-error-boundary'
 
 interface SurveyPageProps {
   params: {
@@ -26,7 +27,9 @@ export default async function SurveyPage({ params }: SurveyPageProps) {
 
   return (
     <div className="container py-8">
-      <SurveyPlayer project={project} survey={survey} />
+      <SurveyErrorBoundary projectSlug={project.slug}>
+        <SurveyPlayer project={project} survey={survey} />
+      </SurveyErrorBoundary>
     </div>
   )
 }

@@ -28,8 +28,20 @@ import {
   Trash2,
 } from 'lucide-react'
 
-// Key for artifact selection
-type ArtifactKey = `${'hypothesis' | 'assumption' | 'experiment' | 'customer_profile'}-${string}`
+// Key for artifact selection (use :: delimiter to avoid UUID hyphen collision)
+type ArtifactType = 'hypothesis' | 'assumption' | 'experiment' | 'customer_profile'
+type ArtifactKey = `${ArtifactType}::${string}`
+
+// Helper to parse artifact keys safely
+function parseArtifactKey(key: ArtifactKey): { type: ArtifactType; id: string } {
+  const separatorIndex = key.indexOf('::')
+  if (separatorIndex === -1) {
+    throw new Error(`Invalid artifact key format: ${key}`)
+  }
+  const type = key.slice(0, separatorIndex) as ArtifactType
+  const id = key.slice(separatorIndex + 2)
+  return { type, id }
+}
 
 // Types for generated artifacts
 interface GeneratedHypothesis {
@@ -94,10 +106,10 @@ export function ArtifactReviewPanel({
   // Track selected artifacts (defaults to all selected)
   const allArtifactKeys = useMemo<ArtifactKey[]>(() => {
     const keys: ArtifactKey[] = []
-    hypotheses.forEach((h) => keys.push(`hypothesis-${h.id}`))
-    assumptions.forEach((a) => keys.push(`assumption-${a.id}`))
-    experiments.forEach((e) => keys.push(`experiment-${e.id}`))
-    customerProfiles.forEach((p) => keys.push(`customer_profile-${p.id}`))
+    hypotheses.forEach((h) => keys.push(`hypothesis::${h.id}`))
+    assumptions.forEach((a) => keys.push(`assumption::${a.id}`))
+    experiments.forEach((e) => keys.push(`experiment::${e.id}`))
+    customerProfiles.forEach((p) => keys.push(`customer_profile::${p.id}`))
     return keys
   }, [hypotheses, assumptions, experiments, customerProfiles])
 
@@ -137,19 +149,41 @@ export function ArtifactReviewPanel({
     })
   }
 
+  const [batchError, setBatchError] = useState<string | null>(null)
+
   const handleAcceptSelected = async () => {
     if (!onAcceptSelected) return
     setIsAccepting(true)
+    setBatchError(null)
+
     try {
       // Delete unselected artifacts before accepting
       const unselected = allArtifactKeys.filter((key) => !selectedArtifacts.has(key))
-      if (onDeleteArtifact) {
+      const deletionErrors: string[] = []
+
+      if (onDeleteArtifact && unselected.length > 0) {
+        // Process deletions and collect errors (continue on failure)
         for (const key of unselected) {
-          const [type, id] = key.split('-') as [string, string]
-          await onDeleteArtifact(type, id)
+          try {
+            const { type, id } = parseArtifactKey(key)
+            await onDeleteArtifact(type, id)
+          } catch (err) {
+            const errorMsg = err instanceof Error ? err.message : 'Unknown error'
+            deletionErrors.push(`Failed to delete ${key}: ${errorMsg}`)
+          }
         }
       }
+
+      // If any deletions failed, show error but continue
+      if (deletionErrors.length > 0) {
+        console.error('[ArtifactReviewPanel] Batch deletion errors:', deletionErrors)
+        setBatchError(`${deletionErrors.length} artifact(s) could not be deleted. Please try again.`)
+      }
+
       await onAcceptSelected([...selectedArtifacts])
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : 'Unknown error'
+      setBatchError(`Failed to save: ${errorMsg}`)
     } finally {
       setIsAccepting(false)
     }
@@ -201,19 +235,19 @@ export function ArtifactReviewPanel({
             <div className="flex flex-wrap gap-3 sm:gap-4 text-xs sm:text-sm">
               <div className="flex items-center gap-1">
                 <Lightbulb className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-yellow-500" />
-                <span>{hypotheses.filter((h) => selectedArtifacts.has(`hypothesis-${h.id}`)).length}/{hypotheses.length}</span>
+                <span>{hypotheses.filter((h) => selectedArtifacts.has(`hypothesis::${h.id}`)).length}/{hypotheses.length}</span>
               </div>
               <div className="flex items-center gap-1">
                 <Target className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-blue-500" />
-                <span>{assumptions.filter((a) => selectedArtifacts.has(`assumption-${a.id}`)).length}/{assumptions.length}</span>
+                <span>{assumptions.filter((a) => selectedArtifacts.has(`assumption::${a.id}`)).length}/{assumptions.length}</span>
               </div>
               <div className="flex items-center gap-1">
                 <FlaskConical className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-purple-500" />
-                <span>{experiments.filter((e) => selectedArtifacts.has(`experiment-${e.id}`)).length}/{experiments.length}</span>
+                <span>{experiments.filter((e) => selectedArtifacts.has(`experiment::${e.id}`)).length}/{experiments.length}</span>
               </div>
               <div className="flex items-center gap-1">
                 <Users className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-green-500" />
-                <span>{customerProfiles.filter((p) => selectedArtifacts.has(`customer_profile-${p.id}`)).length}/{customerProfiles.length}</span>
+                <span>{customerProfiles.filter((p) => selectedArtifacts.has(`customer_profile::${p.id}`)).length}/{customerProfiles.length}</span>
               </div>
             </div>
             <div className="flex gap-2">
@@ -247,6 +281,14 @@ export function ArtifactReviewPanel({
               </span>
             </div>
           )}
+
+          {/* Batch error display */}
+          {batchError && (
+            <div className="flex items-center gap-2 p-2.5 sm:p-3 rounded-lg bg-destructive/10 text-destructive text-xs sm:text-sm">
+              <X className="h-3.5 w-3.5 sm:h-4 sm:w-4 flex-shrink-0" />
+              <span>{batchError}</span>
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -256,7 +298,7 @@ export function ArtifactReviewPanel({
           title="Hypotheses"
           icon={<Lightbulb className="h-4 w-4 text-yellow-500" />}
           count={hypotheses.length}
-          selectedCount={hypotheses.filter((h) => selectedArtifacts.has(`hypothesis-${h.id}`)).length}
+          selectedCount={hypotheses.filter((h) => selectedArtifacts.has(`hypothesis::${h.id}`)).length}
           isExpanded={expandedSections.has('hypotheses')}
           onToggle={() => toggleSection('hypotheses')}
         >
@@ -264,8 +306,8 @@ export function ArtifactReviewPanel({
             <HypothesisCard
               key={h.id}
               hypothesis={h}
-              isSelected={selectedArtifacts.has(`hypothesis-${h.id}`)}
-              onToggleSelect={() => toggleArtifact(`hypothesis-${h.id}`)}
+              isSelected={selectedArtifacts.has(`hypothesis::${h.id}`)}
+              onToggleSelect={() => toggleArtifact(`hypothesis::${h.id}`)}
               onDelete={onDeleteArtifact ? () => onDeleteArtifact('hypothesis', h.id) : undefined}
               onUpdate={
                 onUpdateArtifact
@@ -283,7 +325,7 @@ export function ArtifactReviewPanel({
           title="Assumptions"
           icon={<Target className="h-4 w-4 text-blue-500" />}
           count={assumptions.length}
-          selectedCount={assumptions.filter((a) => selectedArtifacts.has(`assumption-${a.id}`)).length}
+          selectedCount={assumptions.filter((a) => selectedArtifacts.has(`assumption::${a.id}`)).length}
           isExpanded={expandedSections.has('assumptions')}
           onToggle={() => toggleSection('assumptions')}
         >
@@ -291,8 +333,8 @@ export function ArtifactReviewPanel({
             <AssumptionCard
               key={a.id}
               assumption={a}
-              isSelected={selectedArtifacts.has(`assumption-${a.id}`)}
-              onToggleSelect={() => toggleArtifact(`assumption-${a.id}`)}
+              isSelected={selectedArtifacts.has(`assumption::${a.id}`)}
+              onToggleSelect={() => toggleArtifact(`assumption::${a.id}`)}
               onDelete={onDeleteArtifact ? () => onDeleteArtifact('assumption', a.id) : undefined}
               onUpdate={
                 onUpdateArtifact
@@ -310,7 +352,7 @@ export function ArtifactReviewPanel({
           title="Experiments"
           icon={<FlaskConical className="h-4 w-4 text-purple-500" />}
           count={experiments.length}
-          selectedCount={experiments.filter((e) => selectedArtifacts.has(`experiment-${e.id}`)).length}
+          selectedCount={experiments.filter((e) => selectedArtifacts.has(`experiment::${e.id}`)).length}
           isExpanded={expandedSections.has('experiments')}
           onToggle={() => toggleSection('experiments')}
         >
@@ -318,8 +360,8 @@ export function ArtifactReviewPanel({
             <ExperimentCard
               key={e.id}
               experiment={e}
-              isSelected={selectedArtifacts.has(`experiment-${e.id}`)}
-              onToggleSelect={() => toggleArtifact(`experiment-${e.id}`)}
+              isSelected={selectedArtifacts.has(`experiment::${e.id}`)}
+              onToggleSelect={() => toggleArtifact(`experiment::${e.id}`)}
               onDelete={onDeleteArtifact ? () => onDeleteArtifact('experiment', e.id) : undefined}
               onUpdate={
                 onUpdateArtifact
@@ -337,7 +379,7 @@ export function ArtifactReviewPanel({
           title="Customer Profiles"
           icon={<Users className="h-4 w-4 text-green-500" />}
           count={customerProfiles.length}
-          selectedCount={customerProfiles.filter((p) => selectedArtifacts.has(`customer_profile-${p.id}`)).length}
+          selectedCount={customerProfiles.filter((p) => selectedArtifacts.has(`customer_profile::${p.id}`)).length}
           isExpanded={expandedSections.has('profiles')}
           onToggle={() => toggleSection('profiles')}
         >
@@ -345,8 +387,8 @@ export function ArtifactReviewPanel({
             <CustomerProfileCard
               key={p.id}
               profile={p}
-              isSelected={selectedArtifacts.has(`customer_profile-${p.id}`)}
-              onToggleSelect={() => toggleArtifact(`customer_profile-${p.id}`)}
+              isSelected={selectedArtifacts.has(`customer_profile::${p.id}`)}
+              onToggleSelect={() => toggleArtifact(`customer_profile::${p.id}`)}
               onDelete={
                 onDeleteArtifact ? () => onDeleteArtifact('customer_profile', p.id) : undefined
               }

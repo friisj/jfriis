@@ -107,6 +107,50 @@ export async function generateProjectSurvey(
   }
 }
 
+// Response validation limits
+const MAX_TEXT_LENGTH = 10000
+const MAX_MULTISELECT_OPTIONS = 50
+const MAX_OPTION_LENGTH = 500
+
+/**
+ * Validate and sanitize survey response based on type
+ */
+function validateResponse(response: unknown): { valid: boolean; sanitized: unknown; error?: string } {
+  // Null/undefined is valid (question skipped)
+  if (response === null || response === undefined) {
+    return { valid: true, sanitized: null }
+  }
+
+  // String responses (text, textarea, select)
+  if (typeof response === 'string') {
+    const trimmed = response.trim().slice(0, MAX_TEXT_LENGTH)
+    return { valid: true, sanitized: trimmed }
+  }
+
+  // Number responses (scale, rating)
+  if (typeof response === 'number') {
+    if (!Number.isFinite(response) || response < -1000 || response > 1000) {
+      return { valid: false, sanitized: null, error: 'Invalid number value' }
+    }
+    return { valid: true, sanitized: response }
+  }
+
+  // Array responses (multiselect)
+  if (Array.isArray(response)) {
+    if (response.length > MAX_MULTISELECT_OPTIONS) {
+      return { valid: false, sanitized: null, error: 'Too many options selected' }
+    }
+    const sanitized = response
+      .filter((item): item is string => typeof item === 'string')
+      .map((item) => item.trim().slice(0, MAX_OPTION_LENGTH))
+      .filter((item) => item.length > 0)
+    return { valid: true, sanitized }
+  }
+
+  // Reject objects and other types
+  return { valid: false, sanitized: null, error: 'Invalid response type' }
+}
+
 /**
  * Save a single survey response
  */
@@ -123,8 +167,39 @@ export async function saveSurveyResponse(surveyId: string, questionId: string, r
     return { success: false, error: 'Unauthorized' }
   }
 
+  // Validate UUID format
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+  if (!uuidRegex.test(surveyId) || !questionId || questionId.length > 100) {
+    return { success: false, error: 'Invalid survey or question ID' }
+  }
+
+  // Validate and sanitize response
+  const validation = validateResponse(response)
+  if (!validation.valid) {
+    return { success: false, error: validation.error || 'Invalid response' }
+  }
+
+  // Verify user owns the survey
+  const { data: survey, error: surveyCheckError } = await supabase
+    .from('studio_surveys')
+    .select('id, project:studio_projects!inner(user_id)')
+    .eq('id', surveyId)
+    .single()
+
+  if (surveyCheckError || !survey) {
+    return { success: false, error: 'Survey not found' }
+  }
+
+  // Access project from inner join
+  const projectUserId = (survey as { project: { user_id: string } }).project.user_id
+  if (projectUserId !== user.id) {
+    return { success: false, error: 'Access denied' }
+  }
+
   // Serialize response for text column
-  const responseText = typeof response === 'string' ? response : JSON.stringify(response)
+  const sanitizedResponse = validation.sanitized
+  const responseText =
+    typeof sanitizedResponse === 'string' ? sanitizedResponse : JSON.stringify(sanitizedResponse)
 
   // Upsert response
   const { error } = await supabase
@@ -133,7 +208,7 @@ export async function saveSurveyResponse(surveyId: string, questionId: string, r
       {
         survey_id: surveyId,
         question_id: questionId,
-        response_value: response,
+        response_value: sanitizedResponse,
         response_text: responseText,
       },
       {
@@ -242,6 +317,71 @@ export async function getSurveyArtifacts(projectId: string) {
   }
 }
 
+// Allowed artifact types (whitelist)
+const ARTIFACT_TYPES = ['hypothesis', 'assumption', 'experiment', 'customer_profile'] as const
+type ArtifactType = (typeof ARTIFACT_TYPES)[number]
+
+const ARTIFACT_TABLE_MAP: Record<ArtifactType, string> = {
+  hypothesis: 'studio_hypotheses',
+  assumption: 'assumptions',
+  experiment: 'studio_experiments',
+  customer_profile: 'customer_profiles',
+}
+
+// Project foreign key field for each artifact type
+const ARTIFACT_PROJECT_FK: Record<ArtifactType, string> = {
+  hypothesis: 'project_id',
+  assumption: 'studio_project_id',
+  experiment: 'project_id',
+  customer_profile: 'studio_project_id',
+}
+
+/**
+ * Verify user owns the artifact by checking the linked project
+ */
+async function verifyArtifactOwnership(
+  supabase: ReturnType<typeof createClient> extends Promise<infer T> ? T : never,
+  type: ArtifactType,
+  id: string,
+  userId: string
+): Promise<{ success: boolean; error?: string }> {
+  const table = ARTIFACT_TABLE_MAP[type]
+  const fkField = ARTIFACT_PROJECT_FK[type]
+
+  // Validate UUID format to prevent injection
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+  if (!uuidRegex.test(id)) {
+    return { success: false, error: 'Invalid artifact ID format' }
+  }
+
+  // Fetch artifact with its project to verify ownership
+  const { data: artifact, error } = await supabase
+    .from(table)
+    .select(`id, ${fkField}`)
+    .eq('id', id)
+    .single()
+
+  if (error || !artifact) {
+    return { success: false, error: 'Artifact not found' }
+  }
+
+  const projectId = artifact[fkField]
+
+  // Verify user owns the project
+  const { data: project, error: projectError } = await supabase
+    .from('studio_projects')
+    .select('id')
+    .eq('id', projectId)
+    .eq('user_id', userId)
+    .single()
+
+  if (projectError || !project) {
+    return { success: false, error: 'Access denied' }
+  }
+
+  return { success: true }
+}
+
 /**
  * Delete a survey-generated artifact
  */
@@ -258,18 +398,19 @@ export async function deleteSurveyArtifact(type: string, id: string) {
     return { success: false, error: 'Unauthorized' }
   }
 
-  const tableMap: Record<string, string> = {
-    hypothesis: 'studio_hypotheses',
-    assumption: 'assumptions',
-    experiment: 'studio_experiments',
-    customer_profile: 'customer_profiles',
-  }
-
-  const table = tableMap[type]
-  if (!table) {
+  // Validate artifact type (whitelist)
+  if (!ARTIFACT_TYPES.includes(type as ArtifactType)) {
     return { success: false, error: 'Invalid artifact type' }
   }
+  const artifactType = type as ArtifactType
 
+  // Verify ownership before deletion
+  const ownership = await verifyArtifactOwnership(supabase, artifactType, id, user.id)
+  if (!ownership.success) {
+    return { success: false, error: ownership.error || 'Access denied' }
+  }
+
+  const table = ARTIFACT_TABLE_MAP[artifactType]
   const { error } = await supabase.from(table).delete().eq('id', id)
 
   if (error) {
@@ -278,6 +419,48 @@ export async function deleteSurveyArtifact(type: string, id: string) {
 
   revalidatePath('/admin/studio')
   return { success: true }
+}
+
+// Allowed fields for each artifact type (whitelist for updates)
+const ARTIFACT_ALLOWED_FIELDS: Record<ArtifactType, string[]> = {
+  hypothesis: ['statement', 'rationale', 'validation_criteria', 'status'],
+  assumption: ['statement', 'category', 'importance', 'is_leap_of_faith', 'status'],
+  experiment: ['name', 'description', 'type', 'expected_outcome', 'status'],
+  customer_profile: ['name', 'profile_type', 'jobs', 'pains', 'gains'],
+}
+
+/**
+ * Sanitize and validate update data
+ */
+function sanitizeUpdateData(
+  type: ArtifactType,
+  data: Record<string, unknown>
+): Record<string, unknown> | null {
+  const allowedFields = ARTIFACT_ALLOWED_FIELDS[type]
+  const sanitized: Record<string, unknown> = {}
+
+  for (const [key, value] of Object.entries(data)) {
+    // Only allow whitelisted fields
+    if (!allowedFields.includes(key)) {
+      continue
+    }
+
+    // Sanitize string values (basic XSS prevention)
+    if (typeof value === 'string') {
+      // Limit length and trim
+      sanitized[key] = value.slice(0, 10000).trim()
+    } else if (typeof value === 'boolean' || typeof value === 'number') {
+      sanitized[key] = value
+    }
+    // Skip any other types (objects, arrays, etc.) for security
+  }
+
+  // Must have at least one valid field to update
+  if (Object.keys(sanitized).length === 0) {
+    return null
+  }
+
+  return sanitized
 }
 
 /**
@@ -300,19 +483,26 @@ export async function updateSurveyArtifact(
     return { success: false, error: 'Unauthorized' }
   }
 
-  const tableMap: Record<string, string> = {
-    hypothesis: 'studio_hypotheses',
-    assumption: 'assumptions',
-    experiment: 'studio_experiments',
-    customer_profile: 'customer_profiles',
-  }
-
-  const table = tableMap[type]
-  if (!table) {
+  // Validate artifact type (whitelist)
+  if (!ARTIFACT_TYPES.includes(type as ArtifactType)) {
     return { success: false, error: 'Invalid artifact type' }
   }
+  const artifactType = type as ArtifactType
 
-  const { error } = await supabase.from(table).update(data).eq('id', id)
+  // Verify ownership before update
+  const ownership = await verifyArtifactOwnership(supabase, artifactType, id, user.id)
+  if (!ownership.success) {
+    return { success: false, error: ownership.error || 'Access denied' }
+  }
+
+  // Sanitize and validate update data
+  const sanitizedData = sanitizeUpdateData(artifactType, data)
+  if (!sanitizedData) {
+    return { success: false, error: 'No valid fields to update' }
+  }
+
+  const table = ARTIFACT_TABLE_MAP[artifactType]
+  const { error } = await supabase.from(table).update(sanitizedData).eq('id', id)
 
   if (error) {
     return { success: false, error: error.message }

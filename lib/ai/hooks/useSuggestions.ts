@@ -30,8 +30,42 @@ interface UseSuggestionsResult {
   clearSuggestions: () => void
 }
 
-// Simple in-memory cache for suggestions
-const suggestionsCache = new Map<string, string[]>()
+// Cache configuration
+const CACHE_MAX_SIZE = 100
+const CACHE_TTL_MS = 5 * 60 * 1000 // 5 minutes
+
+interface CacheEntry {
+  suggestions: string[]
+  timestamp: number
+}
+
+// LRU cache with TTL for suggestions
+const suggestionsCache = new Map<string, CacheEntry>()
+
+/**
+ * Evict expired and oldest entries from cache
+ */
+function evictCache(): void {
+  const now = Date.now()
+
+  // First, remove expired entries
+  for (const [key, entry] of suggestionsCache.entries()) {
+    if (now - entry.timestamp > CACHE_TTL_MS) {
+      suggestionsCache.delete(key)
+    }
+  }
+
+  // Then, if still over limit, remove oldest entries
+  if (suggestionsCache.size > CACHE_MAX_SIZE) {
+    const entries = Array.from(suggestionsCache.entries())
+      .sort(([, a], [, b]) => a.timestamp - b.timestamp)
+
+    const toRemove = entries.slice(0, suggestionsCache.size - CACHE_MAX_SIZE)
+    for (const [key] of toRemove) {
+      suggestionsCache.delete(key)
+    }
+  }
+}
 
 function getCacheKey(questionId: string, responses: Record<string, ResponseValue>): string {
   // Create a stable cache key from question + relevant previous responses
@@ -62,19 +96,23 @@ export function useSuggestions({
   const fetchSuggestions = useCallback(async () => {
     if (!suggestionsEnabled) return
 
-    // Check cache first
+    // Check cache first (with TTL validation)
     const cacheKey = getCacheKey(question.id, previousResponses)
     const cached = suggestionsCache.get(cacheKey)
-    if (cached) {
-      setSuggestions(cached)
+    const now = Date.now()
+    if (cached && now - cached.timestamp < CACHE_TTL_MS) {
+      setSuggestions(cached.suggestions)
       return
     }
 
-    // Cancel any pending request
+    // Cancel any pending request (proper cleanup)
     if (abortControllerRef.current) {
       abortControllerRef.current.abort()
+      abortControllerRef.current = null
     }
-    abortControllerRef.current = new AbortController()
+
+    const controller = new AbortController()
+    abortControllerRef.current = controller
 
     setIsLoading(true)
     setError(null)
@@ -93,7 +131,7 @@ export function useSuggestions({
             project_context: projectContext,
           },
         }),
-        signal: abortControllerRef.current.signal,
+        signal: controller.signal,
       })
 
       if (!response.ok) {
@@ -109,8 +147,12 @@ export function useSuggestions({
       const newSuggestions = result.data.suggestions
       setSuggestions(newSuggestions)
 
-      // Cache the results
-      suggestionsCache.set(cacheKey, newSuggestions)
+      // Cache the results with timestamp
+      evictCache() // Clean up before adding
+      suggestionsCache.set(cacheKey, {
+        suggestions: newSuggestions,
+        timestamp: Date.now(),
+      })
     } catch (err) {
       if (err instanceof Error && err.name === 'AbortError') {
         // Request was cancelled, ignore
@@ -119,6 +161,10 @@ export function useSuggestions({
       console.error('[useSuggestions] Error:', err)
       setError(err instanceof Error ? err : new Error('Unknown error'))
     } finally {
+      // Clear the controller ref if it's the same one we created
+      if (abortControllerRef.current === controller) {
+        abortControllerRef.current = null
+      }
       setIsLoading(false)
     }
   }, [suggestionsEnabled, question, previousResponses, projectContext])
