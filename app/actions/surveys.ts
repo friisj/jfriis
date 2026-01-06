@@ -7,7 +7,7 @@
 'use server'
 
 import { executeAction } from '@/lib/ai/actions'
-import { createClient } from '@/lib/supabase/server'
+import { createClient } from '@/lib/supabase-server'
 import { revalidatePath } from 'next/cache'
 
 interface GenerateProjectSurveyInput {

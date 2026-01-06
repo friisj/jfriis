@@ -13,7 +13,7 @@
 
 import { streamObject } from 'ai'
 import { anthropic } from '@ai-sdk/anthropic'
-import { createClient } from '@/lib/supabase/server'
+import { createClient } from '@/lib/supabase-server'
 import { getModel } from '@/lib/ai/models'
 import { SURVEY_PROMPTS } from '@/lib/ai/prompts/surveys'
 import { ProcessSurveyOutputSchema } from '@/lib/ai/actions/process-survey'
