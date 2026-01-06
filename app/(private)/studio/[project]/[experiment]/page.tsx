@@ -1,7 +1,15 @@
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase-server'
 import { notFound } from 'next/navigation'
+import dynamic from 'next/dynamic'
 
+// Dynamic prototype component registry
+// Add new prototype components here as you build them
+// Components should be placed in: components/studio/prototypes/{project-slug}/{experiment-slug}.tsx
+const prototypeRegistry: Record<string, React.ComponentType<any>> = {
+  // Example: 'ctrl/design-system-configurator': dynamic(() => import('@/components/studio/prototypes/ctrl/design-system-configurator')),
+  // Add more prototypes as: 'project-slug/experiment-slug': dynamic(() => import('@/components/studio/prototypes/project-slug/experiment-slug'))
+}
 
 function getStatusColor(status: string) {
   switch (status) {
@@ -32,17 +40,17 @@ function getTypeLabel(type: string) {
 }
 
 interface Props {
-  params: Promise<{ experiment: string }>
+  params: Promise<{ project: string; experiment: string }>
 }
 
 export default async function ExperimentPage({ params }: Props) {
-  const { experiment: experimentSlug } = await params
+  const { project: projectSlug, experiment: experimentSlug } = await params
   const supabase = await createClient()
 
   const { data: project } = await supabase
     .from('studio_projects')
     .select('id, slug, name')
-    .eq('slug', 'kokoro')
+    .eq('slug', projectSlug)
     .single()
 
   if (!project) {
@@ -71,8 +79,11 @@ export default async function ExperimentPage({ params }: Props) {
   }
 
   const outcomeDisplay = getOutcomeDisplay(experiment.outcome)
+
+  // Look up prototype component by project/experiment slug combination
+  const prototypeKey = `${projectSlug}/${experimentSlug}`
   const PrototypeComponent = experiment.type === 'prototype'
-    ? null
+    ? prototypeRegistry[prototypeKey]
     : null
 
   return (
@@ -128,6 +139,19 @@ export default async function ExperimentPage({ params }: Props) {
           <section className="mb-12 p-6 border-2 border-black">
             <h2 className="text-lg font-bold mb-4 uppercase tracking-wide">Prototype</h2>
             <PrototypeComponent />
+          </section>
+        )}
+
+        {/* Prototype Placeholder (if prototype but no component found) */}
+        {experiment.type === 'prototype' && !PrototypeComponent && (
+          <section className="mb-12 p-6 border-2 border-dashed border-gray-300">
+            <h2 className="text-lg font-bold mb-4 uppercase tracking-wide text-gray-400">
+              Prototype Component
+            </h2>
+            <p className="text-gray-400">
+              Component not yet implemented. Add to prototype registry at:
+              <code className="bg-gray-100 px-1 ml-1">app/(private)/studio/[project]/[experiment]/page.tsx</code>
+            </p>
           </section>
         )}
 

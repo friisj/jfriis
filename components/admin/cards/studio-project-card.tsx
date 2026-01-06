@@ -1,7 +1,6 @@
 'use client'
 
 import Link from 'next/link'
-import { useState } from 'react'
 import { StatusBadge } from '@/components/admin'
 import { formatDate } from '@/lib/utils'
 
@@ -13,7 +12,6 @@ interface StudioProject {
   status: string
   temperature: string | null
   current_focus: string | null
-  scaffolded_at: string | null
   created_at: string
   updated_at: string
 }
@@ -28,28 +26,6 @@ const temperatureEmoji: Record<string, string> = {
   cold: '❄️',
 }
 
-function ScaffoldButton({ slug }: { slug: string }) {
-  const [copied, setCopied] = useState(false)
-  const command = `npm run scaffold:studio ${slug}`
-
-  const handleClick = async (e: React.MouseEvent) => {
-    e.preventDefault()
-    e.stopPropagation()
-    await navigator.clipboard.writeText(command)
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
-  }
-
-  return (
-    <button
-      onClick={handleClick}
-      className="text-blue-600 hover:underline text-xs"
-      title={`Copy: ${command}`}
-    >
-      {copied ? 'Copied!' : 'Scaffold →'}
-    </button>
-  )
-}
 
 export function StudioProjectCard({ project }: StudioProjectCardProps) {
   return (
@@ -79,14 +55,6 @@ export function StudioProjectCard({ project }: StudioProjectCardProps) {
               {temperatureEmoji[project.temperature]}
             </span>
           )}
-          {project.scaffolded_at && (
-            <span className="inline-flex items-center gap-1 text-xs text-green-600 dark:text-green-400">
-              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-              </svg>
-              Scaffolded
-            </span>
-          )}
         </div>
 
         {/* Current focus */}
@@ -99,17 +67,13 @@ export function StudioProjectCard({ project }: StudioProjectCardProps) {
         {/* Metadata */}
         <div className="flex items-center justify-between text-xs text-muted-foreground border-t pt-3">
           <span>{formatDate(project.updated_at)}</span>
-          {project.scaffolded_at ? (
-            <Link
-              href={`/studio/${project.slug}`}
-              className="text-primary hover:underline"
-              onClick={(e) => e.stopPropagation()}
-            >
-              View →
-            </Link>
-          ) : (
-            <ScaffoldButton slug={project.slug} />
-          )}
+          <Link
+            href={`/studio/${project.slug}`}
+            className="text-primary hover:underline"
+            onClick={(e) => e.stopPropagation()}
+          >
+            View →
+          </Link>
         </div>
       </div>
     </Link>

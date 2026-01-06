@@ -46,8 +46,6 @@ interface StudioProjectSidebarProps {
     problem_statement: string | null
     success_criteria: string | null
     current_focus: string | null
-    scaffolded_at: string | null
-    path: string | null
   }
   hypotheses: Array<{
     id: string
@@ -188,19 +186,12 @@ export function StudioProjectSidebar({
       <div className="rounded-lg border bg-card p-4">
         <h3 className="font-semibold mb-3">Quick Links</h3>
         <div className="space-y-2 text-sm">
-          {project.scaffolded_at && (
-            <Link
-              href={`/studio/${project.slug}`}
-              className="block text-blue-600 hover:underline"
-            >
-              View Project Page →
-            </Link>
-          )}
-          {project.path && (
-            <p className="text-muted-foreground">
-              Path: <code className="bg-muted px-1 rounded">{project.path}</code>
-            </p>
-          )}
+          <Link
+            href={`/studio/${project.slug}`}
+            className="block text-blue-600 hover:underline"
+          >
+            View Project Page →
+          </Link>
         </div>
       </div>
     </div>

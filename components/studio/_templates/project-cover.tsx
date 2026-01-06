@@ -198,21 +198,9 @@ export default function ProjectCover({ project, hypotheses, experiments }: Proje
 
         {/* Footer */}
         <footer className="mt-16 pt-8 border-t-2 border-gray-300 text-sm text-gray-500">
-          {project.path && (
-            <p className="mb-2">
-              <span className="font-medium">Path:</span>{' '}
-              <code className="bg-gray-100 px-1">{project.path}</code>
-            </p>
-          )}
           <p>
             <span className="font-medium">Created:</span>{' '}
             {new Date(project.created_at).toLocaleDateString()}
-            {project.scaffolded_at && (
-              <span className="ml-4">
-                <span className="font-medium">Scaffolded:</span>{' '}
-                {new Date(project.scaffolded_at).toLocaleDateString()}
-              </span>
-            )}
           </p>
         </footer>
       </div>

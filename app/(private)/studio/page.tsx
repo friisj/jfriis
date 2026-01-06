@@ -36,7 +36,6 @@ export default async function StudioPage() {
       status,
       temperature,
       current_focus,
-      scaffolded_at,
       created_at,
       updated_at
     `)
@@ -53,9 +52,6 @@ export default async function StudioPage() {
     )
   }
 
-  const scaffoldedProjects = projects?.filter(p => p.scaffolded_at) || []
-  const unscaffoldedProjects = projects?.filter(p => !p.scaffolded_at) || []
-
   return (
     <div className="min-h-screen bg-white text-black p-8">
       <div className="max-w-4xl mx-auto">
@@ -67,14 +63,14 @@ export default async function StudioPage() {
           </p>
         </header>
 
-        {/* Active Projects */}
-        {scaffoldedProjects.length > 0 && (
+        {/* All Projects */}
+        {projects && projects.length > 0 && (
           <section className="mb-12">
             <h2 className="text-2xl font-bold mb-6 border-b-2 border-black pb-2">
-              Active Projects
+              Projects
             </h2>
             <div className="space-y-4">
-              {scaffoldedProjects.map((project) => (
+              {projects.map((project) => (
                 <Link
                   key={project.id}
                   href={`/studio/${project.slug}`}
@@ -110,58 +106,6 @@ export default async function StudioPage() {
                     Last updated: {new Date(project.updated_at).toLocaleDateString()}
                   </div>
                 </Link>
-              ))}
-            </div>
-          </section>
-        )}
-
-        {/* Projects in Planning */}
-        {unscaffoldedProjects.length > 0 && (
-          <section className="mb-12">
-            <h2 className="text-2xl font-bold mb-6 border-b-2 border-gray-300 pb-2">
-              In Planning
-            </h2>
-            <div className="space-y-4">
-              {unscaffoldedProjects.map((project) => (
-                <div
-                  key={project.id}
-                  className="p-6 border-2 border-dashed border-gray-300 bg-gray-50"
-                >
-                  <div className="flex items-start justify-between mb-3">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-3 mb-2">
-                        <h3 className="text-2xl font-bold text-gray-700">{project.name}</h3>
-                        {project.temperature && (
-                          <span className="text-lg opacity-50">
-                            {getTemperatureEmoji(project.temperature)}
-                          </span>
-                        )}
-                      </div>
-                      {project.description && (
-                        <p className="text-gray-500">{project.description}</p>
-                      )}
-                    </div>
-                    <span className={`text-sm font-medium uppercase ml-4 ${getStatusColor(project.status)}`}>
-                      {project.status}
-                    </span>
-                  </div>
-                  {project.current_focus && (
-                    <div className="mt-3 p-3 bg-blue-50 border-l-4 border-blue-300">
-                      <p className="text-sm text-gray-600">
-                        <span className="font-bold text-blue-600 uppercase text-xs">Current Focus:</span>{' '}
-                        {project.current_focus}
-                      </p>
-                    </div>
-                  )}
-                  <div className="mt-3 flex items-center justify-between">
-                    <div className="text-xs text-gray-400">
-                      Last updated: {new Date(project.updated_at).toLocaleDateString()}
-                    </div>
-                    <div className="text-xs text-gray-400 italic">
-                      Scaffolding pending
-                    </div>
-                  </div>
-                </div>
               ))}
             </div>
           </section>
