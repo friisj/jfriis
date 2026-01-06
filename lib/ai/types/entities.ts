@@ -10,6 +10,9 @@ export type EntityType =
   | 'studio_projects'
   | 'studio_hypotheses'
   | 'studio_experiments'
+  | 'studio_surveys'
+  | 'studio_survey_responses'
+  | 'studio_survey_artifacts'
   | 'business_model_canvases'
   | 'customer_profiles'
   | 'value_maps'
@@ -29,6 +32,12 @@ export type FieldNameFor<T extends EntityType> = T extends 'studio_projects'
   ? 'statement' | 'validation_criteria'
   : T extends 'studio_experiments'
   ? 'name' | 'description' | 'learnings'
+  : T extends 'studio_surveys'
+  ? 'questions' | 'generation_context' | 'status'
+  : T extends 'studio_survey_responses'
+  ? 'response_value' | 'response_text'
+  : T extends 'studio_survey_artifacts'
+  ? 'artifact_type' | 'confidence_score'
   : T extends 'business_model_canvases'
   ? 'description' | 'tags'
   : T extends 'customer_profiles'
@@ -68,6 +77,9 @@ export function isValidEntityType(type: string): type is EntityType {
     'studio_projects',
     'studio_hypotheses',
     'studio_experiments',
+    'studio_surveys',
+    'studio_survey_responses',
+    'studio_survey_artifacts',
     'business_model_canvases',
     'customer_profiles',
     'value_maps',
