@@ -21,7 +21,6 @@ interface StudioProject {
   status: string
   temperature: string | null
   current_focus: string | null
-  scaffolded_at: string | null
   created_at: string
   updated_at: string
 }

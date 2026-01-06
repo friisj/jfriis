@@ -15,8 +15,6 @@ export const StudioProjectSchema = z.object({
   hypothesis: z.string().optional().nullable(),
   success_criteria: z.string().optional().nullable(),
   scope_out: z.string().optional().nullable(),
-  path: z.string().optional().nullable(),
-  scaffolded_at: z.string().datetime().optional().nullable(),
 })
 
 export const StudioProjectCreateSchema = StudioProjectSchema.omit({

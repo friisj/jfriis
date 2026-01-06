@@ -391,8 +391,6 @@ export interface StudioProject extends BaseRecord {
   problem_statement?: string
   success_criteria?: string
   scope_out?: string
-  path?: string
-  scaffolded_at?: string
 }
 
 export type StudioProjectInsert = Omit<StudioProject, keyof BaseRecord>

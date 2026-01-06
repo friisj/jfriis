@@ -36,7 +36,6 @@ export default async function StudioPage() {
       status,
       temperature,
       current_focus,
-      scaffolded_at,
       created_at,
       updated_at
     `)

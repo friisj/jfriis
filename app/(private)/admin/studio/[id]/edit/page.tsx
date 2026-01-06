@@ -73,8 +73,6 @@ export default async function EditStudioProjectPage({ params }: PageProps) {
               problem_statement: project.problem_statement,
               success_criteria: project.success_criteria,
               current_focus: project.current_focus,
-              scaffolded_at: project.scaffolded_at,
-              path: project.path,
             }}
             hypotheses={hypotheses || []}
             experiments={experiments || []}
