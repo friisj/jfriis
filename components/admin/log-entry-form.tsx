@@ -200,6 +200,7 @@ export function LogEntryForm({ entryId, initialData }: LogEntryFormProps) {
     if (asNewDraft) {
       // Create new draft with generated content
       const result = await createDraft(entryId, content, {
+        label: metadata.suggestedTitle,
         generationInstructions: metadata.instructions,
         generationModel: metadata.model,
         generationTemperature: metadata.temperature,
@@ -219,6 +220,7 @@ export function LogEntryForm({ entryId, initialData }: LogEntryFormProps) {
       if (activeDraftId) {
         const result = await updateDraft(activeDraftId, {
           content,
+          label: metadata.suggestedTitle,
           generationInstructions: metadata.instructions,
           generationModel: metadata.model,
           generationTemperature: metadata.temperature,

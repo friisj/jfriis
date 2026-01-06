@@ -26,6 +26,7 @@ export interface GenerationMetadata {
   model: 'claude-sonnet' | 'claude-opus'
   temperature: number
   mode: 'rewrite' | 'additive'
+  suggestedTitle?: string
 }
 
 export function DraftGenerationControls({
@@ -71,10 +72,11 @@ export function DraftGenerationControls({
     })
 
     if (result) {
-      onGenerated(result, false, {
+      onGenerated(result.content, false, {
         model,
         temperature,
         mode: 'rewrite',
+        suggestedTitle: result.suggestedTitle,
       })
     }
   }
@@ -88,11 +90,12 @@ export function DraftGenerationControls({
     })
 
     if (result) {
-      onGenerated(result, asNewDraft, {
+      onGenerated(result.content, asNewDraft, {
         instructions: instructions.trim() || undefined,
         model,
         temperature,
         mode,
+        suggestedTitle: result.suggestedTitle,
       })
       setShowPopover(false)
       setInstructions('')

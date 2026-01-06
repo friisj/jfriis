@@ -27,6 +27,7 @@ type DraftGenerationInput = z.infer<typeof inputSchema>
 // Output schema
 const outputSchema = z.object({
   content: z.string(),
+  suggested_title: z.string().max(40).optional(),
 })
 
 type DraftGenerationOutput = z.infer<typeof outputSchema>
@@ -51,7 +52,9 @@ Your task is to rewrite the provided content while:
 - Following any specific instructions provided
 - Keeping the content appropriate for a professional log/journal
 
-Output only the rewritten markdown content, no explanations or preamble.`
+Output JSON with:
+- "content": The rewritten markdown content
+- "suggested_title": A brief label (2-5 words, max 40 chars) describing this draft's angle/approach`
 
     user = `Log Entry Context:
 ${context}
@@ -59,7 +62,7 @@ ${context}
 Current Content:
 ${currentContent}
 
-${instructions ? `Instructions: ${instructions}\n\n` : ''}Rewrite this content. Output markdown only.`
+${instructions ? `Instructions: ${instructions}\n\n` : ''}Rewrite this content. Output JSON: {"content": "...", "suggested_title": "..."}`
   } else {
     // additive mode
     system = `You are a skilled writer helping to expand log entry content.
@@ -69,8 +72,9 @@ Your task is to add new sections/paragraphs that:
 - Follow any specific instructions provided
 - Maintain consistent tone and style with the existing content
 
-Output only the NEW content to append (markdown format), no explanations.
-Do not include any of the existing content in your response.`
+Output JSON with:
+- "content": Only the NEW content to append (markdown), not existing content
+- "suggested_title": A brief label (2-5 words, max 40 chars) describing what was added`
 
     user = `Log Entry Context:
 ${context}
@@ -78,7 +82,7 @@ ${context}
 Existing Content:
 ${currentContent}
 
-${instructions ? `Instructions: ${instructions}\n\n` : ''}Add new sections to extend this content. Output only the new content to append.`
+${instructions ? `Instructions: ${instructions}\n\n` : ''}Add new sections to extend this content. Output JSON: {"content": "...", "suggested_title": "..."}`
   }
 
   return { system, user }

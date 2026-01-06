@@ -98,10 +98,11 @@ export function DraftTabs({
                 ref={inputRef}
                 type="text"
                 value={renameValue}
-                onChange={(e) => setRenameValue(e.target.value)}
+                onChange={(e) => setRenameValue(e.target.value.slice(0, 40))}
                 onBlur={() => handleRenameSubmit(draft.id)}
                 onKeyDown={(e) => handleRenameKeyDown(e, draft.id)}
-                className="px-3 py-1.5 text-sm rounded-md border bg-background w-24"
+                maxLength={40}
+                className="px-3 py-1.5 text-sm rounded-md border bg-background w-32"
               />
             ) : (
               <button

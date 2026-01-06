@@ -20,6 +20,11 @@ export interface DraftGeneratorOptions {
   model?: 'claude-sonnet' | 'claude-opus'
 }
 
+export interface DraftGeneratorResult {
+  content: string
+  suggestedTitle?: string
+}
+
 export interface UseDraftGeneratorReturn {
   state: DraftGeneratorState
   error: ActionError | null
@@ -27,7 +32,7 @@ export interface UseDraftGeneratorReturn {
     currentContent: string,
     context: { title: string; type?: string; tags?: string[] },
     options: DraftGeneratorOptions
-  ) => Promise<string | null>
+  ) => Promise<DraftGeneratorResult | null>
   stop: () => void
   clearError: () => void
 }
@@ -55,7 +60,7 @@ export function useDraftGenerator(): UseDraftGeneratorReturn {
       currentContent: string,
       context: { title: string; type?: string; tags?: string[] },
       options: DraftGeneratorOptions
-    ): Promise<string | null> => {
+    ): Promise<DraftGeneratorResult | null> => {
       // Cancel any existing request
       if (abortControllerRef.current) {
         abortControllerRef.current.abort()
@@ -108,10 +113,16 @@ export function useDraftGenerator(): UseDraftGeneratorReturn {
         // For additive mode, append to existing content
         if (options.mode === 'additive') {
           const separator = currentContent.trim() ? '\n\n' : ''
-          return currentContent + separator + result.data.content
+          return {
+            content: currentContent + separator + result.data.content,
+            suggestedTitle: result.data.suggested_title,
+          }
         }
 
-        return result.data.content
+        return {
+          content: result.data.content,
+          suggestedTitle: result.data.suggested_title,
+        }
       } catch (err) {
         // Handle abort
         if (err instanceof Error && err.name === 'AbortError') {
