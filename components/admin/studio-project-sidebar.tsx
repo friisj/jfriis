@@ -170,6 +170,7 @@ export function StudioProjectSidebar({
           defaultValues={{
             project_id: project.id,
             status: 'planned',
+            type: 'experiment', // Default type required by DB constraint
           }}
           onFlush={handleFlushExperiments}
           onDeleteItem={handleDeleteExperiment}

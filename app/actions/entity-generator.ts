@@ -102,14 +102,20 @@ export async function flushPendingExperiments(
       return { success: true }
     }
 
+    // Valid type values for experiments (must match DB constraint)
+    const validTypes = ['experiment', 'prototype', 'discovery_interviews', 'landing_page']
+
     // Prepare batch insert
     const inserts = experiments.map((e) => {
       // Remove internal fields
       const { _pendingId, _createdAt, _isPending, ...data } = e as Record<string, unknown>
       // Generate slug from name if not provided
       const slug = data.slug || generateSlug((data.name as string) || 'experiment')
+      // Sanitize type - coerce invalid values to 'experiment'
+      const type = validTypes.includes(data.type as string) ? data.type : 'experiment'
       return {
         ...data,
+        type,
         slug,
         project_id: projectId,
       }
