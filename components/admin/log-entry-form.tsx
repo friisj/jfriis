@@ -167,6 +167,43 @@ export function LogEntryForm({ entryId, initialData }: LogEntryFormProps) {
     }
   }, [])
 
+  // Regenerate draft name via LLM
+  const handleRegenerateName = useCallback(async (draftId: string) => {
+    const draft = drafts.find((d) => d.id === draftId)
+    if (!draft) return
+
+    try {
+      const response = await fetch('/api/ai/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'generate-draft-name',
+          input: {
+            content: draft.content,
+            title: formData.title,
+            type: formData.type || undefined,
+          },
+        }),
+      })
+
+      const result = await response.json()
+
+      if (result.success && result.data?.name) {
+        const updateResult = await updateDraft(draftId, { label: result.data.name })
+        if (updateResult.success && updateResult.data) {
+          setDrafts((prev) =>
+            prev.map((d) => (d.id === draftId ? updateResult.data! : d))
+          )
+          toast.success('Draft name regenerated')
+        }
+      } else {
+        toast.error('Failed to generate name')
+      }
+    } catch (err) {
+      toast.error('Failed to regenerate name')
+    }
+  }, [drafts, formData.title, formData.type])
+
   // Delete draft
   const handleDeleteDraft = useCallback(async (draftId: string) => {
     const result = await deleteDraft(draftId)
@@ -449,6 +486,7 @@ export function LogEntryForm({ entryId, initialData }: LogEntryFormProps) {
                 onCreateDraft={handleCreateDraft}
                 onSetPrimary={handleSetPrimary}
                 onRenameDraft={handleRenameDraft}
+                onRegenerateName={handleRegenerateName}
                 onDeleteDraft={handleDeleteDraft}
                 disabled={isSubmitting || draftsLoading}
               />

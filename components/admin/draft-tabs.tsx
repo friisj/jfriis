@@ -8,6 +8,7 @@
  */
 
 import { useState, useRef, useEffect } from 'react'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import type { LogEntryDraft } from '@/lib/types/database'
 
 export interface DraftTabsProps {
@@ -17,6 +18,7 @@ export interface DraftTabsProps {
   onCreateDraft: () => void
   onSetPrimary: (draftId: string) => void
   onRenameDraft: (draftId: string, label: string) => void
+  onRegenerateName?: (draftId: string) => void
   onDeleteDraft: (draftId: string) => void
   disabled?: boolean
 }
@@ -28,27 +30,14 @@ export function DraftTabs({
   onCreateDraft,
   onSetPrimary,
   onRenameDraft,
+  onRegenerateName,
   onDeleteDraft,
   disabled = false,
 }: DraftTabsProps) {
-  const [menuOpen, setMenuOpen] = useState<string | null>(null)
+  const [openPopover, setOpenPopover] = useState<string | null>(null)
   const [renaming, setRenaming] = useState<string | null>(null)
   const [renameValue, setRenameValue] = useState('')
-  const menuRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
-
-  // Close menu on outside click
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
-        setMenuOpen(null)
-      }
-    }
-    if (menuOpen) {
-      document.addEventListener('mousedown', handleClickOutside)
-      return () => document.removeEventListener('mousedown', handleClickOutside)
-    }
-  }, [menuOpen])
 
   // Focus input when renaming
   useEffect(() => {
@@ -64,7 +53,7 @@ export function DraftTabs({
 
   const handleRenameSubmit = (draftId: string) => {
     if (renameValue.trim()) {
-      onRenameDraft(draftId, renameValue.trim())
+      onRenameDraft(draftId, renameValue.trim().slice(0, 40))
     }
     setRenaming(null)
     setRenameValue('')
@@ -82,7 +71,7 @@ export function DraftTabs({
   const startRenaming = (draft: LogEntryDraft, index: number) => {
     setRenaming(draft.id)
     setRenameValue(getDraftLabel(draft, index))
-    setMenuOpen(null)
+    setOpenPopover(null)
   }
 
   return (
@@ -92,7 +81,7 @@ export function DraftTabs({
         const label = getDraftLabel(draft, index)
 
         return (
-          <div key={draft.id} className="relative flex-shrink-0">
+          <div key={draft.id} className="flex-shrink-0">
             {renaming === draft.id ? (
               <input
                 ref={inputRef}
@@ -105,90 +94,105 @@ export function DraftTabs({
                 className="px-3 py-1.5 text-sm rounded-md border bg-background w-32"
               />
             ) : (
-              <button
-                type="button"
-                onClick={() => onSelectDraft(draft.id)}
-                onContextMenu={(e) => {
-                  e.preventDefault()
-                  setMenuOpen(draft.id)
-                }}
-                disabled={disabled}
-                className={`
-                  px-3 py-1.5 text-sm rounded-md transition-colors
-                  flex items-center gap-1.5
-                  ${isActive
-                    ? 'bg-primary text-primary-foreground'
-                    : 'hover:bg-muted text-muted-foreground hover:text-foreground'
-                  }
-                  ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
-                `}
+              <Popover
+                open={openPopover === draft.id}
+                onOpenChange={(open) => setOpenPopover(open ? draft.id : null)}
               >
-                {draft.is_primary && (
-                  <span className="text-amber-500" title="Primary draft">
-                    ★
-                  </span>
-                )}
-                <span>{label}</span>
-                <span
-                  role="button"
-                  tabIndex={disabled ? -1 : 0}
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    setMenuOpen(menuOpen === draft.id ? null : draft.id)
-                  }}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                      e.stopPropagation()
-                      setMenuOpen(menuOpen === draft.id ? null : draft.id)
-                    }
-                  }}
-                  className={`ml-1 opacity-50 hover:opacity-100 ${disabled ? '' : 'cursor-pointer'}`}
-                >
-                  ▾
-                </span>
-              </button>
-            )}
-
-            {/* Dropdown Menu */}
-            {menuOpen === draft.id && (
-              <div
-                ref={menuRef}
-                className="absolute top-full left-0 mt-1 z-50 min-w-[140px] py-1 rounded-md border bg-popover shadow-lg"
-              >
-                {!draft.is_primary && (
+                <div className="flex items-center">
                   <button
                     type="button"
-                    onClick={() => {
-                      onSetPrimary(draft.id)
-                      setMenuOpen(null)
-                    }}
-                    className="w-full px-3 py-1.5 text-sm text-left hover:bg-muted"
-                  >
-                    ★ Set as primary
-                  </button>
-                )}
-                <button
-                  type="button"
-                  onClick={() => startRenaming(draft, index)}
-                  className="w-full px-3 py-1.5 text-sm text-left hover:bg-muted"
-                >
-                  Rename
-                </button>
-                {!draft.is_primary && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (confirm('Delete this draft?')) {
-                        onDeleteDraft(draft.id)
+                    onClick={() => onSelectDraft(draft.id)}
+                    disabled={disabled}
+                    className={`
+                      px-3 py-1.5 text-sm rounded-l-md transition-colors
+                      flex items-center gap-1.5
+                      ${isActive
+                        ? 'bg-primary text-primary-foreground'
+                        : 'hover:bg-muted text-muted-foreground hover:text-foreground'
                       }
-                      setMenuOpen(null)
-                    }}
-                    className="w-full px-3 py-1.5 text-sm text-left hover:bg-muted text-red-600"
+                      ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
+                    `}
                   >
-                    Delete
+                    {draft.is_primary && (
+                      <span className="text-amber-500" title="Primary draft">
+                        ★
+                      </span>
+                    )}
+                    <span className="max-w-[120px] truncate">{label}</span>
                   </button>
-                )}
-              </div>
+                  <PopoverTrigger asChild>
+                    <button
+                      type="button"
+                      disabled={disabled}
+                      className={`
+                        px-1.5 py-1.5 text-sm rounded-r-md transition-colors
+                        ${isActive
+                          ? 'bg-primary text-primary-foreground hover:bg-primary/80'
+                          : 'hover:bg-muted text-muted-foreground hover:text-foreground'
+                        }
+                        ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
+                      `}
+                    >
+                      <span className="opacity-60 hover:opacity-100">▾</span>
+                    </button>
+                  </PopoverTrigger>
+                </div>
+
+                <PopoverContent
+                  align="start"
+                  sideOffset={4}
+                  className="w-44 p-1"
+                >
+                  {!draft.is_primary && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        onSetPrimary(draft.id)
+                        setOpenPopover(null)
+                      }}
+                      className="w-full px-3 py-1.5 text-sm text-left rounded hover:bg-muted"
+                    >
+                      ★ Set as primary
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => startRenaming(draft, index)}
+                    className="w-full px-3 py-1.5 text-sm text-left rounded hover:bg-muted"
+                  >
+                    Rename
+                  </button>
+                  {onRegenerateName && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        onRegenerateName(draft.id)
+                        setOpenPopover(null)
+                      }}
+                      className="w-full px-3 py-1.5 text-sm text-left rounded hover:bg-muted"
+                    >
+                      ✨ Re-generate name
+                    </button>
+                  )}
+                  {!draft.is_primary && (
+                    <>
+                      <div className="my-1 border-t" />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (confirm('Delete this draft?')) {
+                            onDeleteDraft(draft.id)
+                          }
+                          setOpenPopover(null)
+                        }}
+                        className="w-full px-3 py-1.5 text-sm text-left rounded hover:bg-muted text-red-600"
+                      >
+                        Delete
+                      </button>
+                    </>
+                  )}
+                </PopoverContent>
+              </Popover>
             )}
           </div>
         )

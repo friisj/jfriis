@@ -19,6 +19,7 @@ import { checkAIRateLimit, getAIRateLimitHeaders } from '@/lib/ai/rate-limit'
 import '@/lib/ai/actions/generate-field'
 import '@/lib/ai/actions/generate-entity'
 import '@/lib/ai/actions/generate-draft'
+import '@/lib/ai/actions/generate-draft-name'
 import '@/lib/ai/actions/generate-project-from-logs'
 
 export async function POST(request: Request) {
