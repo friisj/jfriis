@@ -503,177 +503,322 @@ interface ConditionalRule {
 
 ---
 
+## Implementation Strategy
+
+### Leveraging Existing Infrastructure
+
+This feature builds on the **existing AI action registry system** (`lib/ai/actions/`). Key infrastructure already in place:
+
+- ✅ **Action System**: Typed, composable LLM operations with input/output validation
+- ✅ **React Hooks**: `useGenerate`, `useEntityGenerator`, `useDraftGenerator` for state management
+- ✅ **Type Safety**: Entity type system with Zod schemas
+- ✅ **Model Selection**: Use-case-based routing to Claude/GPT/Gemini models
+- ✅ **Rate Limiting**: Upstash Redis-backed per-user limits
+- ✅ **Error Handling**: Intelligent retry logic and user-friendly messages
+- ✅ **Vercel AI SDK**: `streamObject` for real-time artifact generation
+
+**What's New**:
+- Survey entity types (`studio_surveys`, `studio_survey_responses`, `studio_survey_artifacts`)
+- Two new actions: `generate-survey` and `process-survey-responses`
+- Streaming-based artifact generation (uses existing SDK, not background jobs)
+- Generic survey UI components (reusable for future survey use cases)
+
+**Key Decision: Streaming vs Background Jobs**
+
+We use **streaming** instead of background job queues for artifact processing:
+- Real-time progress updates (user sees artifacts as they generate)
+- Better UX (no polling needed)
+- Simpler implementation (built into Vercel AI SDK)
+- No additional infrastructure needed
+
+---
+
 ## LLM Integration
 
-### Survey Generation Action
-
-Register new AI action in `/lib/ai/actions/`:
+### Extend Entity Type System
 
 ```typescript
-// lib/ai/actions/generate-survey.ts
+// lib/ai/types/entities.ts (UPDATE existing file)
 
-export const generateSurveyAction: AIAction<GenerateSurveyInput, SurveyDefinition> = {
-  id: 'generate-survey',
-  name: 'Generate Project Survey',
-  description: 'Generates a contextual survey based on project information',
+export type EntityType =
+  | 'studio_projects'
+  | 'studio_hypotheses'
+  | 'studio_experiments'
+  | 'studio_surveys'           // ADD
+  | 'studio_survey_responses'  // ADD
+  | 'studio_survey_artifacts'  // ADD
+  | 'customer_profiles'
+  | 'assumptions'
+  | 'business_model_canvases'
+  | 'canvas_items'
+  | 'ventures'
+  | 'log_entries'
+  | 'specimens'
+  | 'user_journeys'
 
-  model: 'claude-sonnet',
-  temperature: 0.7,
-
-  inputSchema: z.object({
-    project_name: z.string(),
-    project_description: z.string().optional(),
-    temperature: z.enum(['hot', 'warm', 'cold']).optional(),
-    existing_fields: z.record(z.string()).optional(),
-  }),
-
-  outputSchema: SurveyDefinitionSchema,
-
-  buildPrompt: (input, context) => ({
-    system: SURVEY_GENERATION_SYSTEM_PROMPT,
-    user: buildSurveyGenerationUserPrompt(input),
-  }),
-};
+// Extend FieldNameFor mapping
+export type FieldNameFor<T extends EntityType> =
+  T extends 'studio_surveys' ? 'questions' | 'generation_context' | 'status'
+  : T extends 'studio_survey_responses' ? 'response_value' | 'response_text'
+  : // ... existing mappings
 ```
 
-### System Prompt for Survey Generation
+### Centralize Survey Prompts
 
 ```typescript
-const SURVEY_GENERATION_SYSTEM_PROMPT = `You are an expert product strategist and startup advisor. Your task is to generate a discovery survey that will help calibrate a new project's scope, strategy, and execution approach.
+// lib/ai/prompts/surveys.ts (NEW file)
+
+export const SURVEY_PROMPTS = {
+  generation: {
+    version: 1,
+    system: `You are an expert product strategist and startup advisor generating a discovery survey.
 
 ## Context
-You're generating questions for a project onboarding survey. The survey responses will be used to:
-1. Populate project fields (problem statement, success criteria, etc.)
-2. Generate initial hypotheses to test
-3. Create customer profiles
-4. Draft business model canvas sections
-5. Identify key assumptions that need validation
-6. Suggest initial experiments
+Survey responses will populate:
+1. Project fields (problem_statement, success_criteria, etc.)
+2. Initial hypotheses to test
+3. Customer profiles
+4. Business model canvas sections
+5. Key assumptions
+6. Initial experiments
 
 ## Survey Design Principles
 1. **Progressive disclosure**: Start broad, get specific
-2. **Contextual relevance**: Tailor questions to what you infer about the project
-3. **Actionable responses**: Every question should inform concrete artifacts
-4. **Appropriate depth**: Match question depth to project temperature (hot = more detail, cold = lighter touch)
-5. **Skip unnecessary questions**: Don't ask what you can infer from previous answers
+2. **Contextual relevance**: Tailor to project name/description/temperature
+3. **Actionable responses**: Every question informs concrete artifacts
+4. **Appropriate depth**: Hot projects = detailed, Cold = lighter touch
+5. **Skip unnecessary**: Don't ask what you can infer
 
 ## Question Categories
-- problem: Understanding the core problem space
-- customer: Identifying and characterizing target users
-- solution: The proposed approach and differentiation
-- market: Competitive landscape and market dynamics
-- business_model: Revenue, pricing, go-to-market
-- execution: Current stage, resources, constraints
-- meta: Project management preferences
+- problem, customer, solution, market, business_model, execution, meta
 
 ## Output Format
-Generate a SurveyDefinition JSON object with 6-10 questions. Each question should:
-- Have clear artifact mappings (informs array)
-- Include helpful context in help_text
-- Use appropriate question types
-- Enable AI suggestions where valuable (especially for customer segments, competitors)
+Generate 6-10 questions with clear artifact mappings (informs array).
+Enable LLM suggestions for customer segments and market analysis.
 
-## Web Search Capability
-For questions about market, competition, or existing solutions, you can enable web search suggestions. The system will perform real-time searches when the user reaches those questions.`;
+MUST respond with valid JSON only. No markdown, no explanations.`,
+
+    userTemplate: (input: GenerateSurveyInput) => `
+Generate a survey for:
+- Project: "${input.project_name}"
+${input.project_description ? `- Description: "${input.project_description}"` : ''}
+- Temperature: ${input.temperature || 'warm'}
+
+Tailor questions to this specific project context.`,
+  },
+
+  processing: {
+    version: 1,
+    system: `You are an expert product strategist analyzing survey responses.
+
+## Generate:
+
+### 1. Project Fields
+- problem_statement: Clear problem articulation
+- success_criteria: Measurable validation criteria
+- current_focus: Immediate priorities
+- scope_out: Explicit exclusions
+
+### 2. Hypotheses (3-5)
+Format: "We believe [action] will [result] for [audience] because [rationale]"
+- Specific and falsifiable
+- Include validation criteria
+- Prioritized by risk
+
+### 3. Customer Profile (1 primary)
+- Jobs to be done (functional, emotional, social)
+- Pains and Gains
+- Demographics if relevant
+
+### 4. Assumptions (5-10)
+- Category: desirability, viability, feasibility, usability
+- Importance: critical, high, medium, low
+- Identify leap-of-faith assumptions
+
+### 5. Experiments (2-3)
+- Type: spike, discovery_interviews, landing_page, prototype
+- Link to hypotheses/assumptions
+
+### 6. BMC Blocks
+- value_propositions, customer_segments, revenue_streams
+
+## Guidelines
+- Ground in survey responses
+- Include confidence scores (0-1)
+- Be specific, not generic
+- Use user's language
+
+MUST respond with valid JSON only.`,
+
+    userTemplate: (input: ProcessSurveyInput) => {
+      const responseText = input.responses
+        .map(r => `Q: ${r.question_text}\nA: ${r.response_text}`)
+        .join('\n\n')
+
+      return `Survey responses:\n\n${responseText}\n\nGenerate all artifacts from these responses.`
+    },
+  },
+} as const
 ```
 
-### Post-Survey Processing Pipeline
+### Survey Generation Action
 
 ```typescript
-// lib/ai/actions/process-survey-responses.ts
+// lib/ai/actions/generate-survey.ts (NEW file)
 
-interface ProcessSurveyInput {
-  survey_id: string;
-  project_id: string;
-  responses: SurveyResponse[];
-  survey_definition: SurveyDefinition;
-  existing_project: StudioProject;
+import { Action } from './types'
+import { SURVEY_PROMPTS } from '@/lib/ai/prompts/surveys'
+import { z } from 'zod'
+
+const GenerateSurveyInput = z.object({
+  project_name: z.string().min(1),
+  project_description: z.string().optional(),
+  temperature: z.enum(['hot', 'warm', 'cold']).optional(),
+  existing_fields: z.record(z.string()).optional(),
+})
+
+const SurveyDefinitionSchema = z.object({
+  id: z.string(),
+  version: z.number(),
+  title: z.string(),
+  description: z.string(),
+  estimated_minutes: z.number(),
+  questions: z.array(z.object({
+    id: z.string(),
+    sequence: z.number(),
+    question: z.string(),
+    help_text: z.string().optional(),
+    category: z.enum(['problem', 'customer', 'solution', 'market', 'business_model', 'execution', 'meta']),
+    type: z.enum(['text', 'textarea', 'select', 'multiselect', 'scale', 'boolean', 'entity_suggest', 'entity_create']),
+    config: z.record(z.unknown()),
+    required: z.boolean(),
+    informs: z.array(z.object({
+      type: z.string(),
+      field: z.string().optional(),
+      weight: z.number(),
+    })),
+  })),
+  target_artifacts: z.array(z.record(z.unknown())),
+})
+
+export const generateSurvey: Action<
+  z.infer<typeof GenerateSurveyInput>,
+  z.infer<typeof SurveyDefinitionSchema>
+> = {
+  id: 'generate-survey',
+  name: 'Generate Project Survey',
+  description: 'Generates contextual survey questions from project data',
+  entityTypes: ['studio_projects', 'studio_surveys'],
+  taskType: 'generation',
+
+  inputSchema: GenerateSurveyInput,
+  outputSchema: SurveyDefinitionSchema,
+
+  buildPrompt: (input) => ({
+    system: SURVEY_PROMPTS.generation.system,
+    user: SURVEY_PROMPTS.generation.userTemplate(input),
+  }),
 }
+```
 
-interface ProcessSurveyOutput {
-  project_updates: Partial<StudioProject>;
-  hypotheses: GeneratedHypothesis[];
-  customer_profiles: GeneratedCustomerProfile[];
-  assumptions: GeneratedAssumption[];
-  experiments: GeneratedExperiment[];
-  bmc_updates: Partial<BusinessModelCanvas>;
-}
+### Survey Processing Action
 
-export const processSurveyAction: AIAction<ProcessSurveyInput, ProcessSurveyOutput> = {
+```typescript
+// lib/ai/actions/process-survey.ts (NEW file)
+
+import { Action } from './types'
+import { SURVEY_PROMPTS } from '@/lib/ai/prompts/surveys'
+import { z } from 'zod'
+
+const ProcessSurveyInput = z.object({
+  survey_id: z.string(),
+  project_id: z.string(),
+  responses: z.array(z.object({
+    question_id: z.string(),
+    question_text: z.string(),
+    response_text: z.string(),
+    response_value: z.unknown(),
+  })),
+})
+
+const ProcessSurveyOutput = z.object({
+  project_updates: z.object({
+    problem_statement: z.string().optional(),
+    success_criteria: z.string().optional(),
+    current_focus: z.string().optional(),
+    scope_out: z.string().optional(),
+  }),
+  hypotheses: z.array(z.object({
+    statement: z.string(),
+    rationale: z.string().optional(),
+    validation_criteria: z.string().optional(),
+    source_questions: z.array(z.string()),
+    confidence: z.number().min(0).max(1),
+  })),
+  customer_profiles: z.array(z.object({
+    name: z.string(),
+    type: z.string(),
+    jobs: z.string().optional(),
+    pains: z.string().optional(),
+    gains: z.string().optional(),
+    source_questions: z.array(z.string()),
+    confidence: z.number().min(0).max(1),
+  })),
+  assumptions: z.array(z.object({
+    statement: z.string(),
+    category: z.enum(['desirability', 'viability', 'feasibility', 'usability']),
+    importance: z.enum(['critical', 'high', 'medium', 'low']),
+    is_leap_of_faith: z.boolean(),
+    source_questions: z.array(z.string()),
+    confidence: z.number().min(0).max(1),
+  })),
+  experiments: z.array(z.object({
+    name: z.string(),
+    description: z.string(),
+    type: z.enum(['spike', 'discovery_interviews', 'landing_page', 'prototype']),
+    expected_outcome: z.string(),
+    source_questions: z.array(z.string()),
+    confidence: z.number().min(0).max(1),
+  })),
+})
+
+export const processSurvey: Action<
+  z.infer<typeof ProcessSurveyInput>,
+  z.infer<typeof ProcessSurveyOutput>
+> = {
   id: 'process-survey-responses',
   name: 'Process Survey Responses',
   description: 'Generates project artifacts from completed survey',
+  entityTypes: ['studio_surveys', 'studio_projects', 'studio_hypotheses', 'customer_profiles'],
+  taskType: 'generation',
 
-  model: 'claude-sonnet',  // Use sonnet for complex reasoning
-  temperature: 0.5,  // Lower temp for more consistent artifact generation
-  maxTokens: 8000,
+  inputSchema: ProcessSurveyInput,
+  outputSchema: ProcessSurveyOutput,
 
   buildPrompt: (input) => ({
-    system: PROCESS_SURVEY_SYSTEM_PROMPT,
-    user: buildProcessSurveyUserPrompt(input),
+    system: SURVEY_PROMPTS.processing.system,
+    user: SURVEY_PROMPTS.processing.userTemplate(input),
   }),
-};
+}
 ```
 
-### Processing System Prompt
+### Register Actions
 
 ```typescript
-const PROCESS_SURVEY_SYSTEM_PROMPT = `You are an expert product strategist analyzing survey responses to generate strategic artifacts for a new project.
+// lib/ai/actions/index.ts (UPDATE existing file)
 
-## Your Task
-Given survey responses, generate:
+import { generateSurvey } from './generate-survey'
+import { processSurvey } from './process-survey'
 
-### 1. Project Field Updates
-Map responses to project fields:
-- problem_statement: Clear articulation of the problem
-- success_criteria: Measurable validation criteria
-- current_focus: Immediate priorities based on stage
-- scope_out: Explicit exclusions and constraints
-
-### 2. Hypotheses (3-5)
-Generate testable hypotheses following the format:
-"We believe [action/change] will [result/outcome] for [audience] because [rationale]"
-
-Each hypothesis should:
-- Be specific and falsifiable
-- Map to survey responses about problem, customer, solution
-- Include validation criteria
-- Be prioritized by risk/importance
-
-### 3. Customer Profile (1 primary)
-Create a detailed customer profile with:
-- Name and type (persona/segment/ICP)
-- Jobs to be done (functional, emotional, social)
-- Pains (frustrations, obstacles, risks)
-- Gains (desired outcomes, benefits)
-- Demographics/firmographics if relevant
-
-### 4. Assumptions (5-10)
-Extract key assumptions that need validation:
-- Categorize: desirability, viability, feasibility, usability
-- Rate importance: critical, high, medium, low
-- Identify leap-of-faith assumptions
-- Suggest validation approaches
-
-### 5. Experiments (2-3)
-Design initial experiments to test riskiest assumptions:
-- Type: spike, discovery_interviews, landing_page, prototype
-- Clear expected outcomes
-- Link to specific hypotheses/assumptions
-
-### 6. BMC Block Updates
-Populate relevant Business Model Canvas sections:
-- value_propositions
-- customer_segments
-- revenue_streams
-- (others if sufficient information)
-
-## Quality Guidelines
-- Be specific, not generic
-- Ground everything in survey responses
-- Acknowledge uncertainty with confidence scores
-- Prioritize actionability over completeness
-- Use the user's language and framing`;
+const ACTION_REGISTRY = {
+  'generate-field': generateFieldAction,
+  'generate-entity': generateEntityAction,
+  'generate-draft': generateDraftAction,
+  'generate-draft-name': generateDraftNameAction,
+  'generate-project-from-logs': generateProjectFromLogsAction,
+  'generate-survey': generateSurvey,           // ADD
+  'process-survey-responses': processSurvey,   // ADD
+} as const
 ```
 
 ---
@@ -1600,83 +1745,150 @@ function QuestionInput({ type, config, value, onChange }: QuestionInputProps) {
 
 ## Server Actions & API
 
-### Survey Generation
+### React Hooks (Leverage Existing Patterns)
 
 ```typescript
-// app/actions/survey.ts
+// lib/ai/hooks/useSurveyGenerator.ts (NEW file)
+
+import { useState } from 'react'
+import { generateProjectSurvey } from '@/app/actions/surveys'
+
+interface GenerateSurveyInput {
+  name: string
+  description?: string
+  temperature?: 'hot' | 'warm' | 'cold'
+}
+
+export function useSurveyGenerator() {
+  const [state, setState] = useState<'idle' | 'generating' | 'success' | 'error'>('idle')
+  const [error, setError] = useState<string | null>(null)
+
+  const generate = async (input: GenerateSurveyInput) => {
+    setState('generating')
+    setError(null)
+
+    try {
+      const result = await generateProjectSurvey(input)
+      if (!result.success) {
+        setError(result.error || 'Failed to generate survey')
+        setState('error')
+        return null
+      }
+      setState('success')
+      return result
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unknown error')
+      setState('error')
+      return null
+    }
+  }
+
+  return { state, error, generate }
+}
+```
+
+```typescript
+// lib/ai/hooks/useSurveyProcessor.ts (NEW file)
+
+import { experimental_useObject as useObject } from 'ai/react'
+import { ProcessSurveyOutput } from '@/lib/ai/actions/process-survey'
+
+export function useSurveyProcessor(surveyId: string) {
+  const { object, error, isLoading } = useObject<ProcessSurveyOutput>({
+    api: `/api/surveys/${surveyId}/process`,
+  })
+
+  return {
+    artifacts: object,
+    isProcessing: isLoading,
+    error,
+  }
+}
+```
+
+### Survey Generation (Server Action)
+
+```typescript
+// app/actions/surveys.ts (NEW file)
 'use server'
 
-import { executeAction } from '@/lib/ai/actions';
-import { createClient } from '@/lib/supabase/server';
+import { executeAction } from '@/lib/ai/actions'
+import { createClient } from '@/lib/supabase/server'
+import { revalidatePath } from 'next/cache'
 
-export async function generateProjectSurvey(
-  projectData: {
-    name: string;
-    description?: string;
-    temperature?: string;
-    existingFields?: Record<string, string>;
+export async function generateProjectSurvey(input: {
+  name: string
+  description?: string
+  temperature?: 'hot' | 'warm' | 'cold'
+}) {
+  const supabase = await createClient()
+  const { data: { user }, error: authError } = await supabase.auth.getUser()
+  if (authError || !user) {
+    return { success: false, error: 'Unauthorized' }
   }
-): Promise<{ success: boolean; surveyId?: string; error?: string }> {
-  const supabase = await createClient();
 
-  // 1. Create project in draft state
+  // 1. Execute action (uses existing infrastructure)
+  const result = await executeAction('generate-survey', {
+    project_name: input.name,
+    project_description: input.description,
+    temperature: input.temperature,
+  })
+
+  if (!result.success) {
+    return { success: false, error: result.error?.message || 'Failed to generate survey' }
+  }
+
+  // 2. Create project + survey in transaction
   const { data: project, error: projectError } = await supabase
     .from('studio_projects')
     .insert({
-      name: projectData.name,
-      description: projectData.description,
-      temperature: projectData.temperature,
+      name: input.name,
+      description: input.description,
+      temperature: input.temperature,
       status: 'draft',
       has_pending_survey: true,
+      user_id: user.id,
     })
     .select()
-    .single();
+    .single()
 
   if (projectError) {
-    return { success: false, error: projectError.message };
+    return { success: false, error: projectError.message }
   }
 
-  // 2. Generate survey via LLM
-  const result = await executeAction('generate-survey', {
-    project_name: projectData.name,
-    project_description: projectData.description,
-    temperature: projectData.temperature,
-    existing_fields: projectData.existingFields,
-  });
-
-  if (!result.success) {
-    // Rollback project creation
-    await supabase.from('studio_projects').delete().eq('id', project.id);
-    return { success: false, error: result.error };
-  }
-
-  // 3. Save survey
   const { data: survey, error: surveyError } = await supabase
     .from('studio_surveys')
     .insert({
       project_id: project.id,
-      questions: result.data,
-      generation_context: projectData,
-      generation_model: result.metadata?.model || 'claude-sonnet',
+      questions: result.data.questions,
+      generation_context: input,
+      generation_model: result.model,
       status: 'pending',
     })
     .select()
-    .single();
+    .single()
 
   if (surveyError) {
-    await supabase.from('studio_projects').delete().eq('id', project.id);
-    return { success: false, error: surveyError.message };
+    // Rollback
+    await supabase.from('studio_projects').delete().eq('id', project.id)
+    return { success: false, error: surveyError.message }
   }
 
-  return { success: true, surveyId: survey.id };
+  revalidatePath('/admin/studio')
+  return {
+    success: true,
+    projectSlug: project.slug,
+    surveyId: survey.id,
+    usage: result.usage,
+  }
 }
 
 export async function saveSurveyResponse(
   surveyId: string,
   questionId: string,
   response: unknown
-): Promise<{ success: boolean; error?: string }> {
-  const supabase = await createClient();
+) {
+  const supabase = await createClient()
 
   const { error } = await supabase
     .from('studio_survey_responses')
@@ -1686,169 +1898,159 @@ export async function saveSurveyResponse(
       response_value: response,
       response_text: typeof response === 'string' ? response : JSON.stringify(response),
     }, {
-      onConflict: 'survey_id,question_id',
-    });
+      onConflict: 'survey_id,question_id'
+    })
 
-  if (error) {
-    return { success: false, error: error.message };
-  }
+  if (error) return { success: false, error: error.message }
 
-  // Update survey progress
+  // Update survey status
   await supabase
     .from('studio_surveys')
     .update({
       status: 'in_progress',
-      updated_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
     })
-    .eq('id', surveyId);
+    .eq('id', surveyId)
 
-  return { success: true };
-}
-
-export async function completeSurvey(surveyId: string): Promise<{ success: boolean; error?: string }> {
-  const supabase = await createClient();
-
-  // 1. Mark survey as completed
-  const { error: updateError } = await supabase
-    .from('studio_surveys')
-    .update({
-      status: 'completed',
-      completed_at: new Date().toISOString(),
-      processing_status: 'queued',
-    })
-    .eq('id', surveyId);
-
-  if (updateError) {
-    return { success: false, error: updateError.message };
-  }
-
-  // 2. Queue background processing
-  // Option A: Direct processing (if fast enough)
-  // Option B: Add to distribution_queue for async processing
-  await supabase.from('distribution_queue').insert({
-    channel_id: SURVEY_PROCESSING_CHANNEL_ID,
-    content_type: 'survey_completion',
-    content_id: surveyId,
-    priority: 10,  // High priority
-  });
-
-  return { success: true };
+  return { success: true }
 }
 ```
 
-### Background Processing
+### Streaming Survey Processing (API Route)
+
+**Key Pattern**: Use `streamObject` from Vercel AI SDK for real-time artifact generation.
 
 ```typescript
-// lib/ai/jobs/process-survey-completion.ts
+// app/api/surveys/[surveyId]/process/route.ts (NEW file)
 
-export async function processSurveyCompletion(surveyId: string): Promise<void> {
-  const supabase = await createClient();
+import { streamObject } from 'ai'
+import { anthropic } from '@ai-sdk/anthropic'
+import { createClient } from '@/lib/supabase/server'
+import { getModel } from '@/lib/ai/models'
+import { SURVEY_PROMPTS } from '@/lib/ai/prompts/surveys'
+import { ProcessSurveyOutput } from '@/lib/ai/actions/process-survey'
 
-  // 1. Fetch survey with responses
-  const { data: survey } = await supabase
+export const runtime = 'edge'
+
+export async function POST(
+  req: Request,
+  { params }: { params: { surveyId: string } }
+) {
+  const supabase = await createClient()
+
+  // 1. Auth check
+  const { data: { user }, error: authError } = await supabase.auth.getUser()
+  if (authError || !user) {
+    return new Response('Unauthorized', { status: 401 })
+  }
+
+  // 2. Fetch survey + responses
+  const { data: survey, error } = await supabase
     .from('studio_surveys')
     .select(`
       *,
       project:studio_projects(*),
       responses:studio_survey_responses(*)
     `)
-    .eq('id', surveyId)
-    .single();
+    .eq('id', params.surveyId)
+    .single()
 
-  // 2. Update processing status
+  if (error || !survey) {
+    return new Response('Survey not found', { status: 404 })
+  }
+
+  // 3. Mark processing started
   await supabase
     .from('studio_surveys')
     .update({
+      status: 'completed',
+      completed_at: new Date().toISOString(),
       processing_status: 'processing',
       processing_started_at: new Date().toISOString(),
     })
-    .eq('id', surveyId);
+    .eq('id', params.surveyId)
 
-  try {
-    // 3. Process via LLM
-    const result = await executeAction('process-survey-responses', {
-      survey_id: surveyId,
+  // 4. Stream artifact generation
+  const model = getModel('claude-sonnet')
+  const result = await streamObject({
+    model: anthropic(model.id),
+    schema: ProcessSurveyOutput,
+    system: SURVEY_PROMPTS.processing.system,
+    prompt: SURVEY_PROMPTS.processing.userTemplate({
+      survey_id: params.surveyId,
       project_id: survey.project_id,
-      responses: survey.responses,
-      survey_definition: survey.questions,
-      existing_project: survey.project,
-    });
+      responses: survey.responses.map(r => ({
+        question_id: r.question_id,
+        question_text: survey.questions.find(q => q.id === r.question_id)?.question || '',
+        response_text: r.response_text,
+        response_value: r.response_value,
+      })),
+    }),
+    onFinish: async ({ object }) => {
+      // 5. Persist artifacts after streaming completes
+      await persistSurveyArtifacts(supabase, params.surveyId, survey.project_id, object)
 
-    if (!result.success) {
-      throw new Error(result.error);
-    }
+      // 6. Mark processing complete
+      await supabase
+        .from('studio_surveys')
+        .update({
+          processing_status: 'completed',
+          processing_completed_at: new Date().toISOString(),
+        })
+        .eq('id', params.surveyId)
 
-    const artifacts = result.data;
+      // 7. Update project
+      await supabase
+        .from('studio_projects')
+        .update({
+          ...object.project_updates,
+          has_pending_survey: false,
+          survey_generated_at: new Date().toISOString(),
+        })
+        .eq('id', survey.project_id)
+    },
+  })
 
-    // 4. Create artifacts in database
-    await createArtifactsFromSurvey(supabase, surveyId, survey.project_id, artifacts);
-
-    // 5. Update project fields
-    await supabase
-      .from('studio_projects')
-      .update({
-        ...artifacts.project_updates,
-        has_pending_survey: false,
-        survey_generated_at: new Date().toISOString(),
-      })
-      .eq('id', survey.project_id);
-
-    // 6. Mark processing complete
-    await supabase
-      .from('studio_surveys')
-      .update({
-        processing_status: 'completed',
-        processing_completed_at: new Date().toISOString(),
-      })
-      .eq('id', surveyId);
-
-  } catch (error) {
-    await supabase
-      .from('studio_surveys')
-      .update({
-        processing_status: 'failed',
-        processing_error: error.message,
-      })
-      .eq('id', surveyId);
-
-    throw error;
-  }
+  return result.toTextStreamResponse()
 }
 
-async function createArtifactsFromSurvey(
+async function persistSurveyArtifacts(
   supabase: SupabaseClient,
   surveyId: string,
   projectId: string,
   artifacts: ProcessSurveyOutput
-): Promise<void> {
-  const artifactRecords: StudioSurveyArtifact[] = [];
+) {
+  const artifactRecords = []
 
-  // Create hypotheses
-  for (const hypo of artifacts.hypotheses) {
-    const { data } = await supabase
+  // Create hypotheses (batch insert)
+  if (artifacts.hypotheses.length > 0) {
+    const { data: hypotheses } = await supabase
       .from('studio_hypotheses')
-      .insert({
-        project_id: projectId,
-        statement: hypo.statement,
-        rationale: hypo.rationale,
-        validation_criteria: hypo.validation_criteria,
-        status: 'proposed',
-      })
+      .insert(
+        artifacts.hypotheses.map(h => ({
+          project_id: projectId,
+          statement: h.statement,
+          rationale: h.rationale,
+          validation_criteria: h.validation_criteria,
+          status: 'proposed',
+        }))
+      )
       .select()
-      .single();
 
-    artifactRecords.push({
-      survey_id: surveyId,
-      artifact_type: 'hypothesis',
-      artifact_id: data.id,
-      source_questions: hypo.source_questions,
-      confidence_score: hypo.confidence,
-    });
+    hypotheses?.forEach((h, i) => {
+      artifactRecords.push({
+        survey_id: surveyId,
+        artifact_type: 'hypothesis',
+        artifact_id: h.id,
+        source_questions: artifacts.hypotheses[i].source_questions,
+        confidence_score: artifacts.hypotheses[i].confidence,
+      })
+    })
   }
 
   // Create customer profile
   if (artifacts.customer_profiles.length > 0) {
-    const profile = artifacts.customer_profiles[0];
+    const profile = artifacts.customer_profiles[0]
     const { data } = await supabase
       .from('customer_profiles')
       .insert({
@@ -1860,7 +2062,7 @@ async function createArtifactsFromSurvey(
         gains: profile.gains,
       })
       .select()
-      .single();
+      .single()
 
     artifactRecords.push({
       survey_id: surveyId,
@@ -1868,56 +2070,62 @@ async function createArtifactsFromSurvey(
       artifact_id: data.id,
       source_questions: profile.source_questions,
       confidence_score: profile.confidence,
-    });
+    })
   }
 
-  // Create assumptions
-  for (const assumption of artifacts.assumptions) {
-    const { data } = await supabase
+  // Create assumptions (batch insert)
+  if (artifacts.assumptions.length > 0) {
+    const { data: assumptions } = await supabase
       .from('assumptions')
-      .insert({
-        studio_project_id: projectId,
-        statement: assumption.statement,
-        category: assumption.category,
-        importance: assumption.importance,
-        evidence_level: 'none',
-        status: 'identified',
-        is_leap_of_faith: assumption.is_leap_of_faith,
-      })
+      .insert(
+        artifacts.assumptions.map(a => ({
+          studio_project_id: projectId,
+          statement: a.statement,
+          category: a.category,
+          importance: a.importance,
+          evidence_level: 'none',
+          status: 'identified',
+          is_leap_of_faith: a.is_leap_of_faith,
+        }))
+      )
       .select()
-      .single();
 
-    artifactRecords.push({
-      survey_id: surveyId,
-      artifact_type: 'assumption',
-      artifact_id: data.id,
-      source_questions: assumption.source_questions,
-      confidence_score: assumption.confidence,
-    });
+    assumptions?.forEach((a, i) => {
+      artifactRecords.push({
+        survey_id: surveyId,
+        artifact_type: 'assumption',
+        artifact_id: a.id,
+        source_questions: artifacts.assumptions[i].source_questions,
+        confidence_score: artifacts.assumptions[i].confidence,
+      })
+    })
   }
 
-  // Create experiments
-  for (const experiment of artifacts.experiments) {
-    const { data } = await supabase
+  // Create experiments (batch insert)
+  if (artifacts.experiments.length > 0) {
+    const { data: experiments } = await supabase
       .from('studio_experiments')
-      .insert({
-        project_id: projectId,
-        name: experiment.name,
-        description: experiment.description,
-        type: experiment.type,
-        expected_outcome: experiment.expected_outcome,
-        status: 'planned',
-      })
+      .insert(
+        artifacts.experiments.map(e => ({
+          project_id: projectId,
+          name: e.name,
+          description: e.description,
+          type: e.type,
+          expected_outcome: e.expected_outcome,
+          status: 'planned',
+        }))
+      )
       .select()
-      .single();
 
-    artifactRecords.push({
-      survey_id: surveyId,
-      artifact_type: 'experiment',
-      artifact_id: data.id,
-      source_questions: experiment.source_questions,
-      confidence_score: experiment.confidence,
-    });
+    experiments?.forEach((e, i) => {
+      artifactRecords.push({
+        survey_id: surveyId,
+        artifact_type: 'experiment',
+        artifact_id: e.id,
+        source_questions: artifacts.experiments[i].source_questions,
+        confidence_score: artifacts.experiments[i].confidence,
+      })
+    })
   }
 
   // Record project field updates
@@ -1927,13 +2135,125 @@ async function createArtifactsFromSurvey(
         survey_id: surveyId,
         artifact_type: 'project_field',
         artifact_field: field,
-        source_questions: artifacts.field_mappings?.[field] || [],
-      });
+        source_questions: [], // Could track from artifact hints
+      })
     }
   }
 
   // Save artifact records
-  await supabase.from('studio_survey_artifacts').insert(artifactRecords);
+  await supabase.from('studio_survey_artifacts').insert(artifactRecords)
+}
+```
+
+### Survey Completion UI (Client Component)
+
+```typescript
+// components/admin/survey/survey-completion.tsx (NEW file)
+'use client'
+
+import { useSurveyProcessor } from '@/lib/ai/hooks/useSurveyProcessor'
+
+export function SurveyCompletion({ surveyId, projectSlug }: Props) {
+  const { artifacts, isProcessing, error } = useSurveyProcessor(surveyId)
+
+  if (error) {
+    return <ErrorDisplay error={error} />
+  }
+
+  return (
+    <div>
+      <h2>Generating Strategic Artifacts</h2>
+
+      {/* Real-time progress as artifacts stream in */}
+      <div className="space-y-2">
+        <ProgressItem done={!!artifacts?.project_updates}>
+          Populating project fields
+        </ProgressItem>
+        <ProgressItem done={!!artifacts?.hypotheses?.length}>
+          Generating hypotheses ({artifacts?.hypotheses?.length || 0}/5)
+        </ProgressItem>
+        <ProgressItem done={!!artifacts?.customer_profiles?.length}>
+          Creating customer profile
+        </ProgressItem>
+        <ProgressItem done={!!artifacts?.assumptions?.length}>
+          Identifying assumptions ({artifacts?.assumptions?.length || 0}/10)
+        </ProgressItem>
+        <ProgressItem done={!!artifacts?.experiments?.length}>
+          Designing experiments ({artifacts?.experiments?.length || 0}/3)
+        </ProgressItem>
+      </div>
+
+      {!isProcessing && artifacts && (
+        <>
+          <ArtifactReviewPanel
+            artifacts={artifacts}
+            surveyId={surveyId}
+            projectId={projectId}
+          />
+          <Button asChild>
+            <Link href={`/admin/studio/${projectSlug}`}>
+              View Project
+            </Link>
+          </Button>
+        </>
+      )}
+    </div>
+  )
+}
+```
+
+### Artifact Review (Leverage Existing useEntityGenerator)
+
+```typescript
+// components/admin/survey/artifact-review-panel.tsx (NEW file)
+'use client'
+
+import { useEntityGenerator } from '@/lib/ai/hooks/useEntityGenerator'
+import { useEffect } from 'react'
+
+export function ArtifactReviewPanel({
+  artifacts,
+  surveyId,
+  projectId
+}: ArtifactReviewPanelProps) {
+  // Leverage existing hook for hypothesis management
+  const hypothesisGen = useEntityGenerator({
+    sourceType: 'studio_surveys',
+    sourceId: surveyId,
+    targetType: 'studio_hypotheses',
+  })
+
+  // Load generated hypotheses into pending state
+  useEffect(() => {
+    artifacts.hypotheses.forEach(h => {
+      hypothesisGen.addPending({
+        ...h,
+        _pendingId: crypto.randomUUID(),
+        _createdAt: Date.now(),
+      })
+    })
+  }, [artifacts.hypotheses])
+
+  return (
+    <div className="space-y-6">
+      <section>
+        <h3>Generated Hypotheses</h3>
+        {hypothesisGen.pending.map(h => (
+          <PendingHypothesisCard
+            key={h._pendingId}
+            hypothesis={h}
+            onEdit={(updates) => hypothesisGen.updatePending(h._pendingId, updates)}
+            onDelete={() => hypothesisGen.deletePending(h._pendingId)}
+          />
+        ))}
+        <Button onClick={() => hypothesisGen.flushPendingHypotheses(projectId)}>
+          Accept All Hypotheses
+        </Button>
+      </section>
+
+      {/* Similar sections for assumptions, experiments, customer profiles */}
+    </div>
+  )
 }
 ```
 
@@ -2005,161 +2325,187 @@ export default async function SurveyPage({ params }: { params: { slug: string } 
 
 ---
 
-## Web Search Integration
+## LLM Suggestions During Survey (Phase 2)
 
-For questions that benefit from market research:
+For questions that benefit from AI assistance:
 
 ```typescript
-// lib/ai/actions/survey-suggestions.ts
+// lib/ai/actions/generate-survey-suggestions.ts (NEW - Phase 2)
 
-export async function getSurveySuggestions(
-  question: SurveyQuestion,
-  previousResponses: Map<string, unknown>,
-  projectContext: Record<string, unknown>
-): Promise<string[]> {
-  if (!question.suggestions?.enabled) {
-    return [];
-  }
+import { Action } from './types'
+import { z } from 'zod'
 
-  switch (question.suggestions.source) {
-    case 'web_search':
-      // Interpolate previous responses into search prompt
-      const searchQuery = interpolatePrompt(
-        question.suggestions.prompt,
-        previousResponses
-      );
+const GenerateSuggestionsInput = z.object({
+  question: z.string(),
+  question_type: z.string(),
+  previous_responses: z.record(z.unknown()),
+  project_context: z.record(z.unknown()),
+})
 
-      // Use existing web search capability
-      const searchResults = await performWebSearch(searchQuery);
+const GenerateSuggestionsOutput = z.object({
+  suggestions: z.array(z.string()),
+})
 
-      // Extract suggestions from search results via LLM
-      const result = await executeAction('extract-suggestions', {
-        question: question.question,
-        search_results: searchResults,
-        context: projectContext,
-      });
+export const generateSurveySuggestions: Action<
+  z.infer<typeof GenerateSuggestionsInput>,
+  z.infer<typeof GenerateSuggestionsOutput>
+> = {
+  id: 'generate-survey-suggestions',
+  name: 'Generate Survey Suggestions',
+  description: 'Generates contextual suggestions for survey questions',
+  entityTypes: ['studio_surveys'],
+  taskType: 'generation',
 
-      return result.data?.suggestions || [];
+  inputSchema: GenerateSuggestionsInput,
+  outputSchema: GenerateSuggestionsOutput,
 
-    case 'existing_entities':
-      // Query existing entities of the specified type
-      return await fetchExistingEntities(
-        question.suggestions.entity_type,
-        projectContext
-      );
+  buildPrompt: (input) => ({
+    system: `Generate 3-5 helpful suggestions for this survey question.
 
-    case 'llm':
-      // Direct LLM suggestion
-      const result = await executeAction('generate-suggestions', {
-        question: question.question,
-        prompt: question.suggestions.prompt,
-        context: projectContext,
-        previous_responses: Object.fromEntries(previousResponses),
-      });
+Base suggestions on:
+- The question being asked
+- Previous responses in the survey
+- The project context
 
-      return result.data?.suggestions || [];
+Make suggestions:
+- Specific and actionable
+- Appropriate for the question type
+- Based on common patterns in the domain
 
-    default:
-      return [];
-  }
+Return only the suggestions array, no explanations.`,
+    user: `Question: ${input.question}
+
+Previous responses:
+${JSON.stringify(input.previous_responses, null, 2)}
+
+Project context:
+${JSON.stringify(input.project_context, null, 2)}
+
+Generate suggestions:`,
+  }),
 }
 ```
 
----
-
-## Entity Relationship Suggestions
-
-For suggesting links to existing objects:
+**Usage Pattern:**
 
 ```typescript
-// lib/ai/actions/suggest-entity-relationships.ts
+// components/survey/question/question-card.tsx
 
-interface EntityRelationshipSuggestion {
-  entity_type: EntityType;
-  entity_id: string;
-  entity_name: string;
-  relevance_score: number;
-  reason: string;
-  suggested_action: 'link' | 'reference' | 'extend';
+const { suggestions, isLoading } = useSuggestions({
+  questionId: question.id,
+  enabled: question.suggestions?.enabled,
+  source: question.suggestions?.source || 'llm',
+})
+
+// For LLM suggestions
+if (source === 'llm') {
+  // Call generateSurveySuggestions action
 }
 
-export async function suggestEntityRelationships(
-  surveyResponses: SurveyResponse[],
-  projectId: string
-): Promise<EntityRelationshipSuggestion[]> {
-  const supabase = await createClient();
-
-  // Fetch existing entities across all types
-  const [hypotheses, experiments, profiles, assumptions, canvases] = await Promise.all([
-    supabase.from('studio_hypotheses').select('*'),
-    supabase.from('studio_experiments').select('*'),
-    supabase.from('customer_profiles').select('*'),
-    supabase.from('assumptions').select('*'),
-    supabase.from('business_model_canvases').select('*'),
-  ]);
-
-  // Use LLM to find relevant connections
-  const result = await executeAction('suggest-relationships', {
-    survey_responses: surveyResponses,
-    existing_entities: {
-      hypotheses: hypotheses.data,
-      experiments: experiments.data,
-      customer_profiles: profiles.data,
-      assumptions: assumptions.data,
-      business_model_canvases: canvases.data,
-    },
-  });
-
-  return result.data?.suggestions || [];
+// For existing entities
+if (source === 'existing_entities') {
+  // Query database for matching entities
+  const profiles = await supabase
+    .from('customer_profiles')
+    .select('*')
+    .limit(5)
 }
 ```
+
+**Note**: Web search suggestions are deferred to Phase 3 (optional). LLM-only suggestions are sufficient for MVP.
 
 ---
 
 ## File Structure Summary
 
-```
-New files to create:
+### New Files to Create
 
+```
 # Database
 supabase/migrations/YYYYMMDD_studio_surveys.sql
 
 # Types
-lib/types/survey.ts
+lib/types/survey.ts  # Survey-specific TypeScript types
 
-# AI Actions
-lib/ai/actions/generate-survey.ts
-lib/ai/actions/process-survey-responses.ts
-lib/ai/actions/survey-suggestions.ts
-lib/ai/actions/suggest-entity-relationships.ts
-lib/ai/prompts/survey-generation.ts
+# AI Infrastructure (Extend Existing)
+lib/ai/types/entities.ts                    # UPDATE: Add survey entity types
+lib/ai/actions/index.ts                     # UPDATE: Register new actions
+lib/ai/actions/generate-survey.ts           # NEW: Survey generation action
+lib/ai/actions/process-survey.ts            # NEW: Survey processing action
+lib/ai/prompts/surveys.ts                   # NEW: Centralized prompts with versioning
+
+# React Hooks
+lib/ai/hooks/useSurveyGenerator.ts          # NEW: Survey generation hook
+lib/ai/hooks/useSurveyProcessor.ts          # NEW: Streaming processor hook
 
 # Server Actions
-app/actions/survey.ts
+app/actions/surveys.ts                      # NEW: Survey CRUD operations
 
-# Background Jobs
-lib/ai/jobs/process-survey-completion.ts
+# API Routes (Streaming)
+app/api/surveys/[surveyId]/process/route.ts # NEW: Streaming artifact generation
 
-# Components
-components/admin/survey/survey-trigger-button.tsx
-components/admin/survey/survey-generation-dialog.tsx
-components/admin/survey/survey-pending-card.tsx
-components/admin/survey/survey-player.tsx
-components/admin/survey/survey-question.tsx
-components/admin/survey/survey-progress.tsx
-components/admin/survey/survey-suggestions.tsx
-components/admin/survey/survey-completion.tsx
-components/admin/survey/survey-artifacts-review.tsx
+# Generic Survey UI Components (Reusable)
+components/survey/
+├── index.ts
+├── context/
+│   ├── survey-provider.tsx
+│   ├── survey-context.ts
+│   └── use-survey.ts
+├── shell/
+│   ├── survey-shell.tsx
+│   ├── survey-header.tsx
+│   ├── survey-progress.tsx
+│   └── survey-navigation.tsx
+├── question/
+│   ├── question-card.tsx
+│   ├── question-input.tsx
+│   └── inputs/
+│       ├── text-input.tsx
+│       ├── textarea-input.tsx
+│       ├── select-input.tsx
+│       ├── multiselect-input.tsx
+│       ├── scale-input.tsx
+│       ├── boolean-input.tsx
+│       └── entity-suggest-input.tsx
+├── suggestions/
+│   ├── suggestion-panel.tsx
+│   └── suggestion-chip.tsx
+├── validation/
+│   ├── validation-message.tsx
+│   └── validators.ts
+└── types.ts
+
+# Studio-Specific Integration Components
+components/admin/survey/
+├── survey-trigger-button.tsx              # NEW: "Generate Survey" button
+├── survey-generation-dialog.tsx           # NEW: Generation loading state
+├── survey-pending-card.tsx                # NEW: Dashboard survey prompt
+├── survey-completion.tsx                  # NEW: Streaming completion UI
+└── artifact-review-panel.tsx              # NEW: Review artifacts (uses useEntityGenerator)
 
 # Pages
-app/(private)/admin/studio/[slug]/survey/page.tsx
+app/(private)/admin/studio/[slug]/survey/page.tsx  # NEW: Survey player page
 
-# Modified files:
-components/admin/studio-project-form.tsx
-app/(private)/admin/studio/new/page.tsx
-app/(private)/admin/studio/[slug]/page.tsx
-app/(private)/admin/studio/page.tsx
-lib/types/database.ts
+# Modified Files
+components/admin/studio-project-form.tsx   # UPDATE: Add survey trigger
+app/(private)/admin/studio/new/page.tsx    # UPDATE: Route to survey
+app/(private)/admin/studio/[slug]/page.tsx # UPDATE: Show survey prompt
+app/(private)/admin/studio/page.tsx        # UPDATE: Survey badges
+lib/types/database.ts                      # UPDATE: Survey table types
+```
+
+### Files NOT Being Created (Deferred/Optional)
+
+```
+# Web Search Integration (Phase 3)
+lib/ai/search.ts                            # DEFER: Web search wrapper
+lib/ai/actions/survey-suggestions.ts        # DEFER: LLM-only suggestions sufficient for MVP
+
+# Background Jobs (Using Streaming Instead)
+lib/ai/jobs/process-survey-completion.ts    # SKIP: Using streaming API route instead
+
+# Entity Relationships (Phase 3)
+lib/ai/actions/suggest-entity-relationships.ts  # DEFER: Advanced feature
 ```
 
 ---
@@ -2190,26 +2536,114 @@ lib/types/database.ts
 
 ## Implementation Priority
 
-### Phase 1: Core Flow (MVP)
-- [ ] Database migrations for surveys
-- [ ] Survey generation action + prompts
-- [ ] Basic survey player UI (text, textarea, select types)
-- [ ] Survey completion + project field population
-- [ ] Basic hypothesis generation
+### Phase 1: Core Flow (MVP) - Week 1-2
 
-### Phase 2: Rich Experience
-- [ ] All question types (scale, multiselect, entity_suggest)
-- [ ] AI suggestions during survey
-- [ ] Full artifact generation (profiles, assumptions, experiments)
-- [ ] Artifact review UI
-- [ ] Save & resume capability
+**Database & Types**
+- [ ] Create survey tables migration (`studio_surveys`, `studio_survey_responses`, `studio_survey_artifacts`)
+- [ ] Extend entity type system in `lib/ai/types/entities.ts`
+- [ ] Add survey types to `lib/types/database.ts`
 
-### Phase 3: Advanced Features
-- [ ] Web search integration
-- [ ] Entity relationship suggestions
+**AI Actions**
+- [ ] Centralize prompts in `lib/ai/prompts/surveys.ts`
+- [ ] Implement `generate-survey` action
+- [ ] Implement `process-survey` action (with streaming schema)
+- [ ] Register actions in action registry
+
+**Server Actions & Hooks**
+- [ ] Create `useSurveyGenerator` hook
+- [ ] Create `useSurveyProcessor` hook (using Vercel AI SDK's `useObject`)
+- [ ] Implement `generateProjectSurvey` server action
+- [ ] Implement `saveSurveyResponse` server action
+
+**API Routes**
+- [ ] Create streaming endpoint: `app/api/surveys/[surveyId]/process/route.ts`
+
+**Basic Survey UI** (3 question types: text, textarea, select)
+- [ ] Survey provider/context
+- [ ] Question card component
+- [ ] Basic input renderers (text, textarea, select)
+- [ ] Survey navigation controls
+- [ ] Progress indicator
+
+**Integration**
+- [ ] Project form "Generate Survey" button
+- [ ] Survey player page
+- [ ] Basic completion screen with streaming progress
+
+**Target**: User can create project → generate survey → answer 3-5 questions → see hypotheses stream in
+
+---
+
+### Phase 2: Rich Experience - Week 3-4
+
+**Question Types**
+- [ ] Scale/rating input
+- [ ] Multiselect input
+- [ ] Boolean input
+- [ ] Entity suggestion input (links to existing profiles/etc)
+
+**LLM Suggestions**
+- [ ] LLM-based suggestions during survey (inline)
+- [ ] Existing entity suggestions (pull from DB)
+- [ ] Suggestion panel component
+
+**Full Artifact Suite**
+- [ ] Customer profile generation
+- [ ] Assumptions extraction (5-10)
+- [ ] Experiment suggestions (2-3)
 - [ ] BMC block population
-- [ ] Survey analytics
-- [ ] Survey templates
+
+**Artifact Review**
+- [ ] Leverage `useEntityGenerator` for pending state
+- [ ] Hypothesis review/edit cards
+- [ ] Assumption review/edit cards
+- [ ] Experiment review/edit cards
+- [ ] Batch acceptance flow
+
+**UX Polish**
+- [ ] Save & resume capability
+- [ ] Skip optional questions
+- [ ] Validation with helpful errors
+- [ ] Animations (Framer Motion)
+- [ ] Mobile responsiveness
+
+**Target**: Complete onboarding flow with artifact review and editing
+
+---
+
+### Phase 3: Advanced Features - Future
+
+**Web Search Integration** (Optional)
+- [ ] Tavily/Perplexity API wrapper
+- [ ] Web search suggestions for market/competitor questions
+- [ ] Cache search results
+
+**Entity Relationships** (Advanced)
+- [ ] Suggest links to existing entities across projects
+- [ ] Cross-project reuse (e.g., customer profiles)
+
+**Analytics & Improvement**
+- [ ] Track question skip rates
+- [ ] Track time spent per question
+- [ ] Track artifact acceptance rates
+- [ ] Use data to improve prompt engineering
+
+**Templates**
+- [ ] Save survey structure as template
+- [ ] Reuse survey across projects
+- [ ] Community-shared survey templates
+
+**Target**: Advanced features for power users
+
+---
+
+### Key Architectural Decisions
+
+1. ✅ **Streaming over Background Jobs**: Use `streamObject` for real-time progress
+2. ✅ **Leverage Existing Hooks**: Reuse `useEntityGenerator` for artifact review
+3. ✅ **Centralized Prompts**: Version-controlled, testable prompts
+4. ✅ **Generic Survey UI**: Decoupled from domain logic, reusable
+5. ✅ **Extend, Don't Rebuild**: Build on existing action registry and type system
 
 ---
 
