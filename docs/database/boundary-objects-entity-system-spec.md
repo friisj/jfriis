@@ -1183,6 +1183,762 @@ export interface UserStoryWithRelations extends UserStory {
 }
 ```
 
+## Admin UI Architecture
+
+### Navigation Hierarchy (Breadcrumbs)
+
+```
+Projects → [Project Name] → Journeys → [Journey Name] → Stages → [Stage Name] → Touchpoints
+                          ↓
+                     Blueprints → [Blueprint Name] → Steps
+                          ↓
+                     Story Maps → [Story Map Name] → Activities → Stories
+```
+
+### UI Component Patterns
+
+**Established Patterns from Phase 1:**
+- `AdminDetailLayout` - Reusable detail page wrapper
+- `AdminFormLayout` - Reusable form page wrapper
+- `AdminTable` - Data table with sorting, filtering, pagination
+- `FormFieldWithAI` - AI-assisted form fields
+- `StatusBadge` - Status display with color coding
+- Expandable/collapsible sections for hierarchical data
+
+**New Patterns for entity_links:**
+- `EntityLinkField` - Select and manage entity_links in forms
+- `EntityLinksDisplay` - Show linked entities with link metadata
+- `EntityLinkSelector` - Modal for selecting entities to link
+- `LinkStrengthIndicator` - Visual indicator for link strength
+
+### Entity Links UI Integration
+
+**Pattern: Display Links**
+```typescript
+// Show linked entities with their link metadata
+<EntityLinksDisplay
+  source={{ type: 'touchpoint', id: touchpointId }}
+  targetType="user_story"
+  linkType="fixes_pain"
+  onLinkClick={(link) => navigateToEntity(link.target_type, link.target_id)}
+  showMetadata={['strength', 'notes']}
+/>
+```
+
+**Pattern: Create Links**
+```typescript
+// Select entities and create links
+<EntityLinkSelector
+  source={{ type: 'touchpoint', id: touchpointId }}
+  targetType="canvas_item"
+  allowedLinkTypes={['addresses_job', 'relieves_pain', 'creates_gain']}
+  onLink={async (targetId, linkType, options) => {
+    await linkEntities(
+      { type: 'touchpoint', id: touchpointId },
+      { type: 'canvas_item', id: targetId },
+      linkType,
+      options
+    )
+  }}
+/>
+```
+
+**Pattern: Edit Link Metadata**
+```typescript
+// Update existing link
+<LinkMetadataEditor
+  linkId={linkId}
+  fields={['strength', 'notes', 'metadata']}
+  onSave={async (updates) => {
+    await updateLink(linkId, updates)
+  }}
+/>
+```
+
+## Table View UX Design
+
+### Primary Views (All Table-Based)
+
+#### 1. Journeys List View
+
+**Table Columns:**
+- Name (sortable, editable inline)
+- Customer Profile (linked chip)
+- # Stages
+- # Touchpoints
+- # Linked Stories (via entity_links count)
+- Status (draft/active/validated)
+- Validation Status (with icon)
+- Pain Points (count of high-pain touchpoints)
+- Last Updated
+
+**Filters:**
+- Status
+- Validation Status
+- Customer Profile
+- Tags
+- Has Linked Stories (boolean)
+
+**Bulk Actions:**
+- Change Status
+- Link to Business Model Canvas (via entity_links)
+- Export to CSV
+- Delete
+
+**Row Actions:**
+- Edit
+- Duplicate
+- View Details (drill-down)
+- Manage Links (open entity_links modal)
+
+#### 2. Journey Detail View (Nested Table)
+
+**Structure: Expandable Rows**
+
+```
+Journey: "E-commerce Checkout"
+├─ Linked Entities (via entity_links):
+│  ├─ Business Model Canvas: "E-commerce Platform BMC"
+│  └─ Value Proposition Canvas: "Checkout VPC"
+│
+└─ Stages Table
+   ├─ [Expandable] Stage: "Cart Review"
+   │  └─ Touchpoints Table
+   │     ├─ Touchpoint: "View Cart Summary" [pain: minor]
+   │     │  ├─ Linked Canvas Items: 2 (via entity_links)
+   │     │  ├─ Linked Assumptions: 1 (via entity_links)
+   │     │  └─ Linked Stories: 3 (via entity_links)
+   │     │     └─ [Expandable] Related Stories:
+   │     │        ├─ Story: "Improve cart layout" [fixes_pain]
+   │     │        ├─ Story: "Add quantity editor" [enables]
+   │     │        └─ Story: "Show shipping estimate" [improves]
+   │     └─ Touchpoint: "Apply Coupon" [pain: major]
+   │        └─ Linked Stories: 1
+   ├─ [Expandable] Stage: "Payment Entry"
+   └─ [Expandable] Stage: "Confirmation"
+```
+
+**Inline Editing:**
+- Click cell to edit
+- Tab to next field
+- Spreadsheet-like UX
+
+**Link Management:**
+- Click "Manage Links" to open EntityLinkSelector
+- Shows existing links with strength/notes
+- Can add/remove/edit links inline
+
+#### 3. Touchpoints Table View (Flat)
+
+**All touchpoints across all journeys (useful for bulk management)**
+
+**Columns:**
+- Name
+- Journey → Stage (breadcrumb)
+- Channel Type
+- Pain Level (color-coded)
+- Experience Quality
+- Importance
+- # Canvas Items (entity_links count)
+- # Assumptions (entity_links count)
+- # Stories (entity_links count)
+- Validation Status
+
+**Filters:**
+- Journey
+- Stage
+- Channel Type
+- Pain Level (high pain = priority)
+- Importance
+- Has Links (canvas_items/assumptions/stories)
+
+**Bulk Edit:**
+- Update pain level
+- Link to assumptions (bulk entity_links creation)
+- Link to stories (bulk entity_links creation)
+- Add evidence
+
+**Bulk Link Actions:**
+- Select multiple touchpoints
+- "Link to Canvas Item" → opens selector, creates entity_links for all selected
+- "Link to User Story" → opens selector, creates entity_links for all selected
+
+#### 4. Blueprints List View
+
+**Table Columns:**
+- Name
+- Linked Journey (via entity_links, shows link_type badge)
+- # Steps
+- # Linked Stories (total across all steps)
+- Status
+- Validation Status
+- Last Updated
+
+**Filters:**
+- Status
+- Validation Status
+- Has Linked Journey
+- Has Linked Stories
+
+**Row Actions:**
+- Edit
+- View Details
+- Manage Journey Links (entity_links modal)
+
+#### 5. Blueprint Detail View (Grid Table)
+
+**Display: Time-sequenced grid**
+
+| Step | Customer | Frontstage | Backstage | Support | Linked Touchpoints | Linked Stories |
+|------|----------|------------|-----------|---------|-------------------|----------------|
+| 1. Card Entry | Enters details | Show validation | Call fraud API | Stripe gateway | 1 touchpoint (delivers) | 3 stories (implements) |
+| 2. Verify | Waits | Display loading | Process payment | Payment processor | 1 touchpoint | 2 stories |
+| 3. Confirm | Sees confirmation | Show receipt | Log transaction | Analytics | 1 touchpoint | 1 story |
+
+**Inline Editing:**
+- Click cell to edit layer text
+- Add/remove steps (columns)
+
+**Link Management (per step):**
+- Click "Link" icon in Touchpoints column → EntityLinkSelector
+- Click "Link" icon in Stories column → EntityLinkSelector
+- Shows link_type badge next to each linked entity
+- Hover shows link metadata (notes, strength)
+
+#### 6. Story Maps List View
+
+**Table Columns:**
+- Name
+- Linked Journey (via entity_links)
+- Linked Blueprint (via entity_links)
+- # Activities
+- # Stories
+- Status
+- Last Updated
+
+**Filters:**
+- Status
+- Has Linked Journey
+- Has Linked Blueprint
+- Release
+
+**Row Actions:**
+- Edit
+- View Details
+- Manage Links (journey/blueprint entity_links)
+
+#### 7. Story Map Detail View (Grouped Table)
+
+**Structure: Group by Activity**
+
+```
+Story Map: "Checkout Features"
+├─ Linked Entities (via entity_links):
+│  ├─ Service Blueprint: "Checkout Flow Blueprint" [implements]
+│  └─ User Journey: "E-commerce Checkout" [implements]
+│
+Activity: "Cart Management" (sequence: 1)
+├─ Story: "Improve cart layout" [high] [Sprint 2] [in_progress]
+│  └─ Links: 1 touchpoint (fixes_pain), 0 blueprint steps
+├─ Story: "Add quantity editor" [medium] [Sprint 2] [ready]
+│  └─ Links: 1 touchpoint (enables), 1 blueprint step (implements/backstage)
+└─ Story: "Show shipping estimate" [low] [Sprint 3] [backlog]
+   └─ Links: 0 touchpoints, 0 blueprint steps
+
+Activity: "Payment Processing" (sequence: 2)
+├─ Story: "Implement Stripe" [critical] [Sprint 1] [done]
+│  └─ Links: 2 touchpoints (enables), 3 blueprint steps (implements)
+├─ Story: "Card validation UI" [high] [Sprint 2] [in_progress]
+│  └─ Links: 1 touchpoint (fixes_pain), 2 blueprint steps (implements/frontstage)
+└─ Story: "Fraud detection" [high] [Sprint 3] [backlog]
+   └─ Links: 1 touchpoint (improves), 1 blueprint step (implements/backstage)
+```
+
+**View Options:**
+- Group by: Activity / Release / Status / Priority
+- Sort by: Priority / Story Points / Status
+- Filter by: Release, Status, Tag, Has Links
+
+**Bulk Actions:**
+- Assign to release
+- Update priority
+- Change status
+- Link to touchpoints (bulk entity_links)
+- Link to blueprint steps (bulk entity_links)
+
+**Story Link Management:**
+- Each story row has "Manage Links" action
+- Opens modal with tabs: Touchpoints, Blueprint Steps, Assumptions
+- Can create/edit/delete entity_links with appropriate link_types
+
+#### 8. Cross-Reference Views
+
+**Touchpoint → Stories View**
+
+Uses entity_links to query stories linked to touchpoints:
+
+```typescript
+// Query stories linked to a touchpoint
+const links = await getLinkedEntities(
+  { type: 'touchpoint', id: touchpointId },
+  { direction: 'both', targetType: 'user_story' }
+)
+
+// Fetch story data
+const stories = await getLinkedEntitiesWithData(
+  { type: 'touchpoint', id: touchpointId },
+  'user_story'
+)
+```
+
+**Table Display:**
+
+| Touchpoint | Pain Level | Linked Stories | Link Types | Combined Impact |
+|------------|-----------|----------------|------------|-----------------|
+| "Enter card details" | major | 3 stories | fixes_pain (2), enables (1) | High impact |
+| "Apply coupon" | major | 1 story | fixes_pain (1) | Medium impact |
+| "View receipt" | minor | 1 story | improves (1) | Low impact |
+
+**Actions:**
+- Click touchpoint → navigate to touchpoint detail
+- Click story count → expand inline to show story list
+- Click "Add Story Link" → EntityLinkSelector
+
+**Story → Touchpoints View**
+
+```typescript
+// Query touchpoints and blueprint steps linked to a story
+const touchpointLinks = await getLinkedEntities(
+  { type: 'user_story', id: storyId },
+  { targetType: 'touchpoint' }
+)
+
+const blueprintLinks = await getLinkedEntities(
+  { type: 'user_story', id: storyId },
+  { targetType: 'blueprint_step' }
+)
+```
+
+**Table Display:**
+
+| Story | Priority | Touchpoints | Blueprint Steps | Customer Impact |
+|-------|----------|-------------|-----------------|-----------------|
+| "Card validation UI" | high | 1 touchpoint (fixes_pain) | 2 steps (implements/frontstage) | Fixes major pain |
+| "Stripe integration" | critical | 2 touchpoints (enables) | 3 steps (implements) | Enables core flow |
+
+**Impact Calculation:**
+- Aggregate pain levels from linked touchpoints
+- Count blueprint steps to estimate scope
+- Show link_type distribution (how many fixes_pain vs enables vs improves)
+
+#### 9. Entity Links Manager (Standalone View)
+
+**All links for an entity**
+
+```
+Entity: Touchpoint "View Cart Summary"
+
+Linked Canvas Items (2):
+├─ [Job] "Complete purchase quickly" [addresses_job] [strength: strong]
+└─ [Pain] "Unclear total cost" [relieves_pain] [strength: moderate]
+
+Linked Assumptions (1):
+└─ "Users want to see all costs upfront" [tests] [notes: "Validated via user testing"]
+
+Linked User Stories (3):
+├─ "Improve cart layout" [fixes_pain] [strength: strong]
+├─ "Add quantity editor" [enables] [strength: moderate]
+└─ "Show shipping estimate" [improves] [strength: weak]
+
+Evidence (2):
+├─ User Test: "Cart usability test" [supports: true] [confidence: high]
+└─ Analytics: "Cart abandonment analysis" [supports: true] [confidence: medium]
+```
+
+**Actions:**
+- Add Link (EntityLinkSelector for each type)
+- Edit Link (inline edit for strength, notes, metadata)
+- Delete Link
+- Filter by link_type, strength
+- Export links to CSV
+
+## Form Patterns with entity_links
+
+### Pattern 1: Create Form with Entity Links
+
+**Journey Form Example:**
+
+```typescript
+<JourneyForm>
+  {/* Core Fields */}
+  <FormField name="name" label="Name" required />
+  <FormField name="description" label="Description" aiAssist />
+  <FormField name="customer_profile_id" label="Customer Profile" type="select" />
+
+  {/* Entity Links Field */}
+  <EntityLinkField
+    label="Related Business Model Canvases"
+    source={{ type: 'user_journey', id: journeyId }} // After creation
+    targetType="business_model_canvas"
+    linkType="related"
+    multiple
+    onCreate={async (targetId) => {
+      await linkEntities(
+        { type: 'user_journey', id: journeyId },
+        { type: 'business_model_canvas', id: targetId },
+        'related'
+      )
+    }}
+  />
+
+  <EntityLinkField
+    label="Related Value Proposition Canvases"
+    source={{ type: 'user_journey', id: journeyId }}
+    targetType="value_proposition_canvas"
+    linkType="related"
+    multiple
+  />
+</JourneyForm>
+```
+
+### Pattern 2: Edit Form with Existing Links
+
+```typescript
+<TouchpointForm touchpoint={touchpoint}>
+  {/* Core Fields */}
+  <FormField name="name" />
+  <FormField name="pain_level" />
+
+  {/* Show and Edit Existing Links */}
+  <EntityLinksSection
+    source={{ type: 'touchpoint', id: touchpoint.id }}
+    sections={[
+      {
+        title: "Canvas Items",
+        targetType: "canvas_item",
+        allowedLinkTypes: ['addresses_job', 'relieves_pain', 'creates_gain'],
+        showStrength: true,
+        showNotes: true
+      },
+      {
+        title: "Assumptions",
+        targetType: "assumption",
+        allowedLinkTypes: ['tests', 'validates', 'challenges', 'depends_on'],
+        showNotes: true
+      },
+      {
+        title: "User Stories",
+        targetType: "user_story",
+        allowedLinkTypes: ['enables', 'improves', 'fixes_pain', 'delivers_gain'],
+        showStrength: true
+      }
+    ]}
+  />
+</TouchpointForm>
+```
+
+### Pattern 3: Bulk Link Creation
+
+```typescript
+// Select multiple touchpoints, link them all to one story
+<BulkEntityLinker
+  sources={selectedTouchpoints.map(t => ({ type: 'touchpoint', id: t.id }))}
+  targetType="user_story"
+  linkType="fixes_pain"
+  options={{ strength: 'strong' }}
+  onComplete={() => {
+    toast.success(`Linked ${selectedTouchpoints.length} touchpoints to story`)
+    refetch()
+  }}
+/>
+```
+
+### Pattern 4: Link with Metadata
+
+```typescript
+<EntityLinkSelectorWithMetadata
+  source={{ type: 'blueprint_step', id: stepId }}
+  targetType="user_story"
+  linkType="implements"
+  metadataFields={[
+    {
+      key: 'implements_layer',
+      label: 'Implements Layer',
+      type: 'select',
+      options: ['customer_action', 'frontstage', 'backstage', 'support_process', 'all']
+    },
+    {
+      key: 'completion_percentage',
+      label: 'Completion %',
+      type: 'number',
+      min: 0,
+      max: 100
+    }
+  ]}
+  onLink={async (targetId, linkType, metadata) => {
+    await linkEntities(
+      { type: 'blueprint_step', id: stepId },
+      { type: 'user_story', id: targetId },
+      linkType,
+      { metadata }
+    )
+  }}
+/>
+```
+
+## Simplified View Types
+
+### Table View (Primary)
+- Default for all lists
+- Inline editing
+- Bulk operations
+- Export to CSV
+- Filtering, sorting, grouping
+- Expandable rows for hierarchy
+- **Entity links column** - shows count with icon, click to expand
+
+### Grid View (Secondary)
+- Card-based display
+- Visual indicators (pain levels, validation status, link counts)
+- Good for overview/scanning
+- Less dense than table
+- **Link badges** on cards showing entity_links counts
+
+### Kanban View (Optional)
+- Story Maps: Group by status or release
+- Journeys: Group by validation status
+- Drag-and-drop to change status/release
+- **Link indicators** on cards (small badges)
+
+### Simple Visualization (No Freeform Canvas)
+- **Journey Timeline**: Horizontal stages with touchpoint counts and link indicators
+- **Blueprint Grid**: Table with layer rows × time columns, link counts per cell
+- **Story Map Hierarchy**: Tree/outline view with expand/collapse, link counts per node
+- **Impact Graph**: Visual representation of entity_links (touchpoint → story → blueprint)
+- All views are **structured, not freeform**
+
+## Example Use Case: E-commerce Checkout (with entity_links)
+
+### 1. Create Journey
+
+```typescript
+const journey = await createUserJourney({
+  name: "E-commerce Checkout",
+  customer_profile_id: "customer-profile-uuid",
+  journey_type: "sub_journey",
+  goal: "Complete purchase with minimal friction"
+})
+
+// Link journey to business model canvas (using entity_links)
+await linkEntities(
+  { type: 'user_journey', id: journey.id },
+  { type: 'business_model_canvas', id: bmcId },
+  'related',
+  { notes: 'Checkout flow implements revenue streams' }
+)
+
+// Add stages
+const stage1 = await createJourneyStage({
+  user_journey_id: journey.id,
+  name: "Cart Review",
+  sequence: 1,
+  stage_type: "purchase",
+  customer_emotion: "cautious"
+})
+
+// Add touchpoints
+const touchpoint1 = await createTouchpoint({
+  journey_stage_id: stage1.id,
+  name: "View Cart Summary",
+  sequence: 1,
+  channel_type: "web",
+  pain_level: "minor",
+  importance: "high"
+})
+
+// Link touchpoint to canvas item (using entity_links)
+await linkEntities(
+  { type: 'touchpoint', id: touchpoint1.id },
+  { type: 'canvas_item', id: canvasItemId },
+  'addresses_job',
+  { strength: 'strong', notes: 'Helps customer review purchase' }
+)
+
+// Link touchpoint to assumption (using entity_links)
+await linkEntities(
+  { type: 'touchpoint', id: touchpoint1.id },
+  { type: 'assumption', id: assumptionId },
+  'tests',
+  { notes: 'Tests assumption about cart visibility preferences' }
+)
+```
+
+### 2. Create Blueprint
+
+```typescript
+const blueprint = await createServiceBlueprint({
+  name: "Checkout Flow Blueprint",
+  blueprint_type: "digital"
+})
+
+// Link blueprint to journey (using entity_links instead of FK)
+await linkEntities(
+  { type: 'service_blueprint', id: blueprint.id },
+  { type: 'user_journey', id: journey.id },
+  'implements',
+  { notes: 'Blueprint implements checkout journey' }
+)
+
+// Add step
+const step1 = await createBlueprintStep({
+  service_blueprint_id: blueprint.id,
+  name: "Payment Entry",
+  sequence: 1,
+  layers: {
+    customer_action: "Enters credit card details",
+    frontstage: "Real-time validation feedback",
+    backstage: "Call fraud detection API",
+    support_process: "Stripe payment gateway"
+  }
+})
+
+// Link step to touchpoint (using entity_links instead of FK)
+await linkEntities(
+  { type: 'blueprint_step', id: step1.id },
+  { type: 'touchpoint', id: touchpoint1.id },
+  'delivers',
+  { notes: 'This step delivers the cart summary touchpoint' }
+)
+```
+
+### 3. Create Story Map
+
+```typescript
+const storyMap = await createStoryMap({
+  name: "Checkout Features",
+  map_type: "feature"
+})
+
+// Link story map to blueprint (using entity_links instead of FK)
+await linkEntities(
+  { type: 'story_map', id: storyMap.id },
+  { type: 'service_blueprint', id: blueprint.id },
+  'implements',
+  { notes: 'Story map implements blueprint features' }
+)
+
+// Add activity
+const activity1 = await createActivity({
+  story_map_id: storyMap.id,
+  name: "Payment Processing",
+  sequence: 1
+})
+
+// Link activity to journey stage (using entity_links)
+await linkEntities(
+  { type: 'activity', id: activity1.id },
+  { type: 'journey_stage', id: stage1.id },
+  'maps_to',
+  { notes: 'Activity corresponds to checkout stage' }
+)
+
+// Add story
+const story1 = await createUserStory({
+  activity_id: activity1.id,
+  title: "As a customer, I want real-time card validation",
+  priority: "high",
+  story_points: 5
+})
+
+// Link story to touchpoint (using entity_links instead of junction table)
+await linkEntities(
+  { type: 'user_story', id: story1.id },
+  { type: 'touchpoint', id: touchpoint1.id },
+  'fixes_pain',
+  {
+    strength: 'strong',
+    notes: 'Fixes cart visibility pain',
+    metadata: { impact_type: 'fixes_pain', priority: 'high' }
+  }
+)
+
+// Link story to blueprint step (using entity_links instead of junction table)
+await linkEntities(
+  { type: 'user_story', id: story1.id },
+  { type: 'blueprint_step', id: step1.id },
+  'implements',
+  {
+    notes: 'Implements frontstage validation layer',
+    metadata: { implements_layer: 'frontstage', completion_percentage: 80 }
+  }
+)
+```
+
+### 4. Query Links for Display
+
+```typescript
+// Get all linked stories for a touchpoint
+const touchpointStories = await getLinkedEntitiesWithData(
+  { type: 'touchpoint', id: touchpoint1.id },
+  'user_story',
+  'fixes_pain' // optional: filter by link_type
+)
+
+// Get all linked touchpoints and blueprint steps for a story
+const storyImpact = await Promise.all([
+  getLinkedEntitiesWithData(
+    { type: 'user_story', id: story1.id },
+    'touchpoint'
+  ),
+  getLinkedEntitiesWithData(
+    { type: 'user_story', id: story1.id },
+    'blueprint_step'
+  )
+])
+
+// Get link metadata
+touchpointStories.forEach(({ link, entity }) => {
+  console.log(`Story: ${entity.title}`)
+  console.log(`Link type: ${link.link_type}`)
+  console.log(`Strength: ${link.strength}`)
+  console.log(`Notes: ${link.notes}`)
+  console.log(`Metadata: ${JSON.stringify(link.metadata)}`)
+})
+```
+
+### 5. Table View Display
+
+**Journey Detail (Nested with entity_links)**
+```
+Journey: "E-commerce Checkout"
+├─ Linked BMC: "E-commerce Platform BMC" [related]
+│
+└─ Stage: "Cart Review" [cautious]
+   └─ Touchpoint: "View Cart Summary" [pain: minor] [high importance]
+      ├─ Linked Canvas Items: 1 (addresses_job, strength: strong)
+      ├─ Linked Assumptions: 1 (tests)
+      └─ Linked Stories: 1 story
+         └─ "Real-time card validation" [fixes_pain, strength: strong]
+```
+
+**Blueprint Grid (with entity_links)**
+| Step | Customer | Frontstage | Backstage | Support | Linked Touchpoints | Linked Stories |
+|------|----------|------------|-----------|---------|-------------------|----------------|
+| Payment Entry | Enters card | Validation | Fraud API | Stripe | 1 (delivers) | 1 (implements/frontstage, 80%) |
+
+**Story Map (Grouped by Activity with entity_links)**
+```
+Story Map: "Checkout Features"
+├─ Linked Blueprint: "Checkout Flow Blueprint" [implements]
+│
+Activity: "Payment Processing"
+├─ Linked Stage: "Cart Review" [maps_to]
+│
+└─ Story: "Real-time card validation" [high] [5 pts]
+   ├─ Linked Touchpoints: 1 (fixes_pain, strength: strong)
+   └─ Linked Blueprint Steps: 1 (implements, layer: frontstage, 80% complete)
+```
+
 ## Implementation Progress
 
 ### Completed (Phase 1/2)
