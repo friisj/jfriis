@@ -387,71 +387,224 @@ status: 'identified' | 'prioritized' | 'testing' | 'validated' | 'invalidated' |
 
 ---
 
-## Part 7: Recommendations
+## Part 7: Entity Links Architecture (Critical Context)
 
-### Option A: Align with Bland (Breaking Change)
+### Why entity_links is the Right Solution
 
-**Restructure to make Assumptions primary:**
+The codebase implements a **universal polymorphic relationship table** called `entity_links` that replaces traditional junction tables for relationships with minimal metadata.
 
+**Schema:**
+```sql
+CREATE TABLE entity_links (
+  source_type TEXT NOT NULL,      -- e.g., 'hypothesis'
+  source_id UUID NOT NULL,        -- hypothesis.id
+  target_type TEXT NOT NULL,      -- e.g., 'assumption'
+  target_id UUID NOT NULL,        -- assumption.id
+  link_type TEXT NOT NULL,        -- 'tests', 'related', 'validates'
+  strength TEXT,                  -- 'strong', 'moderate', 'weak', 'tentative'
+  notes TEXT,
+  metadata JSONB,
+  position INTEGER,               -- for ordered relationships
+  UNIQUE(source_type, source_id, target_type, target_id, link_type)
+);
+```
+
+**Decision Matrix (from RELATIONSHIP_SIMPLIFICATION_SPEC.md):**
+
+| Use Pattern | When | Examples |
+|-------------|------|----------|
+| **Foreign Key** | Parent-child, hierarchical ownership | `hypothesis.project_id` |
+| **Specialized Junction** | M:M with rich domain metadata | `assumption_experiments` (has `result`, `confidence`) |
+| **entity_links** | Loose associations, minimal metadata | hypothesis ↔ assumption, BMC ↔ VPC |
+| **evidence table** | Validation evidence for any entity | assumptions, touchpoints, canvas items |
+
+**Why entity_links is Perfect for Assumption↔Hypothesis:**
+
+✅ **Minimal Metadata** - No domain-specific fields needed (no `result`, `validation_method`, etc.)
+✅ **M:N Support** - One assumption tested by many hypotheses, one hypothesis tests many assumptions
+✅ **Bidirectional** - Efficient queries from either direction
+✅ **Already Implemented** - Complete helper functions, UI components, validation rules
+✅ **Consistent** - Matches pattern for similar relationships (experiment→canvas_item, specimen→assumption)
+✅ **Flexible** - Can add `strength` if needed without schema changes
+✅ **Proven** - Used successfully in 10+ relationship types
+
+**Current Usage in Codebase:**
+
+Already using entity_links:
+- hypothesis ↔ assumption (validation rules exist!)
+- experiment ↔ canvas_item
+- specimen ↔ assumption
+- business_model_canvas ↔ value_proposition_canvas
+- user_journey ↔ canvases
+- log_entry ↔ various entities
+- gallery_sequence ↔ specimen
+
+Still using specialized junction tables (correctly):
+- `assumption_experiments` - Rich metadata: `result`, `confidence`
+- `canvas_item_mappings` - FIT analysis: `fit_strength`, `validation_method`
+- `touchpoint_mappings` - Complex polymorphic: `mapping_type`
+
+**Helper Functions Available** (`lib/entity-links.ts`):
 ```typescript
-// NEW: Assumption is primary
+// Create link
+await linkEntities(
+  { type: 'hypothesis', id: hypothesisId },
+  { type: 'assumption', id: assumptionId },
+  'tests'
+)
+
+// Get linked entities with full data
+const assumptions = await getLinkedEntitiesWithData(
+  { type: 'hypothesis', id: hypothesisId },
+  'assumption',
+  'tests'
+)
+
+// Batch sync links (handles create/delete)
+await syncEntityLinks(
+  { type: 'hypothesis', id: hypothesisId },
+  'assumption',
+  'tests',
+  [assumptionId1, assumptionId2, assumptionId3]
+)
+```
+
+**UI Component Available** (`components/admin/entity-link-field.tsx`):
+```typescript
+<EntityLinkField
+  sourceType="hypothesis"
+  sourceId={hypothesis?.id}
+  targetType="assumption"
+  targetTableName="assumptions"
+  targetDisplayField="statement"
+  linkType="tests"
+  label="Assumptions This Tests"
+  helperText="Select which assumptions this hypothesis validates"
+  // Handles multi-select, create/delete, displays linked entities
+/>
+```
+
+**Conclusion:** Using entity_links for assumption-hypothesis relationships is not just recommended—it's the **established architectural pattern** that should be used here. Creating a dedicated junction table would be inconsistent with the codebase's design principles.
+
+---
+
+## Part 8: Recommendations
+
+### Option A: Align with Bland Using entity_links (Non-Breaking Enhancement)
+
+**Leverage existing entity_links architecture to make Assumptions primary:**
+
+The codebase already has a universal relationship table (`entity_links`) that supports polymorphic M:N relationships. This is the correct pattern to use instead of creating dedicated junction tables.
+
+**Current State:**
+```typescript
+// Assumptions can optionally link to ONE hypothesis
 interface Assumption {
-  id: UUID
-  studio_project_id: UUID  // Direct link to project
-  statement: string
-  category: ...
-  importance: ...
-  evidence_level: ...
-  is_leap_of_faith: boolean
-  status: 'identified' | 'prioritized' | 'testing' | 'validated' | 'invalidated'
-
-  // Remove hypothesis_id (wrong direction)
+  hypothesis_id?: UUID  // Single FK (limiting)
 }
 
-// NEW: Hypothesis becomes a testing plan for an assumption
-interface AssumptionHypothesis {
-  id: UUID
-  assumption_id: UUID  // FK to assumption (correct direction)
+// Hypotheses exist independently
+interface StudioHypothesis {
+  project_id: UUID
   statement: string
-  test_method: string  // How we'll test this
-  validation_criteria: string  // How we'll measure
-  success_threshold: string  // What "validated" means
-  sequence: number
-  status: 'proposed' | 'testing' | 'validated' | 'invalidated'
-}
-
-// Junction: Many experiments can test many hypotheses
-interface HypothesisExperiment {
-  hypothesis_id: UUID
-  experiment_id: UUID
-  result: 'supports' | 'refutes' | 'inconclusive'
+  // No direct link back to assumptions
 }
 ```
+
+**Enhanced with entity_links:**
+```typescript
+// Keep existing structures, add M:N via entity_links
+entity_links {
+  source_type: 'hypothesis'
+  source_id: UUID  // hypothesis.id
+  target_type: 'assumption'
+  target_id: UUID  // assumption.id
+  link_type: 'tests' | 'related'
+  strength?: 'strong' | 'moderate' | 'weak'
+  notes?: string
+}
+
+// Now queries can go both ways:
+// "Which assumptions does this hypothesis test?"
+// "Which hypotheses test this assumption?"
+```
+
+**Implementation Steps:**
+
+1. **Add validation rules** to `/home/user/jfriis/lib/entity-links-validation.ts`:
+```typescript
+hypothesis: {
+  assumption: ['related', 'tests'],  // Already exists!
+  experiment: ['validates', 'tests'],
+}
+
+assumption: {
+  hypothesis: ['related', 'tested_by'],  // Add reverse direction
+  experiment: ['related'],
+}
+```
+
+2. **Add EntityLinkField to hypothesis-form.tsx**:
+```typescript
+<EntityLinkField
+  sourceType="hypothesis"
+  sourceId={hypothesis?.id}
+  targetType="assumption"
+  targetTableName="assumptions"
+  targetDisplayField="statement"
+  linkType="tests"
+  label="Assumptions This Tests"
+  helperText="Select which assumptions this hypothesis validates"
+/>
+```
+
+3. **Add EntityLinkField to assumption-form.tsx**:
+```typescript
+<EntityLinkField
+  sourceType="assumption"
+  sourceId={assumption?.id}
+  targetType="hypothesis"
+  targetTableName="studio_hypotheses"
+  targetDisplayField="statement"
+  linkType="tested_by"
+  label="Tested By Hypotheses"
+  helperText="Which hypotheses test this assumption?"
+/>
+```
+
+4. **Keep `hypothesis_id` FK for backward compatibility** (optional)
+   - Don't break existing data
+   - Consider it a "primary hypothesis" link
+   - entity_links provides additional hypothesis connections
 
 **New Workflow:**
 1. Extract assumptions from canvases → Assumptions table
 2. Prioritize assumptions by matrix → Flag leap of faith
 3. For each priority assumption → Create one or more hypotheses
-4. For each hypothesis → Design experiments
-5. Run experiments → Collect evidence
-6. Evidence rolls up: Experiments → Hypotheses → Assumption evidence level
+4. Link hypotheses to assumptions via entity_links (M:N)
+5. Design experiments linked to hypotheses
+6. Experiments test hypotheses which validate assumptions
+7. Evidence rolls up: Experiments → Hypotheses → Assumptions
 
-**Migration Path:**
-- Create `assumption_hypotheses` table
-- Migrate existing `studio_hypotheses` where `hypothesis_id` is set on assumptions
-- For standalone hypotheses, create generic assumptions like "This initiative will succeed"
-- Update UI to show Assumption → Hypotheses → Experiments hierarchy
+**Why entity_links is Perfect Here:**
+
+✅ **M:N Support** - One assumption can be tested by many hypotheses
+✅ **Already Implemented** - No new table creation, just add UI components
+✅ **Bidirectional** - Query from either direction efficiently
+✅ **Metadata Support** - Can use `strength` to indicate how strongly a hypothesis tests an assumption
+✅ **Consistent** - Matches patterns for experiment→canvas_item, specimen→assumption, etc.
+✅ **Non-Breaking** - Keeps existing `hypothesis_id` FK for compatibility
 
 **Pros:**
-- Theoretically correct
-- Proper separation of concerns
-- One assumption → many hypotheses works correctly
-- Workflow guides users through Bland's process
+- Uses existing, proven architecture
+- No breaking changes or migration needed
+- Proper M:N relationship (theoretically correct)
+- Consistent with codebase patterns
+- UI components already built (EntityLinkField)
 
 **Cons:**
-- Breaking change requiring migration
-- Existing users have to relearn
-- More complex data model (3 entities instead of 2)
+- Dual relationship pattern (FK + entity_links) might be confusing
+- Need to document when to use each
 
 ---
 
@@ -582,7 +735,7 @@ interface ValidationTest {
 
 ---
 
-## Part 8: Specific Code Issues
+## Part 9: Specific Code Issues
 
 ### Issue 1: Nullable Hypothesis ID Creates Ambiguity
 
@@ -648,29 +801,48 @@ CHECK (
 
 Or auto-update status based on evidence level + experiment results.
 
-### Issue 4: Experiment Junction Table Asymmetry
+### Issue 4: Experiment Relationship Asymmetry
 
-**Experiments link to Assumptions via junction:**
+**Experiments link to Assumptions via specialized junction table:**
 ```typescript
 assumption_experiments {
   assumption_id
   experiment_id
-  result: 'supports' | 'refutes' | 'inconclusive'
+  result: 'supports' | 'refutes' | 'inconclusive'  // Rich metadata
+  confidence: 'low' | 'medium' | 'high'
 }
 ```
 
 **Experiments link to Hypotheses via FK:**
 ```typescript
 studio_experiments {
-  hypothesis_id?: UUID  // Optional FK
+  hypothesis_id?: UUID  // Optional FK, N:1 only
 }
 ```
 
-**Problem:** Inconsistent relationship modeling. Should be symmetric:
-- Either both use junction tables (M:N)
-- Or both use foreign keys (N:1)
+**Analysis:** This is actually **architecturally correct** based on the entity_links pattern:
 
-**Recommendation:** Create `hypothesis_experiments` junction table for symmetry and to allow one experiment to test multiple hypotheses.
+- `assumption_experiments` keeps specialized junction table because it has **rich domain metadata** (`result`, `confidence`)
+- Per the entity_links decision matrix: "Use specialized junction when relationship needs more than `notes` + `strength`"
+- This follows the documented pattern in `/docs/infrastructure/RELATIONSHIP_SIMPLIFICATION_SPEC.md`
+
+**However:** Experiments → Hypotheses should also support M:N (one experiment can test multiple hypotheses).
+
+**Recommendation:** Use entity_links for hypothesis↔experiment relationships:
+```typescript
+// In experiment form:
+<EntityLinkField
+  sourceType="experiment"
+  sourceId={experiment?.id}
+  targetType="hypothesis"
+  targetTableName="studio_hypotheses"
+  targetDisplayField="statement"
+  linkType="tests"
+  label="Tests Hypotheses"
+/>
+```
+
+Keep `hypothesis_id` FK for primary hypothesis (backward compat), use entity_links for additional hypotheses.
 
 ### Issue 5: AI Hypothesis Generation Doesn't Link to Assumptions
 
@@ -723,7 +895,7 @@ if (assumptionFromUrl) {
 
 ---
 
-## Part 9: Documentation Gaps
+## Part 10: Documentation Gaps
 
 ### What's Missing from Docs
 
@@ -799,38 +971,50 @@ supports different team workflows but requires understanding both approaches.
 
 ---
 
-## Part 10: Recommendations Summary
+## Part 11: Recommendations Summary
 
 ### Immediate Actions (Low Effort, High Impact)
 
-1. **Add `assumption_hypotheses` junction table** (M:N relationship)
-   - Non-breaking: Keep `hypothesis_id` for backward compat
-   - Allows one assumption → many hypotheses (correct relationship)
-   - Update UI to show all linked hypotheses, not just one
+1. **Use entity_links for assumption↔hypothesis M:N relationships** ✅ Architecture already exists!
+   - Add `EntityLinkField` to `hypothesis-form.tsx` (link to assumptions)
+   - Add `EntityLinkField` to `assumption-form.tsx` (show linked hypotheses)
+   - Update validation rules in `lib/entity-links-validation.ts` to include reverse direction
+   - Keep `hypothesis_id` FK for backward compatibility (optional "primary" hypothesis)
+   - **Effort:** ~2 hours (UI components already built)
 
 2. **Create conceptual documentation** (`docs/concepts/assumptions-vs-hypotheses.md`)
    - Explain the difference clearly
    - Document both workflows (hypothesis-first vs. assumption-first)
+   - Explain entity_links relationship pattern
    - Provide end-to-end examples
+   - **Effort:** ~3 hours
 
 3. **Add validation constraints**
    - Prevent `validated`/`invalidated` status with `none`/`weak` evidence
    - Add help text in UI explaining status vs. evidence_level
+   - Consider auto-updating status based on evidence rolls up
+   - **Effort:** ~1 hour
 
 4. **Improve AI generation**
    - Add assumption context to hypothesis generation prompt
-   - Create assumption generation prompt that suggests linking to hypotheses
+   - Create assumption generation prompt that suggests linking to hypotheses via entity_links
+   - Auto-create entity_links when AI generates related entities
+   - **Effort:** ~2 hours
 
 5. **Add workflow helpers in UI**
-   - "Create hypothesis from assumption" button
-   - "Link to hypothesis" context from assumption detail page
+   - "Create hypothesis from assumption" button (pre-fills form + auto-links via entity_links)
+   - "Link to hypothesis" quick-add from assumption detail page
    - Visual flow diagram showing assumption → hypothesis → experiment → evidence
+   - **Effort:** ~3 hours
 
 ### Medium-Term Improvements (Moderate Effort)
 
-6. **Create `hypothesis_experiments` junction table** for symmetry
-   - Allows one experiment to test multiple hypotheses
-   - Consistent relationship modeling
+6. **Use entity_links for hypothesis↔experiment relationships**
+   - Allows one experiment to test multiple hypotheses (M:N)
+   - Consistent with entity_links pattern (minimal metadata)
+   - Keep `hypothesis_id` FK on experiments for primary hypothesis
+   - Add `EntityLinkField` to experiment form for additional hypotheses
+   - **Effort:** ~1 hour (reuses existing components)
 
 7. **Add guided onboarding flow**
    - "Getting Started" wizard in UI
@@ -876,16 +1060,26 @@ The current implementation is **technically sophisticated** with rich data model
 
 This doesn't make the implementation "wrong"—it reflects a **pragmatic hybrid approach** that supports both strategy-first and risk-first workflows. However, this hybrid nature is **undocumented and implicit**, leading to potential user confusion.
 
+### Architectural Strength: entity_links
+
+A major discovery during this analysis: **The codebase already has the perfect solution for assumption-hypothesis relationships!** The `entity_links` table provides:
+- ✅ M:N support (one assumption → many hypotheses, correctly!)
+- ✅ Complete helper functions and UI components
+- ✅ Consistent architectural pattern across the codebase
+- ✅ Zero schema changes needed
+
+The validation rules already include `hypothesis → assumption: ['related', 'tests']`, indicating this relationship was anticipated. **The infrastructure exists; it just needs to be exposed in the UI.**
+
 ### Final Recommendation
 
-**Embrace the hybrid model explicitly:**
-1. Document both workflows clearly
-2. Add M:N relationship support (junction table)
-3. Improve AI generation to bridge assumptions ↔ hypotheses
-4. Add UI guidance for both paths
-5. Create examples showing both approaches
+**Embrace the hybrid model explicitly + leverage entity_links:**
+1. **Use entity_links** for assumption↔hypothesis M:N relationships (not junction tables!)
+2. Document both workflows clearly (assumption-first AND hypothesis-first)
+3. Add EntityLinkField components to forms (2-3 hour implementation)
+4. Improve AI generation to create entity_links when generating related entities
+5. Add UI guidance and examples showing both workflow approaches
 
-This preserves backward compatibility, supports diverse team workflows, and provides clarity through documentation rather than forcing a single "correct" way.
+This preserves backward compatibility, uses established patterns, supports diverse team workflows, and provides clarity through documentation rather than forcing a single "correct" way.
 
 ### Assessment Rating
 
