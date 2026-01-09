@@ -2,14 +2,17 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 import { FormFieldWithAI } from '@/components/forms'
 import { SidebarCard } from './sidebar-card'
 import { FormActions } from './form-actions'
 import { RelationshipField } from './relationship-field'
 import { EvidenceManager } from './evidence-manager'
+import { EntityLinkField } from './entity-link-field'
 import { syncPendingEvidence } from '@/lib/evidence'
-import type { PendingEvidence } from '@/lib/types/entity-relationships'
+import { syncEntityLinks } from '@/lib/entity-links'
+import type { PendingEvidence, PendingLink } from '@/lib/types/entity-relationships'
 
 interface Assumption {
   id: string
@@ -91,6 +94,7 @@ export function AssumptionForm({ assumption }: AssumptionFormProps) {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [pendingEvidence, setPendingEvidence] = useState<PendingEvidence[]>([])
+  const [pendingHypothesisLinks, setPendingHypothesisLinks] = useState<PendingLink[]>([])
 
   const [formData, setFormData] = useState({
     slug: assumption?.slug || '',
@@ -181,6 +185,27 @@ export function AssumptionForm({ assumption }: AssumptionFormProps) {
         // Sync pending evidence to the newly created entity
         if (pendingEvidence.length > 0 && created) {
           await syncPendingEvidence({ type: 'assumption', id: created.id }, pendingEvidence)
+        }
+
+        // HIGH-2: Sync pending entity links with error handling
+        if (pendingHypothesisLinks.length > 0 && created) {
+          try {
+            await syncEntityLinks(
+              { type: 'assumption', id: created.id },
+              'hypothesis',
+              'tested_by',
+              pendingHypothesisLinks.map(l => l.targetId)
+            )
+          } catch (linkError) {
+            console.error('Error syncing entity links:', linkError)
+            // Show warning but don't fail the whole operation
+            setError('Assumption created, but failed to link hypotheses. You can link them manually.')
+            // Still navigate away after a delay so user can see the message
+            setTimeout(() => {
+              router.push('/admin/assumptions')
+            }, 3000)
+            return
+          }
         }
 
         router.push(`/admin/assumptions`)
@@ -559,6 +584,47 @@ export function AssumptionForm({ assumption }: AssumptionFormProps) {
               pendingEvidence={pendingEvidence}
               onPendingEvidenceChange={setPendingEvidence}
             />
+          </SidebarCard>
+
+          <SidebarCard title="Tested By Hypotheses">
+            <EntityLinkField
+              label=""
+              sourceType="assumption"
+              sourceId={assumption?.id}
+              targetType="hypothesis"
+              targetTableName="studio_hypotheses"
+              targetDisplayField="statement"
+              linkType="tested_by"
+              allowMultiple={true}
+              pendingLinks={pendingHypothesisLinks}
+              onPendingLinksChange={setPendingHypothesisLinks}
+              helperText="Which hypotheses test this assumption?"
+            />
+
+            {/* Quick-create button */}
+            {assumption?.id && (
+              <div className="mt-4 pt-4 border-t">
+                <Link
+                  href={`/admin/hypotheses/new?assumption=${assumption.id}`}
+                  className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors shadow-sm"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                  </svg>
+                  Create Hypothesis to Test This
+                </Link>
+                <p className="text-xs text-muted-foreground text-center mt-2">
+                  Pre-fills form and auto-links this assumption
+                </p>
+              </div>
+            )}
+
+            {/* Show placeholder for create mode */}
+            {!assumption?.id && (
+              <p className="mt-3 text-sm text-muted-foreground text-center italic">
+                Save assumption first to create testing hypotheses
+              </p>
+            )}
           </SidebarCard>
         </div>
       </div>

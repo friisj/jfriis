@@ -172,6 +172,7 @@ export type LinkType =
   // Validation relationships
   | 'validates'      // Evidence validates assumption
   | 'tests'          // Experiment tests hypothesis
+  | 'tested_by'      // Assumption tested by hypothesis
   | 'supports'       // Supports a claim
   | 'contradicts'    // Contradicts a claim
   // Composition
@@ -298,6 +299,7 @@ export const LINK_TYPES = {
   // Validation relationships
   VALIDATES: 'validates' as const,
   TESTS: 'tests' as const,
+  TESTED_BY: 'tested_by' as const,
   SUPPORTS: 'supports' as const,
   CONTRADICTS: 'contradicts' as const,
 

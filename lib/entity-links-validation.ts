@@ -83,7 +83,7 @@ const VALID_LINK_TYPES: Partial<Record<LinkableEntityType, Partial<Record<Linkab
   assumption: {
     canvas_item: ['related'],
     experiment: ['related'],
-    hypothesis: ['related'],
+    hypothesis: ['related', 'tested_by'],
   },
 
   // Canvas items can link to various entities
@@ -219,6 +219,7 @@ const COMMON_LINK_PATTERNS: Array<{
 
   // Hypothesis patterns
   { source: 'hypothesis', target: 'assumption', description: 'Hypotheses relate to assumptions' },
+  { source: 'assumption', target: 'hypothesis', description: 'Assumptions tested by hypotheses' },
 ]
 
 /**
