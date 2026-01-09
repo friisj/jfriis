@@ -185,6 +185,38 @@ Monochrome line-art browser game inspired by Excite Bike. Players tune a monster
 
 ---
 
+### StarCraft Entity Interface
+**Status**: Phase 1 (Exploration) - Initial theorizing complete
+**Location**: `/docs/studio/starcraft-entity-interface/`
+**Focus**: RTS-inspired interface patterns for complex entity relationship management
+
+**Current State**:
+- ✅ Literal UI mappings documented (minimap, command card, control groups, etc.)
+- ✅ Abstract conceptual mappings explored (fog of war = uncertainty, creep = validated territory)
+- ✅ Worked example created (managing TaskFlow venture through a full day)
+- ✅ Definitions glossary (60+ terms)
+
+**Concept**:
+What if managing entities (hypotheses, assumptions, experiments, evidence) used proven interface patterns from StarCraft? Both domains involve coordinating 200+ interconnected units with dependencies, uncertainty, and resource constraints. Explores literal UI parallels (minimap navigation, selection panels, hotkeys) and deeper systemic abstractions (fog of war = epistemic uncertainty, supply cap = attention budget, tech tree = validation dependencies).
+
+**Key Insights**:
+- StarCraft's minimap → Entity graph overview with validation state colors
+- Control groups (Ctrl+1-9) → Instant access to entity collections
+- Fog of war → Visualize validated vs unvalidated knowledge territory
+- Supply cap → Respect cognitive limits on entities managed simultaneously
+- Build orders → Reusable validation playbooks for venture types
+
+**Next Steps**:
+1. Create visual mockups/sketches of key interface elements
+2. Prototype minimap view for entity graph using codebase data
+3. Implement hotkey navigation system
+4. Build command card with context-sensitive actions
+5. Test with real entity management workflows
+
+**Documents**: 4 files (README, literal-mappings, abstract-mappings, worked-example, definitions)
+
+---
+
 ## Future Studio Projects
 
 ### Ideas Under Consideration
