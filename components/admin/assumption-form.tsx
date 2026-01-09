@@ -187,14 +187,25 @@ export function AssumptionForm({ assumption }: AssumptionFormProps) {
           await syncPendingEvidence({ type: 'assumption', id: created.id }, pendingEvidence)
         }
 
-        // Sync pending entity links for create mode
+        // HIGH-2: Sync pending entity links with error handling
         if (pendingHypothesisLinks.length > 0 && created) {
-          await syncEntityLinks(
-            { type: 'assumption', id: created.id },
-            'hypothesis',
-            'tested_by',
-            pendingHypothesisLinks.map(l => l.targetId)
-          )
+          try {
+            await syncEntityLinks(
+              { type: 'assumption', id: created.id },
+              'hypothesis',
+              'tested_by',
+              pendingHypothesisLinks.map(l => l.targetId)
+            )
+          } catch (linkError) {
+            console.error('Error syncing entity links:', linkError)
+            // Show warning but don't fail the whole operation
+            setError('Assumption created, but failed to link hypotheses. You can link them manually.')
+            // Still navigate away after a delay so user can see the message
+            setTimeout(() => {
+              router.push('/admin/assumptions')
+            }, 3000)
+            return
+          }
         }
 
         router.push(`/admin/assumptions`)

@@ -140,6 +140,19 @@ export function validateAssumptionForm(data: AssumptionFormData): ValidationResu
 }
 
 /**
+ * Validate UUID format (v4)
+ */
+export function isValidUuid(value: string | null | undefined): boolean {
+  if (!value || typeof value !== 'string') {
+    return false
+  }
+
+  // UUID v4 format: 8-4-4-4-12 hexadecimal characters
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+  return uuidRegex.test(value.trim())
+}
+
+/**
  * Validate canvas item form data
  */
 export interface CanvasItemFormData {

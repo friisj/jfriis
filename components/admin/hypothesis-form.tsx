@@ -9,6 +9,7 @@ import { FormActions } from './form-actions'
 import { RelationshipField } from './relationship-field'
 import { EntityLinkField } from './entity-link-field'
 import { syncEntityLinks } from '@/lib/entity-links'
+import { isValidUuid } from '@/lib/utils/validation'
 import type { PendingLink } from '@/lib/types/entity-relationships'
 
 interface Hypothesis {
@@ -32,11 +33,32 @@ const statuses = [
   { value: 'invalidated', label: 'Invalidated', description: 'Evidence refutes the hypothesis' },
 ]
 
+/**
+ * Smart truncation that breaks at word boundaries
+ */
+function smartTruncate(text: string, maxLength: number): string {
+  if (text.length <= maxLength) {
+    return text
+  }
+
+  // Find last space before maxLength
+  const truncated = text.slice(0, maxLength)
+  const lastSpace = truncated.lastIndexOf(' ')
+
+  // If we found a space, break there; otherwise just cut at maxLength
+  if (lastSpace > maxLength * 0.6) {
+    return truncated.slice(0, lastSpace) + '...'
+  }
+
+  return truncated + '...'
+}
+
 export function HypothesisForm({ hypothesis, mode }: HypothesisFormProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [loadingAssumption, setLoadingAssumption] = useState(false)
   const [pendingAssumptionLinks, setPendingAssumptionLinks] = useState<PendingLink[]>([])
 
   // Get project from URL if creating new
@@ -80,20 +102,38 @@ export function HypothesisForm({ hypothesis, mode }: HypothesisFormProps) {
   // Load assumption if provided in URL
   useEffect(() => {
     if (assumptionFromUrl && mode === 'create') {
-      async function loadAssumption() {
-        const { data, error } = await supabase
-          .from('assumptions')
-          .select('id, statement, category, importance, validation_criteria')
-          .eq('id', assumptionFromUrl)
-          .single()
+      // CRITICAL-1: Validate UUID format to prevent injection
+      if (!isValidUuid(assumptionFromUrl)) {
+        setError('Invalid assumption ID format')
+        return
+      }
 
-        if (data && !error) {
+      async function loadAssumption() {
+        setLoadingAssumption(true)
+        setError(null)
+
+        try {
+          const { data, error } = await supabase
+            .from('assumptions')
+            .select('id, statement, category, importance, validation_criteria')
+            .eq('id', assumptionFromUrl)
+            .single()
+
+          if (error) {
+            console.error('Error loading assumption:', error)
+            setError('Failed to load assumption. Please try again.')
+            return
+          }
+
+          if (!data) {
+            setError('Assumption not found')
+            return
+          }
+
           setAssumptionData(data)
 
-          // Pre-fill form with assumption context
-          const truncatedStatement = data.statement.length > 60
-            ? data.statement.slice(0, 60) + '...'
-            : data.statement
+          // Pre-fill form with assumption context (HIGH-3: improved truncation)
+          const truncatedStatement = smartTruncate(data.statement, 150)
 
           setFormData(prev => ({
             ...prev,
@@ -108,6 +148,11 @@ export function HypothesisForm({ hypothesis, mode }: HypothesisFormProps) {
             linkType: 'tests',
             notes: `Generated to test ${data.category} assumption`
           }])
+        } catch (err) {
+          console.error('Unexpected error loading assumption:', err)
+          setError('An unexpected error occurred. Please try again.')
+        } finally {
+          setLoadingAssumption(false)
         }
       }
       loadAssumption()
@@ -144,14 +189,26 @@ export function HypothesisForm({ hypothesis, mode }: HypothesisFormProps) {
 
         if (error) throw error
 
-        // Sync pending entity links for create mode
+        // HIGH-1: Sync pending entity links with error handling
         if (pendingAssumptionLinks.length > 0) {
-          await syncEntityLinks(
-            { type: 'hypothesis', id: newHypothesis.id },
-            'assumption',
-            'tests',
-            pendingAssumptionLinks.map(l => l.targetId)
-          )
+          try {
+            await syncEntityLinks(
+              { type: 'hypothesis', id: newHypothesis.id },
+              'assumption',
+              'tests',
+              pendingAssumptionLinks.map(l => l.targetId)
+            )
+          } catch (linkError) {
+            console.error('Error syncing entity links:', linkError)
+            // Show warning but don't fail the whole operation
+            setError('Hypothesis created, but failed to link assumptions. You can link them manually.')
+            // Still navigate away after a delay so user can see the message
+            setTimeout(() => {
+              router.push('/admin/hypotheses')
+              router.refresh()
+            }, 3000)
+            return
+          }
         }
       }
 
@@ -192,6 +249,18 @@ export function HypothesisForm({ hypothesis, mode }: HypothesisFormProps) {
       {error && (
         <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-lg text-red-600 dark:text-red-400">
           {error}
+        </div>
+      )}
+
+      {loadingAssumption && (
+        <div className="p-4 bg-blue-500/10 border border-blue-500/20 rounded-lg text-blue-600 dark:text-blue-400">
+          <div className="flex items-center gap-3">
+            <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            <span>Loading assumption context...</span>
+          </div>
         </div>
       )}
 
