@@ -8,8 +8,10 @@ import { SidebarCard } from './sidebar-card'
 import { FormActions } from './form-actions'
 import { RelationshipField } from './relationship-field'
 import { EvidenceManager } from './evidence-manager'
+import { EntityLinkField } from './entity-link-field'
 import { syncPendingEvidence } from '@/lib/evidence'
-import type { PendingEvidence } from '@/lib/types/entity-relationships'
+import { syncEntityLinks } from '@/lib/entity-links'
+import type { PendingEvidence, PendingLink } from '@/lib/types/entity-relationships'
 
 interface Assumption {
   id: string
@@ -91,6 +93,7 @@ export function AssumptionForm({ assumption }: AssumptionFormProps) {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [pendingEvidence, setPendingEvidence] = useState<PendingEvidence[]>([])
+  const [pendingHypothesisLinks, setPendingHypothesisLinks] = useState<PendingLink[]>([])
 
   const [formData, setFormData] = useState({
     slug: assumption?.slug || '',
@@ -181,6 +184,16 @@ export function AssumptionForm({ assumption }: AssumptionFormProps) {
         // Sync pending evidence to the newly created entity
         if (pendingEvidence.length > 0 && created) {
           await syncPendingEvidence({ type: 'assumption', id: created.id }, pendingEvidence)
+        }
+
+        // Sync pending entity links for create mode
+        if (pendingHypothesisLinks.length > 0 && created) {
+          await syncEntityLinks(
+            { type: 'assumption', id: created.id },
+            'hypothesis',
+            'tested_by',
+            pendingHypothesisLinks.map(l => l.targetId)
+          )
         }
 
         router.push(`/admin/assumptions`)
@@ -558,6 +571,22 @@ export function AssumptionForm({ assumption }: AssumptionFormProps) {
               entityId={assumption?.id}
               pendingEvidence={pendingEvidence}
               onPendingEvidenceChange={setPendingEvidence}
+            />
+          </SidebarCard>
+
+          <SidebarCard title="Tested By Hypotheses">
+            <EntityLinkField
+              label=""
+              sourceType="assumption"
+              sourceId={assumption?.id}
+              targetType="hypothesis"
+              targetTableName="studio_hypotheses"
+              targetDisplayField="statement"
+              linkType="tested_by"
+              allowMultiple={true}
+              pendingLinks={pendingHypothesisLinks}
+              onPendingLinksChange={setPendingHypothesisLinks}
+              helperText="Which hypotheses test this assumption?"
             />
           </SidebarCard>
         </div>

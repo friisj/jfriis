@@ -7,6 +7,9 @@ import { FormFieldWithAI } from '@/components/forms'
 import { SidebarCard } from './sidebar-card'
 import { FormActions } from './form-actions'
 import { RelationshipField } from './relationship-field'
+import { EntityLinkField } from './entity-link-field'
+import { syncEntityLinks } from '@/lib/entity-links'
+import type { PendingLink } from '@/lib/types/entity-relationships'
 
 interface Hypothesis {
   id: string
@@ -34,6 +37,7 @@ export function HypothesisForm({ hypothesis, mode }: HypothesisFormProps) {
   const searchParams = useSearchParams()
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [pendingAssumptionLinks, setPendingAssumptionLinks] = useState<PendingLink[]>([])
 
   // Get project from URL if creating new
   const projectFromUrl = searchParams.get('project')
@@ -86,11 +90,23 @@ export function HypothesisForm({ hypothesis, mode }: HypothesisFormProps) {
 
         if (error) throw error
       } else {
-        const { error } = await supabase
+        const { data: newHypothesis, error } = await supabase
           .from('studio_hypotheses')
           .insert([data])
+          .select('id')
+          .single()
 
         if (error) throw error
+
+        // Sync pending entity links for create mode
+        if (pendingAssumptionLinks.length > 0) {
+          await syncEntityLinks(
+            { type: 'hypothesis', id: newHypothesis.id },
+            'assumption',
+            'tests',
+            pendingAssumptionLinks.map(l => l.targetId)
+          )
+        }
       }
 
       router.push('/admin/hypotheses')
@@ -235,6 +251,22 @@ export function HypothesisForm({ hypothesis, mode }: HypothesisFormProps) {
                 </label>
               ))}
             </div>
+          </SidebarCard>
+
+          <SidebarCard title="Assumptions Tested">
+            <EntityLinkField
+              label=""
+              sourceType="hypothesis"
+              sourceId={hypothesis?.id}
+              targetType="assumption"
+              targetTableName="assumptions"
+              targetDisplayField="statement"
+              linkType="tests"
+              allowMultiple={true}
+              pendingLinks={pendingAssumptionLinks}
+              onPendingLinksChange={setPendingAssumptionLinks}
+              helperText="Select assumptions this hypothesis tests"
+            />
           </SidebarCard>
         </div>
       </div>
