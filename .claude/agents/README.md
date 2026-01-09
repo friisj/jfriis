@@ -61,6 +61,62 @@ See [tech-review-design.md](./tech-review-design.md) for complete prompting stra
 
 ---
 
+### 🟣 product-arch (Product Architecture)
+
+**Purpose**: Product architecture review, workflow design, and simplicity advocacy
+
+**When to Use**:
+- Planning major features (before implementation)
+- Reviewing feature complexity
+- Designing user workflows
+- Making integration decisions
+- Challenging architectural assumptions
+- Auditing against simplicity principles
+
+**What It Does**:
+- Workflow coherence analysis
+- Entity model integrity review
+- Simplicity audits (Maeda's Laws)
+- Integration elegance assessment
+- Alternatives generation
+- Architectural decision records (ADRs)
+- Collaboration with other agents
+
+**Invocation**:
+```
+User: "I want to add a tagging system for projects"
+Assistant: [Launches product-arch agent to evaluate entity model impact]
+```
+
+**Output**: Product architecture assessment with:
+- Workflow analysis and simplicity scoring
+- Entity/integration review
+- Simplicity audit (Maeda's Laws)
+- Alternatives analysis with complexity/value tradeoffs
+- Architectural decision record
+- Collaboration recommendations
+
+**Persona**: Principal Product Architect combining technical expertise with design philosophy (John Maeda, Dieter Rams) and systems thinking
+
+---
+
+### 🔵 doc-mgr (Documentation Manager)
+
+**Purpose**: Managing planning documents and markdown files
+
+**When to Use**:
+- Creating new planning documents
+- Finding existing documentation
+- Organizing docs into right locations
+- Updating roadmaps
+- Cleaning up stale documents
+
+**Key Feature**: Separates **documents** (specs, context, decisions) from **Linear** (actionable tasks)
+
+**Persona**: Documentation Manager specializing in organized, useful planning docs
+
+---
+
 ## Agent Design Principles
 
 1. **Specialized Expertise**: Each agent has a specific domain and depth
