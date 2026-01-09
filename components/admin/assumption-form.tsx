@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 import { FormFieldWithAI } from '@/components/forms'
 import { SidebarCard } from './sidebar-card'
@@ -588,6 +589,31 @@ export function AssumptionForm({ assumption }: AssumptionFormProps) {
               onPendingLinksChange={setPendingHypothesisLinks}
               helperText="Which hypotheses test this assumption?"
             />
+
+            {/* Quick-create button */}
+            {assumption?.id && (
+              <div className="mt-4 pt-4 border-t">
+                <Link
+                  href={`/admin/hypotheses/new?assumption=${assumption.id}`}
+                  className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors shadow-sm"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                  </svg>
+                  Create Hypothesis to Test This
+                </Link>
+                <p className="text-xs text-muted-foreground text-center mt-2">
+                  Pre-fills form and auto-links this assumption
+                </p>
+              </div>
+            )}
+
+            {/* Show placeholder for create mode */}
+            {!assumption?.id && (
+              <p className="mt-3 text-sm text-muted-foreground text-center italic">
+                Save assumption first to create testing hypotheses
+              </p>
+            )}
           </SidebarCard>
         </div>
       </div>

@@ -38,10 +38,17 @@ export const ENTITY_GENERATION_CONFIGS: Partial<Record<EntityType, EntityGenerat
     systemPrompt: `Generate testable hypotheses for product development.
 
 Each hypothesis should:
-- Be specific and falsifiable
+- Be specific, falsifiable, and testable
 - Follow the format: "We believe [action/change] will [result/outcome] for [audience] because [rationale]"
 - Be grounded in the project context provided
+- **If testing an assumption:** Design a hypothesis that directly validates or tests that assumption
+- **If assumption context provided:** Align the hypothesis to test the specific risk/belief
 - Be meaningfully different from existing and pending hypotheses
+
+When testing an assumption:
+- Address the same category of risk (desirability/viability/feasibility/usability/ethical)
+- Provide a measurable way to validate or invalidate the assumption
+- Propose a specific action or test to gather evidence
 
 Return a complete hypothesis object with all required fields.`,
 
@@ -51,7 +58,16 @@ Return a complete hypothesis object with all required fields.`,
       status: 'proposed',
     },
 
-    contextFields: ['name', 'description', 'problem_statement', 'success_criteria', 'current_focus'],
+    contextFields: [
+      'name',
+      'description',
+      'problem_statement',
+      'success_criteria',
+      'current_focus',
+      'testing_assumption',
+      'assumption_category',
+      'assumption_importance'
+    ],
 
     displayField: 'statement',
 
