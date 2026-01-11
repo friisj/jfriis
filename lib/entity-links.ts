@@ -15,7 +15,7 @@ import type {
   LinkedEntity,
   PendingLink,
 } from './types/entity-relationships'
-import { getTableNameForType } from './types/entity-relationships'
+import { getTableNameForType, isEntityTypeImplemented } from './types/entity-relationships'
 import { isValidLinkType, getValidLinkTypes, validateLink } from './entity-links-validation'
 
 // Re-export validation functions
@@ -200,6 +200,14 @@ export async function getLinkedEntitiesWithData<T = Record<string, unknown>>(
   linkType?: LinkType
 ): Promise<LinkedEntity<T>[]> {
   return withTiming('getLinkedEntitiesWithData', [source.type, targetType], async () => {
+    // Safety check: Ensure target entity type is implemented
+    if (!isEntityTypeImplemented(targetType)) {
+      throw new Error(
+        `Cannot fetch entity data for "${targetType}" - this entity type is not yet implemented. ` +
+        `You can still query entity_links for this type, but cannot fetch the full entity data.`
+      )
+    }
+
     // 1. Get the links
     let query = supabase
       .from('entity_links')

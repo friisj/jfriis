@@ -140,6 +140,7 @@ const DEFAULT_LINK_TYPES: LinkType[] = ['related', 'references']
 
 /**
  * Check if a link type is valid between two entity types
+ * Supports bidirectional queries: checks both source→target and target→source
  */
 export function isValidLinkType(
   sourceType: LinkableEntityType,
@@ -151,35 +152,51 @@ export function isValidLinkType(
     return true
   }
 
+  // Check source→target direction
   const sourceRules = VALID_LINK_TYPES[sourceType]
-  if (!sourceRules) {
-    return false
+  if (sourceRules) {
+    const targetRules = sourceRules[targetType]
+    if (targetRules && targetRules.includes(linkType)) {
+      return true
+    }
   }
 
-  const targetRules = sourceRules[targetType]
-  if (!targetRules) {
-    return false
+  // Check reverse direction (target→source) for bidirectional support
+  // This allows querying links in both directions
+  const reverseSourceRules = VALID_LINK_TYPES[targetType]
+  if (reverseSourceRules) {
+    const reverseTargetRules = reverseSourceRules[sourceType]
+    if (reverseTargetRules && reverseTargetRules.includes(linkType)) {
+      return true
+    }
   }
 
-  return targetRules.includes(linkType)
+  return false
 }
 
 /**
  * Get valid link types for a source→target pair
+ * Supports bidirectional queries: includes types from both directions
  */
 export function getValidLinkTypes(
   sourceType: LinkableEntityType,
   targetType: LinkableEntityType
 ): LinkType[] {
+  const types = new Set<LinkType>(DEFAULT_LINK_TYPES)
+
+  // Add types from source→target direction
   const sourceRules = VALID_LINK_TYPES[sourceType]
-  if (!sourceRules || !sourceRules[targetType]) {
-    return DEFAULT_LINK_TYPES
+  if (sourceRules && sourceRules[targetType]) {
+    sourceRules[targetType]!.forEach(type => types.add(type))
   }
 
-  // Include default types plus specific ones
-  const specificTypes = sourceRules[targetType] || []
-  const allTypes = new Set([...DEFAULT_LINK_TYPES, ...specificTypes])
-  return Array.from(allTypes)
+  // Add types from reverse direction (target→source) for bidirectional support
+  const reverseSourceRules = VALID_LINK_TYPES[targetType]
+  if (reverseSourceRules && reverseSourceRules[sourceType]) {
+    reverseSourceRules[sourceType]!.forEach(type => types.add(type))
+  }
+
+  return Array.from(types)
 }
 
 /**

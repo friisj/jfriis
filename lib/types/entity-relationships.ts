@@ -389,8 +389,48 @@ export const ENTITY_TYPE_TABLE_MAP: Record<LinkableEntityType, string> = {
 }
 
 /**
+ * Entity types that have tables implemented
+ * Phase 3-5 entity types (blueprints, story maps) are not yet implemented
+ */
+const IMPLEMENTED_ENTITY_TYPES = new Set<LinkableEntityType>([
+  'project',
+  'log_entry',
+  'specimen',
+  'studio_project',
+  'hypothesis',
+  'experiment',
+  'business_model_canvas',
+  'customer_profile',
+  'value_proposition_canvas',
+  'value_map',
+  'canvas_item',
+  'user_journey',
+  'journey_stage',
+  'touchpoint',
+  'assumption',
+  'gallery_sequence',
+])
+
+/**
  * Get the table name for an entity type
+ * Throws if the entity type's table hasn't been implemented yet
  */
 export function getTableNameForType(type: LinkableEntityType): string {
-  return ENTITY_TYPE_TABLE_MAP[type]
+  const tableName = ENTITY_TYPE_TABLE_MAP[type]
+
+  if (!IMPLEMENTED_ENTITY_TYPES.has(type)) {
+    throw new Error(
+      `Entity type "${type}" is defined but its table "${tableName}" has not been created yet. ` +
+      `This entity type is part of Phase 3-5 and is not yet implemented.`
+    )
+  }
+
+  return tableName
+}
+
+/**
+ * Check if an entity type's table is implemented
+ */
+export function isEntityTypeImplemented(type: LinkableEntityType): boolean {
+  return IMPLEMENTED_ENTITY_TYPES.has(type)
 }

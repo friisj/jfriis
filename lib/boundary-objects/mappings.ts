@@ -1,7 +1,7 @@
 /**
  * CRUD Operations for Touchpoint Mappings, Assumptions, and Evidence
  *
- * Phase 2 of Boundary Objects implementation
+ * Phase 2B: Migrated to use entity_links universal relationship table
  */
 
 import { supabase } from '@/lib/supabase'
@@ -10,6 +10,18 @@ import type {
   TouchpointAssumption,
   TouchpointEvidence,
 } from '@/lib/types/boundary-objects'
+import {
+  linkEntities,
+  unlinkEntities,
+  getLinkedEntitiesWithData,
+  getLinkedEntities,
+} from '@/lib/entity-links'
+import type {
+  EntityRef,
+  LinkType,
+  LinkStrength,
+  EntityLink,
+} from '@/lib/types/entity-relationships'
 
 // ============================================================================
 // TYPES - Extended with joins
@@ -75,29 +87,85 @@ export interface TouchpointAssumptionWithDetails extends TouchpointAssumption {
 }
 
 // ============================================================================
-// TOUCHPOINT MAPPINGS
+// TOUCHPOINT MAPPINGS (via entity_links)
 // ============================================================================
+
+/**
+ * Helper to convert mapping_type to LinkType
+ */
+function mapMappingTypeToLinkType(
+  mappingType: 'addresses_job' | 'triggers_pain' | 'delivers_gain' | 'tests_assumption' | 'delivers_value_prop'
+): LinkType {
+  const typeMap: Record<string, LinkType> = {
+    addresses_job: 'addresses_job',
+    triggers_pain: 'triggers_pain',
+    delivers_gain: 'delivers_gain',
+    tests_assumption: 'tests',
+    delivers_value_prop: 'delivers',
+  }
+  return typeMap[mappingType] || 'related'
+}
+
+/**
+ * Helper to convert LinkType back to mapping_type
+ */
+function linkTypeToMappingType(linkType: LinkType): string {
+  const reverseMap: Record<string, string> = {
+    addresses_job: 'addresses_job',
+    triggers_pain: 'triggers_pain',
+    delivers_gain: 'delivers_gain',
+    tests: 'tests_assumption',
+    delivers: 'delivers_value_prop',
+    relieves_pain: 'triggers_pain', // Backwards compat
+  }
+  return reverseMap[linkType] || linkType
+}
+
+/**
+ * Helper to convert strength string to LinkStrength
+ */
+function strengthToLinkStrength(strength?: 'weak' | 'moderate' | 'strong'): LinkStrength | undefined {
+  return strength as LinkStrength | undefined
+}
 
 export async function createTouchpointMapping(
   data: TouchpointMappingInsert
 ): Promise<TouchpointMapping> {
-  const { data: mapping, error } = await supabase
-    .from('touchpoint_mappings')
-    .insert({
-      ...data,
-      validated: data.validated ?? false,
-      metadata: data.metadata ?? {},
-    })
-    .select()
-    .single()
+  const linkType = mapMappingTypeToLinkType(data.mapping_type)
+  const strength = strengthToLinkStrength(data.strength)
 
-  if (error) throw error
-  return mapping
+  const link = await linkEntities(
+    { type: 'touchpoint', id: data.touchpoint_id },
+    { type: data.target_type as any, id: data.target_id },
+    linkType,
+    {
+      strength,
+      notes: data.notes,
+      metadata: {
+        ...data.metadata,
+        validated: data.validated ?? false,
+      },
+    }
+  )
+
+  // Convert EntityLink to TouchpointMapping format for backwards compatibility
+  return {
+    id: link.id,
+    touchpoint_id: link.source_id,
+    target_type: link.target_type as any,
+    target_id: link.target_id,
+    mapping_type: linkTypeToMappingType(link.link_type) as any,
+    strength: link.strength as any,
+    validated: (link.metadata as any)?.validated ?? false,
+    notes: link.notes ?? null,
+    metadata: link.metadata,
+    created_at: link.created_at,
+  }
 }
 
 export async function deleteTouchpointMapping(id: string): Promise<void> {
   const { error } = await supabase
-    .from('touchpoint_mappings')
+    .from('entity_links')
     .delete()
     .eq('id', id)
 
@@ -107,19 +175,22 @@ export async function deleteTouchpointMapping(id: string): Promise<void> {
 export async function listTouchpointMappings(
   touchpointId: string
 ): Promise<TouchpointMappingWithTarget[]> {
-  const { data: mappings, error } = await supabase
-    .from('touchpoint_mappings')
-    .select('*')
-    .eq('touchpoint_id', touchpointId)
-    .order('created_at', { ascending: false })
+  // Get all links from touchpoint to canvas_item, customer_profile, or value_proposition_canvas
+  const links = await getLinkedEntities(
+    { type: 'touchpoint', id: touchpointId },
+    { direction: 'outgoing' }
+  )
 
-  if (error) throw error
-  if (!mappings || mappings.length === 0) return []
+  // Filter to only include relevant target types
+  const relevantLinks = links.filter(link =>
+    ['canvas_item', 'customer_profile', 'value_proposition_canvas'].includes(link.target_type)
+  )
 
-  // Batch fetch canvas items in a single query (fixes N+1)
-  const canvasItemIds = mappings
-    .filter((m) => m.target_type === 'canvas_item')
-    .map((m) => m.target_id)
+  if (relevantLinks.length === 0) return []
+
+  // Batch fetch canvas items for enrichment
+  const canvasItemLinks = relevantLinks.filter(l => l.target_type === 'canvas_item')
+  const canvasItemIds = canvasItemLinks.map(l => l.target_id)
 
   let canvasItemsMap: Map<string, { id: string; title: string; item_type: string }> = new Map()
 
@@ -134,11 +205,20 @@ export async function listTouchpointMappings(
     }
   }
 
-  // Join in memory
-  return mappings.map((mapping) => ({
-    ...mapping,
-    canvas_item: mapping.target_type === 'canvas_item'
-      ? canvasItemsMap.get(mapping.target_id) || null
+  // Convert EntityLinks to TouchpointMapping format
+  return relevantLinks.map((link): TouchpointMappingWithTarget => ({
+    id: link.id,
+    touchpoint_id: link.source_id,
+    target_type: link.target_type as any,
+    target_id: link.target_id,
+    mapping_type: linkTypeToMappingType(link.link_type) as any,
+    strength: link.strength as any,
+    validated: (link.metadata as any)?.validated ?? false,
+    notes: link.notes ?? null,
+    metadata: link.metadata,
+    created_at: link.created_at,
+    canvas_item: link.target_type === 'canvas_item'
+      ? canvasItemsMap.get(link.target_id) || null
       : null,
   }))
 }
@@ -146,86 +226,114 @@ export async function listTouchpointMappings(
 export async function listMappingsForCanvasItem(
   canvasItemId: string
 ): Promise<TouchpointMapping[]> {
-  const { data, error } = await supabase
-    .from('touchpoint_mappings')
-    .select('*')
-    .eq('target_type', 'canvas_item')
-    .eq('target_id', canvasItemId)
+  // Get all links TO this canvas item FROM touchpoints
+  const links = await getLinkedEntities(
+    { type: 'canvas_item', id: canvasItemId },
+    { direction: 'incoming', targetType: 'touchpoint' }
+  )
 
-  if (error) throw error
-  return data || []
+  // Convert EntityLinks to TouchpointMapping format
+  return links.map((link): TouchpointMapping => ({
+    id: link.id,
+    touchpoint_id: link.source_id,
+    target_type: link.target_type as any,
+    target_id: link.target_id,
+    mapping_type: linkTypeToMappingType(link.link_type) as any,
+    strength: link.strength as any,
+    validated: (link.metadata as any)?.validated ?? false,
+    notes: link.notes ?? null,
+    metadata: link.metadata,
+    created_at: link.created_at,
+  }))
 }
 
 // ============================================================================
-// TOUCHPOINT ASSUMPTIONS
+// TOUCHPOINT ASSUMPTIONS (via entity_links)
 // ============================================================================
+
+/**
+ * Helper to convert relationship_type to LinkType
+ */
+function relationshipTypeToLinkType(
+  relationshipType?: 'tests' | 'depends_on' | 'validates' | 'challenges'
+): LinkType {
+  return (relationshipType || 'tests') as LinkType
+}
 
 export async function createTouchpointAssumption(
   data: TouchpointAssumptionInsert
 ): Promise<TouchpointAssumption> {
-  const { data: link, error } = await supabase
-    .from('touchpoint_assumptions')
-    .insert(data)
-    .select()
-    .single()
+  const linkType = relationshipTypeToLinkType(data.relationship_type)
 
-  if (error) throw error
-  return link
+  const link = await linkEntities(
+    { type: 'touchpoint', id: data.touchpoint_id },
+    { type: 'assumption', id: data.assumption_id },
+    linkType,
+    { notes: data.notes }
+  )
+
+  // Convert EntityLink to TouchpointAssumption format for backwards compatibility
+  return {
+    touchpoint_id: link.source_id,
+    assumption_id: link.target_id,
+    relationship_type: link.link_type as any,
+    notes: link.notes ?? null,
+    created_at: link.created_at,
+  }
 }
 
 export async function deleteTouchpointAssumption(
   touchpointId: string,
   assumptionId: string
 ): Promise<void> {
-  const { error } = await supabase
-    .from('touchpoint_assumptions')
-    .delete()
-    .eq('touchpoint_id', touchpointId)
-    .eq('assumption_id', assumptionId)
-
-  if (error) throw error
+  await unlinkEntities(
+    { type: 'touchpoint', id: touchpointId },
+    { type: 'assumption', id: assumptionId }
+  )
 }
 
 export async function listTouchpointAssumptions(
   touchpointId: string
 ): Promise<TouchpointAssumptionWithDetails[]> {
-  const { data: links, error } = await supabase
-    .from('touchpoint_assumptions')
-    .select('*')
-    .eq('touchpoint_id', touchpointId)
-
-  if (error) throw error
-  if (!links || links.length === 0) return []
-
-  // Batch fetch assumptions in a single query (fixes N+1)
-  const assumptionIds = links.map((l) => l.assumption_id)
-
-  const { data: assumptions } = await supabase
-    .from('assumptions')
-    .select('id, statement, status, risk_level')
-    .in('id', assumptionIds)
-
-  const assumptionsMap = new Map(
-    (assumptions || []).map((a) => [a.id, a])
+  // Get linked assumptions with full data
+  const linkedAssumptions = await getLinkedEntitiesWithData<{
+    id: string
+    statement: string
+    status: string
+    risk_level: string | null
+  }>(
+    { type: 'touchpoint', id: touchpointId },
+    'assumption'
   )
 
-  // Join in memory
-  return links.map((link) => ({
-    ...link,
-    assumption: assumptionsMap.get(link.assumption_id) || null,
+  // Convert to TouchpointAssumptionWithDetails format
+  return linkedAssumptions.map((linked) => ({
+    touchpoint_id: touchpointId,
+    assumption_id: linked.entity.id,
+    relationship_type: linked.link.link_type as any,
+    notes: linked.link.notes ?? null,
+    created_at: linked.link.created_at,
+    assumption: linked.entity,
   }))
 }
 
 export async function listAssumptionTouchpoints(
   assumptionId: string
 ): Promise<TouchpointAssumption[]> {
-  const { data, error } = await supabase
-    .from('touchpoint_assumptions')
-    .select('*')
-    .eq('assumption_id', assumptionId)
+  // Get all links FROM touchpoints TO this assumption
+  const links = await getLinkedEntities(
+    { type: 'assumption', id: assumptionId },
+    { direction: 'incoming', targetType: 'touchpoint' }
+  )
 
-  if (error) throw error
-  return data || []
+  // Convert EntityLinks to TouchpointAssumption format
+  return links.map((link): TouchpointAssumption => ({
+    touchpoint_id: link.source_id,
+    assumption_id: link.target_id,
+    relationship_type: link.link_type as any,
+    notes: link.notes ?? null,
+    created_at: link.created_at,
+  }))
 }
 
 // ============================================================================
