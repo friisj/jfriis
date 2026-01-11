@@ -91,6 +91,46 @@ const VALID_LINK_TYPES: Partial<Record<LinkableEntityType, Partial<Record<Linkab
     assumption: ['related'],
     canvas_item: ['addresses_job', 'relieves_pain', 'creates_gain', 'related'],
   },
+
+  // Touchpoint relationships (migrated from dedicated junction tables)
+  touchpoint: {
+    canvas_item: ['addresses_job', 'relieves_pain', 'creates_gain', 'related'],
+    customer_profile: ['addresses_job', 'triggers_pain', 'delivers_gain', 'related'],
+    value_proposition_canvas: ['delivers', 'tests', 'related'],
+    assumption: ['tests', 'validates', 'challenges', 'depends_on', 'related'],
+    user_story: ['enables', 'improves', 'fixes_pain', 'delivers_gain', 'related'],
+  },
+
+  // Service Blueprint relationships
+  service_blueprint: {
+    user_journey: ['implements', 'supports', 'related'],
+    business_model_canvas: ['implements', 'related'],
+  },
+
+  // Blueprint Step relationships
+  blueprint_step: {
+    touchpoint: ['delivers', 'supports', 'related'],
+    user_story: ['implements', 'enables', 'supports', 'related'],
+  },
+
+  // Story Map relationships
+  story_map: {
+    service_blueprint: ['implements', 'supports', 'related'],
+    user_journey: ['implements', 'related'],
+  },
+
+  // Activity relationships
+  activity: {
+    journey_stage: ['maps_to', 'related'],
+  },
+
+  // User Story relationships
+  user_story: {
+    touchpoint: ['enables', 'improves', 'fixes_pain', 'delivers_gain', 'related'],
+    blueprint_step: ['implements', 'enables', 'supports', 'related'],
+    assumption: ['validates', 'tests', 'related'],
+    canvas_item: ['validates', 'related'],
+  },
 }
 
 /**
@@ -219,6 +259,26 @@ const COMMON_LINK_PATTERNS: Array<{
 
   // Hypothesis patterns
   { source: 'hypothesis', target: 'assumption', description: 'Hypotheses relate to assumptions' },
+
+  // Touchpoint patterns (entity_links migration)
+  { source: 'touchpoint', target: 'canvas_item', description: 'Touchpoints address jobs/pains/gains' },
+  { source: 'touchpoint', target: 'assumption', description: 'Touchpoints test assumptions' },
+  { source: 'touchpoint', target: 'user_story', description: 'Touchpoints enable/fix stories' },
+  { source: 'touchpoint', target: 'customer_profile', description: 'Touchpoints relate to profiles' },
+  { source: 'touchpoint', target: 'value_proposition_canvas', description: 'Touchpoints deliver VPC value' },
+
+  // Service Blueprint patterns
+  { source: 'service_blueprint', target: 'user_journey', description: 'Blueprints implement journeys' },
+  { source: 'blueprint_step', target: 'touchpoint', description: 'Blueprint steps deliver touchpoints' },
+  { source: 'blueprint_step', target: 'user_story', description: 'Blueprint steps implement stories' },
+
+  // Story Map patterns
+  { source: 'story_map', target: 'service_blueprint', description: 'Story maps implement blueprints' },
+  { source: 'story_map', target: 'user_journey', description: 'Story maps implement journeys' },
+  { source: 'activity', target: 'journey_stage', description: 'Activities map to journey stages' },
+  { source: 'user_story', target: 'touchpoint', description: 'Stories enable/fix touchpoints' },
+  { source: 'user_story', target: 'blueprint_step', description: 'Stories implement blueprint steps' },
+  { source: 'user_story', target: 'assumption', description: 'Stories validate assumptions' },
 ]
 
 /**

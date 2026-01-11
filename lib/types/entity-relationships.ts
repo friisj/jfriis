@@ -153,6 +153,14 @@ export type LinkableEntityType =
   | 'user_journey'
   | 'journey_stage'
   | 'touchpoint'
+  // Service Blueprints
+  | 'service_blueprint'
+  | 'blueprint_step'
+  // Story Maps
+  | 'story_map'
+  | 'activity'
+  | 'user_story'
+  | 'story_release'
   // Validation
   | 'assumption'
   // Galleries
@@ -174,6 +182,8 @@ export type LinkType =
   | 'tests'          // Experiment tests hypothesis
   | 'supports'       // Supports a claim
   | 'contradicts'    // Contradicts a claim
+  | 'challenges'     // Challenges an assumption
+  | 'depends_on'     // Depends on another entity
   // Composition
   | 'contains'       // Parent contains child
   | 'part_of'        // Child is part of parent
@@ -181,6 +191,15 @@ export type LinkType =
   | 'addresses_job'  // Value prop addresses customer job
   | 'relieves_pain'  // Pain reliever addresses pain
   | 'creates_gain'   // Gain creator delivers gain
+  | 'triggers_pain'  // Touchpoint triggers customer pain
+  | 'delivers_gain'  // Feature/story delivers customer gain
+  // Journey-to-product relationships
+  | 'enables'        // Story enables touchpoint/blueprint
+  | 'improves'       // Story improves experience
+  | 'fixes_pain'     // Story fixes customer pain
+  | 'implements'     // Story/blueprint implements another entity
+  | 'delivers'       // Blueprint step delivers touchpoint
+  | 'maps_to'        // Activity maps to journey stage
   // Documentation
   | 'documents'      // Log entry documents work on entity
   | 'demonstrates'   // Specimen demonstrates assumption
@@ -275,6 +294,16 @@ export const ENTITY_TYPES = {
   JOURNEY_STAGE: 'journey_stage' as const,
   TOUCHPOINT: 'touchpoint' as const,
 
+  // Service Blueprints
+  SERVICE_BLUEPRINT: 'service_blueprint' as const,
+  BLUEPRINT_STEP: 'blueprint_step' as const,
+
+  // Story Maps
+  STORY_MAP: 'story_map' as const,
+  ACTIVITY: 'activity' as const,
+  USER_STORY: 'user_story' as const,
+  STORY_RELEASE: 'story_release' as const,
+
   // Validation
   ASSUMPTION: 'assumption' as const,
 
@@ -300,6 +329,8 @@ export const LINK_TYPES = {
   TESTS: 'tests' as const,
   SUPPORTS: 'supports' as const,
   CONTRADICTS: 'contradicts' as const,
+  CHALLENGES: 'challenges' as const,
+  DEPENDS_ON: 'depends_on' as const,
 
   // Composition
   CONTAINS: 'contains' as const,
@@ -309,6 +340,16 @@ export const LINK_TYPES = {
   ADDRESSES_JOB: 'addresses_job' as const,
   RELIEVES_PAIN: 'relieves_pain' as const,
   CREATES_GAIN: 'creates_gain' as const,
+  TRIGGERS_PAIN: 'triggers_pain' as const,
+  DELIVERS_GAIN: 'delivers_gain' as const,
+
+  // Journey-to-product relationships
+  ENABLES: 'enables' as const,
+  IMPROVES: 'improves' as const,
+  FIXES_PAIN: 'fixes_pain' as const,
+  IMPLEMENTS: 'implements' as const,
+  DELIVERS: 'delivers' as const,
+  MAPS_TO: 'maps_to' as const,
 
   // Documentation
   DOCUMENTS: 'documents' as const,
@@ -337,6 +378,12 @@ export const ENTITY_TYPE_TABLE_MAP: Record<LinkableEntityType, string> = {
   user_journey: 'user_journeys',
   journey_stage: 'journey_stages',
   touchpoint: 'touchpoints',
+  service_blueprint: 'service_blueprints',
+  blueprint_step: 'blueprint_steps',
+  story_map: 'story_maps',
+  activity: 'activities',
+  user_story: 'user_stories',
+  story_release: 'story_releases',
   assumption: 'assumptions',
   gallery_sequence: 'gallery_sequences',
 }
