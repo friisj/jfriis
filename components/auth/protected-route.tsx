@@ -7,6 +7,8 @@
  */
 
 import { useRequireAuth } from '@/lib/hooks/useAuth'
+import { useRouter } from 'next/navigation'
+import { useEffect } from 'react'
 
 interface ProtectedRouteProps {
   children: React.ReactNode
@@ -15,6 +17,13 @@ interface ProtectedRouteProps {
 
 export function ProtectedRoute({ children, redirectTo = '/login' }: ProtectedRouteProps) {
   const { user, loading } = useRequireAuth(redirectTo)
+  const router = useRouter()
+
+  useEffect(() => {
+    if (!loading && !user) {
+      router.push(redirectTo)
+    }
+  }, [loading, user, redirectTo, router])
 
   if (loading) {
     return (
@@ -28,7 +37,14 @@ export function ProtectedRoute({ children, redirectTo = '/login' }: ProtectedRou
   }
 
   if (!user) {
-    return null
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Redirecting to login...</p>
+        </div>
+      </div>
+    )
   }
 
   return <>{children}</>
