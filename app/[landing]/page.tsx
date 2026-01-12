@@ -1,9 +1,35 @@
+import { notFound } from 'next/navigation'
+
+// Reserved routes that should not be caught by the landing page
+const RESERVED_ROUTES = [
+  'login',
+  'admin',
+  'studio',
+  'explore',
+  'gallery',
+  'portfolio',
+  'profile',
+  'api',
+  'oauth',
+  'authorize',
+  'register',
+  'log',
+  'db-test',
+  'theme-demo',
+  'actions',
+]
+
 export default async function DynamicLandingPage({
   params,
 }: {
   params: Promise<{ landing: string }>
 }) {
   const { landing } = await params
+
+  // Don't catch reserved routes - let Next.js route to the actual pages
+  if (RESERVED_ROUTES.includes(landing.toLowerCase())) {
+    notFound()
+  }
 
   // TODO: Fetch landing page config from Supabase based on slug
   // For now, show a placeholder
