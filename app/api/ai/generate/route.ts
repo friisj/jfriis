@@ -21,6 +21,7 @@ import '@/lib/ai/actions/generate-entity'
 import '@/lib/ai/actions/generate-draft'
 import '@/lib/ai/actions/generate-draft-name'
 import '@/lib/ai/actions/generate-project-from-logs'
+import '@/lib/ai/actions/generate-survey'
 import '@/lib/ai/actions/generate-survey-suggestions'
 
 export async function POST(request: Request) {

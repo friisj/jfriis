@@ -36,9 +36,9 @@ export function SurveyTriggerForm() {
       temperature,
     })
 
-    if (result?.success && result.projectSlug) {
-      // Redirect to survey page
-      router.push(`/admin/studio/${result.projectSlug}/survey`)
+    if (result?.success && result.projectId) {
+      // Redirect to survey page (uses project ID, not slug)
+      router.push(`/admin/studio/${result.projectId}/survey`)
     }
   }
 

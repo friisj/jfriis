@@ -98,12 +98,28 @@ CREATE INDEX idx_survey_artifacts_survey ON studio_survey_artifacts(survey_id);
 CREATE INDEX idx_survey_artifacts_type ON studio_survey_artifacts(artifact_type);
 CREATE INDEX idx_survey_artifacts_id ON studio_survey_artifacts(artifact_id) WHERE artifact_id IS NOT NULL;
 
+-- Add user_id column to studio_projects for ownership tracking
+-- This enables RLS policies
+ALTER TABLE studio_projects
+ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES auth.users(id);
+
+-- Set default user_id for existing projects (first user in system)
+-- In production, this should be updated manually or via a data migration
+UPDATE studio_projects
+SET user_id = (SELECT id FROM auth.users LIMIT 1)
+WHERE user_id IS NULL;
+
+-- Make user_id NOT NULL after populating existing rows
+ALTER TABLE studio_projects
+ALTER COLUMN user_id SET NOT NULL;
+
 -- Add columns to studio_projects for survey tracking
 ALTER TABLE studio_projects
 ADD COLUMN IF NOT EXISTS has_pending_survey BOOLEAN DEFAULT false,
 ADD COLUMN IF NOT EXISTS survey_generated_at TIMESTAMPTZ;
 
--- Create index for projects with pending surveys
+-- Create indexes
+CREATE INDEX IF NOT EXISTS idx_studio_projects_user ON studio_projects(user_id);
 CREATE INDEX idx_studio_projects_pending_survey ON studio_projects(has_pending_survey) WHERE has_pending_survey = true;
 
 -- RLS Policies

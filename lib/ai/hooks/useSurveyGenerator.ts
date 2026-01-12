@@ -18,6 +18,7 @@ interface GenerateSurveyInput {
 
 interface GenerateSurveyResult {
   success: boolean
+  projectId?: string
   projectSlug?: string
   surveyId?: string
   error?: string

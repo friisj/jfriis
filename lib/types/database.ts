@@ -382,6 +382,7 @@ export type ProfileUpdate = Partial<ProfileInsert>
 
 // Studio Projects
 export interface StudioProject extends BaseRecord {
+  user_id: string
   slug: string
   name: string
   description?: string
@@ -391,6 +392,8 @@ export interface StudioProject extends BaseRecord {
   problem_statement?: string
   success_criteria?: string
   scope_out?: string
+  has_pending_survey?: boolean
+  survey_generated_at?: string
 }
 
 export type StudioProjectInsert = Omit<StudioProject, keyof BaseRecord>

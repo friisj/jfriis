@@ -10,6 +10,9 @@ import { executeAction } from '@/lib/ai/actions'
 import { createClient } from '@/lib/supabase-server'
 import { revalidatePath } from 'next/cache'
 
+// Ensure generate-survey action is registered
+import '@/lib/ai/actions/generate-survey'
+
 interface GenerateProjectSurveyInput {
   name: string
   description?: string
@@ -50,7 +53,7 @@ export async function generateProjectSurvey(
   const result = await executeAction('generate-survey', {
     project_name: input.name,
     project_description: input.description,
-    temperature: input.temperature,
+    project_temperature: input.temperature,
   })
 
   if (!result.success) {
@@ -61,10 +64,18 @@ export async function generateProjectSurvey(
   }
 
   // 3. Create project in draft state
+  // Generate slug from name
+  const slug = input.name
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '')
+    .substring(0, 50)
+
   const { data: project, error: projectError } = await supabase
     .from('studio_projects')
     .insert({
       name: input.name,
+      slug,
       description: input.description,
       temperature: input.temperature,
       status: 'draft',
@@ -101,6 +112,7 @@ export async function generateProjectSurvey(
 
   return {
     success: true,
+    projectId: project.id,
     projectSlug: project.slug,
     surveyId: survey.id,
     usage: result.usage,

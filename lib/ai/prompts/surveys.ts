@@ -6,7 +6,7 @@
 interface GenerateSurveyInput {
   project_name: string
   project_description?: string
-  temperature?: 'hot' | 'warm' | 'cold'
+  project_temperature?: 'hot' | 'warm' | 'cold'
 }
 
 interface ProcessSurveyInput {
@@ -71,11 +71,11 @@ MUST respond with valid JSON only. No markdown, no explanations.`,
 
 Project Name: "${input.project_name}"
 ${input.project_description ? `Description: "${input.project_description}"` : ''}
-Temperature: ${input.temperature || 'warm'}
+Temperature: ${input.project_temperature || 'warm'}
 
-${input.temperature === 'hot' ? 'This is a HOT project - generate detailed, comprehensive questions.' : ''}
-${input.temperature === 'warm' ? 'This is a WARM project - generate balanced, focused questions.' : ''}
-${input.temperature === 'cold' ? 'This is a COLD project - generate lighter, quicker questions.' : ''}
+${input.project_temperature === 'hot' ? 'This is a HOT project - generate detailed, comprehensive questions.' : ''}
+${input.project_temperature === 'warm' ? 'This is a WARM project - generate balanced, focused questions.' : ''}
+${input.project_temperature === 'cold' ? 'This is a COLD project - generate lighter, quicker questions.' : ''}
 
 Tailor the questions specifically to this project context. Reference the project name and description in help_text where appropriate.
 
