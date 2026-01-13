@@ -392,7 +392,7 @@ export const ENTITY_TYPE_TABLE_MAP: Record<LinkableEntityType, string> = {
 
 /**
  * Entity types that have tables implemented
- * Phase 3-5 entity types (blueprints, story maps) are not yet implemented
+ * Phase 4-5 entity types (story maps) are not yet implemented
  */
 const IMPLEMENTED_ENTITY_TYPES = new Set<LinkableEntityType>([
   'project',
@@ -411,6 +411,9 @@ const IMPLEMENTED_ENTITY_TYPES = new Set<LinkableEntityType>([
   'touchpoint',
   'assumption',
   'gallery_sequence',
+  // Phase 3: Service Blueprints
+  'service_blueprint',
+  'blueprint_step',
 ])
 
 /**

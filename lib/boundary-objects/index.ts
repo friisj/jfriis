@@ -6,3 +6,4 @@
 
 export * from './journeys'
 export * from './mappings'
+export * from './blueprints'

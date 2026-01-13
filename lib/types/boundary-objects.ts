@@ -399,6 +399,116 @@ export interface SortConfig<T = string> {
 }
 
 // ============================================================================
+// SERVICE BLUEPRINT ENTITIES
+// ============================================================================
+
+export type BlueprintType = 'service' | 'product' | 'hybrid' | 'digital' | 'physical'
+export type CostImplication = 'none' | 'low' | 'medium' | 'high'
+export type ValueDelivery = 'none' | 'low' | 'medium' | 'high'
+export type FailureRisk = 'low' | 'medium' | 'high' | 'critical'
+
+/**
+ * Blueprint layers - the core of service blueprint design
+ */
+export interface BlueprintLayers {
+  customer_action?: string
+  frontstage?: string
+  backstage?: string
+  support_process?: string
+}
+
+export interface ServiceBlueprint extends BaseRecord {
+  slug: string
+  name: string
+  description?: string
+  studio_project_id?: string
+  hypothesis_id?: string
+  blueprint_type: BlueprintType
+  status: BoundaryObjectStatus
+  version: number
+  parent_version_id?: string
+  service_scope?: string
+  service_duration?: string
+  validation_status: ValidationStatus
+  validated_at?: string
+  tags: string[]
+  metadata: EntityMetadata
+}
+
+export interface BlueprintStep extends BaseRecord {
+  service_blueprint_id: string
+  name: string
+  description?: string
+  sequence: number
+  layers: BlueprintLayers
+  actors: Record<string, string>
+  duration_estimate?: string
+  cost_implication?: CostImplication
+  customer_value_delivery?: ValueDelivery
+  failure_risk?: FailureRisk
+  failure_impact?: string
+  validation_status: ValidationStatus
+  metadata: EntityMetadata
+}
+
+// Insert/Update types for blueprints
+export type ServiceBlueprintInsert = Omit<ServiceBlueprint, keyof BaseRecord>
+export type ServiceBlueprintUpdate = Partial<ServiceBlueprintInsert>
+
+export type BlueprintStepInsert = Omit<BlueprintStep, keyof BaseRecord>
+export type BlueprintStepUpdate = Partial<BlueprintStepInsert>
+
+// Extended views for blueprints
+export interface BlueprintWithSteps extends ServiceBlueprint {
+  steps: BlueprintStep[]
+  step_count: number
+  linked_journey_count: number
+}
+
+export interface BlueprintStepWithRelations extends BlueprintStep {
+  touchpoint_count: number
+  story_count: number
+}
+
+/**
+ * Blueprint summary from optimized database view
+ */
+export interface BlueprintSummaryView {
+  id: string
+  slug: string
+  name: string
+  description?: string
+  status: BoundaryObjectStatus
+  validation_status: ValidationStatus
+  blueprint_type: BlueprintType
+  studio_project_id?: string
+  studio_project_name?: string
+  tags: string[]
+  created_at: string
+  updated_at: string
+  step_count: number
+  linked_journey_count: number
+}
+
+// Filter types for blueprints
+export interface BlueprintFilters {
+  status?: BoundaryObjectStatus[]
+  validation_status?: ValidationStatus[]
+  blueprint_type?: BlueprintType[]
+  studio_project_id?: string
+  tags?: string[]
+  search?: string
+}
+
+export type BlueprintSortField =
+  | 'name'
+  | 'status'
+  | 'validation_status'
+  | 'step_count'
+  | 'updated_at'
+  | 'created_at'
+
+// ============================================================================
 // PAGINATION TYPES
 // ============================================================================
 
