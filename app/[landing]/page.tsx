@@ -12,6 +12,7 @@ const RESERVED_ROUTES = [
   'api',
   'oauth',
   'authorize',
+  'auth',
   'register',
   'log',
   'db-test',

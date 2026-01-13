@@ -10,11 +10,13 @@ import { supabase } from './supabase'
  * Sign in with magic link (passwordless)
  * Supabase handles the redirect automatically after clicking the link
  */
-export async function signInWithMagicLink(email: string) {
+export async function signInWithMagicLink(email: string, redirectTo: string = '/admin') {
   const { data, error } = await supabase.auth.signInWithOtp({
     email,
     options: {
-      emailRedirectTo: `${window.location.origin}/admin`,
+      // Redirect to auth callback which exchanges code for session,
+      // then redirects to the intended destination
+      emailRedirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(redirectTo)}`,
     },
   })
 
