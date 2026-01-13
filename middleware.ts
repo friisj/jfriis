@@ -46,6 +46,23 @@ export async function middleware(request: NextRequest) {
     }
   )
 
+  // Handle PKCE code exchange from magic link
+  const code = request.nextUrl.searchParams.get('code')
+  if (code) {
+    const { error } = await supabase.auth.exchangeCodeForSession(code)
+    if (!error) {
+      // Remove code from URL after exchange, keeping cookies
+      const url = request.nextUrl.clone()
+      url.searchParams.delete('code')
+      const redirectResponse = NextResponse.redirect(url)
+      // Copy cookies from the response (set by exchangeCodeForSession)
+      response.cookies.getAll().forEach((cookie) => {
+        redirectResponse.cookies.set(cookie.name, cookie.value, cookie)
+      })
+      return redirectResponse
+    }
+  }
+
   // Refresh session - this updates the cookies if needed
   await supabase.auth.getUser()
 
