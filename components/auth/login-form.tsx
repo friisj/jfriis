@@ -26,7 +26,7 @@ export function LoginForm() {
     setLoading(true)
 
     try {
-      await signInWithMagicLink(email, redirect || '/admin')
+      await signInWithMagicLink(email)
       setSuccess(true)
       setEmail('')
     } catch (err: any) {
