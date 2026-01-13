@@ -46,7 +46,9 @@ export default async function AdminBlueprintsPage({
     query = query.eq('studio_project_id', params.project)
   }
   if (params.search) {
-    query = query.or(`name.ilike.%${params.search}%,description.ilike.%${params.search}%`)
+    // Sanitize search input to prevent SQL injection
+    const sanitized = params.search.replace(/[%_\\]/g, '\\$&')
+    query = query.or(`name.ilike.%${sanitized}%,description.ilike.%${sanitized}%`)
   }
 
   const { data: blueprints, error } = await query

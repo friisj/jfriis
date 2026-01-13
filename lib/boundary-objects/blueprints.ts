@@ -3,6 +3,10 @@
  *
  * Handles service blueprints and blueprint steps
  * Phase 3 of Boundary Objects Entity System
+ *
+ * NOTE: Type casts (as any, as unknown as T) are needed because these tables
+ * are new and Supabase types need regeneration after migration is applied.
+ * Run `npx supabase gen types typescript` after applying migrations to remove casts.
  */
 
 import { supabase } from '@/lib/supabase'
@@ -134,8 +138,10 @@ export async function listBlueprints(
     query = query.overlaps('tags', filters.tags)
   }
   if (filters?.search) {
+    // Sanitize search input to prevent SQL injection
+    const sanitized = filters.search.replace(/[%_\\]/g, '\\$&')
     query = query.or(
-      `name.ilike.%${filters.search}%,description.ilike.%${filters.search}%`
+      `name.ilike.%${sanitized}%,description.ilike.%${sanitized}%`
     )
   }
 
@@ -281,17 +287,40 @@ export async function deleteStep(id: string): Promise<void> {
 
 /**
  * Reorder steps within a blueprint
+ *
+ * Uses a two-phase approach to avoid sequence conflicts:
+ * 1. Set all sequences to negative values (out of conflict range)
+ * 2. Set final sequence values
  */
 export async function reorderSteps(blueprintId: string, stepIds: string[]): Promise<void> {
-  const updates = stepIds.map((id, index) => ({
+  if (stepIds.length === 0) return
+
+  // Phase 1: Move all steps to negative sequences to avoid conflicts
+  // This ensures no two steps have the same sequence during the transition
+  const negativeUpdates = stepIds.map((id, index) => ({
     id,
-    sequence: index,
+    sequence: -(index + 1), // -1, -2, -3, etc.
     service_blueprint_id: blueprintId,
   }))
 
-  const { error } = await supabase.from('blueprint_steps').upsert(updates as any)
+  const { error: negativeError } = await supabase
+    .from('blueprint_steps')
+    .upsert(negativeUpdates as any)
 
-  if (error) throw error
+  if (negativeError) throw negativeError
+
+  // Phase 2: Set the actual sequence values
+  const finalUpdates = stepIds.map((id, index) => ({
+    id,
+    sequence: index, // 0, 1, 2, etc.
+    service_blueprint_id: blueprintId,
+  }))
+
+  const { error: finalError } = await supabase
+    .from('blueprint_steps')
+    .upsert(finalUpdates as any)
+
+  if (finalError) throw finalError
 }
 
 // ============================================================================

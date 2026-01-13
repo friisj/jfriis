@@ -103,6 +103,21 @@ export function BlueprintForm({ blueprint, projects }: BlueprintFormProps) {
       }
 
       if (blueprint?.id) {
+        // Check slug uniqueness on update (if slug changed)
+        if (formData.slug !== blueprint.slug) {
+          const { data: existing } = await supabase
+            .from('service_blueprints')
+            .select('id')
+            .eq('slug', formData.slug)
+            .eq('studio_project_id', formData.studio_project_id || null)
+            .neq('id', blueprint.id)
+            .maybeSingle()
+
+          if (existing) {
+            throw new Error(`A blueprint with slug "${formData.slug}" already exists in this project. Please use a different slug.`)
+          }
+        }
+
         const { error: updateError } = await supabase
           .from('service_blueprints')
           .update(data)
@@ -111,6 +126,18 @@ export function BlueprintForm({ blueprint, projects }: BlueprintFormProps) {
         if (updateError) throw updateError
         router.push('/admin/blueprints')
       } else {
+        // Check slug uniqueness on create
+        const { data: existing } = await supabase
+          .from('service_blueprints')
+          .select('id')
+          .eq('slug', formData.slug)
+          .eq('studio_project_id', formData.studio_project_id || null)
+          .maybeSingle()
+
+        if (existing) {
+          throw new Error(`A blueprint with slug "${formData.slug}" already exists in this project. Please use a different slug.`)
+        }
+
         const { data: created, error: insertError } = await supabase
           .from('service_blueprints')
           .insert(data)
@@ -121,7 +148,19 @@ export function BlueprintForm({ blueprint, projects }: BlueprintFormProps) {
         router.push(`/admin/blueprints/${created.id}/edit`)
       }
     } catch (err: any) {
-      setError(err.message || 'Failed to save blueprint')
+      // Handle specific error types with actionable messages
+      const message = err.message || ''
+      if (message.includes('duplicate key') || err.code === '23505') {
+        setError('A blueprint with this slug already exists. Please use a different slug.')
+      } else if (message.includes('not authenticated') || err.code === 'PGRST301') {
+        setError('You must be logged in to save blueprints.')
+      } else if (message.includes('permission denied') || message.includes('policy')) {
+        setError('You do not have permission to modify blueprints. Admin access required.')
+      } else if (message.includes('network') || err.code === 'NETWORK_ERROR') {
+        setError('Network error. Please check your connection and try again.')
+      } else {
+        setError(message || 'Failed to save blueprint. Please try again.')
+      }
     } finally {
       setSaving(false)
     }
@@ -129,8 +168,8 @@ export function BlueprintForm({ blueprint, projects }: BlueprintFormProps) {
 
   const handleDelete = async () => {
     if (!blueprint?.id) return
-    if (!confirm('Delete this blueprint? This cannot be undone.')) return
 
+    setSaving(true)
     try {
       const { error: deleteError } = await supabase
         .from('service_blueprints')
@@ -140,7 +179,13 @@ export function BlueprintForm({ blueprint, projects }: BlueprintFormProps) {
       if (deleteError) throw deleteError
       router.push('/admin/blueprints')
     } catch (err: any) {
-      setError(err.message || 'Failed to delete blueprint')
+      const message = err.message || ''
+      if (message.includes('permission denied') || message.includes('policy')) {
+        setError('You do not have permission to delete blueprints. Admin access required.')
+      } else {
+        setError(message || 'Failed to delete blueprint. Please try again.')
+      }
+      setSaving(false)
     }
   }
 
@@ -338,10 +383,11 @@ export function BlueprintForm({ blueprint, projects }: BlueprintFormProps) {
           </SidebarCard>
 
           <FormActions
-            isEditing={!!blueprint}
-            isSaving={saving}
+            isSubmitting={saving}
+            submitLabel={blueprint ? 'Save Changes' : 'Create Blueprint'}
+            onCancel={() => router.push('/admin/blueprints')}
             onDelete={blueprint ? handleDelete : undefined}
-            cancelHref="/admin/blueprints"
+            deleteConfirmMessage="Are you sure you want to delete this blueprint? This action cannot be undone."
           />
         </div>
       </div>
