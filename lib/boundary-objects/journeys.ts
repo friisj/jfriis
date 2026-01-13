@@ -2,7 +2,7 @@
  * CRUD Operations for User Journeys
  *
  * Handles journeys, stages, touchpoints, and their relationships
- * Updated: 2025-12-31 - Fixed N+1 queries, added pagination, type safety
+ * Updated: 2026-01-11 - Phase 2B: Migrated to entity_links
  */
 
 import { supabase } from '@/lib/supabase'
@@ -28,6 +28,8 @@ import type {
   PaginationParams,
   PaginatedResponse,
 } from '@/lib/types/boundary-objects'
+import { getLinkedEntities } from '@/lib/entity-links'
+import { getTouchpointWithAllRelations } from './mappings'
 
 // ============================================================================
 // USER JOURNEYS
@@ -378,35 +380,44 @@ export async function getTouchpointWithRelations(id: string): Promise<Touchpoint
 
   if (touchpointError) throw touchpointError
 
-  const [canvasItems, customerProfiles, valuePropositions, assumptions, evidence] =
-    await Promise.all([
-      supabase
-        .from('touchpoint_canvas_items')
-        .select('*')
-        .eq('touchpoint_id', id)
-        .then(({ data }) => data || []),
-      supabase
-        .from('touchpoint_customer_profiles')
-        .select('*')
-        .eq('touchpoint_id', id)
-        .then(({ data }) => data || []),
-      supabase
-        .from('touchpoint_value_propositions')
-        .select('*')
-        .eq('touchpoint_id', id)
-        .then(({ data }) => data || []),
-      supabase
-        .from('touchpoint_assumptions')
-        .select('*')
-        .eq('touchpoint_id', id)
-        .then(({ data }) => data || []),
-      supabase
-        .from('touchpoint_evidence')
-        .select('*')
-        .eq('touchpoint_id', id)
-        .order('created_at', { ascending: false })
-        .then(({ data }) => data || []),
-    ])
+  // Use the entity_links-based helper from mappings
+  const relations = await getTouchpointWithAllRelations(id)
+
+  // Map entity_links to old junction table format for backwards compatibility
+  const canvasItems = relations.mappings
+    .filter(m => m.target_type === 'canvas_item')
+    .map(m => ({
+      touchpoint_id: m.touchpoint_id,
+      canvas_item_id: m.target_id,
+      mapping_type: m.mapping_type,
+      created_at: m.created_at,
+    }))
+
+  const customerProfiles = relations.mappings
+    .filter(m => m.target_type === 'customer_profile')
+    .map(m => ({
+      touchpoint_id: m.touchpoint_id,
+      customer_profile_id: m.target_id,
+      relationship_type: m.mapping_type,
+      created_at: m.created_at,
+    }))
+
+  const valuePropositions = relations.mappings
+    .filter(m => m.target_type === 'value_proposition_canvas')
+    .map(m => ({
+      touchpoint_id: m.touchpoint_id,
+      value_proposition_id: m.target_id,
+      relationship_type: m.mapping_type,
+      created_at: m.created_at,
+    }))
+
+  const assumptions = relations.assumptions.map(a => ({
+    touchpoint_id: a.touchpoint_id,
+    assumption_id: a.assumption_id,
+    relationship_type: a.relationship_type,
+    notes: a.notes,
+    created_at: a.created_at,
+  }))
 
   return {
     ...touchpoint,
@@ -414,10 +425,10 @@ export async function getTouchpointWithRelations(id: string): Promise<Touchpoint
     customer_profiles: customerProfiles,
     value_propositions: valuePropositions,
     assumptions,
-    evidence,
-    mapping_count: canvasItems.length + customerProfiles.length + valuePropositions.length,
-    assumption_count: assumptions.length,
-    evidence_count: evidence.length,
+    evidence: relations.evidence,
+    mapping_count: relations.mapping_count,
+    assumption_count: relations.assumption_count,
+    evidence_count: relations.evidence_count,
   }
 }
 
