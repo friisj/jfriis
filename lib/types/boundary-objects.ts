@@ -509,6 +509,158 @@ export type BlueprintSortField =
   | 'created_at'
 
 // ============================================================================
+// STORY MAP ENTITIES
+// ============================================================================
+
+export type StoryMapType = 'feature' | 'product' | 'release' | 'discovery'
+export type StoryType = 'feature' | 'enhancement' | 'bug' | 'tech_debt' | 'spike'
+export type StoryStatus = 'backlog' | 'ready' | 'in_progress' | 'review' | 'done' | 'archived'
+
+export interface StoryMap extends BaseRecord {
+  slug: string
+  name: string
+  description?: string
+  studio_project_id?: string
+  hypothesis_id?: string
+  map_type: StoryMapType
+  status: BoundaryObjectStatus
+  version: number
+  parent_version_id?: string
+  validation_status: ValidationStatus
+  validated_at?: string
+  tags: string[]
+  metadata: EntityMetadata
+}
+
+export interface Activity extends BaseRecord {
+  story_map_id: string
+  name: string
+  description?: string
+  sequence: number
+  user_goal?: string
+  metadata: EntityMetadata
+}
+
+export interface UserStory extends BaseRecord {
+  activity_id: string
+  title: string
+  description?: string
+  acceptance_criteria?: string
+  story_type?: StoryType
+  priority?: Importance
+  story_points?: number
+  status: StoryStatus
+  vertical_position?: number
+  validation_status: ValidationStatus
+  validated_at?: string
+  tags: string[]
+  metadata: EntityMetadata
+}
+
+export interface StoryRelease {
+  id: string
+  user_story_id: string
+  release_name: string
+  release_date?: string
+  release_order?: number
+  metadata: EntityMetadata
+  created_at: string
+}
+
+// Insert/Update types for story maps
+export type StoryMapInsert = Omit<StoryMap, keyof BaseRecord>
+export type StoryMapUpdate = Partial<StoryMapInsert>
+
+export type ActivityInsert = Omit<Activity, keyof BaseRecord>
+export type ActivityUpdate = Partial<ActivityInsert>
+
+export type UserStoryInsert = Omit<UserStory, keyof BaseRecord>
+export type UserStoryUpdate = Partial<UserStoryInsert>
+
+export type StoryReleaseInsert = Omit<StoryRelease, 'id' | 'created_at'>
+export type StoryReleaseUpdate = Partial<StoryReleaseInsert>
+
+// Extended views for story maps
+export interface StoryMapWithActivities extends StoryMap {
+  activities: Activity[]
+  activity_count: number
+  story_count: number
+}
+
+export interface ActivityWithStories extends Activity {
+  stories: UserStory[]
+  story_count: number
+}
+
+export interface UserStoryWithRelations extends UserStory {
+  releases: StoryRelease[]
+  touchpoint_count: number
+  blueprint_step_count: number
+  assumption_count: number
+}
+
+/**
+ * Story Map summary from optimized database view
+ */
+export interface StoryMapSummaryView {
+  id: string
+  slug: string
+  name: string
+  description?: string
+  status: BoundaryObjectStatus
+  validation_status: ValidationStatus
+  map_type: StoryMapType
+  studio_project_id?: string
+  studio_project_name?: string
+  tags: string[]
+  created_at: string
+  updated_at: string
+  activity_count: number
+  story_count: number
+  done_story_count: number
+}
+
+// Filter types for story maps
+export interface StoryMapFilters {
+  status?: BoundaryObjectStatus[]
+  validation_status?: ValidationStatus[]
+  map_type?: StoryMapType[]
+  studio_project_id?: string
+  tags?: string[]
+  search?: string
+}
+
+export interface UserStoryFilters {
+  activity_id?: string
+  story_map_id?: string
+  status?: StoryStatus[]
+  priority?: Importance[]
+  story_type?: StoryType[]
+  validation_status?: ValidationStatus[]
+  release_name?: string
+  tags?: string[]
+  search?: string
+}
+
+export type StoryMapSortField =
+  | 'name'
+  | 'status'
+  | 'validation_status'
+  | 'activity_count'
+  | 'story_count'
+  | 'updated_at'
+  | 'created_at'
+
+export type UserStorySortField =
+  | 'title'
+  | 'priority'
+  | 'status'
+  | 'story_points'
+  | 'vertical_position'
+  | 'created_at'
+  | 'updated_at'
+
+// ============================================================================
 // PAGINATION TYPES
 // ============================================================================
 

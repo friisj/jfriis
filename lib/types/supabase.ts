@@ -39,6 +39,50 @@ export type Database = {
   }
   public: {
     Tables: {
+      activities: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          metadata: Json | null
+          name: string
+          sequence: number
+          story_map_id: string
+          updated_at: string
+          user_goal: string | null
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          metadata?: Json | null
+          name: string
+          sequence: number
+          story_map_id: string
+          updated_at?: string
+          user_goal?: string | null
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          metadata?: Json | null
+          name?: string
+          sequence?: number
+          story_map_id?: string
+          updated_at?: string
+          user_goal?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "activities_story_map_id_fkey"
+            columns: ["story_map_id"]
+            isOneToOne: false
+            referencedRelation: "story_maps"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       assumption_experiments: {
         Row: {
           assumption_id: string
@@ -1626,6 +1670,123 @@ export type Database = {
           },
         ]
       }
+      story_maps: {
+        Row: {
+          created_at: string
+          description: string | null
+          hypothesis_id: string | null
+          id: string
+          map_type: string | null
+          metadata: Json | null
+          name: string
+          parent_version_id: string | null
+          slug: string
+          status: string
+          studio_project_id: string | null
+          tags: string[] | null
+          updated_at: string
+          validated_at: string | null
+          validation_status: string | null
+          version: number
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          hypothesis_id?: string | null
+          id?: string
+          map_type?: string | null
+          metadata?: Json | null
+          name: string
+          parent_version_id?: string | null
+          slug: string
+          status?: string
+          studio_project_id?: string | null
+          tags?: string[] | null
+          updated_at?: string
+          validated_at?: string | null
+          validation_status?: string | null
+          version?: number
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          hypothesis_id?: string | null
+          id?: string
+          map_type?: string | null
+          metadata?: Json | null
+          name?: string
+          parent_version_id?: string | null
+          slug?: string
+          status?: string
+          studio_project_id?: string | null
+          tags?: string[] | null
+          updated_at?: string
+          validated_at?: string | null
+          validation_status?: string | null
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "story_maps_hypothesis_id_fkey"
+            columns: ["hypothesis_id"]
+            isOneToOne: false
+            referencedRelation: "studio_hypotheses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "story_maps_parent_version_id_fkey"
+            columns: ["parent_version_id"]
+            isOneToOne: false
+            referencedRelation: "story_maps"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "story_maps_studio_project_id_fkey"
+            columns: ["studio_project_id"]
+            isOneToOne: false
+            referencedRelation: "studio_projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      story_releases: {
+        Row: {
+          created_at: string
+          id: string
+          metadata: Json | null
+          release_date: string | null
+          release_name: string
+          release_order: number | null
+          user_story_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          metadata?: Json | null
+          release_date?: string | null
+          release_name: string
+          release_order?: number | null
+          user_story_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          metadata?: Json | null
+          release_date?: string | null
+          release_name?: string
+          release_order?: number | null
+          user_story_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "story_releases_user_story_id_fkey"
+            columns: ["user_story_id"]
+            isOneToOne: false
+            referencedRelation: "user_stories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       studio_experiments: {
         Row: {
           created_at: string
@@ -2118,6 +2279,71 @@ export type Database = {
             columns: ["studio_project_id"]
             isOneToOne: false
             referencedRelation: "studio_projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_stories: {
+        Row: {
+          acceptance_criteria: string | null
+          activity_id: string
+          created_at: string
+          description: string | null
+          id: string
+          metadata: Json | null
+          priority: string | null
+          status: string | null
+          story_points: number | null
+          story_type: string | null
+          tags: string[] | null
+          title: string
+          updated_at: string
+          validated_at: string | null
+          validation_status: string | null
+          vertical_position: number | null
+        }
+        Insert: {
+          acceptance_criteria?: string | null
+          activity_id: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          metadata?: Json | null
+          priority?: string | null
+          status?: string | null
+          story_points?: number | null
+          story_type?: string | null
+          tags?: string[] | null
+          title: string
+          updated_at?: string
+          validated_at?: string | null
+          validation_status?: string | null
+          vertical_position?: number | null
+        }
+        Update: {
+          acceptance_criteria?: string | null
+          activity_id?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          metadata?: Json | null
+          priority?: string | null
+          status?: string | null
+          story_points?: number | null
+          story_type?: string | null
+          tags?: string[] | null
+          title?: string
+          updated_at?: string
+          validated_at?: string | null
+          validation_status?: string | null
+          vertical_position?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_stories_activity_id_fkey"
+            columns: ["activity_id"]
+            isOneToOne: false
+            referencedRelation: "activities"
             referencedColumns: ["id"]
           },
         ]
