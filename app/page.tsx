@@ -1,16 +1,12 @@
-import { createClient } from '@/lib/supabase-server'
-import { redirect } from 'next/navigation'
 import { SplashPage } from '@/components/splash-page'
+import { HomePage } from '@/components/home-page'
 
-export default async function Home() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+export default function Home() {
+  const showSplash = process.env.NEXT_PUBLIC_SHOW_SPLASH === 'true'
 
-  if (user) {
-    // Logged in users go to portfolio (or could render home content here)
-    redirect('/portfolio')
+  if (showSplash) {
+    return <SplashPage />
   }
 
-  // Logged out users see splash
-  return <SplashPage />
+  return <HomePage />
 }
