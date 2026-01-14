@@ -557,14 +557,12 @@ export interface UserStory extends BaseRecord {
   metadata: EntityMetadata
 }
 
-export interface StoryRelease {
-  id: string
+export interface StoryRelease extends BaseRecord {
   user_story_id: string
   release_name: string
   release_date?: string
   release_order?: number
   metadata: EntityMetadata
-  created_at: string
 }
 
 // Insert/Update types for story maps
@@ -577,7 +575,7 @@ export type ActivityUpdate = Partial<ActivityInsert>
 export type UserStoryInsert = Omit<UserStory, keyof BaseRecord>
 export type UserStoryUpdate = Partial<UserStoryInsert>
 
-export type StoryReleaseInsert = Omit<StoryRelease, 'id' | 'created_at'>
+export type StoryReleaseInsert = Omit<StoryRelease, keyof BaseRecord>
 export type StoryReleaseUpdate = Partial<StoryReleaseInsert>
 
 // Extended views for story maps

@@ -100,11 +100,15 @@ export async function getStoryMapWithActivities(id: string): Promise<StoryMapWit
   const activityIds = (activities || []).map(a => a.id)
   let storyCount = 0
   if (activityIds.length > 0) {
-    const { count } = await supabase
+    const { count, error: countError } = await supabase
       .from('user_stories')
       .select('*', { count: 'exact', head: true })
       .in('activity_id', activityIds)
-    storyCount = count || 0
+    if (countError) {
+      // Log but don't fail - count is not critical
+      console.warn('Failed to count user stories:', countError.message)
+    }
+    storyCount = count ?? 0
   }
 
   return {
@@ -152,11 +156,19 @@ export async function listStoryMaps(
     query = query.overlaps('tags', filters.tags)
   }
   if (filters?.search) {
-    // Sanitize search input to prevent SQL injection
-    const sanitized = filters.search.replace(/[%_\\]/g, '\\$&')
-    query = query.or(
-      `name.ilike.%${sanitized}%,description.ilike.%${sanitized}%`
-    )
+    // Sanitize search input: escape LIKE wildcards and filter syntax chars
+    const sanitized = filters.search
+      .replace(/\\/g, '\\\\')  // Escape backslashes first
+      .replace(/%/g, '\\%')    // Escape LIKE wildcard %
+      .replace(/_/g, '\\_')    // Escape LIKE wildcard _
+      .replace(/,/g, '')       // Remove commas (filter separator)
+      .replace(/\./g, '')      // Remove dots (operator separator)
+      .slice(0, 100)           // Limit length to prevent abuse
+    if (sanitized.trim()) {
+      query = query.or(
+        `name.ilike.%${sanitized}%,description.ilike.%${sanitized}%`
+      )
+    }
   }
 
   // Apply sorting
@@ -301,9 +313,19 @@ export async function deleteActivity(id: string): Promise<void> {
  * Uses a two-phase approach to avoid sequence conflicts:
  * 1. Set all sequences to negative values (out of conflict range)
  * 2. Set final sequence values
+ *
+ * If phase 2 fails, attempts rollback to restore original sequences.
  */
 export async function reorderActivities(storyMapId: string, activityIds: string[]): Promise<void> {
   if (activityIds.length === 0) return
+
+  // Fetch original sequences for potential rollback
+  const { data: originalActivities, error: fetchError } = await supabase
+    .from('activities')
+    .select('id, sequence')
+    .in('id', activityIds)
+
+  if (fetchError) throw fetchError
 
   // Phase 1: Move all activities to negative sequences
   const negativeUpdates = activityIds.map((id, index) => ({
@@ -329,7 +351,21 @@ export async function reorderActivities(storyMapId: string, activityIds: string[
     .from('activities')
     .upsert(finalUpdates as any)
 
-  if (finalError) throw finalError
+  if (finalError) {
+    // Attempt rollback to original sequences
+    console.error('Phase 2 failed, attempting rollback:', finalError.message)
+    const rollbackUpdates = (originalActivities || []).map(a => ({
+      id: a.id,
+      sequence: a.sequence,
+      story_map_id: storyMapId,
+    }))
+
+    if (rollbackUpdates.length > 0) {
+      await supabase.from('activities').upsert(rollbackUpdates as any)
+    }
+
+    throw finalError
+  }
 }
 
 // ============================================================================
@@ -441,11 +477,19 @@ export async function listUserStories(
     query = query.overlaps('tags', filters.tags)
   }
   if (filters?.search) {
-    // Sanitize search input to prevent SQL injection
-    const sanitized = filters.search.replace(/[%_\\]/g, '\\$&')
-    query = query.or(
-      `title.ilike.%${sanitized}%,description.ilike.%${sanitized}%`
-    )
+    // Sanitize search input: escape LIKE wildcards and filter syntax chars
+    const sanitized = filters.search
+      .replace(/\\/g, '\\\\')  // Escape backslashes first
+      .replace(/%/g, '\\%')    // Escape LIKE wildcard %
+      .replace(/_/g, '\\_')    // Escape LIKE wildcard _
+      .replace(/,/g, '')       // Remove commas (filter separator)
+      .replace(/\./g, '')      // Remove dots (operator separator)
+      .slice(0, 100)           // Limit length to prevent abuse
+    if (sanitized.trim()) {
+      query = query.or(
+        `title.ilike.%${sanitized}%,description.ilike.%${sanitized}%`
+      )
+    }
   }
 
   // Apply sorting
@@ -651,26 +695,35 @@ export async function duplicateStoryMap(
  * Get all releases for a story map
  */
 export async function listReleasesByStoryMap(storyMapId: string): Promise<string[]> {
-  const { data: activities } = await supabase
+  // Step 1: Get activity IDs for this story map
+  const { data: activities, error: activitiesError } = await supabase
     .from('activities')
     .select('id')
     .eq('story_map_id', storyMapId)
 
+  if (activitiesError) throw activitiesError
   if (!activities || activities.length === 0) return []
 
   const activityIds = activities.map(a => a.id)
 
-  const { data: releases, error } = await supabase
+  // Step 2: Get user story IDs for these activities
+  const { data: stories, error: storiesError } = await supabase
+    .from('user_stories')
+    .select('id')
+    .in('activity_id', activityIds)
+
+  if (storiesError) throw storiesError
+  if (!stories || stories.length === 0) return []
+
+  const storyIds = stories.map(s => s.id)
+
+  // Step 3: Get release names for these stories
+  const { data: releases, error: releasesError } = await supabase
     .from('story_releases')
     .select('release_name')
-    .in('user_story_id', (
-      supabase
-        .from('user_stories')
-        .select('id')
-        .in('activity_id', activityIds)
-    ) as any)
+    .in('user_story_id', storyIds)
 
-  if (error) throw error
+  if (releasesError) throw releasesError
 
   // Get unique release names
   const uniqueReleases = [...new Set((releases || []).map(r => r.release_name))]
