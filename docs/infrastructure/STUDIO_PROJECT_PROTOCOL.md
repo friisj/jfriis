@@ -111,25 +111,56 @@ Create experiments that will test hypotheses:
 | `discovery_interviews` | User research | Experiment page (interview tools TBD) |
 | `landing_page` | Market validation | Experiment page (metrics tracking TBD) |
 
-### Use Surveys for Structured Project Authoring (Optional but Recommended)
+### Survey System: Structured Project Authoring
 
-**Surveys are critical infrastructure** for project initialization and structured exploration. The survey system provides:
+> **Status**: Critical infrastructure, nascent implementation. Core tables exist; UI and agent integration in development.
+
+Surveys are the **primary instrument** for transforming unstructured ideas into validated project artifacts. While optional today, they are designed to become the backbone of project initialization and continuous assessment.
+
+#### Current Capabilities
 
 - **Structured idea capture**: Guided questions help articulate project concepts clearly
-- **Automated artifact generation**: Creates hypotheses, experiments, customer profiles, and assumptions from survey responses
-- **Agent orchestration**: Future backbone for agent dispatch and recursive iterations
-- **Risk reduction**: Ad hoc and event-driven progress assessments to evaluate idea viability
+- **Automated artifact generation**: AI creates hypotheses, experiments, customer profiles, and assumptions from survey responses
+- **Acceptance workflow**: Operator reviews and accepts/rejects generated artifacts
 
-**Survey tables:**
-- `studio_surveys`: Survey definitions for projects
-- `studio_survey_responses`: Operator answers
-- `studio_survey_artifacts`: Generated hypotheses, experiments, etc. with acceptance tracking
+**Database schema:**
+| Table | Purpose |
+|-------|---------|
+| `studio_surveys` | Survey definitions linked to projects |
+| `studio_survey_responses` | Operator answers to questions |
+| `studio_survey_artifacts` | Generated artifacts with acceptance tracking |
 
-Surveys are an **emerging instrument** that will eventually handle:
-1. Project initialization workflow
-2. Agent dispatch for artifact generation
-3. Recursive agent iterations via operator feedback
-4. Event-driven progress assessments
+#### Vision: Agent-Driven Project Authoring
+
+The survey system is designed to evolve into a full agent orchestration platform:
+
+**Phase 1 (Current)**: Basic surveys with AI artifact generation
+- Survey questions defined per project
+- AI generates hypotheses/experiments from responses
+- Manual acceptance workflow
+
+**Phase 2 (Planned)**: Agent dispatch
+- Surveys trigger specialized agents (hypothesis generator, experiment designer, assumption extractor)
+- Agents operate on survey context + project state
+- Parallel artifact generation with conflict resolution
+
+**Phase 3 (Vision)**: Recursive iteration
+- Agents can spawn follow-up surveys based on findings
+- Operator feedback loops drive refinement
+- Event-driven assessments (e.g., "hypothesis invalidated" triggers pivot survey)
+
+**Phase 4 (Vision)**: Autonomous project evolution
+- Agents monitor project health metrics
+- Proactive surveys surface when projects stall
+- Cross-project learning informs new survey templates
+
+#### Why Surveys Matter
+
+1. **Reduces cognitive load**: Structured questions are easier than blank-page authoring
+2. **Captures reasoning**: Survey responses document the "why" behind artifacts
+3. **Enables automation**: Consistent input format allows reliable AI processing
+4. **Supports iteration**: Generated artifacts can be regenerated with new context
+5. **Creates provenance**: Survey → Response → Artifact chain is auditable
 
 ---
 
