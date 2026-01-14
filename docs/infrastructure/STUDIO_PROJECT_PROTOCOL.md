@@ -8,15 +8,15 @@
 
 ```
 1. CAPTURE    →  Create studio_project record (status: draft)
-2. SHAPE      →  Fill PRD fields, add hypotheses & experiments
-3. SCAFFOLD   →  Run scaffold script to generate pages
-4. WORK       →  Status: active, implement experiments
-5. COMPLETE   →  Status: completed/archived
+2. SHAPE      →  Fill PRD fields, add hypotheses & experiments (manually or via survey)
+3. WORK       →  Status: active, implement experiments, mount prototypes
+4. COMPLETE   →  Status: completed/archived
 ```
 
 **Environments:**
 - **Admin UI / MCP:** Capture ideas, shape PRD fields, add hypotheses/experiments
-- **Claude Code:** Run scaffold script, implement code
+- **Dynamic Pages:** View projects and experiments at `/studio/[project]` and `/studio/[project]/[experiment]`
+- **Claude Code:** Implement experiments, mount prototype components
 
 ---
 
@@ -104,83 +104,69 @@ Create experiments that will test hypotheses:
 
 **Experiment Types:**
 
-| Type | Purpose | What Gets Scaffolded |
-|------|---------|---------------------|
-| `experiment` | Standard hypothesis test | Experiment page section |
-| `prototype` | Working code demo | Experiment page + prototype component in `_components/` |
-| `discovery_interviews` | User research | Experiment page with placeholder for interview tools |
-| `landing_page` | Market validation | Experiment page with placeholder for metrics |
+| Type | Purpose | What's Rendered |
+|------|---------|-----------------|
+| `experiment` | Standard hypothesis test | Experiment page with details |
+| `prototype` | Working code demo | Experiment page with mountable component |
+| `discovery_interviews` | User research | Experiment page (interview tools TBD) |
+| `landing_page` | Market validation | Experiment page (metrics tracking TBD) |
+
+### Use Surveys for Structured Project Authoring (Optional but Recommended)
+
+**Surveys are critical infrastructure** for project initialization and structured exploration. The survey system provides:
+
+- **Structured idea capture**: Guided questions help articulate project concepts clearly
+- **Automated artifact generation**: Creates hypotheses, experiments, customer profiles, and assumptions from survey responses
+- **Agent orchestration**: Future backbone for agent dispatch and recursive iterations
+- **Risk reduction**: Ad hoc and event-driven progress assessments to evaluate idea viability
+
+**Survey tables:**
+- `studio_surveys`: Survey definitions for projects
+- `studio_survey_responses`: Operator answers
+- `studio_survey_artifacts`: Generated hypotheses, experiments, etc. with acceptance tracking
+
+Surveys are an **emerging instrument** that will eventually handle:
+1. Project initialization workflow
+2. Agent dispatch for artifact generation
+3. Recursive agent iterations via operator feedback
+4. Event-driven progress assessments
 
 ---
 
-## 3. Scaffold: Generate Project Structure
+## 3. Work: Implement & Track
 
-### When to Scaffold
+### View Projects and Experiments
 
-Scaffold when:
-- PRD fields are reasonably complete
-- Hypotheses and experiments are defined in DB
-- Ready to write code
-- Status moving from `draft` → `active`
+Projects and experiments are automatically available via dynamic routes:
 
-### Run the Scaffold Script
+- **Project page**: `/studio/{project-slug}` - displays PRD, hypotheses, and experiments
+- **Experiment page**: `/studio/{project-slug}/{experiment-slug}` - displays experiment details, hypothesis, and prototype
 
-```bash
-# Initial scaffold (creates all files)
-npm run scaffold:studio <project-slug>
+**No scaffolding required** - as soon as you create records in the database, the pages render dynamically.
 
-# Sync mode (only adds new experiments, doesn't overwrite existing)
-npm run scaffold:studio:sync <project-slug>
-```
+### Mount Prototype Components
 
-**When to use sync mode:**
-- After adding new experiments to the database
-- When you want to add experiment pages without losing customizations
-- The dynamic route is always updated to include all experiments
+For `prototype` type experiments, create a React component and register it:
 
-**What it creates (co-located structure):**
+1. **Create the component**:
+   ```tsx
+   // components/studio/prototypes/{project-slug}/{experiment-slug}.tsx
+   'use client'
 
-```
-app/(private)/studio/{slug}/
-├── page.tsx                    # Homepage (server component)
-├── _components/                # Project-specific components
-│   └── {exp-slug}-prototype.tsx  # Prototype components (for prototype type only)
-└── [experiment]/
-    └── page.tsx                # Dynamic experiment route
-```
+   export default function MyPrototype() {
+     // Your prototype implementation
+   }
+   ```
 
-### The Script Also:
-- Updates `scaffolded_at` timestamp in DB
-- Sets `path` to project directory
-- Outputs next steps including Linear project creation suggestion
+2. **Register in the prototype registry**:
+   ```tsx
+   // app/(private)/studio/[project]/[experiment]/page.tsx
+   const prototypeRegistry: Record<string, React.ComponentType<any>> = {
+     'my-project/my-experiment': dynamic(() => import('@/components/studio/prototypes/my-project/my-experiment')),
+   }
+   ```
 
-### Claude Code Hook
-
-When you say "scaffold studio project" or similar, a hook queries the database and shows:
-- Projects ready for scaffolding (draft, never scaffolded)
-- Projects needing sync (new experiments added since scaffold)
-
-After scaffolding, a PostToolUse hook suggests:
-1. Creating a Linear project for task tracking
-2. Enriching generated files with project-specific content
-3. Implementing prototype components
-
----
-
-## 4. Work: Implement & Track
-
-### Implement Prototypes
-
-For `prototype` type experiments, implement the component:
-
-```tsx
-// app/(private)/studio/{slug}/_components/{exp-slug}-prototype.tsx
-'use client'
-
-export default function MyPrototype() {
-  // Your prototype implementation
-}
-```
+The experiment page will automatically mount your component when viewing `/studio/my-project/my-experiment`.
 
 ### Create Linear Project
 
@@ -249,7 +235,7 @@ For substantive notes, create log entries linked to the project/experiment:
 
 ---
 
-## 5. Complete: Archive or Ship
+## 4. Complete: Archive or Ship
 
 ### Mark Complete
 
@@ -289,8 +275,10 @@ For abandoned projects:
 | `studio_projects` | Main project records with PRD fields |
 | `studio_hypotheses` | Testable hypotheses per project |
 | `studio_experiments` | Experiments that test hypotheses |
-| `log_entries` | Substantive notes (linked via FK) |
-| `specimens` | Visual artifacts (linked via FK) |
+| `studio_surveys` | Survey definitions for project authoring |
+| `studio_survey_responses` | Operator answers to survey questions |
+| `studio_survey_artifacts` | Generated artifacts (hypotheses, experiments, profiles, assumptions) |
+| `entity_links` | Universal relationship table (projects can link to ventures, canvases, journeys, blueprints, story maps, etc.) |
 
 ---
 
@@ -300,8 +288,8 @@ For abandoned projects:
 
 | Status | Meaning |
 |--------|---------|
-| `draft` | Idea captured, not yet scaffolded |
-| `active` | Scaffolded, work in progress |
+| `draft` | Idea captured, not yet actively worked |
+| `active` | Work in progress, experiments being implemented |
 | `paused` | On hold, may resume |
 | `completed` | Done, achieved goals |
 | `archived` | Abandoned or superseded |
@@ -353,28 +341,47 @@ For abandoned projects:
 
 ## Quick Reference
 
-### Scaffold a project
-```bash
-npm run scaffold:studio <slug>
-npm run scaffold:studio:sync <slug>  # Add new experiments only
+### View Projects and Experiments
+```
+/studio/{project-slug}                     # Project homepage
+/studio/{project-slug}/{experiment-slug}   # Experiment page
 ```
 
-### View generated pages
+### Dynamic Routes
 ```
-/studio/{slug}              # Project homepage
-/studio/{slug}/{exp-slug}   # Experiment page
+app/(private)/studio/
+├── page.tsx                               # Studio index
+├── [project]/
+│   ├── page.tsx                           # Project view (queries DB)
+│   └── [experiment]/
+│       └── page.tsx                       # Experiment view (queries DB)
 ```
 
-### File locations (co-located)
+### Prototype Components
 ```
-app/(private)/studio/{slug}/
-├── page.tsx                        # Homepage
-├── _components/
-│   └── {exp-slug}-prototype.tsx    # Prototype components
-└── [experiment]/
-    └── page.tsx                    # Dynamic experiment route
+components/studio/prototypes/
+└── {project-slug}/
+    └── {experiment-slug}.tsx              # Register in experiment page
+```
+
+### Create Records via MCP
+```typescript
+// Create project
+db_create('studio_projects', { slug: 'my-project', name: 'My Project', status: 'draft' })
+
+// Create hypothesis
+db_create('studio_hypotheses', { project_id: '...', statement: '...', sequence: 1 })
+
+// Create experiment
+db_create('studio_experiments', { project_id: '...', slug: 'exp-1', name: '...', type: 'prototype' })
+
+// Link to other entities via entity_links
+db_create('entity_links', {
+  source_table: 'studio_projects', source_id: '...',
+  target_table: 'ventures', target_id: '...'
+})
 ```
 
 ---
 
-*Protocol version: 4.0 | Last updated: 2026-01-02*
+*Protocol version: 5.0 | Last updated: 2026-01-13*

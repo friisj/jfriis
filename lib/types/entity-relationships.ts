@@ -177,6 +177,7 @@ export type LinkType =
   | 'evolved_from'   // Backlog item became canvas item
   | 'inspired_by'    // One inspired another
   | 'derived_from'   // Direct derivation
+  | 'spin_off'       // Studio project is spin-off of parent
   // Validation relationships
   | 'validates'      // Evidence validates assumption
   | 'tests'          // Experiment tests hypothesis
@@ -194,6 +195,10 @@ export type LinkType =
   | 'creates_gain'   // Gain creator delivers gain
   | 'triggers_pain'  // Touchpoint triggers customer pain
   | 'delivers_gain'  // Feature/story delivers customer gain
+  // Strategic framework relationships (for studio projects)
+  | 'explores'       // Studio project explores business model/canvas
+  | 'prototypes'     // Studio project prototypes blueprint element
+  | 'informs'        // Studio project informs story map/framework
   // Journey-to-product relationships
   | 'enables'        // Story enables touchpoint/blueprint
   | 'improves'       // Story improves experience
@@ -324,6 +329,7 @@ export const LINK_TYPES = {
   EVOLVED_FROM: 'evolved_from' as const,
   INSPIRED_BY: 'inspired_by' as const,
   DERIVED_FROM: 'derived_from' as const,
+  SPIN_OFF: 'spin_off' as const,
 
   // Validation relationships
   VALIDATES: 'validates' as const,
@@ -344,6 +350,11 @@ export const LINK_TYPES = {
   CREATES_GAIN: 'creates_gain' as const,
   TRIGGERS_PAIN: 'triggers_pain' as const,
   DELIVERS_GAIN: 'delivers_gain' as const,
+
+  // Strategic framework relationships (for studio projects)
+  EXPLORES: 'explores' as const,
+  PROTOTYPES: 'prototypes' as const,
+  INFORMS: 'informs' as const,
 
   // Journey-to-product relationships
   ENABLES: 'enables' as const,
