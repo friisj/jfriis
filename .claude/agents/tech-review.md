@@ -1,44 +1,6 @@
 ---
 name: tech-review
-description: Use this agent for critical technical review after significant code additions or changes. Performs deep architectural, security, performance, and quality analysis to assess stability, completeness, and scalability. Identifies issues, triages by severity, and separates immediate fixes from backlog items. Invoke after major features, refactors, or before important releases.
-
-Examples:
-
-<example>
-Context: User just completed a major feature implementation
-user: "I just finished implementing the new authentication system. Can you review it?"
-assistant: "I'll launch the tech-review agent to perform a comprehensive technical analysis of the authentication implementation."
-<commentary>
-Major features like authentication systems require thorough review for security, architecture, and integration quality. The tech-review agent will assess all critical dimensions.
-</commentary>
-</example>
-
-<example>
-Context: User completed a database schema change
-user: "Done refactoring the database schema for journeys. Please review."
-assistant: "Let me use the tech-review agent to evaluate the schema changes for data integrity, performance implications, and migration safety."
-<commentary>
-Database changes have cascading impacts on performance, data integrity, and system reliability. A thorough technical review is essential.
-</commentary>
-</example>
-
-<example>
-Context: Before a significant release
-user: "We're about to release the new admin dashboard. Can you do a final technical review?"
-assistant: "I'll run the tech-review agent to perform a pre-release audit of the admin dashboard code."
-<commentary>
-Pre-release reviews catch critical issues before they reach production. The tech-review agent provides systematic quality assurance.
-</commentary>
-</example>
-
-<example>
-Context: After major refactoring work
-user: "Just refactored the component library to use composition patterns. Please check it over."
-assistant: "Let me engage the tech-review agent to assess the refactoring for architectural consistency and regression risks."
-<commentary>
-Large refactors can introduce subtle bugs and architectural inconsistencies. A thorough review ensures the changes improve rather than degrade the codebase.
-</commentary>
-</example>
+description: Use this agent for critical technical review after significant code additions or changes. Performs deep architectural, security, performance, and quality analysis to assess stability, completeness, and scalability. Identifies issues, triages by severity, and separates immediate fixes from backlog items. Invoke after major features, refactors, or before important releases.\n\nExamples:\n\n<example>\nContext: User just completed a major feature implementation\nuser: "I just finished implementing the new authentication system. Can you review it?"\nassistant: "I'll launch the tech-review agent to perform a comprehensive technical analysis of the authentication implementation."\n<commentary>\nMajor features like authentication systems require thorough review for security, architecture, and integration quality. The tech-review agent will assess all critical dimensions.\n</commentary>\n</example>\n\n<example>\nContext: User completed a database schema change\nuser: "Done refactoring the database schema for journeys. Please review."\nassistant: "Let me use the tech-review agent to evaluate the schema changes for data integrity, performance implications, and migration safety."\n<commentary>\nDatabase changes have cascading impacts on performance, data integrity, and system reliability. A thorough technical review is essential.\n</commentary>\n</example>\n\n<example>\nContext: Before a significant release\nuser: "We're about to release the new admin dashboard. Can you do a final technical review?"\nassistant: "I'll run the tech-review agent to perform a pre-release audit of the admin dashboard code."\n<commentary>\nPre-release reviews catch critical issues before they reach production. The tech-review agent provides systematic quality assurance.\n</commentary>\n</example>\n\n<example>\nContext: After major refactoring work\nuser: "Just refactored the component library to use composition patterns. Please check it over."\nassistant: "Let me engage the tech-review agent to assess the refactoring for architectural consistency and regression risks."\n<commentary>\nLarge refactors can introduce subtle bugs and architectural inconsistencies. A thorough review ensures the changes improve rather than degrade the codebase.\n</commentary>\n</example>
 model: sonnet
 color: red
 ---
