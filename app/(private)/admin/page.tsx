@@ -24,13 +24,13 @@ export default function AdminDashboard() {
           <h2 className="text-lg font-semibold mb-4">Quick Actions</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
             <a
-              href="/admin/projects/new"
+              href="/admin/ventures/new"
               className="flex items-center gap-2 px-4 py-3 rounded-lg border bg-card hover:bg-accent transition-colors"
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
               </svg>
-              <span className="text-sm font-medium">New Project</span>
+              <span className="text-sm font-medium">New Venture</span>
             </a>
             <a
               href="/admin/log/new"
