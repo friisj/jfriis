@@ -6,6 +6,7 @@ import { supabase } from '@/lib/supabase'
 import { SidebarCard } from './sidebar-card'
 import { FormActions } from './form-actions'
 import { FormFieldWithAI } from '@/components/forms'
+import { buildEntityContext } from '@/lib/ai-context'
 
 interface StoryMap {
   id: string
@@ -46,19 +47,11 @@ const validationStatuses = [
   { value: 'invalidated', label: 'Invalidated' },
 ]
 
-interface StudioProject {
-  id: string
-  name: string
-  description?: string | null
-  problem_statement?: string | null
-  status?: string
-}
-
 export function StoryMapForm({ storyMap, projects }: StoryMapFormProps) {
   const router = useRouter()
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [selectedProject, setSelectedProject] = useState<StudioProject | null>(null)
+  const [relatedContext, setRelatedContext] = useState<Record<string, unknown>>({})
 
   const [formData, setFormData] = useState({
     slug: storyMap?.slug || '',
@@ -83,31 +76,15 @@ export function StoryMapForm({ storyMap, projects }: StoryMapFormProps) {
     }
   }, [formData.name, storyMap?.slug])
 
-  // Fetch selected project data for AI context
+  // Fetch related entity data for AI context
   useEffect(() => {
-    const fetchProject = async () => {
-      if (!formData.studio_project_id) {
-        setSelectedProject(null)
-        return
-      }
-      const { data } = await supabase
-        .from('studio_projects')
-        .select('id, name, description, problem_statement, status')
-        .eq('id', formData.studio_project_id)
-        .single()
-      setSelectedProject(data)
-    }
-    fetchProject()
-  }, [formData.studio_project_id])
+    buildEntityContext('story_maps', formData).then(setRelatedContext)
+  }, [formData.studio_project_id, formData.hypothesis_id])
 
-  // Build AI context including selected project data
+  // Build AI context including related entity data
   const getAIContext = (additionalContext: Record<string, unknown> = {}) => ({
+    ...relatedContext,
     ...additionalContext,
-    ...(selectedProject && {
-      project_name: selectedProject.name,
-      project_description: selectedProject.description,
-      project_problem_statement: selectedProject.problem_statement,
-    }),
   })
 
   const handleSubmit = async (e: React.FormEvent) => {
