@@ -7,7 +7,10 @@ import { SidebarCard } from './sidebar-card'
 import { FormActions } from './form-actions'
 import { FormFieldWithAI } from '@/components/forms'
 import { RelationshipField } from './relationship-field'
+import { EntityLinkField } from './entity-link-field'
+import { syncEntityLinks } from '@/lib/entity-links'
 import { buildEntityContext } from '@/lib/ai-context'
+import type { PendingLink } from '@/lib/types/entity-relationships'
 
 interface StoryMap {
   id: string
@@ -53,6 +56,10 @@ export function StoryMapForm({ storyMap, projects }: StoryMapFormProps) {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [relatedContext, setRelatedContext] = useState<Record<string, unknown>>({})
+  const [pendingJourneyLinks, setPendingJourneyLinks] = useState<PendingLink[]>([])
+  const [pendingBlueprintLinks, setPendingBlueprintLinks] = useState<PendingLink[]>([])
+  const [pendingVpcLinks, setPendingVpcLinks] = useState<PendingLink[]>([])
+  const [pendingBmcLinks, setPendingBmcLinks] = useState<PendingLink[]>([])
 
   const [formData, setFormData] = useState({
     slug: storyMap?.slug || '',
@@ -167,6 +174,22 @@ export function StoryMapForm({ storyMap, projects }: StoryMapFormProps) {
           .single()
 
         if (insertError) throw insertError
+
+        // Sync pending entity links for create mode
+        const sourceRef = { type: 'story_map' as const, id: created.id }
+        if (pendingJourneyLinks.length > 0) {
+          await syncEntityLinks(sourceRef, 'user_journey', 'related', pendingJourneyLinks.map(l => l.targetId))
+        }
+        if (pendingBlueprintLinks.length > 0) {
+          await syncEntityLinks(sourceRef, 'service_blueprint', 'related', pendingBlueprintLinks.map(l => l.targetId))
+        }
+        if (pendingVpcLinks.length > 0) {
+          await syncEntityLinks(sourceRef, 'value_proposition_canvas', 'related', pendingVpcLinks.map(l => l.targetId))
+        }
+        if (pendingBmcLinks.length > 0) {
+          await syncEntityLinks(sourceRef, 'business_model_canvas', 'related', pendingBmcLinks.map(l => l.targetId))
+        }
+
         router.push(`/admin/story-maps/${created.id}/edit`)
       }
     } catch (err: any) {
@@ -405,6 +428,63 @@ export function StoryMapForm({ storyMap, projects }: StoryMapFormProps) {
                 mode="single"
                 placeholder="Select hypothesis..."
                 helperText="Link to a hypothesis to validate"
+              />
+            </div>
+          </SidebarCard>
+
+          <SidebarCard title="Related Entities">
+            <div className="space-y-4">
+              <EntityLinkField
+                label="User Journeys"
+                sourceType="story_map"
+                sourceId={storyMap?.id}
+                targetType="user_journey"
+                targetTableName="user_journeys"
+                targetDisplayField="name"
+                linkType="related"
+                allowMultiple={true}
+                pendingLinks={pendingJourneyLinks}
+                onPendingLinksChange={setPendingJourneyLinks}
+                helperText="Link to customer journeys this story map relates to"
+              />
+              <EntityLinkField
+                label="Service Blueprints"
+                sourceType="story_map"
+                sourceId={storyMap?.id}
+                targetType="service_blueprint"
+                targetTableName="service_blueprints"
+                targetDisplayField="name"
+                linkType="related"
+                allowMultiple={true}
+                pendingLinks={pendingBlueprintLinks}
+                onPendingLinksChange={setPendingBlueprintLinks}
+                helperText="Link to blueprints this story map implements"
+              />
+              <EntityLinkField
+                label="Value Propositions"
+                sourceType="story_map"
+                sourceId={storyMap?.id}
+                targetType="value_proposition_canvas"
+                targetTableName="value_proposition_canvases"
+                targetDisplayField="name"
+                linkType="related"
+                allowMultiple={true}
+                pendingLinks={pendingVpcLinks}
+                onPendingLinksChange={setPendingVpcLinks}
+                helperText="Link to value proposition canvases"
+              />
+              <EntityLinkField
+                label="Business Models"
+                sourceType="story_map"
+                sourceId={storyMap?.id}
+                targetType="business_model_canvas"
+                targetTableName="business_model_canvases"
+                targetDisplayField="name"
+                linkType="related"
+                allowMultiple={true}
+                pendingLinks={pendingBmcLinks}
+                onPendingLinksChange={setPendingBmcLinks}
+                helperText="Link to business model canvases"
               />
             </div>
           </SidebarCard>
