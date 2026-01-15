@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { SidebarCard } from './sidebar-card'
 import { FormActions } from './form-actions'
+import { FormFieldWithAI } from '@/components/forms'
 
 interface Blueprint {
   id: string
@@ -195,10 +196,18 @@ export function BlueprintForm({ blueprint, projects }: BlueprintFormProps) {
         {/* Main content */}
         <div className="flex-1 space-y-6">
           {/* Name */}
-          <div>
-            <label htmlFor="name" className="block text-sm font-medium mb-1">
-              Name <span className="text-destructive">*</span>
-            </label>
+          <FormFieldWithAI
+            label="Name *"
+            fieldName="name"
+            entityType="service_blueprints"
+            context={{
+              blueprint_type: formData.blueprint_type,
+              status: formData.status,
+            }}
+            currentValue={formData.name}
+            onGenerate={(content) => setFormData((prev) => ({ ...prev, name: content }))}
+            disabled={saving}
+          >
             <input
               type="text"
               id="name"
@@ -208,7 +217,7 @@ export function BlueprintForm({ blueprint, projects }: BlueprintFormProps) {
               className="w-full px-3 py-2 border rounded-md bg-background"
               placeholder="e.g., Customer Onboarding Flow"
             />
-          </div>
+          </FormFieldWithAI>
 
           {/* Slug */}
           <div>
@@ -230,10 +239,19 @@ export function BlueprintForm({ blueprint, projects }: BlueprintFormProps) {
           </div>
 
           {/* Description */}
-          <div>
-            <label htmlFor="description" className="block text-sm font-medium mb-1">
-              Description
-            </label>
+          <FormFieldWithAI
+            label="Description"
+            fieldName="description"
+            entityType="service_blueprints"
+            context={{
+              name: formData.name,
+              blueprint_type: formData.blueprint_type,
+              service_scope: formData.service_scope,
+            }}
+            currentValue={formData.description}
+            onGenerate={(content) => setFormData((prev) => ({ ...prev, description: content }))}
+            disabled={saving}
+          >
             <textarea
               id="description"
               value={formData.description}
@@ -242,7 +260,7 @@ export function BlueprintForm({ blueprint, projects }: BlueprintFormProps) {
               className="w-full px-3 py-2 border rounded-md bg-background"
               placeholder="What does this blueprint cover?"
             />
-          </div>
+          </FormFieldWithAI>
 
           {/* Blueprint Type */}
           <div>
@@ -264,10 +282,19 @@ export function BlueprintForm({ blueprint, projects }: BlueprintFormProps) {
           </div>
 
           {/* Service Scope */}
-          <div>
-            <label htmlFor="service_scope" className="block text-sm font-medium mb-1">
-              Service Scope
-            </label>
+          <FormFieldWithAI
+            label="Service Scope"
+            fieldName="service_scope"
+            entityType="service_blueprints"
+            context={{
+              name: formData.name,
+              description: formData.description,
+              blueprint_type: formData.blueprint_type,
+            }}
+            currentValue={formData.service_scope}
+            onGenerate={(content) => setFormData((prev) => ({ ...prev, service_scope: content }))}
+            disabled={saving}
+          >
             <input
               type="text"
               id="service_scope"
@@ -276,13 +303,22 @@ export function BlueprintForm({ blueprint, projects }: BlueprintFormProps) {
               className="w-full px-3 py-2 border rounded-md bg-background"
               placeholder="e.g., New customer signup to first value delivery"
             />
-          </div>
+          </FormFieldWithAI>
 
           {/* Service Duration */}
-          <div>
-            <label htmlFor="service_duration" className="block text-sm font-medium mb-1">
-              Service Duration
-            </label>
+          <FormFieldWithAI
+            label="Service Duration"
+            fieldName="service_duration"
+            entityType="service_blueprints"
+            context={{
+              name: formData.name,
+              service_scope: formData.service_scope,
+              blueprint_type: formData.blueprint_type,
+            }}
+            currentValue={formData.service_duration}
+            onGenerate={(content) => setFormData((prev) => ({ ...prev, service_duration: content }))}
+            disabled={saving}
+          >
             <input
               type="text"
               id="service_duration"
@@ -291,13 +327,23 @@ export function BlueprintForm({ blueprint, projects }: BlueprintFormProps) {
               className="w-full px-3 py-2 border rounded-md bg-background"
               placeholder="e.g., 15-30 minutes"
             />
-          </div>
+          </FormFieldWithAI>
 
           {/* Tags */}
-          <div>
-            <label htmlFor="tags" className="block text-sm font-medium mb-1">
-              Tags
-            </label>
+          <FormFieldWithAI
+            label="Tags"
+            fieldName="tags"
+            entityType="service_blueprints"
+            context={{
+              name: formData.name,
+              description: formData.description,
+              blueprint_type: formData.blueprint_type,
+            }}
+            currentValue={formData.tags}
+            onGenerate={(content) => setFormData((prev) => ({ ...prev, tags: content }))}
+            disabled={saving}
+            description="Comma-separated tags for organization"
+          >
             <input
               type="text"
               id="tags"
@@ -306,10 +352,7 @@ export function BlueprintForm({ blueprint, projects }: BlueprintFormProps) {
               className="w-full px-3 py-2 border rounded-md bg-background"
               placeholder="onboarding, digital, self-service"
             />
-            <p className="mt-1 text-xs text-muted-foreground">
-              Comma-separated tags for organization
-            </p>
-          </div>
+          </FormFieldWithAI>
 
           {/* Error */}
           {error && (

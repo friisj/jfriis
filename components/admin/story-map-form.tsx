@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { SidebarCard } from './sidebar-card'
 import { FormActions } from './form-actions'
+import { FormFieldWithAI } from '@/components/forms'
 
 interface StoryMap {
   id: string
@@ -188,10 +189,18 @@ export function StoryMapForm({ storyMap, projects }: StoryMapFormProps) {
         {/* Main content */}
         <div className="flex-1 space-y-6">
           {/* Name */}
-          <div>
-            <label htmlFor="name" className="block text-sm font-medium mb-1">
-              Name <span className="text-destructive">*</span>
-            </label>
+          <FormFieldWithAI
+            label="Name *"
+            fieldName="name"
+            entityType="story_maps"
+            context={{
+              map_type: formData.map_type,
+              status: formData.status,
+            }}
+            currentValue={formData.name}
+            onGenerate={(content) => setFormData((prev) => ({ ...prev, name: content }))}
+            disabled={saving}
+          >
             <input
               type="text"
               id="name"
@@ -201,7 +210,7 @@ export function StoryMapForm({ storyMap, projects }: StoryMapFormProps) {
               className="w-full px-3 py-2 border rounded-md bg-background"
               placeholder="e.g., Checkout Feature Map"
             />
-          </div>
+          </FormFieldWithAI>
 
           {/* Slug */}
           <div>
@@ -223,10 +232,18 @@ export function StoryMapForm({ storyMap, projects }: StoryMapFormProps) {
           </div>
 
           {/* Description */}
-          <div>
-            <label htmlFor="description" className="block text-sm font-medium mb-1">
-              Description
-            </label>
+          <FormFieldWithAI
+            label="Description"
+            fieldName="description"
+            entityType="story_maps"
+            context={{
+              name: formData.name,
+              map_type: formData.map_type,
+            }}
+            currentValue={formData.description}
+            onGenerate={(content) => setFormData((prev) => ({ ...prev, description: content }))}
+            disabled={saving}
+          >
             <textarea
               id="description"
               value={formData.description}
@@ -235,7 +252,7 @@ export function StoryMapForm({ storyMap, projects }: StoryMapFormProps) {
               className="w-full px-3 py-2 border rounded-md bg-background"
               placeholder="What does this story map cover?"
             />
-          </div>
+          </FormFieldWithAI>
 
           {/* Map Type */}
           <div>
@@ -257,10 +274,20 @@ export function StoryMapForm({ storyMap, projects }: StoryMapFormProps) {
           </div>
 
           {/* Tags */}
-          <div>
-            <label htmlFor="tags" className="block text-sm font-medium mb-1">
-              Tags
-            </label>
+          <FormFieldWithAI
+            label="Tags"
+            fieldName="tags"
+            entityType="story_maps"
+            context={{
+              name: formData.name,
+              description: formData.description,
+              map_type: formData.map_type,
+            }}
+            currentValue={formData.tags}
+            onGenerate={(content) => setFormData((prev) => ({ ...prev, tags: content }))}
+            disabled={saving}
+            description="Comma-separated tags for organization"
+          >
             <input
               type="text"
               id="tags"
@@ -269,10 +296,7 @@ export function StoryMapForm({ storyMap, projects }: StoryMapFormProps) {
               className="w-full px-3 py-2 border rounded-md bg-background"
               placeholder="mvp, checkout, sprint-1"
             />
-            <p className="mt-1 text-xs text-muted-foreground">
-              Comma-separated tags for organization
-            </p>
-          </div>
+          </FormFieldWithAI>
 
           {/* Error */}
           {error && (
