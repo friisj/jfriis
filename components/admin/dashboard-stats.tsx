@@ -30,10 +30,16 @@ export async function DashboardStats() {
     { count: venturesCount },
     { count: logEntriesCount },
     { count: specimensCount },
+    { count: blueprintsCount },
+    { count: journeysCount },
+    { count: storyMapsCount },
   ] = await Promise.all([
     supabase.from('projects').select('*', { count: 'exact', head: true }),
     supabase.from('log_entries').select('*', { count: 'exact', head: true }),
     supabase.from('specimens').select('*', { count: 'exact', head: true }),
+    supabase.from('service_blueprints').select('*', { count: 'exact', head: true }),
+    supabase.from('user_journeys').select('*', { count: 'exact', head: true }),
+    supabase.from('story_maps').select('*', { count: 'exact', head: true }),
   ])
 
   return (
@@ -55,6 +61,24 @@ export async function DashboardStats() {
         count={specimensCount || 0}
         description="Reusable components"
         href="/admin/specimens"
+      />
+      <StatCard
+        title="Blueprints"
+        count={blueprintsCount || 0}
+        description="Service blueprints"
+        href="/admin/blueprints"
+      />
+      <StatCard
+        title="Journeys"
+        count={journeysCount || 0}
+        description="User journey maps"
+        href="/admin/journeys"
+      />
+      <StatCard
+        title="Story Maps"
+        count={storyMapsCount || 0}
+        description="User story maps"
+        href="/admin/story-maps"
       />
     </div>
   )
