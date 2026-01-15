@@ -46,10 +46,19 @@ const validationStatuses = [
   { value: 'invalidated', label: 'Invalidated' },
 ]
 
+interface StudioProject {
+  id: string
+  name: string
+  description?: string | null
+  problem_statement?: string | null
+  status?: string
+}
+
 export function StoryMapForm({ storyMap, projects }: StoryMapFormProps) {
   const router = useRouter()
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [selectedProject, setSelectedProject] = useState<StudioProject | null>(null)
 
   const [formData, setFormData] = useState({
     slug: storyMap?.slug || '',
@@ -73,6 +82,33 @@ export function StoryMapForm({ storyMap, projects }: StoryMapFormProps) {
       setFormData((prev) => ({ ...prev, slug }))
     }
   }, [formData.name, storyMap?.slug])
+
+  // Fetch selected project data for AI context
+  useEffect(() => {
+    const fetchProject = async () => {
+      if (!formData.studio_project_id) {
+        setSelectedProject(null)
+        return
+      }
+      const { data } = await supabase
+        .from('studio_projects')
+        .select('id, name, description, problem_statement, status')
+        .eq('id', formData.studio_project_id)
+        .single()
+      setSelectedProject(data)
+    }
+    fetchProject()
+  }, [formData.studio_project_id])
+
+  // Build AI context including selected project data
+  const getAIContext = (additionalContext: Record<string, unknown> = {}) => ({
+    ...additionalContext,
+    ...(selectedProject && {
+      project_name: selectedProject.name,
+      project_description: selectedProject.description,
+      project_problem_statement: selectedProject.problem_statement,
+    }),
+  })
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -193,10 +229,10 @@ export function StoryMapForm({ storyMap, projects }: StoryMapFormProps) {
             label="Name *"
             fieldName="name"
             entityType="story_maps"
-            context={{
+            context={getAIContext({
               map_type: formData.map_type,
               status: formData.status,
-            }}
+            })}
             currentValue={formData.name}
             onGenerate={(content) => setFormData((prev) => ({ ...prev, name: content }))}
             disabled={saving}
@@ -236,10 +272,10 @@ export function StoryMapForm({ storyMap, projects }: StoryMapFormProps) {
             label="Description"
             fieldName="description"
             entityType="story_maps"
-            context={{
+            context={getAIContext({
               name: formData.name,
               map_type: formData.map_type,
-            }}
+            })}
             currentValue={formData.description}
             onGenerate={(content) => setFormData((prev) => ({ ...prev, description: content }))}
             disabled={saving}
@@ -278,11 +314,11 @@ export function StoryMapForm({ storyMap, projects }: StoryMapFormProps) {
             label="Tags"
             fieldName="tags"
             entityType="story_maps"
-            context={{
+            context={getAIContext({
               name: formData.name,
               description: formData.description,
               map_type: formData.map_type,
-            }}
+            })}
             currentValue={formData.tags}
             onGenerate={(content) => setFormData((prev) => ({ ...prev, tags: content }))}
             disabled={saving}

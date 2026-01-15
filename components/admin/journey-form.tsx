@@ -51,12 +51,21 @@ const validationStatuses = [
   { value: 'invalidated', label: 'Invalidated', description: 'Proven incorrect' },
 ]
 
+interface StudioProject {
+  id: string
+  name: string
+  description?: string | null
+  problem_statement?: string | null
+  status?: string
+}
+
 export function JourneyForm({ journey }: JourneyFormProps) {
   const router = useRouter()
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [pendingVpcLinks, setPendingVpcLinks] = useState<PendingLink[]>([])
   const [pendingBmcLinks, setPendingBmcLinks] = useState<PendingLink[]>([])
+  const [selectedProject, setSelectedProject] = useState<StudioProject | null>(null)
 
   const [formData, setFormData] = useState({
     slug: journey?.slug || '',
@@ -84,6 +93,33 @@ export function JourneyForm({ journey }: JourneyFormProps) {
       setFormData((prev) => ({ ...prev, slug }))
     }
   }, [formData.name, journey?.slug])
+
+  // Fetch selected project data for AI context
+  useEffect(() => {
+    const fetchProject = async () => {
+      if (!formData.studio_project_id) {
+        setSelectedProject(null)
+        return
+      }
+      const { data } = await supabase
+        .from('studio_projects')
+        .select('id, name, description, problem_statement, status')
+        .eq('id', formData.studio_project_id)
+        .single()
+      setSelectedProject(data)
+    }
+    fetchProject()
+  }, [formData.studio_project_id])
+
+  // Build AI context including selected project data
+  const getAIContext = (additionalContext: Record<string, unknown> = {}) => ({
+    ...additionalContext,
+    ...(selectedProject && {
+      project_name: selectedProject.name,
+      project_description: selectedProject.description,
+      project_problem_statement: selectedProject.problem_statement,
+    }),
+  })
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -196,10 +232,10 @@ export function JourneyForm({ journey }: JourneyFormProps) {
               label="Journey Name *"
               fieldName="name"
               entityType="user_journeys"
-              context={{
+              context={getAIContext({
                 journey_type: formData.journey_type,
                 customer_profile_id: formData.customer_profile_id,
-              }}
+              })}
               currentValue={formData.name}
               onGenerate={(content) => setFormData({ ...formData, name: content })}
               disabled={saving}
@@ -236,11 +272,11 @@ export function JourneyForm({ journey }: JourneyFormProps) {
             label="Description"
             fieldName="description"
             entityType="user_journeys"
-            context={{
+            context={getAIContext({
               name: formData.name,
               journey_type: formData.journey_type,
               goal: formData.goal,
-            }}
+            })}
             currentValue={formData.description}
             onGenerate={(content) => setFormData({ ...formData, description: content })}
             disabled={saving}
@@ -258,11 +294,11 @@ export function JourneyForm({ journey }: JourneyFormProps) {
             label="Customer Goal"
             fieldName="goal"
             entityType="user_journeys"
-            context={{
+            context={getAIContext({
               name: formData.name,
               journey_type: formData.journey_type,
               customer_profile_id: formData.customer_profile_id,
-            }}
+            })}
             currentValue={formData.goal}
             onGenerate={(content) => setFormData({ ...formData, goal: content })}
             disabled={saving}
@@ -423,11 +459,11 @@ export function JourneyForm({ journey }: JourneyFormProps) {
               label=""
               fieldName="tags"
               entityType="user_journeys"
-              context={{
+              context={getAIContext({
                 name: formData.name,
                 journey_type: formData.journey_type,
                 goal: formData.goal,
-              }}
+              })}
               currentValue={formData.tags}
               onGenerate={(content) => setFormData({ ...formData, tags: content })}
               disabled={saving}
