@@ -206,6 +206,7 @@ export type LinkType =
   | 'implements'     // Story/blueprint implements another entity
   | 'delivers'       // Blueprint step delivers touchpoint
   | 'maps_to'        // Activity maps to journey stage
+  | 'expands'        // Story map expands touchpoint into detailed breakdown
   // Documentation
   | 'documents'      // Log entry documents work on entity
   | 'demonstrates'   // Specimen demonstrates assumption

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 import { SidebarCard } from './sidebar-card'
 import { FormActions } from './form-actions'
@@ -56,10 +57,7 @@ export function StoryMapForm({ storyMap, projects }: StoryMapFormProps) {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [relatedContext, setRelatedContext] = useState<Record<string, unknown>>({})
-  const [pendingJourneyLinks, setPendingJourneyLinks] = useState<PendingLink[]>([])
-  const [pendingBlueprintLinks, setPendingBlueprintLinks] = useState<PendingLink[]>([])
-  const [pendingVpcLinks, setPendingVpcLinks] = useState<PendingLink[]>([])
-  const [pendingBmcLinks, setPendingBmcLinks] = useState<PendingLink[]>([])
+  const [pendingTouchpointLinks, setPendingTouchpointLinks] = useState<PendingLink[]>([])
 
   const [formData, setFormData] = useState({
     slug: storyMap?.slug || '',
@@ -177,17 +175,8 @@ export function StoryMapForm({ storyMap, projects }: StoryMapFormProps) {
 
         // Sync pending entity links for create mode
         const sourceRef = { type: 'story_map' as const, id: created.id }
-        if (pendingJourneyLinks.length > 0) {
-          await syncEntityLinks(sourceRef, 'user_journey', 'related', pendingJourneyLinks.map(l => l.targetId))
-        }
-        if (pendingBlueprintLinks.length > 0) {
-          await syncEntityLinks(sourceRef, 'service_blueprint', 'related', pendingBlueprintLinks.map(l => l.targetId))
-        }
-        if (pendingVpcLinks.length > 0) {
-          await syncEntityLinks(sourceRef, 'value_proposition_canvas', 'related', pendingVpcLinks.map(l => l.targetId))
-        }
-        if (pendingBmcLinks.length > 0) {
-          await syncEntityLinks(sourceRef, 'business_model_canvas', 'related', pendingBmcLinks.map(l => l.targetId))
+        if (pendingTouchpointLinks.length > 0) {
+          await syncEntityLinks(sourceRef, 'touchpoint', 'expands', pendingTouchpointLinks.map(l => l.targetId))
         }
 
         router.push(`/admin/story-maps/${created.id}/edit`)
@@ -236,6 +225,27 @@ export function StoryMapForm({ storyMap, projects }: StoryMapFormProps) {
 
   return (
     <form onSubmit={handleSubmit}>
+      {/* Canvas view toggle - only show for existing story maps */}
+      {storyMap?.id && (
+        <div className="mb-6 flex items-center justify-between p-4 border rounded-lg bg-muted/30">
+          <div>
+            <h3 className="font-medium text-sm">Visual Canvas</h3>
+            <p className="text-xs text-muted-foreground">
+              Edit activities and stories in a visual grid layout
+            </p>
+          </div>
+          <Link
+            href={`/admin/story-maps/${storyMap.id}/canvas`}
+            className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-md text-sm hover:opacity-90 transition-opacity"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+            </svg>
+            Open Canvas View
+          </Link>
+        </div>
+      )}
+
       <div className="flex gap-8">
         {/* Main content */}
         <div className="flex-1 space-y-6">
@@ -432,59 +442,20 @@ export function StoryMapForm({ storyMap, projects }: StoryMapFormProps) {
             </div>
           </SidebarCard>
 
-          <SidebarCard title="Related Entities">
+          <SidebarCard title="Expands Touchpoint">
             <div className="space-y-4">
               <EntityLinkField
-                label="User Journeys"
+                label="Touchpoint"
                 sourceType="story_map"
                 sourceId={storyMap?.id}
-                targetType="user_journey"
-                targetTableName="user_journeys"
+                targetType="touchpoint"
+                targetTableName="touchpoints"
                 targetDisplayField="name"
-                linkType="related"
-                allowMultiple={true}
-                pendingLinks={pendingJourneyLinks}
-                onPendingLinksChange={setPendingJourneyLinks}
-                helperText="Link to customer journeys this story map relates to"
-              />
-              <EntityLinkField
-                label="Service Blueprints"
-                sourceType="story_map"
-                sourceId={storyMap?.id}
-                targetType="service_blueprint"
-                targetTableName="service_blueprints"
-                targetDisplayField="name"
-                linkType="related"
-                allowMultiple={true}
-                pendingLinks={pendingBlueprintLinks}
-                onPendingLinksChange={setPendingBlueprintLinks}
-                helperText="Link to blueprints this story map implements"
-              />
-              <EntityLinkField
-                label="Value Propositions"
-                sourceType="story_map"
-                sourceId={storyMap?.id}
-                targetType="value_proposition_canvas"
-                targetTableName="value_proposition_canvases"
-                targetDisplayField="name"
-                linkType="related"
-                allowMultiple={true}
-                pendingLinks={pendingVpcLinks}
-                onPendingLinksChange={setPendingVpcLinks}
-                helperText="Link to value proposition canvases"
-              />
-              <EntityLinkField
-                label="Business Models"
-                sourceType="story_map"
-                sourceId={storyMap?.id}
-                targetType="business_model_canvas"
-                targetTableName="business_model_canvases"
-                targetDisplayField="name"
-                linkType="related"
-                allowMultiple={true}
-                pendingLinks={pendingBmcLinks}
-                onPendingLinksChange={setPendingBmcLinks}
-                helperText="Link to business model canvases"
+                linkType="expands"
+                allowMultiple={false}
+                pendingLinks={pendingTouchpointLinks}
+                onPendingLinksChange={setPendingTouchpointLinks}
+                helperText="The touchpoint this story map expands into detailed micro-steps"
               />
             </div>
           </SidebarCard>

@@ -550,7 +550,8 @@ export interface UserStory extends BaseRecord {
   priority?: Importance
   story_points?: number
   status: StoryStatus
-  vertical_position?: number
+  layer_id?: string // FK to story_map_layers - which row/actor this story belongs to
+  vertical_position?: number // Deprecated: use layer_id, kept for backward compat
   validation_status: ValidationStatus
   validated_at?: string
   tags: string[]
@@ -630,6 +631,7 @@ export interface StoryMapFilters {
 
 export interface UserStoryFilters {
   activity_id?: string
+  layer_id?: string
   story_map_id?: string
   status?: StoryStatus[]
   priority?: Importance[]
