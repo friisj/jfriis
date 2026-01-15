@@ -135,8 +135,16 @@ async function fetchRelatedEntity(
   id: string,
   fields: string[]
 ): Promise<Record<string, unknown> | null> {
+  // Validate inputs
+  if (!table || !id || !fields.length) {
+    console.warn(`[AI Context] Invalid fetch params: table=${table}, id=${id}, fields=${fields.length}`)
+    return null
+  }
+
   try {
-    const { data, error } = await supabase
+    // Use explicit any to handle dynamic table access
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data, error } = await (supabase as any)
       .from(table)
       .select(fields.join(', '))
       .eq('id', id)
@@ -147,7 +155,7 @@ async function fetchRelatedEntity(
       return null
     }
 
-    return data
+    return data as Record<string, unknown> | null
   } catch (err) {
     console.warn(`[AI Context] Error fetching ${table}:${id}`, err)
     return null
@@ -174,15 +182,26 @@ export async function buildEntityContext(
   formData: Record<string, string | null | undefined>,
   additionalContext: Record<string, unknown> = {}
 ): Promise<Record<string, unknown>> {
-  const config = relationshipConfig[entityType] || []
+  // Validate entityType
+  const config = relationshipConfig[entityType]
+  if (!config) {
+    console.warn(`[AI Context] Unknown entity type: ${entityType}`)
+    return { ...additionalContext }
+  }
+
   const context: Record<string, unknown> = { ...additionalContext }
 
   // Fetch all related entities in parallel
   const fetchPromises = config
-    .filter((rel) => formData[rel.foreignKey])
+    .filter((rel) => {
+      const fkValue = formData[rel.foreignKey]
+      // Explicit null/undefined/empty string check
+      return fkValue !== null && fkValue !== undefined && fkValue !== ''
+    })
     .map(async (rel) => {
       const id = formData[rel.foreignKey]
-      if (!id) return
+      // Double-check id is valid (TypeScript narrowing)
+      if (!id || typeof id !== 'string') return
 
       const data = await fetchRelatedEntity(rel.table, id, rel.fields)
       if (data) {

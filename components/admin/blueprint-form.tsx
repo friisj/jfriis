@@ -6,6 +6,7 @@ import { supabase } from '@/lib/supabase'
 import { SidebarCard } from './sidebar-card'
 import { FormActions } from './form-actions'
 import { FormFieldWithAI } from '@/components/forms'
+import { RelationshipField } from './relationship-field'
 import { buildEntityContext } from '@/lib/ai-context'
 
 interface Blueprint {
@@ -64,6 +65,7 @@ export function BlueprintForm({ blueprint, projects }: BlueprintFormProps) {
     status: blueprint?.status || 'draft',
     validation_status: blueprint?.validation_status || 'untested',
     studio_project_id: blueprint?.studio_project_id || '',
+    hypothesis_id: blueprint?.hypothesis_id || '',
     service_scope: blueprint?.service_scope || '',
     service_duration: blueprint?.service_duration || '',
     tags: blueprint?.tags?.join(', ') || '',
@@ -111,6 +113,7 @@ export function BlueprintForm({ blueprint, projects }: BlueprintFormProps) {
         status: formData.status,
         validation_status: formData.validation_status,
         studio_project_id: formData.studio_project_id || null,
+        hypothesis_id: formData.hypothesis_id || null,
         service_scope: formData.service_scope || null,
         service_duration: formData.service_duration || null,
         tags,
@@ -119,13 +122,19 @@ export function BlueprintForm({ blueprint, projects }: BlueprintFormProps) {
       if (blueprint?.id) {
         // Check slug uniqueness on update (if slug changed)
         if (formData.slug !== blueprint.slug) {
-          const { data: existing } = await supabase
+          let query = supabase
             .from('service_blueprints')
             .select('id')
             .eq('slug', formData.slug)
-            .eq('studio_project_id', formData.studio_project_id || null)
             .neq('id', blueprint.id)
-            .maybeSingle()
+
+          if (formData.studio_project_id) {
+            query = query.eq('studio_project_id', formData.studio_project_id)
+          } else {
+            query = query.is('studio_project_id', null)
+          }
+
+          const { data: existing } = await query.maybeSingle()
 
           if (existing) {
             throw new Error(`A blueprint with slug "${formData.slug}" already exists in this project. Please use a different slug.`)
@@ -141,12 +150,18 @@ export function BlueprintForm({ blueprint, projects }: BlueprintFormProps) {
         router.push('/admin/blueprints')
       } else {
         // Check slug uniqueness on create
-        const { data: existing } = await supabase
+        let query = supabase
           .from('service_blueprints')
           .select('id')
           .eq('slug', formData.slug)
-          .eq('studio_project_id', formData.studio_project_id || null)
-          .maybeSingle()
+
+        if (formData.studio_project_id) {
+          query = query.eq('studio_project_id', formData.studio_project_id)
+        } else {
+          query = query.is('studio_project_id', null)
+        }
+
+        const { data: existing } = await query.maybeSingle()
 
         if (existing) {
           throw new Error(`A blueprint with slug "${formData.slug}" already exists in this project. Please use a different slug.`)
@@ -418,23 +433,35 @@ export function BlueprintForm({ blueprint, projects }: BlueprintFormProps) {
           </SidebarCard>
 
           <SidebarCard title="Relationships">
-            <div>
-              <label htmlFor="studio_project_id" className="block text-xs font-medium mb-1 text-muted-foreground">
-                Studio Project
-              </label>
-              <select
-                id="studio_project_id"
-                value={formData.studio_project_id}
-                onChange={(e) => setFormData((prev) => ({ ...prev, studio_project_id: e.target.value }))}
-                className="w-full px-2 py-1.5 border rounded bg-background text-sm"
-              >
-                <option value="">None</option>
-                {projects.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.name}
-                  </option>
-                ))}
-              </select>
+            <div className="space-y-4">
+              <div>
+                <label htmlFor="studio_project_id" className="block text-xs font-medium mb-1 text-muted-foreground">
+                  Studio Project
+                </label>
+                <select
+                  id="studio_project_id"
+                  value={formData.studio_project_id}
+                  onChange={(e) => setFormData((prev) => ({ ...prev, studio_project_id: e.target.value }))}
+                  className="w-full px-2 py-1.5 border rounded bg-background text-sm"
+                >
+                  <option value="">None</option>
+                  {projects.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <RelationshipField
+                label="Hypothesis"
+                value={formData.hypothesis_id}
+                onChange={(id) => setFormData((prev) => ({ ...prev, hypothesis_id: id as string }))}
+                tableName="studio_hypotheses"
+                displayField="statement"
+                mode="single"
+                placeholder="Select hypothesis..."
+                helperText="Link to a hypothesis to validate"
+              />
             </div>
           </SidebarCard>
 

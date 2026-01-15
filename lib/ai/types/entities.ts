@@ -24,6 +24,8 @@ export type EntityType =
   | 'specimens'
   | 'user_journeys'
   | 'touchpoint_evidence'
+  | 'service_blueprints'
+  | 'story_maps'
 
 // Field names per entity type
 export type FieldNameFor<T extends EntityType> = T extends 'studio_projects'
@@ -60,6 +62,10 @@ export type FieldNameFor<T extends EntityType> = T extends 'studio_projects'
   ? 'name' | 'description' | 'goal' | 'tags'
   : T extends 'touchpoint_evidence'
   ? 'title' | 'summary'
+  : T extends 'service_blueprints'
+  ? 'name' | 'description' | 'service_scope' | 'service_duration' | 'tags'
+  : T extends 'story_maps'
+  ? 'name' | 'description' | 'tags'
   : never
 
 // Union of all possible field names
@@ -91,6 +97,8 @@ export function isValidEntityType(type: string): type is EntityType {
     'specimens',
     'user_journeys',
     'touchpoint_evidence',
+    'service_blueprints',
+    'story_maps',
   ]
   return validTypes.includes(type as EntityType)
 }
