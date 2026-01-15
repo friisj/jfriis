@@ -24,6 +24,16 @@ interface VentureFormData {
   tags: string
   specimenIds: string[]
   logEntryIds: string[]
+  // Strategic artifacts
+  studioProjectIds: string[]
+  blueprintIds: string[]
+  journeyIds: string[]
+  storyMapIds: string[]
+  // Canvases
+  businessModelIds: string[]
+  customerProfileIds: string[]
+  valuePropositionIds: string[]
+  valueMapIds: string[]
 }
 
 interface VentureFormProps {
@@ -49,6 +59,16 @@ export function VentureForm({ ventureId, initialData }: VentureFormProps) {
     tags: initialData?.tags || '',
     specimenIds: initialData?.specimenIds || [],
     logEntryIds: initialData?.logEntryIds || [],
+    // Strategic artifacts
+    studioProjectIds: initialData?.studioProjectIds || [],
+    blueprintIds: initialData?.blueprintIds || [],
+    journeyIds: initialData?.journeyIds || [],
+    storyMapIds: initialData?.storyMapIds || [],
+    // Canvases
+    businessModelIds: initialData?.businessModelIds || [],
+    customerProfileIds: initialData?.customerProfileIds || [],
+    valuePropositionIds: initialData?.valuePropositionIds || [],
+    valueMapIds: initialData?.valueMapIds || [],
   })
 
   // Load existing relationships
@@ -61,27 +81,104 @@ export function VentureForm({ ventureId, initialData }: VentureFormProps) {
   const loadRelationships = async () => {
     if (!ventureId) return
 
-    // Load specimen relationships via entity_links (project->specimen)
-    const { data: specimenLinks } = await supabase
-      .from('entity_links')
-      .select('target_id')
-      .eq('source_type', 'project')
-      .eq('source_id', ventureId)
-      .eq('target_type', 'specimen')
-      .order('position')
-
-    // Load log entry relationships via entity_links (log_entry->project, project is target)
-    const { data: logEntryLinks } = await supabase
-      .from('entity_links')
-      .select('source_id')
-      .eq('source_type', 'log_entry')
-      .eq('target_type', 'project')
-      .eq('target_id', ventureId)
+    // Load all relationships in parallel
+    const [
+      specimenLinks,
+      logEntryLinks,
+      studioProjectLinks,
+      blueprintLinks,
+      journeyLinks,
+      storyMapLinks,
+      businessModelLinks,
+      customerProfileLinks,
+      valuePropositionLinks,
+      valueMapLinks,
+    ] = await Promise.all([
+      // project->specimen
+      supabase
+        .from('entity_links')
+        .select('target_id')
+        .eq('source_type', 'project')
+        .eq('source_id', ventureId)
+        .eq('target_type', 'specimen')
+        .order('position'),
+      // log_entry->project (project is target)
+      supabase
+        .from('entity_links')
+        .select('source_id')
+        .eq('source_type', 'log_entry')
+        .eq('target_type', 'project')
+        .eq('target_id', ventureId),
+      // project->studio_project
+      supabase
+        .from('entity_links')
+        .select('target_id')
+        .eq('source_type', 'project')
+        .eq('source_id', ventureId)
+        .eq('target_type', 'studio_project'),
+      // project->service_blueprint
+      supabase
+        .from('entity_links')
+        .select('target_id')
+        .eq('source_type', 'project')
+        .eq('source_id', ventureId)
+        .eq('target_type', 'service_blueprint'),
+      // project->user_journey
+      supabase
+        .from('entity_links')
+        .select('target_id')
+        .eq('source_type', 'project')
+        .eq('source_id', ventureId)
+        .eq('target_type', 'user_journey'),
+      // project->story_map
+      supabase
+        .from('entity_links')
+        .select('target_id')
+        .eq('source_type', 'project')
+        .eq('source_id', ventureId)
+        .eq('target_type', 'story_map'),
+      // project->business_model_canvas
+      supabase
+        .from('entity_links')
+        .select('target_id')
+        .eq('source_type', 'project')
+        .eq('source_id', ventureId)
+        .eq('target_type', 'business_model_canvas'),
+      // project->customer_profile
+      supabase
+        .from('entity_links')
+        .select('target_id')
+        .eq('source_type', 'project')
+        .eq('source_id', ventureId)
+        .eq('target_type', 'customer_profile'),
+      // project->value_proposition
+      supabase
+        .from('entity_links')
+        .select('target_id')
+        .eq('source_type', 'project')
+        .eq('source_id', ventureId)
+        .eq('target_type', 'value_proposition'),
+      // project->value_map
+      supabase
+        .from('entity_links')
+        .select('target_id')
+        .eq('source_type', 'project')
+        .eq('source_id', ventureId)
+        .eq('target_type', 'value_map'),
+    ])
 
     setFormData(prev => ({
       ...prev,
-      specimenIds: specimenLinks?.map(r => r.target_id) || [],
-      logEntryIds: logEntryLinks?.map(r => r.source_id) || [],
+      specimenIds: specimenLinks.data?.map(r => r.target_id) || [],
+      logEntryIds: logEntryLinks.data?.map(r => r.source_id) || [],
+      studioProjectIds: studioProjectLinks.data?.map(r => r.target_id) || [],
+      blueprintIds: blueprintLinks.data?.map(r => r.target_id) || [],
+      journeyIds: journeyLinks.data?.map(r => r.target_id) || [],
+      storyMapIds: storyMapLinks.data?.map(r => r.target_id) || [],
+      businessModelIds: businessModelLinks.data?.map(r => r.target_id) || [],
+      customerProfileIds: customerProfileLinks.data?.map(r => r.target_id) || [],
+      valuePropositionIds: valuePropositionLinks.data?.map(r => r.target_id) || [],
+      valueMapIds: valueMapLinks.data?.map(r => r.target_id) || [],
     }))
   }
 
@@ -153,21 +250,24 @@ export function VentureForm({ ventureId, initialData }: VentureFormProps) {
 
       // Update relationships via entity_links
       if (savedVentureId) {
-        // Sync project->specimen links
-        await syncEntityLinks(
-          { type: 'project', id: savedVentureId },
-          'specimen',
-          'contains',
-          formData.specimenIds
-        )
+        const source = { type: 'project', id: savedVentureId }
 
-        // Sync log_entry->project links (project is the target)
-        await syncEntityLinksAsTarget(
-          { type: 'project', id: savedVentureId },
-          'log_entry',
-          'related',
-          formData.logEntryIds
-        )
+        // Sync all relationships in parallel
+        await Promise.all([
+          // Original relationships
+          syncEntityLinks(source, 'specimen', 'contains', formData.specimenIds),
+          syncEntityLinksAsTarget(source, 'log_entry', 'related', formData.logEntryIds),
+          // Strategic artifacts
+          syncEntityLinks(source, 'studio_project', 'related', formData.studioProjectIds),
+          syncEntityLinks(source, 'service_blueprint', 'related', formData.blueprintIds),
+          syncEntityLinks(source, 'user_journey', 'related', formData.journeyIds),
+          syncEntityLinks(source, 'story_map', 'related', formData.storyMapIds),
+          // Canvases
+          syncEntityLinks(source, 'business_model_canvas', 'related', formData.businessModelIds),
+          syncEntityLinks(source, 'customer_profile', 'related', formData.customerProfileIds),
+          syncEntityLinks(source, 'value_proposition', 'related', formData.valuePropositionIds),
+          syncEntityLinks(source, 'value_map', 'related', formData.valueMapIds),
+        ])
       }
 
       toast.success(ventureId ? 'Venture updated successfully!' : 'Venture created successfully!')
@@ -424,6 +524,102 @@ export function VentureForm({ ventureId, initialData }: VentureFormProps) {
               displayField="title"
               mode="multi"
               helperText="Select log entries related to this venture"
+            />
+          </SidebarCard>
+
+          <SidebarCard title="Studio Projects">
+            <RelationshipField
+              label=""
+              value={formData.studioProjectIds}
+              onChange={(ids) => setFormData({ ...formData, studioProjectIds: ids as string[] })}
+              tableName="studio_projects"
+              displayField="name"
+              mode="multi"
+              helperText="Link to R&D studio projects"
+            />
+          </SidebarCard>
+
+          <SidebarCard title="Blueprints">
+            <RelationshipField
+              label=""
+              value={formData.blueprintIds}
+              onChange={(ids) => setFormData({ ...formData, blueprintIds: ids as string[] })}
+              tableName="service_blueprints"
+              displayField="name"
+              mode="multi"
+              helperText="Link service blueprints"
+            />
+          </SidebarCard>
+
+          <SidebarCard title="User Journeys">
+            <RelationshipField
+              label=""
+              value={formData.journeyIds}
+              onChange={(ids) => setFormData({ ...formData, journeyIds: ids as string[] })}
+              tableName="user_journeys"
+              displayField="name"
+              mode="multi"
+              helperText="Link user journey maps"
+            />
+          </SidebarCard>
+
+          <SidebarCard title="Story Maps">
+            <RelationshipField
+              label=""
+              value={formData.storyMapIds}
+              onChange={(ids) => setFormData({ ...formData, storyMapIds: ids as string[] })}
+              tableName="story_maps"
+              displayField="name"
+              mode="multi"
+              helperText="Link story maps"
+            />
+          </SidebarCard>
+
+          <SidebarCard title="Business Models">
+            <RelationshipField
+              label=""
+              value={formData.businessModelIds}
+              onChange={(ids) => setFormData({ ...formData, businessModelIds: ids as string[] })}
+              tableName="business_model_canvases"
+              displayField="name"
+              mode="multi"
+              helperText="Link business model canvases"
+            />
+          </SidebarCard>
+
+          <SidebarCard title="Customer Profiles">
+            <RelationshipField
+              label=""
+              value={formData.customerProfileIds}
+              onChange={(ids) => setFormData({ ...formData, customerProfileIds: ids as string[] })}
+              tableName="customer_profiles"
+              displayField="name"
+              mode="multi"
+              helperText="Link customer profile canvases"
+            />
+          </SidebarCard>
+
+          <SidebarCard title="Value Propositions">
+            <RelationshipField
+              label=""
+              value={formData.valuePropositionIds}
+              onChange={(ids) => setFormData({ ...formData, valuePropositionIds: ids as string[] })}
+              tableName="value_propositions"
+              displayField="name"
+              mode="multi"
+              helperText="Link value proposition canvases"
+            />
+          </SidebarCard>
+
+          <SidebarCard title="Value Maps">
+            <RelationshipField
+              label=""
+              value={formData.valueMapIds}
+              onChange={(ids) => setFormData({ ...formData, valueMapIds: ids as string[] })}
+              tableName="value_maps"
+              displayField="name"
+              mode="multi"
+              helperText="Link value map canvases"
             />
           </SidebarCard>
         </div>
