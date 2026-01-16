@@ -4,6 +4,22 @@
 
 Extend the reusable canvas UI pattern (established with Story Maps) to all strategic planning entities: Blueprints, Journeys, BMC, VPC, Customer Profiles, and Value Maps.
 
+---
+
+## Phase Order (Decided)
+
+| Phase | Focus | Pattern | Rationale |
+|-------|-------|---------|-----------|
+| **1** | Service Blueprint | TimelineCanvas | Most complex - validates pattern |
+| **2** | Customer Journey | TimelineCanvas | Reuses Phase 1 pattern |
+| **3** | Business Model Canvas | BlockGridCanvas | Most standard block grid |
+| **4** | Customer Profile + Value Map | BlockGridCanvas | Simpler 3-block layouts |
+| **5** | Value Proposition Canvas | Split View | Combines Profile + Value Map |
+
+**Key Decision:** Start with Blueprint (timeline pattern) because it's the most complex. If TimelineCanvas works for Blueprint, Journey will be straightforward. Block grid canvases are simpler and can come after.
+
+---
+
 ## Current State
 
 **Story Map Canvas (Reference Implementation):**
@@ -17,7 +33,7 @@ Extend the reusable canvas UI pattern (established with Story Maps) to all strat
 **Other Entities:**
 - All have form-based edit UIs
 - No visual canvas views yet
-- Data stored in JSONB blocks (items arrays)
+- Data stored in JSONB blocks (except Blueprint steps which are relational)
 
 ---
 
@@ -28,15 +44,15 @@ Extend the reusable canvas UI pattern (established with Story Maps) to all strat
 
 **Validation:** Successfully implement 2+ canvas types using only entity-specific components.
 
-### H2: JSONB Block Pattern
-**Statement:** Canvases storing data as JSONB blocks (BMC, VPC, Customer Profile, Value Map) can share a common "block grid" component pattern.
-
-**Validation:** Create a shared BlockGridCanvas component used by 2+ canvas types.
-
-### H3: Step-Sequence Pattern
+### H2: TimelineCanvas Pattern (Blueprints + Journeys)
 **Statement:** Blueprints and Journeys (both sequence-based with steps/stages) can share a common "timeline grid" component pattern.
 
 **Validation:** Create a shared TimelineCanvas component used by both Blueprints and Journeys.
+
+### H3: BlockGridCanvas Pattern (Strategyzer Canvases)
+**Statement:** Canvases storing data as JSONB blocks (BMC, VPC, Customer Profile, Value Map) can share a common "block grid" component pattern.
+
+**Validation:** Create a shared BlockGridCanvas component used by 2+ canvas types.
 
 ### H4: AI Generation Scalability
 **Statement:** The AIGenerateMenu pattern can generate content for any canvas type by configuring entity-generation prompts.
@@ -45,19 +61,36 @@ Extend the reusable canvas UI pattern (established with Story Maps) to all strat
 
 ---
 
-## Canvas Types Analysis
+## Canvas Patterns
 
-### Type A: Fixed Block Grid (Strategyzer Canvases)
+### Pattern A: Timeline Grid (Steps × Layers)
 
-**Entities:** Business Model Canvas, Value Proposition Canvas, Customer Profile, Value Map
+**Used by:** Service Blueprints, Customer Journeys
 
-**Common Pattern:**
-- Fixed number of "blocks" (sections) with semantic meaning
-- Each block contains items array (JSONB)
-- Items have: content, priority/importance, evidence, assumptions
-- No sequence/ordering between blocks (spatial layout)
+```
+             Step 1    Step 2    Step 3    Step 4    +
+           ┌─────────┬─────────┬─────────┬─────────┬───┐
+Layer 1    │  cell   │  cell   │  cell   │  cell   │   │
+           ├─────────┼─────────┼─────────┼─────────┤   │
+Layer 2    │  cell   │  cell   │  cell   │  cell   │   │
+           ├─────────┼─────────┼─────────┼─────────┤   │
+Layer 3    │  cell   │  cell   │  cell   │  cell   │   │
+           └─────────┴─────────┴─────────┴─────────┴───┘
+```
 
-**Grid Structure:**
+**Shared Components:**
+- `TimelineCanvas` - Generic steps × layers grid
+- Props: steps, layers, mode, renderCell, getters, callbacks
+
+**Entity-Specific:**
+- Layer definitions (fixed per entity type)
+- Cell content/styling
+- Detail panel fields
+
+### Pattern B: Block Grid (Fixed Sections)
+
+**Used by:** BMC, Customer Profile, Value Map
+
 ```
 ┌──────────────┬──────────────┬──────────────┐
 │   Block 1    │   Block 2    │   Block 3    │
@@ -68,105 +101,106 @@ Extend the reusable canvas UI pattern (established with Story Maps) to all strat
 └──────────────┴──────────────┴──────────────┘
 ```
 
-**Shared Components Needed:**
-- `BlockGridCanvas` - Renders fixed grid of blocks
+**Shared Components:**
+- `BlockGridCanvas` - Generic block layout
 - `CanvasBlock` - Individual block with items
-- `BlockItem` - Item card with content, evidence, actions
-- `CreateItemModal` - Add item to block
-- `ItemDetailPanel` - Edit item details
+- `BlockItem` - Item card
 
-### Type B: Timeline Grid (Sequence-Based)
+**Entity-Specific:**
+- Block definitions (semantic meaning per canvas type)
+- Item fields and visualization
 
-**Entities:** Service Blueprints, Customer Journeys
+### Pattern C: Split View (Side-by-Side)
 
-**Common Pattern:**
-- Sequence of steps/stages (horizontal axis)
-- Layers/lanes per step (vertical axis)
-- Each cell contains content for that step × layer intersection
-- Ordered sequence matters
+**Used by:** Value Proposition Canvas
 
-**Grid Structure:**
 ```
-           Step 1    Step 2    Step 3    Step 4
-         ┌─────────┬─────────┬─────────┬─────────┐
-Layer 1  │ Cell 1  │ Cell 2  │ Cell 3  │ Cell 4  │
-         ├─────────┼─────────┼─────────┼─────────┤
-Layer 2  │ Cell 5  │ Cell 6  │ Cell 7  │ Cell 8  │
-         ├─────────┼─────────┼─────────┼─────────┤
-Layer 3  │ Cell 9  │ Cell 10 │ Cell 11 │ Cell 12 │
-         └─────────┴─────────┴─────────┴─────────┘
+┌─────────────────────┬─────────────────────┐
+│    Value Map        │  Customer Profile   │
+│   (3 blocks)        │    (3 blocks)       │
+│                     │                     │
+│ ┌─────┐ ┌─────────┐ │ ┌─────────┐ ┌─────┐ │
+│ │Prod │ │Pain Rel │ │ │  Jobs   │ │Pains│ │
+│ │ucts │ │ievers   │ │ │         │ │     │ │
+│ └─────┘ └─────────┘ │ └─────────┘ └─────┘ │
+│         ┌─────────┐ │ ┌─────────┐         │
+│         │Gain Cre │ │ │  Gains  │         │
+│         │ators    │ │ │         │         │
+│         └─────────┘ │ └─────────┘         │
+└─────────────────────┴─────────────────────┘
 ```
-
-**Shared Components Needed:**
-- `TimelineCanvas` - Renders steps × layers grid
-- `StepHeader` - Column header with step controls
-- `LaneHeader` - Row header with lane controls
-- `TimelineCell` - Cell content with inline editing
-- `StepDetailPanel` - Edit full step details
 
 ---
 
-## Implementation Plan
+## Design Decisions (from Q&A)
 
-### Phase 1: Block Grid Foundation
+### Universal Decisions
 
-**Experiment 1.1: BlockGridCanvas Component**
-- Create `components/admin/canvas/block-grid-canvas.tsx`
-- Generic block grid renderer
-- Props: blocks config, items data, handlers
+| Decision | Choice | Notes |
+|----------|--------|-------|
+| Mode toggle | Both modes (drag + structured) | Consistent with Story Map |
+| Navigation | Additional `/canvas` route | Keep existing form pages |
+| AI generation | Full canvas + cell-level | Both scopes available |
+| Empty state | Placeholder + drop target | "Click to add" + dashed border in drag mode |
 
-**Experiment 1.2: Business Model Canvas View**
-- Implement BMC using BlockGridCanvas
-- Route: `/admin/canvases/business-models/[id]/canvas`
-- 9-block layout per BMC specification
-- AI generation for block items
+### Timeline-Specific Decisions
 
-**Experiment 1.3: Value Map Canvas View**
-- 3-block layout (products, pain relievers, gain creators)
-- Route: `/admin/canvases/value-maps/[id]/canvas`
-- Reuse BlockGridCanvas + block components
+| Decision | Choice | Notes |
+|----------|--------|-------|
+| Step flow | Sequential numbers (1, 2, 3...) | In header |
+| Step reorder | Menu + drag | Three-dot menu + drag mode |
+| Layer styling | Color-coded swimlanes | Subtle background tint per layer |
+| Cell content | Text only (clean) | No metadata badges in cells |
+| Detail panel | Selected cell only | Side panel for editing |
 
-**Experiment 1.4: Customer Profile Canvas View**
-- 3-block layout (jobs, pains, gains)
-- Route: `/admin/canvases/customer-profiles/[id]/canvas`
-- Add severity/importance visualization
+### Blueprint-Specific Decisions
 
-### Phase 2: Value Proposition Canvas
+| Decision | Choice | Notes |
+|----------|--------|-------|
+| Layers | 5 total (4 content + 1 separator) | customer_action, frontstage, LINE OF VISIBILITY, backstage, support_process |
+| Line of visibility | Visual separator only | Gray dashed line, no stored data |
+| Data model | New `blueprint_cells` table | Proper relations, not JSONB |
+| Migration | Drop and forget | No important data to migrate |
+| Cell fields | Simple MVP | content, basic metadata |
 
-**Experiment 2.1: VPC Split Canvas**
-- Combined view: Value Map (left) + Customer Profile (right)
-- Route: `/admin/canvases/value-propositions/[id]/canvas`
-- Visual alignment indicators between sides
-- Fit score calculation display
+### Journey-Specific Decisions
 
-### Phase 3: Timeline Foundation
+| Decision | Choice | Notes |
+|----------|--------|-------|
+| Layers | TBD in Phase 2 spec | Likely: touchpoints, emotions, pain points, channels |
+| Data model | TBD | May need journey_cells table |
 
-**Experiment 3.1: TimelineCanvas Component**
-- Create `components/admin/canvas/timeline-canvas.tsx`
-- Steps × Layers grid with horizontal scroll
-- Reorderable steps, fixed layers per entity type
+### Block Grid Decisions
 
-**Experiment 3.2: Service Blueprint Canvas View**
-- Route: `/admin/blueprints/[id]/canvas`
-- 4 layers: Customer Action, Frontstage, Backstage, Support
-- Steps with sequence numbering
-- AI generation for step content
+| Decision | Choice | Notes |
+|----------|--------|-------|
+| Block layout | Per BMC/VPC standard | Fixed positions |
+| Items | JSONB array per block | Existing pattern |
+| Drag | Reorder within block | Not cross-block |
 
-**Experiment 3.3: Customer Journey Canvas View**
-- Route: `/admin/journeys/[id]/canvas`
-- Stages as columns, touchpoints as content
-- Emotion/pain curve visualization
-- Channel type indicators
+---
 
-### Phase 4: AI Generation & Polish
+## Phase Specifications
 
-**Experiment 4.1: Entity Generation Prompts**
-- Add generation configs for all canvas types
-- Block items, step content, touchpoint details
+### Phase 1: Blueprint Canvas
+**Spec:** `phase1-blueprint-canvas-spec.md`
+**Status:** Spec complete
 
-**Experiment 4.2: Cross-Canvas Linking**
-- Visual indicators for linked canvases
-- Quick navigation between related canvases
+### Phase 2: Journey Canvas
+**Spec:** `phase2-journey-canvas-spec.md`
+**Status:** Pending
+
+### Phase 3: BMC Canvas
+**Spec:** `phase3-bmc-canvas-spec.md`
+**Status:** Pending
+
+### Phase 4: Customer Profile + Value Map
+**Spec:** `phase4-profile-valuemap-spec.md`
+**Status:** Pending
+
+### Phase 5: VPC Split Canvas
+**Spec:** `phase5-vpc-split-spec.md`
+**Status:** Pending
 
 ---
 
@@ -189,59 +223,44 @@ Layer 3  │ Cell 9  │ Cell 10 │ Cell 11 │ Cell 12 │
 ├── story-detail-panel.tsx      (entity-specific)
 ├── create-story-modal.tsx      (entity-specific)
 │
-├── # Block Grid (New - Phase 1)
-├── block-grid-canvas.tsx       (shared for Type A)
+├── # Timeline (New - Phase 1-2)
+├── timeline-canvas.tsx         (shared for Blueprints + Journeys)
+├── blueprint-canvas.tsx        (Blueprint wrapper)
+├── blueprint-step-header.tsx   (Blueprint columns)
+├── blueprint-lane-header.tsx   (Blueprint rows)
+├── blueprint-cell.tsx          (Blueprint cell)
+├── blueprint-cell-detail-panel.tsx
+├── journey-canvas.tsx          (Journey wrapper - Phase 2)
+├── journey-stage-header.tsx    (Journey columns - Phase 2)
+├── journey-lane-header.tsx     (Journey rows - Phase 2)
+├── journey-cell.tsx            (Journey cell - Phase 2)
+│
+├── # Block Grid (New - Phase 3-4)
+├── block-grid-canvas.tsx       (shared for BMC, Profile, Value Map)
 ├── canvas-block.tsx            (block container)
 ├── block-item.tsx              (item card)
 ├── item-detail-panel.tsx       (side panel)
-├── create-item-modal.tsx       (add item)
+├── bmc-canvas.tsx              (BMC wrapper)
+├── customer-profile-canvas.tsx (Profile wrapper)
+├── value-map-canvas.tsx        (Value Map wrapper)
 │
-├── # Timeline (New - Phase 3)
-├── timeline-canvas.tsx         (shared for Type B)
-├── step-header.tsx             (column header)
-├── lane-header.tsx             (row header)
-├── timeline-cell.tsx           (cell content)
-├── step-detail-panel.tsx       (side panel)
-│
-└── # Entity-Specific Wrappers
-    ├── bmc-canvas.tsx          (BMC-specific config)
-    ├── vpc-canvas.tsx          (VPC-specific config)
-    ├── customer-profile-canvas.tsx
-    ├── value-map-canvas.tsx
-    ├── blueprint-canvas.tsx
-    └── journey-canvas.tsx
+└── # Split View (New - Phase 5)
+    └── vpc-canvas.tsx          (VPC split view)
 ```
 
 ---
 
 ## Routes to Add
 
-| Entity | Current | Canvas Route |
-|--------|---------|--------------|
-| Story Map | ✓ `/admin/story-maps/[id]/canvas` | Done |
-| BMC | `/admin/canvases/business-models/[id]/edit` | `/admin/canvases/business-models/[id]/canvas` |
-| VPC | `/admin/canvases/value-propositions/[id]/edit` | `/admin/canvases/value-propositions/[id]/canvas` |
-| Customer Profile | `/admin/canvases/customer-profiles/[id]/edit` | `/admin/canvases/customer-profiles/[id]/canvas` |
-| Value Map | `/admin/canvases/value-maps/[id]/edit` | `/admin/canvases/value-maps/[id]/canvas` |
-| Blueprint | `/admin/blueprints/[id]/edit` | `/admin/blueprints/[id]/canvas` |
-| Journey | `/admin/journeys/[id]` | `/admin/journeys/[id]/canvas` |
-
----
-
-## Entity Generation Prompts to Add
-
-```typescript
-// lib/ai/prompts/entity-generation.ts
-
-// Block Grid Types
-bmc_items: { ... }           // BMC block items
-value_map_items: { ... }     // Value map items
-customer_profile_items: { ... }  // Profile items
-
-// Timeline Types
-blueprint_steps: { ... }     // Blueprint step content
-journey_touchpoints: { ... } // Journey touchpoints
-```
+| Entity | Current | Canvas Route | Phase |
+|--------|---------|--------------|-------|
+| Story Map | ✓ `/admin/story-maps/[id]/canvas` | Done | - |
+| Blueprint | `/admin/blueprints/[id]/edit` | `/admin/blueprints/[id]/canvas` | 1 |
+| Journey | `/admin/journeys/[id]` | `/admin/journeys/[id]/canvas` | 2 |
+| BMC | `/admin/canvases/business-models/[id]/edit` | `/admin/canvases/business-models/[id]/canvas` | 3 |
+| Customer Profile | `/admin/canvases/customer-profiles/[id]/edit` | `/admin/canvases/customer-profiles/[id]/canvas` | 4 |
+| Value Map | `/admin/canvases/value-maps/[id]/edit` | `/admin/canvases/value-maps/[id]/canvas` | 4 |
+| VPC | `/admin/canvases/value-propositions/[id]/edit` | `/admin/canvases/value-propositions/[id]/canvas` | 5 |
 
 ---
 
@@ -261,26 +280,3 @@ journey_touchpoints: { ... } // Journey touchpoints
 - Entity data in Supabase (complete ✓)
 - AI generation API (complete ✓)
 - Entity generation prompts system (complete ✓)
-
----
-
-## Risks
-
-| Risk | Mitigation |
-|------|------------|
-| JSONB structure varies | Create adapter functions per entity type |
-| VPC needs two canvases side-by-side | Design split-view component |
-| Blueprint layers are JSONB, not relations | Extract to proper cells structure |
-| Journey has nested touchpoints | Flatten to grid representation |
-
----
-
-## Estimated Scope
-
-| Phase | Experiments | New Components | Routes |
-|-------|-------------|----------------|--------|
-| 1 | 4 | 5 | 3 |
-| 2 | 1 | 1 | 1 |
-| 3 | 3 | 5 | 2 |
-| 4 | 2 | 0 | 0 |
-| **Total** | **10** | **11** | **6** |
