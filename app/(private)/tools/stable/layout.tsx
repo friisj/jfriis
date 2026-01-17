@@ -1,4 +1,4 @@
-import { AdminRoute } from '@/components/auth/admin-route';
+import { AdminRoute } from '@/components/auth/protected-route';
 import Link from 'next/link';
 
 export default function StableLayout({
