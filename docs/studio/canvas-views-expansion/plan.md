@@ -277,6 +277,52 @@ Layer 3    │  cell   │  cell   │  cell   │  cell   │   │
 
 ---
 
+## Retrofitting Existing Implementations
+
+### Story Map Canvas → TimelineCanvas
+
+**When:** After Phase 1 (Blueprint) validates TimelineCanvas
+
+**Current state:** `story-map-canvas.tsx` has custom grid implementation with:
+- `activity-header.tsx` (column headers)
+- `layer-header.tsx` (row headers)
+- Custom grid rendering in StoryMapCanvas component
+
+**Refactor plan:**
+1. Wrap existing Story Map canvas with TimelineCanvas
+2. Map activities → steps, layers → layers
+3. Keep entity-specific components (StoryDetailPanel, CreateStoryModal)
+4. Rename/generalize headers if beneficial:
+   - `activity-header.tsx` → Keep (semantic for story maps)
+   - `layer-header.tsx` → Keep (story map layers ≠ blueprint lanes)
+
+**Validation:** Story Map canvas works identically after refactor, using shared TimelineCanvas base.
+
+### Base Canvas Components
+
+**When:** As patterns emerge during implementation
+
+| Component | Current | Potential Updates |
+|-----------|---------|-------------------|
+| `CanvasViewLayout` | Generic | Likely no changes needed |
+| `CanvasHeader` | Generic | May add standard action slots |
+| `CanvasSurface` | Generic | Likely no changes needed |
+| `AIGenerateMenu` | Generic | May need entity-type awareness |
+
+### Component Extraction
+
+As implementation progresses, evaluate extracting shared components:
+
+| Candidate | From | To |
+|-----------|------|-----|
+| Inline editable header | ActivityHeader, LayerHeader | `InlineEditableHeader` |
+| Three-dot menu | Activity, Step, Layer headers | `EntityOptionsMenu` |
+| Cell selection state | Story, Blueprint cells | Shared hook or context |
+
+**Principle:** Extract when pattern appears in 2+ implementations, not speculatively.
+
+---
+
 ## Success Criteria
 
 1. **Coverage:** All 6 canvas types have visual canvas views
@@ -284,6 +330,7 @@ Layer 3    │  cell   │  cell   │  cell   │  cell   │   │
 3. **Consistency:** Same UX patterns (mode toggle, drag, AI generate) across all
 4. **Performance:** Canvas renders 50+ items without lag
 5. **AI Integration:** AI can generate content for each block/step type
+6. **Retrofitting:** Story Map canvas uses TimelineCanvas after Phase 1
 
 ---
 
