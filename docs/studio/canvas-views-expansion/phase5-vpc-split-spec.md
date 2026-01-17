@@ -28,15 +28,44 @@ Visual alignment between the two sides indicates fit:
 
 ## Data Model
 
-VPC already has linked entities:
+### Existing Structure
+
+VPC already has linked entities AND fit analysis fields:
 
 ```sql
 -- value_proposition_canvases links to:
 -- - customer_profile_id → customer_profiles
 -- - value_map_id → value_maps
+--
+-- Existing fit analysis fields:
+-- - addressed_jobs JSONB      -- Which jobs are addressed
+-- - addressed_pains JSONB     -- Which pains are relieved
+-- - addressed_gains JSONB     -- Which gains are created
+-- - fit_score DECIMAL         -- Overall fit percentage
 ```
 
-No new tables needed. VPC canvas renders existing Profile and Value Map data together.
+### Design Decision: Leverage Existing Fit Fields
+
+**Current state:** VPC table already has `addressed_jobs`, `addressed_pains`, `addressed_gains` JSONB fields for explicit fit mapping, plus `fit_score`.
+
+**Decision:** Canvas UI should surface and allow editing of these existing fit analysis fields, not create parallel structures.
+
+**Implementation approach:**
+1. Display existing fit mappings as visual connections
+2. Allow interactive linking (Pain Reliever → Pain updates `addressed_pains`)
+3. Calculate/update `fit_score` when mappings change
+4. No new tables needed
+
+**JSONB structure to leverage:**
+```typescript
+// Example addressed_pains structure
+{
+  "pain_reliever_id_1": ["pain_id_a", "pain_id_b"],
+  "pain_reliever_id_2": ["pain_id_c"]
+}
+```
+
+No new tables needed. VPC canvas renders existing Profile and Value Map data with fit analysis overlay.
 
 ---
 

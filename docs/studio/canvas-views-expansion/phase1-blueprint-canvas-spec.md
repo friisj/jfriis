@@ -15,6 +15,27 @@
 
 ## Data Model
 
+### Design Decision: Relational Cells vs JSONB
+
+**Current state:** `blueprint_steps.layers` stores layer data as JSONB (created for Phase 3 form-based CRUD with comment "JSONB for table-friendly editing").
+
+**Decision:** Create new `blueprint_cells` relational table, deprecate JSONB.
+
+**Rationale:**
+
+| Factor | JSONB Approach | Relational Cells (Chosen) |
+|--------|----------------|---------------------------|
+| Per-cell identity | Implicit (array index) | Explicit UUID per cell |
+| Selection/edit tracking | Complex JSON manipulation | Simple row operations |
+| Future entity_links | Can't FK to JSONB items | Cells can be linked to evidence, assumptions |
+| Query patterns | JSON extraction functions | Simple WHERE clauses |
+| Pattern consistency | Different from Story Maps | Matches Story Maps (activities + user_stories) |
+| Canvas UI paradigm | Unnatural fit | Natural grid → row mapping |
+
+**Story Maps precedent:** Story Maps use fully relational structure (`activities` → `user_stories` with `layer_id` FK). Blueprint cells follow this validated pattern.
+
+**Migration impact:** None. Current `blueprint_steps.layers` JSONB contains only default empty values—no user data to preserve.
+
 ### New Table: `blueprint_cells`
 
 ```sql

@@ -26,9 +26,32 @@ Journeys already use proper relational tables:
 -- journey_touchpoints (content per stage)
 ```
 
+### Design Decision: journey_cells vs Existing touchpoints
+
+**Current state:** `journey_touchpoints` table exists with fields: `name`, `description`, `channel_type`, `interaction_type`, `pain_level`, `is_moment_of_truth`.
+
+**Decision:** Create new `journey_cells` table for canvas grid; evaluate touchpoints relationship during implementation.
+
+**Rationale:**
+
+| Factor | Repurpose touchpoints | New journey_cells (Chosen) |
+|--------|----------------------|---------------------------|
+| Schema fit | touchpoints = single interaction point | cells = stage × layer grid intersections |
+| Layer concept | No layer dimension | Explicit layer_type column |
+| Emotion tracking | `pain_level` (0-5) on touchpoint | `emotion_score` (-5 to +5) per cell |
+| Multi-layer per stage | One touchpoint per stage? | Multiple cells (one per layer) |
+| Pattern consistency | Different from Blueprint | Matches Blueprint cells pattern |
+
+**Touchpoints relationship options (decide during implementation):**
+1. **Migrate:** Convert touchpoints → touchpoint-layer cells, deprecate table
+2. **Coexist:** Touchpoints remain as "key moments", cells for full grid
+3. **Embed:** Touchpoint layer references existing touchpoints table
+
+**Recommendation:** Start with Option 1 (migrate) for consistency, but flag for review if touchpoints have significant user data.
+
 ### New Table: `journey_cells`
 
-Similar to blueprint_cells, create a cells table for the grid:
+Following the Blueprint cells pattern:
 
 ```sql
 CREATE TABLE journey_cells (

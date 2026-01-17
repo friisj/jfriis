@@ -262,6 +262,19 @@ Layer 3    │  cell   │  cell   │  cell   │  cell   │   │
 | Value Map | `/admin/canvases/value-maps/[id]/edit` | `/admin/canvases/value-maps/[id]/canvas` | 4 |
 | VPC | `/admin/canvases/value-propositions/[id]/edit` | `/admin/canvases/value-propositions/[id]/canvas` | 5 |
 
+### URL Pattern Inconsistency (Known)
+
+**Current state:** Routes are inconsistent:
+- `/admin/blueprints/` - Top-level
+- `/admin/journeys/` - Top-level
+- `/admin/story-maps/` - Top-level
+- `/admin/canvases/business-models/` - Nested under `/canvases/`
+- `/admin/canvases/customer-profiles/` - Nested under `/canvases/`
+- `/admin/canvases/value-maps/` - Nested under `/canvases/`
+- `/admin/canvases/value-propositions/` - Nested under `/canvases/`
+
+**Decision:** Accept inconsistency for now. These routes match the existing admin UI structure. URL cleanup is a separate refactor (would require migration of bookmarks, nav, etc.).
+
 ---
 
 ## Success Criteria
