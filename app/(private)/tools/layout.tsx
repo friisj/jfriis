@@ -1,4 +1,4 @@
-import { AdminRoute } from '@/components/auth/admin-route';
+import { AdminRoute } from '@/components/auth/protected-route';
 
 export default function ToolsLayout({
   children,
