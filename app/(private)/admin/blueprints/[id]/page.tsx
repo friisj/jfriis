@@ -43,6 +43,12 @@ export default async function BlueprintDetailPage({
       actions={
         <div className="flex gap-2">
           <Link
+            href={`/admin/blueprints/${id}/canvas`}
+            className="px-4 py-2 border border-primary text-primary rounded-md text-sm hover:bg-primary/10"
+          >
+            Canvas View
+          </Link>
+          <Link
             href={`/admin/blueprints/${id}/edit`}
             className="px-4 py-2 bg-primary text-primary-foreground rounded-md text-sm hover:opacity-90"
           >

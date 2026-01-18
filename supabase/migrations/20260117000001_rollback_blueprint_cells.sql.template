@@ -1,0 +1,42 @@
+-- ============================================================================
+-- ROLLBACK: Blueprint Cells Migration
+-- ============================================================================
+--
+-- WARNING: This is a DESTRUCTIVE rollback script.
+-- Run this ONLY if you need to undo the blueprint_cells table creation.
+-- All data in blueprint_cells will be PERMANENTLY DELETED.
+--
+-- Usage: Rename this file to remove .template suffix to run with `supabase db push`
+-- ============================================================================
+
+-- Drop triggers first
+DROP TRIGGER IF EXISTS cleanup_blueprint_cell_links ON blueprint_cells;
+DROP TRIGGER IF EXISTS update_blueprint_cells_updated_at ON blueprint_cells;
+
+-- Drop function
+DROP FUNCTION IF EXISTS cleanup_blueprint_cell_entity_links();
+
+-- Drop policies
+DROP POLICY IF EXISTS "Authenticated users can view blueprint cells" ON blueprint_cells;
+DROP POLICY IF EXISTS "Authenticated users can manage blueprint cells" ON blueprint_cells;
+
+-- Drop indexes
+DROP INDEX IF EXISTS idx_blueprint_cells_step;
+DROP INDEX IF EXISTS idx_blueprint_cells_step_layer;
+DROP INDEX IF EXISTS idx_blueprint_cells_layer;
+
+-- Drop table (cascades to any data)
+DROP TABLE IF EXISTS blueprint_cells;
+
+-- Verification
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'blueprint_cells'
+  ) THEN
+    RAISE EXCEPTION 'blueprint_cells table still exists after rollback';
+  END IF;
+
+  RAISE NOTICE 'blueprint_cells rollback completed successfully';
+END $$;

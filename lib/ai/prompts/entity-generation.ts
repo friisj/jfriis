@@ -171,6 +171,167 @@ Return a complete assumption object.`,
       validation_criteria: 'How we will know if this is true or false',
     },
   },
+
+  activities: {
+    systemPrompt: `Generate activity columns for a story map that expands a touchpoint into detailed micro-steps.
+
+Each activity represents a distinct phase within the customer interaction. Activities should:
+- Flow logically left-to-right as a sequence the user experiences
+- Be specific action phases (not outcomes)
+- Cover the full scope of the touchpoint interaction
+- Be distinct from existing activities
+- Use short, action-oriented names (2-4 words)
+
+Example activities for a "Check Out" touchpoint:
+- Review Cart, Enter Shipping, Select Payment, Confirm Order, View Confirmation
+
+Return complete activity objects with all required fields.`,
+
+    fieldsToGenerate: ['name', 'description', 'user_goal'],
+
+    defaultValues: {},
+
+    contextFields: [
+      'story_map_name',
+      'story_map_description',
+      'touchpoint_name',
+      'touchpoint_description',
+      'existing_activities',
+    ],
+
+    displayField: 'name',
+
+    editableFields: ['name', 'description', 'user_goal'],
+
+    fieldHints: {
+      name: 'Short action phrase (e.g., "Enter credentials", "Review summary")',
+      description: 'What happens in this step',
+      user_goal: 'What the user is trying to accomplish at this step',
+    },
+  },
+
+  user_stories: {
+    systemPrompt: `Generate user stories for a story map cell (intersection of activity column + actor/layer row).
+
+Each story describes what happens at this specific step for this specific actor. Stories should:
+- Be specific to the activity and actor intersection
+- Use standard format when helpful: "As a [actor], I [action] so that [benefit]"
+- Be actionable and implementable
+- Be distinct from existing stories in this cell
+
+Consider the actor/layer type:
+- Customer: Focus on user-facing features and interactions
+- Internal Agent: Focus on staff tools and workflows
+- AI Agent: Focus on automation and intelligent behaviors
+- Platform: Focus on system capabilities and integrations
+- API: Focus on data and service interfaces
+
+Return complete story objects with all required fields.`,
+
+    fieldsToGenerate: ['title', 'description', 'acceptance_criteria'],
+
+    defaultValues: {
+      status: 'backlog',
+      story_type: 'feature',
+    },
+
+    contextFields: [
+      'activity_name',
+      'activity_description',
+      'layer_name',
+      'layer_type',
+      'touchpoint_description',
+      'existing_stories',
+    ],
+
+    displayField: 'title',
+
+    editableFields: ['title', 'description', 'story_type', 'acceptance_criteria'],
+
+    fieldHints: {
+      title: 'User story title - what this story accomplishes',
+      description: 'Detailed description of the story requirements',
+      acceptance_criteria: 'List of criteria that must be met for completion',
+    },
+  },
+
+  // ============================================================================
+  // Blueprint Canvas Entity Types (Phase 1)
+  // ============================================================================
+
+  blueprint_steps: {
+    systemPrompt: `Generate steps for a service blueprint that map the customer journey through service delivery.
+
+Each step represents a moment in the service experience. Steps should:
+- Flow logically left-to-right as a sequence
+- Cover the full service encounter
+- Be specific enough to map actions at each layer
+- Use concise names (2-4 words)
+- Be distinct from existing steps
+
+Example step names: "Enter Store", "Browse Products", "Request Help", "Complete Purchase", "Receive Confirmation"
+
+Return complete step objects with all required fields.`,
+
+    fieldsToGenerate: ['name', 'description'],
+
+    defaultValues: {},
+
+    contextFields: [
+      'blueprint_name',
+      'blueprint_description',
+      'blueprint_type',
+      'existing_steps',
+    ],
+
+    displayField: 'name',
+
+    editableFields: ['name', 'description'],
+
+    fieldHints: {
+      name: 'Short action phrase (e.g., "Enter store", "Browse products")',
+      description: 'What happens during this step',
+    },
+  },
+
+  blueprint_cells: {
+    systemPrompt: `Generate content for a service blueprint cell at the intersection of a step and layer.
+
+Consider:
+- Step context: what moment in the journey
+- Layer type: customer_action / frontstage / backstage / support_process
+
+Layer descriptions:
+- customer_action: What the customer does (visible actions, decisions, touchpoints)
+- frontstage: What employees do that customers see (visible interactions, communications)
+- backstage: What employees do behind the scenes (invisible actions, preparation)
+- support_process: Systems and infrastructure (IT, databases, integrations)
+
+Write concise, actionable descriptions of what happens at this intersection.
+
+Return complete cell objects with all required fields.`,
+
+    fieldsToGenerate: ['content'],
+
+    defaultValues: {},
+
+    contextFields: [
+      'step_name',
+      'layer_type',
+      'layer_name',
+      'layer_description',
+      'blueprint_context',
+      'adjacent_cells',
+    ],
+
+    displayField: 'content',
+
+    editableFields: ['content'],
+
+    fieldHints: {
+      content: 'Description of what happens at this step for this layer',
+    },
+  },
 }
 
 /**
