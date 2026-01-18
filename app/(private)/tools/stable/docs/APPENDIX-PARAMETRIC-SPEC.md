@@ -16,14 +16,17 @@ This appendix defines the **Parametric Human Character System (PHCS)** specifica
 Parametric Human Character System (PHCS)
 
 ### Summary
-PHCS is a **measurement-grounded, parametric representation of human characters** that aggregates anthropometric, medical/aesthetic, and digital character rigging frameworks into a single, structured source of truth ("CharacterSpec").
+PHCS is a **measurement-grounded, parametric representation of human character identity** that aggregates anthropometric, medical/aesthetic, and anatomical frameworks into a structured specification ("AnatomySpec").
+
+**Scope**: PHCS defines the **identity layer only** - skeletal structure, facial morphology, and body proportions. Contextual presentation (expression, pose, garments, etc.) is handled by the asset system.
 
 The system provides:
-- A canonical parameter model for identity consistency
-- Quantitative outputs (armature-driven conditioning artifacts) for generative media pipelines
-- A lightweight 3D viewer for inspecting parameter changes (future)
+- A canonical parameter model for anatomical identity
+- Identity persistence across contexts, renders, and media
+- Validation against real-world anthropometric data
+- Foundation for composition with contextual asset modifiers
 
-The system explicitly decouples **character identity** from **rendering style, medium, or model**.
+The system explicitly decouples **anatomical identity** from **contextual presentation, rendering style, medium, or model**.
 
 ### Integration with Stable
 PHCS defines the structure and semantics of the `parametric_data` JSONB field in Stable's `stable_characters` table. It provides the "nucleus" around which all character assets, relationships, and representations orbit.
@@ -86,28 +89,35 @@ The system aggregates multiple real-world and digital frameworks:
 - Apple ARKit blendshapes
 - Medical craniofacial measurement standards
 
-#### C. Identity vs Variance Distinction
+#### C. Identity vs Context Distinction
 
-**Identity-defining parameters** (stable across contexts):
+**PHCS AnatomySpec contains ONLY identity-defining parameters**:
 - Bone structure and skeletal proportions
 - Facial morphology (jaw shape, nose structure, eye spacing)
 - Body proportions (limb ratios, torso length)
 - Height and build
 
-**Presentation parameters** (context-dependent):
-- Pose (skeletal rig state)
-- Expression (facial muscle activation)
-- Posture (habitual stance and alignment)
-- Transient states (breathing, blinking)
+**Contextual parameters are handled as Assets**, not in AnatomySpec:
+- Expression (facial muscle activation) → Expression assets
+- Pose (skeletal rig state) → Pose assets
+- Posture (habitual stance) → Posture assets
+- Garments, hair, makeup, skin state → Corresponding asset types
 
-This distinction enables **identity persistence** across renders, media, and time.
+This separation enables:
+- **Identity persistence** across renders, media, and time
+- **Asset reusability** (same expression applies to multiple characters)
+- **Composition flexibility** (mix and match contextual modifiers)
+
+See [COMPOSITION-ARCHITECTURE.md](./COMPOSITION-ARCHITECTURE.md) for complete composition model.
 
 ---
 
-## 5. CharacterSpec (Canonical Parametric Model)
+## 5. AnatomySpec (Character Identity Model)
 
 ### 5.1 Purpose
-CharacterSpec is the **single source of truth** for a character's physical identity and presentation state.
+AnatomySpec is the **single source of truth** for a character's anatomical identity - the unchanging skeletal structure, facial morphology, and body proportions that define WHO the character is.
+
+**Note**: Previously called "CharacterSpec", now renamed "AnatomySpec" to clarify that it contains only anatomical identity, not presentation/context.
 
 ### 5.2 Format
 - **Encoding**: JSON
@@ -270,86 +280,6 @@ CharacterSpec is the **single source of truth** for a character's physical ident
         }
       ],
       "notes": "Reference populations used for plausibility validation only. Individual variation may exceed dataset bounds."
-    }
-  },
-
-  "presentation": {
-    "expression": {
-      "smile": {
-        "value": 0.0,
-        "range": [0, 1],
-        "type": "facs_based",
-        "note": "AU12 (lip corner puller) intensity"
-      },
-      "browRaise": {
-        "value": 0.0,
-        "range": [0, 1],
-        "type": "facs_based",
-        "note": "AU1+AU2 (inner + outer brow raiser)"
-      },
-      "jawOpen": {
-        "value": 0.0,
-        "range": [0, 1],
-        "type": "facs_based",
-        "note": "AU26 (jaw drop)"
-      },
-      "eyeSquint": {
-        "value": 0.0,
-        "range": [0, 1],
-        "type": "facs_based"
-      },
-      "noseWrinkle": {
-        "value": 0.0,
-        "range": [0, 1],
-        "type": "facs_based"
-      }
-    },
-
-    "pose": {
-      "pelvisTilt": {
-        "value": -2.5,
-        "unit": "degrees",
-        "type": "skeletal",
-        "note": "anterior/posterior tilt from neutral"
-      },
-      "spineCurve": {
-        "value": 6.0,
-        "unit": "degrees",
-        "type": "skeletal",
-        "note": "lumbar lordosis angle"
-      },
-      "headPitch": {
-        "value": 1.0,
-        "unit": "degrees",
-        "type": "skeletal",
-        "note": "forward/back head tilt"
-      },
-      "shoulderElevation": {
-        "left": 0.0,
-        "right": 0.0,
-        "unit": "cm",
-        "type": "skeletal"
-      }
-    },
-
-    "posture": {
-      "stanceWidth": {
-        "value": 0.15,
-        "unit": "m",
-        "type": "habitual",
-        "note": "typical foot separation when standing"
-      },
-      "weightDistribution": {
-        "left": 0.5,
-        "right": 0.5,
-        "type": "habitual",
-        "note": "left/right weight bias when standing"
-      },
-      "habitualPosture": {
-        "value": "neutral",
-        "options": ["slouched", "neutral", "upright", "military"],
-        "type": "categorical"
-      }
     }
   },
 
@@ -620,7 +550,7 @@ Parameter interdependencies
 
 ### 10.1 Data Model Mapping
 
-CharacterSpec lives in Stable's `parametric_data` JSONB field:
+AnatomySpec lives in Stable's `parametric_data` JSONB field as part of the composition model:
 
 ```typescript
 // Stable's character table
@@ -628,30 +558,80 @@ interface Character {
   id: string;
   name: string;
   description: string | null;
-  parametric_data: StableParametricData; // <-- PHCS lives here
+  parametric_data: StableParametricData; // <-- Composition model
   created_at: string;
   updated_at: string;
 }
 
-// Stable's parametric data structure
+// Stable's parametric data structure (composition of identity specs + defaults)
 interface StableParametricData {
-  // Core PHCS specification
-  phcs_spec: CharacterSpec;
+  // Core anatomical identity (PHCS v1.0)
+  anatomy_spec: AnatomySpec;
 
-  // Style/presentation references (links to stable_assets)
-  style_variant_id?: string;
-  default_garment_ids?: string[];
+  // Future identity specs (modular)
+  personality_spec?: PersonalitySpec;  // Future
+  voice_spec?: VoiceSpec;              // Future
+  behavior_spec?: BehaviorSpec;        // Future
 
-  // Non-anatomical character attributes
-  personality?: Record<string, unknown>;
-  voice_tone?: Record<string, unknown>;
-  behavior?: Record<string, unknown>;
+  // Default asset references (for neutral presentation)
+  defaults: {
+    expression_id?: string;   // FK to stable_assets (e.g., "neutral")
+    pose_id?: string;         // FK to stable_assets (e.g., "relaxed standing")
+    skin_state_id?: string;   // FK to stable_assets (e.g., "base tone")
+    garment_id?: string;      // FK to stable_assets (optional)
+    hair_style_id?: string;   // FK to stable_assets (optional)
+  };
+
+  // Non-parametric notes
+  visual_notes?: Record<string, unknown>;
   narrative?: Record<string, unknown>;
 
   // Metadata
   spec_version: string;
   last_validated: string;
 }
+```
+
+### 10.1a Composition Model
+
+See [COMPOSITION-ARCHITECTURE.md](./COMPOSITION-ARCHITECTURE.md) for complete details.
+
+**Character Generation Workflow**:
+
+```typescript
+// 1. Get character identity
+const character = await getCharacter(id);
+const identity = character.parametric_data.anatomy_spec;
+
+// 2. Get default assets (or contextual overrides)
+const defaults = character.parametric_data.defaults;
+const expression = await getAsset(defaults.expression_id);  // "neutral"
+const pose = await getAsset(defaults.pose_id);              // "relaxed standing"
+const skinState = await getAsset(defaults.skin_state_id);   // "base tone"
+
+// 3. Compose complete character state
+const composedState = {
+  identity: identity,
+  expression: expression,
+  pose: pose,
+  skinState: skinState,
+};
+
+// 4. Generate conditioning artifacts
+const artifacts = await generateConditioningArtifacts(composedState, {
+  cameraAngle: 'front',
+  resolution: [512, 768]
+});
+
+// 5. Store artifacts as assets
+await createAsset({
+  character_id: character.id,
+  asset_type: 'generative_output',
+  name: 'Front View Depth Map',
+  data: { artifact_type: 'depth_map', ... },
+  file_url: artifacts.depthMap.url,
+  tags: ['conditioning', 'depth_map']
+});
 ```
 
 ### 10.2 Asset Relationship
@@ -702,31 +682,38 @@ const depthMapAsset: CreateAssetInput = {
 
 ## 11. Style & Presentation Boundary
 
-### 11.1 What PHCS Covers
-- Anatomical structure (skeleton, muscles, face)
-- Physical measurements (height, proportions)
-- Morphological variation (nose shape, jaw width)
-- Pose and expression (skeletal rig state, facial activation)
+### 11.1 What PHCS AnatomySpec Covers (Identity Only)
+- Skeletal structure and bone proportions
+- Facial morphology (skull shape, jaw structure, feature positions)
+- Body measurements and proportions (height, limb ratios)
+- Morphological variation (nose shape, jaw width, cheekbone prominence)
 
 ### 11.2 What PHCS Does NOT Cover
 These are handled separately in Stable's asset system:
 
-#### A. Appearance & Style
-- Skin tone, texture, complexion
-- Hair style, color, length
-- Eye color, makeup
-- Scars, tattoos, birthmarks
+#### A. Contextual Presentation (CRITICAL: Now Assets)
+- **Expression**: Facial muscle activation (FACS coefficients) → Expression assets
+- **Pose**: Skeletal rig state (joint rotations) → Pose assets
+- **Posture**: Habitual stance configuration → Posture assets
 
-**Storage**: Stored as qualitative notes in `parametric_data.visual_parameters` or as reference images in assets
+**Storage**: `stable_assets` table with `asset_type` = 'expression', 'pose', or 'posture'
 
-#### B. Clothing & Accessories
-- Garments, outfits, costumes
-- Jewelry, glasses, hats
-- Props held or worn
+#### B. Appearance & Style
+- Skin tone, texture, complexion → Skin state assets
+- Hair style, color, length → Hair style assets
+- Makeup, cosmetics → Makeup assets
+- Eye color, scars, tattoos → Visual notes or reference images
 
-**Storage**: Future `stable_garments` table (Phase 4 secondary entities)
+**Storage**: `stable_assets` (skin_state, hair_style, makeup) or `parametric_data.visual_notes`
 
-#### C. Contextual Elements
+#### C. Clothing & Accessories
+- Garments, outfits, costumes → Garment assets
+- Jewelry, glasses, hats → Accessory assets
+- Props held or worn → Prop assets
+
+**Storage**: `stable_assets` with `asset_type` = 'garment'
+
+#### D. Contextual Elements
 - Lighting, environment
 - Camera angle (except for artifact generation)
 - Rendering style (photorealistic vs. stylized)
@@ -738,21 +725,92 @@ These are handled separately in Stable's asset system:
 ```json
 {
   "parametric_data": {
-    "phcs_spec": { /* full CharacterSpec */ },
-
-    "visual_parameters": {
-      "skin_tone": "medium_warm",
-      "skin_reference": "Fitzpatrick_Type_IV",
-      "eye_color": "hazel_green",
-      "hair_style": "short_curly",
-      "hair_color": "dark_brown",
-      "distinguishing_marks": "small_scar_left_eyebrow"
+    // Identity layer (AnatomySpec)
+    "anatomy_spec": {
+      "meta": { "version": "1.0.0", "topologyId": "human_base_v3" },
+      "identity": {
+        "body": { "height": { "value": 1.78, "unit": "m" }, /* ... */ },
+        "face": { "skull": { /* ... */ }, "features": { /* ... */ } }
+      },
+      "constraints": { /* ... */ }
     },
 
-    "default_garment_ids": [
-      "uuid-casual-outfit-1",
-      "uuid-formal-suit-1"
-    ]
+    // Default assets (neutral presentation)
+    "defaults": {
+      "expression_id": "uuid-neutral-expression",
+      "pose_id": "uuid-relaxed-standing",
+      "skin_state_id": "uuid-medium-warm-healthy",
+      "garment_id": null,      // No default garment
+      "hair_style_id": null    // No default hair style
+    },
+
+    // Non-parametric notes
+    "visual_notes": {
+      "eye_color": "hazel_green",
+      "distinguishing_marks": "small_scar_left_eyebrow",
+      "general_impression": "approachable, athletic build"
+    },
+
+    "narrative": {
+      "backstory": "...",
+      "role": "protagonist",
+      "relationships": { /* ... */ }
+    },
+
+    // Metadata
+    "spec_version": "1.0.0",
+    "last_validated": "2026-01-18T12:00:00Z"
+  }
+}
+```
+
+**Corresponding Assets** (in `stable_assets` table):
+
+```json
+// Expression asset (universal - available to all characters)
+{
+  "id": "uuid-neutral-expression",
+  "character_id": null,  // Universal asset
+  "asset_type": "expression",
+  "name": "Neutral Expression",
+  "data": {
+    "type": "facs_coefficients",
+    "coefficients": {
+      "smile": 0.0,
+      "browRaise": 0.0,
+      "jawOpen": 0.0
+    }
+  }
+}
+
+// Pose asset (universal)
+{
+  "id": "uuid-relaxed-standing",
+  "character_id": null,
+  "asset_type": "pose",
+  "name": "Relaxed Standing",
+  "data": {
+    "type": "skeletal_rig_state",
+    "joints": {
+      "pelvisTilt": { "value": 0.0, "unit": "degrees" },
+      "spineCurve": { "value": 5.0, "unit": "degrees" },
+      "headPitch": { "value": 0.0, "unit": "degrees" }
+    }
+  }
+}
+
+// Skin state asset (character-specific)
+{
+  "id": "uuid-medium-warm-healthy",
+  "character_id": "character-uuid-here",
+  "asset_type": "skin_state",
+  "name": "Base Skin Tone",
+  "data": {
+    "type": "skin_configuration",
+    "tone": "medium_warm",
+    "texture": "smooth",
+    "condition": "healthy",
+    "reference": "Fitzpatrick_Type_IV"
   }
 }
 ```

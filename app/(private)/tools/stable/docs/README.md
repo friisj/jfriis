@@ -104,34 +104,84 @@ See `/supabase/migrations/20260118000000_stable_character_management.sql` for fu
 
 ## Data Structure
 
-### Parametric Data
+See [COMPOSITION-ARCHITECTURE.md](./COMPOSITION-ARCHITECTURE.md) for complete architectural specification.
 
-Characters have a flexible `parametric_data` JSONB field that can contain:
+### Identity vs. Context Model
 
-- `anatomy`: Physical structure details
-- `physical_attributes`: Height, build, species, distinctive features
-- `personality`: Traits, archetypes, motivations
-- `voice_tone`: Speaking patterns, verbal characteristics
-- `behavior`: Mannerisms, habits, reactions
-- `style_variants`: Different appearances, costumes, contexts
-- `visual_parameters`: Color schemes, style descriptors
+Stable uses a **composition model** where characters are defined by:
+
+**Identity (Parametric Specs)** = WHO the character is:
+- Unchanging attributes that define the character's core
+- Stored in `parametric_data` JSONB field
+- Versioned, validated, structured specifications
+
+**Context (Assets)** = HOW the character appears in a specific context:
+- Contextual modifiers applied per generation/scene
+- Stored as assets in `stable_assets` table
+- Reusable across characters (universal library) or character-specific
+
+**Composition**: Identity + Context = Complete Character State → Conditioning Artifacts
+
+### Parametric Data (Identity Layer)
+
+The `parametric_data` field contains **identity-defining specifications**:
+
+#### Current: AnatomySpec (PHCS v1.0)
+- **Skeletal structure**: Body proportions, bone structure
+- **Facial morphology**: Skull shape, facial features, feature positions
+- **Demographics**: Age range, population references for validation
+
+See [APPENDIX-PARAMETRIC-SPEC.md](./APPENDIX-PARAMETRIC-SPEC.md) for complete AnatomySpec specification.
+
+#### Future: Additional Identity Specs
+- **PersonalitySpec**: Big Five traits, MBTI, core motivations
+- **VoiceSpec**: Pitch, timbre, accent (phonetic parameters)
+- **BehaviorSpec**: Movement patterns, gesture vocabulary
+
+#### Default Configuration
+Each character has **default assets** for neutral presentation:
+- Default expression (e.g., "neutral")
+- Default pose (e.g., "relaxed standing")
+- Default skin state (e.g., "base tone")
+- Optional default garment and hair style
+
+#### Non-Parametric Notes
+Flexible fields for unstructured data:
+- `visual_notes`: Qualitative appearance notes
 - `narrative`: Backstory, role, relationships context
 
-### Asset Types
+### Asset Types (Context Layer)
 
-Supported asset types:
-- `prompt`: Generation prompts
-- `exclusion`: Negative prompts, things to avoid
-- `reference_media`: Reference photos, artwork, mood boards
-- `generative_output`: AI-generated images, 3D models
-- `concept_art`: Hand-drawn or designed concept pieces
-- `turnaround`: Character rotation sheets
-- `expression_sheet`: Facial expressions reference
-- `color_palette`: Color schemes and swatches
-- `3d_model`: 3D character models
-- `animation`: Motion references, clips
-- `audio`: Voice samples, music themes
-- `document`: Notes, backstory docs
+Assets are **contextual modifiers** that apply to the character's identity:
+
+#### Contextual Presentation Assets (New)
+- **`expression`**: Facial muscle activation (FACS coefficients) - e.g., "smile", "frown", "surprise"
+- **`pose`**: Skeletal rig state (joint rotations) - e.g., "standing", "sitting", "walking"
+- **`posture`**: Habitual stance configuration - e.g., "relaxed", "military", "slouched"
+- **`garment`**: Clothing, outfits, accessories
+- **`hair_style`**: Hair configuration, length, style
+- **`makeup`**: Cosmetic application - e.g., "natural", "dramatic", "editorial"
+- **`skin_state`**: Skin tone, texture, condition - e.g., "healthy", "tanned", "weathered"
+
+#### Generative Workflow Assets (Existing)
+- **`prompt`**: Generation prompts
+- **`exclusion`**: Negative prompts, things to avoid
+- **`reference_media`**: Reference photos, artwork, mood boards
+- **`generative_output`**: AI-generated images, 3D models
+
+#### Traditional Media Assets (Existing)
+- **`concept_art`**: Hand-drawn or designed concept pieces
+- **`turnaround`**: Character rotation sheets
+- **`expression_sheet`**: Facial expressions reference
+- **`color_palette`**: Color schemes and swatches
+- **`3d_model`**: 3D character models
+- **`animation`**: Motion references, clips
+- **`audio`**: Voice samples, music themes
+- **`document`**: Notes, backstory docs
+
+#### Asset Ownership
+- **Character-specific**: Assets tied to one character (custom garments, unique poses)
+- **Universal library**: Assets available to all characters (common expressions, standard poses)
 
 ## Development Roadmap
 
