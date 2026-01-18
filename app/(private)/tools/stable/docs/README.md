@@ -4,12 +4,75 @@ Character design repository and asset management tool.
 
 ## Overview
 
-Stable is a comprehensive character bible and asset management system for synthetic character design. It provides:
+Stable is a comprehensive character bible and asset management system for **synthetic character design**. It provides a rich repository for building, maintaining, and iterating on detailed representations of AI-generated characters that may be used across multiple media and contexts.
+
+This is a **personal creative tool** designed for deep, focused work with a small roster of characters (typically fewer than 10), each developed with extraordinary depth and complexity.
+
+### Core Capabilities
 
 - **Parametric Character Definitions**: Rich, structured data objects representing anatomy, personality, voice, behavior, and style
 - **Asset Management**: Organize prompts, reference media, generative outputs, and other character-related files
 - **Relationship Tracking**: Define and manage connections between characters
 - **Media Viewing**: Specialized components for displaying character assets
+
+## Philosophy & Approach
+
+### The Parametric Nucleus
+
+Each character is defined by a **parametric data object** that serves as the nucleus around which all other assets, relationships, and representations orbit. This core data structure contains objective, structured information that enables:
+
+- Consistent character representation across different contexts
+- Integration with external tools and workflows
+- Systematic iteration and refinement
+- Clear separation between objective parameters and subjective interpretations
+
+### Small Roster, Deep Complexity
+
+Stable is optimized for **depth over breadth**:
+
+- **Small roster**: Fewer than 10 characters to start
+- **Rich detail**: Each character may become extraordinarily complex
+- **Iterative refinement**: Primary use case is viewing and iterating on existing characters
+- **Multiple facets**: Characters have anatomy, personality, voice, behavior, style variants, and more
+
+### Generative Workflow
+
+Designed specifically for **synthetic character creation** using AI/generative tools:
+
+- Store generation prompts and exclusions (negative prompts)
+- Organize generative outputs from various models
+- Track what works and what doesn't
+- Build exemplar libraries for consistent generation
+- Maintain qualitative guidelines alongside objective data
+
+### Future Vision
+
+While **characters are the top-level entities** in the current implementation, the system is designed to eventually support secondary entities:
+
+- **Garments & Outfits**: Clothing, costumes, accessories
+- **Scenes**: Environments, settings, locations
+- **Actions**: Poses, movements, interactions
+- Other character-related concepts
+
+These will be explored in future iterations as the character foundation matures.
+
+## Workflow
+
+### Typical Use Cases
+
+1. **Character Creation**: Define a new synthetic character with initial parametric data
+2. **Prompt Management**: Store and refine generation prompts that produce consistent results
+3. **Asset Organization**: Collect and categorize reference images, generative outputs, concept art
+4. **Iteration**: View existing character data and assets while making refinements
+5. **Relationship Mapping**: Define how characters relate to each other
+6. **Reference**: Quick access to character sheets during creative work in other tools
+
+### Primary Activities
+
+- **Adding/updating parametric data**: Refining the core character definition
+- **Uploading and organizing assets**: Building the asset library
+- **Viewing character sheets for reference**: Using stable as source of truth during creation
+- **Iterating on prompts and outputs**: Evolving the character through experimentation
 
 ## Routes
 
@@ -70,14 +133,47 @@ Supported asset types:
 - `audio`: Voice samples, music themes
 - `document`: Notes, backstory docs
 
-## Next Steps
+## Development Roadmap
+
+### Phase 1: Core Data Entry (Next Priority)
 
 1. **Create/Edit Forms**: Build forms for creating and editing characters
-2. **Asset Upload**: Implement file upload to Supabase Storage
-3. **Media Viewers**: Replace placeholder components with real viewers (image galleries, 3D, audio players)
-4. **Parametric Form**: Replace JSON editor with structured form based on defined schema
-5. **Relationship UI**: Build interface for managing character relationships
-6. **Export/Integration**: Add export functionality for use in other tools
+   - Simple name/description input
+   - Parametric data editor (initially JSON, later structured form)
+2. **Basic CRUD UI**: Complete create, update, delete flows
+3. **Validation**: Ensure data integrity for core fields
+
+### Phase 2: Asset Management
+
+1. **File Upload**: Implement Supabase Storage integration
+2. **Asset Forms**: UI for adding/editing assets with metadata
+3. **Basic Media Display**: Simple image/file viewing
+4. **Tag System**: Organize assets with tags and search
+
+### Phase 3: Rich Media & Visualization
+
+1. **Media Viewers**: Replace placeholder components with real viewers
+   - Image galleries with zoom/pan
+   - 3D model viewer (Three.js integration)
+   - Audio players for voice samples
+   - Video players for animation references
+2. **Relationship Graph**: Visual network of character connections
+3. **Asset Previews**: Thumbnails and quick preview modals
+
+### Phase 4: Advanced Features
+
+1. **Structured Parametric Form**: Replace JSON editor with purpose-built UI
+2. **Prompt Versioning**: Track iteration history on generation prompts
+3. **Export/Integration**: Generate data for use in external tools
+4. **Batch Operations**: Bulk asset management
+5. **Secondary Entities**: Explore garments, scenes, actions as separate entities
+
+### Future Considerations
+
+- API for external tool integration
+- Character comparison views
+- Generation workflow automation
+- Collaborative features (if scope expands beyond personal use)
 
 ## Status
 
