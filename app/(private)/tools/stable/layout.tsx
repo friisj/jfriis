@@ -9,7 +9,7 @@ export default function StableLayout({
   return (
     <AdminRoute>
       <div className="border-b">
-        <div className="container flex h-14 items-center gap-4 px-4">
+        <div className="container flex h-14 items-center gap-6 px-4">
           <Link
             href="/tools"
             className="text-sm text-muted-foreground hover:text-foreground transition-colors"
@@ -17,6 +17,14 @@ export default function StableLayout({
             ← Tools
           </Link>
           <span className="font-semibold">Stable</span>
+          <nav className="flex gap-4 ml-auto">
+            <Link
+              href="/tools/stable"
+              className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+            >
+              Characters
+            </Link>
+          </nav>
         </div>
       </div>
       {children}
