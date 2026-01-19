@@ -134,7 +134,7 @@ function BlueprintsTable({ blueprints }: { blueprints: any[] }) {
                 <span className="text-sm capitalize">{blueprint.blueprint_type}</span>
               </td>
               <td className="py-3">
-                <StatusBadge status={blueprint.status} />
+                <StatusBadge value={blueprint.status} />
               </td>
               <td className="py-3">
                 {blueprint.studio_projects ? (

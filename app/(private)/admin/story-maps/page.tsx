@@ -134,7 +134,7 @@ function StoryMapsTable({ storyMaps }: { storyMaps: any[] }) {
                 <span className="text-sm capitalize">{storyMap.map_type}</span>
               </td>
               <td className="py-3">
-                <StatusBadge status={storyMap.status} />
+                <StatusBadge value={storyMap.status} />
               </td>
               <td className="py-3">
                 {storyMap.studio_projects ? (
