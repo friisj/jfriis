@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import type { StudioProject } from '@/lib/types/database'
@@ -21,6 +21,7 @@ export function StudioProjectForm({ project, mode, existingProjectNames = [] }: 
   const router = useRouter()
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [userId, setUserId] = useState<string | null>(null)
 
   // Source log entries for generation (create mode only)
   const [sources, setSources] = useState<LogEntrySource[]>([])
@@ -38,6 +39,17 @@ export function StudioProjectForm({ project, mode, existingProjectNames = [] }: 
     success_criteria: project?.success_criteria || '',
     scope_out: project?.scope_out || '',
   })
+
+  // Get current user on mount
+  useEffect(() => {
+    const getCurrentUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (user) {
+        setUserId(user.id)
+      }
+    }
+    getCurrentUser()
+  }, [])
 
   // Handle generation from log entries
   const handleGenerateFromLogs = useCallback(async () => {
@@ -98,6 +110,11 @@ export function StudioProjectForm({ project, mode, existingProjectNames = [] }: 
     setError(null)
 
     try {
+      // Ensure we have a user_id for create mode
+      if (mode === 'create' && !userId) {
+        throw new Error('User not authenticated')
+      }
+
       const data = {
         ...formData,
         temperature: formData.temperature || null,
@@ -106,6 +123,7 @@ export function StudioProjectForm({ project, mode, existingProjectNames = [] }: 
         problem_statement: formData.problem_statement || null,
         success_criteria: formData.success_criteria || null,
         scope_out: formData.scope_out || null,
+        ...(mode === 'create' && userId ? { user_id: userId } : {}),
       }
 
       if (mode === 'create') {
