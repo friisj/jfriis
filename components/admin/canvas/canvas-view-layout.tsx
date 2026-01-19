@@ -31,8 +31,8 @@ export function CanvasViewLayout({
         </div>
       )}
 
-      {/* Canvas Surface */}
-      <div className="flex-1 overflow-hidden">
+      {/* Canvas Surface + Side Panel */}
+      <div className="flex-1 overflow-hidden flex">
         {children}
       </div>
     </div>

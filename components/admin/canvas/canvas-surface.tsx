@@ -35,7 +35,7 @@ export function CanvasSurface({
       ref={containerRef}
       onClick={handleBackgroundClick}
       className={`
-        w-full h-full overflow-auto
+        flex-1 min-w-0 h-full overflow-auto
         ${showGrid ? 'canvas-grid-bg' : 'bg-muted/20'}
       `}
       style={showGrid ? {
