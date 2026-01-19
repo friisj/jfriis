@@ -64,7 +64,7 @@ const relationshipConfig: Record<AIContextEntityType, RelationshipConfig[]> = {
       foreignKey: 'customer_profile_id',
       table: 'customer_profiles',
       contextPrefix: 'customer',
-      fields: ['name', 'description', 'jobs_to_be_done', 'pains', 'gains'],
+      fields: ['name', 'description', 'jobs', 'pains', 'gains'],
     },
   ],
   story_maps: [
@@ -100,7 +100,7 @@ const relationshipConfig: Record<AIContextEntityType, RelationshipConfig[]> = {
       foreignKey: 'customer_profile_id',
       table: 'customer_profiles',
       contextPrefix: 'customer',
-      fields: ['name', 'description', 'jobs_to_be_done', 'pains', 'gains'],
+      fields: ['name', 'description', 'jobs', 'pains', 'gains'],
     },
   ],
   customer_profiles: [

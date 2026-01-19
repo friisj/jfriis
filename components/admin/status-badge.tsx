@@ -20,11 +20,13 @@ const defaultColorMap: Record<string, string> = {
 
 export function StatusBadge({ value, colorMap }: StatusBadgeProps) {
   const colors = colorMap || defaultColorMap
-  const colorClass = colors[value.toLowerCase()] || colors.draft
+  // Defensive null check to prevent crashes if value is undefined
+  const safeValue = value || 'draft'
+  const colorClass = colors[safeValue.toLowerCase()] || colors.draft
 
   return (
     <span className={`px-2 py-1 rounded text-xs font-medium ${colorClass}`}>
-      {value}
+      {safeValue}
     </span>
   )
 }

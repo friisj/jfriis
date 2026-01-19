@@ -103,13 +103,13 @@ export function JourneyDetailView({ journey, stages }: JourneyDetailViewProps) {
               <div>
                 <dt className="text-sm text-muted-foreground">Status</dt>
                 <dd className="mt-1">
-                  <StatusBadge status={journey.status} />
+                  <StatusBadge value={journey.status} />
                 </dd>
               </div>
               <div>
                 <dt className="text-sm text-muted-foreground">Validation Status</dt>
                 <dd className="mt-1">
-                  <StatusBadge status={journey.validation_status} />
+                  <StatusBadge value={journey.validation_status} />
                 </dd>
               </div>
               <div>
