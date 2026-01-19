@@ -37,6 +37,9 @@ export interface TimelineCanvasProps<TStep, TLayer> {
   /** Render a separator row (e.g., Line of Visibility) after specific layer index */
   renderSeparatorAfterLayer?: (layerIndex: number) => ReactNode | null
 
+  /** Custom empty state message */
+  emptyStateMessage?: string
+
   // Callbacks
   onCellClick?: (stepId: string, layerId: string) => void
   onBackgroundClick?: () => void
@@ -61,6 +64,7 @@ export function TimelineCanvas<TStep, TLayer>({
   renderLaneHeader,
   renderAddStep,
   renderSeparatorAfterLayer,
+  emptyStateMessage,
   onCellClick,
   onBackgroundClick,
 }: TimelineCanvasProps<TStep, TLayer>) {
@@ -160,7 +164,7 @@ export function TimelineCanvas<TStep, TLayer>({
         {/* Empty state */}
         {steps.length === 0 && (
           <div className="p-6 text-center text-muted-foreground">
-            No steps defined. Click &quot;+ Add Step&quot; to create your first step.
+            {emptyStateMessage || 'No steps defined. Click "+ Add Step" to create your first step.'}
           </div>
         )}
       </div>
