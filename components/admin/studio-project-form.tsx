@@ -37,7 +37,6 @@ export function StudioProjectForm({ project, mode, existingProjectNames = [] }: 
     problem_statement: project?.problem_statement || '',
     success_criteria: project?.success_criteria || '',
     scope_out: project?.scope_out || '',
-    path: project?.path || '',
   })
 
   // Handle generation from log entries
@@ -107,7 +106,6 @@ export function StudioProjectForm({ project, mode, existingProjectNames = [] }: 
         problem_statement: formData.problem_statement || null,
         success_criteria: formData.success_criteria || null,
         scope_out: formData.scope_out || null,
-        path: formData.path || null,
       }
 
       if (mode === 'create') {
@@ -239,7 +237,7 @@ export function StudioProjectForm({ project, mode, existingProjectNames = [] }: 
                   onChange={(e) => setFormData({ ...formData, slug: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '-') })}
                   className="w-full px-3 py-2 rounded-lg border bg-background font-mono text-sm"
                   required
-                  pattern="^[a-z0-9-]+$"
+                  pattern="[a-z0-9\-]+"
                 />
               </div>
             </div>
@@ -261,7 +259,7 @@ export function StudioProjectForm({ project, mode, existingProjectNames = [] }: 
               />
             </FormFieldWithAI>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium mb-1">Status</label>
                 <select
@@ -288,16 +286,6 @@ export function StudioProjectForm({ project, mode, existingProjectNames = [] }: 
                   <option value="warm">🌡️ Warm</option>
                   <option value="cold">❄️ Cold</option>
                 </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">Path</label>
-                <input
-                  type="text"
-                  value={formData.path}
-                  onChange={(e) => setFormData({ ...formData, path: e.target.value })}
-                  className="w-full px-3 py-2 rounded-lg border bg-background font-mono text-sm"
-                  placeholder="components/studio/{slug}/"
-                />
               </div>
             </div>
 
