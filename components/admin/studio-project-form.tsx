@@ -237,7 +237,7 @@ export function StudioProjectForm({ project, mode, existingProjectNames = [] }: 
                   onChange={(e) => setFormData({ ...formData, slug: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '-') })}
                   className="w-full px-3 py-2 rounded-lg border bg-background font-mono text-sm"
                   required
-                  pattern="^[a-z0-9-]+$"
+                  pattern="[a-z0-9\-]+"
                 />
               </div>
             </div>
