@@ -13,6 +13,7 @@ import {
   type JourneyStage,
   type JourneyCell as CellType,
   type JourneyLayerType,
+  type Touchpoint,
 } from '@/lib/boundary-objects/journey-cells'
 
 // Layer definition for TimelineCanvas
@@ -26,6 +27,7 @@ interface JourneyCanvasProps {
   journeyId: string
   stages: JourneyStage[]
   cells: CellType[]
+  touchpointsMap: Map<string, Touchpoint[]>
   mode: CanvasMode
   selectedCellKey: string | null
   onCellSelect: (stageId: string, layerType: JourneyLayerType) => void
@@ -48,6 +50,7 @@ export function JourneyCanvas({
   journeyId,
   stages,
   cells,
+  touchpointsMap,
   mode,
   selectedCellKey,
   onCellSelect,
@@ -89,18 +92,23 @@ export function JourneyCanvas({
       const cell = getCell(stage.id, layer.type)
       const cellKey = `${stage.id}:${layer.type}`
       const isSelected = selectedCellKey === cellKey
+      // Get touchpoints for this stage (only relevant for touchpoint layer)
+      const stageTouchpoints = layer.type === 'touchpoint'
+        ? touchpointsMap.get(stage.id) || []
+        : []
 
       return (
         <JourneyCell
           cell={cell}
           stageId={stage.id}
           layerType={layer.type}
+          touchpoints={stageTouchpoints}
           isSelected={isSelected}
           onClick={() => onCellSelect(stage.id, layer.type)}
         />
       )
     },
-    [getCell, selectedCellKey, onCellSelect]
+    [getCell, selectedCellKey, onCellSelect, touchpointsMap]
   )
 
   // Render stage header

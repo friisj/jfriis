@@ -20,6 +20,7 @@ export { JourneyStageHeader, AddStageButton } from './journey-stage-header'
 export { JourneyLaneHeader } from './journey-lane-header'
 export { JourneyCell } from './journey-cell'
 export { JourneyCellDetailPanel } from './journey-cell-detail-panel'
+export { TouchpointDetailPanel } from './touchpoint-detail-panel'
 export { EmotionScoreInput } from './emotion-score-input'
 
 // Block Grid Canvas (Phase 3)
