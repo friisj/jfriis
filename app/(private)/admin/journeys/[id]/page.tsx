@@ -2,6 +2,7 @@ export const dynamic = 'force-dynamic'
 
 import { Suspense } from 'react'
 import { notFound } from 'next/navigation'
+import Link from 'next/link'
 import { createClient } from '@/lib/supabase-server'
 import {
   AdminDetailLayout,
@@ -84,7 +85,22 @@ export default async function JourneyDetailPage({ params }: { params: { id: stri
       description={journey.description || ''}
       backHref="/admin/journeys"
       backLabel="Back to Journeys"
-      editHref={`/admin/journeys/${params.id}/edit`}
+      actions={
+        <div className="flex gap-2">
+          <Link
+            href={`/admin/journeys/${params.id}/canvas`}
+            className="px-4 py-2 border border-primary text-primary rounded-md text-sm hover:bg-primary/10"
+          >
+            Canvas View
+          </Link>
+          <Link
+            href={`/admin/journeys/${params.id}/edit`}
+            className="px-4 py-2 bg-primary text-primary-foreground rounded-md text-sm hover:opacity-90"
+          >
+            Edit Journey
+          </Link>
+        </div>
+      }
     >
       <AdminErrorBoundary>
         <Suspense fallback={<JourneyDetailSkeleton />}>
