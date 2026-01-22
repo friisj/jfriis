@@ -10,6 +10,7 @@
 **Route:** `/admin/canvases/business-models/[id]/canvas`
 **Pattern:** Block grid (9 fixed blocks)
 **Priority:** Third (validates BlockGridCanvas pattern)
+**Depends on:** Phase 1-2 complete (shared patterns established)
 
 ---
 
@@ -32,12 +33,25 @@ interface BlockData {
 }
 ```
 
-### Decision: Keep JSONB
+### Design Decision: Keep JSONB
 
-Unlike Blueprint (which needed cells for grid intersection), BMC blocks are independent containers. JSONB is appropriate:
-- Each block has its own items array
-- No cross-block relationships at item level
-- Simpler than creating additional tables
+Unlike Blueprint/Journey (which needed cells for grid intersection), BMC blocks are independent containers. JSONB is appropriate:
+
+| Factor | Relational Tables | JSONB (Chosen) |
+|--------|------------------|----------------|
+| Data structure | Items need own table | Items are simple objects |
+| Cross-block relations | Not needed | Not needed |
+| Grid intersections | N/A (no step×layer) | N/A |
+| Query patterns | Complex joins | Simple JSON operations |
+| Existing data | Would need migration | Already in place |
+
+**Pattern difference from Timeline canvases:**
+- Timeline (Blueprint/Journey): Steps × Layers = cells → relational tables
+- Block Grid (BMC/Profile/ValueMap): Independent item lists → JSONB appropriate
+
+### No Migration Needed
+
+Existing `business_model_canvases` table already has appropriate structure. No schema changes required.
 
 ---
 
@@ -83,6 +97,7 @@ Follows standard BMC proportions with CSS Grid:
   display: grid;
   grid-template-columns: 1fr 1fr 1fr 1fr 1fr;
   grid-template-rows: 1fr 1fr 1fr;
+  gap: 0.5rem;
 }
 ```
 
@@ -152,7 +167,6 @@ interface BlockGridCanvasProps<TBlock, TItem> {
 | `CanvasBlock` | Generic block container (shared) |
 | `BlockItem` | Item card (shared) |
 | `ItemDetailPanel` | Side panel for editing (shared) |
-| `CreateItemModal` | Add item modal (shared) |
 
 ---
 
@@ -160,15 +174,179 @@ interface BlockGridCanvasProps<TBlock, TItem> {
 
 **File:** `app/(private)/admin/canvases/business-models/[id]/canvas/actions.ts`
 
+### Type Definitions
+
 ```typescript
-// Item CRUD (operates on JSONB)
-export async function addItemAction(canvasId: string, blockId: string, content: string): Promise<ActionResult>
-export async function updateItemAction(canvasId: string, blockId: string, itemId: string, data: ItemData): Promise<ActionResult>
-export async function deleteItemAction(canvasId: string, blockId: string, itemId: string): Promise<ActionResult>
-export async function reorderItemsAction(canvasId: string, blockId: string, itemIds: string[]): Promise<ActionResult>
+'use server'
+
+// ActionResult pattern (consistent with Timeline canvases)
+type ActionResult<T = void> =
+  | { success: true; data: T }
+  | { success: false; error: string; code?: string }
+
+interface ItemData {
+  content: string
+  priority?: 'high' | 'medium' | 'low'
+  evidence?: string
+  assumptions?: string[]
+}
 ```
 
-Note: These actions read/modify the JSONB `blocks` column on `business_model_canvases`.
+### Authorization Pattern
+
+```typescript
+async function verifyCanvasAccess(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  canvasId: string
+): Promise<{ success: true; canvasId: string } | { success: false; error: string }> {
+  const { data, error } = await supabase
+    .from('business_model_canvases')
+    .select('id')
+    .eq('id', canvasId)
+    .single()
+
+  if (error || !data) {
+    return { success: false, error: 'Canvas not found or access denied' }
+  }
+  return { success: true, canvasId: data.id }
+}
+```
+
+### Action Signatures
+
+```typescript
+// Item CRUD (operates on JSONB)
+export async function addItemAction(
+  canvasId: string,
+  blockId: string,
+  content: string
+): Promise<ActionResult<{ itemId: string }>>
+
+export async function updateItemAction(
+  canvasId: string,
+  blockId: string,
+  itemId: string,
+  data: ItemData
+): Promise<ActionResult>
+
+export async function deleteItemAction(
+  canvasId: string,
+  blockId: string,
+  itemId: string
+): Promise<ActionResult>
+
+export async function reorderItemsAction(
+  canvasId: string,
+  blockId: string,
+  itemIds: string[]
+): Promise<ActionResult>
+
+// Bulk operations (for AI generation)
+export async function bulkAddItemsAction(
+  canvasId: string,
+  blockId: string,
+  items: Array<{ content: string; priority?: string }>
+): Promise<ActionResult<{ count: number }>>
+```
+
+### JSONB Update Pattern
+
+```typescript
+// Example: Adding an item to a JSONB block
+export async function addItemAction(
+  canvasId: string,
+  blockId: string,
+  content: string
+): Promise<ActionResult<{ itemId: string }>> {
+  const supabase = await createClient()
+
+  // Auth check
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) {
+    return { success: false, error: 'Unauthorized', code: 'UNAUTHORIZED' }
+  }
+
+  // Access check
+  const accessCheck = await verifyCanvasAccess(supabase, canvasId)
+  if (!accessCheck.success) {
+    return { success: false, error: accessCheck.error, code: 'ACCESS_DENIED' }
+  }
+
+  // Validate
+  const contentResult = validateItemContent(content)
+  if (!contentResult.success) {
+    return { success: false, error: contentResult.error, code: 'VALIDATION_ERROR' }
+  }
+
+  // Generate item ID
+  const itemId = crypto.randomUUID()
+
+  // Update JSONB (append item to block's items array)
+  const { error } = await supabase.rpc('append_bmc_item', {
+    p_canvas_id: canvasId,
+    p_block_id: blockId,
+    p_item: { id: itemId, content: contentResult.data }
+  })
+
+  if (error) {
+    console.error('[addItemAction] Database error:', error.code, error.message)
+    return { success: false, error: 'Failed to add item', code: 'DATABASE_ERROR' }
+  }
+
+  revalidateCanvasPage(canvasId)
+  return { success: true, data: { itemId } }
+}
+```
+
+### Revalidation Pattern
+
+```typescript
+function revalidateCanvasPage(canvasId: string) {
+  revalidatePath(`/admin/canvases/business-models/${canvasId}/canvas`, 'page')
+  revalidatePath(`/admin/canvases/business-models/${canvasId}`, 'layout')
+}
+```
+
+### Validation Constants
+
+**File:** `lib/boundary-objects/bmc-canvas.ts`
+
+```typescript
+export const BMC_BLOCK_IDS = [
+  'key_partners',
+  'key_activities',
+  'key_resources',
+  'value_propositions',
+  'customer_relationships',
+  'channels',
+  'customer_segments',
+  'cost_structure',
+  'revenue_streams'
+] as const
+
+export type BMCBlockId = typeof BMC_BLOCK_IDS[number]
+
+export const ITEM_CONTENT_MAX_LENGTH = 500
+export const ITEM_EVIDENCE_MAX_LENGTH = 1000
+
+export function validateBlockId(blockId: string): DataResult<BMCBlockId> {
+  if (!BMC_BLOCK_IDS.includes(blockId as BMCBlockId)) {
+    return { success: false, error: `Invalid block ID: ${blockId}` }
+  }
+  return { success: true, data: blockId as BMCBlockId }
+}
+
+export function validateItemContent(content: string): DataResult<string> {
+  const trimmed = content.trim()
+  if (!trimmed) {
+    return { success: false, error: 'Item content is required' }
+  }
+  if (trimmed.length > ITEM_CONTENT_MAX_LENGTH) {
+    return { success: false, error: `Content must be ${ITEM_CONTENT_MAX_LENGTH} characters or less` }
+  }
+  return { success: true, data: trimmed }
+}
+```
 
 ---
 
@@ -182,24 +360,35 @@ Note: These actions read/modify the JSONB `blocks` column on `business_model_can
 | Fill Canvas | Full canvas | Generate items for all blocks |
 | Expand Item | Single item | Generate related items from one item |
 
-### Entity Generation Config
+### Entity Type Registration (REQUIRED)
+
+**File:** `lib/ai/prompts/entity-generation.ts`
+
+Add `bmc_items` to `ENTITY_GENERATION_CONFIGS`:
 
 ```typescript
 bmc_items: {
   systemPrompt: `Generate items for a Business Model Canvas block.
 Consider the block type and generate appropriate content:
-- Key Partners: Strategic partnerships
-- Key Activities: Core business activities
-- Key Resources: Essential assets
+- Key Partners: Strategic partnerships and suppliers
+- Key Activities: Core business activities required to deliver value
+- Key Resources: Essential assets (physical, intellectual, human, financial)
 - Value Propositions: Customer value delivered
-- Customer Relationships: How you interact with customers
-- Channels: How you reach customers
-- Customer Segments: Who you serve
-- Cost Structure: Major costs
-- Revenue Streams: How you make money`,
+- Customer Relationships: How you interact with and retain customers
+- Channels: How you reach and deliver value to customers
+- Customer Segments: Who you serve (target markets)
+- Cost Structure: Major costs in operating the business model
+- Revenue Streams: How you generate income from each customer segment`,
   fieldsToGenerate: ['content', 'priority'],
+  defaultValues: {},
   contextFields: ['canvas_name', 'block_type', 'existing_items', 'venture_context'],
   displayField: 'content',
+  editableFields: ['content', 'priority', 'evidence'],
+  fieldHints: {
+    content: 'Concise description of the item',
+    priority: 'Importance level (high, medium, low)',
+    evidence: 'Supporting evidence or validation'
+  }
 }
 ```
 
@@ -218,10 +407,92 @@ Consider the block type and generate appropriate content:
     └── actions.ts              # Server actions
 ```
 
+### Page Component
+
+```typescript
+// app/(private)/admin/canvases/business-models/[id]/canvas/page.tsx
+export default async function BMCCanvasPage({ params }: { params: { id: string } }) {
+  const supabase = await createClient()
+
+  const { data: canvas } = await supabase
+    .from('business_model_canvases')
+    .select('*')
+    .eq('id', params.id)
+    .single()
+
+  if (!canvas) notFound()
+
+  return <BMCCanvasView canvas={canvas} />
+}
+```
+
+### Navigation Integration
+
+```typescript
+// Add link in BMC detail/edit page
+<Button asChild variant="outline">
+  <Link href={`/admin/canvases/business-models/${canvas.id}/canvas`}>
+    <LayoutGrid className="h-4 w-4 mr-2" />
+    Canvas View
+  </Link>
+</Button>
+```
+
+---
+
+## File Summary
+
+### Files to Create
+
+| File | Type | Purpose |
+|------|------|---------|
+| `components/admin/canvas/block-grid-canvas.tsx` | Component | Shared block grid base |
+| `components/admin/canvas/canvas-block.tsx` | Component | Block container |
+| `components/admin/canvas/block-item.tsx` | Component | Item card |
+| `components/admin/canvas/item-detail-panel.tsx` | Component | Side panel for editing |
+| `components/admin/canvas/bmc-canvas.tsx` | Component | BMC-specific wrapper |
+| `app/(private)/admin/canvases/business-models/[id]/canvas/page.tsx` | Page | Route entry point |
+| `app/(private)/admin/canvases/business-models/[id]/canvas/bmc-canvas-view.tsx` | Component | Client orchestration |
+| `app/(private)/admin/canvases/business-models/[id]/canvas/actions.ts` | Actions | Server actions |
+| `lib/boundary-objects/bmc-canvas.ts` | Utility | Validation & constants |
+
+### Files to Modify
+
+| File | Change |
+|------|--------|
+| `components/admin/canvas/index.ts` | Export new components |
+| `lib/ai/prompts/entity-generation.ts` | Add `bmc_items` config |
+| `app/(private)/admin/canvases/business-models/[id]/page.tsx` | Add "Canvas View" link |
+
+### Optional: JSONB Helper RPC
+
+For cleaner JSONB operations, consider adding a PostgreSQL function:
+
+```sql
+-- supabase/migrations/YYYYMMDD_bmc_jsonb_helpers.sql
+
+CREATE OR REPLACE FUNCTION append_bmc_item(
+  p_canvas_id UUID,
+  p_block_id TEXT,
+  p_item JSONB
+) RETURNS VOID AS $$
+BEGIN
+  UPDATE business_model_canvases
+  SET blocks = jsonb_set(
+    COALESCE(blocks, '{}'::jsonb),
+    ARRAY[p_block_id, 'items'],
+    COALESCE(blocks->p_block_id->'items', '[]'::jsonb) || p_item
+  )
+  WHERE id = p_canvas_id;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+```
+
 ---
 
 ## Verification Checklist
 
+### Core Functionality
 - [ ] BlockGridCanvas component created and working
 - [ ] Can navigate to `/admin/canvases/business-models/[id]/canvas`
 - [ ] 9-block BMC layout displays correctly
@@ -232,6 +503,13 @@ Consider the block type and generate appropriate content:
 - [ ] Can reorder items within block (drag mode)
 - [ ] AI generation works for block items
 - [ ] Mode toggle works
+
+### P0 Fixes (Tech Review)
+- [ ] ActionResult type matches Timeline canvas pattern
+- [ ] Authorization helpers verify access before mutations
+- [ ] Validation functions exist in boundary-objects
+- [ ] Entity type `bmc_items` registered in ENTITY_GENERATION_CONFIGS
+- [ ] Navigation link added to existing BMC pages
 - [ ] Build compiles without errors
 
 ---
@@ -240,3 +518,22 @@ Consider the block type and generate appropriate content:
 
 - Phase 1-2 complete (shared patterns established) ✓
 - Existing `business_model_canvases` table ✓
+
+---
+
+## Pattern Differences from Timeline Canvases
+
+| Aspect | Timeline (Blueprint/Journey) | Block Grid (BMC) |
+|--------|------------------------------|------------------|
+| Data model | Relational cells table | JSONB blocks |
+| Grid structure | Steps × Layers | Fixed block layout |
+| Cell identity | UUID per cell | UUID per item (in JSONB) |
+| Reorder scope | Steps (columns) | Items within block |
+| AI generation | Per-cell content | Per-block items |
+
+**Shared patterns (must match):**
+- ActionResult type
+- Authorization helpers
+- Validation boundary-objects
+- Entity type registration
+- Navigation integration

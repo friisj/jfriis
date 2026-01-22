@@ -39,6 +39,11 @@
 ### New Table: `blueprint_cells`
 
 ```sql
+-- ============================================================================
+-- BLUEPRINT_CELLS TABLE
+-- Migration file: supabase/migrations/YYYYMMDD_blueprint_cells.sql
+-- ============================================================================
+
 CREATE TABLE blueprint_cells (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   step_id UUID NOT NULL REFERENCES blueprint_steps(id) ON DELETE CASCADE,
@@ -48,20 +53,102 @@ CREATE TABLE blueprint_cells (
   created_at TIMESTAMPTZ DEFAULT now(),
   updated_at TIMESTAMPTZ DEFAULT now(),
 
+  -- One cell per step × layer intersection
   UNIQUE(step_id, layer_type)
 );
 
 -- Index for efficient queries
 CREATE INDEX idx_blueprint_cells_step ON blueprint_cells(step_id);
 
--- RLS policies (match blueprint_steps pattern)
+-- ============================================================================
+-- RLS POLICIES
+-- Pattern: Authenticated users can view/manage all (admin-only feature for MVP)
+-- ============================================================================
+
 ALTER TABLE blueprint_cells ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "Users can view blueprint cells" ON blueprint_cells
-  FOR SELECT USING (true);
+CREATE POLICY "Authenticated users can view blueprint cells" ON blueprint_cells
+  FOR SELECT TO authenticated USING (true);
 
-CREATE POLICY "Users can manage blueprint cells" ON blueprint_cells
-  FOR ALL USING (true);
+CREATE POLICY "Authenticated users can manage blueprint cells" ON blueprint_cells
+  FOR ALL TO authenticated USING (true);
+
+-- ============================================================================
+-- ENTITY_LINKS SYNC (Optional - for future evidence linking)
+-- Uses existing helper functions from 20260114100000_fix_entity_links_sync_triggers.sql
+-- ============================================================================
+
+-- NOTE: Blueprint cells don't have FK relationships that need auto-sync.
+-- Entity links for evidence/assumptions will be managed manually via UI.
+-- This trigger is provided for future use if needed.
+
+-- FUTURE: If blueprint_cells gets a FK like `evidence_id`, add trigger:
+-- CREATE OR REPLACE FUNCTION sync_blueprint_cell_evidence_link()
+-- RETURNS TRIGGER SECURITY DEFINER SET search_path = public AS $$
+-- BEGIN
+--   IF TG_OP = 'INSERT' AND NEW.evidence_id IS NOT NULL THEN
+--     PERFORM upsert_entity_link('blueprint_cell', NEW.id, 'evidence', NEW.evidence_id, 'supports');
+--   ELSIF TG_OP = 'UPDATE' AND OLD.evidence_id IS DISTINCT FROM NEW.evidence_id THEN
+--     DELETE FROM entity_links WHERE source_type = 'blueprint_cell' AND source_id = NEW.id AND link_type = 'supports';
+--     IF NEW.evidence_id IS NOT NULL THEN
+--       PERFORM upsert_entity_link('blueprint_cell', NEW.id, 'evidence', NEW.evidence_id, 'supports');
+--     END IF;
+--   ELSIF TG_OP = 'DELETE' AND OLD.evidence_id IS NOT NULL THEN
+--     PERFORM remove_entity_link('blueprint_cell', OLD.id, 'evidence', OLD.evidence_id, 'supports');
+--   END IF;
+--   IF TG_OP = 'DELETE' THEN RETURN OLD; ELSE RETURN NEW; END IF;
+-- END;
+-- $$ LANGUAGE plpgsql;
+
+-- ============================================================================
+-- VERIFICATION
+-- ============================================================================
+
+DO $$
+BEGIN
+  -- Verify table exists with correct columns
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_name = 'blueprint_cells'
+  ) THEN
+    RAISE EXCEPTION 'blueprint_cells table not created';
+  END IF;
+
+  -- Verify RLS is enabled
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_tables
+    WHERE tablename = 'blueprint_cells' AND rowsecurity = true
+  ) THEN
+    RAISE EXCEPTION 'RLS not enabled on blueprint_cells';
+  END IF;
+
+  RAISE NOTICE 'blueprint_cells table created successfully';
+END $$;
+```
+
+### UNIQUE Constraint Behavior
+
+The `UNIQUE(step_id, layer_type)` constraint ensures exactly one cell per step × layer intersection. Server actions handle this:
+
+```typescript
+// createCellAction uses upsert pattern for idempotency
+export async function createCellAction(
+  stepId: string,
+  layerType: string,
+  content: string
+): Promise<ActionResult> {
+  // ... auth and validation ...
+
+  // Upsert: create if not exists, update if exists
+  const { error } = await supabase
+    .from('blueprint_cells')
+    .upsert(
+      { step_id: stepId, layer_type: layerType, content },
+      { onConflict: 'step_id,layer_type' }
+    )
+
+  // ... error handling ...
+}
 ```
 
 ### Migration Notes
@@ -225,8 +312,109 @@ Side panel (like StoryDetailPanel) for editing selected cell:
 
 **File:** `app/(private)/admin/blueprints/[id]/canvas/actions.ts`
 
+### Type Definitions
+
 ```typescript
-// Cell CRUD
+'use server'
+
+// ActionResult pattern (matches story-map-canvas)
+type ActionResult<T = void> =
+  | { success: true; data: T }
+  | { success: false; error: string; code?: string }
+
+// Error codes for client handling
+type ErrorCode =
+  | 'UNAUTHORIZED'
+  | 'ACCESS_DENIED'
+  | 'VALIDATION_ERROR'
+  | 'DATABASE_ERROR'
+  | 'DUPLICATE_ERROR'
+  | 'NOT_FOUND'
+
+// Data types
+interface CellUpdateData {
+  content?: string
+  actors?: string
+  duration?: string
+  cost_implication?: 'none' | 'low' | 'medium' | 'high'
+  failure_risk?: 'none' | 'low' | 'medium' | 'high'
+}
+
+interface StepUpdateData {
+  name?: string
+  description?: string
+}
+
+interface CellCreateData {
+  layer_type: 'customer_action' | 'frontstage' | 'backstage' | 'support_process'
+  content: string
+}
+
+interface StepCreateData {
+  name: string
+  description?: string
+}
+```
+
+### Authorization Pattern
+
+```typescript
+// All actions follow this pattern (from story-map-canvas):
+
+async function verifyBlueprintAccess(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  blueprintId: string
+): Promise<{ success: true; blueprintId: string } | { success: false; error: string }> {
+  const { data, error } = await supabase
+    .from('service_blueprints')
+    .select('id')
+    .eq('id', blueprintId)
+    .single()
+
+  if (error || !data) {
+    return { success: false, error: 'Blueprint not found or access denied' }
+  }
+  return { success: true, blueprintId: data.id }
+}
+
+async function verifyStepAccess(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  stepId: string
+): Promise<{ success: true; blueprintId: string } | { success: false; error: string }> {
+  const { data, error } = await supabase
+    .from('blueprint_steps')
+    .select('id, blueprint_id')
+    .eq('id', stepId)
+    .single()
+
+  if (error || !data) {
+    return { success: false, error: 'Step not found or access denied' }
+  }
+  return { success: true, blueprintId: data.blueprint_id }
+}
+
+async function verifyCellAccess(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  cellId: string
+): Promise<{ success: true; blueprintId: string } | { success: false; error: string }> {
+  const { data, error } = await supabase
+    .from('blueprint_cells')
+    .select('id, step:blueprint_steps(blueprint_id)')
+    .eq('id', cellId)
+    .single()
+
+  if (error || !data || !data.step) {
+    return { success: false, error: 'Cell not found or access denied' }
+  }
+  const step = data.step as { blueprint_id: string }
+  return { success: true, blueprintId: step.blueprint_id }
+}
+```
+
+### Action Signatures
+
+```typescript
+// Cell CRUD (upsert for create to handle UNIQUE constraint)
 export async function createCellAction(stepId: string, layerType: string, content: string): Promise<ActionResult>
 export async function updateCellAction(cellId: string, data: CellUpdateData): Promise<ActionResult>
 export async function deleteCellAction(cellId: string): Promise<ActionResult>
@@ -238,11 +426,57 @@ export async function deleteStepAction(stepId: string): Promise<ActionResult>
 export async function reorderStepsAction(blueprintId: string, stepIds: string[]): Promise<ActionResult>
 
 // Bulk operations (for AI generation)
-export async function bulkCreateCellsAction(stepId: string, cells: CellCreateData[]): Promise<ActionResult>
-export async function bulkCreateStepsAction(blueprintId: string, steps: StepCreateData[]): Promise<ActionResult>
+export async function bulkCreateCellsAction(stepId: string, cells: CellCreateData[]): Promise<ActionResult<{ count: number }>>
+export async function bulkCreateStepsAction(blueprintId: string, steps: StepCreateData[]): Promise<ActionResult<{ count: number }>>
 ```
 
-**Authorization:** All actions verify user has access to the parent blueprint (follow story-map-canvas pattern).
+### Revalidation Pattern
+
+```typescript
+function revalidateBlueprintCanvas(blueprintId: string) {
+  revalidatePath(`/admin/blueprints/${blueprintId}/canvas`, 'page')
+  revalidatePath(`/admin/blueprints/${blueprintId}`, 'layout')
+}
+```
+
+### Validation Constants
+
+**File:** `lib/boundary-objects/blueprint-cells.ts`
+
+```typescript
+export const CELL_CONTENT_MAX_LENGTH = 2000
+export const STEP_NAME_MAX_LENGTH = 100
+export const STEP_DESCRIPTION_MAX_LENGTH = 1000
+
+export const LAYER_TYPES = ['customer_action', 'frontstage', 'backstage', 'support_process'] as const
+export type LayerType = typeof LAYER_TYPES[number]
+
+export function validateCellContent(content: string): DataResult<string> {
+  const trimmed = content.trim()
+  if (trimmed.length > CELL_CONTENT_MAX_LENGTH) {
+    return { success: false, error: `Content must be ${CELL_CONTENT_MAX_LENGTH} characters or less` }
+  }
+  return { success: true, data: trimmed }
+}
+
+export function validateStepName(name: string): DataResult<string> {
+  const trimmed = name.trim()
+  if (!trimmed) {
+    return { success: false, error: 'Step name is required' }
+  }
+  if (trimmed.length > STEP_NAME_MAX_LENGTH) {
+    return { success: false, error: `Step name must be ${STEP_NAME_MAX_LENGTH} characters or less` }
+  }
+  return { success: true, data: trimmed }
+}
+
+export function validateLayerType(layerType: string): DataResult<LayerType> {
+  if (!LAYER_TYPES.includes(layerType as LayerType)) {
+    return { success: false, error: `Invalid layer type: ${layerType}` }
+  }
+  return { success: true, data: layerType as LayerType }
+}
+```
 
 ---
 
@@ -257,33 +491,72 @@ export async function bulkCreateStepsAction(blueprintId: string, steps: StepCrea
 | Fill Row | Single layer | Generate content for all cells in one layer |
 | Fill Column | Single step | Generate content for all layers in one step |
 
-### Entity Generation Config
+### Entity Type Registration (REQUIRED)
 
 **File:** `lib/ai/prompts/entity-generation.ts`
 
+Add both `blueprint_steps` and `blueprint_cells` to `ENTITY_GENERATION_CONFIGS`:
+
 ```typescript
-blueprint_steps: {
-  systemPrompt: `Generate steps for a service blueprint that map the customer journey through service delivery.
+import { ENTITY_GENERATION_CONFIGS } from './entity-generation'
+
+// REQUIRED: Register both entity types before use
+// Verify in lib/ai/prompts/entity-generation.ts:
+
+export const ENTITY_GENERATION_CONFIGS: Record<EntityType, EntityGenerationConfig> = {
+  // ... existing configs ...
+
+  blueprint_steps: {
+    systemPrompt: `Generate steps for a service blueprint that map the customer journey through service delivery.
 Each step represents a moment in the service experience. Steps should:
 - Flow logically left-to-right as a sequence
 - Cover the full service encounter
 - Be specific enough to map actions at each layer
 - Use concise names (2-4 words)`,
-  fieldsToGenerate: ['name', 'description'],
-  contextFields: ['blueprint_name', 'blueprint_description', 'blueprint_type', 'existing_steps'],
-  displayField: 'name',
-},
+    fieldsToGenerate: ['name', 'description'],
+    defaultValues: {},
+    contextFields: ['blueprint_name', 'blueprint_description', 'blueprint_type', 'existing_steps'],
+    displayField: 'name',
+    editableFields: ['name', 'description'],
+    fieldHints: {
+      name: 'Short action phrase (e.g., "Enter store", "Browse products")',
+      description: 'What happens during this step'
+    }
+  },
 
-blueprint_cells: {
-  systemPrompt: `Generate content for a service blueprint cell at the intersection of a step and layer.
+  blueprint_cells: {
+    systemPrompt: `Generate content for a service blueprint cell at the intersection of a step and layer.
 Consider:
 - Step context: what moment in the journey
 - Layer type: customer action / frontstage / backstage / support process
 - Adjacent cells: maintain consistency with neighboring content
 Write concise, actionable descriptions of what happens at this intersection.`,
-  fieldsToGenerate: ['content'],
-  contextFields: ['step_name', 'layer_type', 'blueprint_context', 'adjacent_cells'],
-  displayField: 'content',
+    fieldsToGenerate: ['content'],
+    defaultValues: {},
+    contextFields: ['step_name', 'layer_type', 'blueprint_context', 'adjacent_cells'],
+    displayField: 'content',
+    editableFields: ['content'],
+    fieldHints: {
+      content: 'Description of what happens at this step for this layer'
+    }
+  },
+}
+```
+
+### Verification
+
+Before implementing, verify entity types are registered:
+
+```typescript
+// In canvas-view component or test:
+import { ENTITY_GENERATION_CONFIGS } from '@/lib/ai/prompts/entity-generation'
+
+// This should not throw
+if (!ENTITY_GENERATION_CONFIGS.blueprint_steps) {
+  throw new Error('blueprint_steps not registered in ENTITY_GENERATION_CONFIGS')
+}
+if (!ENTITY_GENERATION_CONFIGS.blueprint_cells) {
+  throw new Error('blueprint_cells not registered in ENTITY_GENERATION_CONFIGS')
 }
 ```
 
@@ -328,6 +601,29 @@ export default async function BlueprintCanvasPage({ params }: { params: { id: st
 }
 ```
 
+### Navigation Integration
+
+Users need to access the canvas from existing blueprint pages:
+
+```typescript
+// Add link in blueprint detail page or edit page
+// Example: app/(private)/admin/blueprints/[id]/page.tsx or edit/page.tsx
+
+import Link from 'next/link'
+import { LayoutGrid } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+
+// In page header or actions area:
+<Button asChild variant="outline">
+  <Link href={`/admin/blueprints/${blueprint.id}/canvas`}>
+    <LayoutGrid className="h-4 w-4 mr-2" />
+    Canvas View
+  </Link>
+</Button>
+```
+
+**Also consider:** Adding "Canvas View" to blueprint list actions dropdown for quick access.
+
 ---
 
 ## File Summary
@@ -353,12 +649,14 @@ export default async function BlueprintCanvasPage({ params }: { params: { id: st
 | File | Change |
 |------|--------|
 | `components/admin/canvas/index.ts` | Export new components |
-| `lib/ai/prompts/entity-generation.ts` | Add blueprint configs |
+| `lib/ai/prompts/entity-generation.ts` | Add `blueprint_steps` and `blueprint_cells` configs |
+| `app/(private)/admin/blueprints/[id]/page.tsx` | Add "Canvas View" link |
 
 ---
 
 ## Verification Checklist
 
+### Core Functionality
 - [ ] Can navigate to `/admin/blueprints/[id]/canvas`
 - [ ] Grid displays steps as columns, 4 layers as rows
 - [ ] Line of visibility separator renders between frontstage and backstage
@@ -369,12 +667,20 @@ export default async function BlueprintCanvasPage({ params }: { params: { id: st
 - [ ] Can reorder steps via drag-drop in drag mode
 - [ ] Clicking cell in structured mode opens detail panel
 - [ ] Can edit cell content in detail panel
-- [ ] Can save cell changes
+- [ ] Can save cell changes (upsert behavior works)
 - [ ] Empty cells show placeholder
 - [ ] AI generation menu appears in toolbar
 - [ ] Can generate steps for blueprint
 - [ ] Can generate content for single cell
 - [ ] Mode toggle works (drag/structured)
+
+### P0 Fixes (Tech Review)
+- [ ] RLS policies use `TO authenticated` pattern
+- [ ] ActionResult type defined with error codes
+- [ ] Authorization helpers verify access before mutations
+- [ ] Validation functions exist in boundary-objects
+- [ ] Entity types registered in ENTITY_GENERATION_CONFIGS
+- [ ] Navigation link added to existing blueprint pages
 - [ ] Build compiles without errors
 
 ---
@@ -385,3 +691,22 @@ export default async function BlueprintCanvasPage({ params }: { params: { id: st
 - Existing `service_blueprints` and `blueprint_steps` tables ✓
 - AI generation API (`/api/ai/generate`) ✓
 - Canvas base components (CanvasViewLayout, etc.) ✓
+- Entity link helper functions (upsert_entity_link, remove_entity_link) ✓
+
+---
+
+## P0 Tech Review Fixes Summary
+
+This spec addresses the following critical and high issues identified in tech review:
+
+| Issue | Category | Resolution |
+|-------|----------|------------|
+| Entity links sync triggers | P0-CRITICAL | Trigger pattern documented; not needed for MVP (no FK auto-sync) |
+| UNIQUE constraint behavior | P0-CRITICAL | Upsert pattern in createCellAction handles gracefully |
+| AI generation types not registered | P0-CRITICAL | Entity type registration requirement documented with verification |
+| RLS policy inconsistency | P0-CRITICAL | Explicit `TO authenticated` pattern in migration |
+| ActionResult type undefined | P1-HIGH | Type definition provided matching story-map-canvas pattern |
+| Missing validation | P1-HIGH | Validation constants and functions in boundary-objects |
+| Navigation integration | P1-HIGH | Link pattern documented for existing pages |
+
+**Stability Principle:** Following established patterns from story-map-canvas ensures inter-operability and reduces future maintenance burden.

@@ -54,6 +54,11 @@ Journeys already use proper relational tables:
 Following the Blueprint cells pattern:
 
 ```sql
+-- ============================================================================
+-- JOURNEY_CELLS TABLE
+-- Migration file: supabase/migrations/YYYYMMDD_journey_cells.sql
+-- ============================================================================
+
 CREATE TABLE journey_cells (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   stage_id UUID NOT NULL REFERENCES journey_stages(id) ON DELETE CASCADE,
@@ -66,24 +71,47 @@ CREATE TABLE journey_cells (
   created_at TIMESTAMPTZ DEFAULT now(),
   updated_at TIMESTAMPTZ DEFAULT now(),
 
+  -- One cell per stage × layer intersection
   UNIQUE(stage_id, layer_type)
 );
 
 CREATE INDEX idx_journey_cells_stage ON journey_cells(stage_id);
 
+-- ============================================================================
+-- RLS POLICIES (consistent with Blueprint cells)
+-- ============================================================================
+
 ALTER TABLE journey_cells ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "Users can view journey cells" ON journey_cells
-  FOR SELECT USING (true);
+CREATE POLICY "Authenticated users can view journey cells" ON journey_cells
+  FOR SELECT TO authenticated USING (true);
 
-CREATE POLICY "Users can manage journey cells" ON journey_cells
-  FOR ALL USING (true);
+CREATE POLICY "Authenticated users can manage journey cells" ON journey_cells
+  FOR ALL TO authenticated USING (true);
+
+-- ============================================================================
+-- VERIFICATION
+-- ============================================================================
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.tables WHERE table_name = 'journey_cells'
+  ) THEN
+    RAISE EXCEPTION 'journey_cells table not created';
+  END IF;
+  RAISE NOTICE 'journey_cells table created successfully';
+END $$;
 ```
 
+### UNIQUE Constraint Behavior
+
+Same pattern as Blueprint: use upsert in `createCellAction` to handle one-cell-per-intersection constraint gracefully.
+
 ### Migration Notes
-- Existing touchpoint data may need migration to cells
-- Keep touchpoints table for backward compatibility initially
-- Consider: touchpoints become a special cell type or remain separate
+- No data migration needed if touchpoints table has no significant user data
+- Recommendation: Start with Option 1 (migrate) for pattern consistency
+- Keep touchpoints table temporarily for rollback safety
 
 ---
 
@@ -166,8 +194,37 @@ Same as Blueprint (Phase 1):
 
 **File:** `app/(private)/admin/journeys/[id]/canvas/actions.ts`
 
+Follows the same patterns as Blueprint (Phase 1):
+
+### Type Definitions
+
 ```typescript
-// Cell CRUD
+'use server'
+
+type ActionResult<T = void> =
+  | { success: true; data: T }
+  | { success: false; error: string; code?: string }
+
+interface CellData {
+  content: string
+  emotion_score?: number  // -5 to +5 for emotion layer
+  channel_type?: string   // For channel layer
+}
+```
+
+### Authorization Pattern
+
+```typescript
+// Same pattern as Blueprint - verify via parent journey
+async function verifyJourneyAccess(supabase, journeyId): Promise<{ success: true; journeyId: string } | { success: false; error: string }>
+async function verifyStageAccess(supabase, stageId): Promise<{ success: true; journeyId: string } | { success: false; error: string }>
+async function verifyCellAccess(supabase, cellId): Promise<{ success: true; journeyId: string } | { success: false; error: string }>
+```
+
+### Action Signatures
+
+```typescript
+// Cell CRUD (upsert for create)
 export async function createCellAction(stageId: string, layerType: string, data: CellData): Promise<ActionResult>
 export async function updateCellAction(cellId: string, data: CellUpdateData): Promise<ActionResult>
 export async function deleteCellAction(cellId: string): Promise<ActionResult>
@@ -177,6 +234,22 @@ export async function createStageAction(journeyId: string, name: string, sequenc
 export async function updateStageAction(stageId: string, data: StageUpdateData): Promise<ActionResult>
 export async function deleteStageAction(stageId: string): Promise<ActionResult>
 export async function reorderStagesAction(journeyId: string, stageIds: string[]): Promise<ActionResult>
+
+// Bulk operations
+export async function bulkCreateCellsAction(stageId: string, cells: CellData[]): Promise<ActionResult<{ count: number }>>
+export async function bulkCreateStagesAction(journeyId: string, stages: StageCreateData[]): Promise<ActionResult<{ count: number }>>
+```
+
+### Validation Constants
+
+**File:** `lib/boundary-objects/journey-cells.ts`
+
+```typescript
+export const JOURNEY_LAYER_TYPES = ['touchpoint', 'emotion', 'pain_point', 'channel', 'opportunity'] as const
+export const EMOTION_SCORE_MIN = -5
+export const EMOTION_SCORE_MAX = 5
+export const CELL_CONTENT_MAX_LENGTH = 2000
+export const STAGE_NAME_MAX_LENGTH = 100
 ```
 
 ---
@@ -192,7 +265,11 @@ export async function reorderStagesAction(journeyId: string, stageIds: string[])
 | Fill Row | Single layer | Generate content for all cells in layer |
 | Fill Column | Single stage | Generate content for all layers in stage |
 
-### Entity Generation Config
+### Entity Type Registration (REQUIRED)
+
+**File:** `lib/ai/prompts/entity-generation.ts`
+
+Add both `journey_stages` and `journey_cells` to `ENTITY_GENERATION_CONFIGS`:
 
 ```typescript
 journey_stages: {
@@ -202,8 +279,14 @@ Each stage represents a distinct phase. Stages should:
 - Cover the full experience arc
 - Have clear entry/exit criteria`,
   fieldsToGenerate: ['name', 'description'],
+  defaultValues: {},
   contextFields: ['journey_name', 'journey_description', 'persona_context', 'existing_stages'],
   displayField: 'name',
+  editableFields: ['name', 'description'],
+  fieldHints: {
+    name: 'Short stage name (e.g., "Discovery", "Evaluation")',
+    description: 'What happens during this stage'
+  }
 },
 
 journey_cells: {
@@ -213,8 +296,15 @@ Consider:
 - Layer type: touchpoint / emotion / pain_point / channel / opportunity
 Write appropriate content for the layer type.`,
   fieldsToGenerate: ['content', 'emotion_score', 'channel_type'],
+  defaultValues: {},
   contextFields: ['stage_name', 'layer_type', 'journey_context', 'persona_context'],
   displayField: 'content',
+  editableFields: ['content', 'emotion_score', 'channel_type'],
+  fieldHints: {
+    content: 'Description for this stage and layer',
+    emotion_score: 'Customer emotional state (-5 to +5)',
+    channel_type: 'Communication channel (email, phone, web, etc.)'
+  }
 }
 ```
 
@@ -233,19 +323,40 @@ Write appropriate content for the layer type.`,
     └── actions.ts              # Server actions
 ```
 
+### Navigation Integration
+
+```typescript
+// Add link in journey detail/edit page
+<Button asChild variant="outline">
+  <Link href={`/admin/journeys/${journey.id}/canvas`}>
+    <LayoutGrid className="h-4 w-4 mr-2" />
+    Canvas View
+  </Link>
+</Button>
+```
+
 ---
 
 ## Verification Checklist
 
+### Core Functionality
 - [ ] TimelineCanvas successfully reused from Phase 1
 - [ ] Can navigate to `/admin/journeys/[id]/canvas`
 - [ ] Grid displays stages as columns, 5 layers as rows
 - [ ] Emotion layer shows score with visual indicator
 - [ ] Can add/edit/delete stages
 - [ ] Can reorder stages
-- [ ] Cell editing works via detail panel
+- [ ] Cell editing works via detail panel (upsert behavior)
 - [ ] AI generation works for stages and cells
 - [ ] Mode toggle works
+
+### P0 Fixes (Tech Review)
+- [ ] RLS policies use `TO authenticated` pattern
+- [ ] ActionResult type matches Phase 1 pattern
+- [ ] Authorization helpers verify access before mutations
+- [ ] Validation constants in boundary-objects
+- [ ] Entity types registered in ENTITY_GENERATION_CONFIGS
+- [ ] Navigation link added to existing journey pages
 - [ ] Build compiles without errors
 
 ---
@@ -254,3 +365,18 @@ Write appropriate content for the layer type.`,
 
 - Phase 1 complete (TimelineCanvas exists) ✓
 - Existing `customer_journeys` and `journey_stages` tables ✓
+
+---
+
+## Pattern Reuse from Phase 1
+
+| Pattern | Source | Reuse |
+|---------|--------|-------|
+| TimelineCanvas | `components/admin/canvas/timeline-canvas.tsx` | Direct reuse |
+| ActionResult type | Phase 1 actions | Copy pattern |
+| Authorization helpers | Phase 1 actions | Adapt for journey entities |
+| Validation boundary-object | Phase 1 | New file with journey constants |
+| RLS policy | Phase 1 migration | Same pattern |
+| Navigation integration | Phase 1 | Same pattern |
+
+**Stability Principle:** Phase 2 validates that Phase 1 patterns are truly reusable. Any friction indicates patterns need refinement.

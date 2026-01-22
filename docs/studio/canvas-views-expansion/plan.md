@@ -184,23 +184,106 @@ Layer 3    │  cell   │  cell   │  cell   │  cell   │   │
 
 ### Phase 1: Blueprint Canvas
 **Spec:** `phase1-blueprint-canvas-spec.md`
-**Status:** Spec complete
+**Status:** Spec complete (P0 fixes applied)
+
+**P0 Tech Review Fixes Applied:**
+- RLS policies use `TO authenticated` pattern
+- ActionResult type and error codes defined
+- Authorization helpers documented
+- Validation boundary-objects defined
+- Entity type registration requirement documented
+- Upsert pattern for UNIQUE constraint
+- Navigation integration documented
 
 ### Phase 2: Journey Canvas
 **Spec:** `phase2-journey-canvas-spec.md`
-**Status:** Pending
+**Status:** Spec complete (P0 fixes applied)
+
+**P0 Tech Review Fixes Applied:**
+- Consistent RLS policy pattern
+- Pattern reuse table from Phase 1
+- Entity type registration documented
+- Navigation integration documented
 
 ### Phase 3: BMC Canvas
 **Spec:** `phase3-bmc-canvas-spec.md`
-**Status:** Pending
+**Status:** Spec complete (P0 fixes applied)
+
+**P0 Tech Review Fixes Applied:**
+- Design decision documented (JSONB appropriate for block-based canvases)
+- ActionResult type matches Timeline canvas pattern
+- Authorization helper pattern (verifyCanvasAccess)
+- Validation boundary-objects (lib/boundary-objects/bmc-canvas.ts)
+- Entity type registration requirement (bmc_items)
+- Navigation integration documented
+- JSONB helper RPC pattern documented
 
 ### Phase 4: Customer Profile + Value Map
 **Spec:** `phase4-profile-valuemap-spec.md`
-**Status:** Pending
+**Status:** Spec complete (P0 fixes applied)
+
+**P0 Tech Review Fixes Applied:**
+- BlockGridCanvas reuse from Phase 3
+- ActionResult type matches pattern
+- Authorization helpers for both entity types
+- Two validation boundary-object files (customer-profile-canvas.ts, value-map-canvas.ts)
+- Entity type registration (customer_profile_items, value_map_items)
+- Navigation integration for both canvas types
+- Item type definitions with optional metadata fields
 
 ### Phase 5: VPC Split Canvas
 **Spec:** `phase5-vpc-split-spec.md`
-**Status:** Pending
+**Status:** Spec complete (P0 fixes applied)
+
+**P0 Tech Review Fixes Applied:**
+- Split view composition pattern documented
+- ActionResult type matches pattern
+- Authorization helper verifies VPC + linked entities access
+- Validation boundary-objects (vpc-canvas.ts with fit calculation)
+- Entity type registration (vpc_full, vpc_fit_suggestions)
+- Navigation integration documented
+- Leverages existing fit analysis fields (no new tables needed)
+
+---
+
+## Shared Patterns (All Phases)
+
+These patterns ensure consistency and inter-operability across all canvas types:
+
+### 1. ActionResult Type
+```typescript
+type ActionResult<T = void> =
+  | { success: true; data: T }
+  | { success: false; error: string; code?: string }
+```
+
+### 2. RLS Policy Pattern
+```sql
+ALTER TABLE <table_name> ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Authenticated users can view ..." ON <table_name>
+  FOR SELECT TO authenticated USING (true);
+
+CREATE POLICY "Authenticated users can manage ..." ON <table_name>
+  FOR ALL TO authenticated USING (true);
+```
+
+### 3. Authorization Helper Pattern
+```typescript
+async function verify<Entity>Access(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  entityId: string
+): Promise<{ success: true; parentId: string } | { success: false; error: string }>
+```
+
+### 4. Entity Type Registration
+All AI-generated entity types must be registered in `ENTITY_GENERATION_CONFIGS` before use.
+
+### 5. Navigation Integration
+Every canvas route needs a "Canvas View" link added to the corresponding detail/edit page.
+
+### 6. Validation Boundary Objects
+Each canvas type gets a `lib/boundary-objects/<entity>-cells.ts` file with validation constants and functions.
 
 ---
 
@@ -325,12 +408,20 @@ As implementation progresses, evaluate extracting shared components:
 
 ## Success Criteria
 
+### Functional
 1. **Coverage:** All 6 canvas types have visual canvas views
 2. **Reuse:** 70%+ component code shared between similar types
 3. **Consistency:** Same UX patterns (mode toggle, drag, AI generate) across all
 4. **Performance:** Canvas renders 50+ items without lag
 5. **AI Integration:** AI can generate content for each block/step type
 6. **Retrofitting:** Story Map canvas uses TimelineCanvas after Phase 1
+
+### Stability (P0 Tech Review)
+7. **Pattern Consistency:** All phases follow Shared Patterns documented above
+8. **RLS Security:** All new tables have RLS enabled with `TO authenticated` policies
+9. **Type Safety:** ActionResult type used consistently across all canvas actions
+10. **Validation:** All user inputs validated via boundary-object functions
+11. **Entity Registration:** All AI entity types registered before implementation
 
 ---
 
@@ -340,3 +431,4 @@ As implementation progresses, evaluate extracting shared components:
 - Entity data in Supabase (complete ✓)
 - AI generation API (complete ✓)
 - Entity generation prompts system (complete ✓)
+- Entity link helper functions (upsert_entity_link, remove_entity_link) (complete ✓)

@@ -65,7 +65,9 @@ VPC already has linked entities AND fit analysis fields:
 }
 ```
 
-No new tables needed. VPC canvas renders existing Profile and Value Map data with fit analysis overlay.
+### No Migration Needed
+
+VPC canvas renders existing Profile and Value Map data with fit analysis overlay. No schema changes required.
 
 ---
 
@@ -100,10 +102,10 @@ Visual connections between corresponding blocks:
 
 ### Fit Score
 
-Optional calculation displayed in header:
+Calculation displayed in header:
 ```typescript
 // Simple fit score based on coverage
-const fitScore = calculateFitScore(valueMap, profile)
+const fitScore = calculateFitScore(valueMap, profile, addressedMappings)
 // - % of pains addressed by pain relievers
 // - % of gains addressed by gain creators
 // - Weighted by severity/importance
@@ -113,7 +115,7 @@ const fitScore = calculateFitScore(valueMap, profile)
 
 ## Components
 
-### New Split View Component
+### Split View Component (New)
 
 #### `VPCCanvas`
 **File:** `components/admin/canvas/vpc-canvas.tsx`
@@ -158,34 +160,136 @@ interface VPCCanvasProps {
 | **Structured** | Edit Value Map items | Edit Profile items | View fit connections |
 | **Drag** | Reorder Value Map | Reorder Profile | N/A |
 
-### Item Linking (Future Enhancement)
+### Item Linking (Fit Mapping)
 
-Optional: Allow explicit linking between items:
-- Click Pain Reliever → Click Pain = Creates explicit fit link
-- Explicit links override automatic fit calculation
+For explicit fit mapping:
+- In structured mode, select Pain Reliever → select Pain = creates fit link
+- Fit links stored in VPC's `addressed_pains` JSONB
+- Visual indicator shows linked items
 
 ---
 
 ## Server Actions
 
-VPC canvas delegates to existing Value Map and Customer Profile actions.
+VPC canvas has its own actions plus delegates to existing Value Map and Customer Profile actions.
 
 **File:** `app/(private)/admin/canvases/value-propositions/[id]/canvas/actions.ts`
 
+### Type Definitions
+
 ```typescript
-// Re-export or wrap existing actions
-// Value Map side
+'use server'
+
+type ActionResult<T = void> =
+  | { success: true; data: T }
+  | { success: false; error: string; code?: string }
+
+interface FitLink {
+  sourceId: string   // Pain Reliever or Gain Creator ID
+  targetIds: string[] // Pain or Gain IDs
+}
+```
+
+### Authorization Pattern
+
+```typescript
+async function verifyVPCAccess(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  vpcId: string
+): Promise<{ success: true; vpcId: string; valueMapId: string; profileId: string } | { success: false; error: string }> {
+  const { data, error } = await supabase
+    .from('value_proposition_canvases')
+    .select('id, value_map_id, customer_profile_id')
+    .eq('id', vpcId)
+    .single()
+
+  if (error || !data) {
+    return { success: false, error: 'VPC not found or access denied' }
+  }
+  return {
+    success: true,
+    vpcId: data.id,
+    valueMapId: data.value_map_id,
+    profileId: data.customer_profile_id
+  }
+}
+```
+
+### Action Signatures
+
+```typescript
+// VPC-specific actions
+export async function updateFitLinksAction(
+  vpcId: string,
+  linkType: 'pains' | 'gains',
+  links: FitLink[]
+): Promise<ActionResult>
+
+export async function addFitLinkAction(
+  vpcId: string,
+  linkType: 'pains' | 'gains',
+  sourceId: string,
+  targetId: string
+): Promise<ActionResult>
+
+export async function removeFitLinkAction(
+  vpcId: string,
+  linkType: 'pains' | 'gains',
+  sourceId: string,
+  targetId: string
+): Promise<ActionResult>
+
+export async function recalculateFitScoreAction(
+  vpcId: string
+): Promise<ActionResult<{ fitScore: number }>>
+
+// Re-export or wrap existing actions for convenience
 export { addItemAction as addValueMapItemAction } from '../../value-maps/[id]/canvas/actions'
-export { updateItemAction as updateValueMapItemAction } from '../../value-maps/[id]/canvas/actions'
-// etc.
-
-// Customer Profile side
 export { addItemAction as addProfileItemAction } from '../../customer-profiles/[id]/canvas/actions'
-export { updateItemAction as updateProfileItemAction } from '../../customer-profiles/[id]/canvas/actions'
 // etc.
+```
 
-// VPC-specific
-export async function updateFitLinksAction(vpcId: string, links: FitLink[]): Promise<ActionResult>
+### Revalidation Pattern
+
+```typescript
+function revalidateVPCCanvas(vpcId: string) {
+  revalidatePath(`/admin/canvases/value-propositions/${vpcId}/canvas`, 'page')
+  revalidatePath(`/admin/canvases/value-propositions/${vpcId}`, 'layout')
+}
+```
+
+### Validation Constants
+
+**File:** `lib/boundary-objects/vpc-canvas.ts`
+
+```typescript
+export const FIT_LINK_TYPES = ['pains', 'gains'] as const
+export type FitLinkType = typeof FIT_LINK_TYPES[number]
+
+export function validateFitLinkType(linkType: string): DataResult<FitLinkType> {
+  if (!FIT_LINK_TYPES.includes(linkType as FitLinkType)) {
+    return { success: false, error: `Invalid fit link type: ${linkType}` }
+  }
+  return { success: true, data: linkType as FitLinkType }
+}
+
+export function calculateFitScore(
+  profile: CustomerProfile,
+  addressedPains: Record<string, string[]>,
+  addressedGains: Record<string, string[]>
+): number {
+  const totalPains = profile.pains?.items?.length || 0
+  const totalGains = profile.gains?.items?.length || 0
+
+  const addressedPainIds = new Set(Object.values(addressedPains).flat())
+  const addressedGainIds = new Set(Object.values(addressedGains).flat())
+
+  const painsCovered = totalPains > 0 ? addressedPainIds.size / totalPains : 0
+  const gainsCovered = totalGains > 0 ? addressedGainIds.size / totalGains : 0
+
+  // Simple average, can be weighted by severity/importance in future
+  return Math.round(((painsCovered + gainsCovered) / 2) * 100)
+}
 ```
 
 ---
@@ -201,7 +305,11 @@ export async function updateFitLinksAction(vpcId: string, links: FitLink[]): Pro
 | Complete Value Map | Left side | Generate missing Value Map items |
 | Complete Profile | Right side | Generate missing Profile items |
 
-### Entity Generation Config
+### Entity Type Registration (REQUIRED)
+
+**File:** `lib/ai/prompts/entity-generation.ts`
+
+Add VPC-specific configs:
 
 ```typescript
 vpc_full: {
@@ -211,8 +319,14 @@ Create both sides that align with each other:
 - Value Map: Products/Services, Pain Relievers, Gain Creators
 Ensure Pain Relievers address the Pains and Gain Creators address the Gains.`,
   fieldsToGenerate: ['profile_items', 'value_map_items'],
+  defaultValues: {},
   contextFields: ['vpc_name', 'venture_context', 'target_segment'],
   displayField: 'name',
+  editableFields: ['profile_items', 'value_map_items'],
+  fieldHints: {
+    profile_items: 'Items for Jobs, Pains, Gains blocks',
+    value_map_items: 'Items for Products, Pain Relievers, Gain Creators'
+  }
 },
 
 vpc_fit_suggestions: {
@@ -220,8 +334,14 @@ vpc_fit_suggestions: {
 Each suggestion should directly address a specific pain or gain.
 Reference the pain/gain being addressed.`,
   fieldsToGenerate: ['pain_relievers', 'gain_creators'],
+  defaultValues: {},
   contextFields: ['existing_pains', 'existing_gains', 'products_services'],
   displayField: 'content',
+  editableFields: ['pain_relievers', 'gain_creators'],
+  fieldHints: {
+    pain_relievers: 'How your offering addresses specific pains',
+    gain_creators: 'How your offering creates specific gains'
+  }
 }
 ```
 
@@ -244,21 +364,67 @@ Reference the pain/gain being addressed.`,
 
 ```typescript
 // Fetch VPC with linked entities
-const { data: vpc } = await supabase
-  .from('value_proposition_canvases')
-  .select(`
-    *,
-    value_map:value_maps(*),
-    customer_profile:customer_profiles(*)
-  `)
-  .eq('id', params.id)
-  .single()
+export default async function VPCCanvasPage({ params }: { params: { id: string } }) {
+  const supabase = await createClient()
+
+  const { data: vpc } = await supabase
+    .from('value_proposition_canvases')
+    .select(`
+      *,
+      value_map:value_maps(*),
+      customer_profile:customer_profiles(*)
+    `)
+    .eq('id', params.id)
+    .single()
+
+  if (!vpc) notFound()
+
+  return <VPCCanvasView vpc={vpc} />
+}
 ```
+
+### Navigation Integration
+
+```typescript
+// Add link in VPC detail/edit page
+<Button asChild variant="outline">
+  <Link href={`/admin/canvases/value-propositions/${vpc.id}/canvas`}>
+    <LayoutGrid className="h-4 w-4 mr-2" />
+    Canvas View
+  </Link>
+</Button>
+```
+
+---
+
+## File Summary
+
+### Files to Create
+
+| File | Type | Purpose |
+|------|------|---------|
+| `components/admin/canvas/vpc-canvas.tsx` | Component | Split view container |
+| `components/admin/canvas/fit-score-display.tsx` | Component | Header fit percentage |
+| `components/admin/canvas/fit-indicator.tsx` | Component | Visual connection lines |
+| `components/admin/canvas/split-divider.tsx` | Component | Center divider |
+| `app/(private)/admin/canvases/value-propositions/[id]/canvas/page.tsx` | Page | Route entry point |
+| `app/(private)/admin/canvases/value-propositions/[id]/canvas/vpc-canvas-view.tsx` | Component | Client orchestration |
+| `app/(private)/admin/canvases/value-propositions/[id]/canvas/actions.ts` | Actions | Server actions |
+| `lib/boundary-objects/vpc-canvas.ts` | Utility | Validation & fit calculation |
+
+### Files to Modify
+
+| File | Change |
+|------|--------|
+| `components/admin/canvas/index.ts` | Export new components |
+| `lib/ai/prompts/entity-generation.ts` | Add `vpc_full` and `vpc_fit_suggestions` |
+| `app/(private)/admin/canvases/value-propositions/[id]/page.tsx` | Add "Canvas View" link |
 
 ---
 
 ## Verification Checklist
 
+### Core Functionality
 - [ ] Can navigate to `/admin/canvases/value-propositions/[id]/canvas`
 - [ ] Split view displays Value Map (left) and Profile (right)
 - [ ] Both sides are independently editable
@@ -268,6 +434,13 @@ const { data: vpc } = await supabase
 - [ ] AI generation works for full VPC
 - [ ] Fit suggestion AI works
 - [ ] Changes to either side persist correctly
+
+### P0 Fixes (Tech Review)
+- [ ] ActionResult type matches Phase 3/4 pattern
+- [ ] Authorization helper verifies VPC access including linked entities
+- [ ] Validation functions exist in boundary-objects
+- [ ] Entity types registered in ENTITY_GENERATION_CONFIGS
+- [ ] Navigation link added to existing VPC pages
 - [ ] Build compiles without errors
 
 ---
@@ -276,13 +449,30 @@ const { data: vpc } = await supabase
 
 - Phase 4 complete (Customer Profile and Value Map canvases exist) ✓
 - Existing `value_proposition_canvases` table with FK links ✓
+- Existing fit analysis fields (`addressed_pains`, `addressed_gains`, `fit_score`) ✓
+
+---
+
+## Pattern Reuse from Phase 4
+
+| Pattern | Source | Reuse |
+|---------|--------|-------|
+| CustomerProfileCanvas | Phase 4 | Embedded in right side |
+| ValueMapCanvas | Phase 4 | Embedded in left side |
+| BlockGridCanvas | Phase 3 | Via Profile/ValueMap |
+| ActionResult type | Phase 3/4 | Copy pattern |
+| Authorization helpers | Phase 4 | Extend for linked entities |
+| Validation boundary-object | Phase 4 | New file for VPC-specific |
+
+**Stability Principle:** Phase 5 is primarily composition - it wraps existing Profile and Value Map canvases in a split view. The main new work is the fit visualization and linking UI.
 
 ---
 
 ## Future Enhancements
 
 After MVP:
-- Explicit item linking (Pain Reliever → Pain)
+- Explicit item linking (Pain Reliever → Pain with drag or click)
 - Fit score breakdown (which pains addressed, which gaps)
 - Export to Strategyzer format
 - Animated fit visualization
+- Suggest missing items based on fit gaps
