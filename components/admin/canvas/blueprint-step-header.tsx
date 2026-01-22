@@ -22,6 +22,8 @@ import {
 } from '@/components/ui/alert-dialog'
 import { Input } from '@/components/ui/input'
 import type { BlueprintStep } from '@/lib/boundary-objects/blueprint-cells'
+import { STEP_NAME_MAX_LENGTH } from '@/lib/boundary-objects/blueprint-cells'
+import { toast } from 'sonner'
 
 interface BlueprintStepHeaderProps {
   step: BlueprintStep
@@ -75,6 +77,7 @@ export function BlueprintStepHeader({
       setIsEditing(false)
     } catch (error) {
       console.error('Failed to update step:', error)
+      toast.error('Failed to update step name. Please try again.')
       setEditValue(step.name)
     } finally {
       setIsLoading(false)
@@ -96,6 +99,7 @@ export function BlueprintStepHeader({
       await onDelete()
     } catch (error) {
       console.error('Failed to delete step:', error)
+      toast.error('Failed to delete step. Please try again.')
     } finally {
       setIsLoading(false)
       setShowDeleteDialog(false)
@@ -109,18 +113,30 @@ export function BlueprintStepHeader({
 
       {/* Step name - click to edit */}
       {isEditing ? (
-        <Input
-          ref={inputRef}
-          value={editValue}
-          onChange={(e) => setEditValue(e.target.value)}
-          onBlur={handleSave}
-          onKeyDown={handleKeyDown}
-          disabled={isLoading}
-          className="text-sm text-center h-7 max-w-[150px]"
-        />
+        <div className="flex flex-col items-center gap-0.5">
+          <Input
+            ref={inputRef}
+            value={editValue}
+            onChange={(e) => setEditValue(e.target.value)}
+            onBlur={handleSave}
+            onKeyDown={handleKeyDown}
+            disabled={isLoading}
+            maxLength={STEP_NAME_MAX_LENGTH}
+            title="Press Enter to save, Escape to cancel"
+            className={`text-sm text-center h-7 max-w-[150px] ${
+              editValue.length > STEP_NAME_MAX_LENGTH - 10 ? 'border-orange-500' : ''
+            }`}
+          />
+          {editValue.length > STEP_NAME_MAX_LENGTH - 10 && (
+            <span className="text-[10px] text-muted-foreground">
+              {STEP_NAME_MAX_LENGTH - editValue.length} remaining
+            </span>
+          )}
+        </div>
       ) : (
         <button
           onClick={() => setIsEditing(true)}
+          aria-label={`Edit step name: ${step.name}`}
           className="font-medium text-sm hover:text-primary transition-colors cursor-text"
         >
           {step.name}
@@ -209,6 +225,7 @@ export function AddStepButton({ onAdd, isLoading }: AddStepButtonProps) {
       await onAdd()
     } catch (error) {
       console.error('Failed to add step:', error)
+      toast.error('Failed to add step. Please try again.')
     } finally {
       setLoading(false)
     }

@@ -105,6 +105,12 @@ export const DURATION_MAX_LENGTH = 100
 // Validation Functions
 // ============================================================================
 
+/**
+ * Validates that a string is a valid layer type.
+ *
+ * @param layerType - String to validate against LAYER_TYPES
+ * @returns DataResult with validated LayerType or error message
+ */
 export function validateLayerType(layerType: string): DataResult<LayerType> {
   if (!LAYER_TYPES.includes(layerType as LayerType)) {
     return { success: false, error: `Invalid layer type: ${layerType}` }
@@ -112,6 +118,13 @@ export function validateLayerType(layerType: string): DataResult<LayerType> {
   return { success: true, data: layerType as LayerType }
 }
 
+/**
+ * Validates cell content length and checks for XSS patterns.
+ * Returns null for empty content (treats as optional field).
+ *
+ * @param content - Content string to validate
+ * @returns DataResult with trimmed content or null, or error if invalid
+ */
 export function validateCellContent(
   content: string | undefined | null
 ): DataResult<string | null> {
@@ -141,6 +154,13 @@ export function validateCellContent(
   return { success: true, data: trimmed || null }
 }
 
+/**
+ * Validates step name is non-empty and within length limits.
+ * Rejects HTML tags for XSS prevention.
+ *
+ * @param name - Step name to validate (required field)
+ * @returns DataResult with trimmed name or error
+ */
 export function validateStepName(name: string): DataResult<string> {
   const trimmed = name.trim()
   if (!trimmed) {
@@ -162,6 +182,13 @@ export function validateStepName(name: string): DataResult<string> {
   return { success: true, data: trimmed }
 }
 
+/**
+ * Validates step description length and checks for XSS patterns.
+ * Returns null for empty description (optional field).
+ *
+ * @param description - Description to validate
+ * @returns DataResult with trimmed description or null, or error if invalid
+ */
 export function validateStepDescription(
   description: string | undefined | null
 ): DataResult<string | null> {
@@ -183,6 +210,13 @@ export function validateStepDescription(
   return { success: true, data: trimmed || null }
 }
 
+/**
+ * Validates actors field length and checks for XSS patterns.
+ * Returns null for empty actors (optional field).
+ *
+ * @param actors - Actors string to validate (comma-separated names)
+ * @returns DataResult with trimmed actors or null, or error if invalid
+ */
 export function validateActors(
   actors: string | undefined | null
 ): DataResult<string | null> {
@@ -204,6 +238,13 @@ export function validateActors(
   return { success: true, data: trimmed || null }
 }
 
+/**
+ * Validates duration estimate length and checks for XSS patterns.
+ * Returns null for empty duration (optional field).
+ *
+ * @param duration - Duration estimate string (e.g., "5 minutes", "1-2 hours")
+ * @returns DataResult with trimmed duration or null, or error if invalid
+ */
 export function validateDuration(
   duration: string | undefined | null
 ): DataResult<string | null> {
@@ -225,6 +266,13 @@ export function validateDuration(
   return { success: true, data: trimmed || null }
 }
 
+/**
+ * Validates cost implication is a valid enum value.
+ * Returns null for empty cost (optional field).
+ *
+ * @param cost - Cost implication string ('none', 'low', 'medium', 'high')
+ * @returns DataResult with validated CostImplication or null, or error if invalid
+ */
 export function validateCostImplication(
   cost: string | undefined | null
 ): DataResult<CostImplication | null> {
@@ -235,6 +283,13 @@ export function validateCostImplication(
   return { success: true, data: cost as CostImplication }
 }
 
+/**
+ * Validates failure risk is a valid enum value.
+ * Returns null for empty risk (optional field).
+ *
+ * @param risk - Failure risk string ('none', 'low', 'medium', 'high')
+ * @returns DataResult with validated FailureRisk or null, or error if invalid
+ */
 export function validateFailureRisk(
   risk: string | undefined | null
 ): DataResult<FailureRisk | null> {
@@ -321,4 +376,41 @@ export function buildCellsMap(
   }
 
   return map
+}
+
+/**
+ * Sort steps by their sequence number in ascending order.
+ * Returns a new array, does not mutate the input.
+ *
+ * @param steps - Array of steps with sequence property
+ * @returns New array sorted by sequence
+ */
+export function sortStepsBySequence<T extends { sequence: number }>(steps: T[]): T[] {
+  return [...steps].sort((a, b) => a.sequence - b.sequence)
+}
+
+/**
+ * Create a unique cell key from step ID and layer type.
+ * Use for React keys and selection state tracking.
+ *
+ * @param stepId - UUID of the step
+ * @param layerType - Type of layer
+ * @returns Unique key string in format "stepId:layerType"
+ */
+export function createCellKey(stepId: string, layerType: LayerType): string {
+  return `${stepId}:${layerType}`
+}
+
+/**
+ * Parse a cell key back into step ID and layer type.
+ * Returns null if the key format is invalid.
+ *
+ * @param key - Cell key to parse (format: "stepId:layerType")
+ * @returns Parsed components or null if invalid
+ */
+export function parseCellKey(key: string): { stepId: string; layerType: LayerType } | null {
+  const [stepId, layerType] = key.split(':')
+  if (!stepId || !layerType) return null
+  if (!LAYER_TYPES.includes(layerType as LayerType)) return null
+  return { stepId, layerType: layerType as LayerType }
 }

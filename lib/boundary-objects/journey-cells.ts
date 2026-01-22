@@ -446,3 +446,40 @@ export function getEmotionBgClass(score: number | null): string {
   if (score >= -3) return 'bg-orange-50'
   return 'bg-red-100'
 }
+
+/**
+ * Sort stages by their sequence number in ascending order.
+ * Returns a new array, does not mutate the input.
+ *
+ * @param stages - Array of stages with sequence property
+ * @returns New array sorted by sequence
+ */
+export function sortStagesBySequence<T extends { sequence: number }>(stages: T[]): T[] {
+  return [...stages].sort((a, b) => a.sequence - b.sequence)
+}
+
+/**
+ * Create a unique cell key from stage ID and layer type.
+ * Use for React keys and selection state tracking.
+ *
+ * @param stageId - UUID of the stage
+ * @param layerType - Type of layer
+ * @returns Unique key string in format "stageId:layerType"
+ */
+export function createJourneyCellKey(stageId: string, layerType: JourneyLayerType): string {
+  return `${stageId}:${layerType}`
+}
+
+/**
+ * Parse a journey cell key back into stage ID and layer type.
+ * Returns null if the key format is invalid.
+ *
+ * @param key - Cell key to parse (format: "stageId:layerType")
+ * @returns Parsed components or null if invalid
+ */
+export function parseJourneyCellKey(key: string): { stageId: string; layerType: JourneyLayerType } | null {
+  const [stageId, layerType] = key.split(':')
+  if (!stageId || !layerType) return null
+  if (!JOURNEY_LAYER_TYPES.includes(layerType as JourneyLayerType)) return null
+  return { stageId, layerType: layerType as JourneyLayerType }
+}

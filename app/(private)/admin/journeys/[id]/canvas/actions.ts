@@ -14,6 +14,7 @@ import {
   type JourneyLayerType,
 } from '@/lib/boundary-objects/journey-cells'
 import { ActionErrorCode, type ActionResult } from '@/lib/types/action-result'
+import { logActionError, getDatabaseErrorMessage } from '@/lib/logging'
 
 interface CellUpdateData {
   content?: string | null

@@ -90,6 +90,9 @@ export const BlueprintCell = memo(function BlueprintCell({
   )
 })
 
+// Set displayName for React DevTools
+BlueprintCell.displayName = 'BlueprintCell'
+
 // Risk badge component - memoized for performance
 const RiskBadge = memo(function RiskBadge({ risk }: { risk: string }) {
   const colors: Record<string, string> = {
@@ -104,3 +107,5 @@ const RiskBadge = memo(function RiskBadge({ risk }: { risk: string }) {
     </span>
   )
 })
+
+RiskBadge.displayName = 'RiskBadge'

@@ -60,6 +60,17 @@ export function BlueprintCellDetailPanel({
 
   const layerConfig = LAYER_CONFIG[layerType]
 
+  // Layer-specific placeholder examples for guidance
+  const getContentPlaceholder = (): string => {
+    const examples: Record<LayerType, string> = {
+      customer_action: 'Example: Customer reviews product options, compares prices, adds item to cart',
+      frontstage: 'Example: Sales rep greets customer, demonstrates features, answers questions',
+      backstage: 'Example: System checks inventory, reserves item, sends confirmation email',
+      support_process: 'Example: CRM updates contact record, triggers follow-up workflow',
+    }
+    return examples[layerType]
+  }
+
   // Reset form when cell changes
   useEffect(() => {
     setContent(cell?.content || '')
@@ -165,7 +176,8 @@ export function BlueprintCellDetailPanel({
             id="content"
             value={content}
             onChange={(e) => setContent(e.target.value)}
-            placeholder={`What happens at this ${layerConfig.description.toLowerCase()}...`}
+            placeholder={getContentPlaceholder()}
+            disabled={isLoading}
             rows={4}
             className={`resize-none ${
               content.length > CELL_CONTENT_MAX_LENGTH ? 'border-destructive' : ''
@@ -186,6 +198,7 @@ export function BlueprintCellDetailPanel({
             value={actors}
             onChange={(e) => setActors(e.target.value)}
             placeholder="e.g., Customer, Sales Rep, System"
+            disabled={isLoading}
           />
           <p className="text-xs text-muted-foreground">
             Comma-separated list of actors/roles involved
@@ -200,6 +213,7 @@ export function BlueprintCellDetailPanel({
             value={duration}
             onChange={(e) => setDuration(e.target.value)}
             placeholder="e.g., 5 min, 1-2 days"
+            disabled={isLoading}
           />
         </div>
 
@@ -209,6 +223,7 @@ export function BlueprintCellDetailPanel({
           <Select
             value={cost}
             onValueChange={(value) => setCost(value as CostImplication)}
+            disabled={isLoading}
           >
             <SelectTrigger id="cost">
               <SelectValue placeholder="Select cost level" />
@@ -230,6 +245,7 @@ export function BlueprintCellDetailPanel({
           <Select
             value={risk}
             onValueChange={(value) => setRisk(value as FailureRisk)}
+            disabled={isLoading}
           >
             <SelectTrigger id="risk">
               <SelectValue placeholder="Select risk level" />

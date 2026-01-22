@@ -16,6 +16,7 @@ import {
   type FailureRisk,
 } from '@/lib/boundary-objects/blueprint-cells'
 import { ActionErrorCode, type ActionResult } from '@/lib/types/action-result'
+import { logActionError, getDatabaseErrorMessage } from '@/lib/logging'
 
 interface CellUpdateData {
   content?: string | null
@@ -185,8 +186,9 @@ export async function upsertCellAction(
     .single() as any)
 
   if (error) {
-    console.error('[upsertCellAction] Database error:', error.code, error.message)
-    return { success: false, error: 'Failed to save cell', code: ActionErrorCode.DATABASE_ERROR }
+    logActionError({ action: 'upsertCellAction', error, context: { stepId, layerType } })
+    const message = getDatabaseErrorMessage(error.code, 'Failed to save cell. Please try again.')
+    return { success: false, error: message, code: ActionErrorCode.DATABASE_ERROR }
   }
 
   revalidateBlueprintCanvas(accessCheck.blueprintId)
@@ -264,8 +266,9 @@ export async function updateCellAction(
   const { data: updated, error } = await query.select('id').maybeSingle()
 
   if (error) {
-    console.error('[updateCellAction] Database error:', error.code, error.message)
-    return { success: false, error: 'Failed to update cell', code: ActionErrorCode.DATABASE_ERROR }
+    logActionError({ action: 'updateCellAction', error, context: { cellId } })
+    const message = getDatabaseErrorMessage(error.code, 'Failed to update cell. Please try again.')
+    return { success: false, error: message, code: ActionErrorCode.DATABASE_ERROR }
   }
 
   // If expectedUpdatedAt was provided but no row matched, it means concurrent modification
