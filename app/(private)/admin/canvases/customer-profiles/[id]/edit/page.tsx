@@ -1,8 +1,10 @@
 export const dynamic = 'force-dynamic'
 
+import Link from 'next/link'
 import { createClient } from '@/lib/supabase-server'
 import { CustomerProfileForm } from '@/components/admin/customer-profile-form'
 import { notFound } from 'next/navigation'
+import { LayoutGrid } from 'lucide-react'
 import type { CustomerProfile } from '@/lib/types/database'
 
 interface PageProps {
@@ -55,9 +57,18 @@ export default async function EditCustomerProfilePage({ params }: PageProps) {
   return (
     <div className="p-8">
       <div className="max-w-4xl mx-auto">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold mb-2">Edit: {profile.name}</h1>
-          <p className="text-muted-foreground">Update customer profile</p>
+        <div className="mb-8 flex items-start justify-between">
+          <div>
+            <h1 className="text-3xl font-bold mb-2">Edit: {profile.name}</h1>
+            <p className="text-muted-foreground">Update customer profile</p>
+          </div>
+          <Link
+            href={`/admin/canvases/customer-profiles/${id}/canvas`}
+            className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium border rounded-md hover:bg-muted transition-colors"
+          >
+            <LayoutGrid className="h-4 w-4" />
+            Canvas View
+          </Link>
         </div>
 
         <div className="rounded-lg border bg-card p-6">
