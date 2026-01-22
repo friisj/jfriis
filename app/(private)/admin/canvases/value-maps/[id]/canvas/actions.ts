@@ -20,27 +20,7 @@ import {
   type ProductType,
   type EffectivenessLevel,
 } from '@/lib/boundary-objects/value-map-canvas'
-
-// ============================================================================
-// Error Codes
-// ============================================================================
-
-export enum ActionErrorCode {
-  UNAUTHORIZED = 'UNAUTHORIZED',
-  ACCESS_DENIED = 'ACCESS_DENIED',
-  VALIDATION_ERROR = 'VALIDATION_ERROR',
-  DATABASE_ERROR = 'DATABASE_ERROR',
-  NOT_FOUND = 'NOT_FOUND',
-  CONFLICT = 'CONFLICT',
-}
-
-// ============================================================================
-// Types
-// ============================================================================
-
-type ActionResult<T = void> =
-  | { success: true; data: T }
-  | { success: false; error: string; code?: ActionErrorCode }
+import { ActionErrorCode, type ActionResult } from '@/lib/types/action-result'
 
 interface ProductItemData {
   content: string

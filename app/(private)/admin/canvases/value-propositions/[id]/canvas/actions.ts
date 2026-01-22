@@ -18,27 +18,7 @@ import {
   normalizePainsBlock,
   normalizeGainsBlock,
 } from '@/lib/boundary-objects/customer-profile-canvas'
-
-// ============================================================================
-// Error Codes
-// ============================================================================
-
-export enum ActionErrorCode {
-  UNAUTHORIZED = 'UNAUTHORIZED',
-  ACCESS_DENIED = 'ACCESS_DENIED',
-  VALIDATION_ERROR = 'VALIDATION_ERROR',
-  NOT_FOUND = 'NOT_FOUND',
-  DATABASE_ERROR = 'DATABASE_ERROR',
-  CONFLICT = 'CONFLICT',
-}
-
-// ============================================================================
-// Types
-// ============================================================================
-
-export type ActionResult<T = void> =
-  | { success: true; data: T }
-  | { success: false; error: string; code: ActionErrorCode }
+import { ActionErrorCode, type ActionResult } from '@/lib/types/action-result'
 
 // ============================================================================
 // Authorization
@@ -378,20 +358,3 @@ export async function recalculateFitScoreAction(
   return { success: true, data: { fitScore } }
 }
 
-// ============================================================================
-// Re-export actions from linked entity canvases for convenience
-// ============================================================================
-
-// Value Map actions
-export {
-  addItemAction as addValueMapItemAction,
-  updateItemAction as updateValueMapItemAction,
-  deleteItemAction as deleteValueMapItemAction,
-} from '../../../value-maps/[id]/canvas/actions'
-
-// Customer Profile actions
-export {
-  addItemAction as addProfileItemAction,
-  updateItemAction as updateProfileItemAction,
-  deleteItemAction as deleteProfileItemAction,
-} from '../../../customer-profiles/[id]/canvas/actions'

@@ -20,16 +20,18 @@ import {
   type ValueMapItemDetailData,
 } from '@/components/admin/canvas/value-map-item-detail-panel'
 import { AdminErrorBoundary, ErrorState } from '@/components/admin/error-boundary'
+import { toggleAddressedAction } from './actions'
 import {
-  toggleAddressedAction,
-  addProfileItemAction,
-  updateProfileItemAction,
-  deleteProfileItemAction,
-  addValueMapItemAction,
-  updateValueMapItemAction,
-  deleteValueMapItemAction,
-  ActionErrorCode,
-} from './actions'
+  addItemAction as addProfileItemAction,
+  updateItemAction as updateProfileItemAction,
+  deleteItemAction as deleteProfileItemAction,
+} from '../../../customer-profiles/[id]/canvas/actions'
+import {
+  addItemAction as addValueMapItemAction,
+  updateItemAction as updateValueMapItemAction,
+  deleteItemAction as deleteValueMapItemAction,
+} from '../../../value-maps/[id]/canvas/actions'
+import { ActionErrorCode } from '@/lib/types/action-result'
 import type {
   ValuePropositionCanvasData,
   VPCFitAnalysis,

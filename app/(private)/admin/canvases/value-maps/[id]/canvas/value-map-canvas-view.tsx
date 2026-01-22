@@ -19,8 +19,8 @@ import {
   addItemAction,
   updateItemAction,
   deleteItemAction,
-  ActionErrorCode,
 } from './actions'
+import { ActionErrorCode } from '@/lib/types/action-result'
 import type {
   ValueMapCanvas as ValueMapCanvasType,
   ValueMapBlockId,
