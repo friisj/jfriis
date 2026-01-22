@@ -356,7 +356,7 @@ export function BlueprintCanvasView({
               targetType: 'blueprint_cells',
               existingItems: [],
               pendingItems: [],
-              count: 4, // One for each layer
+              count: Object.keys(LAYER_CONFIG).length, // One for each layer
               temperature: settings.temperature,
               model: settings.model,
               instructions: `Generate content for each layer of step "${selectedCell.stepName}": ${cellsToGenerate.map((c) => c.layer_name).join(', ')}. Return one object per layer with the layer_type field.`,
