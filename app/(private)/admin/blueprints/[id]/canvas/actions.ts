@@ -91,11 +91,12 @@ async function verifyCellAccess(
   supabase: Awaited<ReturnType<typeof createClient>>,
   cellId: string
 ): Promise<{ success: true; blueprintId: string } | { success: false; error: string }> {
-  const { data, error } = await supabase
-    .from('blueprint_cells')
+  // Note: Type assertion needed until Supabase types are regenerated with blueprint_cells table
+  const { data, error } = await (supabase
+    .from('blueprint_cells' as any)
     .select('id, step:blueprint_steps!inner(service_blueprint_id)')
     .eq('id', cellId)
-    .single()
+    .single() as any)
 
   if (error || !data) {
     return { success: false, error: 'Cell not found or access denied' }
@@ -183,8 +184,9 @@ export async function upsertCellAction(
   }
 
   // Upsert cell (create if not exists, update if exists)
-  const { data: cell, error } = await supabase
-    .from('blueprint_cells')
+  // Note: Type assertion needed until Supabase types are regenerated with blueprint_cells table
+  const { data: cell, error } = await (supabase
+    .from('blueprint_cells' as any)
     .upsert(
       {
         step_id: stepId,
@@ -198,7 +200,7 @@ export async function upsertCellAction(
       { onConflict: 'step_id,layer_type' }
     )
     .select('id')
-    .single()
+    .single() as any)
 
   if (error) {
     console.error('[upsertCellAction] Database error:', error.code, error.message)
@@ -256,8 +258,9 @@ export async function updateCellAction(
     return { success: false, error: riskResult.error, code: 'VALIDATION_ERROR' }
   }
 
-  const { error } = await supabase
-    .from('blueprint_cells')
+  // Note: Type assertion needed until Supabase types are regenerated with blueprint_cells table
+  const { error } = await (supabase
+    .from('blueprint_cells' as any)
     .update({
       content: contentResult.data,
       actors: actorsResult.data,
@@ -265,7 +268,7 @@ export async function updateCellAction(
       cost_implication: costResult.data,
       failure_risk: riskResult.data,
     })
-    .eq('id', cellId)
+    .eq('id', cellId) as any)
 
   if (error) {
     console.error('[updateCellAction] Database error:', error.code, error.message)
@@ -294,10 +297,11 @@ export async function deleteCellAction(cellId: string): Promise<ActionResult> {
     return { success: false, error: accessCheck.error, code: 'ACCESS_DENIED' }
   }
 
-  const { error } = await supabase
-    .from('blueprint_cells')
+  // Note: Type assertion needed until Supabase types are regenerated with blueprint_cells table
+  const { error } = await (supabase
+    .from('blueprint_cells' as any)
     .delete()
-    .eq('id', cellId)
+    .eq('id', cellId) as any)
 
   if (error) {
     console.error('[deleteCellAction] Database error:', error.code, error.message)
@@ -480,12 +484,12 @@ export async function reorderStepsAction(
 
   // Use atomic database function for reordering
   // Note: Type cast needed until Supabase types are regenerated with the new function
-  const { error } = await supabase.rpc(
-    'reorder_blueprint_steps' as 'is_admin', // Type workaround for custom function
+  const { error } = await (supabase.rpc as any)(
+    'reorder_blueprint_steps',
     {
       p_blueprint_id: blueprintId,
       p_step_ids: stepIds,
-    } as unknown as { user_id: string } // Type workaround for custom params
+    }
   )
 
   if (error) {
@@ -732,9 +736,10 @@ export async function bulkCreateCellsAction(
     content: cell.content,
   }))
 
-  const { error } = await supabase
-    .from('blueprint_cells')
-    .upsert(cellsToUpsert, { onConflict: 'step_id,layer_type' })
+  // Note: Type assertion needed until Supabase types are regenerated with blueprint_cells table
+  const { error } = await (supabase
+    .from('blueprint_cells' as any)
+    .upsert(cellsToUpsert, { onConflict: 'step_id,layer_type' }) as any)
 
   if (error) {
     console.error('[bulkCreateCellsAction] Database error:', error.code, error.message)

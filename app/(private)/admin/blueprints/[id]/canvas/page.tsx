@@ -59,13 +59,14 @@ export default async function BlueprintCanvasPage({ params }: Props) {
   let cells: BlueprintCell[] = []
 
   if (stepIds.length > 0) {
-    const { data: cellsData } = await supabase
-      .from('blueprint_cells')
+    // Note: Type assertion needed until Supabase types are regenerated with blueprint_cells table
+    const { data: cellsData } = await (supabase
+      .from('blueprint_cells' as any)
       .select('*')
-      .in('step_id', stepIds)
+      .in('step_id', stepIds) as any)
 
     // Transform cells to match BlueprintCell type
-    cells = (cellsData || []).map((c) => ({
+    cells = (cellsData || []).map((c: any) => ({
       id: c.id,
       step_id: c.step_id,
       layer_type: c.layer_type as LayerType,
