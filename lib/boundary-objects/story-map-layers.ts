@@ -46,6 +46,10 @@ export type DataResult<T> =
 export const LAYER_NAME_MAX_LENGTH = 100
 export const LAYER_DESCRIPTION_MAX_LENGTH = 500
 
+export const ACTIVITY_NAME_MAX_LENGTH = 100
+export const ACTIVITY_DESCRIPTION_MAX_LENGTH = 500
+export const ACTIVITY_GOAL_MAX_LENGTH = 500
+
 // Default layers to create when a story map has no layers
 const DEFAULT_LAYERS = [
   { name: 'Customer', layer_type: 'customer', sequence: 0 },
@@ -81,6 +85,52 @@ export function validateLayerDescription(
     return {
       success: false,
       error: `Description must be ${LAYER_DESCRIPTION_MAX_LENGTH} characters or less`,
+    }
+  }
+  return { success: true, data: trimmed || null }
+}
+
+// ============================================================================
+// Activity Validation
+// ============================================================================
+
+export function validateActivityName(name: string): DataResult<string> {
+  const trimmed = name.trim()
+  if (!trimmed) {
+    return { success: false, error: 'Activity name is required' }
+  }
+  if (trimmed.length > ACTIVITY_NAME_MAX_LENGTH) {
+    return {
+      success: false,
+      error: `Activity name must be ${ACTIVITY_NAME_MAX_LENGTH} characters or less`,
+    }
+  }
+  return { success: true, data: trimmed }
+}
+
+export function validateActivityDescription(
+  description: string | undefined
+): DataResult<string | null> {
+  if (!description) return { success: true, data: null }
+  const trimmed = description.trim()
+  if (trimmed.length > ACTIVITY_DESCRIPTION_MAX_LENGTH) {
+    return {
+      success: false,
+      error: `Description must be ${ACTIVITY_DESCRIPTION_MAX_LENGTH} characters or less`,
+    }
+  }
+  return { success: true, data: trimmed || null }
+}
+
+export function validateActivityGoal(
+  goal: string | undefined
+): DataResult<string | null> {
+  if (!goal) return { success: true, data: null }
+  const trimmed = goal.trim()
+  if (trimmed.length > ACTIVITY_GOAL_MAX_LENGTH) {
+    return {
+      success: false,
+      error: `User goal must be ${ACTIVITY_GOAL_MAX_LENGTH} characters or less`,
     }
   }
   return { success: true, data: trimmed || null }

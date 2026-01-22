@@ -4,6 +4,7 @@ import { useCallback, useMemo, useState } from 'react'
 import { moveStoryAction } from '@/app/(private)/admin/story-maps/[id]/canvas/actions'
 import { CanvasMode } from './canvas-header'
 import { LayerHeader, AddLayerButton } from './layer-header'
+import { ActivityHeader, AddActivityButton } from './activity-header'
 import type { StoryMapLayer } from '@/lib/boundary-objects/story-map-layers'
 
 interface UserStory {
@@ -171,24 +172,19 @@ export function StoryMapCanvas({
           </div>
           {/* Activity columns */}
           {activities.map((activity) => (
-            <div
+            <ActivityHeader
               key={activity.id}
-              className="flex-1 min-w-[200px] p-3 border-r last:border-r-0"
-            >
-              <div className="font-medium text-sm">{activity.name}</div>
-              {activity.description && (
-                <div className="text-xs text-muted-foreground mt-1 line-clamp-1">
-                  {activity.description}
-                </div>
-              )}
-            </div>
+              activity={activity}
+              onUpdate={onRefresh}
+              onDelete={onRefresh}
+            />
           ))}
-          {/* Empty column placeholder if no activities */}
-          {activities.length === 0 && (
-            <div className="flex-1 p-3 text-sm text-muted-foreground italic">
-              No activities yet
-            </div>
-          )}
+          {/* Add activity button */}
+          <AddActivityButton
+            storyMapId={storyMapId}
+            nextSequence={activities.length}
+            onAdd={onRefresh}
+          />
         </div>
 
         {/* Grid rows - one per layer */}
@@ -251,9 +247,8 @@ export function StoryMapCanvas({
                 </div>
               )
             })}
-            {activities.length === 0 && (
-              <div className="flex-1 p-3 text-sm text-muted-foreground" />
-            )}
+            {/* Empty cell under Add Activity button */}
+            <div className="min-w-[120px] border-r" />
           </div>
         ))}
 
