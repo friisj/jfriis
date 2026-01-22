@@ -7,6 +7,8 @@ interface AdminDetailLayoutProps {
   backHref: string
   backLabel: string
   editHref?: string
+  /** Custom actions to display in the header (replaces default Edit button if provided) */
+  actions?: ReactNode
   children: ReactNode
 }
 
@@ -16,6 +18,7 @@ export function AdminDetailLayout({
   backHref,
   backLabel,
   editHref,
+  actions,
   children,
 }: AdminDetailLayoutProps) {
   return (
@@ -38,7 +41,9 @@ export function AdminDetailLayout({
             <h1 className="text-3xl font-bold mb-2">{title}</h1>
             {description && <p className="text-muted-foreground">{description}</p>}
           </div>
-          {editHref && (
+          {actions ? (
+            actions
+          ) : editHref ? (
             <Link
               href={editHref}
               className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
@@ -48,7 +53,7 @@ export function AdminDetailLayout({
               </svg>
               Edit
             </Link>
-          )}
+          ) : null}
         </div>
 
         {/* Content */}
