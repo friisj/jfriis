@@ -144,10 +144,10 @@ export function validateJourneyLayerType(layerType: string): DataResult<JourneyL
 }
 
 /**
- * Validates cell content length.
+ * Validates cell content length and checks for XSS patterns.
  *
  * @param content - Content string to validate
- * @returns DataResult with trimmed content or null, or error if too long
+ * @returns DataResult with trimmed content or null, or error if invalid
  */
 export function validateCellContent(
   content: string | undefined | null
@@ -160,6 +160,21 @@ export function validateCellContent(
       error: `Content must be ${CELL_CONTENT_MAX_LENGTH} characters or less`,
     }
   }
+
+  // XSS prevention - reject HTML tags
+  const htmlPattern = /<[^>]*>/
+  if (htmlPattern.test(trimmed)) {
+    return { success: false, error: 'Content cannot contain HTML tags' }
+  }
+
+  // Check for common XSS patterns
+  const xssPatterns = [/javascript:/i, /on\w+\s*=/i, /data:/i]
+  for (const pattern of xssPatterns) {
+    if (pattern.test(trimmed)) {
+      return { success: false, error: 'Content contains invalid characters' }
+    }
+  }
+
   return { success: true, data: trimmed || null }
 }
 
@@ -180,14 +195,21 @@ export function validateStageName(name: string): DataResult<string> {
       error: `Stage name must be ${STAGE_NAME_MAX_LENGTH} characters or less`,
     }
   }
+
+  // XSS prevention
+  const htmlPattern = /<[^>]*>/
+  if (htmlPattern.test(trimmed)) {
+    return { success: false, error: 'Name cannot contain HTML tags' }
+  }
+
   return { success: true, data: trimmed }
 }
 
 /**
- * Validates stage description length.
+ * Validates stage description length and checks for XSS patterns.
  *
  * @param description - Description to validate
- * @returns DataResult with trimmed description or null, or error if too long
+ * @returns DataResult with trimmed description or null, or error if invalid
  */
 export function validateStageDescription(
   description: string | undefined | null
@@ -200,6 +222,13 @@ export function validateStageDescription(
       error: `Description must be ${STAGE_DESCRIPTION_MAX_LENGTH} characters or less`,
     }
   }
+
+  // XSS prevention
+  const htmlPattern = /<[^>]*>/
+  if (htmlPattern.test(trimmed)) {
+    return { success: false, error: 'Description cannot contain HTML tags' }
+  }
+
   return { success: true, data: trimmed || null }
 }
 
@@ -240,6 +269,93 @@ export function validateChannelType(
   if (trimmed.length > 50) {
     return { success: false, error: 'Channel type must be 50 characters or less' }
   }
+
+  // XSS prevention
+  const htmlPattern = /<[^>]*>/
+  if (htmlPattern.test(trimmed)) {
+    return { success: false, error: 'Channel type cannot contain HTML tags' }
+  }
+
+  return { success: true, data: trimmed || null }
+}
+
+// ============================================================================
+// Touchpoint Validation
+// ============================================================================
+
+export const TOUCHPOINT_NAME_MAX_LENGTH = 200
+export const TOUCHPOINT_DESCRIPTION_MAX_LENGTH = 1000
+
+/**
+ * Validates touchpoint name.
+ *
+ * @param name - Touchpoint name to validate
+ * @returns DataResult with trimmed name or error
+ */
+export function validateTouchpointName(
+  name: string | undefined | null
+): DataResult<string> {
+  if (!name) {
+    return { success: false, error: 'Touchpoint name is required' }
+  }
+  const trimmed = name.trim()
+  if (trimmed.length === 0) {
+    return { success: false, error: 'Touchpoint name is required' }
+  }
+  if (trimmed.length > TOUCHPOINT_NAME_MAX_LENGTH) {
+    return {
+      success: false,
+      error: `Touchpoint name must be ${TOUCHPOINT_NAME_MAX_LENGTH} characters or less`,
+    }
+  }
+
+  // XSS prevention
+  const htmlPattern = /<[^>]*>/
+  if (htmlPattern.test(trimmed)) {
+    return { success: false, error: 'Name cannot contain HTML tags' }
+  }
+
+  const xssPatterns = [/javascript:/i, /on\w+\s*=/i, /data:/i]
+  for (const pattern of xssPatterns) {
+    if (pattern.test(trimmed)) {
+      return { success: false, error: 'Name contains invalid characters' }
+    }
+  }
+
+  return { success: true, data: trimmed }
+}
+
+/**
+ * Validates touchpoint description.
+ *
+ * @param description - Description to validate
+ * @returns DataResult with trimmed description or null, or error if invalid
+ */
+export function validateTouchpointDescription(
+  description: string | undefined | null
+): DataResult<string | null> {
+  if (!description) return { success: true, data: null }
+  const trimmed = description.trim()
+  if (trimmed.length > TOUCHPOINT_DESCRIPTION_MAX_LENGTH) {
+    return {
+      success: false,
+      error: `Description must be ${TOUCHPOINT_DESCRIPTION_MAX_LENGTH} characters or less`,
+    }
+  }
+
+  // XSS prevention
+  const htmlPattern = /<[^>]*>/
+  if (htmlPattern.test(trimmed)) {
+    return { success: false, error: 'Description cannot contain HTML tags' }
+  }
+
+  const xssPatterns = [/javascript:/i, /on\w+\s*=/i, /data:/i]
+  for (const pattern of xssPatterns) {
+    if (pattern.test(trimmed)) {
+      return { success: false, error: 'Description contains invalid characters' }
+    }
+  }
+
   return { success: true, data: trimmed || null }
 }
 

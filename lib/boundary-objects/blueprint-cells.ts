@@ -123,6 +123,21 @@ export function validateCellContent(
       error: `Content must be ${CELL_CONTENT_MAX_LENGTH} characters or less`,
     }
   }
+
+  // XSS prevention - reject HTML tags
+  const htmlPattern = /<[^>]*>/
+  if (htmlPattern.test(trimmed)) {
+    return { success: false, error: 'Content cannot contain HTML tags' }
+  }
+
+  // Check for common XSS patterns
+  const xssPatterns = [/javascript:/i, /on\w+\s*=/i, /data:/i]
+  for (const pattern of xssPatterns) {
+    if (pattern.test(trimmed)) {
+      return { success: false, error: 'Content contains invalid characters' }
+    }
+  }
+
   return { success: true, data: trimmed || null }
 }
 
@@ -137,6 +152,13 @@ export function validateStepName(name: string): DataResult<string> {
       error: `Step name must be ${STEP_NAME_MAX_LENGTH} characters or less`,
     }
   }
+
+  // XSS prevention
+  const htmlPattern = /<[^>]*>/
+  if (htmlPattern.test(trimmed)) {
+    return { success: false, error: 'Name cannot contain HTML tags' }
+  }
+
   return { success: true, data: trimmed }
 }
 
@@ -151,6 +173,13 @@ export function validateStepDescription(
       error: `Description must be ${STEP_DESCRIPTION_MAX_LENGTH} characters or less`,
     }
   }
+
+  // XSS prevention
+  const htmlPattern = /<[^>]*>/
+  if (htmlPattern.test(trimmed)) {
+    return { success: false, error: 'Description cannot contain HTML tags' }
+  }
+
   return { success: true, data: trimmed || null }
 }
 
@@ -165,6 +194,13 @@ export function validateActors(
       error: `Actors must be ${ACTORS_MAX_LENGTH} characters or less`,
     }
   }
+
+  // XSS prevention
+  const htmlPattern = /<[^>]*>/
+  if (htmlPattern.test(trimmed)) {
+    return { success: false, error: 'Actors cannot contain HTML tags' }
+  }
+
   return { success: true, data: trimmed || null }
 }
 
@@ -179,6 +215,13 @@ export function validateDuration(
       error: `Duration must be ${DURATION_MAX_LENGTH} characters or less`,
     }
   }
+
+  // XSS prevention
+  const htmlPattern = /<[^>]*>/
+  if (htmlPattern.test(trimmed)) {
+    return { success: false, error: 'Duration cannot contain HTML tags' }
+  }
+
   return { success: true, data: trimmed || null }
 }
 

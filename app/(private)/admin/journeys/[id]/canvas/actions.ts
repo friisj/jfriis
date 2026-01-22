@@ -9,16 +9,11 @@ import {
   validateStageDescription,
   validateEmotionScore,
   validateChannelType,
+  validateTouchpointName,
+  validateTouchpointDescription,
   type JourneyLayerType,
 } from '@/lib/boundary-objects/journey-cells'
-
-// ============================================================================
-// Types
-// ============================================================================
-
-type ActionResult<T = void> =
-  | { success: true; data: T }
-  | { success: false; error: string; code?: string }
+import { ActionErrorCode, type ActionResult } from '@/lib/types/action-result'
 
 interface CellUpdateData {
   content?: string | null
@@ -135,37 +130,37 @@ export async function createCellAction(
     data: { user },
   } = await supabase.auth.getUser()
   if (!user) {
-    return { success: false, error: 'Unauthorized', code: 'UNAUTHORIZED' }
+    return { success: false, error: 'Unauthorized', code: ActionErrorCode.UNAUTHORIZED }
   }
 
   // Verify stage access
   const accessCheck = await verifyStageAccess(supabase, stageId)
   if (!accessCheck.success) {
-    return { success: false, error: accessCheck.error, code: 'ACCESS_DENIED' }
+    return { success: false, error: accessCheck.error, code: ActionErrorCode.ACCESS_DENIED }
   }
 
   // Validate layer type
   const layerTypeResult = validateJourneyLayerType(layerType)
   if (!layerTypeResult.success) {
-    return { success: false, error: layerTypeResult.error, code: 'VALIDATION_ERROR' }
+    return { success: false, error: layerTypeResult.error, code: ActionErrorCode.VALIDATION_ERROR }
   }
 
   // Validate content
   const contentResult = validateCellContent(data.content)
   if (!contentResult.success) {
-    return { success: false, error: contentResult.error, code: 'VALIDATION_ERROR' }
+    return { success: false, error: contentResult.error, code: ActionErrorCode.VALIDATION_ERROR }
   }
 
   // Validate emotion score
   const emotionResult = validateEmotionScore(data.emotion_score)
   if (!emotionResult.success) {
-    return { success: false, error: emotionResult.error, code: 'VALIDATION_ERROR' }
+    return { success: false, error: emotionResult.error, code: ActionErrorCode.VALIDATION_ERROR }
   }
 
   // Validate channel type
   const channelResult = validateChannelType(data.channel_type)
   if (!channelResult.success) {
-    return { success: false, error: channelResult.error, code: 'VALIDATION_ERROR' }
+    return { success: false, error: channelResult.error, code: ActionErrorCode.VALIDATION_ERROR }
   }
 
   // Upsert cell (handles UNIQUE constraint)
@@ -189,7 +184,7 @@ export async function createCellAction(
 
   if (error) {
     console.error('[createCellAction] Error:', error.code, error.message)
-    return { success: false, error: 'Failed to create cell', code: 'DATABASE_ERROR' }
+    return { success: false, error: 'Failed to create cell', code: ActionErrorCode.DATABASE_ERROR }
   }
 
   revalidateJourneyCanvas(accessCheck.journeyId)
@@ -210,31 +205,31 @@ export async function updateCellAction(
     data: { user },
   } = await supabase.auth.getUser()
   if (!user) {
-    return { success: false, error: 'Unauthorized', code: 'UNAUTHORIZED' }
+    return { success: false, error: 'Unauthorized', code: ActionErrorCode.UNAUTHORIZED }
   }
 
   // Verify cell access
   const accessCheck = await verifyCellAccess(supabase, cellId)
   if (!accessCheck.success) {
-    return { success: false, error: accessCheck.error, code: 'ACCESS_DENIED' }
+    return { success: false, error: accessCheck.error, code: ActionErrorCode.ACCESS_DENIED }
   }
 
   // Validate content
   const contentResult = validateCellContent(data.content)
   if (!contentResult.success) {
-    return { success: false, error: contentResult.error, code: 'VALIDATION_ERROR' }
+    return { success: false, error: contentResult.error, code: ActionErrorCode.VALIDATION_ERROR }
   }
 
   // Validate emotion score
   const emotionResult = validateEmotionScore(data.emotion_score)
   if (!emotionResult.success) {
-    return { success: false, error: emotionResult.error, code: 'VALIDATION_ERROR' }
+    return { success: false, error: emotionResult.error, code: ActionErrorCode.VALIDATION_ERROR }
   }
 
   // Validate channel type
   const channelResult = validateChannelType(data.channel_type)
   if (!channelResult.success) {
-    return { success: false, error: channelResult.error, code: 'VALIDATION_ERROR' }
+    return { success: false, error: channelResult.error, code: ActionErrorCode.VALIDATION_ERROR }
   }
 
   // Update cell
@@ -250,7 +245,7 @@ export async function updateCellAction(
 
   if (error) {
     console.error('[updateCellAction] Error:', error.code, error.message)
-    return { success: false, error: 'Failed to update cell', code: 'DATABASE_ERROR' }
+    return { success: false, error: 'Failed to update cell', code: ActionErrorCode.DATABASE_ERROR }
   }
 
   revalidateJourneyCanvas(accessCheck.journeyId)
@@ -268,13 +263,13 @@ export async function deleteCellAction(cellId: string): Promise<ActionResult> {
     data: { user },
   } = await supabase.auth.getUser()
   if (!user) {
-    return { success: false, error: 'Unauthorized', code: 'UNAUTHORIZED' }
+    return { success: false, error: 'Unauthorized', code: ActionErrorCode.UNAUTHORIZED }
   }
 
   // Verify cell access (and get journey ID for revalidation)
   const accessCheck = await verifyCellAccess(supabase, cellId)
   if (!accessCheck.success) {
-    return { success: false, error: accessCheck.error, code: 'ACCESS_DENIED' }
+    return { success: false, error: accessCheck.error, code: ActionErrorCode.ACCESS_DENIED }
   }
 
   // Delete cell
@@ -283,7 +278,7 @@ export async function deleteCellAction(cellId: string): Promise<ActionResult> {
 
   if (error) {
     console.error('[deleteCellAction] Error:', error.code, error.message)
-    return { success: false, error: 'Failed to delete cell', code: 'DATABASE_ERROR' }
+    return { success: false, error: 'Failed to delete cell', code: ActionErrorCode.DATABASE_ERROR }
   }
 
   revalidateJourneyCanvas(accessCheck.journeyId)
@@ -309,19 +304,19 @@ export async function createStageAction(
     data: { user },
   } = await supabase.auth.getUser()
   if (!user) {
-    return { success: false, error: 'Unauthorized', code: 'UNAUTHORIZED' }
+    return { success: false, error: 'Unauthorized', code: ActionErrorCode.UNAUTHORIZED }
   }
 
   // Verify journey access
   const accessCheck = await verifyJourneyAccess(supabase, journeyId)
   if (!accessCheck.success) {
-    return { success: false, error: accessCheck.error, code: 'ACCESS_DENIED' }
+    return { success: false, error: accessCheck.error, code: ActionErrorCode.ACCESS_DENIED }
   }
 
   // Validate name
   const nameResult = validateStageName(name)
   if (!nameResult.success) {
-    return { success: false, error: nameResult.error, code: 'VALIDATION_ERROR' }
+    return { success: false, error: nameResult.error, code: ActionErrorCode.VALIDATION_ERROR }
   }
 
   // Get current max sequence for inserting at end
@@ -350,7 +345,7 @@ export async function createStageAction(
 
   if (error) {
     console.error('[createStageAction] Error:', error.code, error.message)
-    return { success: false, error: 'Failed to create stage', code: 'DATABASE_ERROR' }
+    return { success: false, error: 'Failed to create stage', code: ActionErrorCode.DATABASE_ERROR }
   }
 
   revalidateJourneyCanvas(journeyId)
@@ -371,13 +366,13 @@ export async function updateStageAction(
     data: { user },
   } = await supabase.auth.getUser()
   if (!user) {
-    return { success: false, error: 'Unauthorized', code: 'UNAUTHORIZED' }
+    return { success: false, error: 'Unauthorized', code: ActionErrorCode.UNAUTHORIZED }
   }
 
   // Verify stage access
   const accessCheck = await verifyStageAccess(supabase, stageId)
   if (!accessCheck.success) {
-    return { success: false, error: accessCheck.error, code: 'ACCESS_DENIED' }
+    return { success: false, error: accessCheck.error, code: ActionErrorCode.ACCESS_DENIED }
   }
 
   // Build update object
@@ -386,7 +381,7 @@ export async function updateStageAction(
   if (data.name !== undefined) {
     const nameResult = validateStageName(data.name)
     if (!nameResult.success) {
-      return { success: false, error: nameResult.error, code: 'VALIDATION_ERROR' }
+      return { success: false, error: nameResult.error, code: ActionErrorCode.VALIDATION_ERROR }
     }
     updateData.name = nameResult.data
   }
@@ -394,7 +389,7 @@ export async function updateStageAction(
   if (data.description !== undefined) {
     const descResult = validateStageDescription(data.description)
     if (!descResult.success) {
-      return { success: false, error: descResult.error, code: 'VALIDATION_ERROR' }
+      return { success: false, error: descResult.error, code: ActionErrorCode.VALIDATION_ERROR }
     }
     updateData.description = descResult.data
   }
@@ -411,7 +406,7 @@ export async function updateStageAction(
 
   if (error) {
     console.error('[updateStageAction] Error:', error.code, error.message)
-    return { success: false, error: 'Failed to update stage', code: 'DATABASE_ERROR' }
+    return { success: false, error: 'Failed to update stage', code: ActionErrorCode.DATABASE_ERROR }
   }
 
   revalidateJourneyCanvas(accessCheck.journeyId)
@@ -429,13 +424,13 @@ export async function deleteStageAction(stageId: string): Promise<ActionResult> 
     data: { user },
   } = await supabase.auth.getUser()
   if (!user) {
-    return { success: false, error: 'Unauthorized', code: 'UNAUTHORIZED' }
+    return { success: false, error: 'Unauthorized', code: ActionErrorCode.UNAUTHORIZED }
   }
 
   // Verify stage access (and get journey ID for revalidation)
   const accessCheck = await verifyStageAccess(supabase, stageId)
   if (!accessCheck.success) {
-    return { success: false, error: accessCheck.error, code: 'ACCESS_DENIED' }
+    return { success: false, error: accessCheck.error, code: ActionErrorCode.ACCESS_DENIED }
   }
 
   // Delete stage (cells cascade automatically)
@@ -443,7 +438,7 @@ export async function deleteStageAction(stageId: string): Promise<ActionResult> 
 
   if (error) {
     console.error('[deleteStageAction] Error:', error.code, error.message)
-    return { success: false, error: 'Failed to delete stage', code: 'DATABASE_ERROR' }
+    return { success: false, error: 'Failed to delete stage', code: ActionErrorCode.DATABASE_ERROR }
   }
 
   revalidateJourneyCanvas(accessCheck.journeyId)
@@ -464,13 +459,13 @@ export async function reorderStagesAction(
     data: { user },
   } = await supabase.auth.getUser()
   if (!user) {
-    return { success: false, error: 'Unauthorized', code: 'UNAUTHORIZED' }
+    return { success: false, error: 'Unauthorized', code: ActionErrorCode.UNAUTHORIZED }
   }
 
   // Verify journey access
   const accessCheck = await verifyJourneyAccess(supabase, journeyId)
   if (!accessCheck.success) {
-    return { success: false, error: accessCheck.error, code: 'ACCESS_DENIED' }
+    return { success: false, error: accessCheck.error, code: ActionErrorCode.ACCESS_DENIED }
   }
 
   if (stageIds.length === 0) {
@@ -495,11 +490,11 @@ export async function reorderStagesAction(
       return {
         success: false,
         error: 'Some stages do not belong to this journey',
-        code: 'VALIDATION_ERROR',
+        code: ActionErrorCode.VALIDATION_ERROR,
       }
     }
 
-    return { success: false, error: 'Failed to reorder stages', code: 'DATABASE_ERROR' }
+    return { success: false, error: 'Failed to reorder stages', code: ActionErrorCode.DATABASE_ERROR }
   }
 
   revalidateJourneyCanvas(journeyId)
@@ -520,7 +515,7 @@ export async function moveStageAction(
     data: { user },
   } = await supabase.auth.getUser()
   if (!user) {
-    return { success: false, error: 'Unauthorized', code: 'UNAUTHORIZED' }
+    return { success: false, error: 'Unauthorized', code: ActionErrorCode.UNAUTHORIZED }
   }
 
   // Get stage and verify access
@@ -531,7 +526,7 @@ export async function moveStageAction(
     .single()
 
   if (stageError || !stage) {
-    return { success: false, error: 'Stage not found', code: 'NOT_FOUND' }
+    return { success: false, error: 'Stage not found', code: ActionErrorCode.NOT_FOUND }
   }
 
   // Get all stages for this journey
@@ -545,7 +540,7 @@ export async function moveStageAction(
     return {
       success: false,
       error: 'Failed to fetch stages',
-      code: 'DATABASE_ERROR',
+      code: ActionErrorCode.DATABASE_ERROR,
     }
   }
 
@@ -558,7 +553,7 @@ export async function moveStageAction(
     return {
       success: false,
       error: `Cannot move stage ${direction}`,
-      code: 'VALIDATION_ERROR',
+      code: ActionErrorCode.VALIDATION_ERROR,
     }
   }
 
@@ -633,21 +628,31 @@ export async function createTouchpointAction(
     data: { user },
   } = await supabase.auth.getUser()
   if (!user) {
-    return { success: false, error: 'Unauthorized', code: 'UNAUTHORIZED' }
+    return { success: false, error: 'Unauthorized', code: ActionErrorCode.UNAUTHORIZED }
   }
 
   // Verify stage access
   const accessCheck = await verifyStageAccess(supabase, stageId)
   if (!accessCheck.success) {
-    return { success: false, error: accessCheck.error, code: 'ACCESS_DENIED' }
+    return { success: false, error: accessCheck.error, code: ActionErrorCode.ACCESS_DENIED }
   }
 
   // Validate name
-  if (!data.name || data.name.trim().length === 0) {
-    return { success: false, error: 'Touchpoint name is required', code: 'VALIDATION_ERROR' }
+  const nameResult = validateTouchpointName(data.name)
+  if (!nameResult.success) {
+    return { success: false, error: nameResult.error, code: ActionErrorCode.VALIDATION_ERROR }
   }
-  if (data.name.trim().length > 200) {
-    return { success: false, error: 'Touchpoint name must be 200 characters or less', code: 'VALIDATION_ERROR' }
+
+  // Validate description
+  const descResult = validateTouchpointDescription(data.description)
+  if (!descResult.success) {
+    return { success: false, error: descResult.error, code: ActionErrorCode.VALIDATION_ERROR }
+  }
+
+  // Validate channel type
+  const channelResult = validateChannelType(data.channel_type)
+  if (!channelResult.success) {
+    return { success: false, error: channelResult.error, code: ActionErrorCode.VALIDATION_ERROR }
   }
 
   // Insert touchpoint
@@ -655,9 +660,9 @@ export async function createTouchpointAction(
     .from('touchpoints')
     .insert({
       journey_stage_id: stageId,
-      name: data.name.trim(),
-      description: data.description?.trim() || null,
-      channel_type: data.channel_type?.trim() || null,
+      name: nameResult.data,
+      description: descResult.data,
+      channel_type: channelResult.data,
       sequence: data.sequence,
     })
     .select('id')
@@ -665,7 +670,7 @@ export async function createTouchpointAction(
 
   if (error) {
     console.error('[createTouchpointAction] Error:', error.code, error.message)
-    return { success: false, error: 'Failed to create touchpoint', code: 'DATABASE_ERROR' }
+    return { success: false, error: 'Failed to create touchpoint', code: ActionErrorCode.DATABASE_ERROR }
   }
 
   revalidateJourneyCanvas(accessCheck.journeyId)
@@ -686,34 +691,40 @@ export async function updateTouchpointAction(
     data: { user },
   } = await supabase.auth.getUser()
   if (!user) {
-    return { success: false, error: 'Unauthorized', code: 'UNAUTHORIZED' }
+    return { success: false, error: 'Unauthorized', code: ActionErrorCode.UNAUTHORIZED }
   }
 
   // Verify touchpoint access
   const accessCheck = await verifyTouchpointAccess(supabase, touchpointId)
   if (!accessCheck.success) {
-    return { success: false, error: accessCheck.error, code: 'ACCESS_DENIED' }
+    return { success: false, error: accessCheck.error, code: ActionErrorCode.ACCESS_DENIED }
   }
 
   // Build update object
   const updateData: Record<string, unknown> = {}
 
   if (data.name !== undefined) {
-    if (!data.name || data.name.trim().length === 0) {
-      return { success: false, error: 'Touchpoint name is required', code: 'VALIDATION_ERROR' }
+    const nameResult = validateTouchpointName(data.name)
+    if (!nameResult.success) {
+      return { success: false, error: nameResult.error, code: ActionErrorCode.VALIDATION_ERROR }
     }
-    if (data.name.trim().length > 200) {
-      return { success: false, error: 'Touchpoint name must be 200 characters or less', code: 'VALIDATION_ERROR' }
-    }
-    updateData.name = data.name.trim()
+    updateData.name = nameResult.data
   }
 
   if (data.description !== undefined) {
-    updateData.description = data.description?.trim() || null
+    const descResult = validateTouchpointDescription(data.description)
+    if (!descResult.success) {
+      return { success: false, error: descResult.error, code: ActionErrorCode.VALIDATION_ERROR }
+    }
+    updateData.description = descResult.data
   }
 
   if (data.channel_type !== undefined) {
-    updateData.channel_type = data.channel_type?.trim() || null
+    const channelResult = validateChannelType(data.channel_type)
+    if (!channelResult.success) {
+      return { success: false, error: channelResult.error, code: ActionErrorCode.VALIDATION_ERROR }
+    }
+    updateData.channel_type = channelResult.data
   }
 
   if (Object.keys(updateData).length === 0) {
@@ -728,7 +739,7 @@ export async function updateTouchpointAction(
 
   if (error) {
     console.error('[updateTouchpointAction] Error:', error.code, error.message)
-    return { success: false, error: 'Failed to update touchpoint', code: 'DATABASE_ERROR' }
+    return { success: false, error: 'Failed to update touchpoint', code: ActionErrorCode.DATABASE_ERROR }
   }
 
   revalidateJourneyCanvas(accessCheck.journeyId)
@@ -746,13 +757,13 @@ export async function deleteTouchpointAction(touchpointId: string): Promise<Acti
     data: { user },
   } = await supabase.auth.getUser()
   if (!user) {
-    return { success: false, error: 'Unauthorized', code: 'UNAUTHORIZED' }
+    return { success: false, error: 'Unauthorized', code: ActionErrorCode.UNAUTHORIZED }
   }
 
   // Verify touchpoint access (and get journey ID for revalidation)
   const accessCheck = await verifyTouchpointAccess(supabase, touchpointId)
   if (!accessCheck.success) {
-    return { success: false, error: accessCheck.error, code: 'ACCESS_DENIED' }
+    return { success: false, error: accessCheck.error, code: ActionErrorCode.ACCESS_DENIED }
   }
 
   // Delete touchpoint
@@ -760,7 +771,7 @@ export async function deleteTouchpointAction(touchpointId: string): Promise<Acti
 
   if (error) {
     console.error('[deleteTouchpointAction] Error:', error.code, error.message)
-    return { success: false, error: 'Failed to delete touchpoint', code: 'DATABASE_ERROR' }
+    return { success: false, error: 'Failed to delete touchpoint', code: ActionErrorCode.DATABASE_ERROR }
   }
 
   revalidateJourneyCanvas(accessCheck.journeyId)
@@ -785,13 +796,13 @@ export async function bulkCreateCellsAction(
     data: { user },
   } = await supabase.auth.getUser()
   if (!user) {
-    return { success: false, error: 'Unauthorized', code: 'UNAUTHORIZED' }
+    return { success: false, error: 'Unauthorized', code: ActionErrorCode.UNAUTHORIZED }
   }
 
   // Verify stage access
   const accessCheck = await verifyStageAccess(supabase, stageId)
   if (!accessCheck.success) {
-    return { success: false, error: accessCheck.error, code: 'ACCESS_DENIED' }
+    return { success: false, error: accessCheck.error, code: ActionErrorCode.ACCESS_DENIED }
   }
 
   // Validate and prepare cells
@@ -806,22 +817,22 @@ export async function bulkCreateCellsAction(
   for (const cell of cells) {
     const layerResult = validateJourneyLayerType(cell.layer_type)
     if (!layerResult.success) {
-      return { success: false, error: layerResult.error, code: 'VALIDATION_ERROR' }
+      return { success: false, error: layerResult.error, code: ActionErrorCode.VALIDATION_ERROR }
     }
 
     const contentResult = validateCellContent(cell.content)
     if (!contentResult.success) {
-      return { success: false, error: contentResult.error, code: 'VALIDATION_ERROR' }
+      return { success: false, error: contentResult.error, code: ActionErrorCode.VALIDATION_ERROR }
     }
 
     const emotionResult = validateEmotionScore(cell.emotion_score)
     if (!emotionResult.success) {
-      return { success: false, error: emotionResult.error, code: 'VALIDATION_ERROR' }
+      return { success: false, error: emotionResult.error, code: ActionErrorCode.VALIDATION_ERROR }
     }
 
     const channelResult = validateChannelType(cell.channel_type)
     if (!channelResult.success) {
-      return { success: false, error: channelResult.error, code: 'VALIDATION_ERROR' }
+      return { success: false, error: channelResult.error, code: ActionErrorCode.VALIDATION_ERROR }
     }
 
     validatedCells.push({
@@ -841,7 +852,7 @@ export async function bulkCreateCellsAction(
 
   if (error) {
     console.error('[bulkCreateCellsAction] Error:', error.code, error.message)
-    return { success: false, error: 'Failed to create cells', code: 'DATABASE_ERROR' }
+    return { success: false, error: 'Failed to create cells', code: ActionErrorCode.DATABASE_ERROR }
   }
 
   revalidateJourneyCanvas(accessCheck.journeyId)
@@ -862,13 +873,13 @@ export async function bulkCreateStagesAction(
     data: { user },
   } = await supabase.auth.getUser()
   if (!user) {
-    return { success: false, error: 'Unauthorized', code: 'UNAUTHORIZED' }
+    return { success: false, error: 'Unauthorized', code: ActionErrorCode.UNAUTHORIZED }
   }
 
   // Verify journey access
   const accessCheck = await verifyJourneyAccess(supabase, journeyId)
   if (!accessCheck.success) {
-    return { success: false, error: accessCheck.error, code: 'ACCESS_DENIED' }
+    return { success: false, error: accessCheck.error, code: ActionErrorCode.ACCESS_DENIED }
   }
 
   // Get current max sequence
@@ -895,12 +906,12 @@ export async function bulkCreateStagesAction(
   for (const stage of stages) {
     const nameResult = validateStageName(stage.name)
     if (!nameResult.success) {
-      return { success: false, error: nameResult.error, code: 'VALIDATION_ERROR' }
+      return { success: false, error: nameResult.error, code: ActionErrorCode.VALIDATION_ERROR }
     }
 
     const descResult = validateStageDescription(stage.description)
     if (!descResult.success) {
-      return { success: false, error: descResult.error, code: 'VALIDATION_ERROR' }
+      return { success: false, error: descResult.error, code: ActionErrorCode.VALIDATION_ERROR }
     }
 
     validatedStages.push({
@@ -919,7 +930,7 @@ export async function bulkCreateStagesAction(
 
   if (error) {
     console.error('[bulkCreateStagesAction] Error:', error.code, error.message)
-    return { success: false, error: 'Failed to create stages', code: 'DATABASE_ERROR' }
+    return { success: false, error: 'Failed to create stages', code: ActionErrorCode.DATABASE_ERROR }
   }
 
   revalidateJourneyCanvas(journeyId)

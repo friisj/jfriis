@@ -76,7 +76,7 @@ async function verifyProfileAccess(
 
   if (error) {
     if (error.code === 'PGRST116') {
-      return { success: false, error: 'Customer profile not found or access denied', code: ActionErrorCode.ACCESS_DENIED }
+      return { success: false, error: 'Customer profile not found', code: ActionErrorCode.NOT_FOUND }
     }
     console.error('[verifyProfileAccess] Database error:', error)
     return { success: false, error: 'Failed to verify profile access', code: ActionErrorCode.DATABASE_ERROR }

@@ -15,14 +15,7 @@ import {
   type CostImplication,
   type FailureRisk,
 } from '@/lib/boundary-objects/blueprint-cells'
-
-// ============================================================================
-// Types
-// ============================================================================
-
-type ActionResult<T = void> =
-  | { success: true; data: T }
-  | { success: false; error: string; code?: string }
+import { ActionErrorCode, type ActionResult } from '@/lib/types/action-result'
 
 interface CellUpdateData {
   content?: string | null
@@ -138,49 +131,49 @@ export async function upsertCellAction(
   // Auth check
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) {
-    return { success: false, error: 'Unauthorized', code: 'UNAUTHORIZED' }
+    return { success: false, error: 'Unauthorized', code: ActionErrorCode.UNAUTHORIZED }
   }
 
   // Verify step access
   const accessCheck = await verifyStepAccess(supabase, stepId)
   if (!accessCheck.success) {
-    return { success: false, error: accessCheck.error, code: 'ACCESS_DENIED' }
+    return { success: false, error: accessCheck.error, code: ActionErrorCode.ACCESS_DENIED }
   }
 
   // Validate layer type
   const layerResult = validateLayerType(layerType)
   if (!layerResult.success) {
-    return { success: false, error: layerResult.error, code: 'VALIDATION_ERROR' }
+    return { success: false, error: layerResult.error, code: ActionErrorCode.VALIDATION_ERROR }
   }
 
   // Validate content
   const contentResult = validateCellContent(data.content)
   if (!contentResult.success) {
-    return { success: false, error: contentResult.error, code: 'VALIDATION_ERROR' }
+    return { success: false, error: contentResult.error, code: ActionErrorCode.VALIDATION_ERROR }
   }
 
   // Validate actors
   const actorsResult = validateActors(data.actors)
   if (!actorsResult.success) {
-    return { success: false, error: actorsResult.error, code: 'VALIDATION_ERROR' }
+    return { success: false, error: actorsResult.error, code: ActionErrorCode.VALIDATION_ERROR }
   }
 
   // Validate duration
   const durationResult = validateDuration(data.duration_estimate)
   if (!durationResult.success) {
-    return { success: false, error: durationResult.error, code: 'VALIDATION_ERROR' }
+    return { success: false, error: durationResult.error, code: ActionErrorCode.VALIDATION_ERROR }
   }
 
   // Validate cost implication
   const costResult = validateCostImplication(data.cost_implication)
   if (!costResult.success) {
-    return { success: false, error: costResult.error, code: 'VALIDATION_ERROR' }
+    return { success: false, error: costResult.error, code: ActionErrorCode.VALIDATION_ERROR }
   }
 
   // Validate failure risk
   const riskResult = validateFailureRisk(data.failure_risk)
   if (!riskResult.success) {
-    return { success: false, error: riskResult.error, code: 'VALIDATION_ERROR' }
+    return { success: false, error: riskResult.error, code: ActionErrorCode.VALIDATION_ERROR }
   }
 
   // Upsert cell (create if not exists, update if exists)
@@ -204,7 +197,7 @@ export async function upsertCellAction(
 
   if (error) {
     console.error('[upsertCellAction] Database error:', error.code, error.message)
-    return { success: false, error: 'Failed to save cell', code: 'DATABASE_ERROR' }
+    return { success: false, error: 'Failed to save cell', code: ActionErrorCode.DATABASE_ERROR }
   }
 
   revalidateBlueprintCanvas(accessCheck.blueprintId)
@@ -223,39 +216,39 @@ export async function updateCellAction(
   // Auth check
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) {
-    return { success: false, error: 'Unauthorized', code: 'UNAUTHORIZED' }
+    return { success: false, error: 'Unauthorized', code: ActionErrorCode.UNAUTHORIZED }
   }
 
   // Verify cell access
   const accessCheck = await verifyCellAccess(supabase, cellId)
   if (!accessCheck.success) {
-    return { success: false, error: accessCheck.error, code: 'ACCESS_DENIED' }
+    return { success: false, error: accessCheck.error, code: ActionErrorCode.ACCESS_DENIED }
   }
 
   // Validate all fields
   const contentResult = validateCellContent(data.content)
   if (!contentResult.success) {
-    return { success: false, error: contentResult.error, code: 'VALIDATION_ERROR' }
+    return { success: false, error: contentResult.error, code: ActionErrorCode.VALIDATION_ERROR }
   }
 
   const actorsResult = validateActors(data.actors)
   if (!actorsResult.success) {
-    return { success: false, error: actorsResult.error, code: 'VALIDATION_ERROR' }
+    return { success: false, error: actorsResult.error, code: ActionErrorCode.VALIDATION_ERROR }
   }
 
   const durationResult = validateDuration(data.duration_estimate)
   if (!durationResult.success) {
-    return { success: false, error: durationResult.error, code: 'VALIDATION_ERROR' }
+    return { success: false, error: durationResult.error, code: ActionErrorCode.VALIDATION_ERROR }
   }
 
   const costResult = validateCostImplication(data.cost_implication)
   if (!costResult.success) {
-    return { success: false, error: costResult.error, code: 'VALIDATION_ERROR' }
+    return { success: false, error: costResult.error, code: ActionErrorCode.VALIDATION_ERROR }
   }
 
   const riskResult = validateFailureRisk(data.failure_risk)
   if (!riskResult.success) {
-    return { success: false, error: riskResult.error, code: 'VALIDATION_ERROR' }
+    return { success: false, error: riskResult.error, code: ActionErrorCode.VALIDATION_ERROR }
   }
 
   // Note: Type assertion needed until Supabase types are regenerated with blueprint_cells table
@@ -272,7 +265,7 @@ export async function updateCellAction(
 
   if (error) {
     console.error('[updateCellAction] Database error:', error.code, error.message)
-    return { success: false, error: 'Failed to update cell', code: 'DATABASE_ERROR' }
+    return { success: false, error: 'Failed to update cell', code: ActionErrorCode.DATABASE_ERROR }
   }
 
   revalidateBlueprintCanvas(accessCheck.blueprintId)
@@ -288,13 +281,13 @@ export async function deleteCellAction(cellId: string): Promise<ActionResult> {
   // Auth check
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) {
-    return { success: false, error: 'Unauthorized', code: 'UNAUTHORIZED' }
+    return { success: false, error: 'Unauthorized', code: ActionErrorCode.UNAUTHORIZED }
   }
 
   // Verify cell access
   const accessCheck = await verifyCellAccess(supabase, cellId)
   if (!accessCheck.success) {
-    return { success: false, error: accessCheck.error, code: 'ACCESS_DENIED' }
+    return { success: false, error: accessCheck.error, code: ActionErrorCode.ACCESS_DENIED }
   }
 
   // Note: Type assertion needed until Supabase types are regenerated with blueprint_cells table
@@ -305,7 +298,7 @@ export async function deleteCellAction(cellId: string): Promise<ActionResult> {
 
   if (error) {
     console.error('[deleteCellAction] Database error:', error.code, error.message)
-    return { success: false, error: 'Failed to delete cell', code: 'DATABASE_ERROR' }
+    return { success: false, error: 'Failed to delete cell', code: ActionErrorCode.DATABASE_ERROR }
   }
 
   revalidateBlueprintCanvas(accessCheck.blueprintId)
@@ -329,19 +322,19 @@ export async function createStepAction(
   // Auth check
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) {
-    return { success: false, error: 'Unauthorized', code: 'UNAUTHORIZED' }
+    return { success: false, error: 'Unauthorized', code: ActionErrorCode.UNAUTHORIZED }
   }
 
   // Verify blueprint access
   const accessCheck = await verifyBlueprintAccess(supabase, blueprintId)
   if (!accessCheck.success) {
-    return { success: false, error: accessCheck.error, code: 'ACCESS_DENIED' }
+    return { success: false, error: accessCheck.error, code: ActionErrorCode.ACCESS_DENIED }
   }
 
   // Validate name
   const nameResult = validateStepName(name)
   if (!nameResult.success) {
-    return { success: false, error: nameResult.error, code: 'VALIDATION_ERROR' }
+    return { success: false, error: nameResult.error, code: ActionErrorCode.VALIDATION_ERROR }
   }
 
   const { data: step, error } = await supabase
@@ -357,9 +350,9 @@ export async function createStepAction(
   if (error) {
     console.error('[createStepAction] Database error:', error.code, error.message)
     if (error.code === '23505') {
-      return { success: false, error: 'A step with this position already exists', code: 'DUPLICATE_ERROR' }
+      return { success: false, error: 'A step with this position already exists', code: ActionErrorCode.CONFLICT }
     }
-    return { success: false, error: 'Failed to create step', code: 'DATABASE_ERROR' }
+    return { success: false, error: 'Failed to create step', code: ActionErrorCode.DATABASE_ERROR }
   }
 
   revalidateBlueprintCanvas(blueprintId)
@@ -378,13 +371,13 @@ export async function updateStepAction(
   // Auth check
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) {
-    return { success: false, error: 'Unauthorized', code: 'UNAUTHORIZED' }
+    return { success: false, error: 'Unauthorized', code: ActionErrorCode.UNAUTHORIZED }
   }
 
   // Verify step access
   const accessCheck = await verifyStepAccess(supabase, stepId)
   if (!accessCheck.success) {
-    return { success: false, error: accessCheck.error, code: 'ACCESS_DENIED' }
+    return { success: false, error: accessCheck.error, code: ActionErrorCode.ACCESS_DENIED }
   }
 
   // Build update data with validation
@@ -393,7 +386,7 @@ export async function updateStepAction(
   if (data.name !== undefined) {
     const nameResult = validateStepName(data.name)
     if (!nameResult.success) {
-      return { success: false, error: nameResult.error, code: 'VALIDATION_ERROR' }
+      return { success: false, error: nameResult.error, code: ActionErrorCode.VALIDATION_ERROR }
     }
     updateData.name = nameResult.data
   }
@@ -401,7 +394,7 @@ export async function updateStepAction(
   if (data.description !== undefined) {
     const descResult = validateStepDescription(data.description)
     if (!descResult.success) {
-      return { success: false, error: descResult.error, code: 'VALIDATION_ERROR' }
+      return { success: false, error: descResult.error, code: ActionErrorCode.VALIDATION_ERROR }
     }
     updateData.description = descResult.data
   }
@@ -417,7 +410,7 @@ export async function updateStepAction(
 
   if (error) {
     console.error('[updateStepAction] Database error:', error.code, error.message)
-    return { success: false, error: 'Failed to update step', code: 'DATABASE_ERROR' }
+    return { success: false, error: 'Failed to update step', code: ActionErrorCode.DATABASE_ERROR }
   }
 
   revalidateBlueprintCanvas(accessCheck.blueprintId)
@@ -433,13 +426,13 @@ export async function deleteStepAction(stepId: string): Promise<ActionResult> {
   // Auth check
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) {
-    return { success: false, error: 'Unauthorized', code: 'UNAUTHORIZED' }
+    return { success: false, error: 'Unauthorized', code: ActionErrorCode.UNAUTHORIZED }
   }
 
   // Verify step access
   const accessCheck = await verifyStepAccess(supabase, stepId)
   if (!accessCheck.success) {
-    return { success: false, error: accessCheck.error, code: 'ACCESS_DENIED' }
+    return { success: false, error: accessCheck.error, code: ActionErrorCode.ACCESS_DENIED }
   }
 
   const { error } = await supabase
@@ -449,7 +442,7 @@ export async function deleteStepAction(stepId: string): Promise<ActionResult> {
 
   if (error) {
     console.error('[deleteStepAction] Database error:', error.code, error.message)
-    return { success: false, error: 'Failed to delete step', code: 'DATABASE_ERROR' }
+    return { success: false, error: 'Failed to delete step', code: ActionErrorCode.DATABASE_ERROR }
   }
 
   revalidateBlueprintCanvas(accessCheck.blueprintId)
@@ -469,13 +462,13 @@ export async function reorderStepsAction(
   // Auth check
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) {
-    return { success: false, error: 'Unauthorized', code: 'UNAUTHORIZED' }
+    return { success: false, error: 'Unauthorized', code: ActionErrorCode.UNAUTHORIZED }
   }
 
   // Verify blueprint access
   const accessCheck = await verifyBlueprintAccess(supabase, blueprintId)
   if (!accessCheck.success) {
-    return { success: false, error: accessCheck.error, code: 'ACCESS_DENIED' }
+    return { success: false, error: accessCheck.error, code: ActionErrorCode.ACCESS_DENIED }
   }
 
   if (stepIds.length === 0) {
@@ -497,10 +490,10 @@ export async function reorderStepsAction(
 
     // Handle specific error cases
     if (error.code === '23503' || error.message?.includes('do not belong')) {
-      return { success: false, error: 'Some steps do not belong to this blueprint', code: 'VALIDATION_ERROR' }
+      return { success: false, error: 'Some steps do not belong to this blueprint', code: ActionErrorCode.VALIDATION_ERROR }
     }
 
-    return { success: false, error: 'Failed to reorder steps', code: 'DATABASE_ERROR' }
+    return { success: false, error: 'Failed to reorder steps', code: ActionErrorCode.DATABASE_ERROR }
   }
 
   revalidateBlueprintCanvas(blueprintId)
@@ -519,7 +512,7 @@ export async function moveStepAction(
   // Auth check
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) {
-    return { success: false, error: 'Unauthorized', code: 'UNAUTHORIZED' }
+    return { success: false, error: 'Unauthorized', code: ActionErrorCode.UNAUTHORIZED }
   }
 
   // Get step with its blueprint and sequence
@@ -530,7 +523,7 @@ export async function moveStepAction(
     .single()
 
   if (stepError || !step) {
-    return { success: false, error: 'Step not found or access denied', code: 'ACCESS_DENIED' }
+    return { success: false, error: 'Step not found or access denied', code: ActionErrorCode.ACCESS_DENIED }
   }
 
   // Get all steps for this blueprint
@@ -541,7 +534,7 @@ export async function moveStepAction(
     .order('sequence', { ascending: true })
 
   if (allError || !allSteps) {
-    return { success: false, error: 'Failed to fetch steps', code: 'DATABASE_ERROR' }
+    return { success: false, error: 'Failed to fetch steps', code: ActionErrorCode.DATABASE_ERROR }
   }
 
   // Find current index and calculate swap index
@@ -549,7 +542,7 @@ export async function moveStepAction(
   const swapIndex = direction === 'left' ? currentIndex - 1 : currentIndex + 1
 
   if (swapIndex < 0 || swapIndex >= allSteps.length) {
-    return { success: false, error: 'Cannot move step in that direction', code: 'VALIDATION_ERROR' }
+    return { success: false, error: 'Cannot move step in that direction', code: ActionErrorCode.VALIDATION_ERROR }
   }
 
   // Get the step to swap with
@@ -596,13 +589,13 @@ export async function bulkCreateStepsAction(
   // Auth check
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) {
-    return { success: false, error: 'Unauthorized', code: 'UNAUTHORIZED' }
+    return { success: false, error: 'Unauthorized', code: ActionErrorCode.UNAUTHORIZED }
   }
 
   // Verify blueprint access
   const accessCheck = await verifyBlueprintAccess(supabase, blueprintId)
   if (!accessCheck.success) {
-    return { success: false, error: accessCheck.error, code: 'ACCESS_DENIED' }
+    return { success: false, error: accessCheck.error, code: ActionErrorCode.ACCESS_DENIED }
   }
 
   if (steps.length === 0) {
@@ -638,7 +631,7 @@ export async function bulkCreateStepsAction(
     return {
       success: false,
       error: validationErrors.join('; '),
-      code: 'VALIDATION_ERROR',
+      code: ActionErrorCode.VALIDATION_ERROR,
     }
   }
 
@@ -664,7 +657,7 @@ export async function bulkCreateStepsAction(
 
   if (error) {
     console.error('[bulkCreateStepsAction] Database error:', error.code, error.message)
-    return { success: false, error: 'Failed to create steps', code: 'DATABASE_ERROR' }
+    return { success: false, error: 'Failed to create steps', code: ActionErrorCode.DATABASE_ERROR }
   }
 
   revalidateBlueprintCanvas(blueprintId)
@@ -683,13 +676,13 @@ export async function bulkCreateCellsAction(
   // Auth check
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) {
-    return { success: false, error: 'Unauthorized', code: 'UNAUTHORIZED' }
+    return { success: false, error: 'Unauthorized', code: ActionErrorCode.UNAUTHORIZED }
   }
 
   // Verify step access
   const accessCheck = await verifyStepAccess(supabase, stepId)
   if (!accessCheck.success) {
-    return { success: false, error: accessCheck.error, code: 'ACCESS_DENIED' }
+    return { success: false, error: accessCheck.error, code: ActionErrorCode.ACCESS_DENIED }
   }
 
   if (cells.length === 0) {
@@ -725,7 +718,7 @@ export async function bulkCreateCellsAction(
     return {
       success: false,
       error: validationErrors.join('; '),
-      code: 'VALIDATION_ERROR',
+      code: ActionErrorCode.VALIDATION_ERROR,
     }
   }
 
@@ -743,7 +736,7 @@ export async function bulkCreateCellsAction(
 
   if (error) {
     console.error('[bulkCreateCellsAction] Database error:', error.code, error.message)
-    return { success: false, error: 'Failed to create cells', code: 'DATABASE_ERROR' }
+    return { success: false, error: 'Failed to create cells', code: ActionErrorCode.DATABASE_ERROR }
   }
 
   revalidateBlueprintCanvas(accessCheck.blueprintId)
