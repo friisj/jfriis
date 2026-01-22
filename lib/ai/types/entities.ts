@@ -26,6 +26,16 @@ export type EntityType =
   | 'touchpoint_evidence'
   | 'service_blueprints'
   | 'story_maps'
+  | 'bmc_items'
+  // Canvas-specific entity types (Phase 1-4)
+  | 'activities'
+  | 'user_stories'
+  | 'blueprint_steps'
+  | 'blueprint_cells'
+  | 'journey_stages'
+  | 'journey_cells'
+  | 'customer_profile_items'
+  | 'value_map_items'
 
 // Field names per entity type
 export type FieldNameFor<T extends EntityType> = T extends 'studio_projects'
@@ -66,6 +76,24 @@ export type FieldNameFor<T extends EntityType> = T extends 'studio_projects'
   ? 'name' | 'description' | 'service_scope' | 'service_duration' | 'tags'
   : T extends 'story_maps'
   ? 'name' | 'description' | 'tags'
+  : T extends 'bmc_items'
+  ? 'content' | 'priority'
+  : T extends 'activities'
+  ? 'name' | 'description' | 'user_goal'
+  : T extends 'user_stories'
+  ? 'title' | 'description' | 'acceptance_criteria' | 'story_type'
+  : T extends 'blueprint_steps'
+  ? 'name' | 'description' | 'step_type'
+  : T extends 'blueprint_cells'
+  ? 'content' | 'notes'
+  : T extends 'journey_stages'
+  ? 'name' | 'description'
+  : T extends 'journey_cells'
+  ? 'content' | 'notes' | 'emotion_score'
+  : T extends 'customer_profile_items'
+  ? 'content' | 'job_type' | 'severity' | 'importance'
+  : T extends 'value_map_items'
+  ? 'content' | 'product_type' | 'effectiveness'
   : never
 
 // Union of all possible field names
@@ -99,6 +127,16 @@ export function isValidEntityType(type: string): type is EntityType {
     'touchpoint_evidence',
     'service_blueprints',
     'story_maps',
+    'bmc_items',
+    // Canvas-specific entity types (Phase 1-4)
+    'activities',
+    'user_stories',
+    'blueprint_steps',
+    'blueprint_cells',
+    'journey_stages',
+    'journey_cells',
+    'customer_profile_items',
+    'value_map_items',
   ]
   return validTypes.includes(type as EntityType)
 }
