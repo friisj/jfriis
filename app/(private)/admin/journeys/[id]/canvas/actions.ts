@@ -19,15 +19,14 @@ interface CellUpdateData {
   content?: string | null
   emotion_score?: number | null
   channel_type?: string | null
+  // For optimistic locking - if provided, update will fail if cell was modified
+  expectedUpdatedAt?: string
 }
 
 interface StageUpdateData {
   name?: string
   description?: string | null
 }
-
-// Constants
-const TEMP_SEQUENCE_BASE = -10000
 
 // ============================================================================
 // Helper Functions
@@ -193,6 +192,7 @@ export async function createCellAction(
 
 /**
  * Update an existing cell's content and metadata.
+ * Supports optimistic locking via expectedUpdatedAt parameter.
  */
 export async function updateCellAction(
   cellId: string,
@@ -232,20 +232,38 @@ export async function updateCellAction(
     return { success: false, error: channelResult.error, code: ActionErrorCode.VALIDATION_ERROR }
   }
 
-  // Update cell
+  // Build query with optional optimistic locking
   // Note: Type assertion needed until Supabase types are regenerated with journey_cells table
-  const { error } = await (supabase
+  let query = (supabase
     .from('journey_cells' as any)
     .update({
       content: contentResult.data,
       emotion_score: emotionResult.data,
       channel_type: channelResult.data,
+      updated_at: new Date().toISOString(),
     })
     .eq('id', cellId) as any)
+
+  // Add optimistic locking constraint if expectedUpdatedAt is provided
+  if (data.expectedUpdatedAt) {
+    query = query.eq('updated_at', data.expectedUpdatedAt)
+  }
+
+  // Use select to check if row was updated
+  const { data: updated, error } = await query.select('id').maybeSingle()
 
   if (error) {
     console.error('[updateCellAction] Error:', error.code, error.message)
     return { success: false, error: 'Failed to update cell', code: ActionErrorCode.DATABASE_ERROR }
+  }
+
+  // If expectedUpdatedAt was provided but no row matched, it means concurrent modification
+  if (data.expectedUpdatedAt && !updated) {
+    return {
+      success: false,
+      error: 'Cell was modified by another user. Please refresh and try again.',
+      code: ActionErrorCode.CONFLICT,
+    }
   }
 
   revalidateJourneyCanvas(accessCheck.journeyId)

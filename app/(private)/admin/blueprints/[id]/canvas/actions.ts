@@ -24,25 +24,14 @@ interface CellUpdateData {
   // Accept strings for cost/risk since validation handles type coercion
   cost_implication?: string | null
   failure_risk?: string | null
+  // For optimistic locking - if provided, update will fail if cell was modified
+  expectedUpdatedAt?: string
 }
 
 interface StepUpdateData {
   name?: string
   description?: string | null
 }
-
-// ============================================================================
-// Constants
-// ============================================================================
-
-/**
- * Temporary sequence value used during reordering operations.
- * We use negative values to avoid UNIQUE constraint violations when
- * shuffling sequences. The two-phase approach:
- * 1. Set all sequences to negative temps
- * 2. Set all sequences to their final positive values
- */
-const TEMP_SEQUENCE_BASE = -10000
 
 // ============================================================================
 // Authorization Helpers
@@ -205,7 +194,8 @@ export async function upsertCellAction(
 }
 
 /**
- * Update an existing cell
+ * Update an existing cell.
+ * Supports optimistic locking via expectedUpdatedAt parameter.
  */
 export async function updateCellAction(
   cellId: string,
@@ -251,8 +241,9 @@ export async function updateCellAction(
     return { success: false, error: riskResult.error, code: ActionErrorCode.VALIDATION_ERROR }
   }
 
+  // Build query with optional optimistic locking
   // Note: Type assertion needed until Supabase types are regenerated with blueprint_cells table
-  const { error } = await (supabase
+  let query = (supabase
     .from('blueprint_cells' as any)
     .update({
       content: contentResult.data,
@@ -260,12 +251,30 @@ export async function updateCellAction(
       duration_estimate: durationResult.data,
       cost_implication: costResult.data,
       failure_risk: riskResult.data,
+      updated_at: new Date().toISOString(),
     })
     .eq('id', cellId) as any)
+
+  // Add optimistic locking constraint if expectedUpdatedAt is provided
+  if (data.expectedUpdatedAt) {
+    query = query.eq('updated_at', data.expectedUpdatedAt)
+  }
+
+  // Use select to check if row was updated
+  const { data: updated, error } = await query.select('id').maybeSingle()
 
   if (error) {
     console.error('[updateCellAction] Database error:', error.code, error.message)
     return { success: false, error: 'Failed to update cell', code: ActionErrorCode.DATABASE_ERROR }
+  }
+
+  // If expectedUpdatedAt was provided but no row matched, it means concurrent modification
+  if (data.expectedUpdatedAt && !updated) {
+    return {
+      success: false,
+      error: 'Cell was modified by another user. Please refresh and try again.',
+      code: ActionErrorCode.CONFLICT,
+    }
   }
 
   revalidateBlueprintCanvas(accessCheck.blueprintId)
@@ -501,7 +510,8 @@ export async function reorderStepsAction(
 }
 
 /**
- * Move a step left or right
+ * Move a step left or right.
+ * Uses reorderStepsAction internally for atomic operation.
  */
 export async function moveStepAction(
   stepId: string,
@@ -523,7 +533,7 @@ export async function moveStepAction(
     .single()
 
   if (stepError || !step) {
-    return { success: false, error: 'Step not found or access denied', code: ActionErrorCode.ACCESS_DENIED }
+    return { success: false, error: 'Step not found or access denied', code: ActionErrorCode.NOT_FOUND }
   }
 
   // Get all steps for this blueprint
@@ -537,40 +547,23 @@ export async function moveStepAction(
     return { success: false, error: 'Failed to fetch steps', code: ActionErrorCode.DATABASE_ERROR }
   }
 
-  // Find current index and calculate swap index
+  // Find current index and calculate new index
   const currentIndex = allSteps.findIndex((s) => s.id === stepId)
-  const swapIndex = direction === 'left' ? currentIndex - 1 : currentIndex + 1
+  const newIndex = direction === 'left' ? currentIndex - 1 : currentIndex + 1
 
-  if (swapIndex < 0 || swapIndex >= allSteps.length) {
-    return { success: false, error: 'Cannot move step in that direction', code: ActionErrorCode.VALIDATION_ERROR }
+  if (newIndex < 0 || newIndex >= allSteps.length) {
+    return { success: false, error: `Cannot move step ${direction}`, code: ActionErrorCode.VALIDATION_ERROR }
   }
 
-  // Get the step to swap with
-  const swapStep = allSteps[swapIndex]
+  // Create new order by swapping positions
+  const newOrder = [...allSteps]
+  ;[newOrder[currentIndex], newOrder[newIndex]] = [newOrder[newIndex], newOrder[currentIndex]]
 
-  // Swap sequences using temporary negative value to avoid UNIQUE constraint
-  const tempSeq = TEMP_SEQUENCE_BASE
-
-  // Set current step to temp
-  await supabase
-    .from('blueprint_steps')
-    .update({ sequence: tempSeq })
-    .eq('id', stepId)
-
-  // Set swap step to current's old sequence
-  await supabase
-    .from('blueprint_steps')
-    .update({ sequence: step.sequence })
-    .eq('id', swapStep.id)
-
-  // Set current step to swap's old sequence
-  await supabase
-    .from('blueprint_steps')
-    .update({ sequence: swapStep.sequence })
-    .eq('id', stepId)
-
-  revalidateBlueprintCanvas(step.service_blueprint_id)
-  return { success: true, data: undefined }
+  // Use atomic reorder action
+  return reorderStepsAction(
+    step.service_blueprint_id,
+    newOrder.map((s) => s.id)
+  )
 }
 
 // ============================================================================
