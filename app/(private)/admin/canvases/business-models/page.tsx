@@ -112,12 +112,20 @@ export default function AdminBusinessModelsPage() {
       header: 'Actions',
       align: 'right',
       cell: (canvas) => (
-        <Link
-          href={`/admin/canvases/business-models/${canvas.id}/edit`}
-          className="inline-flex items-center gap-1 px-3 py-1.5 text-sm rounded-lg border hover:bg-accent transition-colors"
-        >
-          Edit
-        </Link>
+        <div className="flex items-center gap-2">
+          <Link
+            href={`/admin/canvases/business-models/${canvas.id}/canvas`}
+            className="inline-flex items-center gap-1 px-3 py-1.5 text-sm rounded-lg border border-primary text-primary hover:bg-primary/10 transition-colors"
+          >
+            Canvas
+          </Link>
+          <Link
+            href={`/admin/canvases/business-models/${canvas.id}/edit`}
+            className="inline-flex items-center gap-1 px-3 py-1.5 text-sm rounded-lg border hover:bg-accent transition-colors"
+          >
+            Edit
+          </Link>
+        </div>
       ),
     },
   ]

@@ -1,5 +1,6 @@
 export const dynamic = 'force-dynamic'
 
+import Link from 'next/link'
 import { createClient } from '@/lib/supabase-server'
 import { BusinessModelCanvasForm } from '@/components/admin/business-model-canvas-form'
 import { notFound } from 'next/navigation'
@@ -53,11 +54,19 @@ export default async function EditBusinessModelCanvasPage({ params }: PageProps)
   return (
     <div className="p-8">
       <div className="max-w-4xl mx-auto">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold mb-2">Edit: {canvas.name}</h1>
-          <p className="text-muted-foreground">
-            Update business model canvas
-          </p>
+        <div className="mb-8 flex items-start justify-between">
+          <div>
+            <h1 className="text-3xl font-bold mb-2">Edit: {canvas.name}</h1>
+            <p className="text-muted-foreground">
+              Update business model canvas
+            </p>
+          </div>
+          <Link
+            href={`/admin/canvases/business-models/${id}/canvas`}
+            className="px-4 py-2 border border-primary text-primary rounded-md text-sm hover:bg-primary/10 transition-colors"
+          >
+            Canvas View
+          </Link>
         </div>
 
         <div className="rounded-lg border bg-card p-6">
