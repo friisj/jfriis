@@ -1188,50 +1188,6 @@ export type Database = {
         }
         Relationships: []
       }
-      journey_cells: {
-        Row: {
-          channel_type: string | null
-          content: string | null
-          created_at: string | null
-          emotion_score: number | null
-          id: string
-          layer_type: string
-          sequence: number | null
-          stage_id: string
-          updated_at: string | null
-        }
-        Insert: {
-          channel_type?: string | null
-          content?: string | null
-          created_at?: string | null
-          emotion_score?: number | null
-          id?: string
-          layer_type: string
-          sequence?: number | null
-          stage_id: string
-          updated_at?: string | null
-        }
-        Update: {
-          channel_type?: string | null
-          content?: string | null
-          created_at?: string | null
-          emotion_score?: number | null
-          id?: string
-          layer_type?: string
-          sequence?: number | null
-          stage_id?: string
-          updated_at?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "journey_cells_stage_id_fkey"
-            columns: ["stage_id"]
-            isOneToOne: false
-            referencedRelation: "journey_stages"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       journey_stages: {
         Row: {
           created_at: string
@@ -2907,14 +2863,6 @@ export type Database = {
           p_target_type: string
         }
         Returns: undefined
-      }
-      reorder_blueprint_steps: {
-        Args: { p_blueprint_id: string; p_step_ids: string[] }
-        Returns: number
-      }
-      reorder_journey_stages: {
-        Args: { p_journey_id: string; p_stage_ids: string[] }
-        Returns: number
       }
       resequence_journey_stages: {
         Args: { p_journey_id: string }
