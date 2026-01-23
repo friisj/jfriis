@@ -26,7 +26,8 @@ export const runtime = 'edge'
 import '@/lib/ai/actions/generate-survey'
 import '@/lib/ai/actions/process-survey'
 
-export async function POST(request: Request, { params }: { params: { surveyId: string } }) {
+export async function POST(request: Request, { params }: { params: Promise<{ surveyId: string }> }) {
+  const { surveyId } = await params
   const supabase = await createClient()
 
   // 1. Auth check
@@ -49,7 +50,7 @@ export async function POST(request: Request, { params }: { params: { surveyId: s
       responses:studio_survey_responses(*)
     `
     )
-    .eq('id', params.surveyId)
+    .eq('id', surveyId)
     .eq('project.user_id', user.id)
     .single()
 
@@ -66,7 +67,7 @@ export async function POST(request: Request, { params }: { params: { surveyId: s
       processing_status: 'processing',
       processing_started_at: new Date().toISOString(),
     })
-    .eq('id', params.surveyId)
+    .eq('id', surveyId)
 
   // 4. Prepare responses for LLM
   const formattedResponses = survey.responses.map((r: any) => {
@@ -88,7 +89,7 @@ export async function POST(request: Request, { params }: { params: { surveyId: s
       schema: ProcessSurveyOutputSchema,
       system: SURVEY_PROMPTS.processing.system,
       prompt: SURVEY_PROMPTS.processing.userTemplate({
-        survey_id: params.surveyId,
+        survey_id: surveyId,
         project_id: survey.project_id,
         responses: formattedResponses,
       }),
@@ -100,7 +101,7 @@ export async function POST(request: Request, { params }: { params: { surveyId: s
         }
 
         try {
-          await persistSurveyArtifacts(supabase, params.surveyId, survey.project_id, object)
+          await persistSurveyArtifacts(supabase, surveyId, survey.project_id, object)
 
           // 7. Mark processing complete
           await supabase
@@ -109,7 +110,7 @@ export async function POST(request: Request, { params }: { params: { surveyId: s
               processing_status: 'completed',
               processing_completed_at: new Date().toISOString(),
             })
-            .eq('id', params.surveyId)
+            .eq('id', surveyId)
 
           // 8. Update project
           await supabase
@@ -128,7 +129,7 @@ export async function POST(request: Request, { params }: { params: { surveyId: s
               processing_status: 'failed',
               processing_error: error instanceof Error ? error.message : 'Unknown error',
             })
-            .eq('id', params.surveyId)
+            .eq('id', surveyId)
         }
       },
     })
@@ -144,7 +145,7 @@ export async function POST(request: Request, { params }: { params: { surveyId: s
         processing_status: 'failed',
         processing_error: error instanceof Error ? error.message : 'Unknown error',
       })
-      .eq('id', params.surveyId)
+      .eq('id', surveyId)
 
     return new Response('Processing failed', { status: 500 })
   }

@@ -8,7 +8,7 @@
  */
 
 import React, { createContext, useContext, useState, useEffect } from 'react'
-import { Theme, ThemeMode, getTheme, defaultTheme } from './theme-config'
+import { Theme, ThemeMode, getTheme } from './theme-config'
 
 interface ThemeContextValue {
   theme: Theme
@@ -27,28 +27,43 @@ interface ThemeProviderProps {
   storageKey?: string
 }
 
+// Helper to get initial values from localStorage (SSR-safe)
+function getInitialThemeState(
+  storageKey: string,
+  defaultThemeName: string,
+  defaultMode: ThemeMode
+): { theme: Theme; mode: ThemeMode } {
+  if (typeof window === 'undefined') {
+    return { theme: getTheme(defaultThemeName), mode: defaultMode }
+  }
+  try {
+    const stored = localStorage.getItem(storageKey)
+    if (stored) {
+      const { themeName, mode: storedMode } = JSON.parse(stored)
+      return {
+        theme: themeName ? getTheme(themeName) : getTheme(defaultThemeName),
+        mode: storedMode || defaultMode,
+      }
+    }
+  } catch (error) {
+    console.error('Failed to load theme from localStorage:', error)
+  }
+  return { theme: getTheme(defaultThemeName), mode: defaultMode }
+}
+
 export function ThemeProvider({
   children,
   defaultTheme: defaultThemeName = 'default',
   defaultMode = 'light',
   storageKey = 'jf-theme',
 }: ThemeProviderProps) {
-  const [theme, setThemeState] = useState<Theme>(getTheme(defaultThemeName))
-  const [mode, setModeState] = useState<ThemeMode>(defaultMode)
-
-  // Load theme from localStorage on mount
-  useEffect(() => {
-    try {
-      const stored = localStorage.getItem(storageKey)
-      if (stored) {
-        const { themeName, mode: storedMode } = JSON.parse(stored)
-        if (themeName) setThemeState(getTheme(themeName))
-        if (storedMode) setModeState(storedMode)
-      }
-    } catch (error) {
-      console.error('Failed to load theme from localStorage:', error)
-    }
-  }, [storageKey])
+  // Use lazy initialization to avoid setState in useEffect
+  const [theme, setThemeState] = useState<Theme>(() =>
+    getInitialThemeState(storageKey, defaultThemeName, defaultMode).theme
+  )
+  const [mode, setModeState] = useState<ThemeMode>(() =>
+    getInitialThemeState(storageKey, defaultThemeName, defaultMode).mode
+  )
 
   // Save theme to localStorage
   useEffect(() => {

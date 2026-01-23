@@ -49,7 +49,7 @@ export default async function AdminSpecimensPage() {
 
   // Fetch link counts for each specimen from entity_links
   const specimenIds = specimens?.map(s => s.id) || []
-  let linkCounts: Record<string, { projects: number; logEntries: number }> = {}
+  const linkCounts: Record<string, { projects: number; logEntries: number }> = {}
 
   if (specimenIds.length > 0) {
     const { data: projectLinks } = await supabase

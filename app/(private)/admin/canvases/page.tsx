@@ -149,13 +149,13 @@ export default async function AdminCanvasesPage() {
             <div>
               <h4 className="font-medium text-foreground">Customer Profile</h4>
               <p className="text-muted-foreground">
-                Captures customer jobs, pains, and gains - the "circle" side of the VPC.
+                Captures customer jobs, pains, and gains - the &quot;circle&quot; side of the VPC.
               </p>
             </div>
             <div>
               <h4 className="font-medium text-foreground">Value Map</h4>
               <p className="text-muted-foreground">
-                Defines your products/services, pain relievers, and gain creators - the "square"
+                Defines your products/services, pain relievers, and gain creators - the &quot;square&quot;
                 side.
               </p>
             </div>

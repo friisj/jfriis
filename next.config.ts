@@ -1,14 +1,13 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // TypeScript errors temporarily ignored while we fix Supabase type drift
+  // TODO: Remove after completing OJI-XX (Supabase type regeneration)
+  // See docs/infrastructure/TEST_HARNESS_SPEC.md
   typescript: {
-    // TODO: Generate proper Supabase types to fix these errors
     ignoreBuildErrors: true,
   },
-  eslint: {
-    // TODO: Fix ESLint errors properly
-    ignoreDuringBuilds: true,
-  },
+  // ESLint errors are now enforced in CI
 };
 
 export default nextConfig;

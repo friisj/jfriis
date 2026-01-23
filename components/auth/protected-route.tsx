@@ -6,6 +6,7 @@
  * Wrapper component that requires authentication
  */
 
+import Link from 'next/link'
 import { useRequireAuth } from '@/lib/hooks/useAuth'
 import { useRouter } from 'next/navigation'
 import { useEffect } from 'react'
@@ -80,12 +81,12 @@ export function AdminRoute({ children, redirectTo = '/' }: AdminRouteProps) {
           <p className="text-muted-foreground mb-4">
             You don't have permission to access this page.
           </p>
-          <a
+          <Link
             href="/"
             className="inline-block px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:opacity-90"
           >
             Go Home
-          </a>
+          </Link>
         </div>
       </div>
     )

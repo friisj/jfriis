@@ -17,7 +17,8 @@ interface StageWithTouchpoints extends JourneyStage {
   touchpoints: Touchpoint[]
 }
 
-export default async function JourneyDetailPage({ params }: { params: { id: string } }) {
+export default async function JourneyDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params
   const supabase = await createClient()
 
   // Fetch journey with relationships
@@ -31,7 +32,7 @@ export default async function JourneyDetailPage({ params }: { params: { id: stri
       hypothesis:studio_hypotheses(id, statement)
     `
     )
-    .eq('id', params.id)
+    .eq('id', id)
     .single()
 
   if (journeyError || !journey) {
@@ -47,7 +48,7 @@ export default async function JourneyDetailPage({ params }: { params: { id: stri
       touchpoints(*)
     `
     )
-    .eq('user_journey_id', params.id)
+    .eq('user_journey_id', id)
     .order('sequence', { ascending: true })
 
   if (stagesError) {
@@ -88,13 +89,13 @@ export default async function JourneyDetailPage({ params }: { params: { id: stri
       actions={
         <div className="flex gap-2">
           <Link
-            href={`/admin/journeys/${params.id}/canvas`}
+            href={`/admin/journeys/${id}/canvas`}
             className="px-4 py-2 border border-primary text-primary rounded-md text-sm hover:bg-primary/10"
           >
             Canvas View
           </Link>
           <Link
-            href={`/admin/journeys/${params.id}/edit`}
+            href={`/admin/journeys/${id}/edit`}
             className="px-4 py-2 bg-primary text-primary-foreground rounded-md text-sm hover:opacity-90"
           >
             Edit Journey

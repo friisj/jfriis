@@ -6,11 +6,12 @@ import { notFound } from 'next/navigation';
 export default async function CharacterDetailPage({
   params,
 }: {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }) {
+  const { id } = await params;
   let characterData;
   try {
-    characterData = await getCharacterWithRelationsServer(params.id);
+    characterData = await getCharacterWithRelationsServer(id);
   } catch (error) {
     notFound();
   }

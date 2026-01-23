@@ -31,7 +31,7 @@ export default async function AdminVenturesPage() {
 
   // Fetch link counts from entity_links
   const ventureIds = ventures?.map(v => v.id) || []
-  let linkCounts: Record<string, { specimens: number; logEntries: number }> = {}
+  const linkCounts: Record<string, { specimens: number; logEntries: number }> = {}
 
   if (ventureIds.length > 0) {
     const { data: specimenLinks } = await supabase

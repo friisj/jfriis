@@ -23,7 +23,7 @@ export default async function AdminLogPage() {
 
   // Fetch link counts from entity_links
   const entryIds = logEntries?.map(e => e.id) || []
-  let linkCounts: Record<string, { specimens: number; projects: number }> = {}
+  const linkCounts: Record<string, { specimens: number; projects: number }> = {}
 
   if (entryIds.length > 0) {
     const { data: specimenLinks } = await supabase

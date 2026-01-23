@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import Link from 'next/link'
 import type { DesignSystemConfig } from './design-system-tool'
 import { getColorValue } from '@/lib/tailwind-colors'
 
@@ -629,12 +630,12 @@ import { profiles, variants, gestures } from './motion'
           ← Back to Preview
         </button>
         <div className="flex-1" />
-        <a
+        <Link
           href="/studio/design-system-tool"
           className="px-6 py-2.5 border rounded-lg hover:bg-accent transition-colors font-medium inline-block"
         >
           Start New Configuration
-        </a>
+        </Link>
       </div>
     </div>
   )

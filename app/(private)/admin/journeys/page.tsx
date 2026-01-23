@@ -18,21 +18,22 @@ interface SearchParams {
 export default async function AdminJourneysPage({
   searchParams,
 }: {
-  searchParams: SearchParams
+  searchParams: Promise<SearchParams>
 }) {
+  const resolvedParams = await searchParams
   const supabase = await createClient()
 
   // Build filters from search params
   const filters = {
-    status: searchParams.status ? [searchParams.status as BoundaryObjectStatus] : undefined,
-    validation_status: searchParams.validation ? [searchParams.validation as ValidationStatus] : undefined,
-    journey_type: searchParams.type ? [searchParams.type as JourneyType] : undefined,
-    customer_profile_id: searchParams.customer,
-    search: searchParams.search,
+    status: resolvedParams.status ? [resolvedParams.status as BoundaryObjectStatus] : undefined,
+    validation_status: resolvedParams.validation ? [resolvedParams.validation as ValidationStatus] : undefined,
+    journey_type: resolvedParams.type ? [resolvedParams.type as JourneyType] : undefined,
+    customer_profile_id: resolvedParams.customer,
+    search: resolvedParams.search,
   }
 
   const pagination = {
-    cursor: searchParams.cursor,
+    cursor: resolvedParams.cursor,
     limit: 50,
   }
 

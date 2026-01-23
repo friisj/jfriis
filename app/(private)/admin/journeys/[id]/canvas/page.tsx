@@ -10,17 +10,18 @@ import type {
 } from '@/lib/boundary-objects/journey-cells'
 
 interface PageProps {
-  params: { id: string }
+  params: Promise<{ id: string }>
 }
 
 export default async function JourneyCanvasPage({ params }: PageProps) {
+  const { id } = await params
   const supabase = await createClient()
 
   // Fetch journey
   const { data: journey, error: journeyError } = await supabase
     .from('user_journeys')
     .select('id, slug, name, description, status')
-    .eq('id', params.id)
+    .eq('id', id)
     .single()
 
   if (journeyError || !journey) {
@@ -31,7 +32,7 @@ export default async function JourneyCanvasPage({ params }: PageProps) {
   const { data: stagesData, error: stagesError } = await supabase
     .from('journey_stages')
     .select('id, user_journey_id, name, description, sequence')
-    .eq('user_journey_id', params.id)
+    .eq('user_journey_id', id)
     .order('sequence', { ascending: true })
 
   if (stagesError) {
