@@ -1711,13 +1711,37 @@ Use Husky + lint-staged for pre-commit validation.
 - [~] Add test job to CI workflow - SKIPPED (using local validation)
 - [~] Add coverage reporting to CI - SKIPPED (using local validation)
 
-### Phase 3: Pre-commit Hooks (PARTIALLY COMPLETE)
+### Phase 3: Pre-commit Hooks ✅ COMPLETE
 - [x] Install Husky and lint-staged (already installed)
 - [x] Husky initialized
 - [x] Add `lint-staged` config to `package.json` (updated with vitest)
-- [ ] Configure `.husky/pre-commit` to include type-check
-- [ ] Test pre-commit hook locally
-- [ ] Document `--no-verify` escape hatch
+- [x] Configure `.husky/pre-commit` to include type-check
+- [x] Test pre-commit hook locally
+- [x] Document `--no-verify` escape hatch (see below)
+
+#### Hook Configuration
+
+**Pre-commit** (`.husky/pre-commit`):
+1. `npm run type-check` - Full TypeScript validation
+2. `npx lint-staged` - ESLint + Vitest on staged files only
+
+**Pre-push** (`.husky/pre-push`):
+1. `npm run build` - Full production build
+
+#### Escape Hatch
+
+To bypass hooks in emergencies (use sparingly):
+
+```bash
+# Skip pre-commit hooks
+git commit --no-verify -m "emergency fix"
+
+# Skip pre-push hooks
+git push --no-verify
+```
+
+**When to use**: Hotfixes where you've manually verified the build works.
+**Warning**: Skipping hooks can introduce regressions. Use with caution.
 
 ### Phase 4: Agent Integration
 - [~] Create `.github/workflows/agent-review.yml` - SKIPPED (no GitHub CI)
@@ -1728,5 +1752,5 @@ Use Husky + lint-staged for pre-commit validation.
 
 ---
 
-*Document version: 2.1*
+*Document version: 2.2*
 *Last updated: 2026-01-23*
