@@ -116,7 +116,7 @@ export function JourneysListView({
       header: 'Type',
       cell: (journey) => (
         <span className="text-sm">
-          {JOURNEY_TYPE_LABELS[journey.journey_type] || journey.journey_type}
+          {journey.journey_type ? (JOURNEY_TYPE_LABELS[journey.journey_type as keyof typeof JOURNEY_TYPE_LABELS] || journey.journey_type) : '-'}
         </span>
       ),
     },
@@ -131,7 +131,7 @@ export function JourneysListView({
           <div>
             <span className="text-muted-foreground">Touchpoints:</span> {journey.touchpoint_count}
           </div>
-          {journey.high_pain_count > 0 && (
+          {(journey.high_pain_count ?? 0) > 0 && (
             <div className="text-red-600 dark:text-red-400">
               ⚠ {journey.high_pain_count} high pain
             </div>
@@ -144,8 +144,7 @@ export function JourneysListView({
       header: 'Status',
       cell: (journey) => (
         <StatusBadge
-          status={STATUS_LABELS[journey.status]}
-          variant={STATUS_COLORS[journey.status]}
+          value={STATUS_LABELS[journey.status as keyof typeof STATUS_LABELS] || journey.status || '-'}
         />
       ),
     },
@@ -154,8 +153,7 @@ export function JourneysListView({
       header: 'Validation',
       cell: (journey) => (
         <StatusBadge
-          status={VALIDATION_STATUS_LABELS[journey.validation_status]}
-          variant={STATUS_COLORS[journey.validation_status]}
+          value={journey.validation_status ? (VALIDATION_STATUS_LABELS[journey.validation_status as keyof typeof VALIDATION_STATUS_LABELS] || journey.validation_status) : '-'}
         />
       ),
     },
@@ -185,7 +183,7 @@ export function JourneysListView({
       key: 'updated_at',
       header: 'Updated',
       cell: (journey) => (
-        <span className="text-sm text-muted-foreground">{formatDate(journey.updated_at)}</span>
+        <span className="text-sm text-muted-foreground">{formatDate(journey.updated_at || journey.created_at || '')}</span>
       ),
     },
   ]
@@ -193,23 +191,15 @@ export function JourneysListView({
   if (journeys.length === 0) {
     return (
       <AdminEmptyState
+        icon={<span className="text-4xl">🗺️</span>}
         title="No journeys found"
         description={
           searchInput || currentStatus !== 'all' || currentValidation !== 'all'
             ? 'Try adjusting your filters'
             : 'Create your first user journey to map customer experiences'
         }
-        action={
-          searchInput || currentStatus !== 'all' || currentValidation !== 'all'
-            ? {
-                label: 'Clear filters',
-                onClick: () => router.push('/admin/journeys'),
-              }
-            : {
-                label: 'New Journey',
-                href: '/admin/journeys/new',
-              }
-        }
+        actionHref={searchInput || currentStatus !== 'all' || currentValidation !== 'all' ? '/admin/journeys' : '/admin/journeys/new'}
+        actionLabel={searchInput || currentStatus !== 'all' || currentValidation !== 'all' ? 'Clear filters' : 'New Journey'}
       />
     )
   }

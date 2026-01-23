@@ -21,11 +21,12 @@ export function useAuth() {
           .select('is_admin')
           .eq('id', session.user.id)
           .single()
-          .then(({ data }) => {
+          .then(({ data, error }) => {
+            if (error) {
+              setLoading(false)
+              return
+            }
             setIsAdmin(data?.is_admin ?? false)
-            setLoading(false)
-          })
-          .catch(() => {
             setLoading(false)
           })
       } else {

@@ -120,57 +120,55 @@ export interface EntityMetadata {
 export interface UserJourney extends BaseRecord {
   slug: string
   name: string
-  description?: string
-  studio_project_id?: string
-  hypothesis_id?: string
-  customer_profile_id?: string
-  journey_type: JourneyType
-  status: BoundaryObjectStatus
+  description?: string | null
+  studio_project_id?: string | null
+  hypothesis_id?: string | null
+  customer_profile_id?: string | null
+  journey_type: JourneyType | string | null
+  status: BoundaryObjectStatus | string
   version: number
-  parent_version_id?: string
-  goal?: string
-  context: JourneyContext
-  duration_estimate?: string
-  validation_status: ValidationStatus
-  validated_at?: string
-  validation_confidence?: ValidationConfidence
-  related_value_proposition_ids: string[]
-  related_business_model_ids: string[]
-  tags: string[]
-  metadata: EntityMetadata
+  parent_version_id?: string | null
+  goal?: string | null
+  context: JourneyContext | null
+  duration_estimate?: string | null
+  validation_status: ValidationStatus | string | null
+  validated_at?: string | null
+  validation_confidence?: ValidationConfidence | string | null
+  tags: string[] | null
+  metadata: EntityMetadata | null
 }
 
 export interface JourneyStage extends BaseRecord {
   user_journey_id: string
   name: string
-  description?: string
+  description?: string | null
   sequence: number
-  stage_type?: StageType
-  customer_emotion?: string
-  customer_mindset?: string
-  customer_goal?: string
-  duration_estimate?: string
-  drop_off_risk?: DropOffRisk
-  validation_status: ValidationStatus
-  metadata: EntityMetadata
+  stage_type?: StageType | string | null
+  customer_emotion?: string | null
+  customer_mindset?: string | null
+  customer_goal?: string | null
+  duration_estimate?: string | null
+  drop_off_risk?: DropOffRisk | string | null
+  validation_status: ValidationStatus | string | null
+  metadata: EntityMetadata | null
 }
 
 export interface Touchpoint extends BaseRecord {
   journey_stage_id: string
   name: string
-  description?: string
+  description?: string | null
   sequence: number
-  channel_type?: ChannelType
-  interaction_type?: InteractionType
-  importance?: Importance
-  current_experience_quality?: ExperienceQuality
-  pain_level?: PainLevel
-  delight_potential?: DelightPotential
-  user_actions: TouchpointUserAction[]
-  system_response: TouchpointSystemResponse
-  validation_status: ValidationStatus
-  validated_at?: string
-  metadata: EntityMetadata
+  channel_type?: ChannelType | string | null
+  interaction_type?: InteractionType | string | null
+  importance?: Importance | string | null
+  current_experience_quality?: ExperienceQuality | string | null
+  pain_level?: PainLevel | string | null
+  delight_potential?: DelightPotential | string | null
+  user_actions: TouchpointUserAction[] | null
+  system_response: TouchpointSystemResponse | null
+  validation_status: ValidationStatus | string | null
+  validated_at?: string | null
+  metadata: EntityMetadata | null
 }
 
 // ============================================================================
@@ -185,13 +183,13 @@ export type TouchpointMappingTargetType = 'canvas_item' | 'customer_profile' | '
  */
 export interface TouchpointMapping extends BaseRecord {
   touchpoint_id: string
-  target_type: TouchpointMappingTargetType
+  target_type: TouchpointMappingTargetType | string
   target_id: string
-  mapping_type: TouchpointMappingType
-  strength?: Strength
+  mapping_type: TouchpointMappingType | string
+  strength?: Strength | string | null
   validated: boolean
-  notes?: string
-  metadata: EntityMetadata
+  notes?: string | null
+  metadata: EntityMetadata | null
 }
 
 /**
@@ -199,11 +197,11 @@ export interface TouchpointMapping extends BaseRecord {
  */
 interface TouchpointMappingBase extends BaseRecord {
   touchpoint_id: string
-  mapping_type: TouchpointMappingType
-  strength?: Strength
+  mapping_type: TouchpointMappingType | string
+  strength?: Strength | string | null
   validated: boolean
-  notes?: string
-  metadata: EntityMetadata
+  notes?: string | null
+  metadata: EntityMetadata | null
 }
 
 /**
@@ -233,8 +231,8 @@ export interface TouchpointValueProposition extends TouchpointMappingBase {
 export interface TouchpointAssumption extends BaseRecord {
   touchpoint_id: string
   assumption_id: string
-  relationship_type?: AssumptionRelationshipType
-  notes?: string
+  relationship_type?: AssumptionRelationshipType | string | null
+  notes?: string | null
 }
 
 /**
@@ -242,14 +240,14 @@ export interface TouchpointAssumption extends BaseRecord {
  */
 export interface TouchpointEvidence extends BaseRecord {
   touchpoint_id: string
-  evidence_type: EvidenceType
+  evidence_type: EvidenceType | string
   title: string
-  summary?: string
-  url?: string
-  supports_design?: boolean
-  confidence?: ValidationConfidence
-  collected_at?: string
-  metadata: EntityMetadata
+  summary?: string | null
+  url?: string | null
+  supports_design?: boolean | null
+  confidence?: ValidationConfidence | string | null
+  collected_at?: string | null
+  metadata: EntityMetadata | null
 }
 
 // ============================================================================
@@ -264,6 +262,9 @@ export type JourneyStageUpdate = Partial<JourneyStageInsert>
 
 export type TouchpointInsert = Omit<Touchpoint, keyof BaseRecord>
 export type TouchpointUpdate = Partial<TouchpointInsert>
+
+export type TouchpointMappingInsert = Omit<TouchpointMapping, keyof BaseRecord>
+export type TouchpointMappingUpdate = Partial<TouchpointMappingInsert>
 
 export type TouchpointCanvasItemInsert = Omit<TouchpointCanvasItem, keyof BaseRecord>
 export type TouchpointCanvasItemUpdate = Partial<TouchpointCanvasItemInsert>
@@ -318,21 +319,21 @@ export interface JourneySummaryView {
   id: string
   slug: string
   name: string
-  description?: string
-  status: BoundaryObjectStatus
-  validation_status: ValidationStatus
-  journey_type: JourneyType
-  goal?: string
-  customer_profile_id?: string
-  customer_profile_name?: string
-  studio_project_id?: string
-  studio_project_name?: string
-  tags: string[]
-  created_at: string
-  updated_at: string
-  stage_count: number
-  touchpoint_count: number
-  high_pain_count: number
+  description?: string | null
+  status: BoundaryObjectStatus | string | null
+  validation_status: ValidationStatus | string | null
+  journey_type: JourneyType | string | null
+  goal?: string | null
+  customer_profile_id?: string | null
+  customer_profile_name?: string | null
+  studio_project_id?: string | null
+  studio_project_name?: string | null
+  tags: string[] | null
+  created_at: string | null
+  updated_at: string | null
+  stage_count: number | null
+  touchpoint_count: number | null
+  high_pain_count: number | null
 }
 
 // ============================================================================
@@ -344,12 +345,12 @@ export interface JourneySummaryView {
  * Includes journey and stage context for filtering/sorting
  */
 export interface TouchpointTableRow extends Touchpoint {
-  journey_name: string
-  journey_slug: string
-  stage_name: string
-  stage_sequence: number
-  mapping_count: number
-  story_count?: number // Will be populated in later phases
+  journey_name: string | null
+  journey_slug: string | null
+  stage_name: string | null
+  stage_sequence: number | null
+  mapping_count: number | null
+  story_count?: number | null // Will be populated in later phases
 }
 
 // ============================================================================
@@ -420,35 +421,35 @@ export interface BlueprintLayers {
 export interface ServiceBlueprint extends BaseRecord {
   slug: string
   name: string
-  description?: string
-  studio_project_id?: string
-  hypothesis_id?: string
-  blueprint_type: BlueprintType
-  status: BoundaryObjectStatus
+  description?: string | null
+  studio_project_id?: string | null
+  hypothesis_id?: string | null
+  blueprint_type: BlueprintType | string | null
+  status: BoundaryObjectStatus | string
   version: number
-  parent_version_id?: string
-  service_scope?: string
-  service_duration?: string
-  validation_status: ValidationStatus
-  validated_at?: string
-  tags: string[]
-  metadata: EntityMetadata
+  parent_version_id?: string | null
+  service_scope?: string | null
+  service_duration?: string | null
+  validation_status: ValidationStatus | string | null
+  validated_at?: string | null
+  tags: string[] | null
+  metadata: EntityMetadata | null
 }
 
 export interface BlueprintStep extends BaseRecord {
   service_blueprint_id: string
   name: string
-  description?: string
+  description?: string | null
   sequence: number
-  layers: BlueprintLayers
-  actors: Record<string, string>
-  duration_estimate?: string
-  cost_implication?: CostImplication
-  customer_value_delivery?: ValueDelivery
-  failure_risk?: FailureRisk
-  failure_impact?: string
-  validation_status: ValidationStatus
-  metadata: EntityMetadata
+  layers: BlueprintLayers | null
+  actors: Record<string, string> | null
+  duration_estimate?: string | null
+  cost_implication?: CostImplication | string | null
+  customer_value_delivery?: ValueDelivery | string | null
+  failure_risk?: FailureRisk | string | null
+  failure_impact?: string | null
+  validation_status: ValidationStatus | string | null
+  metadata: EntityMetadata | null
 }
 
 // Insert/Update types for blueprints
@@ -477,17 +478,17 @@ export interface BlueprintSummaryView {
   id: string
   slug: string
   name: string
-  description?: string
-  status: BoundaryObjectStatus
-  validation_status: ValidationStatus
-  blueprint_type: BlueprintType
-  studio_project_id?: string
-  studio_project_name?: string
-  tags: string[]
-  created_at: string
-  updated_at: string
-  step_count: number
-  linked_journey_count: number
+  description?: string | null
+  status: BoundaryObjectStatus | string | null
+  validation_status: ValidationStatus | string | null
+  blueprint_type: BlueprintType | string | null
+  studio_project_id?: string | null
+  studio_project_name?: string | null
+  tags: string[] | null
+  created_at: string | null
+  updated_at: string | null
+  step_count: number | null
+  linked_journey_count: number | null
 }
 
 // Filter types for blueprints
@@ -519,51 +520,51 @@ export type StoryStatus = 'backlog' | 'ready' | 'in_progress' | 'review' | 'done
 export interface StoryMap extends BaseRecord {
   slug: string
   name: string
-  description?: string
-  studio_project_id?: string
-  hypothesis_id?: string
-  map_type: StoryMapType
-  status: BoundaryObjectStatus
+  description?: string | null
+  studio_project_id?: string | null
+  hypothesis_id?: string | null
+  map_type: StoryMapType | string | null
+  status: BoundaryObjectStatus | string
   version: number
-  parent_version_id?: string
-  validation_status: ValidationStatus
-  validated_at?: string
-  tags: string[]
-  metadata: EntityMetadata
+  parent_version_id?: string | null
+  validation_status: ValidationStatus | string | null
+  validated_at?: string | null
+  tags: string[] | null
+  metadata: EntityMetadata | null
 }
 
 export interface Activity extends BaseRecord {
   story_map_id: string
   name: string
-  description?: string
+  description?: string | null
   sequence: number
-  user_goal?: string
-  metadata: EntityMetadata
+  user_goal?: string | null
+  metadata: EntityMetadata | null
 }
 
 export interface UserStory extends BaseRecord {
   activity_id: string
   title: string
-  description?: string
-  acceptance_criteria?: string
-  story_type?: StoryType
-  priority?: Importance
-  story_points?: number
-  status: StoryStatus
-  layer_id?: string // FK to story_map_layers - which row/actor this story belongs to
-  vertical_position?: number // Deprecated: use layer_id, kept for backward compat
-  validation_status: ValidationStatus
-  validated_at?: string
-  tags: string[]
-  metadata: EntityMetadata
+  description?: string | null
+  acceptance_criteria?: string | null
+  story_type?: StoryType | string | null
+  priority?: Importance | string | null
+  story_points?: number | null
+  status: StoryStatus | string
+  layer_id?: string | null // FK to story_map_layers - which row/actor this story belongs to
+  vertical_position?: number | null // Deprecated: use layer_id, kept for backward compat
+  validation_status: ValidationStatus | string | null
+  validated_at?: string | null
+  tags: string[] | null
+  metadata: EntityMetadata | null
 }
 
 export interface StoryRelease extends BaseRecord {
   user_story_id: string
   release_name: string
-  release_date?: string
-  release_order?: number
-  metadata: EntityMetadata
+  release_date?: string | null
+  release_order?: number | null
+  metadata: EntityMetadata | null
 }
 
 // Insert/Update types for story maps
@@ -605,18 +606,18 @@ export interface StoryMapSummaryView {
   id: string
   slug: string
   name: string
-  description?: string
-  status: BoundaryObjectStatus
-  validation_status: ValidationStatus
-  map_type: StoryMapType
-  studio_project_id?: string
-  studio_project_name?: string
-  tags: string[]
-  created_at: string
-  updated_at: string
-  activity_count: number
-  story_count: number
-  done_story_count: number
+  description?: string | null
+  status: BoundaryObjectStatus | string | null
+  validation_status: ValidationStatus | string | null
+  map_type: StoryMapType | string | null
+  studio_project_id?: string | null
+  studio_project_name?: string | null
+  tags: string[] | null
+  created_at: string | null
+  updated_at: string | null
+  activity_count: number | null
+  story_count: number | null
+  done_story_count: number | null
 }
 
 // Filter types for story maps

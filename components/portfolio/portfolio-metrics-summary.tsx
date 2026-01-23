@@ -48,11 +48,11 @@ export function PortfolioMetricsSummary({ projects }: PortfolioMetricsSummaryPro
 
   // Memoize evidence strength counts
   const evidenceCounts = useMemo(() => {
-    const strongEvidenceCount = projects.filter((p) => p.evidence_strength === 'strong').length
-    const moderateEvidenceCount = projects.filter((p) => p.evidence_strength === 'moderate').length
-    const weakEvidenceCount = projects.filter((p) => p.evidence_strength === 'weak').length
+    const strongEvidenceCount = projects.filter((p) => p.manual_evidence_strength === 'strong').length
+    const moderateEvidenceCount = projects.filter((p) => p.manual_evidence_strength === 'moderate').length
+    const weakEvidenceCount = projects.filter((p) => p.manual_evidence_strength === 'weak').length
     const noEvidenceCount = projects.filter(
-      (p) => !p.evidence_strength || p.evidence_strength === 'none'
+      (p) => !p.manual_evidence_strength || p.manual_evidence_strength === 'none'
     ).length
     return { strongEvidenceCount, moderateEvidenceCount, weakEvidenceCount, noEvidenceCount }
   }, [projects])

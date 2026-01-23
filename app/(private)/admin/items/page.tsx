@@ -47,7 +47,7 @@ export default async function AdminItemsPage() {
         actionHref="/admin/items/new"
         actionLabel="New Item"
       >
-        <ItemsListView items={itemsWithCounts} />
+        <ItemsListView items={itemsWithCounts as any} />
       </AdminListLayout>
     )
   }
@@ -61,7 +61,7 @@ export default async function AdminItemsPage() {
       actionHref="/admin/items/new"
       actionLabel="New Item"
     >
-      <ItemsListView items={itemsWithCounts} />
+      <ItemsListView items={itemsWithCounts as any} />
     </AdminListLayout>
   )
 }

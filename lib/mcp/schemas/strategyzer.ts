@@ -109,7 +109,7 @@ export const BusinessModelCanvasSchema = z.object({
 
   // Metadata
   tags: z.array(z.string()).default([]),
-  metadata: z.record(z.any()).default({}),
+  metadata: z.record(z.string(), z.any()).default({}),
 })
 
 export const BusinessModelCanvasCreateSchema = BusinessModelCanvasSchema.omit({
@@ -160,7 +160,7 @@ export const ValueMapSchema = z.object({
 
   // Metadata
   tags: z.array(z.string()).default([]),
-  metadata: z.record(z.any()).default({}),
+  metadata: z.record(z.string(), z.any()).default({}),
 })
 
 export const ValueMapCreateSchema = ValueMapSchema.omit({
@@ -199,7 +199,7 @@ export const ValuePropositionCanvasSchema = z.object({
   // Fit Analysis
   status: z.enum(['draft', 'active', 'validated', 'archived']).default('draft'),
   fit_score: z.number().min(0).max(1).optional().nullable(),
-  fit_analysis: z.record(z.any()).default({}),
+  fit_analysis: z.record(z.string(), z.any()).default({}),
 
   // Which jobs/pains/gains from customer profile are addressed
   addressed_jobs: AddressedItemsSchema.default({ items: [] }),
@@ -214,7 +214,7 @@ export const ValuePropositionCanvasSchema = z.object({
 
   // Metadata
   tags: z.array(z.string()).default([]),
-  metadata: z.record(z.any()).default({}),
+  metadata: z.record(z.string(), z.any()).default({}),
 })
 
 export const ValuePropositionCanvasCreateSchema = ValuePropositionCanvasSchema.omit({
@@ -245,9 +245,9 @@ export const CustomerProfileSchema = z.object({
   profile_type: z.enum(['persona', 'segment', 'archetype', 'icp']).optional().nullable(),
 
   // Core Profile Data
-  demographics: z.record(z.any()).default({}),
-  psychographics: z.record(z.any()).default({}),
-  behaviors: z.record(z.any()).default({}),
+  demographics: z.record(z.string(), z.any()).default({}),
+  psychographics: z.record(z.string(), z.any()).default({}),
+  behaviors: z.record(z.string(), z.any()).default({}),
 
   // Jobs, Pains, Gains
   jobs: CanvasBlockSchema.default({
@@ -256,14 +256,14 @@ export const CustomerProfileSchema = z.object({
     validation_status: 'untested',
   }),
   pains: CanvasBlockSchema.extend({
-    severity: z.record(z.enum(['high', 'medium', 'low'])).optional(),
+    severity: z.record(z.string(), z.enum(['high', 'medium', 'low'])).optional(),
   }).default({
     items: [],
     assumptions: [],
     validation_status: 'untested',
   }),
   gains: CanvasBlockSchema.extend({
-    importance: z.record(z.enum(['high', 'medium', 'low'])).optional(),
+    importance: z.record(z.string(), z.enum(['high', 'medium', 'low'])).optional(),
   }).default({
     items: [],
     assumptions: [],
@@ -271,7 +271,7 @@ export const CustomerProfileSchema = z.object({
   }),
 
   // Context
-  environment: z.record(z.any()).default({}),
+  environment: z.record(z.string(), z.any()).default({}),
   journey_stages: z.object({ items: z.array(z.any()) }).default({ items: [] }),
 
   // Metrics
@@ -289,7 +289,7 @@ export const CustomerProfileSchema = z.object({
 
   // Metadata
   tags: z.array(z.string()).default([]),
-  metadata: z.record(z.any()).default({}),
+  metadata: z.record(z.string(), z.any()).default({}),
 })
 
 export const CustomerProfileCreateSchema = CustomerProfileSchema.omit({

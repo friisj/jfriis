@@ -142,8 +142,8 @@ export async function dbCreate(
   // Validate against create schema
   const validation = tableDef.createSchema.safeParse(data)
   if (!validation.success) {
-    const errors = validation.error.errors.map(
-      (e: { path: (string | number)[]; message: string }) => `${e.path.join('.')}: ${e.message}`
+    const errors = validation.error.issues.map(
+      (e: any) => `${e.path?.join('.') || ''}: ${e.message}`
     )
     return { data: null, error: 'Validation failed', validation_errors: errors }
   }
@@ -179,8 +179,8 @@ export async function dbUpdate(
   // Validate against update schema
   const validation = tableDef.updateSchema.safeParse(data)
   if (!validation.success) {
-    const errors = validation.error.errors.map(
-      (e: { path: (string | number)[]; message: string }) => `${e.path.join('.')}: ${e.message}`
+    const errors = validation.error.issues.map(
+      (e: any) => `${e.path?.join('.') || ''}: ${e.message}`
     )
     return { data: null, error: 'Validation failed', validation_errors: errors }
   }

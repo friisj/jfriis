@@ -60,7 +60,7 @@ export function RelationshipField({
         ? `id, ${displayField}, ${subtitleField}`
         : `id, ${displayField}`
 
-      let query = supabase
+      let query = (supabase as any)
         .from(tableName)
         .select(selectFields)
         .order(displayField)

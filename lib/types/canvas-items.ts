@@ -45,27 +45,27 @@ export type Frequency = 'rarely' | 'sometimes' | 'often' | 'always'
 
 export interface CanvasItem {
   id: string
-  studio_project_id?: string
+  studio_project_id?: string | null
   title: string
-  description?: string
-  item_type: CanvasItemType
-  importance: Importance
-  validation_status: ValidationStatus
+  description?: string | null
+  item_type: CanvasItemType | string
+  importance: Importance | string | null
+  validation_status: ValidationStatus | string | null
 
   // Job-specific fields (for item_type = 'job')
-  job_type?: JobType
-  job_context?: string // "When I'm..." context for the job
+  job_type?: JobType | string | null
+  job_context?: string | null // "When I'm..." context for the job
 
   // Pain/Gain intensity (for item_type IN ('pain', 'gain'))
-  intensity?: Intensity
+  intensity?: Intensity | string | null
 
   // Frequency/occurrence
-  frequency?: Frequency
+  frequency?: Frequency | string | null
 
   // Metadata
-  notes?: string
-  tags: string[]
-  metadata: Record<string, unknown>
+  notes?: string | null
+  tags: string[] | null
+  metadata: Record<string, unknown> | null
 
   // Timestamps
   created_at: string
@@ -84,11 +84,11 @@ export type CanvasType = 'business_model_canvas' | 'customer_profile' | 'value_m
 export interface CanvasItemPlacement {
   id: string
   canvas_item_id: string
-  canvas_type: CanvasType
+  canvas_type: CanvasType | string
   canvas_id: string
   block_name: string
   position: number
-  validation_status_override?: ValidationStatus
+  validation_status_override?: ValidationStatus | string | null
   created_at: string
 }
 
@@ -105,8 +105,8 @@ export interface CanvasItemAssumption {
   id: string
   canvas_item_id: string
   assumption_id: string
-  relationship_type: AssumptionRelationshipType
-  notes?: string
+  relationship_type: AssumptionRelationshipType | string
+  notes?: string | null
   created_at: string
 }
 
@@ -125,10 +125,10 @@ export interface CanvasItemMapping {
   id: string
   source_item_id: string
   target_item_id: string
-  mapping_type: MappingType
-  fit_strength: FitStrength
-  validation_method?: ValidationMethod
-  notes?: string
+  mapping_type: MappingType | string
+  fit_strength: FitStrength | string
+  validation_method?: ValidationMethod | string | null
+  notes?: string | null
   created_at: string
   updated_at: string
 }
@@ -155,14 +155,14 @@ export type Confidence = 'low' | 'medium' | 'high'
 export interface CanvasItemEvidence {
   id: string
   canvas_item_id: string
-  evidence_type: EvidenceType
+  evidence_type: EvidenceType | string
   title: string
-  summary?: string
-  url?: string
-  supports_item?: boolean // true = supports, false = contradicts, null = unclear
-  confidence?: Confidence
-  collected_at?: string
-  metadata: Record<string, unknown>
+  summary?: string | null
+  url?: string | null
+  supports_item?: boolean | null // true = supports, false = contradicts, null = unclear
+  confidence?: Confidence | string | null
+  collected_at?: string | null
+  metadata: Record<string, unknown> | null
   created_at: string
   updated_at: string
 }

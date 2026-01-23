@@ -109,7 +109,7 @@ function mapMappingTypeToLinkType(
 /**
  * Helper to convert LinkType back to mapping_type
  */
-function linkTypeToMappingType(linkType: LinkType): string {
+function linkTypeToMappingType(linkType: LinkType | string): string {
   const reverseMap: Record<string, string> = {
     addresses_job: 'addresses_job',
     triggers_pain: 'triggers_pain',
@@ -160,7 +160,8 @@ export async function createTouchpointMapping(
     notes: link.notes ?? null,
     metadata: link.metadata,
     created_at: link.created_at,
-  }
+    updated_at: link.created_at, // entity_links doesn't have updated_at
+  } as TouchpointMapping
 }
 
 export async function deleteTouchpointMapping(id: string): Promise<void> {
@@ -206,7 +207,7 @@ export async function listTouchpointMappings(
   }
 
   // Convert EntityLinks to TouchpointMapping format
-  return relevantLinks.map((link): TouchpointMappingWithTarget => ({
+  return relevantLinks.map((link) => ({
     id: link.id,
     touchpoint_id: link.source_id,
     target_type: link.target_type as any,
@@ -217,10 +218,11 @@ export async function listTouchpointMappings(
     notes: link.notes ?? null,
     metadata: link.metadata,
     created_at: link.created_at,
+    updated_at: link.created_at, // entity_links doesn't have updated_at
     canvas_item: link.target_type === 'canvas_item'
       ? canvasItemsMap.get(link.target_id) || null
       : null,
-  }))
+  } as TouchpointMappingWithTarget))
 }
 
 export async function listMappingsForCanvasItem(
@@ -233,7 +235,7 @@ export async function listMappingsForCanvasItem(
   )
 
   // Convert EntityLinks to TouchpointMapping format
-  return links.map((link): TouchpointMapping => ({
+  return links.map((link) => ({
     id: link.id,
     touchpoint_id: link.source_id,
     target_type: link.target_type as any,
@@ -244,7 +246,8 @@ export async function listMappingsForCanvasItem(
     notes: link.notes ?? null,
     metadata: link.metadata,
     created_at: link.created_at,
-  }))
+    updated_at: link.created_at, // entity_links doesn't have updated_at
+  } as TouchpointMapping))
 }
 
 // ============================================================================
@@ -274,12 +277,14 @@ export async function createTouchpointAssumption(
 
   // Convert EntityLink to TouchpointAssumption format for backwards compatibility
   return {
+    id: link.id,
     touchpoint_id: link.source_id,
     assumption_id: link.target_id,
     relationship_type: link.link_type as any,
     notes: link.notes ?? null,
     created_at: link.created_at,
-  }
+    updated_at: link.created_at, // entity_links doesn't have updated_at
+  } as TouchpointAssumption
 }
 
 export async function deleteTouchpointAssumption(
@@ -308,13 +313,15 @@ export async function listTouchpointAssumptions(
 
   // Convert to TouchpointAssumptionWithDetails format
   return linkedAssumptions.map((linked) => ({
+    id: linked.link.id,
     touchpoint_id: touchpointId,
     assumption_id: linked.entity.id,
     relationship_type: linked.link.link_type as any,
     notes: linked.link.notes ?? null,
     created_at: linked.link.created_at,
+    updated_at: linked.link.created_at, // entity_links doesn't have updated_at
     assumption: linked.entity,
-  }))
+  } as TouchpointAssumptionWithDetails))
 }
 
 export async function listAssumptionTouchpoints(
@@ -327,23 +334,26 @@ export async function listAssumptionTouchpoints(
   )
 
   // Convert EntityLinks to TouchpointAssumption format
-  return links.map((link): TouchpointAssumption => ({
+  return links.map((link) => ({
+    id: link.id,
     touchpoint_id: link.source_id,
     assumption_id: link.target_id,
     relationship_type: link.link_type as any,
     notes: link.notes ?? null,
     created_at: link.created_at,
-  }))
+    updated_at: link.created_at, // entity_links doesn't have updated_at
+  } as TouchpointAssumption))
 }
 
 // ============================================================================
 // TOUCHPOINT EVIDENCE
 // ============================================================================
 
+// NOTE: touchpoint_evidence table not in generated Supabase types - using type assertions
 export async function createTouchpointEvidence(
   data: TouchpointEvidenceInsert
 ): Promise<TouchpointEvidence> {
-  const { data: evidence, error } = await supabase
+  const { data: evidence, error } = await (supabase as any)
     .from('touchpoint_evidence')
     .insert({
       ...data,
@@ -353,14 +363,14 @@ export async function createTouchpointEvidence(
     .single()
 
   if (error) throw error
-  return evidence
+  return evidence as TouchpointEvidence
 }
 
 export async function updateTouchpointEvidence(
   id: string,
   data: TouchpointEvidenceUpdate
 ): Promise<TouchpointEvidence> {
-  const { data: evidence, error } = await supabase
+  const { data: evidence, error } = await (supabase as any)
     .from('touchpoint_evidence')
     .update(data)
     .eq('id', id)
@@ -368,11 +378,11 @@ export async function updateTouchpointEvidence(
     .single()
 
   if (error) throw error
-  return evidence
+  return evidence as TouchpointEvidence
 }
 
 export async function deleteTouchpointEvidence(id: string): Promise<void> {
-  const { error } = await supabase
+  const { error } = await (supabase as any)
     .from('touchpoint_evidence')
     .delete()
     .eq('id', id)
@@ -383,27 +393,27 @@ export async function deleteTouchpointEvidence(id: string): Promise<void> {
 export async function listTouchpointEvidence(
   touchpointId: string
 ): Promise<TouchpointEvidence[]> {
-  const { data, error } = await supabase
+  const { data, error } = await (supabase as any)
     .from('touchpoint_evidence')
     .select('*')
     .eq('touchpoint_id', touchpointId)
     .order('collected_at', { ascending: false, nullsFirst: false })
 
   if (error) throw error
-  return data || []
+  return (data || []) as TouchpointEvidence[]
 }
 
 export async function getTouchpointEvidence(
   id: string
 ): Promise<TouchpointEvidence> {
-  const { data, error } = await supabase
+  const { data, error } = await (supabase as any)
     .from('touchpoint_evidence')
     .select('*')
     .eq('id', id)
     .single()
 
   if (error) throw error
-  return data
+  return data as TouchpointEvidence
 }
 
 // ============================================================================

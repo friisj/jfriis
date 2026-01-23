@@ -276,7 +276,7 @@ export function BusinessModelCanvasForm({ canvasId, initialData }: BusinessModel
 
       // Sync canvas item placements
       const placementResult = await syncCanvasPlacements({
-        canvasId: savedCanvasId,
+        canvasId: savedCanvasId!,
         canvasType: 'business_model_canvas',
         blockKeys: [
           'key_partners',
@@ -289,7 +289,7 @@ export function BusinessModelCanvasForm({ canvasId, initialData }: BusinessModel
           'cost_structure',
           'revenue_streams',
         ],
-        formData,
+        formData: formData as any,
       })
 
       // Check for placement errors

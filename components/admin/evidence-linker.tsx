@@ -79,7 +79,7 @@ export function EvidenceLinker({ canvasItemId, compact = false }: EvidenceLinker
   // Fetch evidence for this item
   useEffect(() => {
     async function fetchEvidence() {
-      const { data } = await supabase
+      const { data } = await (supabase as any)
         .from('canvas_item_evidence')
         .select('*')
         .eq('canvas_item_id', canvasItemId)
@@ -118,7 +118,7 @@ export function EvidenceLinker({ canvasItemId, compact = false }: EvidenceLinker
         }
       }
 
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('canvas_item_evidence')
         .insert([
           {
@@ -166,7 +166,7 @@ export function EvidenceLinker({ canvasItemId, compact = false }: EvidenceLinker
 
     setDeleting(evidenceId)
     try {
-      const { error } = await supabase.from('canvas_item_evidence').delete().eq('id', evidenceId)
+      const { error } = await (supabase as any).from('canvas_item_evidence').delete().eq('id', evidenceId)
 
       if (error) {
         console.error('Error deleting evidence:', error)

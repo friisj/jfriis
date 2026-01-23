@@ -325,8 +325,9 @@ export function getTableColumns(tableName: string): Array<{
     const isOptional = zodTypeAny.isOptional() || zodTypeAny.isNullable()
     let type = 'unknown'
 
-    // Try to determine the type
-    const description = zodTypeAny._def
+    // Try to determine the type - use type assertion for Zod internals
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const description = zodTypeAny._def as any
     if (description.typeName === 'ZodString') type = 'string'
     else if (description.typeName === 'ZodNumber') type = 'number'
     else if (description.typeName === 'ZodBoolean') type = 'boolean'

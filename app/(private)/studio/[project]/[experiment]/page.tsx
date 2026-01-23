@@ -78,7 +78,7 @@ export default async function ExperimentPage({ params }: Props) {
     hypothesis = data
   }
 
-  const outcomeDisplay = getOutcomeDisplay(experiment.outcome)
+  const outcomeDisplay = getOutcomeDisplay(experiment.outcome ?? undefined)
 
   // Look up prototype component by project/experiment slug combination
   const prototypeKey = `${projectSlug}/${experimentSlug}`

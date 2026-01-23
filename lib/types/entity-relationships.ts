@@ -218,19 +218,21 @@ export type LinkStrength = 'strong' | 'moderate' | 'weak' | 'tentative'
 
 /**
  * Entity Link record
+ * Note: Types are permissive to match Supabase's generated types
  */
 export interface EntityLink {
   id: string
-  source_type: LinkableEntityType
+  source_type: LinkableEntityType | string
   source_id: string
-  target_type: LinkableEntityType
+  target_type: LinkableEntityType | string
   target_id: string
-  link_type: LinkType
-  strength?: LinkStrength
-  notes?: string
-  metadata: Record<string, unknown>
-  position?: number
-  created_at: string
+  link_type: LinkType | string
+  strength?: LinkStrength | string | null
+  notes?: string | null
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  metadata: Record<string, unknown> | any
+  position?: number | null
+  created_at: string | null
 }
 
 export type EntityLinkInsert = Omit<EntityLink, 'id' | 'created_at'>

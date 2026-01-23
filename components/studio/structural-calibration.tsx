@@ -13,7 +13,7 @@ export function StructuralCalibration({ onComplete, initialConfig }: StructuralC
     initialConfig?.primitives.spacing.scale || '8pt'
   )
   const [radiusStyle, setRadiusStyle] = useState<'sharp' | 'moderate' | 'rounded'>(
-    initialConfig?.primitives.radius.style || 'moderate'
+    (initialConfig?.primitives.radius.style as 'sharp' | 'moderate' | 'rounded') || 'moderate'
   )
   const [gridColumns, setGridColumns] = useState(initialConfig?.primitives.grid.columns || 12)
   const [gutter, setGutter] = useState(initialConfig?.primitives.grid.gutter || 24)
@@ -93,7 +93,7 @@ export function StructuralCalibration({ onComplete, initialConfig }: StructuralC
       ? [0, 4, 8, 12, 16, 9999]
       : [0, 8, 12, 16, 24, 32, 9999] // rounded
 
-    return {
+    return ({
       primitives: {
         spacing: {
           scale: spacingScale,
@@ -126,9 +126,9 @@ export function StructuralCalibration({ onComplete, initialConfig }: StructuralC
         },
         typography: {
           fontFamilies: {
-            sans: fontSans,
-            serif: fontSerif,
-            mono: fontMono
+            sans: fontSans as any,
+            serif: fontSerif as any,
+            mono: fontMono as any
           },
           typeScale: {
             base: typeScaleBase,
@@ -169,7 +169,7 @@ export function StructuralCalibration({ onComplete, initialConfig }: StructuralC
           'dialog': `${radiusValues[4] || 16}px`
         }
       }
-    }
+    } as any)
   }
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -443,7 +443,7 @@ export function StructuralCalibration({ onComplete, initialConfig }: StructuralC
               <span className="text-sm font-medium mb-2 block">Sans Serif</span>
               <input
                 type="text"
-                value={fontSans}
+                value={fontSans as any}
                 onChange={(e) => setFontSans(e.target.value)}
                 className="w-full px-3 py-2 border rounded-lg bg-background font-mono text-sm"
                 placeholder="Inter, system-ui, sans-serif"
@@ -457,7 +457,7 @@ export function StructuralCalibration({ onComplete, initialConfig }: StructuralC
               <span className="text-sm font-medium mb-2 block">Serif</span>
               <input
                 type="text"
-                value={fontSerif}
+                value={fontSerif as any}
                 onChange={(e) => setFontSerif(e.target.value)}
                 className="w-full px-3 py-2 border rounded-lg bg-background font-mono text-sm"
                 placeholder="Georgia, serif"
@@ -471,7 +471,7 @@ export function StructuralCalibration({ onComplete, initialConfig }: StructuralC
               <span className="text-sm font-medium mb-2 block">Monospace</span>
               <input
                 type="text"
-                value={fontMono}
+                value={fontMono as any}
                 onChange={(e) => setFontMono(e.target.value)}
                 className="w-full px-3 py-2 border rounded-lg bg-background font-mono text-sm"
                 placeholder="Courier New, monospace"

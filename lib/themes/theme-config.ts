@@ -37,6 +37,7 @@ export interface ThemeColors {
 export interface ThemeTypography {
   fontFamily?: string
   fontSans?: string
+  fontSerif?: string
   fontMono?: string
   fontDisplay?: string
   fontBody?: string

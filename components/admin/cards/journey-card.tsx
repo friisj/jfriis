@@ -48,19 +48,17 @@ export function JourneyCard({ journey }: JourneyCardProps) {
             </span>
           )}
           <span className="text-xs px-2 py-1 rounded bg-secondary text-secondary-foreground">
-            {JOURNEY_TYPE_LABELS[journey.journey_type] || journey.journey_type}
+            {journey.journey_type ? (JOURNEY_TYPE_LABELS[journey.journey_type as keyof typeof JOURNEY_TYPE_LABELS] || journey.journey_type) : '-'}
           </span>
         </div>
 
         {/* Status badges */}
         <div className="flex items-center gap-2 flex-wrap">
           <StatusBadge
-            status={STATUS_LABELS[journey.status]}
-            variant={STATUS_COLORS[journey.status]}
+            value={journey.status ? (STATUS_LABELS[journey.status as keyof typeof STATUS_LABELS] || journey.status) : '-'}
           />
           <StatusBadge
-            status={VALIDATION_STATUS_LABELS[journey.validation_status]}
-            variant={STATUS_COLORS[journey.validation_status]}
+            value={journey.validation_status ? (VALIDATION_STATUS_LABELS[journey.validation_status as keyof typeof VALIDATION_STATUS_LABELS] || journey.validation_status) : '-'}
           />
         </div>
 
@@ -68,7 +66,7 @@ export function JourneyCard({ journey }: JourneyCardProps) {
         <div className="flex items-center gap-4 text-xs text-muted-foreground">
           <span>{journey.stage_count} stages</span>
           <span>{journey.touchpoint_count} touchpoints</span>
-          {journey.high_pain_count > 0 && (
+          {(journey.high_pain_count ?? 0) > 0 && (
             <span className="text-red-600 dark:text-red-400 font-medium">
               ⚠ {journey.high_pain_count} high pain
             </span>
@@ -96,7 +94,7 @@ export function JourneyCard({ journey }: JourneyCardProps) {
 
         {/* Updated date */}
         <div className="text-xs text-muted-foreground border-t pt-2">
-          Updated {formatDate(journey.updated_at)}
+          Updated {formatDate(journey.updated_at || journey.created_at || '')}
         </div>
       </div>
     </Link>

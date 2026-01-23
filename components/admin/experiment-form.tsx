@@ -127,16 +127,16 @@ export function ExperimentForm({ experiment, mode }: ExperimentFormProps) {
         // Sync pending entity links for create mode
         if (pendingCanvasLinks.length > 0) {
           await syncEntityLinks(
-            { type: 'studio_experiment', id: newExperiment.id },
-            'canvas_item',
-            'related',
+            { type: 'studio_experiment' as any, id: newExperiment.id },
+            'canvas_item' as any,
+            'related' as any,
             pendingCanvasLinks.map(l => l.targetId)
           )
         }
 
         // Sync pending evidence
         if (pendingEvidence.length > 0) {
-          await syncPendingEvidence({ type: 'studio_experiment', id: newExperiment.id }, pendingEvidence)
+          await syncPendingEvidence({ type: 'studio_experiment' as any, id: newExperiment.id }, pendingEvidence)
         }
       }
 
@@ -374,12 +374,12 @@ export function ExperimentForm({ experiment, mode }: ExperimentFormProps) {
           <SidebarCard title="Related Canvas Items">
             <EntityLinkField
               label=""
-              sourceType="studio_experiment"
+              sourceType={"studio_experiment" as any}
               sourceId={experiment?.id}
-              targetType="canvas_item"
+              targetType={"canvas_item" as any}
               targetTableName="canvas_items"
               targetDisplayField="content"
-              linkType="related"
+              linkType={"related" as any}
               allowMultiple={true}
               pendingLinks={pendingCanvasLinks}
               onPendingLinksChange={setPendingCanvasLinks}
@@ -389,7 +389,7 @@ export function ExperimentForm({ experiment, mode }: ExperimentFormProps) {
 
           <SidebarCard title="Evidence">
             <EvidenceManager
-              entityType="studio_experiment"
+              entityType={"studio_experiment" as any}
               entityId={experiment?.id}
               pendingEvidence={pendingEvidence}
               onPendingEvidenceChange={setPendingEvidence}

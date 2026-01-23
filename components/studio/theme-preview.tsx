@@ -114,7 +114,7 @@ export function ThemePreview({ config, onEdit, onExport }: ThemePreviewProps) {
                 <div
                   style={{
                     fontSize: size,
-                    fontFamily: config.primitives.typography.fontFamilies.sans,
+                    fontFamily: config.primitives.typography.fontFamilies.sans?.stack,
                     lineHeight: config.primitives.typography.lineHeights.normal
                   }}
                 >
@@ -131,11 +131,11 @@ export function ThemePreview({ config, onEdit, onExport }: ThemePreviewProps) {
           <div className="space-y-4">
             <div className="rounded-lg border p-4">
               <div className="text-xs text-muted-foreground mb-2 font-mono">
-                Sans: {config.primitives.typography.fontFamilies.sans}
+                Sans: {config.primitives.typography.fontFamilies.sans?.name}
               </div>
               <div
                 className="text-base"
-                style={{ fontFamily: config.primitives.typography.fontFamilies.sans }}
+                style={{ fontFamily: config.primitives.typography.fontFamilies.sans?.stack }}
               >
                 The quick brown fox jumps over the lazy dog. 0123456789
               </div>
@@ -143,11 +143,11 @@ export function ThemePreview({ config, onEdit, onExport }: ThemePreviewProps) {
 
             <div className="rounded-lg border p-4">
               <div className="text-xs text-muted-foreground mb-2 font-mono">
-                Serif: {config.primitives.typography.fontFamilies.serif}
+                Serif: {config.primitives.typography.fontFamilies.serif?.name}
               </div>
               <div
                 className="text-base"
-                style={{ fontFamily: config.primitives.typography.fontFamilies.serif }}
+                style={{ fontFamily: config.primitives.typography.fontFamilies.serif?.stack }}
               >
                 The quick brown fox jumps over the lazy dog. 0123456789
               </div>
@@ -155,11 +155,11 @@ export function ThemePreview({ config, onEdit, onExport }: ThemePreviewProps) {
 
             <div className="rounded-lg border p-4">
               <div className="text-xs text-muted-foreground mb-2 font-mono">
-                Mono: {config.primitives.typography.fontFamilies.mono}
+                Mono: {config.primitives.typography.fontFamilies.mono?.name}
               </div>
               <div
                 className="text-base"
-                style={{ fontFamily: config.primitives.typography.fontFamilies.mono }}
+                style={{ fontFamily: config.primitives.typography.fontFamilies.mono?.stack }}
               >
                 The quick brown fox jumps over the lazy dog. 0123456789
               </div>
@@ -177,7 +177,7 @@ export function ThemePreview({ config, onEdit, onExport }: ThemePreviewProps) {
               </div>
               <div
                 style={{
-                  fontFamily: config.primitives.typography.fontFamilies.sans,
+                  fontFamily: config.primitives.typography.fontFamilies.sans?.stack,
                   lineHeight: config.primitives.typography.lineHeights.tight
                 }}
               >
@@ -191,7 +191,7 @@ export function ThemePreview({ config, onEdit, onExport }: ThemePreviewProps) {
               </div>
               <div
                 style={{
-                  fontFamily: config.primitives.typography.fontFamilies.sans,
+                  fontFamily: config.primitives.typography.fontFamilies.sans?.stack,
                   lineHeight: config.primitives.typography.lineHeights.normal
                 }}
               >
@@ -205,7 +205,7 @@ export function ThemePreview({ config, onEdit, onExport }: ThemePreviewProps) {
               </div>
               <div
                 style={{
-                  fontFamily: config.primitives.typography.fontFamilies.sans,
+                  fontFamily: config.primitives.typography.fontFamilies.sans?.stack,
                   lineHeight: config.primitives.typography.lineHeights.relaxed
                 }}
               >

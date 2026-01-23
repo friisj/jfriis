@@ -135,7 +135,7 @@ export function CanvasItemSelector({
         }
 
         const { data } = await query
-        setAllItems(data || [])
+        setAllItems((data || []) as any)
       } finally {
         setLoadingItems(false)
       }
@@ -173,8 +173,8 @@ export function CanvasItemSelector({
         )
 
         // Fallback to manual counting if RPC function doesn't exist yet
-        let assumptionCountMap: Record<string, number> = {}
-        let evidenceCountMap: Record<string, number> = {}
+        const assumptionCountMap: Record<string, number> = {}
+        const evidenceCountMap: Record<string, number> = {}
 
         if (countsError) {
           // RPC function not available - use fallback queries
@@ -186,7 +186,7 @@ export function CanvasItemSelector({
               .from('canvas_item_assumptions')
               .select('canvas_item_id')
               .in('canvas_item_id', placedItemIds),
-            supabase
+            (supabase as any)
               .from('canvas_item_evidence')
               .select('canvas_item_id')
               .in('canvas_item_id', placedItemIds),
@@ -196,7 +196,7 @@ export function CanvasItemSelector({
             assumptionCountMap[row.canvas_item_id] = (assumptionCountMap[row.canvas_item_id] || 0) + 1
           })
 
-          evidenceResult.data?.forEach((row) => {
+          evidenceResult.data?.forEach((row: any) => {
             evidenceCountMap[row.canvas_item_id] = (evidenceCountMap[row.canvas_item_id] || 0) + 1
           })
         } else {
@@ -301,7 +301,7 @@ export function CanvasItemSelector({
         .in('item_type', allowedTypes)
         .order('updated_at', { ascending: false })
         .limit(100)
-      setAllItems(allData || [])
+      setAllItems((allData || []) as any)
 
       setNewItemTitle('')
       setCreateError(null)

@@ -93,11 +93,11 @@ export function MotionTemplate({ config }: { config: DesignSystemConfig }) {
             // Build transition - use spring if available, otherwise duration + easing
             const hoverTransition = profile.spring
               ? { type: 'spring' as const, ...profile.spring }
-              : { duration: profile.duration / 1000, ease: parseCubicBezier(profile.easing) }
+              : { duration: profile.duration / 1000, ease: parseCubicBezier(profile.easing) as any }
 
             const progressTransition = profile.spring
               ? { type: 'spring' as const, ...profile.spring }
-              : { duration: profile.duration / 1000, ease: parseCubicBezier(profile.easing) }
+              : { duration: profile.duration / 1000, ease: parseCubicBezier(profile.easing) as any }
 
             return (
               <motion.div
@@ -206,7 +206,7 @@ export function MotionTemplate({ config }: { config: DesignSystemConfig }) {
                     animate={{ width: '100%' }}
                     transition={{
                       duration: 1.2,
-                      ease: parseCubicBezier(easing)
+                      ease: parseCubicBezier(easing) as any
                     }}
                   />
                 </div>
@@ -238,7 +238,7 @@ export function MotionTemplate({ config }: { config: DesignSystemConfig }) {
                 exit={{ opacity: 0, y: -20, scale: 0.95 }}
                 transition={profiles.emphasis.spring ? springConfigs.bouncy : {
                   duration: profiles.emphasis.duration / 1000,
-                  ease: parseCubicBezier(profiles.emphasis.easing)
+                  ease: parseCubicBezier(profiles.emphasis.easing) as any
                 }}
                 className="max-w-md"
               >
@@ -300,7 +300,7 @@ export function MotionTemplate({ config }: { config: DesignSystemConfig }) {
                 exit={{ height: 0, opacity: 0 }}
                 transition={profiles.reveal.spring ? springConfigs.balanced : {
                   duration: profiles.reveal.duration / 1000,
-                  ease: parseCubicBezier(profiles.reveal.easing)
+                  ease: parseCubicBezier(profiles.reveal.easing) as any
                 }}
               >
                 <CardContent className="pt-0">

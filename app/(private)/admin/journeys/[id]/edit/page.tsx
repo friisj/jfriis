@@ -30,7 +30,7 @@ export default async function EditJourneyPage({ params }: { params: Promise<{ id
     >
       <AdminErrorBoundary>
         <Suspense fallback={<JourneyFormSkeleton />}>
-          <JourneyForm journey={journey} />
+          <JourneyForm journey={journey as any} />
         </Suspense>
       </AdminErrorBoundary>
     </AdminFormLayout>

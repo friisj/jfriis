@@ -50,7 +50,7 @@ export default async function EditCanvasItemPage({ params }: EditCanvasItemPageP
         </div>
 
         <div className="rounded-lg border bg-card p-6">
-          <CanvasItemForm item={item} mode="edit" />
+          <CanvasItemForm item={item as any} mode="edit" />
         </div>
       </div>
     </div>

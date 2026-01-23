@@ -99,7 +99,7 @@ export function ViewToolbar({ currentView, availableViews, onViewChange }: ViewT
         {availableViews.map((view) => (
           <button
             key={view}
-            ref={(el) => buttonRefs.current.set(view, el)}
+            ref={(el) => { buttonRefs.current.set(view, el) }}
             onClick={() => onViewChange(view)}
             onKeyDown={handleKeyDown}
             className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${

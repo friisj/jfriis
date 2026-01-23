@@ -129,7 +129,7 @@ export function StudioProjectForm({ project, mode, existingProjectNames = [] }: 
       if (mode === 'create') {
         const { data: newProject, error } = await supabase
           .from('studio_projects')
-          .insert([data])
+          .insert([data as any])
           .select('id')
           .single()
 

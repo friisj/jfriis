@@ -250,7 +250,7 @@ export function VentureForm({ ventureId, initialData }: VentureFormProps) {
 
       // Update relationships via entity_links
       if (savedVentureId) {
-        const source = { type: 'project', id: savedVentureId }
+        const source = { type: 'project' as const, id: savedVentureId }
 
         // Sync all relationships in parallel
         await Promise.all([
@@ -259,13 +259,13 @@ export function VentureForm({ ventureId, initialData }: VentureFormProps) {
           syncEntityLinksAsTarget(source, 'log_entry', 'related', formData.logEntryIds),
           // Strategic artifacts
           syncEntityLinks(source, 'studio_project', 'related', formData.studioProjectIds),
-          syncEntityLinks(source, 'service_blueprint', 'related', formData.blueprintIds),
+          syncEntityLinks(source, 'service_blueprint' as any, 'related', formData.blueprintIds),
           syncEntityLinks(source, 'user_journey', 'related', formData.journeyIds),
           syncEntityLinks(source, 'story_map', 'related', formData.storyMapIds),
           // Canvases
           syncEntityLinks(source, 'business_model_canvas', 'related', formData.businessModelIds),
           syncEntityLinks(source, 'customer_profile', 'related', formData.customerProfileIds),
-          syncEntityLinks(source, 'value_proposition', 'related', formData.valuePropositionIds),
+          syncEntityLinks(source, 'value_proposition_canvas', 'related', formData.valuePropositionIds),
           syncEntityLinks(source, 'value_map', 'related', formData.valueMapIds),
         ])
       }

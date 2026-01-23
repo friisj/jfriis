@@ -291,10 +291,10 @@ export function CustomerProfileForm({ profileId, initialData }: CustomerProfileF
 
       // Sync canvas item placements
       const placementResult = await syncCanvasPlacements({
-        canvasId: savedProfileId,
+        canvasId: savedProfileId!,
         canvasType: 'customer_profile',
         blockKeys: ['jobs', 'pains', 'gains'],
-        formData,
+        formData: formData as any,
       })
 
       // Check for placement errors

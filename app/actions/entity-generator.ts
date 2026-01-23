@@ -64,7 +64,7 @@ export async function flushPendingHypotheses(
 
     const { error } = await supabase
       .from('studio_hypotheses')
-      .insert(inserts)
+      .insert(inserts as any)
 
     if (error) {
       console.error('[flushPendingHypotheses] Insert error:', error)
@@ -123,7 +123,7 @@ export async function flushPendingExperiments(
 
     const { error } = await supabase
       .from('studio_experiments')
-      .insert(inserts)
+      .insert(inserts as any)
 
     if (error) {
       console.error('[flushPendingExperiments] Insert error:', error)

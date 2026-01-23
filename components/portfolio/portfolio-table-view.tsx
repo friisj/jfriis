@@ -70,7 +70,7 @@ export function PortfolioTableView({ projects }: PortfolioTableViewProps) {
       key: 'evidence',
       header: 'Evidence',
       cell: (project) => {
-        const strength = project.evidence_strength || 'none'
+        const strength = project.manual_evidence_strength || 'none'
         return (
           <span className={`${BADGE_BASE_CLASSES} ${getEvidenceColor(strength)}`}>
             {strength}
@@ -150,7 +150,7 @@ export function PortfolioTableView({ projects }: PortfolioTableViewProps) {
       align: 'right',
       cell: (project) => (
         <Link
-          href={`/admin/projects/${project.id}/edit`}
+          href={`/admin/projects/${project.venture_id}/edit`}
           className="inline-flex items-center gap-1 px-3 py-1.5 text-sm rounded-lg border hover:bg-accent transition-colors"
         >
           Edit
@@ -161,10 +161,10 @@ export function PortfolioTableView({ projects }: PortfolioTableViewProps) {
 
   return (
     <AdminDataView
-      data={projects}
+      data={projects as any}
       views={{
         table: {
-          columns,
+          columns: columns as any,
         },
       }}
       defaultView="table"

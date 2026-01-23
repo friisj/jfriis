@@ -41,7 +41,7 @@ export async function testTableAccess() {
 
   for (const table of tables) {
     try {
-      const { data, error } = await supabase.from(table).select('count').limit(1)
+      const { data, error } = await (supabase as any).from(table).select('count').limit(1)
 
       if (error) {
         results.push({ table, success: false, error: error.message })

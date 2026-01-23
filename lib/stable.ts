@@ -22,11 +22,14 @@ import type {
 // Character Operations
 // ============================================================================
 
+// NOTE: stable_* tables not in generated Supabase types - using type assertions
+// TODO: Regenerate Supabase types after schema stabilizes (OJI-XX)
+
 /**
  * Get all characters (client-side)
  */
 export async function getCharacters(): Promise<Character[]> {
-  const { data, error } = await supabase
+  const { data, error } = await (supabase as any)
     .from('stable_characters')
     .select('*')
     .order('name', { ascending: true });
@@ -40,7 +43,7 @@ export async function getCharacters(): Promise<Character[]> {
  */
 export async function getCharactersServer(): Promise<Character[]> {
   const client = await createClient();
-  const { data, error } = await client
+  const { data, error } = await (client as any)
     .from('stable_characters')
     .select('*')
     .order('name', { ascending: true });
@@ -53,7 +56,7 @@ export async function getCharactersServer(): Promise<Character[]> {
  * Get a single character by ID (client-side)
  */
 export async function getCharacter(id: string): Promise<Character> {
-  const { data, error } = await supabase
+  const { data, error } = await (supabase as any)
     .from('stable_characters')
     .select('*')
     .eq('id', id)
@@ -68,7 +71,7 @@ export async function getCharacter(id: string): Promise<Character> {
  */
 export async function getCharacterServer(id: string): Promise<Character> {
   const client = await createClient();
-  const { data, error } = await client
+  const { data, error } = await (client as any)
     .from('stable_characters')
     .select('*')
     .eq('id', id)
@@ -122,7 +125,7 @@ export async function getCharacterWithRelationsServer(
 export async function createCharacter(
   input: CreateCharacterInput
 ): Promise<Character> {
-  const { data, error } = await supabase
+  const { data, error } = await (supabase as any)
     .from('stable_characters')
     .insert({
       name: input.name,
@@ -143,7 +146,7 @@ export async function updateCharacter(
   id: string,
   updates: UpdateCharacterInput
 ): Promise<Character> {
-  const { data, error } = await supabase
+  const { data, error } = await (supabase as any)
     .from('stable_characters')
     .update(updates)
     .eq('id', id)
@@ -158,7 +161,7 @@ export async function updateCharacter(
  * Delete a character
  */
 export async function deleteCharacter(id: string): Promise<void> {
-  const { error } = await supabase
+  const { error } = await (supabase as any)
     .from('stable_characters')
     .delete()
     .eq('id', id);
@@ -176,7 +179,7 @@ export async function deleteCharacter(id: string): Promise<void> {
 export async function getCharacterRelationships(
   characterId: string
 ): Promise<CharacterRelationship[]> {
-  const { data, error } = await supabase
+  const { data, error } = await (supabase as any)
     .from('stable_character_relationships')
     .select('*')
     .or(`character_a_id.eq.${characterId},character_b_id.eq.${characterId}`)
@@ -193,7 +196,7 @@ export async function getCharacterRelationshipsServer(
   characterId: string
 ): Promise<CharacterRelationship[]> {
   const client = await createClient();
-  const { data, error } = await client
+  const { data, error } = await (client as any)
     .from('stable_character_relationships')
     .select('*')
     .or(`character_a_id.eq.${characterId},character_b_id.eq.${characterId}`)
@@ -209,7 +212,7 @@ export async function getCharacterRelationshipsServer(
 export async function createRelationship(
   input: CreateRelationshipInput
 ): Promise<CharacterRelationship> {
-  const { data, error } = await supabase
+  const { data, error } = await (supabase as any)
     .from('stable_character_relationships')
     .insert({
       character_a_id: input.character_a_id,
@@ -231,7 +234,7 @@ export async function updateRelationship(
   id: string,
   updates: UpdateRelationshipInput
 ): Promise<CharacterRelationship> {
-  const { data, error } = await supabase
+  const { data, error } = await (supabase as any)
     .from('stable_character_relationships')
     .update(updates)
     .eq('id', id)
@@ -246,7 +249,7 @@ export async function updateRelationship(
  * Delete a relationship
  */
 export async function deleteRelationship(id: string): Promise<void> {
-  const { error } = await supabase
+  const { error } = await (supabase as any)
     .from('stable_character_relationships')
     .delete()
     .eq('id', id);
@@ -264,7 +267,7 @@ export async function deleteRelationship(id: string): Promise<void> {
 export async function getCharacterAssets(
   characterId: string
 ): Promise<Asset[]> {
-  const { data, error } = await supabase
+  const { data, error } = await (supabase as any)
     .from('stable_assets')
     .select('*')
     .eq('character_id', characterId)
@@ -281,7 +284,7 @@ export async function getCharacterAssetsServer(
   characterId: string
 ): Promise<Asset[]> {
   const client = await createClient();
-  const { data, error } = await client
+  const { data, error } = await (client as any)
     .from('stable_assets')
     .select('*')
     .eq('character_id', characterId)
@@ -298,7 +301,7 @@ export async function getCharacterAssetsByType(
   characterId: string,
   assetType: string
 ): Promise<Asset[]> {
-  const { data, error } = await supabase
+  const { data, error } = await (supabase as any)
     .from('stable_assets')
     .select('*')
     .eq('character_id', characterId)
@@ -313,7 +316,7 @@ export async function getCharacterAssetsByType(
  * Get a single asset by ID
  */
 export async function getAsset(id: string): Promise<Asset> {
-  const { data, error } = await supabase
+  const { data, error } = await (supabase as any)
     .from('stable_assets')
     .select('*')
     .eq('id', id)
@@ -327,7 +330,7 @@ export async function getAsset(id: string): Promise<Asset> {
  * Create a new asset
  */
 export async function createAsset(input: CreateAssetInput): Promise<Asset> {
-  const { data, error } = await supabase
+  const { data, error } = await (supabase as any)
     .from('stable_assets')
     .insert({
       character_id: input.character_id,
@@ -353,7 +356,7 @@ export async function updateAsset(
   id: string,
   updates: UpdateAssetInput
 ): Promise<Asset> {
-  const { data, error } = await supabase
+  const { data, error } = await (supabase as any)
     .from('stable_assets')
     .update(updates)
     .eq('id', id)
@@ -368,7 +371,7 @@ export async function updateAsset(
  * Delete an asset
  */
 export async function deleteAsset(id: string): Promise<void> {
-  const { error } = await supabase.from('stable_assets').delete().eq('id', id);
+  const { error } = await (supabase as any).from('stable_assets').delete().eq('id', id);
 
   if (error) throw error;
 }
@@ -377,7 +380,7 @@ export async function deleteAsset(id: string): Promise<void> {
  * Search assets by tags
  */
 export async function searchAssetsByTags(tags: string[]): Promise<Asset[]> {
-  const { data, error } = await supabase
+  const { data, error } = await (supabase as any)
     .from('stable_assets')
     .select('*')
     .overlaps('tags', tags)

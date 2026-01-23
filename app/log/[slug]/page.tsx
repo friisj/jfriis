@@ -53,7 +53,7 @@ export default async function LogEntryPage({ params }: LogEntryPageProps) {
       .from('specimens')
       .select('id, title, slug, type, description')
       .in('id', specimenIds)
-    linkedSpecimens = specimens || []
+    linkedSpecimens = (specimens || []) as any
   }
 
   // Fetch linked projects via entity_links
@@ -79,7 +79,7 @@ export default async function LogEntryPage({ params }: LogEntryPageProps) {
       .from('projects')
       .select('id, title, slug, type, description, status')
       .in('id', projectIds)
-    linkedProjects = projects || []
+    linkedProjects = (projects || []) as any
   }
 
   return (

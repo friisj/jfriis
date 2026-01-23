@@ -145,7 +145,7 @@ export function AssumptionLinker({
       const { data } = await supabase
         .from('canvas_item_assumptions')
         .select('assumption_id')
-        .eq('canvas_item_id', canvasItemId)
+        .eq('canvas_item_id', canvasItemId!)
 
       const ids = (data || []).map((row) => row.assumption_id)
       setItemLinkedIds(ids)

@@ -60,7 +60,7 @@ export default async function SurveyPage({ params }: SurveyPageProps) {
   return (
     <div className="container py-8">
       <SurveyErrorBoundary projectSlug={project.slug}>
-        <SurveyPlayer project={project} survey={survey} />
+        <SurveyPlayer project={project as any} survey={survey as any} />
       </SurveyErrorBoundary>
     </div>
   )

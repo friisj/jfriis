@@ -42,7 +42,7 @@ export default async function EditStoryMapPage({
       backLabel="Back to Story Map"
     >
       <AdminErrorBoundary>
-        <StoryMapForm storyMap={storyMap} projects={projects || []} />
+        <StoryMapForm storyMap={storyMap as any} projects={projects || []} />
       </AdminErrorBoundary>
     </AdminFormLayout>
   )

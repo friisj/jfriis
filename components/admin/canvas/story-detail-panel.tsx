@@ -100,16 +100,16 @@ export function StoryDetailPanel({
         return
       }
 
-      setStory(data)
+      setStory(data as any)
       setTitle(data.title)
       setDescription(data.description || '')
       setAcceptanceCriteria(data.acceptance_criteria || '')
-      setPriority(data.priority)
-      setStatus(data.status)
-      setStoryType(data.story_type)
+      setPriority(data.priority ?? '')
+      setStatus(data.status ?? '')
+      setStoryType(data.story_type ?? '')
       setStoryPoints(data.story_points)
       setActivityId(data.activity_id)
-      setLayerId(data.layer_id)
+      setLayerId(data.layer_id ?? '')
       setIsLoading(false)
     }
 

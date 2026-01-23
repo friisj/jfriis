@@ -348,7 +348,7 @@ export function ItemsListView({ items }: ItemsListViewProps) {
             return (
               <div key={category}>
                 <h3 className="text-lg font-semibold mb-3 border-b pb-2">{category}</h3>
-                <AdminTable data={groupItems} columns={columns} rowHref={(item) => `/admin/items/${item.id}/edit`} />
+                <AdminTable data={groupItems} columns={columns} />
               </div>
             )
           })}
@@ -361,7 +361,7 @@ export function ItemsListView({ items }: ItemsListViewProps) {
       ) : (
         <>
           {filteredItems.length > 0 ? (
-            <AdminTable data={filteredItems} columns={columns} rowHref={(item) => `/admin/items/${item.id}/edit`} />
+            <AdminTable data={filteredItems} columns={columns} />
           ) : (
             <div className="text-center py-12 text-muted-foreground">
               No items match the current filters

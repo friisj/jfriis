@@ -2,11 +2,12 @@ import { supabase } from './supabase'
 
 /**
  * Generic CRUD operations for Supabase tables
+ * Note: Uses type assertions because table names are dynamic strings
  */
 
 // Create a new record
 export async function createRecord<T>(table: string, data: Partial<T>) {
-  const { data: record, error } = await supabase
+  const { data: record, error } = await (supabase as any)
     .from(table)
     .insert(data)
     .select()
@@ -26,7 +27,7 @@ export async function readRecords<T>(
     limit?: number
   }
 ) {
-  let query = supabase.from(table).select(options?.select || '*')
+  let query = (supabase as any).from(table).select(options?.select || '*')
 
   // Apply filters
   if (options?.filter) {
@@ -55,10 +56,10 @@ export async function readRecords<T>(
 
 // Read a single record by ID
 export async function readRecord<T>(table: string, id: string | number) {
-  const { data, error } = await supabase
+  const { data, error } = await (supabase as any)
     .from(table)
     .select('*')
-    .eq('id', id)
+    .eq('id', String(id))
     .single()
 
   if (error) throw error
@@ -71,10 +72,10 @@ export async function updateRecord<T>(
   id: string | number,
   updates: Partial<T>
 ) {
-  const { data, error } = await supabase
+  const { data, error } = await (supabase as any)
     .from(table)
     .update(updates)
-    .eq('id', id)
+    .eq('id', String(id))
     .select()
     .single()
 
@@ -84,7 +85,7 @@ export async function updateRecord<T>(
 
 // Delete a record by ID
 export async function deleteRecord(table: string, id: string | number) {
-  const { error } = await supabase.from(table).delete().eq('id', id)
+  const { error } = await (supabase as any).from(table).delete().eq('id', String(id))
 
   if (error) throw error
   return true
@@ -92,7 +93,7 @@ export async function deleteRecord(table: string, id: string | number) {
 
 // Upsert (insert or update) a record
 export async function upsertRecord<T>(table: string, data: Partial<T>) {
-  const { data: record, error } = await supabase
+  const { data: record, error } = await (supabase as any)
     .from(table)
     .upsert(data)
     .select()

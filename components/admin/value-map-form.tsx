@@ -260,10 +260,10 @@ export function ValueMapForm({ valueMapId, initialData }: ValueMapFormProps) {
 
       // Sync canvas item placements
       const placementResult = await syncCanvasPlacements({
-        canvasId: savedValueMapId,
+        canvasId: savedValueMapId!,
         canvasType: 'value_map',
         blockKeys: ['products_services', 'pain_relievers', 'gain_creators'],
-        formData,
+        formData: formData as any,
       })
 
       // Check for placement errors

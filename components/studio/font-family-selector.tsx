@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import type { FontFamily, SystemFont, FontWeight, getWeightLabel } from '@/lib/fonts/font-scanner'
+import type { FontFamily, SystemFont, FontWeight } from '@/lib/fonts/font-scanner'
 import type { FontFamilyConfig, FontFaceRule } from './design-system-tool'
 
 interface FontFamilySelectorProps {

@@ -61,9 +61,9 @@ export default async function BlueprintDetailPage({
         <div className="space-y-8">
           {/* Blueprint Info */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <InfoCard label="Type" value={blueprint.blueprint_type} />
-            <InfoCard label="Status" value={blueprint.status} />
-            <InfoCard label="Validation" value={blueprint.validation_status} />
+            <InfoCard label="Type" value={blueprint.blueprint_type || '-'} />
+            <InfoCard label="Status" value={blueprint.status || '-'} />
+            <InfoCard label="Validation" value={blueprint.validation_status || '-'} />
             <InfoCard label="Steps" value={steps.length.toString()} />
           </div>
 

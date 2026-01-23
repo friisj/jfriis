@@ -23,7 +23,7 @@ export function MdxRenderer({ content, className = '' }: MdxRendererProps) {
           // Usage in markdown: <Specimen id="simple-card" />
           specimen: (props: any) => <SpecimenEmbed {...props} />,
           Specimen: (props: any) => <SpecimenEmbed {...props} />,
-        }}
+        } as any}
       >
         {content}
       </ReactMarkdown>

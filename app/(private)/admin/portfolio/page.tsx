@@ -18,7 +18,7 @@ export default async function AdminPortfolioPage() {
     console.log('Portfolio page - User:', user?.email)
 
     // Query the materialized view which already includes all project data + evidence summaries
-    const { data: projects, error: projectsError } = await supabase
+    const { data: projects, error: projectsError } = await (supabase as any)
       .from('portfolio_evidence_summary')
       .select('*')
       .order('refreshed_at', { ascending: false })

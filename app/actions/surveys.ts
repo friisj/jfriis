@@ -21,6 +21,7 @@ interface GenerateProjectSurveyInput {
 
 interface GenerateProjectSurveyResult {
   success: boolean
+  projectId?: string
   projectSlug?: string
   surveyId?: string
   error?: string
@@ -98,7 +99,7 @@ export async function generateProjectSurvey(
       generation_context: input,
       generation_model: result.model,
       status: 'pending',
-    })
+    } as any)
     .select()
     .single()
 
@@ -222,7 +223,7 @@ export async function saveSurveyResponse(surveyId: string, questionId: string, r
         question_id: questionId,
         response_value: sanitizedResponse,
         response_text: responseText,
-      },
+      } as any,
       {
         onConflict: 'survey_id,question_id',
       }
@@ -367,7 +368,7 @@ async function verifyArtifactOwnership(
   }
 
   // Fetch artifact with its project to verify ownership
-  const { data: artifact, error } = await supabase
+  const { data: artifact, error } = await (supabase as any)
     .from(table)
     .select(`id, ${fkField}`)
     .eq('id', id)
@@ -377,7 +378,7 @@ async function verifyArtifactOwnership(
     return { success: false, error: 'Artifact not found' }
   }
 
-  const projectId = artifact[fkField]
+  const projectId = (artifact as any)[fkField]
 
   // Verify user owns the project
   const { data: project, error: projectError } = await supabase
@@ -423,7 +424,7 @@ export async function deleteSurveyArtifact(type: string, id: string) {
   }
 
   const table = ARTIFACT_TABLE_MAP[artifactType]
-  const { error } = await supabase.from(table).delete().eq('id', id)
+  const { error } = await (supabase as any).from(table).delete().eq('id', id)
 
   if (error) {
     return { success: false, error: error.message }
@@ -514,7 +515,7 @@ export async function updateSurveyArtifact(
   }
 
   const table = ARTIFACT_TABLE_MAP[artifactType]
-  const { error } = await supabase.from(table).update(sanitizedData).eq('id', id)
+  const { error } = await (supabase as any).from(table).update(sanitizedData).eq('id', id)
 
   if (error) {
     return { success: false, error: error.message }

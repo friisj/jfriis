@@ -178,6 +178,42 @@ export function generatePalette(input: PaletteGeneratorInput): ColorSystemConfig
     ring: {
       light: toScaleShade(primary.l, primary.c * 0.8, primary.h),
       dark: toScaleShade(Math.min(primary.l + 10, 75), primary.c * 0.8, primary.h)
+    },
+
+    // Success - green range
+    success: {
+      light: toScaleShade(50, 0.15, 145),
+      dark: toScaleShade(60, 0.18, 145)
+    },
+
+    // Success foreground
+    successForeground: {
+      light: toScaleShade(98, 0.01, 145),
+      dark: toScaleShade(98, 0.01, 145)
+    },
+
+    // Warning - yellow/orange range
+    warning: {
+      light: toScaleShade(60, 0.18, 70),
+      dark: toScaleShade(70, 0.2, 70)
+    },
+
+    // Warning foreground
+    warningForeground: {
+      light: toScaleShade(15, 0.05, 70),
+      dark: toScaleShade(15, 0.05, 70)
+    },
+
+    // Info - blue range
+    info: {
+      light: toScaleShade(55, 0.15, 240),
+      dark: toScaleShade(65, 0.18, 240)
+    },
+
+    // Info foreground
+    infoForeground: {
+      light: toScaleShade(98, 0.01, 240),
+      dark: toScaleShade(98, 0.01, 240)
     }
   }
 }

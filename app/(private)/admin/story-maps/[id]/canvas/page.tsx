@@ -41,7 +41,7 @@ export default async function StoryMapCanvasPage({
   if (layers.length === 0) {
     const layersResult = await ensureDefaultLayers(supabase, id)
     if (layersResult.success) {
-      layers = layersResult.data
+      layers = layersResult.data as any
     }
   }
 
@@ -49,5 +49,5 @@ export default async function StoryMapCanvasPage({
   layers = [...layers].sort((a, b) => a.sequence - b.sequence)
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  return <StoryMapCanvasView storyMap={storyMap as any} layers={layers} />
+  return <StoryMapCanvasView storyMap={storyMap as any} layers={layers as any} />
 }

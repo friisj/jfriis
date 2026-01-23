@@ -27,6 +27,10 @@ import type {
   TouchpointSortField,
   PaginationParams,
   PaginatedResponse,
+  TouchpointCanvasItem,
+  TouchpointCustomerProfile,
+  TouchpointValueProposition,
+  TouchpointAssumption,
 } from '@/lib/types/boundary-objects'
 import { getLinkedEntities } from '@/lib/entity-links'
 import { getTouchpointWithAllRelations } from './mappings'
@@ -38,12 +42,12 @@ import { getTouchpointWithAllRelations } from './mappings'
 export async function createJourney(data: UserJourneyInsert): Promise<UserJourney> {
   const { data: journey, error } = await supabase
     .from('user_journeys')
-    .insert(data)
+    .insert(data as any)
     .select()
     .single()
 
   if (error) throw error
-  return journey
+  return journey as UserJourney
 }
 
 export async function getJourney(id: string): Promise<UserJourney> {
@@ -54,7 +58,7 @@ export async function getJourney(id: string): Promise<UserJourney> {
     .single()
 
   if (error) throw error
-  return data
+  return data as UserJourney
 }
 
 export async function getJourneyWithStages(id: string): Promise<JourneyWithStages> {
@@ -83,10 +87,10 @@ export async function getJourneyWithStages(id: string): Promise<JourneyWithStage
 
   return {
     ...journey,
-    stages: stages || [],
+    stages: (stages || []) as JourneyStage[],
     stage_count: stages?.length || 0,
     touchpoint_count: touchpointCount || 0,
-  }
+  } as JourneyWithStages
 }
 
 /**
@@ -148,7 +152,7 @@ export async function listJourneys(
   const nextCursor = hasMore && results.length > 0 ? results[results.length - 1].id : undefined
 
   return {
-    data: results,
+    data: results as UserJourney[],
     nextCursor,
     hasMore,
   }
@@ -213,8 +217,8 @@ export async function listJourneySummaries(
   const nextCursor = hasMore && results.length > 0 ? results[results.length - 1].id : undefined
 
   return {
-    data: results,
-    nextCursor,
+    data: results as JourneySummaryView[],
+    nextCursor: nextCursor ?? undefined,
     hasMore,
   }
 }
@@ -222,13 +226,13 @@ export async function listJourneySummaries(
 export async function updateJourney(id: string, updates: UserJourneyUpdate): Promise<UserJourney> {
   const { data, error } = await supabase
     .from('user_journeys')
-    .update(updates)
+    .update(updates as any)
     .eq('id', id)
     .select()
     .single()
 
   if (error) throw error
-  return data
+  return data as UserJourney
 }
 
 export async function deleteJourney(id: string): Promise<void> {
@@ -244,12 +248,12 @@ export async function deleteJourney(id: string): Promise<void> {
 export async function createStage(data: JourneyStageInsert): Promise<JourneyStage> {
   const { data: stage, error } = await supabase
     .from('journey_stages')
-    .insert(data)
+    .insert(data as any)
     .select()
     .single()
 
   if (error) throw error
-  return stage
+  return stage as JourneyStage
 }
 
 export async function getStage(id: string): Promise<JourneyStage> {
@@ -260,7 +264,7 @@ export async function getStage(id: string): Promise<JourneyStage> {
     .single()
 
   if (error) throw error
-  return data
+  return data as JourneyStage
 }
 
 export async function getStageWithTouchpoints(id: string): Promise<StageWithTouchpoints> {
@@ -282,9 +286,9 @@ export async function getStageWithTouchpoints(id: string): Promise<StageWithTouc
 
   return {
     ...stage,
-    touchpoints: touchpoints || [],
+    touchpoints: (touchpoints || []) as Touchpoint[],
     touchpoint_count: touchpoints?.length || 0,
-  }
+  } as StageWithTouchpoints
 }
 
 export async function listStages(journeyId: string): Promise<JourneyStage[]> {
@@ -295,19 +299,19 @@ export async function listStages(journeyId: string): Promise<JourneyStage[]> {
     .order('sequence', { ascending: true })
 
   if (error) throw error
-  return data || []
+  return (data || []) as JourneyStage[]
 }
 
 export async function updateStage(id: string, updates: JourneyStageUpdate): Promise<JourneyStage> {
   const { data, error } = await supabase
     .from('journey_stages')
-    .update(updates)
+    .update(updates as any)
     .eq('id', id)
     .select()
     .single()
 
   if (error) throw error
-  return data
+  return data as JourneyStage
 }
 
 export async function deleteStage(id: string): Promise<void> {
@@ -328,7 +332,7 @@ export async function reorderStages(journeyId: string, stageIds: string[]): Prom
     user_journey_id: journeyId,
   }))
 
-  const { error } = await supabase.from('journey_stages').upsert(updates)
+  const { error } = await supabase.from('journey_stages').upsert(updates as any)
 
   if (error) throw error
 }
@@ -352,12 +356,12 @@ export async function resequenceStages(journeyId: string): Promise<void> {
 export async function createTouchpoint(data: TouchpointInsert): Promise<Touchpoint> {
   const { data: touchpoint, error } = await supabase
     .from('touchpoints')
-    .insert(data)
+    .insert(data as any)
     .select()
     .single()
 
   if (error) throw error
-  return touchpoint
+  return touchpoint as Touchpoint
 }
 
 export async function getTouchpoint(id: string): Promise<Touchpoint> {
@@ -368,7 +372,7 @@ export async function getTouchpoint(id: string): Promise<Touchpoint> {
     .single()
 
   if (error) throw error
-  return data
+  return data as Touchpoint
 }
 
 export async function getTouchpointWithRelations(id: string): Promise<TouchpointWithRelations> {
@@ -421,15 +425,15 @@ export async function getTouchpointWithRelations(id: string): Promise<Touchpoint
 
   return {
     ...touchpoint,
-    canvas_items: canvasItems,
-    customer_profiles: customerProfiles,
-    value_propositions: valuePropositions,
-    assumptions,
+    canvas_items: canvasItems as unknown as TouchpointCanvasItem[],
+    customer_profiles: customerProfiles as unknown as TouchpointCustomerProfile[],
+    value_propositions: valuePropositions as unknown as TouchpointValueProposition[],
+    assumptions: assumptions as unknown as TouchpointAssumption[],
     evidence: relations.evidence,
     mapping_count: relations.mapping_count,
     assumption_count: relations.assumption_count,
     evidence_count: relations.evidence_count,
-  }
+  } as TouchpointWithRelations
 }
 
 export async function listTouchpoints(
@@ -466,19 +470,19 @@ export async function listTouchpoints(
   const { data, error } = await query
 
   if (error) throw error
-  return data || []
+  return (data || []) as Touchpoint[]
 }
 
 export async function updateTouchpoint(id: string, updates: TouchpointUpdate): Promise<Touchpoint> {
   const { data, error } = await supabase
     .from('touchpoints')
-    .update(updates)
+    .update(updates as any)
     .eq('id', id)
     .select()
     .single()
 
   if (error) throw error
-  return data
+  return data as Touchpoint
 }
 
 export async function deleteTouchpoint(id: string): Promise<void> {
@@ -497,7 +501,7 @@ export async function reorderTouchpoints(stageId: string, touchpointIds: string[
     journey_stage_id: stageId,
   }))
 
-  const { error } = await supabase.from('touchpoints').upsert(updates)
+  const { error } = await supabase.from('touchpoints').upsert(updates as any)
 
   if (error) throw error
 }
@@ -534,25 +538,25 @@ export async function createJourneyWithStages(
   if (stagesWithJourneyId.length > 0) {
     const { data: createdStages, error: stagesError } = await supabase
       .from('journey_stages')
-      .insert(stagesWithJourneyId)
+      .insert(stagesWithJourneyId as any)
       .select()
 
     if (stagesError) throw stagesError
 
     return {
       ...createdJourney,
-      stages: createdStages || [],
+      stages: (createdStages || []) as JourneyStage[],
       stage_count: createdStages?.length || 0,
       touchpoint_count: 0,
-    }
+    } as JourneyWithStages
   }
 
   return {
     ...createdJourney,
-    stages: [],
+    stages: [] as JourneyStage[],
     stage_count: 0,
     touchpoint_count: 0,
-  }
+  } as JourneyWithStages
 }
 
 export async function createStageWithTouchpoints(
@@ -572,21 +576,21 @@ export async function createStageWithTouchpoints(
   if (touchpointsWithStageId.length > 0) {
     const { data: createdTouchpoints, error: touchpointsError } = await supabase
       .from('touchpoints')
-      .insert(touchpointsWithStageId)
+      .insert(touchpointsWithStageId as any)
       .select()
 
     if (touchpointsError) throw touchpointsError
 
     return {
       ...createdStage,
-      touchpoints: createdTouchpoints || [],
+      touchpoints: (createdTouchpoints || []) as Touchpoint[],
       touchpoint_count: createdTouchpoints?.length || 0,
-    }
+    } as StageWithTouchpoints
   }
 
   return {
     ...createdStage,
-    touchpoints: [],
+    touchpoints: [] as Touchpoint[],
     touchpoint_count: 0,
-  }
+  } as StageWithTouchpoints
 }

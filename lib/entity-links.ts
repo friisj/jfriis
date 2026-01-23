@@ -108,12 +108,12 @@ export async function linkEntities(
       notes: options?.notes,
       metadata: options?.metadata || {},
       position: options?.position,
-    })
+    } as any)
     .select()
     .single()
 
   if (error) throw error
-  return data
+  return data as EntityLink
 }
 
 /**
@@ -169,7 +169,7 @@ export async function getLinkedEntities(
 
       const { data, error } = await query.order('position', { nullsFirst: false })
       if (error) throw error
-      if (data) results.push(...data)
+      if (data) results.push(...(data as EntityLink[]))
     }
 
     if (direction === 'incoming' || direction === 'both') {
@@ -184,7 +184,7 @@ export async function getLinkedEntities(
 
       const { data, error } = await query
       if (error) throw error
-      if (data) results.push(...data)
+      if (data) results.push(...(data as EntityLink[]))
     }
 
     return results
@@ -229,7 +229,7 @@ export async function getLinkedEntitiesWithData<T = Record<string, unknown>>(
     const targetIds = links.map(l => l.target_id)
 
     // 3. Fetch the target entities
-    const { data: entities, error: entitiesError } = await supabase
+    const { data: entities, error: entitiesError } = await (supabase as any)
       .from(tableName)
       .select('*')
       .in('id', targetIds)
@@ -238,13 +238,13 @@ export async function getLinkedEntitiesWithData<T = Record<string, unknown>>(
     if (!entities) return []
 
     // 4. Combine links with entities
-    const entityMap = new Map(entities.map(e => [e.id, e]))
+    const entityMap = new Map(entities.map((e: any) => [e.id, e]))
     return links
       .map(link => ({
-        link,
+        link: link as EntityLink,
         entity: entityMap.get(link.target_id) as T,
       }))
-      .filter((le): le is LinkedEntity<T> => le.entity !== undefined)
+      .filter((le) => le.entity !== undefined) as LinkedEntity<T>[]
   })
 }
 
@@ -284,13 +284,13 @@ export async function updateLink(
 ): Promise<EntityLink> {
   const { data, error } = await supabase
     .from('entity_links')
-    .update(updates)
+    .update(updates as any)
     .eq('id', linkId)
     .select()
     .single()
 
   if (error) throw error
-  return data
+  return data as EntityLink
 }
 
 /**
@@ -456,11 +456,11 @@ export async function syncPendingLinks(
 
   const { data, error } = await supabase
     .from('entity_links')
-    .insert(linksToInsert)
+    .insert(linksToInsert as any)
     .select()
 
   if (error) throw error
-  return data || []
+  return (data || []) as EntityLink[]
 }
 
 /**
@@ -529,6 +529,9 @@ export async function getRelatedEntities(
       })(),
     ])
 
-    return { outgoing, incoming }
+    return {
+      outgoing: outgoing as EntityLink[],
+      incoming: incoming as EntityLink[],
+    }
   })
 }

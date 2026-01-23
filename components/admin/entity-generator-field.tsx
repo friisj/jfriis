@@ -435,7 +435,7 @@ export function EntityGeneratorField({
               onDelete={() => handleDeleteItem(item)}
               editLink={
                 !item._isPending && editLinkPattern
-                  ? editLinkPattern.replace('{id}', item.id)
+                  ? editLinkPattern.replace('{id}', (item as any).id)
                   : undefined
               }
               disabled={disabled}

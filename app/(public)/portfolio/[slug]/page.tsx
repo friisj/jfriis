@@ -54,7 +54,7 @@ export default async function VenturePage({ params }: VenturePageProps) {
       .from('specimens')
       .select('id, title, slug, type, description')
       .in('id', specimenIds)
-    linkedSpecimens = specimens || []
+    linkedSpecimens = (specimens || []) as any
   }
 
   return (

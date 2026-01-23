@@ -190,7 +190,7 @@ export default function TouchpointDetailPage({ params }: TouchpointDetailPagePro
                   <div>
                     <dt className="text-sm text-muted-foreground">Validation Status</dt>
                     <dd className="mt-1">
-                      <StatusBadge value={touchpoint.validation_status} />
+                      <StatusBadge value={touchpoint.validation_status || '-'} />
                     </dd>
                   </div>
                   <div>

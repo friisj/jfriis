@@ -59,9 +59,9 @@ export default async function StoryMapDetailPage({
         <div className="space-y-8">
           {/* Story Map Info */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <InfoCard label="Type" value={storyMap.map_type} />
-            <InfoCard label="Status" value={storyMap.status} />
-            <InfoCard label="Validation" value={storyMap.validation_status} />
+            <InfoCard label="Type" value={storyMap.map_type || '-'} />
+            <InfoCard label="Status" value={storyMap.status || '-'} />
+            <InfoCard label="Validation" value={storyMap.validation_status || '-'} />
             <InfoCard label="Activities" value={activities.length.toString()} />
           </div>
 

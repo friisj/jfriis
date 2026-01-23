@@ -116,7 +116,7 @@ export function HypothesisForm({ hypothesis, mode }: HypothesisFormProps) {
           const { data, error } = await supabase
             .from('assumptions')
             .select('id, statement, category, importance, validation_criteria')
-            .eq('id', assumptionFromUrl)
+            .eq('id', assumptionFromUrl!)
             .single()
 
           if (error) {

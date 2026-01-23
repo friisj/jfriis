@@ -87,12 +87,12 @@ export async function addEvidence(
       entity_type: entity.type,
       entity_id: entity.id,
       ...evidence,
-    })
+    } as any)
     .select()
     .single()
 
   if (error) throw error
-  return data
+  return data as unknown as UniversalEvidence
 }
 
 /**
@@ -131,7 +131,7 @@ export async function getEvidence(
     const { data, error } = await query
 
     if (error) throw error
-    return data || []
+    return (data || []) as unknown as UniversalEvidence[]
   })
 }
 
@@ -196,13 +196,13 @@ export async function updateEvidence(
 ): Promise<UniversalEvidence> {
   const { data, error } = await supabase
     .from('evidence')
-    .update(updates)
+    .update(updates as any)
     .eq('id', evidenceId)
     .select()
     .single()
 
   if (error) throw error
-  return data
+  return data as unknown as UniversalEvidence
 }
 
 /**
@@ -255,11 +255,11 @@ export async function syncPendingEvidence(
 
   const { data, error } = await supabase
     .from('evidence')
-    .insert(evidenceToInsert)
+    .insert(evidenceToInsert as any)
     .select()
 
   if (error) throw error
-  return data || []
+  return (data || []) as unknown as UniversalEvidence[]
 }
 
 /**

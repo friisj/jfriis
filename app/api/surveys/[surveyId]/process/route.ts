@@ -71,7 +71,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ sur
 
   // 4. Prepare responses for LLM
   const formattedResponses = survey.responses.map((r: any) => {
-    const question = survey.questions.questions.find((q: any) => q.id === r.question_id)
+    const question = (survey.questions as any)?.questions?.find((q: any) => q.id === r.question_id)
     return {
       question_id: r.question_id,
       question_text: question?.question || '',

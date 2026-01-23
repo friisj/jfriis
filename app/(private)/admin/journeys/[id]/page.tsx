@@ -105,7 +105,7 @@ export default async function JourneyDetailPage({ params }: { params: Promise<{ 
     >
       <AdminErrorBoundary>
         <Suspense fallback={<JourneyDetailSkeleton />}>
-          <JourneyDetailView journey={journey} stages={stagesWithOrderedTouchpoints} />
+          <JourneyDetailView journey={journey as any} stages={stagesWithOrderedTouchpoints as any} />
         </Suspense>
       </AdminErrorBoundary>
     </AdminDetailLayout>

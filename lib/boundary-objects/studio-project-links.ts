@@ -115,7 +115,7 @@ export async function getRelatedProjects(projectId: string) {
     }))
 
   return [...outboundLinks, ...inboundLinks].sort(
-    (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+    (a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime()
   )
 }
 
@@ -140,12 +140,12 @@ export async function linkProjects(
       strength: options.strength,
       notes: options.notes,
       metadata: options.metadata || {},
-    })
+    } as any)
     .select()
     .single()
 
   if (error) throw error
-  return data as EntityLink
+  return data as unknown as EntityLink
 }
 
 /**
@@ -302,12 +302,12 @@ export async function linkLogAsInspiration(
       strength: options?.strength,
       notes: options?.notes,
       metadata: options?.metadata || {},
-    })
+    } as any)
     .select()
     .single()
 
   if (error) throw error
-  return data as EntityLink
+  return data as unknown as EntityLink
 }
 
 // ============================================================================
@@ -336,12 +336,12 @@ export async function linkProjectToCanvas(
       strength: options?.strength,
       notes: options?.notes,
       metadata: options?.metadata || {},
-    })
+    } as any)
     .select()
     .single()
 
   if (error) throw error
-  return data as EntityLink
+  return data as unknown as EntityLink
 }
 
 /**
@@ -365,12 +365,12 @@ export async function linkProjectToJourney(
       strength: options?.strength,
       notes: options?.notes,
       metadata: options?.metadata || {},
-    })
+    } as any)
     .select()
     .single()
 
   if (error) throw error
-  return data as EntityLink
+  return data as unknown as EntityLink
 }
 
 /**
@@ -394,12 +394,12 @@ export async function linkProjectToBlueprint(
       strength: options?.strength,
       notes: options?.notes,
       metadata: options?.metadata || {},
-    })
+    } as any)
     .select()
     .single()
 
   if (error) throw error
-  return data as EntityLink
+  return data as unknown as EntityLink
 }
 
 /**
@@ -422,13 +422,12 @@ export async function linkProjectToStoryMap(
       link_type: LINK_TYPES.INFORMS,
       strength: options?.strength,
       notes: options?.notes,
-      metadata: options?.metadata || {},
-    })
+    } as any)
     .select()
     .single()
 
   if (error) throw error
-  return data as EntityLink
+  return data as unknown as EntityLink
 }
 
 /**
@@ -476,12 +475,12 @@ export async function linkProjectToEntity(
       strength: options.strength,
       notes: options.notes,
       metadata: options.metadata || {},
-    })
+    } as any)
     .select()
     .single()
 
   if (error) throw error
-  return data as EntityLink
+  return data as unknown as EntityLink
 }
 
 /**

@@ -97,14 +97,14 @@ export function FitMappingEditor({ valueMapId, customerProfileId }: FitMappingEd
           }
 
           setPainRelievers(
-            vmItems?.filter((item) =>
+            (vmItems?.filter((item) =>
               vmPlacements.find((p) => p.canvas_item_id === item.id && p.block_name === 'pain_relievers')
-            ) || []
+            ) || []) as any
           )
           setGainCreators(
-            vmItems?.filter((item) =>
+            (vmItems?.filter((item) =>
               vmPlacements.find((p) => p.canvas_item_id === item.id && p.block_name === 'gain_creators')
-            ) || []
+            ) || []) as any
           )
         }
 
@@ -140,14 +140,14 @@ export function FitMappingEditor({ valueMapId, customerProfileId }: FitMappingEd
           }
 
           setPains(
-            cpItems?.filter((item) =>
+            (cpItems?.filter((item) =>
               cpPlacements.find((p) => p.canvas_item_id === item.id && p.block_name === 'pains')
-            ) || []
+            ) || []) as any
           )
           setGains(
-            cpItems?.filter((item) =>
+            (cpItems?.filter((item) =>
               cpPlacements.find((p) => p.canvas_item_id === item.id && p.block_name === 'gains')
-            ) || []
+            ) || []) as any
           )
         }
 
@@ -165,7 +165,7 @@ export function FitMappingEditor({ valueMapId, customerProfileId }: FitMappingEd
           // Don't set error here - mappings are optional
           setMappings([])
         } else {
-          setMappings(existingMappings || [])
+          setMappings((existingMappings || []) as any)
         }
       } catch (err) {
         console.error('Unexpected error loading FIT mapping data:', err)
@@ -250,7 +250,7 @@ export function FitMappingEditor({ valueMapId, customerProfileId }: FitMappingEd
 
       // Only update state after successful DB operation
       if (data) {
-        setMappings([...mappings, data])
+        setMappings([...mappings, data as CanvasItemMapping])
         showSuccessToast('Connection created')
       }
 

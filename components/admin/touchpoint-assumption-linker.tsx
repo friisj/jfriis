@@ -14,7 +14,6 @@ interface Assumption {
   id: string
   statement: string
   status: string
-  risk_level: string | null
 }
 
 interface TouchpointAssumptionLinkerProps {
@@ -38,12 +37,6 @@ const statusColors: Record<string, string> = {
   testing: 'bg-blue-500/10 text-blue-700 dark:text-blue-400',
   validated: 'bg-green-500/10 text-green-700 dark:text-green-400',
   invalidated: 'bg-red-500/10 text-red-700 dark:text-red-400',
-}
-
-const riskColors: Record<string, string> = {
-  low: 'text-green-600 dark:text-green-400',
-  medium: 'text-amber-600 dark:text-amber-400',
-  high: 'text-red-600 dark:text-red-400',
 }
 
 export function TouchpointAssumptionLinker({
@@ -96,7 +89,7 @@ export function TouchpointAssumptionLinker({
       try {
         let query = supabase
           .from('assumptions')
-          .select('id, statement, status, risk_level')
+          .select('id, statement, status')
           .order('created_at', { ascending: false })
 
         if (projectId) {
@@ -149,7 +142,7 @@ export function TouchpointAssumptionLinker({
 
       setLinkedAssumptions((prev) => [
         ...prev,
-        { ...link, assumption: assumption || null },
+        { ...link, assumption: assumption || null } as any,
       ])
 
       setShowSelector(false)
@@ -277,11 +270,6 @@ export function TouchpointAssumptionLinker({
                             <span className={`text-xs px-1.5 py-0.5 rounded ${statusColors[assumption.status]}`}>
                               {assumption.status}
                             </span>
-                            {assumption.risk_level && (
-                              <span className={`text-xs ${riskColors[assumption.risk_level]}`}>
-                                {assumption.risk_level} risk
-                              </span>
-                            )}
                           </div>
                         </div>
                       </label>

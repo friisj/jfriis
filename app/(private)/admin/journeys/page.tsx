@@ -102,9 +102,9 @@ export default async function AdminJourneysPage({
       <AdminErrorBoundary>
         <Suspense fallback={<JourneysListSkeleton />}>
           <JourneysListView
-            journeys={journeys}
+            journeys={journeys as any}
             initialFilters={filters}
-            nextCursor={nextCursor}
+            nextCursor={nextCursor ?? undefined}
             hasMore={hasMore}
           />
         </Suspense>

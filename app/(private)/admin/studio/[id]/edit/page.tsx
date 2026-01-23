@@ -59,7 +59,7 @@ export default async function EditStudioProjectPage({ params }: PageProps) {
           {/* Main Form */}
           <div className="lg:col-span-2">
             <div className="rounded-lg border bg-card p-6">
-              <StudioProjectForm project={project} mode="edit" existingProjectNames={existingProjectNames} />
+              <StudioProjectForm project={project as any} mode="edit" existingProjectNames={existingProjectNames} />
             </div>
           </div>
 
@@ -74,7 +74,7 @@ export default async function EditStudioProjectPage({ params }: PageProps) {
               success_criteria: project.success_criteria,
               current_focus: project.current_focus,
               has_pending_survey: project.has_pending_survey,
-            }}
+            } as any}
             hypotheses={hypotheses || []}
             experiments={experiments || []}
           />

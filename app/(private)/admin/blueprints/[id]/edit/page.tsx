@@ -42,7 +42,7 @@ export default async function EditBlueprintPage({
     >
       <AdminErrorBoundary>
         <Suspense fallback={<div className="animate-pulse">Loading...</div>}>
-          <BlueprintForm blueprint={blueprint} projects={projects || []} />
+          <BlueprintForm blueprint={blueprint as any} projects={projects || []} />
         </Suspense>
       </AdminErrorBoundary>
     </AdminFormLayout>

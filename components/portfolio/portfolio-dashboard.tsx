@@ -46,7 +46,7 @@ export function PortfolioDashboard({ projects }: PortfolioDashboardProps) {
     }
 
     // Evidence strength filter
-    if (filters.evidenceStrength.length > 0 && project.evidence_strength && !filters.evidenceStrength.includes(project.evidence_strength)) {
+    if (filters.evidenceStrength.length > 0 && project.manual_evidence_strength && !filters.evidenceStrength.includes(project.manual_evidence_strength)) {
       return false
     }
 
