@@ -1689,43 +1689,44 @@ Use Husky + lint-staged for pre-commit validation.
 
 ## Implementation Checklist
 
-### Phase 1: Build Enforcement
-- [ ] Remove `ignoreBuildErrors` from `next.config.ts`
-- [ ] Remove `ignoreDuringBuilds` from `next.config.ts`
-- [ ] Fix existing TypeScript errors
-- [ ] Fix existing ESLint errors
-- [ ] Create `.github/workflows/ci.yml`
-- [ ] Add `type-check` script to `package.json`
-- [ ] Verify CI runs on PR
-- [ ] Enable branch protection (require CI pass)
+### Phase 1: Build Enforcement ✅ COMPLETE
+- [x] Remove `ignoreBuildErrors` from `next.config.ts`
+- [x] Remove `ignoreDuringBuilds` from `next.config.ts`
+- [x] Fix existing TypeScript errors (67 files fixed)
+- [x] Fix existing ESLint errors
+- [x] Add `type-check` script to `package.json`
+- [~] Create `.github/workflows/ci.yml` - SKIPPED (using local validation)
+- [~] Verify CI runs on PR - SKIPPED (using local validation)
+- [~] Enable branch protection - SKIPPED (using local validation)
 
-### Phase 2: Testing Infrastructure
-- [ ] Install Vitest and dependencies
-- [ ] Create `vitest.config.ts`
-- [ ] Create `__tests__/setup.ts` with mocks
-- [ ] Create `__tests__/fixtures/entities.ts`
-- [ ] Add test scripts to `package.json`
-- [ ] Write StatusBadge component tests
-- [ ] Write entity-links utility tests
-- [ ] Add test job to CI workflow
-- [ ] Add coverage reporting to CI
+### Phase 2: Testing Infrastructure ✅ COMPLETE
+- [x] Install Vitest and dependencies
+- [x] Create `vitest.config.ts`
+- [x] Create `__tests__/setup.ts` with mocks
+- [x] Create `__tests__/fixtures/entities.ts`
+- [x] Add test scripts to `package.json`
+- [x] Write StatusBadge component tests (18 tests)
+- [x] Write entity-links-validation utility tests (30 tests)
+- [x] Configure lint-staged to run related tests
+- [~] Add test job to CI workflow - SKIPPED (using local validation)
+- [~] Add coverage reporting to CI - SKIPPED (using local validation)
 
-### Phase 3: Pre-commit Hooks
-- [ ] Install Husky and lint-staged
-- [ ] Run `npx husky init`
-- [ ] Configure `.husky/pre-commit`
-- [ ] Add `lint-staged` config to `package.json`
+### Phase 3: Pre-commit Hooks (PARTIALLY COMPLETE)
+- [x] Install Husky and lint-staged (already installed)
+- [x] Husky initialized
+- [x] Add `lint-staged` config to `package.json` (updated with vitest)
+- [ ] Configure `.husky/pre-commit` to include type-check
 - [ ] Test pre-commit hook locally
 - [ ] Document `--no-verify` escape hatch
 
 ### Phase 4: Agent Integration
-- [ ] Create `.github/workflows/agent-review.yml`
-- [ ] Create PR size check job
-- [ ] Create notification comment for large PRs
-- [ ] Document manual agent review process
+- [~] Create `.github/workflows/agent-review.yml` - SKIPPED (no GitHub CI)
+- [~] Create PR size check job - SKIPPED (no GitHub CI)
+- [~] Create notification comment for large PRs - SKIPPED (no GitHub CI)
+- [ ] Document manual agent review process (use `tech-review` agent locally)
 - [ ] (Future) Implement automated agent invocation
 
 ---
 
-*Document version: 2.0*
-*Last updated: 2026-01-22*
+*Document version: 2.1*
+*Last updated: 2026-01-23*
