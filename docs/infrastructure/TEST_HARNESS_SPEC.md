@@ -1743,14 +1743,60 @@ git push --no-verify
 **When to use**: Hotfixes where you've manually verified the build works.
 **Warning**: Skipping hooks can introduce regressions. Use with caution.
 
-### Phase 4: Agent Integration
+### Phase 4: Agent Integration ✅ COMPLETE
 - [~] Create `.github/workflows/agent-review.yml` - SKIPPED (no GitHub CI)
 - [~] Create PR size check job - SKIPPED (no GitHub CI)
 - [~] Create notification comment for large PRs - SKIPPED (no GitHub CI)
-- [ ] Document manual agent review process (use `tech-review` agent locally)
-- [ ] (Future) Implement automated agent invocation
+- [x] Document manual agent review process (see below)
+
+#### Manual Tech Review Process
+
+Use the `tech-review` agent for architectural review after significant changes:
+
+**When to use:**
+- After implementing major features (>300 lines changed)
+- Before important releases
+- After large refactors
+- When integrating new patterns or dependencies
+
+**How to invoke:**
+
+```bash
+# From the project root, in Claude Code:
+# Ask Claude to spawn the tech-review agent
+
+"Please run tech-review on the recent changes"
+```
+
+Or explicitly via the Task tool:
+```
+Task: tech-review agent
+Prompt: "Review the changes in the last N commits for architectural issues, security concerns, and code quality"
+```
+
+**What it reviews:**
+- Architectural consistency with existing patterns
+- Security vulnerabilities (OWASP top 10)
+- Performance implications
+- Error handling completeness
+- Type safety and null checks
+- Missing edge cases
+
+**Review output:**
+The agent provides:
+1. Summary of changes
+2. Issues found (categorized by severity)
+3. Recommendations for improvement
+4. Verdict: Approve / Needs attention / Critical issues
+
+**Recommended workflow:**
+1. Complete feature implementation
+2. Run `npm run validate` (lint + type-check + tests)
+3. If >300 LOC changed, invoke `tech-review` agent
+4. Address any HIGH/CRITICAL findings before committing
+5. Commit and push
 
 ---
 
-*Document version: 2.2*
+*Document version: 2.3*
 *Last updated: 2026-01-23*
