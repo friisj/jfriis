@@ -13,6 +13,10 @@
     "test:watch": "vitest --watch",
     "test:coverage": "vitest run --coverage",
     "test:ui": "vitest --ui",
+    "test:unit": "vitest run lib/ components/",
+    "test:smoke": "vitest run __tests__/smoke/",
+    "test:integration": "vitest run app/",
+    "test:full": "vitest run",
     "validate": "npm run lint && npm run type-check && npm run test:run",
     "prepare": "husky"
   },
