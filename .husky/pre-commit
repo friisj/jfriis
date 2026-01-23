@@ -1,1 +1,6 @@
+# Type check entire project (fast feedback on type errors)
+echo "Running type check..."
+npm run type-check
+
+# Lint and test staged files only
 npx lint-staged
