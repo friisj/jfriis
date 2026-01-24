@@ -47,6 +47,12 @@ export default async function StoryMapDetailPage({
       actions={
         <div className="flex gap-2">
           <Link
+            href={`/admin/story-maps/${id}/canvas`}
+            className="px-4 py-2 border border-primary text-primary rounded-md text-sm hover:bg-primary/10"
+          >
+            Canvas View
+          </Link>
+          <Link
             href={`/admin/story-maps/${id}/edit`}
             className="px-4 py-2 bg-primary text-primary-foreground rounded-md text-sm hover:opacity-90"
           >

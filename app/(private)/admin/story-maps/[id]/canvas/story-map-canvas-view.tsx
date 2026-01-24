@@ -8,7 +8,7 @@ import {
   CanvasSurface,
   CanvasMode,
 } from '@/components/admin/canvas'
-import { StoryMapCanvas } from '@/components/admin/canvas/story-map-canvas'
+import { StoryMapTimelineCanvas } from '@/components/admin/canvas/story-map-timeline-canvas'
 import { StoryDetailPanel } from '@/components/admin/canvas/story-detail-panel'
 import { CreateStoryModal } from '@/components/admin/canvas/create-story-modal'
 import {
@@ -305,7 +305,7 @@ export function StoryMapCanvasView({ storyMap, layers }: StoryMapCanvasViewProps
       header={
         <CanvasHeader
           title={storyMap.name}
-          backHref={`/admin/story-maps/${storyMap.id}/edit`}
+          backHref={`/admin/story-maps/${storyMap.id}`}
           mode={mode}
           onModeChange={setMode}
           actions={
@@ -343,7 +343,7 @@ export function StoryMapCanvasView({ storyMap, layers }: StoryMapCanvasViewProps
       }
     >
       <CanvasSurface onBackgroundClick={handleBackgroundClick}>
-        <StoryMapCanvas
+        <StoryMapTimelineCanvas
           storyMapId={storyMap.id}
           activities={activities}
           layers={layers}

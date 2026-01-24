@@ -406,7 +406,7 @@ export function BlueprintCanvasView({
       header={
         <CanvasHeader
           title={blueprint.name}
-          backHref={`/admin/blueprints/${blueprint.id}/edit`}
+          backHref={`/admin/blueprints/${blueprint.id}`}
           mode={mode}
           onModeChange={setMode}
           actions={

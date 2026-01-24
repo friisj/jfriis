@@ -242,7 +242,7 @@ export function BMCCanvasView({ canvas }: BMCCanvasViewProps) {
         header={
           <CanvasHeader
             title={canvas.name}
-            backHref={`/admin/canvases/business-models/${canvas.id}`}
+            backHref={`/admin/canvases/business-models/${canvas.id}/edit`}
             mode={mode}
             onModeChange={setMode}
             actions={
