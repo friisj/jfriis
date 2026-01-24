@@ -1,44 +1,51 @@
 'use client'
 
-import { memo } from 'react'
+import { CanvasLaneHeader } from './canvas-lane-header'
 import {
   JOURNEY_LAYER_CONFIG,
-  type JourneyLayerType,
-} from '@/lib/boundary-objects/journey-cells'
-
-// Tailwind border color classes for layer types
-const LAYER_BORDER_CLASSES: Record<JourneyLayerType, string> = {
-  touchpoint: 'border-l-blue-500',
-  emotion: 'border-l-pink-500',
-  pain_point: 'border-l-orange-500',
-  channel: 'border-l-green-500',
-  opportunity: 'border-l-purple-500',
-}
+  type CanvasLayerDefinition,
+} from '@/lib/boundary-objects/canvas-layers'
+import type { JourneyLayerType } from '@/lib/boundary-objects/journey-cells'
 
 interface JourneyLaneHeaderProps {
   layerType: JourneyLayerType
 }
 
 /**
- * Lane row header showing layer name with color accent.
- * Memoized to prevent unnecessary re-renders.
+ * Lane row header for Journey canvas.
+ * Shows layer name with color accent.
+ * Layers are fixed (not user-editable).
  */
-export const JourneyLaneHeader = memo(function JourneyLaneHeader({
+export function JourneyLaneHeader({
   layerType,
 }: JourneyLaneHeaderProps) {
-  const config = JOURNEY_LAYER_CONFIG[layerType]
-  const borderClass = LAYER_BORDER_CLASSES[layerType]
+  const layer = JOURNEY_LAYER_CONFIG.getLayerById(layerType)
+
+  if (!layer) {
+    // Fallback for unknown layer types
+    const fallbackLayer: CanvasLayerDefinition = {
+      id: layerType,
+      name: layerType,
+      color: 'gray',
+    }
+    return (
+      <CanvasLaneHeader
+        layer={fallbackLayer}
+        editable={false}
+        showBorder={true}
+        showBackground={false}
+        subtitle={fallbackLayer.description}
+      />
+    )
+  }
 
   return (
-    <div
-      className={`w-40 flex-shrink-0 p-3 border-r font-medium text-sm border-l-4 ${borderClass}`}
-    >
-      <div className="truncate" title={config.name}>
-        {config.name}
-      </div>
-      <div className="text-xs text-muted-foreground font-normal truncate" title={config.description}>
-        {config.description}
-      </div>
-    </div>
+    <CanvasLaneHeader
+      layer={layer}
+      editable={false}
+      showBorder={true}
+      showBackground={false}
+      subtitle={layer.description}
+    />
   )
-})
+}

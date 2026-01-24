@@ -8,6 +8,21 @@ export { ActivityHeader, AddActivityButton } from './activity-header'
 export { StoryDetailPanel } from './story-detail-panel'
 export { CreateStoryModal } from './create-story-modal'
 
+// Generic Canvas Components (Refactored)
+export {
+  CanvasColumnHeader,
+  AddColumnButton,
+  type CanvasColumnHeaderProps,
+  type AddColumnButtonProps,
+  type MenuAction,
+} from './canvas-column-header'
+export {
+  CanvasLaneHeader,
+  CanvasSeparator,
+  type CanvasLaneHeaderProps,
+  type CanvasSeparatorProps,
+} from './canvas-lane-header'
+
 // Blueprint Canvas (Phase 1)
 export { TimelineCanvas, type TimelineCanvasProps } from './timeline-canvas'
 export { BlueprintCanvas } from './blueprint-canvas'

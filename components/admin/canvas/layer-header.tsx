@@ -1,188 +1,90 @@
 'use client'
 
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
+import { CanvasLaneHeader } from './canvas-lane-header'
 import {
   updateLayerNameAction,
   deleteLayerAction,
   createLayerAction,
 } from '@/app/(private)/admin/story-maps/[id]/canvas/actions'
 import type { StoryMapLayer } from '@/lib/boundary-objects/story-map-layers'
-import { LAYER_NAME_MAX_LENGTH } from '@/lib/boundary-objects/story-map-layers'
+import {
+  LAYER_NAME_MAX_LENGTH,
+} from '@/lib/boundary-objects/story-map-layers'
+import {
+  type CanvasLayerDefinition,
+  STORY_MAP_LAYER_COLORS,
+} from '@/lib/boundary-objects/canvas-layers'
 
 interface LayerHeaderProps {
   layer: StoryMapLayer
+  index?: number
+  totalLayers?: number
   onUpdate: () => void
   onDelete: () => void
+  onMoveUp?: () => void
+  onMoveDown?: () => void
 }
 
-export function LayerHeader({ layer, onUpdate, onDelete }: LayerHeaderProps) {
-  const [isEditing, setIsEditing] = useState(false)
-  const [editName, setEditName] = useState(layer.name)
-  const [isMenuOpen, setIsMenuOpen] = useState(false)
-  const [isSaving, setIsSaving] = useState(false)
-  const [isDeleting, setIsDeleting] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const inputRef = useRef<HTMLInputElement>(null)
-  const menuRef = useRef<HTMLDivElement>(null)
-
-  // Focus input when editing starts
-  useEffect(() => {
-    if (isEditing && inputRef.current) {
-      inputRef.current.focus()
-      inputRef.current.select()
-    }
-  }, [isEditing])
-
-  // Close menu when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-        setIsMenuOpen(false)
-      }
-    }
-    document.addEventListener('mousedown', handleClickOutside)
-    return () => document.removeEventListener('mousedown', handleClickOutside)
-  }, [])
-
-  const handleSave = async () => {
-    if (!editName.trim() || editName === layer.name) {
-      setEditName(layer.name)
-      setIsEditing(false)
-      return
-    }
-
-    setIsSaving(true)
-    setError(null)
-
-    const result = await updateLayerNameAction(layer.id, editName)
-
-    setIsSaving(false)
-
-    if (!result.success) {
-      setError(result.error)
-      setEditName(layer.name)
-    } else {
-      onUpdate()
-    }
-    setIsEditing(false)
+/**
+ * Layer row header for Story Map canvas.
+ * Uses the generic CanvasLaneHeader with Story Map-specific configuration.
+ * Layers are dynamic and editable.
+ */
+export function LayerHeader({
+  layer,
+  index = 0,
+  totalLayers = 1,
+  onUpdate,
+  onDelete,
+  onMoveUp,
+  onMoveDown,
+}: LayerHeaderProps) {
+  // Convert StoryMapLayer to CanvasLayerDefinition
+  const layerDefinition: CanvasLayerDefinition = {
+    id: layer.id,
+    name: layer.name,
+    description: layer.description ?? undefined,
+    color: STORY_MAP_LAYER_COLORS[index % STORY_MAP_LAYER_COLORS.length],
   }
 
-  const handleDelete = async () => {
-    if (!confirm(`Delete layer "${layer.name}"? Stories in this layer will lose their layer assignment.`)) {
-      return
+  const handleRename = useCallback(async (newName: string) => {
+    const result = await updateLayerNameAction(layer.id, newName)
+    if (!result.success) {
+      throw new Error(result.error)
     }
+    onUpdate()
+  }, [layer.id, onUpdate])
 
-    setIsDeleting(true)
-    setError(null)
-
+  const handleDelete = useCallback(async () => {
     const result = await deleteLayerAction(layer.id)
-
-    setIsDeleting(false)
-
     if (!result.success) {
-      setError(result.error)
-    } else {
-      onDelete()
+      throw new Error(result.error)
     }
-    setIsMenuOpen(false)
-  }
+    onDelete()
+  }, [layer.id, onDelete])
 
-  const layerTypeColors: Record<string, string> = {
-    customer: 'bg-blue-50 border-l-blue-400',
-    internal_agent: 'bg-green-50 border-l-green-400',
-    ai_agent: 'bg-purple-50 border-l-purple-400',
-    platform: 'bg-orange-50 border-l-orange-400',
-    api: 'bg-gray-50 border-l-gray-400',
-  }
+  // Subtitle showing layer type if available
+  const subtitle = layer.layer_type
+    ? layer.layer_type.replace(/_/g, ' ')
+    : undefined
 
   return (
-    <div
-      className={`w-40 flex-shrink-0 p-3 border-r border-l-4 relative group ${
-        layerTypeColors[layer.layer_type || ''] || 'bg-muted/30 border-l-gray-300'
-      }`}
-    >
-      {isEditing ? (
-        <input
-          ref={inputRef}
-          type="text"
-          value={editName}
-          onChange={(e) => setEditName(e.target.value)}
-          onBlur={handleSave}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') handleSave()
-            if (e.key === 'Escape') {
-              setEditName(layer.name)
-              setIsEditing(false)
-            }
-          }}
-          maxLength={LAYER_NAME_MAX_LENGTH}
-          disabled={isSaving}
-          className="w-full px-1 py-0.5 text-sm font-medium border rounded bg-background disabled:opacity-50"
-        />
-      ) : (
-        <div
-          className="font-medium text-sm cursor-pointer hover:text-primary"
-          onClick={() => setIsEditing(true)}
-          title="Click to rename"
-        >
-          {layer.name}
-        </div>
-      )}
-
-      {layer.layer_type && (
-        <div className="text-xs text-muted-foreground mt-0.5 capitalize">
-          {layer.layer_type.replace('_', ' ')}
-        </div>
-      )}
-
-      {/* Error message */}
-      {error && (
-        <div className="text-xs text-red-600 mt-1">{error}</div>
-      )}
-
-      {/* Options menu button */}
-      <div ref={menuRef} className="absolute top-2 right-2">
-        <button
-          onClick={() => setIsMenuOpen(!isMenuOpen)}
-          className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-black/10 transition-opacity"
-          disabled={isDeleting}
-        >
-          {isDeleting ? (
-            <svg className="w-4 h-4 animate-spin" viewBox="0 0 24 24" fill="none">
-              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-            </svg>
-          ) : (
-            <svg className="w-4 h-4" viewBox="0 0 16 16" fill="currentColor">
-              <circle cx="8" cy="3" r="1.5" />
-              <circle cx="8" cy="8" r="1.5" />
-              <circle cx="8" cy="13" r="1.5" />
-            </svg>
-          )}
-        </button>
-
-        {isMenuOpen && (
-          <div className="absolute right-0 top-full mt-1 bg-background border rounded-md shadow-lg z-10 min-w-[120px]">
-            <button
-              onClick={() => {
-                setIsEditing(true)
-                setIsMenuOpen(false)
-              }}
-              className="w-full px-3 py-2 text-sm text-left hover:bg-muted"
-            >
-              Rename
-            </button>
-            <button
-              onClick={handleDelete}
-              disabled={isDeleting}
-              className="w-full px-3 py-2 text-sm text-left hover:bg-muted text-red-600 disabled:opacity-50"
-            >
-              {isDeleting ? 'Deleting...' : 'Delete'}
-            </button>
-          </div>
-        )}
-      </div>
-    </div>
+    <CanvasLaneHeader
+      layer={layerDefinition}
+      index={index}
+      totalLayers={totalLayers}
+      editable={true}
+      maxLength={LAYER_NAME_MAX_LENGTH}
+      onRename={handleRename}
+      onDelete={handleDelete}
+      onMoveUp={onMoveUp}
+      onMoveDown={onMoveDown}
+      deleteConfirmDescription={`Delete layer "${layer.name}"? Stories in this layer will lose their layer assignment.`}
+      showBorder={true}
+      showBackground={true}
+      subtitle={subtitle}
+    />
   )
 }
 
@@ -192,6 +94,10 @@ interface AddLayerButtonProps {
   onAdd: () => void
 }
 
+/**
+ * Button/inline input to add a new layer.
+ * Handles the inline input state locally since it needs to collect a name before creating.
+ */
 export function AddLayerButton({ storyMapId, nextSequence, onAdd }: AddLayerButtonProps) {
   const [isAdding, setIsAdding] = useState(false)
   const [newName, setNewName] = useState('')
