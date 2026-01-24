@@ -143,12 +143,25 @@ export function validateCellContent(
     return { success: false, error: 'Content cannot contain HTML tags' }
   }
 
-  // Check for common XSS patterns
-  const xssPatterns = [/javascript:/i, /on\w+\s*=/i, /data:/i]
+  // Check for common XSS patterns - expanded to cover more attack vectors
+  const xssPatterns = [
+    /javascript:/i,      // javascript: protocol
+    /on\w+\s*=/i,        // Event handlers (onclick=, onerror=, etc.)
+    /data:/i,            // data: protocol
+    /vbscript:/i,        // vbscript: protocol (IE)
+    /file:/i,            // file: protocol (local file access)
+  ]
   for (const pattern of xssPatterns) {
     if (pattern.test(trimmed)) {
       return { success: false, error: 'Content contains invalid characters' }
     }
+  }
+
+  // Block fullwidth Unicode characters that could bypass HTML filters
+  // Fullwidth characters (U+FF00-U+FFEF) can be used to evade XSS detection
+  const fullwidthPattern = /[\uFF00-\uFFEF]/
+  if (fullwidthPattern.test(trimmed)) {
+    return { success: false, error: 'Content contains invalid Unicode characters' }
   }
 
   return { success: true, data: trimmed || null }

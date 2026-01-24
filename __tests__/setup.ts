@@ -65,6 +65,13 @@ export function clearQueryWarnings(): void {
 }
 
 /**
+ * Reset the shared mock builder (called automatically in beforeEach)
+ */
+export function resetMockBuilder(): void {
+  sharedMockBuilder = null
+}
+
+/**
  * Get query warnings for assertions
  */
 export function getQueryWarnings(): string[] {
@@ -72,11 +79,17 @@ export function getQueryWarnings(): string[] {
 }
 
 /**
+ * Shared mock builder for test setup (when from() is called without args)
+ * This allows tests to configure mock responses before the actual code runs.
+ */
+let sharedMockBuilder: Record<string, unknown> | null = null
+
+/**
  * Create a chainable query builder with validation
  */
-function createQueryBuilder(table: string): Record<string, unknown> {
+function createQueryBuilder(table: string | null): Record<string, unknown> {
   const state: QueryState = {
-    table,
+    table: table || '__mock_setup__',
     operation: null,
     columns: null,
     filters: [],
@@ -84,6 +97,10 @@ function createQueryBuilder(table: string): Record<string, unknown> {
   }
 
   const validateFilterValue = (column: string, value: unknown) => {
+    // Skip validation for mock setup operations (no real table)
+    if (!table || table === '__mock_setup__') {
+      return
+    }
     if (value === undefined) {
       const warning = `Query on "${table}": filter on "${column}" has undefined value`
       queryWarnings.push(warning)
@@ -96,12 +113,15 @@ function createQueryBuilder(table: string): Record<string, unknown> {
     }
   }
 
+  // Helper to check if this is a mock setup operation (no real table)
+  const isMockSetup = !table || table === '__mock_setup__'
+
   const builder: Record<string, unknown> = {
     // Operations
     select: vi.fn((columns?: string) => {
       state.operation = 'select'
       state.columns = columns ?? '*'
-      if (!columns || columns.trim() === '') {
+      if (!isMockSetup && (!columns || columns.trim() === '')) {
         const warning = `Query on "${table}": select() called with empty columns`
         queryWarnings.push(warning)
       }
@@ -109,7 +129,7 @@ function createQueryBuilder(table: string): Record<string, unknown> {
     }),
     insert: vi.fn((data: unknown) => {
       state.operation = 'insert'
-      if (!data || (Array.isArray(data) && data.length === 0)) {
+      if (!isMockSetup && (!data || (Array.isArray(data) && data.length === 0))) {
         const warning = `Query on "${table}": insert() called with empty data`
         queryWarnings.push(warning)
       }
@@ -117,7 +137,7 @@ function createQueryBuilder(table: string): Record<string, unknown> {
     }),
     update: vi.fn((data: unknown) => {
       state.operation = 'update'
-      if (!data || Object.keys(data as object).length === 0) {
+      if (!isMockSetup && (!data || Object.keys(data as object).length === 0)) {
         const warning = `Query on "${table}": update() called with empty data`
         queryWarnings.push(warning)
       }
@@ -129,7 +149,7 @@ function createQueryBuilder(table: string): Record<string, unknown> {
     }),
     upsert: vi.fn((data: unknown) => {
       state.operation = 'upsert'
-      if (!data) {
+      if (!isMockSetup && !data) {
         const warning = `Query on "${table}": upsert() called with no data`
         queryWarnings.push(warning)
       }
@@ -176,7 +196,7 @@ function createQueryBuilder(table: string): Record<string, unknown> {
       return builder
     }),
     in: vi.fn((column: string, values: unknown[]) => {
-      if (!Array.isArray(values) || values.length === 0) {
+      if (table && table !== '__mock_setup__' && (!Array.isArray(values) || values.length === 0)) {
         const warning = `Query on "${table}": in() on "${column}" has empty array`
         queryWarnings.push(warning)
       }
@@ -198,7 +218,8 @@ function createQueryBuilder(table: string): Record<string, unknown> {
     single: vi.fn().mockImplementation(() => {
       state.hasTerminator = true
       // Simulate Supabase behavior: single() on delete without filters is dangerous
-      if (state.operation === 'delete' && state.filters.length === 0) {
+      // Skip for mock setup operations
+      if (table && table !== '__mock_setup__' && state.operation === 'delete' && state.filters.length === 0) {
         const warning = `Query on "${table}": delete().single() without filters - will delete random row!`
         queryWarnings.push(warning)
       }
@@ -219,11 +240,14 @@ function createQueryBuilder(table: string): Record<string, unknown> {
 }
 
 const mockSupabaseClient = {
-  from: vi.fn((table: string) => {
-    if (!table || typeof table !== 'string') {
-      throw new Error('from() requires a table name string')
+  from: vi.fn((table?: string) => {
+    // Always return the same shared mock builder
+    // This allows tests to configure mock responses in beforeEach
+    // that will be used when the actual code runs
+    if (!sharedMockBuilder) {
+      sharedMockBuilder = createQueryBuilder(table || null)
     }
-    return createQueryBuilder(table)
+    return sharedMockBuilder
   }),
   auth: {
     getUser: vi.fn().mockResolvedValue({ data: { user: null }, error: null }),
@@ -263,6 +287,24 @@ vi.mock('@/lib/supabase', () => ({
 // Export for use in individual tests
 export { mockSupabaseClient }
 
+/**
+ * Type for Supabase query results used in tests.
+ * Use this to type-assert mock results when destructuring.
+ *
+ * @example
+ * const result = await mockSupabaseClient.from('table').select('*').single() as SupabaseQueryResult<MyType>
+ */
+export type SupabaseQueryResult<T> = {
+  data: T | null
+  error: { code: string; message: string } | null
+}
+
+/**
+ * Helper type for mock query builder with proper typing.
+ * Cast mockSupabaseClient.from() to this type for better IntelliSense.
+ */
+export type MockQueryBuilder = ReturnType<typeof createQueryBuilder>
+
 // ============================================
 // AI SDK Mocks
 // ============================================
@@ -287,9 +329,81 @@ vi.mock('@ai-sdk/anthropic', () => ({
 // Reset all mocks between tests
 beforeEach(() => {
   vi.clearAllMocks()
+  sharedMockBuilder = null
 })
 
 // Clean up after all tests
 afterAll(() => {
   vi.restoreAllMocks()
 })
+
+// ============================================
+// Console Suppression Utilities
+// ============================================
+
+/**
+ * Suppress console output during tests.
+ * Use sparingly - prefer fixing the underlying issues.
+ *
+ * @example
+ * ```ts
+ * const restore = suppressConsole(['error', 'warn'])
+ * // ... code that logs errors
+ * restore()
+ * ```
+ */
+export type ConsoleMethods = 'log' | 'warn' | 'error' | 'info' | 'debug'
+
+export function suppressConsole(
+  methods: ConsoleMethods[] = ['log', 'warn', 'error', 'info', 'debug']
+): () => void {
+  const spies: ReturnType<typeof vi.spyOn>[] = []
+
+  for (const method of methods) {
+    spies.push(vi.spyOn(console, method).mockImplementation(() => {}))
+  }
+
+  return () => {
+    for (const spy of spies) {
+      spy.mockRestore()
+    }
+  }
+}
+
+/**
+ * Suppress all console output for the duration of a test.
+ * Returns a mock that can be used to assert on console calls.
+ *
+ * @example
+ * ```ts
+ * const mocks = suppressAllConsole()
+ * someFunctionThatLogs()
+ * expect(mocks.error).toHaveBeenCalledWith('Expected error')
+ * mocks.restore()
+ * ```
+ */
+export function suppressAllConsole(): {
+  log: ReturnType<typeof vi.spyOn>
+  warn: ReturnType<typeof vi.spyOn>
+  error: ReturnType<typeof vi.spyOn>
+  info: ReturnType<typeof vi.spyOn>
+  debug: ReturnType<typeof vi.spyOn>
+  restore: () => void
+} {
+  const mocks = {
+    log: vi.spyOn(console, 'log').mockImplementation(() => {}),
+    warn: vi.spyOn(console, 'warn').mockImplementation(() => {}),
+    error: vi.spyOn(console, 'error').mockImplementation(() => {}),
+    info: vi.spyOn(console, 'info').mockImplementation(() => {}),
+    debug: vi.spyOn(console, 'debug').mockImplementation(() => {}),
+    restore() {
+      this.log.mockRestore()
+      this.warn.mockRestore()
+      this.error.mockRestore()
+      this.info.mockRestore()
+      this.debug.mockRestore()
+    },
+  }
+
+  return mocks
+}

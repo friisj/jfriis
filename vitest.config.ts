@@ -39,6 +39,17 @@ export default defineConfig({
         '**/*.test.{ts,tsx}',
         '__tests__/**',
       ],
+      // Coverage thresholds - fail tests if coverage drops below these
+      // Note: These are starting thresholds; increase over time
+      thresholds: {
+        // Global thresholds
+        statements: 30,
+        branches: 25,
+        functions: 30,
+        lines: 30,
+        // Per-file thresholds for critical files
+        perFile: false, // Set to true to enforce per-file thresholds
+      },
     },
   },
   resolve: {

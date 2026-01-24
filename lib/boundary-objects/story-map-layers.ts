@@ -73,6 +73,33 @@ export function validateLayerName(name: string): DataResult<string> {
       error: `Layer name must be ${LAYER_NAME_MAX_LENGTH} characters or less`,
     }
   }
+
+  // XSS prevention - reject HTML tags
+  const htmlPattern = /<[^>]*>/
+  if (htmlPattern.test(trimmed)) {
+    return { success: false, error: 'Layer name cannot contain HTML tags' }
+  }
+
+  // Check for common XSS patterns
+  const xssPatterns = [
+    /javascript:/i,      // javascript: protocol
+    /on\w+\s*=/i,        // Event handlers (onclick=, onerror=, etc.)
+    /data:/i,            // data: protocol
+    /vbscript:/i,        // vbscript: protocol (IE)
+    /file:/i,            // file: protocol (local file access)
+  ]
+  for (const pattern of xssPatterns) {
+    if (pattern.test(trimmed)) {
+      return { success: false, error: 'Layer name contains invalid characters' }
+    }
+  }
+
+  // Block fullwidth Unicode characters that could bypass HTML filters
+  const fullwidthPattern = /[\uFF00-\uFFEF]/
+  if (fullwidthPattern.test(trimmed)) {
+    return { success: false, error: 'Layer name contains invalid Unicode characters' }
+  }
+
   return { success: true, data: trimmed }
 }
 
@@ -87,6 +114,33 @@ export function validateLayerDescription(
       error: `Description must be ${LAYER_DESCRIPTION_MAX_LENGTH} characters or less`,
     }
   }
+
+  // XSS prevention - reject HTML tags
+  const htmlPattern = /<[^>]*>/
+  if (htmlPattern.test(trimmed)) {
+    return { success: false, error: 'Description cannot contain HTML tags' }
+  }
+
+  // Check for common XSS patterns
+  const xssPatterns = [
+    /javascript:/i,
+    /on\w+\s*=/i,
+    /data:/i,
+    /vbscript:/i,
+    /file:/i,
+  ]
+  for (const pattern of xssPatterns) {
+    if (pattern.test(trimmed)) {
+      return { success: false, error: 'Description contains invalid characters' }
+    }
+  }
+
+  // Block fullwidth Unicode characters
+  const fullwidthPattern = /[\uFF00-\uFFEF]/
+  if (fullwidthPattern.test(trimmed)) {
+    return { success: false, error: 'Description contains invalid Unicode characters' }
+  }
+
   return { success: true, data: trimmed || null }
 }
 
@@ -105,6 +159,33 @@ export function validateActivityName(name: string): DataResult<string> {
       error: `Activity name must be ${ACTIVITY_NAME_MAX_LENGTH} characters or less`,
     }
   }
+
+  // XSS prevention - reject HTML tags
+  const htmlPattern = /<[^>]*>/
+  if (htmlPattern.test(trimmed)) {
+    return { success: false, error: 'Activity name cannot contain HTML tags' }
+  }
+
+  // Check for common XSS patterns
+  const xssPatterns = [
+    /javascript:/i,
+    /on\w+\s*=/i,
+    /data:/i,
+    /vbscript:/i,
+    /file:/i,
+  ]
+  for (const pattern of xssPatterns) {
+    if (pattern.test(trimmed)) {
+      return { success: false, error: 'Activity name contains invalid characters' }
+    }
+  }
+
+  // Block fullwidth Unicode characters
+  const fullwidthPattern = /[\uFF00-\uFFEF]/
+  if (fullwidthPattern.test(trimmed)) {
+    return { success: false, error: 'Activity name contains invalid Unicode characters' }
+  }
+
   return { success: true, data: trimmed }
 }
 

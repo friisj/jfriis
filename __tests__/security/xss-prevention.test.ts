@@ -8,7 +8,11 @@ import { describe, it, expect } from 'vitest'
 import { XSS_VECTORS } from '../factories'
 import { validateCellContent } from '@/lib/boundary-objects/blueprint-cells'
 import { validateCellContent as validateJourneyCellContent } from '@/lib/boundary-objects/journey-cells'
-import { validateLayerName } from '@/lib/boundary-objects/story-map-layers'
+import {
+  validateLayerName,
+  validateActivityName,
+  validateLayerDescription,
+} from '@/lib/boundary-objects/story-map-layers'
 
 // ============================================================================
 // Test Suite Configuration
@@ -16,22 +20,21 @@ import { validateLayerName } from '@/lib/boundary-objects/story-map-layers'
 
 /**
  * Validation functions to test.
- * Each function should reject XSS attack vectors.
- *
- * NOTE: validateLayerName does NOT currently have XSS protection.
- * This is a known gap documented by these tests.
+ * All these functions should reject XSS attack vectors.
  */
 const VALIDATORS_WITH_XSS_PROTECTION = [
   { name: 'Blueprint validateCellContent', fn: validateCellContent },
   { name: 'Journey validateCellContent', fn: validateJourneyCellContent },
-]
-
-// validateLayerName lacks XSS protection - these tests document the gap
-const VALIDATORS_WITHOUT_XSS_PROTECTION = [
   { name: 'StoryMap validateLayerName', fn: validateLayerName },
+  { name: 'StoryMap validateActivityName', fn: validateActivityName },
 ]
 
-// All validators for tests where protection exists
+// For validators that return DataResult<string | null>, we need different test handling
+const OPTIONAL_VALIDATORS = [
+  { name: 'StoryMap validateLayerDescription', fn: validateLayerDescription },
+]
+
+// All required field validators for tests
 const VALIDATORS = VALIDATORS_WITH_XSS_PROTECTION
 
 // ============================================================================
@@ -88,18 +91,15 @@ describe('XSS Prevention: Dangerous Protocols', () => {
     expect(result.success).toBe(false)
   })
 
-  // NOTE: vbscript: and file: protocols are NOT currently blocked
-  // These tests document the gap for future implementation
-  describe('Known gaps - protocols not yet blocked', () => {
-    it.skip.each(VALIDATORS)('$name should reject vbscript: protocol (GAP)', ({ fn }) => {
-      const result = fn('vbscript:msgbox(1)')
-      expect(result.success).toBe(false)
-    })
+  // These protocols are now blocked after the security fix
+  it.each(VALIDATORS)('$name rejects vbscript: protocol', ({ fn }) => {
+    const result = fn('vbscript:msgbox(1)')
+    expect(result.success).toBe(false)
+  })
 
-    it.skip.each(VALIDATORS)('$name should reject file: protocol (GAP)', ({ fn }) => {
-      const result = fn('file:///etc/passwd')
-      expect(result.success).toBe(false)
-    })
+  it.each(VALIDATORS)('$name rejects file: protocol', ({ fn }) => {
+    const result = fn('file:///etc/passwd')
+    expect(result.success).toBe(false)
   })
 })
 
@@ -108,13 +108,16 @@ describe('XSS Prevention: Dangerous Protocols', () => {
 // ============================================================================
 
 describe('XSS Prevention: Unicode Evasion', () => {
-  // NOTE: Fullwidth characters are NOT currently blocked
-  // This is a known gap for future implementation
-  describe('Known gaps - unicode evasion not yet blocked', () => {
-    it.skip.each(VALIDATORS)('$name should reject fullwidth script tags (GAP)', ({ fn }) => {
-      const result = fn('＜script＞alert(1)＜/script＞')
-      expect(result.success).toBe(false)
-    })
+  // Fullwidth characters are now blocked after the security fix
+  it.each(VALIDATORS)('$name rejects fullwidth script tags', ({ fn }) => {
+    const result = fn('＜script＞alert(1)＜/script＞')
+    expect(result.success).toBe(false)
+  })
+
+  it.each(VALIDATORS)('$name rejects fullwidth characters in general', ({ fn }) => {
+    // Any fullwidth character should be rejected
+    const result = fn('Hello＜World')
+    expect(result.success).toBe(false)
   })
 
   it.each(VALIDATORS)('$name rejects mixed case script tags', ({ fn }) => {
@@ -155,49 +158,48 @@ describe('XSS Prevention: Iframe Injection', () => {
 // ============================================================================
 
 describe('XSS Prevention: Full Vector Coverage', () => {
-  // Vectors currently blocked by validation
-  const BLOCKED_VECTORS = [
+  // All vectors that should be blocked
+  const ALL_BLOCKED_VECTORS = [
     ...XSS_VECTORS.basic,
     ...XSS_VECTORS.eventHandlers,
     ...XSS_VECTORS.svg,
-    ...XSS_VECTORS.protocols.filter(p => p.includes('javascript:') || p.includes('data:')),
+    ...XSS_VECTORS.protocols,
     ...XSS_VECTORS.cdata,
     ...XSS_VECTORS.iframe,
+    ...XSS_VECTORS.unicode,
   ]
 
-  it('Blueprint validateCellContent rejects core XSS vectors', () => {
-    const rejectedCount = BLOCKED_VECTORS.filter(
+  it('Blueprint validateCellContent rejects all XSS vectors', () => {
+    const rejectedCount = ALL_BLOCKED_VECTORS.filter(
       (vector) => !validateCellContent(vector).success
     ).length
 
-    // Most vectors should be rejected
-    expect(rejectedCount).toBeGreaterThan(BLOCKED_VECTORS.length * 0.9)
+    // All vectors should be rejected
+    expect(rejectedCount).toBe(ALL_BLOCKED_VECTORS.length)
   })
 
-  it('Journey validateCellContent rejects core XSS vectors', () => {
-    const rejectedCount = BLOCKED_VECTORS.filter(
+  it('Journey validateCellContent rejects all XSS vectors', () => {
+    const rejectedCount = ALL_BLOCKED_VECTORS.filter(
       (vector) => !validateJourneyCellContent(vector).success
     ).length
 
-    expect(rejectedCount).toBeGreaterThan(BLOCKED_VECTORS.length * 0.9)
+    expect(rejectedCount).toBe(ALL_BLOCKED_VECTORS.length)
   })
 
-  // Document gaps for future tracking
-  it('documents known gaps in XSS protection', () => {
-    const KNOWN_GAPS = [
-      'vbscript:msgbox(1)',
-      'file:///etc/passwd',
-      '＜script＞alert(1)＜/script＞', // Fullwidth
-    ]
-
-    const gapCount = KNOWN_GAPS.filter(
-      (vector) => validateCellContent(vector).success
+  it('StoryMap validateLayerName rejects all XSS vectors', () => {
+    const rejectedCount = ALL_BLOCKED_VECTORS.filter(
+      (vector) => !validateLayerName(vector).success
     ).length
 
-    // This test documents known gaps - these SHOULD be blocked but aren't
-    // Update this count as gaps are fixed
-    expect(gapCount).toBeGreaterThanOrEqual(0)
-    console.log(`[XSS Gap Tracking] ${gapCount}/${KNOWN_GAPS.length} vectors not blocked`)
+    expect(rejectedCount).toBe(ALL_BLOCKED_VECTORS.length)
+  })
+
+  it('StoryMap validateActivityName rejects all XSS vectors', () => {
+    const rejectedCount = ALL_BLOCKED_VECTORS.filter(
+      (vector) => !validateActivityName(vector).success
+    ).length
+
+    expect(rejectedCount).toBe(ALL_BLOCKED_VECTORS.length)
   })
 })
 
@@ -255,6 +257,14 @@ describe('XSS Prevention: Error Message Quality', () => {
       expect(result.error).toMatch(/invalid|characters|handler/i)
     }
   })
+
+  it('provides clear error message for fullwidth unicode', () => {
+    const result = validateCellContent('＜script＞')
+    expect(result.success).toBe(false)
+    if (!result.success) {
+      expect(result.error).toMatch(/Unicode|invalid/i)
+    }
+  })
 })
 
 // ============================================================================
@@ -268,8 +278,6 @@ describe('XSS Prevention: Boundary Cases', () => {
   })
 
   it('rejects content that looks like broken HTML', () => {
-    // Note: '<div' alone may pass if the regex requires closing >
-    // This test documents current behavior
     const result = validateCellContent('<div>')
     expect(result.success).toBe(false)
   })
@@ -277,5 +285,47 @@ describe('XSS Prevention: Boundary Cases', () => {
   it('rejects content with unclosed tags', () => {
     const result = validateCellContent('<p>unclosed')
     expect(result.success).toBe(false)
+  })
+
+  it('rejects vbscript protocol in various forms', () => {
+    const vectors = [
+      'vbscript:msgbox(1)',
+      'VBSCRIPT:MsgBox(1)',
+      'VbScript:alert(1)',
+    ]
+    for (const vector of vectors) {
+      const result = validateCellContent(vector)
+      expect(result.success, `Should reject: ${vector}`).toBe(false)
+    }
+  })
+
+  it('rejects file protocol in various forms', () => {
+    const vectors = [
+      'file:///etc/passwd',
+      'FILE:///C:/Windows/System32',
+      'file://localhost/etc/hosts',
+    ]
+    for (const vector of vectors) {
+      const result = validateCellContent(vector)
+      expect(result.success, `Should reject: ${vector}`).toBe(false)
+    }
+  })
+})
+
+// ============================================================================
+// Optional Field Validators
+// ============================================================================
+
+describe('XSS Prevention: Optional Field Validators', () => {
+  it.each(OPTIONAL_VALIDATORS)('$name rejects XSS in optional fields', ({ fn }) => {
+    for (const vector of XSS_VECTORS.basic) {
+      const result = fn(vector)
+      expect(result.success, `Should reject: ${vector}`).toBe(false)
+    }
+  })
+
+  it.each(OPTIONAL_VALIDATORS)('$name allows null/undefined', ({ fn }) => {
+    expect(fn(undefined).success).toBe(true)
+    expect(fn('').success).toBe(true)
   })
 })
