@@ -3,6 +3,7 @@ export const dynamic = 'force-dynamic'
 import { createClient } from '@/lib/supabase-server'
 import { LogEntryForm } from '@/components/admin/log-entry-form'
 import { notFound } from 'next/navigation'
+import { extractMarkdown } from '@/lib/utils'
 import type { LogEntry } from '@/lib/types/database'
 
 interface EditLogEntryPageProps {
@@ -29,7 +30,7 @@ export default async function EditLogEntryPage({ params }: EditLogEntryPageProps
   const initialData = {
     title: entry.title,
     slug: entry.slug,
-    content: entry.content?.markdown || '',
+    content: extractMarkdown(entry.content),
     entry_date: entry.entry_date || new Date().toISOString().split('T')[0],
     type: entry.type || '',
     published: entry.published,
