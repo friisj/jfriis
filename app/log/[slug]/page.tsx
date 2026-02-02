@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase-server'
 import { notFound } from 'next/navigation'
 import { MdxRenderer } from '@/components/mdx/mdx-renderer'
 import Link from 'next/link'
+import { extractMarkdown } from '@/lib/utils'
 import type { LogEntry } from '@/lib/types/database'
 
 interface LogEntryPageProps {
@@ -27,8 +28,8 @@ export default async function LogEntryPage({ params }: LogEntryPageProps) {
     notFound()
   }
 
-  // Extract markdown content
-  const content = entry.content?.markdown || ''
+  // Extract markdown content (handles both { markdown: "..." } and raw string formats)
+  const content = extractMarkdown(entry.content)
 
   // Fetch linked specimens via entity_links
   const { data: specimenLinks } = await supabase

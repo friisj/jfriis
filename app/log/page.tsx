@@ -2,6 +2,7 @@ export const dynamic = 'force-dynamic'
 
 import { createClient } from '@/lib/supabase-server'
 import Link from 'next/link'
+import { extractMarkdown } from '@/lib/utils'
 import type { LogEntry } from '@/lib/types/database'
 
 export default async function LogPage() {
@@ -76,9 +77,9 @@ export default async function LogPage() {
                           </span>
                         )}
 
-                        {entry.content?.markdown && (
+                        {extractMarkdown(entry.content) && (
                           <p className="text-sm text-muted-foreground mt-2 line-clamp-2">
-                            {entry.content.markdown.substring(0, 150)}...
+                            {extractMarkdown(entry.content).substring(0, 150)}...
                           </p>
                         )}
 
