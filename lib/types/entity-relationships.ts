@@ -137,6 +137,7 @@ export interface PendingEvidence {
 export type LinkableEntityType =
   // Portfolio
   | 'project'
+  | 'venture'  // Alias for project (preferred going forward)
   | 'log_entry'
   | 'specimen'
   // Studio
@@ -283,6 +284,7 @@ export interface EntityRef {
 export const ENTITY_TYPES = {
   // Portfolio
   PROJECT: 'project' as const,
+  VENTURE: 'venture' as const,  // Alias for project (preferred going forward)
   LOG_ENTRY: 'log_entry' as const,
   SPECIMEN: 'specimen' as const,
 
@@ -381,6 +383,7 @@ export const LINK_TYPES = {
  */
 export const ENTITY_TYPE_TABLE_MAP: Record<LinkableEntityType, string> = {
   project: 'projects',
+  venture: 'projects',  // Same table as project (ventures is the preferred name going forward)
   log_entry: 'log_entries',
   specimen: 'specimens',
   studio_project: 'studio_projects',
@@ -409,6 +412,7 @@ export const ENTITY_TYPE_TABLE_MAP: Record<LinkableEntityType, string> = {
  */
 const IMPLEMENTED_ENTITY_TYPES = new Set<LinkableEntityType>([
   'project',
+  'venture',  // Same table as project
   'log_entry',
   'specimen',
   'studio_project',

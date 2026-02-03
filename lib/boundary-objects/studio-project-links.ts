@@ -431,6 +431,83 @@ export async function linkProjectToStoryMap(
 }
 
 /**
+ * Link studio project to a venture (spin_off or related)
+ * Used when a studio project results in a portfolio venture
+ */
+export async function linkProjectToVenture(
+  projectId: string,
+  ventureId: string,
+  options?: Omit<LinkProjectOptions, 'linkType'> & {
+    linkType?: 'spin_off' | 'related'
+  }
+) {
+  const supabase = await createClient()
+
+  const { data, error } = await supabase
+    .from('entity_links')
+    .insert({
+      source_type: ENTITY_TYPES.STUDIO_PROJECT,
+      source_id: projectId,
+      target_type: ENTITY_TYPES.VENTURE,
+      target_id: ventureId,
+      link_type: options?.linkType || LINK_TYPES.SPIN_OFF,
+      strength: options?.strength,
+      notes: options?.notes,
+      metadata: options?.metadata || {},
+    } as any)
+    .select()
+    .single()
+
+  if (error) throw error
+  return data as unknown as EntityLink
+}
+
+/**
+ * Get ventures linked from a studio project
+ */
+export async function getProjectVentures(projectId: string) {
+  const supabase = await createClient()
+
+  const { data, error } = await supabase
+    .from('entity_links')
+    .select(`
+      id,
+      link_type,
+      strength,
+      notes,
+      metadata,
+      created_at,
+      venture:projects!inner (
+        id,
+        slug,
+        title,
+        description,
+        status,
+        published
+      )
+    `)
+    .eq('source_type', ENTITY_TYPES.STUDIO_PROJECT)
+    .eq('source_id', projectId)
+    .eq('target_type', ENTITY_TYPES.VENTURE)
+
+  if (error) throw new Error(`Failed to fetch project ventures: ${error.message}`)
+
+  return (data || [])
+    .filter(item => item.venture !== null)
+    .map(item => ({
+      link: {
+        id: item.id,
+        link_type: item.link_type,
+        strength: item.strength,
+        notes: item.notes,
+        metadata: item.metadata,
+        created_at: item.created_at,
+      },
+      venture: item.venture,
+    }))
+}
+
+/**
  * Get all strategic framework links for a studio project
  */
 export async function getProjectFrameworkLinks(projectId: string) {
