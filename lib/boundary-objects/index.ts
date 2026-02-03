@@ -25,11 +25,21 @@ export * from './mappings'
 export * from './canvas-layers'
 
 // ============================================================================
-// STUDIO & PORTFOLIO RELATIONSHIPS
+// STUDIO & PORTFOLIO
 // ============================================================================
 
 export * from './studio-project-links'
 export * from './ventures'
+
+// Studio domain boundary objects (have DataResult overlap - import directly if conflicts)
+// export * from './studio-projects'
+// export * from './studio-hypotheses'
+// export * from './studio-experiments'
+//
+// Import directly:
+//   import { ProjectStatus, validateProjectSlug } from '@/lib/boundary-objects/studio-projects'
+//   import { HypothesisStatus, validateHypothesisStatement } from '@/lib/boundary-objects/studio-hypotheses'
+//   import { ExperimentType, validateExperimentSlug } from '@/lib/boundary-objects/studio-experiments'
 
 // ============================================================================
 // CELL & CANVAS BOUNDARY OBJECTS
