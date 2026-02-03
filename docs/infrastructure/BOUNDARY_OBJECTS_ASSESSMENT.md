@@ -3,7 +3,7 @@
 > Critical assessment of how boundary objects work with canvases, studio projects, and ventures.
 
 **Date:** 2026-01-24
-**Status:** Assessment complete, remediation plan defined
+**Status:** ✅ Remediation complete (2026-02-03)
 
 ---
 
@@ -316,15 +316,15 @@ export * from './story-maps'
 
 ## Verification Checklist
 
-After completing remediation phases:
+Remediation completed 2026-02-03:
 
-- [ ] `venture` appears in `LinkableEntityType`
-- [ ] `ENTITY_TYPES.VENTURE` constant exists
-- [ ] `linkProjectToVenture()` function works
-- [ ] All boundary-objects importable from `lib/boundary-objects`
-- [ ] Studio project status transitions validated
-- [ ] Hypothesis/experiment validation in shared location
-- [ ] Data model decisions documented
+- [x] `venture` appears in `LinkableEntityType`
+- [x] `ENTITY_TYPES.VENTURE` constant exists
+- [x] `linkProjectToVenture()` function works
+- [x] All boundary-objects importable from `lib/boundary-objects` (or documented as direct imports)
+- [x] Studio project status transitions validated (`lib/boundary-objects/studio-projects.ts`)
+- [x] Hypothesis/experiment validation in shared location (`lib/boundary-objects/studio-hypotheses.ts`, `studio-experiments.ts`)
+- [x] Data model decisions documented (`docs/architecture/DATA_MODEL_DECISIONS.md`)
 
 ---
 
@@ -343,3 +343,7 @@ After completing remediation phases:
 | Date | Author | Changes |
 |------|--------|---------|
 | 2026-01-24 | Claude | Initial assessment and remediation plan |
+| 2026-02-03 | Claude | Phase 1: Added venture to entity system |
+| 2026-02-03 | Claude | Phase 2: Expanded barrel export with documentation |
+| 2026-02-03 | Claude | Phase 3: Created studio boundary objects |
+| 2026-02-03 | Claude | Phase 4: Created DATA_MODEL_DECISIONS.md |
