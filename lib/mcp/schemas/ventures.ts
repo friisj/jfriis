@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { markdownContentSchema } from './common'
 
 export const VentureSchema = z.object({
   id: z.string().uuid().optional(),
@@ -7,7 +8,7 @@ export const VentureSchema = z.object({
   title: z.string().min(1),
   slug: z.string().min(1).regex(/^[a-z0-9-]+$/),
   description: z.string().optional().nullable(),
-  content: z.any().optional().nullable(),
+  content: markdownContentSchema,
   status: z.enum(['draft', 'active', 'archived', 'completed']).default('draft'),
   type: z.string().optional().nullable(),
   start_date: z.string().optional().nullable(),

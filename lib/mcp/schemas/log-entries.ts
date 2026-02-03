@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { markdownContentSchema } from './common'
 
 export const LogEntrySchema = z.object({
   id: z.string().uuid().optional(),
@@ -6,7 +7,7 @@ export const LogEntrySchema = z.object({
   updated_at: z.string().datetime().optional(),
   title: z.string().min(1),
   slug: z.string().min(1).regex(/^[a-z0-9-]+$/),
-  content: z.any().optional().nullable(),
+  content: markdownContentSchema,
   entry_date: z.string(),
   type: z.string().optional().nullable(),
   featured_image: z.string().optional().nullable(),

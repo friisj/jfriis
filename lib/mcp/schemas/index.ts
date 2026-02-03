@@ -1,4 +1,5 @@
 // Re-export all schemas
+export * from './common'
 export * from './projects'
 export * from './log-entries'
 export * from './specimens'
