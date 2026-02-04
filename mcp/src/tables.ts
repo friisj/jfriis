@@ -45,6 +45,21 @@ import {
   DistributionQueueUpdateSchema,
 } from './schemas/distribution.js'
 
+import {
+  CogSeriesSchema,
+  CogSeriesCreateSchema,
+  CogSeriesUpdateSchema,
+  CogImageSchema,
+  CogImageCreateSchema,
+  CogImageUpdateSchema,
+  CogJobSchema,
+  CogJobCreateSchema,
+  CogJobUpdateSchema,
+  CogJobStepSchema,
+  CogJobStepCreateSchema,
+  CogJobStepUpdateSchema,
+} from './schemas/cog.js'
+
 // Junction table schemas deprecated - use entity_links table instead
 
 export interface TableDefinition {
@@ -126,6 +141,36 @@ export const tables: Record<string, TableDefinition> = {
   // Note: Junction tables (gallery_specimen_items, log_entry_specimens, project_specimens,
   // log_entry_projects) have been deprecated and migrated to entity_links table.
   // Use entity_links for all entity relationships.
+
+  // Cog: Image Generation Pipeline
+  cog_series: {
+    description: 'Image series/collections',
+    schema: CogSeriesSchema,
+    createSchema: CogSeriesCreateSchema,
+    updateSchema: CogSeriesUpdateSchema,
+    hasSlug: false,
+  },
+  cog_images: {
+    description: 'Individual images with metadata',
+    schema: CogImageSchema,
+    createSchema: CogImageCreateSchema,
+    updateSchema: CogImageUpdateSchema,
+    hasSlug: false,
+  },
+  cog_jobs: {
+    description: 'Image generation jobs',
+    schema: CogJobSchema,
+    createSchema: CogJobCreateSchema,
+    updateSchema: CogJobUpdateSchema,
+    hasSlug: false,
+  },
+  cog_job_steps: {
+    description: 'Individual steps in generation jobs',
+    schema: CogJobStepSchema,
+    createSchema: CogJobStepCreateSchema,
+    updateSchema: CogJobStepUpdateSchema,
+    hasSlug: false,
+  },
 }
 
 // Helper to get schema columns for db_list_tables

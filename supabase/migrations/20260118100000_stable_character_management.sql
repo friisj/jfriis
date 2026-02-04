@@ -112,39 +112,20 @@ ALTER TABLE stable_character_relationships ENABLE ROW LEVEL SECURITY;
 ALTER TABLE stable_assets ENABLE ROW LEVEL SECURITY;
 
 -- RLS Policies (admin-only for personal tool)
--- Note: Assumes admin_role column exists in profiles table
 CREATE POLICY "Admin full access to characters"
   ON stable_characters
   FOR ALL
-  USING (
-    EXISTS (
-      SELECT 1 FROM profiles
-      WHERE profiles.id = auth.uid()
-      AND profiles.admin_role = true
-    )
-  );
+  USING (is_admin());
 
 CREATE POLICY "Admin full access to character relationships"
   ON stable_character_relationships
   FOR ALL
-  USING (
-    EXISTS (
-      SELECT 1 FROM profiles
-      WHERE profiles.id = auth.uid()
-      AND profiles.admin_role = true
-    )
-  );
+  USING (is_admin());
 
 CREATE POLICY "Admin full access to assets"
   ON stable_assets
   FOR ALL
-  USING (
-    EXISTS (
-      SELECT 1 FROM profiles
-      WHERE profiles.id = auth.uid()
-      AND profiles.admin_role = true
-    )
-  );
+  USING (is_admin());
 
 -- Comments for documentation
 COMMENT ON TABLE stable_characters IS 'Character design entities with rich parametric data for character bible and asset management';
