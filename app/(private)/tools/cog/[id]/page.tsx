@@ -1,10 +1,9 @@
 import { getSeriesWithImagesServer, getSeriesJobsServer, getChildSeriesServer } from '@/lib/cog-server';
-import { getCogImageUrl } from '@/lib/cog';
 import Link from 'next/link';
-import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { notFound } from 'next/navigation';
 import type { CogSeriesWithImages, CogJob, CogSeries } from '@/lib/types/cog';
+import { ImageGallery } from './image-gallery';
 
 interface Props {
   params: Promise<{ id: string }>;
@@ -174,29 +173,7 @@ export default async function SeriesDetailPage({ params }: Props) {
             </Button>
           </div>
         ) : (
-          <div className="grid gap-4 grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
-            {images.map((image) => (
-              <Link
-                key={image.id}
-                href={`/tools/cog/${id}/image/${image.id}`}
-                className="border rounded-lg overflow-hidden hover:ring-2 ring-primary transition-all"
-              >
-                <div className="aspect-square bg-muted relative">
-                  <img
-                    src={getCogImageUrl(image.storage_path)}
-                    alt={image.filename}
-                    className="w-full h-full object-cover"
-                  />
-                </div>
-                <div className="p-2 text-xs">
-                  <p className="truncate">{image.filename}</p>
-                  <p className="text-muted-foreground">
-                    {image.source === 'generated' ? 'Generated' : 'Uploaded'}
-                  </p>
-                </div>
-              </Link>
-            ))}
-          </div>
+          <ImageGallery images={images} seriesId={id} />
         )}
       </section>
     </div>

@@ -1,0 +1,206 @@
+'use client';
+
+import { useState, useEffect, useCallback } from 'react';
+import { getCogImageUrl } from '@/lib/cog';
+import { Button } from '@/components/ui/button';
+import type { CogImage } from '@/lib/types/cog';
+
+interface ImageGalleryProps {
+  images: CogImage[];
+  seriesId: string;
+}
+
+export function ImageGallery({ images, seriesId }: ImageGalleryProps) {
+  const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
+  const isOpen = selectedIndex !== null;
+
+  const openImage = (index: number) => {
+    setSelectedIndex(index);
+  };
+
+  const closeGallery = () => {
+    setSelectedIndex(null);
+  };
+
+  const goToPrevious = useCallback(() => {
+    if (selectedIndex === null) return;
+    setSelectedIndex(selectedIndex > 0 ? selectedIndex - 1 : images.length - 1);
+  }, [selectedIndex, images.length]);
+
+  const goToNext = useCallback(() => {
+    if (selectedIndex === null) return;
+    setSelectedIndex(selectedIndex < images.length - 1 ? selectedIndex + 1 : 0);
+  }, [selectedIndex, images.length]);
+
+  // Keyboard navigation
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      switch (e.key) {
+        case 'Escape':
+          closeGallery();
+          break;
+        case 'ArrowLeft':
+        case 'ArrowUp':
+        case 'k':
+          e.preventDefault();
+          goToPrevious();
+          break;
+        case 'ArrowRight':
+        case 'ArrowDown':
+        case 'j':
+          e.preventDefault();
+          goToNext();
+          break;
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, goToPrevious, goToNext]);
+
+  // Prevent body scroll when gallery is open
+  useEffect(() => {
+    if (isOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [isOpen]);
+
+  const currentImage = selectedIndex !== null ? images[selectedIndex] : null;
+
+  return (
+    <>
+      {/* Thumbnail Grid */}
+      <div className="grid gap-4 grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+        {images.map((image, index) => (
+          <button
+            key={image.id}
+            onClick={() => openImage(index)}
+            className="border rounded-lg overflow-hidden hover:ring-2 ring-primary transition-all text-left"
+          >
+            <div className="aspect-square bg-muted relative">
+              <img
+                src={getCogImageUrl(image.storage_path)}
+                alt={image.filename}
+                className="w-full h-full object-cover"
+              />
+            </div>
+            <div className="p-2 text-xs">
+              <p className="truncate">{image.filename}</p>
+              <p className="text-muted-foreground">
+                {image.source === 'generated' ? 'Generated' : 'Uploaded'}
+              </p>
+            </div>
+          </button>
+        ))}
+      </div>
+
+      {/* Lightbox */}
+      {isOpen && currentImage && (
+        <div
+          className="fixed inset-0 z-50 bg-black/95 flex flex-col"
+          onClick={closeGallery}
+        >
+          {/* Header */}
+          <div
+            className="flex items-center justify-between p-4 text-white"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="text-sm">
+              <span className="font-medium">
+                {selectedIndex! + 1} / {images.length}
+              </span>
+              <span className="ml-4 text-white/60">{currentImage.filename}</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-white/40 hidden sm:block">
+                Use arrow keys or j/k to navigate, Esc to close
+              </span>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={closeGallery}
+                className="text-white hover:bg-white/10"
+              >
+                Close
+              </Button>
+            </div>
+          </div>
+
+          {/* Image Container */}
+          <div
+            className="flex-1 flex items-center justify-center relative px-16"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Previous Button */}
+            <button
+              onClick={goToPrevious}
+              className="absolute left-4 p-3 rounded-full bg-white/10 hover:bg-white/20 transition-colors text-white"
+              aria-label="Previous image"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="24"
+                height="24"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="m15 18-6-6 6-6" />
+              </svg>
+            </button>
+
+            {/* Main Image */}
+            <img
+              src={getCogImageUrl(currentImage.storage_path)}
+              alt={currentImage.filename}
+              className="max-h-[calc(100vh-120px)] max-w-full object-contain"
+            />
+
+            {/* Next Button */}
+            <button
+              onClick={goToNext}
+              className="absolute right-4 p-3 rounded-full bg-white/10 hover:bg-white/20 transition-colors text-white"
+              aria-label="Next image"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="24"
+                height="24"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="m9 18 6-6-6-6" />
+              </svg>
+            </button>
+          </div>
+
+          {/* Footer - Image Info */}
+          <div
+            className="p-4 text-white/60 text-sm"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {currentImage.prompt && (
+              <p className="line-clamp-2 max-w-3xl mx-auto text-center">
+                {currentImage.prompt}
+              </p>
+            )}
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
