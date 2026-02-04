@@ -89,7 +89,7 @@ export function NewJobForm({ series }: NewJobFormProps) {
         step_type: step.step_type,
         model: step.model,
         prompt: step.prompt,
-        context: step.context || {},
+        context: {},
       }));
 
       await createJobSteps(stepsToCreate);

@@ -5,12 +5,12 @@ import { z } from 'zod';
 import { getModel } from '../models';
 
 // Schema for generated job steps
+// Note: context field omitted from generation schema - Gemini doesn't allow empty object schemas
 const JobStepSchema = z.object({
   sequence: z.number(),
   step_type: z.enum(['llm', 'image_gen']),
   model: z.string(),
   prompt: z.string(),
-  context: z.record(z.string(), z.unknown()).optional(),
 });
 
 const GeneratedJobSchema = z.object({
