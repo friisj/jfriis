@@ -1,8 +1,16 @@
 import { GoogleAuth } from 'google-auth-library';
 
+type SubjectType =
+  | 'SUBJECT_TYPE_PERSON'
+  | 'SUBJECT_TYPE_ANIMAL'
+  | 'SUBJECT_TYPE_PRODUCT'
+  | 'SUBJECT_TYPE_DEFAULT';
+
 interface ReferenceImage {
   base64: string;
   mimeType: string;
+  subjectType?: SubjectType;
+  subjectDescription?: string;
 }
 
 interface VertexImagenOptions {
@@ -10,6 +18,7 @@ interface VertexImagenOptions {
   referenceImages?: ReferenceImage[];
   aspectRatio?: string;
   numberOfImages?: number;
+  defaultSubjectType?: SubjectType;
 }
 
 interface GeneratedImage {
@@ -58,6 +67,7 @@ export async function generateImageWithVertex(
     referenceImages = [],
     aspectRatio = '1:1',
     numberOfImages = 1,
+    defaultSubjectType = 'SUBJECT_TYPE_DEFAULT',
   } = options;
 
   const projectId = process.env.GOOGLE_VERTEX_PROJECT_ID;
@@ -86,6 +96,10 @@ export async function generateImageWithVertex(
       referenceId: number;
       referenceImage: { bytesBase64Encoded: string };
       referenceType: string;
+      subjectImageConfig: {
+        subjectType: string;
+        subjectDescription: string;
+      };
     }>;
   } = { prompt };
 
@@ -96,6 +110,10 @@ export async function generateImageWithVertex(
         bytesBase64Encoded: img.base64,
       },
       referenceType: 'REFERENCE_TYPE_SUBJECT',
+      subjectImageConfig: {
+        subjectType: img.subjectType || defaultSubjectType,
+        subjectDescription: img.subjectDescription || `Reference subject ${idx + 1}`,
+      },
     }));
   }
 

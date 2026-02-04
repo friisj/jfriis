@@ -15,7 +15,7 @@ import {
 } from '@/components/ui/resizable';
 import { ImageGallery } from './image-gallery';
 import { JobsList } from './jobs-list';
-import { updateSeries } from '@/lib/cog';
+import { updateSeries, deleteSeriesWithCleanup } from '@/lib/cog';
 import type { CogSeriesWithImages, CogJob, CogSeries } from '@/lib/types/cog';
 
 interface SeriesLayoutProps {
@@ -29,20 +29,39 @@ function ConfigPanel({
   series,
   childSeries,
   seriesId,
+  imageCount,
+  jobCount,
 }: {
   series: CogSeriesWithImages;
   childSeries: CogSeries[];
   seriesId: string;
+  imageCount: number;
+  jobCount: number;
 }) {
   const router = useRouter();
   const [isEditing, setIsEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   // Form state
   const [title, setTitle] = useState(series.title);
   const [description, setDescription] = useState(series.description || '');
   const [tagsInput, setTagsInput] = useState(series.tags.join(', '));
+
+  async function handleDelete() {
+    setDeleting(true);
+    setError(null);
+    try {
+      await deleteSeriesWithCleanup(seriesId);
+      router.push('/tools/cog');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to delete series');
+      setDeleting(false);
+      setShowDeleteConfirm(false);
+    }
+  }
 
   function handleCancel() {
     setTitle(series.title);
@@ -207,6 +226,56 @@ function ConfigPanel({
           </div>
         </div>
       )}
+
+      {/* Delete Series */}
+      <div className="pt-6 border-t">
+        {showDeleteConfirm ? (
+          <div className="p-3 bg-destructive/10 rounded-lg space-y-3">
+            <p className="text-sm text-destructive font-medium">
+              Delete this series?
+            </p>
+            <p className="text-xs text-muted-foreground">
+              This will permanently delete:
+            </p>
+            <ul className="text-xs text-muted-foreground list-disc list-inside">
+              <li>{imageCount} image{imageCount !== 1 ? 's' : ''} (including storage files)</li>
+              <li>{jobCount} job{jobCount !== 1 ? 's' : ''} and all steps</li>
+              {childSeries.length > 0 && (
+                <li className="text-destructive">
+                  {childSeries.length} sub-series (delete those first!)
+                </li>
+              )}
+            </ul>
+            <div className="flex gap-2 pt-1">
+              <Button
+                size="sm"
+                variant="destructive"
+                onClick={handleDelete}
+                disabled={deleting || childSeries.length > 0}
+              >
+                {deleting ? 'Deleting...' : 'Yes, delete'}
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setShowDeleteConfirm(false)}
+                disabled={deleting}
+              >
+                Cancel
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => setShowDeleteConfirm(true)}
+            className="text-destructive hover:text-destructive hover:bg-destructive/10"
+          >
+            Delete Series
+          </Button>
+        )}
+      </div>
     </div>
   );
 }
@@ -276,6 +345,8 @@ export function SeriesLayout({
                 series={series}
                 childSeries={childSeries}
                 seriesId={seriesId}
+                imageCount={images.length}
+                jobCount={jobs.length}
               />
             </div>
           </ResizablePanel>
@@ -317,6 +388,8 @@ export function SeriesLayout({
               series={series}
               childSeries={childSeries}
               seriesId={seriesId}
+              imageCount={images.length}
+              jobCount={jobs.length}
             />
           </TabsContent>
           <TabsContent value="jobs" className="mt-4">

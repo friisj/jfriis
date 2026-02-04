@@ -83,6 +83,46 @@ export async function deleteSeries(id: string): Promise<void> {
   if (error) throw error;
 }
 
+/**
+ * Delete a series with full cleanup - removes storage files first, then DB records
+ * Returns count of deleted images for confirmation
+ */
+export async function deleteSeriesWithCleanup(id: string): Promise<{ deletedImages: number }> {
+  // First, get all images in this series to clean up storage
+  const { data: images, error: fetchError } = await (supabase as any)
+    .from('cog_images')
+    .select('storage_path')
+    .eq('series_id', id);
+
+  if (fetchError) throw fetchError;
+
+  const imagePaths = (images || [])
+    .map((img: { storage_path: string }) => img.storage_path)
+    .filter(Boolean);
+
+  // Delete images from storage (batch delete)
+  if (imagePaths.length > 0) {
+    const { error: storageError } = await supabase.storage
+      .from('cog-images')
+      .remove(imagePaths);
+
+    if (storageError) {
+      console.error('Storage cleanup error (continuing anyway):', storageError);
+      // Continue even if storage cleanup fails - DB cascade will handle records
+    }
+  }
+
+  // Delete the series - CASCADE will handle all related DB records
+  const { error: deleteError } = await (supabase as any)
+    .from('cog_series')
+    .delete()
+    .eq('id', id);
+
+  if (deleteError) throw deleteError;
+
+  return { deletedImages: imagePaths.length };
+}
+
 // ============================================================================
 // Image Operations (Client)
 // ============================================================================
