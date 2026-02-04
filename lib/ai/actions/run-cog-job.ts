@@ -4,11 +4,66 @@ import { generateText, experimental_generateImage as generateImage } from 'ai';
 import { getModel } from '../models';
 import { getGoogle } from '../providers';
 import { createClient } from '@/lib/supabase-server';
-import type { CogJobStep } from '@/lib/types/cog';
+import type { CogJobStep, CogJobInputWithImage } from '@/lib/types/cog';
 
 interface RunJobInput {
   jobId: string;
   seriesId: string;
+}
+
+interface ReferenceImage {
+  referenceId: number;
+  buffer: Buffer;
+  context: string | null;
+}
+
+/**
+ * Fetch reference images for a job and convert to buffers
+ */
+async function fetchReferenceImages(
+  jobId: string,
+  supabase: Awaited<ReturnType<typeof createClient>>
+): Promise<ReferenceImage[]> {
+  // Fetch job inputs with image data
+  const { data: inputs, error } = await (supabase as any)
+    .from('cog_job_inputs')
+    .select('*, image:cog_images(*)')
+    .eq('job_id', jobId)
+    .order('reference_id', { ascending: true });
+
+  if (error) {
+    throw new Error(`Failed to fetch job inputs: ${error.message}`);
+  }
+
+  if (!inputs || inputs.length === 0) {
+    return [];
+  }
+
+  const references: ReferenceImage[] = [];
+
+  for (const input of inputs as CogJobInputWithImage[]) {
+    // Download image from Supabase storage
+    const { data: imageData, error: downloadError } = await supabase.storage
+      .from('cog-images')
+      .download(input.image.storage_path);
+
+    if (downloadError) {
+      console.error(`Failed to download reference image ${input.reference_id}:`, downloadError);
+      continue;
+    }
+
+    // Convert to buffer
+    const arrayBuffer = await imageData.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+
+    references.push({
+      referenceId: input.reference_id,
+      buffer,
+      context: input.context,
+    });
+  }
+
+  return references;
 }
 
 export async function runCogJob(input: RunJobInput): Promise<void> {
@@ -27,6 +82,10 @@ export async function runCogJob(input: RunJobInput): Promise<void> {
   if (updateError) {
     throw new Error(`Failed to update job status: ${updateError.message}`);
   }
+
+  // Fetch reference images for this job
+  const referenceImages = await fetchReferenceImages(jobId, supabase);
+  const hasReferences = referenceImages.length > 0;
 
   // Get all steps for this job
   const { data: steps, error: stepsError } = await (supabase as any)
@@ -81,13 +140,30 @@ export async function runCogJob(input: RunJobInput): Promise<void> {
           // Use the refined prompt from the previous LLM step, or fall back to the step's prompt
           const promptToUse = previousOutput || step.prompt;
 
-          // Generate image using Google's Imagen 4
+          // Generate image using Google's Imagen
+          // Use Imagen 3 Capability when we have reference images, Imagen 4 otherwise
           const google = getGoogle();
-          const { image } = await generateImage({
-            model: google.image('imagen-4.0-generate-001'),
+          const modelId = hasReferences
+            ? 'imagen-3.0-capability-001'
+            : 'imagen-4.0-generate-001';
+
+          const generateOptions: {
+            model: ReturnType<ReturnType<typeof getGoogle>['image']>;
+            prompt: string;
+            aspectRatio: '1:1';
+            images?: Buffer[];
+          } = {
+            model: google.image(modelId),
             prompt: promptToUse,
             aspectRatio: '1:1',
-          });
+          };
+
+          // Add reference images if available
+          if (hasReferences) {
+            generateOptions.images = referenceImages.map((ref) => ref.buffer);
+          }
+
+          const { image } = await generateImage(generateOptions);
 
           // Get base64 data and convert to buffer
           const base64Data = image.base64;
@@ -128,9 +204,14 @@ export async function runCogJob(input: RunJobInput): Promise<void> {
               source: 'generated',
               prompt: promptToUse,
               metadata: {
-                generation_model: step.model,
+                generation_model: modelId,
                 step_id: step.id,
                 step_sequence: step.sequence,
+                reference_count: referenceImages.length,
+                references: referenceImages.map((ref) => ({
+                  referenceId: ref.referenceId,
+                  context: ref.context,
+                })),
               },
             })
             .select()
@@ -147,10 +228,11 @@ export async function runCogJob(input: RunJobInput): Promise<void> {
               status: 'completed',
               output: {
                 prompt: promptToUse,
-                model: step.model,
+                model: modelId,
                 imageUrl,
                 imageId: imageRecord.id,
                 storagePath,
+                referenceCount: referenceImages.length,
               },
               completed_at: new Date().toISOString(),
             })
