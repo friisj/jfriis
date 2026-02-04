@@ -70,6 +70,8 @@ export async function generateImageWithGemini3Pro(
   parts.push({ text: finalPrompt });
 
   // Build request body
+  // Note: responseModalities controls output type, NOT responseMimeType
+  // responseMimeType is for text formats only (json, xml, etc.)
   const requestBody = {
     contents: [
       {
@@ -77,8 +79,7 @@ export async function generateImageWithGemini3Pro(
       },
     ],
     generationConfig: {
-      responseModalities: ['IMAGE'],
-      responseMimeType: 'image/png',
+      responseModalities: ['IMAGE', 'TEXT'],
     },
   };
 
