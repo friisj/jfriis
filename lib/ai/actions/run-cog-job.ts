@@ -81,10 +81,10 @@ export async function runCogJob(input: RunJobInput): Promise<void> {
           // Use the refined prompt from the previous LLM step, or fall back to the step's prompt
           const promptToUse = previousOutput || step.prompt;
 
-          // Generate image using Google's Imagen model
+          // Generate image using Google's Imagen 4
           const google = getGoogle();
           const { image } = await generateImage({
-            model: google.image('imagen-3.0-generate-002'),
+            model: google.image('imagen-4.0-generate-001'),
             prompt: promptToUse,
             aspectRatio: '1:1',
           });
