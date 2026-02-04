@@ -3,6 +3,11 @@
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import {
+  ResizablePanelGroup,
+  ResizablePanel,
+  ResizableHandle,
+} from '@/components/ui/resizable';
 import { ImageGallery } from './image-gallery';
 import { JobsList } from './jobs-list';
 import type { CogSeriesWithImages, CogJob, CogSeries } from '@/lib/types/cog';
@@ -14,7 +19,15 @@ interface SeriesLayoutProps {
   seriesId: string;
 }
 
-function ConfigPanel({ series, childSeries, seriesId }: { series: CogSeriesWithImages; childSeries: CogSeries[]; seriesId: string }) {
+function ConfigPanel({
+  series,
+  childSeries,
+  seriesId,
+}: {
+  series: CogSeriesWithImages;
+  childSeries: CogSeries[];
+  seriesId: string;
+}) {
   return (
     <div className="space-y-6">
       {/* Series Info */}
@@ -27,18 +40,24 @@ function ConfigPanel({ series, childSeries, seriesId }: { series: CogSeriesWithI
         </div>
         <div className="space-y-3">
           <div>
-            <p className="text-xs text-muted-foreground uppercase tracking-wide">Title</p>
+            <p className="text-xs text-muted-foreground uppercase tracking-wide">
+              Title
+            </p>
             <p className="font-medium">{series.title}</p>
           </div>
           {series.description && (
             <div>
-              <p className="text-xs text-muted-foreground uppercase tracking-wide">Description</p>
+              <p className="text-xs text-muted-foreground uppercase tracking-wide">
+                Description
+              </p>
               <p className="text-sm">{series.description}</p>
             </div>
           )}
           {series.tags.length > 0 && (
             <div>
-              <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Tags</p>
+              <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">
+                Tags
+              </p>
               <div className="flex flex-wrap gap-1">
                 {series.tags.map((tag) => (
                   <span
@@ -94,7 +113,13 @@ function JobsPanel({ jobs, seriesId }: { jobs: CogJob[]; seriesId: string }) {
   );
 }
 
-function ImagesPanel({ images, seriesId }: { images: CogSeriesWithImages['images']; seriesId: string }) {
+function ImagesPanel({
+  images,
+  seriesId,
+}: {
+  images: CogSeriesWithImages['images'];
+  seriesId: string;
+}) {
   return (
     <div>
       <div className="flex items-center justify-between mb-4">
@@ -119,30 +144,55 @@ function ImagesPanel({ images, seriesId }: { images: CogSeriesWithImages['images
   );
 }
 
-export function SeriesLayout({ series, jobs, childSeries, seriesId }: SeriesLayoutProps) {
+export function SeriesLayout({
+  series,
+  jobs,
+  childSeries,
+  seriesId,
+}: SeriesLayoutProps) {
   const images = series.images;
 
   return (
     <>
-      {/* Wide layout: 3 columns */}
-      <div className="hidden lg:grid lg:grid-cols-[280px_1fr_1fr] lg:gap-6 h-[calc(100vh-8rem)]">
-        {/* Config column */}
-        <div className="overflow-y-auto border-r pr-6">
-          <ConfigPanel series={series} childSeries={childSeries} seriesId={seriesId} />
-        </div>
+      {/* Wide layout: 2 resizable columns */}
+      <div className="hidden lg:block h-[calc(100vh-8rem)]">
+        <ResizablePanelGroup direction="horizontal">
+          {/* Config column */}
+          <ResizablePanel defaultSize={25} minSize={15} maxSize={40}>
+            <div className="h-full overflow-y-auto pr-4">
+              <ConfigPanel
+                series={series}
+                childSeries={childSeries}
+                seriesId={seriesId}
+              />
+            </div>
+          </ResizablePanel>
 
-        {/* Jobs column */}
-        <div className="overflow-y-auto pr-3">
-          <JobsPanel jobs={jobs} seriesId={seriesId} />
-        </div>
+          <ResizableHandle withHandle />
 
-        {/* Images column */}
-        <div className="overflow-y-auto pl-3">
-          <ImagesPanel images={images} seriesId={seriesId} />
-        </div>
+          {/* Jobs/Images column with tabs */}
+          <ResizablePanel defaultSize={75} minSize={50}>
+            <div className="h-full overflow-y-auto pl-4">
+              <Tabs defaultValue="images" className="h-full flex flex-col">
+                <TabsList className="w-fit">
+                  <TabsTrigger value="jobs">Jobs ({jobs.length})</TabsTrigger>
+                  <TabsTrigger value="images">
+                    Images ({images.length})
+                  </TabsTrigger>
+                </TabsList>
+                <TabsContent value="jobs" className="flex-1 mt-4 overflow-y-auto">
+                  <JobsPanel jobs={jobs} seriesId={seriesId} />
+                </TabsContent>
+                <TabsContent value="images" className="flex-1 mt-4 overflow-y-auto">
+                  <ImagesPanel images={images} seriesId={seriesId} />
+                </TabsContent>
+              </Tabs>
+            </div>
+          </ResizablePanel>
+        </ResizablePanelGroup>
       </div>
 
-      {/* Narrow layout: Tabs */}
+      {/* Narrow layout: 3 Tabs */}
       <div className="lg:hidden">
         <Tabs defaultValue="images" className="w-full">
           <TabsList className="w-full grid grid-cols-3">
@@ -151,7 +201,11 @@ export function SeriesLayout({ series, jobs, childSeries, seriesId }: SeriesLayo
             <TabsTrigger value="images">Images ({images.length})</TabsTrigger>
           </TabsList>
           <TabsContent value="config" className="mt-4">
-            <ConfigPanel series={series} childSeries={childSeries} seriesId={seriesId} />
+            <ConfigPanel
+              series={series}
+              childSeries={childSeries}
+              seriesId={seriesId}
+            />
           </TabsContent>
           <TabsContent value="jobs" className="mt-4">
             <JobsPanel jobs={jobs} seriesId={seriesId} />
