@@ -36,6 +36,17 @@ export default async function JobDetailPage({ params }: Props) {
       {/* Header */}
       <div className="flex items-start justify-between mb-8">
         <div>
+          <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
+            <Link href="/tools/cog" className="hover:text-foreground">
+              Series
+            </Link>
+            <span>/</span>
+            <Link href={`/tools/cog/${seriesId}`} className="hover:text-foreground">
+              Back
+            </Link>
+            <span>/</span>
+            <span>Job</span>
+          </div>
           <h1 className="text-3xl font-bold">{job.title || 'Untitled Job'}</h1>
           <p className="text-muted-foreground mt-2 line-clamp-2">{job.base_prompt}</p>
         </div>

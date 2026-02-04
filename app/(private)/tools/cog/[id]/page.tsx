@@ -48,6 +48,13 @@ export default async function SeriesDetailPage({ params }: Props) {
       {/* Header */}
       <div className="flex items-start justify-between mb-8">
         <div>
+          <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
+            <Link href="/tools/cog" className="hover:text-foreground">
+              Series
+            </Link>
+            <span>/</span>
+            <span>{series.title}</span>
+          </div>
           <h1 className="text-3xl font-bold">{series.title}</h1>
           {series.description && (
             <p className="text-muted-foreground mt-2">{series.description}</p>
