@@ -21,6 +21,11 @@ const GeneratedJobSchema = z.object({
 export type GeneratedJob = z.infer<typeof GeneratedJobSchema>;
 export type GeneratedJobStep = z.infer<typeof JobStepSchema>;
 
+interface ReferenceImageInfo {
+  referenceId: number;
+  context: string;
+}
+
 interface GenerateJobInput {
   basePrompt: string;
   imageCount: number;
@@ -29,10 +34,33 @@ interface GenerateJobInput {
     description?: string;
     tags?: string[];
   };
+  referenceImages?: ReferenceImageInfo[];
 }
 
 export async function generateCogJob(input: GenerateJobInput): Promise<GeneratedJob> {
-  const { basePrompt, imageCount, seriesContext } = input;
+  const { basePrompt, imageCount, seriesContext, referenceImages } = input;
+
+  const hasReferences = referenceImages && referenceImages.length > 0;
+
+  const referenceInstructions = hasReferences
+    ? `
+IMPORTANT - Reference Images Available:
+The user has provided ${referenceImages.length} reference image(s) that will be available during generation.
+These MUST be referenced in your prompts using the notation [1], [2], [3], or [4].
+
+Available references:
+${referenceImages.map((ref) => `- [${ref.referenceId}]: ${ref.context}`).join('\n')}
+
+When writing prompts, you MUST include explicit references like:
+- "in the style of [1]"
+- "featuring the subject from [1]"
+- "use [1] as the primary style reference"
+- "combine the style of [1] with the composition of [2]"
+
+The image generation model will receive these reference images and use them to guide generation.
+Without explicit [N] references in your prompts, the reference images will not be effectively used.
+`
+    : '';
 
   const systemPrompt = `You are an AI assistant that designs image generation pipelines.
 
@@ -56,7 +84,7 @@ Each LLM step prompt should:
 - Make each image distinct if generating multiple
 
 Each image_gen step prompt should be the refined, detailed prompt ready for the image model.
-
+${referenceInstructions}
 ${seriesContext ? `
 Series Context:
 - Title: ${seriesContext.title}

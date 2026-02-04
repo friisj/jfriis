@@ -76,24 +76,22 @@ export function NewJobForm({ series, images }: NewJobFormProps) {
     setGenerating(true);
     setError(null);
 
-    // Build prompt with reference info if inputs selected
-    let promptWithRefs = basePrompt;
-    if (selectedInputs.length > 0) {
-      const refInfo = selectedInputs
-        .map((s) => `[${s.referenceId}] - ${s.context || 'Reference image'}`)
-        .join('\n');
-      promptWithRefs = `${basePrompt}\n\nReference images:\n${refInfo}`;
-    }
+    // Build reference images array for the generator
+    const referenceImages = selectedInputs.map((s) => ({
+      referenceId: s.referenceId,
+      context: s.context || 'Reference image',
+    }));
 
     try {
       const job = await generateCogJob({
-        basePrompt: promptWithRefs,
+        basePrompt,
         imageCount,
         seriesContext: {
           title: series.title,
           description: series.description || undefined,
           tags: series.tags || undefined,
         },
+        referenceImages: referenceImages.length > 0 ? referenceImages : undefined,
       });
       setGeneratedJob(job);
       setEditedSteps(job.steps);
