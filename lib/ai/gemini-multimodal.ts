@@ -23,10 +23,20 @@ interface ShootParams {
   lighting?: string | null;
 }
 
+type ImageSize = '1K' | '2K' | '4K';
+type AspectRatio = '1:1' | '2:3' | '3:2' | '3:4' | '4:3' | '4:5' | '5:4' | '9:16' | '16:9' | '21:9';
+
 interface GeminiMultimodalOptions {
   prompt: string;
   referenceImages?: ReferenceImage[];
-  aspectRatio?: string;
+  aspectRatio?: AspectRatio;
+  /**
+   * Output image resolution. Defaults to '2K'.
+   * - '1K': ~1024px on longest edge
+   * - '2K': ~2048px on longest edge
+   * - '4K': ~4096px on longest edge (highest quality)
+   */
+  imageSize?: ImageSize;
   /**
    * Enable thinking mode for better reasoning about image composition.
    * When enabled:
@@ -218,6 +228,7 @@ Important guidelines:
 - Specify the mood and atmosphere
 - If references show a person, describe how to maintain their likeness
 - Keep the prompt focused and coherent (under 300 words)
+- CRITICAL: If reference images are provided, you MUST include reference markers like [1], [2], etc. at the START of your prompt to ensure the image model uses them. For example: "[1] [2] A portrait of the subject from the reference images..."
 
 Output ONLY the refined prompt, nothing else.`;
 
@@ -292,7 +303,7 @@ Output ONLY the refined prompt, nothing else.`;
 export async function generateImageWithGemini3Pro(
   options: GeminiMultimodalOptions
 ): Promise<GeneratedImage> {
-  const { prompt, referenceImages = [], aspectRatio = '1:1', thinking, shootParams } = options;
+  const { prompt, referenceImages = [], aspectRatio = '1:1', imageSize = '2K', thinking, shootParams } = options;
 
   const apiKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY;
   if (!apiKey) {
@@ -343,6 +354,16 @@ export async function generateImageWithGemini3Pro(
         reasoning: reasoningMetrics,
       },
     };
+
+    // Ensure reference markers are present in the refined prompt so Gemini uses the images
+    if (referenceImages.length > 0) {
+      const hasMarkers = /\[\d+\]/.test(finalPrompt);
+      if (!hasMarkers) {
+        const markers = referenceImages.map((_, idx) => `[${idx + 1}]`).join(' ');
+        finalPrompt = `${markers} ${finalPrompt}`;
+        console.log(`Added reference markers to refined prompt: ${markers}`);
+      }
+    }
   } else {
     // Without thinking, just add reference markers if needed
     if (referenceImages.length > 0) {
@@ -373,13 +394,16 @@ export async function generateImageWithGemini3Pro(
   // Add the text prompt
   parts.push({ text: finalPrompt });
 
+  // Note: gemini-2.0-flash-exp-image-generation doesn't support aspectRatio in imageConfig
+  // Only imageSize is supported for this model
   const generationConfig: Record<string, unknown> = {
     responseModalities: ['IMAGE', 'TEXT'],
+    imageConfig: {
+      imageSize,
+    },
   };
 
   // Build request body
-  // Note: responseModalities controls output type, NOT responseMimeType
-  // responseMimeType is for text formats only (json, xml, etc.)
   const requestBody = {
     contents: [
       {
@@ -403,6 +427,7 @@ export async function generateImageWithGemini3Pro(
     promptPreview: finalPrompt.slice(0, 200),
     partsCount: parts.length,
     aspectRatio,
+    imageSize,
     thinking: thinking ? 'enabled (vision + reasoning)' : 'disabled',
   });
 
@@ -506,6 +531,10 @@ interface RefinementOptions {
   originalPrompt?: string;
   /** Optional: Reference images to maintain consistency */
   referenceImages?: ReferenceImage[];
+  /** Aspect ratio for output image. Defaults to '1:1'. */
+  aspectRatio?: AspectRatio;
+  /** Output image resolution. Defaults to '2K'. */
+  imageSize?: ImageSize;
 }
 
 interface RefinementResult {
@@ -522,7 +551,15 @@ interface RefinementResult {
 export async function refineImageWithFeedback(
   options: RefinementOptions
 ): Promise<RefinementResult> {
-  const { imageBase64, imageMimeType, feedback, originalPrompt, referenceImages = [] } = options;
+  const {
+    imageBase64,
+    imageMimeType,
+    feedback,
+    originalPrompt,
+    referenceImages = [],
+    aspectRatio = '1:1',
+    imageSize = '2K',
+  } = options;
 
   const apiKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY;
   if (!apiKey) {
@@ -573,6 +610,7 @@ export async function refineImageWithFeedback(
 
   parts.push({ text: refinementPrompt });
 
+  // Note: gemini-2.0-flash-exp-image-generation doesn't support aspectRatio in imageConfig
   const requestBody = {
     contents: [
       {
@@ -581,6 +619,9 @@ export async function refineImageWithFeedback(
     ],
     generationConfig: {
       responseModalities: ['IMAGE', 'TEXT'],
+      imageConfig: {
+        imageSize,
+      },
     },
   };
 
@@ -592,6 +633,7 @@ export async function refineImageWithFeedback(
     currentImageSize: Math.round(imageBase64.length * 0.75 / 1024) + 'KB',
     feedbackPreview: feedback.slice(0, 100),
     hasOriginalPrompt: !!originalPrompt,
+    imageSize,
   });
 
   const response = await fetch(endpoint, {

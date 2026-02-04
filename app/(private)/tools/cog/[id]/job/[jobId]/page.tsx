@@ -159,6 +159,8 @@ export default async function JobDetailPage({ params }: Props) {
             jobId={job.id}
             seriesId={seriesId}
             currentModel={job.image_model || 'auto'}
+            currentImageSize={job.image_size || '2K'}
+            currentAspectRatio={job.aspect_ratio || '1:1'}
             currentThinking={job.use_thinking || false}
             hasReferenceImages={job.inputs.length > 0}
           />

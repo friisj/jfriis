@@ -12,6 +12,10 @@ export type CogImageSource = 'upload' | 'generated';
 
 export type CogImageModel = 'auto' | 'imagen-4' | 'imagen-3-capability' | 'gemini-3-pro-image';
 
+export type CogImageSize = '1K' | '2K' | '4K';
+
+export type CogAspectRatio = '1:1' | '2:3' | '3:2' | '3:4' | '4:3' | '4:5' | '5:4' | '9:16' | '16:9' | '21:9';
+
 // Database row types
 export interface CogSeries {
   id: string;
@@ -64,6 +68,8 @@ export interface CogJob {
   lighting: string | null;
   // Image generation settings
   image_model: CogImageModel;
+  image_size: CogImageSize;
+  aspect_ratio: CogAspectRatio;
   use_thinking: boolean;
   status: CogJobStatus;
   created_at: string;
@@ -135,6 +141,8 @@ export interface CogJobInsert {
   lighting?: string | null;
   // Image generation settings
   image_model?: CogImageModel;
+  image_size?: CogImageSize;
+  aspect_ratio?: CogAspectRatio;
   use_thinking?: boolean;
   status?: CogJobStatus;
 }

@@ -6,7 +6,7 @@ import { getGoogle } from '../providers';
 import { generateImageWithVertex, isVertexConfigured } from '../vertex-imagen';
 import { generateImageWithGemini3Pro, isGemini3ProConfigured } from '../gemini-multimodal';
 import { createClient } from '@/lib/supabase-server';
-import type { CogJobStep, CogImageModel } from '@/lib/types/cog';
+import type { CogJobStep, CogImageModel, CogImageSize, CogAspectRatio } from '@/lib/types/cog';
 
 type ResolvedImageModel = 'imagen-4' | 'imagen-3-capability' | 'gemini-3-pro-image';
 
@@ -119,10 +119,10 @@ export async function runCogJob(input: RunJobInput): Promise<void> {
   const { jobId, seriesId } = input;
   const supabase = await createClient();
 
-  // Fetch job to get image_model, use_thinking, and shoot params
+  // Fetch job to get image_model, use_thinking, image config, and shoot params
   const { data: job, error: jobFetchError } = await (supabase as any)
     .from('cog_jobs')
-    .select('image_model, use_thinking, scene, art_direction, styling, camera, framing, lighting')
+    .select('image_model, image_size, aspect_ratio, use_thinking, scene, art_direction, styling, camera, framing, lighting')
     .eq('id', jobId)
     .single();
 
@@ -131,6 +131,8 @@ export async function runCogJob(input: RunJobInput): Promise<void> {
   }
 
   const jobImageModel: CogImageModel = job?.image_model || 'auto';
+  const jobImageSize: CogImageSize = job?.image_size || '2K';
+  const jobAspectRatio: CogAspectRatio = job?.aspect_ratio || '1:1';
   const useThinking: boolean = job?.use_thinking || false;
   const shootParams = {
     scene: job?.scene,
@@ -241,7 +243,7 @@ export async function runCogJob(input: RunJobInput): Promise<void> {
           let modelId: string;
           let actualModelUsed: ResolvedImageModel = selectedModel;
 
-          console.log(`Generating image with model: ${selectedModel} (job setting: ${jobImageModel})`);
+          console.log(`Generating image with model: ${selectedModel} (job: ${jobImageModel}), size: ${jobImageSize}, aspect: ${jobAspectRatio}`);
 
           try {
             switch (selectedModel) {
@@ -250,7 +252,8 @@ export async function runCogJob(input: RunJobInput): Promise<void> {
                 imageResult = await generateImageWithGemini3Pro({
                   prompt: promptToUse,
                   referenceImages,
-                  aspectRatio: '1:1',
+                  aspectRatio: jobAspectRatio,
+                  imageSize: jobImageSize,
                   thinking: useThinking,
                   shootParams: useThinking ? shootParams : undefined,
                 });
@@ -261,7 +264,7 @@ export async function runCogJob(input: RunJobInput): Promise<void> {
                 imageResult = await generateImageWithVertex({
                   prompt: promptToUse,
                   referenceImages,
-                  aspectRatio: '1:1',
+                  aspectRatio: jobAspectRatio,
                 });
                 break;
 
@@ -272,7 +275,7 @@ export async function runCogJob(input: RunJobInput): Promise<void> {
                 const { image } = await generateImage({
                   model: google.image(modelId),
                   prompt: promptToUse,
-                  aspectRatio: '1:1',
+                  aspectRatio: jobAspectRatio,
                 });
                 imageResult = { base64: image.base64, mimeType: 'image/png' };
                 break;
@@ -290,7 +293,7 @@ export async function runCogJob(input: RunJobInput): Promise<void> {
               const { image } = await generateImage({
                 model: google.image(modelId),
                 prompt: promptToUse,
-                aspectRatio: '1:1',
+                aspectRatio: jobAspectRatio,
               });
               imageResult = { base64: image.base64, mimeType: 'image/png' };
             } else {

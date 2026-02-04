@@ -204,6 +204,8 @@ export async function createJob(input: CogJobInsert): Promise<CogJob> {
       lighting: input.lighting || null,
       // Image generation settings
       image_model: input.image_model || 'auto',
+      image_size: input.image_size || '2K',
+      aspect_ratio: input.aspect_ratio || '1:1',
       use_thinking: input.use_thinking || false,
       status: input.status || 'draft',
     })
@@ -460,6 +462,8 @@ export async function duplicateJob(jobId: string): Promise<CogJob> {
       framing: originalJob.framing,
       lighting: originalJob.lighting,
       image_model: originalJob.image_model || 'auto',
+      image_size: originalJob.image_size || '2K',
+      aspect_ratio: originalJob.aspect_ratio || '1:1',
       use_thinking: originalJob.use_thinking || false,
       status: 'draft',
     })
