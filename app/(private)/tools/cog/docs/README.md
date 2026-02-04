@@ -60,12 +60,16 @@ Uses existing AI SDK configs and keys:
 
 ## Database Schema
 
-TBD - will include:
+See [`schema.sql`](./schema.sql) for full SQL migration.
 
-- `cog_series` - series records with metadata
-- `cog_images` - image records with Supabase URLs
-- `cog_jobs` - job definitions
-- `cog_job_steps` - individual steps in job sequence
+| Table | Purpose |
+|-------|---------|
+| `cog_series` | Series with metadata (title, description, tags), supports nesting |
+| `cog_images` | Image records with Supabase storage paths |
+| `cog_jobs` | Job definitions with base prompt and status |
+| `cog_job_steps` | Individual steps in job sequence (LLM or image gen) |
+
+**Storage**: `cog-images` bucket in Supabase Storage
 
 ## Status
 
