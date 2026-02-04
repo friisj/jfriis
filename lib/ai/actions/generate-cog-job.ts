@@ -3,19 +3,20 @@
 import { generateObject } from 'ai';
 import { z } from 'zod';
 import { getModel } from '../models';
+import type { ShootParams } from '@/lib/types/cog';
 
-// Schema for generated job steps
-// Note: context field omitted from generation schema - Gemini doesn't allow empty object schemas
+// Schema for generated job steps (shots in a photo shoot)
 const JobStepSchema = z.object({
   sequence: z.number(),
   step_type: z.enum(['llm', 'image_gen']),
   model: z.string(),
   prompt: z.string(),
+  variation: z.string().optional().describe('What makes this shot unique within the shoot'),
 });
 
 const GeneratedJobSchema = z.object({
-  title: z.string().describe('A descriptive title for this job'),
-  steps: z.array(JobStepSchema).describe('The sequence of steps to execute'),
+  title: z.string().describe('A descriptive title for this photo shoot'),
+  steps: z.array(JobStepSchema).describe('The sequence of shots to capture'),
 });
 
 export type GeneratedJob = z.infer<typeof GeneratedJobSchema>;
@@ -35,48 +36,70 @@ interface GenerateJobInput {
     tags?: string[];
   };
   referenceImages?: ReferenceImageInfo[];
+  shootParams?: Partial<ShootParams>;
 }
 
 export async function generateCogJob(input: GenerateJobInput): Promise<GeneratedJob> {
-  const { basePrompt, imageCount, seriesContext, referenceImages } = input;
+  const { basePrompt, imageCount, seriesContext, referenceImages, shootParams } = input;
 
   const hasReferences = referenceImages && referenceImages.length > 0;
+  const hasShootParams = shootParams && Object.values(shootParams).some(Boolean);
 
+  // Build reference instructions - optimized for subject customization when refs available
   const referenceInstructions = hasReferences
     ? `
-IMPORTANT - Reference Images Available:
-The user has provided ${referenceImages.length} reference image(s) that will be available during generation.
-These MUST be referenced in your prompts using the notation [1], [2], [3], or [4].
+CRITICAL - Reference Images for Subject Customization:
+The user has provided ${referenceImages.length} reference image(s) that define the SUBJECT to be generated.
+You MUST incorporate these into every prompt using [1], [2], [3], or [4] notation.
 
-Available references:
+Available subject references:
 ${referenceImages.map((ref) => `- [${ref.referenceId}]: ${ref.context}`).join('\n')}
 
-When writing prompts, you MUST include explicit references like:
-- "in the style of [1]"
-- "featuring the subject from [1]"
-- "use [1] as the primary style reference"
-- "combine the style of [1] with the composition of [2]"
+IMPORTANT: The image model uses these references for SUBJECT CUSTOMIZATION - it will recreate
+the subject from the reference images in new scenes and contexts. Your prompts should:
+- Place the subject [1] in the scene (e.g., "[1] standing in a forest clearing")
+- Describe what the subject is doing (e.g., "[1] reading a book under soft lamplight")
+- Combine subjects if multiple (e.g., "[1] and [2] walking together through the city")
 
-The image generation model will receive these reference images and use them to guide generation.
-Without explicit [N] references in your prompts, the reference images will not be effectively used.
+The reference image provides the WHO - your prompt provides the WHERE, WHAT, and HOW.
 `
     : '';
 
-  const systemPrompt = `You are an AI assistant that designs image generation pipelines.
+  // Build shoot params instructions
+  const shootParamsInstructions = hasShootParams
+    ? `
+PHOTO SHOOT SETUP - Apply these creative parameters to all shots:
+${shootParams.scene ? `- Scene: ${shootParams.scene}` : ''}
+${shootParams.art_direction ? `- Art Direction: ${shootParams.art_direction}` : ''}
+${shootParams.styling ? `- Styling: ${shootParams.styling}` : ''}
+${shootParams.camera ? `- Camera: ${shootParams.camera}` : ''}
+${shootParams.framing ? `- Framing: ${shootParams.framing}` : ''}
+${shootParams.lighting ? `- Lighting: ${shootParams.lighting}` : ''}
 
-Your task is to create ${imageCount} image generation step(s) based on the user's prompt.
+Each shot should incorporate these parameters while varying the specific pose, action, or moment captured.
+`
+    : '';
 
-Each step should be an image generation step (step_type: "image_gen") with model: "imagen-3".
-Steps should be numbered sequentially starting from 1.
+  const systemPrompt = `You are a creative director planning shots for a photo shoot.
 
-For each step, write a detailed, refined prompt that includes:
-- The core concept from the user's prompt
-- Specific artistic direction (style, mood, lighting, composition)
-- Technical details (perspective, framing, detail level)
-- If generating multiple images, make each prompt distinct with variations
+Your task is to create ${imageCount} distinct shot(s) based on the series concept and shoot setup.
 
-Write prompts that are ready for direct use with an image generation model - be specific and descriptive.
+Each shot should be an image generation step (step_type: "image_gen") with model: "imagen-3".
+Shots should be numbered sequentially starting from 1.
+
+For each shot, write a complete, production-ready prompt that includes:
+${hasReferences ? '- The subject reference(s) using [N] notation - this is REQUIRED' : '- A clear subject description'}
+- Scene and environment details
+- Pose, action, or moment being captured
+- Mood and atmosphere
+- Technical camera/lighting details
+- Style and aesthetic direction
+
+${hasShootParams ? 'IMPORTANT: All shots share the same shoot setup but vary in the specific moment, pose, or angle.' : 'Create distinct variations across the shots - different angles, moments, or compositions.'}
+
+Write prompts that are ready for direct use with an image generation model - be specific and vivid.
 ${referenceInstructions}
+${shootParamsInstructions}
 ${seriesContext ? `
 Series Context:
 - Title: ${seriesContext.title}
@@ -90,11 +113,11 @@ Series Context:
     model,
     schema: GeneratedJobSchema,
     system: systemPrompt,
-    prompt: `Create a job to generate ${imageCount} image(s) based on this prompt:
+    prompt: `Plan ${imageCount} shot(s) for this photo shoot:
 
-"${basePrompt}"
+Series: "${basePrompt}"
 
-Generate ${imageCount} image_gen step(s), each with a detailed, refined prompt ready for the image model.`,
+Generate ${imageCount} image_gen step(s), each capturing a unique moment or angle within the shoot concept.`,
   });
 
   return result.object;

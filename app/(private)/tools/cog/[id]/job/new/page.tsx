@@ -30,11 +30,11 @@ export default async function NewJobPage({ params }: Props) {
             {seriesWithImages.title}
           </Link>
           <span>/</span>
-          <span>New Job</span>
+          <span>New Photo Shoot</span>
         </div>
-        <h1 className="text-3xl font-bold">New Job</h1>
+        <h1 className="text-3xl font-bold">New Photo Shoot</h1>
         <p className="text-muted-foreground mt-2">
-          Generate images based on this series
+          Plan and generate images for this series
         </p>
       </div>
 

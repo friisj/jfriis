@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
-import { deleteJob, retryJob } from '@/lib/cog';
+import { deleteJob, retryJob, duplicateJob } from '@/lib/cog';
 
 interface JobActionsProps {
   jobId: string;
@@ -15,10 +15,12 @@ export function JobActions({ jobId, seriesId, jobStatus }: JobActionsProps) {
   const router = useRouter();
   const [deleting, setDeleting] = useState(false);
   const [retrying, setRetrying] = useState(false);
+  const [duplicating, setDuplicating] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
 
   const canDelete = jobStatus !== 'running';
   const canRetry = jobStatus === 'failed';
+  const canDuplicate = jobStatus !== 'running';
 
   async function handleDelete() {
     setDeleting(true);
@@ -41,6 +43,18 @@ export function JobActions({ jobId, seriesId, jobStatus }: JobActionsProps) {
       console.error('Failed to retry job:', error);
     } finally {
       setRetrying(false);
+    }
+  }
+
+  async function handleDuplicate() {
+    setDuplicating(true);
+    try {
+      const newJob = await duplicateJob(jobId);
+      // Navigate to the new job
+      router.push(`/tools/cog/${seriesId}/job/${newJob.id}`);
+    } catch (error) {
+      console.error('Failed to duplicate job:', error);
+      setDuplicating(false);
     }
   }
 
@@ -70,6 +84,16 @@ export function JobActions({ jobId, seriesId, jobStatus }: JobActionsProps) {
 
   return (
     <div className="flex items-center gap-2">
+      {canDuplicate && (
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleDuplicate}
+          disabled={duplicating}
+        >
+          {duplicating ? 'Duplicating...' : 'Duplicate'}
+        </Button>
+      )}
       {canRetry && (
         <Button
           variant="outline"
