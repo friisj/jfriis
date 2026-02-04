@@ -66,28 +66,44 @@ export interface CogJobStep {
   created_at: string;
 }
 
-// Insert types (omit auto-generated fields)
-export type CogSeriesInsert = Omit<CogSeries, 'id' | 'created_at' | 'updated_at'> & {
-  id?: string;
-  created_at?: string;
-  updated_at?: string;
-};
+// Insert types (omit auto-generated fields, make nullable fields optional)
+export interface CogSeriesInsert {
+  parent_id?: string | null;
+  title: string;
+  description?: string | null;
+  tags?: string[];
+}
 
-export type CogImageInsert = Omit<CogImage, 'id' | 'created_at'> & {
-  id?: string;
-  created_at?: string;
-};
+export interface CogImageInsert {
+  series_id: string;
+  job_id?: string | null;
+  storage_path: string;
+  filename: string;
+  mime_type?: string;
+  width?: number | null;
+  height?: number | null;
+  file_size?: number | null;
+  source: CogImageSource;
+  prompt?: string | null;
+  metadata?: Record<string, unknown>;
+}
 
-export type CogJobInsert = Omit<CogJob, 'id' | 'created_at' | 'updated_at'> & {
-  id?: string;
-  created_at?: string;
-  updated_at?: string;
-};
+export interface CogJobInsert {
+  series_id: string;
+  title?: string | null;
+  base_prompt: string;
+  status?: CogJobStatus;
+}
 
-export type CogJobStepInsert = Omit<CogJobStep, 'id' | 'created_at'> & {
-  id?: string;
-  created_at?: string;
-};
+export interface CogJobStepInsert {
+  job_id: string;
+  sequence: number;
+  step_type: CogJobStepType;
+  model: string;
+  prompt: string;
+  context?: Record<string, unknown>;
+  status?: CogJobStepStatus;
+}
 
 // Update types (all fields optional)
 export type CogSeriesUpdate = Partial<Omit<CogSeries, 'id' | 'created_at'>>;
