@@ -104,10 +104,12 @@ async function fetchReferenceImages(
     const buffer = await data.arrayBuffer();
     referenceImages.push({
       base64: Buffer.from(buffer).toString('base64'),
-      mimeType: 'image/png',
+      mimeType: input.image.mime_type || 'image/png',
       // Pass through the context as subject description
       subjectDescription: input.context || undefined,
     });
+
+    console.log(`Loaded reference image ${input.reference_id}: ${input.image.filename} (${input.image.mime_type}, ${Math.round(buffer.byteLength / 1024)}KB)`);
   }
 
   return referenceImages;
@@ -147,8 +149,11 @@ export async function runCogJob(input: RunJobInput): Promise<void> {
   const referenceImages = await fetchReferenceImages(jobId, supabase);
   const referenceCount = referenceImages.length;
 
+  console.log(`Job ${jobId}: Loaded ${referenceCount} reference images, model setting: ${jobImageModel}`);
+
   // Select the appropriate model based on job settings and available APIs
   const selectedModel = selectImageModel(jobImageModel, referenceCount > 0);
+  console.log(`Job ${jobId}: Selected model: ${selectedModel}`);
 
   // Get all steps for this job
   const { data: steps, error: stepsError } = await (supabase as any)

@@ -87,7 +87,14 @@ export async function generateImageWithGemini3Pro(
   console.log('Gemini 3 Pro Image request:', {
     endpoint,
     referenceImageCount: referenceImages.length,
-    promptPreview: finalPrompt.slice(0, 100),
+    referenceImageSizes: referenceImages.map((img, i) => ({
+      index: i + 1,
+      mimeType: img.mimeType,
+      base64Length: img.base64.length,
+      estimatedKB: Math.round(img.base64.length * 0.75 / 1024),
+    })),
+    promptPreview: finalPrompt.slice(0, 200),
+    partsCount: parts.length,
     aspectRatio,
   });
 
