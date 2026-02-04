@@ -3,6 +3,8 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -16,6 +18,7 @@ import {
 import { ImageGallery } from './image-gallery';
 import { JobsList } from './jobs-list';
 import { updateSeries, deleteSeriesWithCleanup } from '@/lib/cog';
+import { generateSeriesDescription } from '@/lib/ai/actions/generate-series-description';
 import type { CogSeriesWithImages, CogJob, CogSeries } from '@/lib/types/cog';
 
 interface SeriesLayoutProps {
@@ -44,11 +47,41 @@ function ConfigPanel({
   const [error, setError] = useState<string | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [showPreview, setShowPreview] = useState(false);
+
+  // Generation state
+  const [generatePrompt, setGeneratePrompt] = useState('');
+  const [generating, setGenerating] = useState(false);
 
   // Form state
   const [title, setTitle] = useState(series.title);
   const [description, setDescription] = useState(series.description || '');
   const [tagsInput, setTagsInput] = useState(series.tags.join(', '));
+
+  async function handleGenerate() {
+    if (!generatePrompt.trim()) return;
+
+    setGenerating(true);
+    setError(null);
+
+    try {
+      const result = await generateSeriesDescription({
+        prompt: generatePrompt,
+        title,
+        existingDescription: description || undefined,
+        existingTags: tagsInput ? tagsInput.split(',').map((t) => t.trim()).filter(Boolean) : undefined,
+      });
+
+      setDescription(result.description);
+      setTagsInput(result.tags.join(', '));
+      setGeneratePrompt('');
+      setIsEditing(true);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to generate');
+    } finally {
+      setGenerating(false);
+    }
+  }
 
   async function handleDelete() {
     setDeleting(true);
@@ -120,6 +153,35 @@ function ConfigPanel({
           </div>
         )}
 
+        {/* Generate Section */}
+        <div className="p-3 bg-muted/50 rounded-lg space-y-2">
+          <Label htmlFor="generate-prompt" className="text-xs">
+            Generate description & tags
+          </Label>
+          <div className="flex gap-2">
+            <Input
+              id="generate-prompt"
+              value={generatePrompt}
+              onChange={(e) => setGeneratePrompt(e.target.value)}
+              placeholder="Describe this series..."
+              className="text-sm"
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault();
+                  handleGenerate();
+                }
+              }}
+            />
+            <Button
+              size="sm"
+              onClick={handleGenerate}
+              disabled={generating || !generatePrompt.trim()}
+            >
+              {generating ? '...' : 'Generate'}
+            </Button>
+          </div>
+        </div>
+
         {isEditing ? (
           <div className="space-y-4">
             <div className="space-y-2">
@@ -132,14 +194,55 @@ function ConfigPanel({
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="description">Description</Label>
-              <Textarea
-                id="description"
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                placeholder="Optional description..."
-                rows={3}
-              />
+              <div className="flex items-center justify-between">
+                <Label htmlFor="description">Description (Markdown)</Label>
+                <div className="flex gap-1">
+                  <button
+                    type="button"
+                    onClick={() => setShowPreview(false)}
+                    className={`px-2 py-0.5 text-xs rounded ${
+                      !showPreview
+                        ? 'bg-primary text-primary-foreground'
+                        : 'bg-muted text-muted-foreground'
+                    }`}
+                  >
+                    Edit
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowPreview(true)}
+                    className={`px-2 py-0.5 text-xs rounded ${
+                      showPreview
+                        ? 'bg-primary text-primary-foreground'
+                        : 'bg-muted text-muted-foreground'
+                    }`}
+                  >
+                    Preview
+                  </button>
+                </div>
+              </div>
+              {!showPreview ? (
+                <Textarea
+                  id="description"
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  placeholder="Describe this series in markdown..."
+                  rows={8}
+                  className="font-mono text-sm"
+                />
+              ) : (
+                <div className="border rounded-lg p-3 bg-background min-h-[160px]">
+                  {description ? (
+                    <div className="prose prose-sm dark:prose-invert max-w-none">
+                      <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                        {description}
+                      </ReactMarkdown>
+                    </div>
+                  ) : (
+                    <p className="text-muted-foreground text-sm">No description yet...</p>
+                  )}
+                </div>
+              )}
             </div>
             <div className="space-y-2">
               <Label htmlFor="tags">Tags</Label>
@@ -177,10 +280,14 @@ function ConfigPanel({
             </div>
             {series.description && (
               <div>
-                <p className="text-xs text-muted-foreground uppercase tracking-wide">
+                <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">
                   Description
                 </p>
-                <p className="text-sm">{series.description}</p>
+                <div className="prose prose-sm dark:prose-invert max-w-none">
+                  <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                    {series.description}
+                  </ReactMarkdown>
+                </div>
               </div>
             )}
             {series.tags.length > 0 && (
