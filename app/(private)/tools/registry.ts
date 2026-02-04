@@ -32,6 +32,14 @@ export const toolsRegistry: ToolRegistryEntry[] = [
     cover: '/images/tools/stable-cover.jpg',
     visible: true,
   },
+  {
+    id: 'cog',
+    title: 'Cog',
+    description: 'Image generation pipeline',
+    path: '/cog',
+    cover: '/images/tools/cog-cover.jpg',
+    visible: true,
+  },
   // Example hidden tool (in development)
   // {
   //   id: 'fitness',
