@@ -1,18 +1,26 @@
-import { getJobWithStepsServer } from '@/lib/cog-server';
+import { getJobWithStepsAndInputsServer, getSeriesImagesServer } from '@/lib/cog-server';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { notFound } from 'next/navigation';
-import type { CogJobWithSteps } from '@/lib/types/cog';
+import type { CogJobWithStepsAndInputs, CogImage } from '@/lib/types/cog';
 import { JobRunner } from './job-runner';
 import { JobActions } from './job-actions';
+import { JobInputs } from './job-inputs';
 
 interface Props {
   params: Promise<{ id: string; jobId: string }>;
 }
 
-async function getJobData(jobId: string): Promise<CogJobWithSteps | null> {
+async function getJobData(
+  jobId: string,
+  seriesId: string
+): Promise<{ job: CogJobWithStepsAndInputs; seriesImages: CogImage[] } | null> {
   try {
-    return await getJobWithStepsServer(jobId);
+    const [job, seriesImages] = await Promise.all([
+      getJobWithStepsAndInputsServer(jobId),
+      getSeriesImagesServer(seriesId),
+    ]);
+    return { job, seriesImages };
   } catch {
     return null;
   }
@@ -20,12 +28,15 @@ async function getJobData(jobId: string): Promise<CogJobWithSteps | null> {
 
 export default async function JobDetailPage({ params }: Props) {
   const { id: seriesId, jobId } = await params;
-  const job = await getJobData(jobId);
+  const data = await getJobData(jobId, seriesId);
 
-  if (!job) {
+  if (!data) {
     notFound();
   }
 
+  const { job, seriesImages } = data;
+
+  const canEdit = job.status === 'draft' || job.status === 'ready';
   const canRun = job.status === 'draft' || job.status === 'ready';
   const isRunning = job.status === 'running';
   const isComplete = job.status === 'completed';
@@ -78,6 +89,14 @@ export default async function JobDetailPage({ params }: Props) {
           <JobRunner jobId={job.id} seriesId={seriesId} />
         </div>
       )}
+
+      {/* Reference Images */}
+      <JobInputs
+        jobId={job.id}
+        inputs={job.inputs}
+        seriesImages={seriesImages}
+        canEdit={canEdit}
+      />
 
       {/* Steps */}
       <section>

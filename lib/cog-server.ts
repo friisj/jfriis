@@ -9,9 +9,12 @@ import type {
   CogImage,
   CogJob,
   CogJobStep,
+  CogJobInput,
   CogSeriesWithImages,
   CogSeriesWithJobs,
   CogJobWithSteps,
+  CogJobWithStepsAndInputs,
+  CogJobInputWithImage,
 } from './types/cog';
 
 // ============================================================================
@@ -203,6 +206,29 @@ export async function getJobWithStepsServer(id: string): Promise<CogJobWithSteps
     ...jobResult.data,
     steps: stepsResult.data,
   } as CogJobWithSteps;
+}
+
+/**
+ * Get job with steps and inputs (including images) - server-side
+ */
+export async function getJobWithStepsAndInputsServer(id: string): Promise<CogJobWithStepsAndInputs> {
+  const client = await createClient();
+
+  const [jobResult, stepsResult, inputsResult] = await Promise.all([
+    (client as any).from('cog_jobs').select('*').eq('id', id).single(),
+    (client as any).from('cog_job_steps').select('*').eq('job_id', id).order('sequence', { ascending: true }),
+    (client as any).from('cog_job_inputs').select('*, image:cog_images(*)').eq('job_id', id).order('reference_id', { ascending: true }),
+  ]);
+
+  if (jobResult.error) throw jobResult.error;
+  if (stepsResult.error) throw stepsResult.error;
+  if (inputsResult.error) throw inputsResult.error;
+
+  return {
+    ...jobResult.data,
+    steps: stepsResult.data,
+    inputs: inputsResult.data as CogJobInputWithImage[],
+  } as CogJobWithStepsAndInputs;
 }
 
 // ============================================================================
