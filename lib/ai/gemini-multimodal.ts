@@ -490,3 +490,165 @@ export async function generateImageWithGemini3Pro(
 export function isGemini3ProConfigured(): boolean {
   return !!process.env.GOOGLE_GENERATIVE_AI_API_KEY;
 }
+
+// ============================================================================
+// Conversational Image Refinement
+// ============================================================================
+
+interface RefinementOptions {
+  /** The image to refine (base64 encoded) */
+  imageBase64: string;
+  /** MIME type of the image */
+  imageMimeType: string;
+  /** Natural language feedback describing desired changes */
+  feedback: string;
+  /** Optional: The original prompt that generated this image */
+  originalPrompt?: string;
+  /** Optional: Reference images to maintain consistency */
+  referenceImages?: ReferenceImage[];
+}
+
+interface RefinementResult {
+  base64: string;
+  mimeType: string;
+  metrics: StepMetrics;
+}
+
+/**
+ * Refine an existing image using conversational feedback.
+ * Uses Gemini's multimodal capabilities to understand the image
+ * and apply natural language modifications.
+ */
+export async function refineImageWithFeedback(
+  options: RefinementOptions
+): Promise<RefinementResult> {
+  const { imageBase64, imageMimeType, feedback, originalPrompt, referenceImages = [] } = options;
+
+  const apiKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY;
+  if (!apiKey) {
+    throw new Error('GOOGLE_GENERATIVE_AI_API_KEY not configured');
+  }
+
+  const startTime = Date.now();
+
+  // Build the conversation context
+  // Structure: [reference images] + [current image] + [refinement instruction]
+  const parts: Array<
+    | { inlineData: { mimeType: string; data: string } }
+    | { text: string }
+  > = [];
+
+  // Add reference images first (for consistency)
+  for (let i = 0; i < referenceImages.length; i++) {
+    const ref = referenceImages[i];
+    parts.push({
+      inlineData: {
+        mimeType: ref.mimeType,
+        data: ref.base64,
+      },
+    });
+  }
+
+  // Add the current image to refine
+  parts.push({
+    inlineData: {
+      mimeType: imageMimeType,
+      data: imageBase64,
+    },
+  });
+
+  // Build the refinement prompt
+  let refinementPrompt = '';
+
+  if (referenceImages.length > 0) {
+    const refMarkers = referenceImages.map((_, i) => `[${i + 1}]`).join(', ');
+    refinementPrompt += `Reference images: ${refMarkers}\n\n`;
+  }
+
+  if (originalPrompt) {
+    refinementPrompt += `Original prompt: "${originalPrompt}"\n\n`;
+  }
+
+  refinementPrompt += `The last image shown is the current result. Please modify it based on this feedback:\n\n"${feedback}"\n\nGenerate a refined version of the image that addresses this feedback while maintaining the overall composition and subject.`;
+
+  parts.push({ text: refinementPrompt });
+
+  const requestBody = {
+    contents: [
+      {
+        parts,
+      },
+    ],
+    generationConfig: {
+      responseModalities: ['IMAGE', 'TEXT'],
+    },
+  };
+
+  const endpoint = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp-image-generation:generateContent';
+
+  console.log('Gemini refinement request:', {
+    endpoint,
+    referenceImageCount: referenceImages.length,
+    currentImageSize: Math.round(imageBase64.length * 0.75 / 1024) + 'KB',
+    feedbackPreview: feedback.slice(0, 100),
+    hasOriginalPrompt: !!originalPrompt,
+  });
+
+  const response = await fetch(endpoint, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-goog-api-key': apiKey,
+    },
+    body: JSON.stringify(requestBody),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error('Gemini refinement error:', {
+      status: response.status,
+      statusText: response.statusText,
+      body: errorText.slice(0, 500),
+    });
+    throw new Error(
+      `Gemini refinement API error: ${response.status} - ${errorText.slice(0, 200)}`
+    );
+  }
+
+  const result = await response.json();
+
+  // Extract image from response
+  const candidate = result.candidates?.[0];
+  if (!candidate) {
+    throw new Error('No candidates returned from Gemini refinement');
+  }
+
+  const contentParts = candidate.content?.parts;
+  if (!contentParts || !Array.isArray(contentParts)) {
+    throw new Error('No content parts in Gemini refinement response');
+  }
+
+  const imagePart = contentParts.find(
+    (part: { inlineData?: { mimeType: string; data: string } }) =>
+      part.inlineData?.mimeType?.startsWith('image/')
+  );
+
+  if (!imagePart?.inlineData) {
+    console.error('Gemini refinement response structure:', {
+      candidateKeys: Object.keys(candidate),
+      contentKeys: candidate.content ? Object.keys(candidate.content) : 'no content',
+      partsCount: contentParts.length,
+      partTypes: contentParts.map((p: Record<string, unknown>) => Object.keys(p)),
+    });
+    throw new Error('No image data in Gemini refinement response');
+  }
+
+  const durationMs = Date.now() - startTime;
+  console.log(`Refinement complete: ${durationMs}ms`);
+
+  return {
+    base64: imagePart.inlineData.data,
+    mimeType: imagePart.inlineData.mimeType,
+    metrics: { durationMs },
+  };
+}

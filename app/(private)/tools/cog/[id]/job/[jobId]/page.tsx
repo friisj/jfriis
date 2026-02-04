@@ -8,6 +8,7 @@ import { JobActions } from './job-actions';
 import { JobInputs } from './job-inputs';
 import { EditableStepPrompt } from './editable-step-prompt';
 import { ThinkingChainViewer } from './thinking-chain-viewer';
+import { RefineImageDialog } from './refine-image-dialog';
 
 interface Props {
   params: Promise<{ id: string; jobId: string }>;
@@ -252,11 +253,44 @@ export default async function JobDetailPage({ params }: Props) {
                     ) : (
                       <div className="text-sm">
                         {typeof step.output === 'object' && 'imageUrl' in step.output ? (
-                          <img
-                            src={String(step.output.imageUrl)}
-                            alt="Generated"
-                            className="max-w-full h-auto rounded"
-                          />
+                          (() => {
+                            const output = step.output as Record<string, unknown>;
+                            const refinementHistory = output.refinementHistory as
+                              | Array<{
+                                  feedback: string;
+                                  imageUrl: string;
+                                  storagePath: string;
+                                  durationMs: number;
+                                  timestamp: string;
+                                }>
+                              | undefined;
+                            const refinementCount = refinementHistory?.length ?? 0;
+
+                            return (
+                              <div className="space-y-3">
+                                <img
+                                  src={String(output.imageUrl)}
+                                  alt="Generated"
+                                  className="max-w-full h-auto rounded"
+                                />
+                                {/* Refine button - only for completed image_gen steps */}
+                                {step.status === 'completed' && (
+                                  <div className="flex items-center gap-2">
+                                    <RefineImageDialog
+                                      stepId={step.id}
+                                      currentImageUrl={String(output.imageUrl)}
+                                      refinementHistory={refinementHistory}
+                                    />
+                                    {refinementCount > 0 && (
+                                      <span className="text-xs text-muted-foreground">
+                                        {refinementCount} refinement{refinementCount !== 1 ? 's' : ''}
+                                      </span>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })()
                         ) : (
                           <pre className="text-xs overflow-auto">
                             {JSON.stringify(step.output, null, 2)}
