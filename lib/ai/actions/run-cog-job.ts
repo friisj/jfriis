@@ -126,9 +126,9 @@ export async function runCogJob(input: RunJobInput): Promise<void> {
               storage_path: storagePath,
               filename,
               source: 'generated',
-              generation_prompt: promptToUse,
-              generation_model: step.model,
+              prompt: promptToUse,
               metadata: {
+                generation_model: step.model,
                 step_id: step.id,
                 step_sequence: step.sequence,
               },
