@@ -223,7 +223,15 @@ export async function runCogJob(input: RunJobInput): Promise<void> {
           }
 
           // Generate image using the selected model
-          let imageResult: { base64: string; mimeType: string };
+          let imageResult: {
+            base64: string;
+            mimeType: string;
+            thinkingChain?: {
+              originalPrompt: string;
+              referenceAnalysis?: string[];
+              refinedPrompt?: string;
+            };
+          };
           let modelId: string;
           let actualModelUsed: ResolvedImageModel = selectedModel;
 
@@ -346,7 +354,7 @@ export async function runCogJob(input: RunJobInput): Promise<void> {
             throw new Error(`Failed to create image record: ${imageError.message}`);
           }
 
-          // Update step with output
+          // Update step with output (include thinking chain if available)
           await (supabase as any)
             .from('cog_job_steps')
             .update({
@@ -357,6 +365,10 @@ export async function runCogJob(input: RunJobInput): Promise<void> {
                 imageUrl,
                 imageId: imageRecord.id,
                 storagePath,
+                // Include thinking chain for visualization
+                ...(imageResult.thinkingChain && {
+                  thinkingChain: imageResult.thinkingChain,
+                }),
               },
               completed_at: new Date().toISOString(),
             })

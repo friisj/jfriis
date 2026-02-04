@@ -40,9 +40,16 @@ interface GeminiMultimodalOptions {
   shootParams?: ShootParams;
 }
 
+interface ThinkingChain {
+  referenceAnalysis?: string[];  // Vision descriptions of each reference image
+  refinedPrompt?: string;        // The prompt after LLM reasoning
+  originalPrompt: string;        // The original input prompt
+}
+
 interface GeneratedImage {
   base64: string;
   mimeType: string;
+  thinkingChain?: ThinkingChain;
 }
 
 /**
@@ -234,6 +241,9 @@ export async function generateImageWithGemini3Pro(
     throw new Error('GOOGLE_GENERATIVE_AI_API_KEY not configured');
   }
 
+  // Track thinking chain for visualization
+  let thinkingChain: ThinkingChain | undefined;
+
   // If thinking is enabled, use vision + reasoning pipeline
   let finalPrompt = prompt;
   if (thinking) {
@@ -254,6 +264,13 @@ export async function generateImageWithGemini3Pro(
       shootParams,
       apiKey
     );
+
+    // Capture the thinking chain for visualization
+    thinkingChain = {
+      originalPrompt: prompt,
+      referenceAnalysis: referenceDescriptions.length > 0 ? referenceDescriptions : undefined,
+      refinedPrompt: finalPrompt,
+    };
   } else {
     // Without thinking, just add reference markers if needed
     if (referenceImages.length > 0) {
@@ -376,6 +393,7 @@ export async function generateImageWithGemini3Pro(
   return {
     base64: imagePart.inlineData.data,
     mimeType: imagePart.inlineData.mimeType,
+    thinkingChain,
   };
 }
 

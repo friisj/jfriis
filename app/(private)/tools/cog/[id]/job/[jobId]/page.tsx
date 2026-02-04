@@ -7,6 +7,7 @@ import { JobRunner } from './job-runner';
 import { JobActions } from './job-actions';
 import { JobInputs } from './job-inputs';
 import { EditableStepPrompt } from './editable-step-prompt';
+import { ThinkingChainViewer } from './thinking-chain-viewer';
 
 interface Props {
   params: Promise<{ id: string; jobId: string }>;
@@ -225,29 +226,45 @@ export default async function JobDetailPage({ params }: Props) {
 
               {/* Step output */}
               {step.output && (
-                <div className="mt-3 p-3 bg-background rounded border">
-                  <p className="text-xs text-muted-foreground mb-1">Output:</p>
-                  {step.step_type === 'llm' ? (
-                    <p className="text-sm whitespace-pre-wrap">
-                      {typeof step.output === 'object' && 'text' in step.output
-                        ? String(step.output.text)
-                        : JSON.stringify(step.output)}
-                    </p>
-                  ) : (
-                    <div className="text-sm">
-                      {typeof step.output === 'object' && 'imageUrl' in step.output ? (
-                        <img
-                          src={String(step.output.imageUrl)}
-                          alt="Generated"
-                          className="max-w-full h-auto rounded"
-                        />
-                      ) : (
-                        <pre className="text-xs overflow-auto">
-                          {JSON.stringify(step.output, null, 2)}
-                        </pre>
-                      )}
-                    </div>
-                  )}
+                <div className="mt-3">
+                  {/* Thinking chain visualization (if present) */}
+                  {step.step_type === 'image_gen' &&
+                    step.output &&
+                    'thinkingChain' in step.output &&
+                    step.output.thinkingChain != null && (
+                      <ThinkingChainViewer
+                        thinkingChain={step.output.thinkingChain as {
+                          originalPrompt: string;
+                          referenceAnalysis?: string[];
+                          refinedPrompt?: string;
+                        }}
+                      />
+                    )}
+
+                  <div className="p-3 bg-background rounded border mt-2">
+                    <p className="text-xs text-muted-foreground mb-1">Output:</p>
+                    {step.step_type === 'llm' ? (
+                      <p className="text-sm whitespace-pre-wrap">
+                        {typeof step.output === 'object' && 'text' in step.output
+                          ? String(step.output.text)
+                          : JSON.stringify(step.output)}
+                      </p>
+                    ) : (
+                      <div className="text-sm">
+                        {typeof step.output === 'object' && 'imageUrl' in step.output ? (
+                          <img
+                            src={String(step.output.imageUrl)}
+                            alt="Generated"
+                            className="max-w-full h-auto rounded"
+                          />
+                        ) : (
+                          <pre className="text-xs overflow-auto">
+                            {JSON.stringify(step.output, null, 2)}
+                          </pre>
+                        )}
+                      </div>
+                    )}
+                  </div>
                 </div>
               )}
 
