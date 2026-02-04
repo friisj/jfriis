@@ -191,6 +191,42 @@ export async function deleteJob(id: string): Promise<void> {
   if (error) throw error;
 }
 
+/**
+ * Retry a failed job - resets job and all steps to pending state
+ */
+export async function retryJob(id: string): Promise<CogJob> {
+  // Reset the job status
+  const { data: job, error: jobError } = await (supabase as any)
+    .from('cog_jobs')
+    .update({
+      status: 'ready',
+      error_message: null,
+      started_at: null,
+      completed_at: null,
+    })
+    .eq('id', id)
+    .select()
+    .single();
+
+  if (jobError) throw jobError;
+
+  // Reset all steps to pending
+  const { error: stepsError } = await (supabase as any)
+    .from('cog_job_steps')
+    .update({
+      status: 'pending',
+      output: null,
+      error_message: null,
+      started_at: null,
+      completed_at: null,
+    })
+    .eq('job_id', id);
+
+  if (stepsError) throw stepsError;
+
+  return job as CogJob;
+}
+
 // ============================================================================
 // Job Step Operations (Client)
 // ============================================================================

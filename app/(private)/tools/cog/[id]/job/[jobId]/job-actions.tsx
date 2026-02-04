@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
-import { deleteJob } from '@/lib/cog';
+import { deleteJob, retryJob } from '@/lib/cog';
 
 interface JobActionsProps {
   jobId: string;
@@ -14,9 +14,11 @@ interface JobActionsProps {
 export function JobActions({ jobId, seriesId, jobStatus }: JobActionsProps) {
   const router = useRouter();
   const [deleting, setDeleting] = useState(false);
+  const [retrying, setRetrying] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
 
   const canDelete = jobStatus !== 'running';
+  const canRetry = jobStatus === 'failed';
 
   async function handleDelete() {
     setDeleting(true);
@@ -27,6 +29,18 @@ export function JobActions({ jobId, seriesId, jobStatus }: JobActionsProps) {
       console.error('Failed to delete job:', error);
       setDeleting(false);
       setShowConfirm(false);
+    }
+  }
+
+  async function handleRetry() {
+    setRetrying(true);
+    try {
+      await retryJob(jobId);
+      router.refresh();
+    } catch (error) {
+      console.error('Failed to retry job:', error);
+    } finally {
+      setRetrying(false);
     }
   }
 
@@ -55,14 +69,26 @@ export function JobActions({ jobId, seriesId, jobStatus }: JobActionsProps) {
   }
 
   return (
-    <Button
-      variant="ghost"
-      size="sm"
-      onClick={() => setShowConfirm(true)}
-      disabled={!canDelete}
-      className="text-destructive hover:text-destructive hover:bg-destructive/10"
-    >
-      Delete Job
-    </Button>
+    <div className="flex items-center gap-2">
+      {canRetry && (
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleRetry}
+          disabled={retrying}
+        >
+          {retrying ? 'Retrying...' : 'Retry Job'}
+        </Button>
+      )}
+      <Button
+        variant="ghost"
+        size="sm"
+        onClick={() => setShowConfirm(true)}
+        disabled={!canDelete}
+        className="text-destructive hover:text-destructive hover:bg-destructive/10"
+      >
+        Delete Job
+      </Button>
+    </div>
   );
 }
