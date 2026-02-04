@@ -69,6 +69,18 @@ export function ImageGallery({ images: initialImages, seriesId }: ImageGalleryPr
     }
   }, [selectedIndex, images, router]);
 
+  const handleDeleteFromGrid = useCallback(async (imageId: string) => {
+    if (!confirm('Delete this image?')) return;
+
+    try {
+      await deleteImage(imageId);
+      setImages(images.filter((img) => img.id !== imageId));
+      router.refresh();
+    } catch (error) {
+      console.error('Failed to delete image:', error);
+    }
+  }, [images, router]);
+
   // Keyboard navigation
   useEffect(() => {
     if (!isOpen) return;
@@ -130,25 +142,54 @@ export function ImageGallery({ images: initialImages, seriesId }: ImageGalleryPr
       {/* Thumbnail Grid */}
       <div className="grid gap-4 grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
         {images.map((image, index) => (
-          <button
+          <div
             key={image.id}
-            onClick={() => openImage(index)}
-            className="border rounded-lg overflow-hidden hover:ring-2 ring-primary transition-all text-left"
+            className="group relative border rounded-lg overflow-hidden hover:ring-2 ring-primary transition-all"
           >
-            <div className="aspect-square bg-muted relative">
-              <img
-                src={getCogImageUrl(image.storage_path)}
-                alt={image.filename}
-                className="w-full h-full object-cover"
-              />
-            </div>
-            <div className="p-2 text-xs">
-              <p className="truncate">{image.filename}</p>
-              <p className="text-muted-foreground">
-                {image.source === 'generated' ? 'Generated' : 'Uploaded'}
-              </p>
-            </div>
-          </button>
+            <button
+              onClick={() => openImage(index)}
+              className="w-full text-left"
+            >
+              <div className="aspect-square bg-muted relative">
+                <img
+                  src={getCogImageUrl(image.storage_path)}
+                  alt={image.filename}
+                  className="w-full h-full object-cover"
+                />
+              </div>
+              <div className="p-2 text-xs">
+                <p className="truncate">{image.filename}</p>
+                <p className="text-muted-foreground">
+                  {image.source === 'generated' ? 'Generated' : 'Uploaded'}
+                </p>
+              </div>
+            </button>
+            {/* Delete button on hover */}
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                handleDeleteFromGrid(image.id);
+              }}
+              className="absolute top-2 right-2 p-1.5 rounded-full bg-black/60 text-white opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600"
+              aria-label="Delete image"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M3 6h18" />
+                <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
+                <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
+              </svg>
+            </button>
+          </div>
         ))}
       </div>
 

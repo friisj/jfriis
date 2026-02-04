@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { notFound } from 'next/navigation';
 import type { CogSeriesWithImages, CogJob, CogSeries } from '@/lib/types/cog';
 import { ImageGallery } from './image-gallery';
+import { JobsList } from './jobs-list';
 
 interface Props {
   params: Promise<{ id: string }>;
@@ -112,45 +113,7 @@ export default async function SeriesDetailPage({ params }: Props) {
             <Link href={`/tools/cog/${id}/job/new`}>New Job</Link>
           </Button>
         </div>
-        {jobs.length === 0 ? (
-          <div className="text-center py-8 border rounded-lg bg-muted/50">
-            <p className="text-muted-foreground">No jobs yet</p>
-          </div>
-        ) : (
-          <div className="space-y-2">
-            {jobs.map((job) => (
-              <Link
-                key={job.id}
-                href={`/tools/cog/${id}/job/${job.id}`}
-                className="block border rounded-lg p-4 hover:bg-muted/50 transition-colors"
-              >
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className="font-medium">
-                      {job.title || 'Untitled Job'}
-                    </h3>
-                    <p className="text-sm text-muted-foreground line-clamp-1">
-                      {job.base_prompt}
-                    </p>
-                  </div>
-                  <span
-                    className={`text-xs px-2 py-1 rounded-full ${
-                      job.status === 'completed'
-                        ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-                        : job.status === 'running'
-                          ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
-                          : job.status === 'failed'
-                            ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
-                            : 'bg-muted'
-                    }`}
-                  >
-                    {job.status}
-                  </span>
-                </div>
-              </Link>
-            ))}
-          </div>
-        )}
+        <JobsList jobs={jobs} seriesId={id} />
       </section>
 
       {/* Images */}
