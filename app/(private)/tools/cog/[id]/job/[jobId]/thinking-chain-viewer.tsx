@@ -1,16 +1,60 @@
 'use client';
 
 import { useState } from 'react';
-import { ChevronDown, ChevronRight, Eye, Brain, Sparkles } from 'lucide-react';
+import { ChevronDown, ChevronRight, Eye, Brain, Sparkles, Clock, Zap } from 'lucide-react';
+
+interface StepMetrics {
+  durationMs: number;
+  tokensIn?: number;
+  tokensOut?: number;
+}
 
 interface ThinkingChain {
   originalPrompt: string;
   referenceAnalysis?: string[];
   refinedPrompt?: string;
+  metrics?: {
+    vision?: StepMetrics;
+    reasoning?: StepMetrics;
+    generation?: StepMetrics;
+    total?: StepMetrics;
+  };
 }
 
 interface ThinkingChainViewerProps {
   thinkingChain: ThinkingChain;
+}
+
+function formatDuration(ms: number): string {
+  if (ms < 1000) return `${ms}ms`;
+  return `${(ms / 1000).toFixed(1)}s`;
+}
+
+function formatTokens(tokensIn?: number, tokensOut?: number): string | null {
+  if (!tokensIn && !tokensOut) return null;
+  const parts = [];
+  if (tokensIn) parts.push(`${tokensIn} in`);
+  if (tokensOut) parts.push(`${tokensOut} out`);
+  return parts.join(' / ');
+}
+
+function MetricsBadge({ metrics, label }: { metrics?: StepMetrics; label?: string }) {
+  if (!metrics) return null;
+  const tokens = formatTokens(metrics.tokensIn, metrics.tokensOut);
+
+  return (
+    <span className="inline-flex items-center gap-1.5 text-[10px] text-muted-foreground bg-muted/50 px-1.5 py-0.5 rounded">
+      <Clock className="w-2.5 h-2.5" />
+      {formatDuration(metrics.durationMs)}
+      {tokens && (
+        <>
+          <span className="text-muted-foreground/50">|</span>
+          <Zap className="w-2.5 h-2.5" />
+          {tokens}
+        </>
+      )}
+    </span>
+  );
 }
 
 export function ThinkingChainViewer({ thinkingChain }: ThinkingChainViewerProps) {
@@ -25,6 +69,8 @@ export function ThinkingChainViewer({ thinkingChain }: ThinkingChainViewerProps)
     );
   };
 
+  const totalMetrics = thinkingChain.metrics?.total;
+
   return (
     <div className="mt-3 border rounded-lg overflow-hidden">
       <button
@@ -34,6 +80,11 @@ export function ThinkingChainViewer({ thinkingChain }: ThinkingChainViewerProps)
         <span className="flex items-center gap-2 font-medium text-purple-800 dark:text-purple-200">
           <Brain className="w-4 h-4" />
           Thinking Chain
+          {totalMetrics && (
+            <span className="text-[10px] font-normal text-purple-600 dark:text-purple-400">
+              ({formatDuration(totalMetrics.durationMs)} total)
+            </span>
+          )}
         </span>
         {expanded ? (
           <ChevronDown className="w-4 h-4 text-purple-600" />
@@ -63,6 +114,7 @@ export function ThinkingChainViewer({ thinkingChain }: ThinkingChainViewerProps)
                 <Eye className="w-3 h-3" />
                 Vision Analysis
                 <span className="text-muted-foreground">({thinkingChain.referenceAnalysis!.length} refs)</span>
+                <MetricsBadge metrics={thinkingChain.metrics?.vision} />
               </div>
               <div className="ml-7 space-y-2">
                 {thinkingChain.referenceAnalysis!.map((analysis, index) => (
@@ -98,6 +150,7 @@ export function ThinkingChainViewer({ thinkingChain }: ThinkingChainViewerProps)
                 </span>
                 <Sparkles className="w-3 h-3" />
                 Refined Prompt
+                <MetricsBadge metrics={thinkingChain.metrics?.reasoning} />
               </div>
               <div className="ml-7 p-2 bg-green-50 dark:bg-green-950/30 rounded text-sm border border-green-200 dark:border-green-800">
                 {thinkingChain.refinedPrompt}
@@ -105,11 +158,16 @@ export function ThinkingChainViewer({ thinkingChain }: ThinkingChainViewerProps)
             </div>
           )}
 
-          {/* Arrow to output */}
+          {/* Arrow to output with generation metrics */}
           <div className="flex items-center justify-center text-muted-foreground">
             <div className="flex items-center gap-2 text-xs">
               <div className="w-8 h-px bg-muted-foreground/30" />
-              <span>generates</span>
+              <span className="flex items-center gap-1.5">
+                generates
+                {thinkingChain.metrics?.generation && (
+                  <MetricsBadge metrics={thinkingChain.metrics.generation} />
+                )}
+              </span>
               <div className="w-8 h-px bg-muted-foreground/30" />
             </div>
           </div>

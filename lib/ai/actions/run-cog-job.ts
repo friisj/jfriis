@@ -230,6 +230,12 @@ export async function runCogJob(input: RunJobInput): Promise<void> {
               originalPrompt: string;
               referenceAnalysis?: string[];
               refinedPrompt?: string;
+              metrics?: {
+                vision?: { durationMs: number; tokensIn?: number; tokensOut?: number };
+                reasoning?: { durationMs: number; tokensIn?: number; tokensOut?: number };
+                generation?: { durationMs: number };
+                total?: { durationMs: number };
+              };
             };
           };
           let modelId: string;

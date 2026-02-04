@@ -40,16 +40,34 @@ interface GeminiMultimodalOptions {
   shootParams?: ShootParams;
 }
 
+interface StepMetrics {
+  durationMs: number;
+  tokensIn?: number;
+  tokensOut?: number;
+}
+
 interface ThinkingChain {
   referenceAnalysis?: string[];  // Vision descriptions of each reference image
   refinedPrompt?: string;        // The prompt after LLM reasoning
   originalPrompt: string;        // The original input prompt
+  // Metrics for each step
+  metrics?: {
+    vision?: StepMetrics;
+    reasoning?: StepMetrics;
+    generation?: StepMetrics;
+    total?: StepMetrics;
+  };
 }
 
 interface GeneratedImage {
   base64: string;
   mimeType: string;
   thinkingChain?: ThinkingChain;
+}
+
+interface VisionAnalysisResult {
+  descriptions: string[];
+  metrics: StepMetrics;
 }
 
 /**
@@ -59,8 +77,11 @@ interface GeneratedImage {
 async function analyzeReferenceImages(
   referenceImages: ReferenceImage[],
   apiKey: string
-): Promise<string[]> {
+): Promise<VisionAnalysisResult> {
   const descriptions: string[] = [];
+  const startTime = Date.now();
+  let totalTokensIn = 0;
+  let totalTokensOut = 0;
 
   for (let i = 0; i < referenceImages.length; i++) {
     const img = referenceImages[i];
@@ -118,6 +139,13 @@ Provide a concise but detailed description that would help recreate similar visu
       const result = await response.json();
       const text = result.candidates?.[0]?.content?.parts?.[0]?.text;
 
+      // Extract token usage from response
+      const usageMetadata = result.usageMetadata;
+      if (usageMetadata) {
+        totalTokensIn += usageMetadata.promptTokenCount || 0;
+        totalTokensOut += usageMetadata.candidatesTokenCount || 0;
+      }
+
       if (text) {
         descriptions.push(`[Reference Image ${i + 1}]\n${text}`);
         console.log(`Vision analysis for image ${i + 1} complete (${text.length} chars)`);
@@ -130,7 +158,19 @@ Provide a concise but detailed description that would help recreate similar visu
     }
   }
 
-  return descriptions;
+  return {
+    descriptions,
+    metrics: {
+      durationMs: Date.now() - startTime,
+      tokensIn: totalTokensIn,
+      tokensOut: totalTokensOut,
+    },
+  };
+}
+
+interface ReasoningResult {
+  refinedPrompt: string;
+  metrics: StepMetrics;
 }
 
 /**
@@ -142,7 +182,9 @@ async function refinePromptWithReasoning(
   referenceDescriptions: string[],
   shootParams: ShootParams | undefined,
   apiKey: string
-): Promise<string> {
+): Promise<ReasoningResult> {
+  const startTime = Date.now();
+
   const shootContext = shootParams ? `
 Shoot Parameters:
 - Scene: ${shootParams.scene || 'Not specified'}
@@ -205,25 +247,41 @@ Output ONLY the refined prompt, nothing else.`;
 
     if (!response.ok) {
       console.error('Prompt refinement failed:', await response.text());
-      return originalPrompt;
+      return {
+        refinedPrompt: originalPrompt,
+        metrics: { durationMs: Date.now() - startTime },
+      };
     }
 
     const result = await response.json();
     const refinedPrompt = result.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
 
+    // Extract token usage
+    const usageMetadata = result.usageMetadata;
+    const metrics: StepMetrics = {
+      durationMs: Date.now() - startTime,
+      tokensIn: usageMetadata?.promptTokenCount,
+      tokensOut: usageMetadata?.candidatesTokenCount,
+    };
+
     if (refinedPrompt) {
       console.log('Prompt refinement complete:', {
         originalLength: originalPrompt.length,
         refinedLength: refinedPrompt.length,
-        preview: refinedPrompt.slice(0, 150) + '...',
+        durationMs: metrics.durationMs,
+        tokensIn: metrics.tokensIn,
+        tokensOut: metrics.tokensOut,
       });
-      return refinedPrompt;
+      return { refinedPrompt, metrics };
     }
 
-    return originalPrompt;
+    return { refinedPrompt: originalPrompt, metrics };
   } catch (error) {
     console.error('Prompt refinement error:', error);
-    return originalPrompt;
+    return {
+      refinedPrompt: originalPrompt,
+      metrics: { durationMs: Date.now() - startTime },
+    };
   }
 }
 
@@ -243,33 +301,47 @@ export async function generateImageWithGemini3Pro(
 
   // Track thinking chain for visualization
   let thinkingChain: ThinkingChain | undefined;
+  const totalStartTime = Date.now();
 
   // If thinking is enabled, use vision + reasoning pipeline
   let finalPrompt = prompt;
   if (thinking) {
     console.log('Thinking mode enabled - running vision + reasoning pipeline');
 
+    let visionMetrics: StepMetrics | undefined;
+    let reasoningMetrics: StepMetrics | undefined;
+
     // Step 1: Analyze reference images with vision (if any)
     let referenceDescriptions: string[] = [];
     if (referenceImages.length > 0) {
       console.log(`Analyzing ${referenceImages.length} reference images...`);
-      referenceDescriptions = await analyzeReferenceImages(referenceImages, apiKey);
+      const visionResult = await analyzeReferenceImages(referenceImages, apiKey);
+      referenceDescriptions = visionResult.descriptions;
+      visionMetrics = visionResult.metrics;
+      console.log(`Vision analysis complete: ${visionMetrics.durationMs}ms, ${visionMetrics.tokensIn} in / ${visionMetrics.tokensOut} out`);
     }
 
     // Step 2: Refine prompt with LLM reasoning
     console.log('Refining prompt with LLM reasoning...');
-    finalPrompt = await refinePromptWithReasoning(
+    const reasoningResult = await refinePromptWithReasoning(
       prompt,
       referenceDescriptions,
       shootParams,
       apiKey
     );
+    finalPrompt = reasoningResult.refinedPrompt;
+    reasoningMetrics = reasoningResult.metrics;
+    console.log(`Reasoning complete: ${reasoningMetrics.durationMs}ms, ${reasoningMetrics.tokensIn} in / ${reasoningMetrics.tokensOut} out`);
 
     // Capture the thinking chain for visualization
     thinkingChain = {
       originalPrompt: prompt,
       referenceAnalysis: referenceDescriptions.length > 0 ? referenceDescriptions : undefined,
       refinedPrompt: finalPrompt,
+      metrics: {
+        vision: visionMetrics,
+        reasoning: reasoningMetrics,
+      },
     };
   } else {
     // Without thinking, just add reference markers if needed
@@ -334,6 +406,7 @@ export async function generateImageWithGemini3Pro(
     thinking: thinking ? 'enabled (vision + reasoning)' : 'disabled',
   });
 
+  const generationStartTime = Date.now();
   const response = await fetch(endpoint, {
     method: 'POST',
     headers: {
@@ -388,6 +461,20 @@ export async function generateImageWithGemini3Pro(
       partTypes: contentParts.map((p: Record<string, unknown>) => Object.keys(p)),
     });
     throw new Error('No image data in Gemini 3 Pro Image response');
+  }
+
+  // Calculate generation timing
+  const generationDurationMs = Date.now() - generationStartTime;
+  const totalDurationMs = Date.now() - totalStartTime;
+
+  // Add generation and total metrics to thinking chain
+  if (thinkingChain) {
+    thinkingChain.metrics = {
+      ...thinkingChain.metrics,
+      generation: { durationMs: generationDurationMs },
+      total: { durationMs: totalDurationMs },
+    };
+    console.log(`Generation complete: ${generationDurationMs}ms. Total pipeline: ${totalDurationMs}ms`);
   }
 
   return {
