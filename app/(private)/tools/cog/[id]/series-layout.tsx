@@ -1,7 +1,12 @@
 'use client';
 
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   ResizablePanelGroup,
@@ -10,6 +15,7 @@ import {
 } from '@/components/ui/resizable';
 import { ImageGallery } from './image-gallery';
 import { JobsList } from './jobs-list';
+import { updateSeries } from '@/lib/cog';
 import type { CogSeriesWithImages, CogJob, CogSeries } from '@/lib/types/cog';
 
 interface SeriesLayoutProps {
@@ -28,49 +34,155 @@ function ConfigPanel({
   childSeries: CogSeries[];
   seriesId: string;
 }) {
+  const router = useRouter();
+  const [isEditing, setIsEditing] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // Form state
+  const [title, setTitle] = useState(series.title);
+  const [description, setDescription] = useState(series.description || '');
+  const [tagsInput, setTagsInput] = useState(series.tags.join(', '));
+
+  function handleCancel() {
+    setTitle(series.title);
+    setDescription(series.description || '');
+    setTagsInput(series.tags.join(', '));
+    setError(null);
+    setIsEditing(false);
+  }
+
+  async function handleSave() {
+    if (!title.trim()) {
+      setError('Title is required');
+      return;
+    }
+
+    setSaving(true);
+    setError(null);
+
+    try {
+      const tags = tagsInput
+        .split(',')
+        .map((t) => t.trim())
+        .filter(Boolean);
+
+      await updateSeries(seriesId, {
+        title: title.trim(),
+        description: description.trim() || null,
+        tags,
+      });
+
+      setIsEditing(false);
+      router.refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to save');
+    } finally {
+      setSaving(false);
+    }
+  }
+
   return (
     <div className="space-y-6">
       {/* Series Info */}
       <div>
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-semibold">Series</h2>
-          <Button size="sm" variant="outline" asChild>
-            <Link href={`/tools/cog/${seriesId}/edit`}>Edit</Link>
-          </Button>
+          {!isEditing && (
+            <Button size="sm" variant="outline" onClick={() => setIsEditing(true)}>
+              Edit
+            </Button>
+          )}
         </div>
-        <div className="space-y-3">
-          <div>
-            <p className="text-xs text-muted-foreground uppercase tracking-wide">
-              Title
-            </p>
-            <p className="font-medium">{series.title}</p>
+
+        {error && (
+          <div className="p-3 mb-4 bg-destructive/10 text-destructive text-sm rounded-lg">
+            {error}
           </div>
-          {series.description && (
+        )}
+
+        {isEditing ? (
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="title">Title</Label>
+              <Input
+                id="title"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                placeholder="Series title"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="description">Description</Label>
+              <Textarea
+                id="description"
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                placeholder="Optional description..."
+                rows={3}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="tags">Tags</Label>
+              <Input
+                id="tags"
+                value={tagsInput}
+                onChange={(e) => setTagsInput(e.target.value)}
+                placeholder="tag1, tag2, tag3"
+              />
+              <p className="text-xs text-muted-foreground">
+                Comma-separated list of tags
+              </p>
+            </div>
+            <div className="flex gap-2 pt-2">
+              <Button size="sm" onClick={handleSave} disabled={saving}>
+                {saving ? 'Saving...' : 'Save'}
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={handleCancel}
+                disabled={saving}
+              >
+                Cancel
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-3">
             <div>
               <p className="text-xs text-muted-foreground uppercase tracking-wide">
-                Description
+                Title
               </p>
-              <p className="text-sm">{series.description}</p>
+              <p className="font-medium">{series.title}</p>
             </div>
-          )}
-          {series.tags.length > 0 && (
-            <div>
-              <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">
-                Tags
-              </p>
-              <div className="flex flex-wrap gap-1">
-                {series.tags.map((tag) => (
-                  <span
-                    key={tag}
-                    className="text-xs px-2 py-0.5 bg-muted rounded-full"
-                  >
-                    {tag}
-                  </span>
-                ))}
+            {series.description && (
+              <div>
+                <p className="text-xs text-muted-foreground uppercase tracking-wide">
+                  Description
+                </p>
+                <p className="text-sm">{series.description}</p>
               </div>
-            </div>
-          )}
-        </div>
+            )}
+            {series.tags.length > 0 && (
+              <div>
+                <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">
+                  Tags
+                </p>
+                <div className="flex flex-wrap gap-1">
+                  {series.tags.map((tag) => (
+                    <span
+                      key={tag}
+                      className="text-xs px-2 py-0.5 bg-muted rounded-full"
+                    >
+                      {tag}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Child Series */}
