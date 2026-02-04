@@ -1,4 +1,4 @@
-import { getSeriesServer } from '@/lib/cog';
+import { getSeriesServer } from '@/lib/cog-server';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 
