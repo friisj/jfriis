@@ -10,6 +10,8 @@ export type CogJobStepType = 'llm' | 'image_gen';
 
 export type CogImageSource = 'upload' | 'generated';
 
+export type CogImageModel = 'auto' | 'imagen-4' | 'imagen-3-capability' | 'gemini-3-pro-image';
+
 // Database row types
 export interface CogSeries {
   id: string;
@@ -37,12 +39,31 @@ export interface CogImage {
   created_at: string;
 }
 
+// Shoot parameters for "photo shoot" style job creation
+export interface ShootParams {
+  scene: string | null;
+  art_direction: string | null;
+  styling: string | null;
+  camera: string | null;
+  framing: string | null;
+  lighting: string | null;
+}
+
 export interface CogJob {
   id: string;
   series_id: string;
   title: string | null;
   base_prompt: string;
   negative_prompt: string | null;
+  // Shoot parameters
+  scene: string | null;
+  art_direction: string | null;
+  styling: string | null;
+  camera: string | null;
+  framing: string | null;
+  lighting: string | null;
+  // Image generation settings
+  image_model: CogImageModel;
   status: CogJobStatus;
   created_at: string;
   updated_at: string;
@@ -104,6 +125,15 @@ export interface CogJobInsert {
   title?: string | null;
   base_prompt: string;
   negative_prompt?: string | null;
+  // Shoot parameters
+  scene?: string | null;
+  art_direction?: string | null;
+  styling?: string | null;
+  camera?: string | null;
+  framing?: string | null;
+  lighting?: string | null;
+  // Image generation settings
+  image_model?: CogImageModel;
   status?: CogJobStatus;
 }
 

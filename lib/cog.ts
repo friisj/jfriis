@@ -195,6 +195,15 @@ export async function createJob(input: CogJobInsert): Promise<CogJob> {
       title: input.title || null,
       base_prompt: input.base_prompt,
       negative_prompt: input.negative_prompt || null,
+      // Shoot parameters
+      scene: input.scene || null,
+      art_direction: input.art_direction || null,
+      styling: input.styling || null,
+      camera: input.camera || null,
+      framing: input.framing || null,
+      lighting: input.lighting || null,
+      // Image generation settings
+      image_model: input.image_model || 'auto',
       status: input.status || 'draft',
     })
     .select()
@@ -396,4 +405,102 @@ export async function deleteJobInput(id: string): Promise<void> {
     .eq('id', id);
 
   if (error) throw error;
+}
+
+// ============================================================================
+// Job Duplication
+// ============================================================================
+
+/**
+ * Duplicate an existing job - creates a copy with same settings but fresh state
+ * Copies: job fields, steps (prompts), and inputs (reference images)
+ * Resets: status to 'draft', clears outputs/errors
+ */
+export async function duplicateJob(jobId: string): Promise<CogJob> {
+  // Fetch the original job
+  const { data: originalJob, error: jobError } = await (supabase as any)
+    .from('cog_jobs')
+    .select('*')
+    .eq('id', jobId)
+    .single();
+
+  if (jobError) throw jobError;
+
+  // Fetch original steps
+  const { data: originalSteps, error: stepsError } = await (supabase as any)
+    .from('cog_job_steps')
+    .select('*')
+    .eq('job_id', jobId)
+    .order('sequence', { ascending: true });
+
+  if (stepsError) throw stepsError;
+
+  // Fetch original inputs
+  const { data: originalInputs, error: inputsError } = await (supabase as any)
+    .from('cog_job_inputs')
+    .select('*')
+    .eq('job_id', jobId)
+    .order('reference_id', { ascending: true });
+
+  if (inputsError) throw inputsError;
+
+  // Create the new job (copy fields, reset status)
+  const { data: newJob, error: createJobError } = await (supabase as any)
+    .from('cog_jobs')
+    .insert({
+      series_id: originalJob.series_id,
+      title: originalJob.title ? `${originalJob.title} (copy)` : null,
+      base_prompt: originalJob.base_prompt,
+      negative_prompt: originalJob.negative_prompt,
+      scene: originalJob.scene,
+      art_direction: originalJob.art_direction,
+      styling: originalJob.styling,
+      camera: originalJob.camera,
+      framing: originalJob.framing,
+      lighting: originalJob.lighting,
+      image_model: originalJob.image_model || 'auto',
+      status: 'draft',
+    })
+    .select()
+    .single();
+
+  if (createJobError) throw createJobError;
+
+  // Copy steps (reset status, clear outputs)
+  if (originalSteps && originalSteps.length > 0) {
+    const newSteps = originalSteps.map((step: CogJobStep) => ({
+      job_id: newJob.id,
+      sequence: step.sequence,
+      step_type: step.step_type,
+      model: step.model,
+      prompt: step.prompt,
+      context: step.context || {},
+      status: 'pending',
+    }));
+
+    const { error: createStepsError } = await (supabase as any)
+      .from('cog_job_steps')
+      .insert(newSteps);
+
+    if (createStepsError) throw createStepsError;
+  }
+
+  // Copy inputs (reference images)
+  if (originalInputs && originalInputs.length > 0) {
+    const newInputs = originalInputs.map((input: CogJobInput) => ({
+      job_id: newJob.id,
+      image_id: input.image_id,
+      reference_id: input.reference_id,
+      context: input.context,
+      negative_prompt: input.negative_prompt,
+    }));
+
+    const { error: createInputsError } = await (supabase as any)
+      .from('cog_job_inputs')
+      .insert(newInputs);
+
+    if (createInputsError) throw createInputsError;
+  }
+
+  return newJob as CogJob;
 }

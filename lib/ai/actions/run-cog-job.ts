@@ -4,8 +4,46 @@ import { generateText, experimental_generateImage as generateImage } from 'ai';
 import { getModel } from '../models';
 import { getGoogle } from '../providers';
 import { generateImageWithVertex, isVertexConfigured } from '../vertex-imagen';
+import { generateImageWithGemini3Pro, isGemini3ProConfigured } from '../gemini-multimodal';
 import { createClient } from '@/lib/supabase-server';
-import type { CogJobStep } from '@/lib/types/cog';
+import type { CogJobStep, CogImageModel } from '@/lib/types/cog';
+
+type ResolvedImageModel = 'imagen-4' | 'imagen-3-capability' | 'gemini-3-pro-image';
+
+/**
+ * Select the appropriate image generation model based on job settings and capabilities.
+ * Auto mode intelligently picks based on reference images and configured APIs.
+ */
+function selectImageModel(
+  jobModel: CogImageModel,
+  hasReferenceImages: boolean
+): ResolvedImageModel {
+  // Manual override - use specified model
+  if (jobModel !== 'auto') {
+    return jobModel;
+  }
+
+  // Auto selection logic:
+  // 1. No reference images → Imagen 4 (best quality text-to-image)
+  // 2. Has refs + Gemini 3 Pro configured → Gemini 3 Pro (up to 14 refs, 4K)
+  // 3. Has refs + Vertex configured → Imagen 3 Capability (up to 4 refs)
+  // 4. Has refs, neither configured → Imagen 4 (refs ignored)
+  if (!hasReferenceImages) {
+    return 'imagen-4';
+  }
+
+  if (isGemini3ProConfigured()) {
+    return 'gemini-3-pro-image';
+  }
+
+  if (isVertexConfigured()) {
+    return 'imagen-3-capability';
+  }
+
+  // Fallback - reference images won't be used
+  console.warn('Reference images provided but no supporting API configured. Using Imagen 4 (refs will be ignored).');
+  return 'imagen-4';
+}
 
 interface RunJobInput {
   jobId: string;
@@ -15,6 +53,7 @@ interface RunJobInput {
 interface ReferenceImageData {
   base64: string;
   mimeType: string;
+  subjectDescription?: string;
 }
 
 /**
@@ -66,6 +105,8 @@ async function fetchReferenceImages(
     referenceImages.push({
       base64: Buffer.from(buffer).toString('base64'),
       mimeType: 'image/png',
+      // Pass through the context as subject description
+      subjectDescription: input.context || undefined,
     });
   }
 
@@ -75,6 +116,19 @@ async function fetchReferenceImages(
 export async function runCogJob(input: RunJobInput): Promise<void> {
   const { jobId, seriesId } = input;
   const supabase = await createClient();
+
+  // Fetch job to get image_model setting
+  const { data: job, error: jobFetchError } = await (supabase as any)
+    .from('cog_jobs')
+    .select('image_model')
+    .eq('id', jobId)
+    .single();
+
+  if (jobFetchError) {
+    throw new Error(`Failed to fetch job: ${jobFetchError.message}`);
+  }
+
+  const jobImageModel: CogImageModel = job?.image_model || 'auto';
 
   // Update job status to running
   const { error: updateError } = await (supabase as any)
@@ -89,10 +143,12 @@ export async function runCogJob(input: RunJobInput): Promise<void> {
     throw new Error(`Failed to update job status: ${updateError.message}`);
   }
 
-  // Fetch reference images for potential Vertex AI usage
+  // Fetch reference images
   const referenceImages = await fetchReferenceImages(jobId, supabase);
   const referenceCount = referenceImages.length;
-  const useVertexAI = referenceCount > 0 && isVertexConfigured();
+
+  // Select the appropriate model based on job settings and available APIs
+  const selectedModel = selectImageModel(jobImageModel, referenceCount > 0);
 
   // Get all steps for this job
   const { data: steps, error: stepsError } = await (supabase as any)
@@ -152,28 +208,64 @@ export async function runCogJob(input: RunJobInput): Promise<void> {
             console.warn(`Step ${step.sequence} has no prompt, using fallback`);
           }
 
-          // Generate image - route to Vertex AI if reference images and configured
+          // Generate image using the selected model
           let imageResult: { base64: string; mimeType: string };
           let modelId: string;
+          let actualModelUsed: ResolvedImageModel = selectedModel;
 
-          if (useVertexAI) {
-            // Use Vertex AI with Imagen 3 Capability model for subject customization
-            modelId = 'imagen-3.0-capability-001';
-            imageResult = await generateImageWithVertex({
-              prompt: promptToUse,
-              referenceImages,
-              aspectRatio: '1:1',
-            });
-          } else {
-            // Use Gemini API with Imagen 4 (text-to-image only)
-            modelId = 'imagen-4.0-generate-001';
-            const google = getGoogle();
-            const { image } = await generateImage({
-              model: google.image(modelId),
-              prompt: promptToUse,
-              aspectRatio: '1:1',
-            });
-            imageResult = { base64: image.base64, mimeType: 'image/png' };
+          console.log(`Generating image with model: ${selectedModel} (job setting: ${jobImageModel})`);
+
+          try {
+            switch (selectedModel) {
+              case 'gemini-3-pro-image':
+                modelId = 'gemini-2.0-flash-exp-image-generation';
+                imageResult = await generateImageWithGemini3Pro({
+                  prompt: promptToUse,
+                  referenceImages,
+                  aspectRatio: '1:1',
+                });
+                break;
+
+              case 'imagen-3-capability':
+                modelId = 'imagen-3.0-capability-001';
+                imageResult = await generateImageWithVertex({
+                  prompt: promptToUse,
+                  referenceImages,
+                  aspectRatio: '1:1',
+                });
+                break;
+
+              case 'imagen-4':
+              default:
+                modelId = 'imagen-4.0-generate-001';
+                const google = getGoogle();
+                const { image } = await generateImage({
+                  model: google.image(modelId),
+                  prompt: promptToUse,
+                  aspectRatio: '1:1',
+                });
+                imageResult = { base64: image.base64, mimeType: 'image/png' };
+                break;
+            }
+          } catch (modelError) {
+            // If primary model fails and we have a fallback option, try Imagen 4
+            if (selectedModel !== 'imagen-4') {
+              console.warn(
+                `${selectedModel} failed, falling back to Imagen 4:`,
+                modelError instanceof Error ? modelError.message : modelError
+              );
+              modelId = 'imagen-4.0-generate-001';
+              actualModelUsed = 'imagen-4';
+              const google = getGoogle();
+              const { image } = await generateImage({
+                model: google.image(modelId),
+                prompt: promptToUse,
+                aspectRatio: '1:1',
+              });
+              imageResult = { base64: image.base64, mimeType: 'image/png' };
+            } else {
+              throw modelError;
+            }
           }
 
           // Get base64 data and convert to buffer
@@ -204,6 +296,9 @@ export async function runCogJob(input: RunJobInput): Promise<void> {
 
           const imageUrl = urlData.publicUrl;
 
+          // Track which model was actually used for image generation
+          const usedReferenceImages = actualModelUsed !== 'imagen-4' && referenceCount > 0;
+
           // Create a cog_images record
           const { data: imageRecord, error: imageError } = await (supabase as any)
             .from('cog_images')
@@ -216,13 +311,15 @@ export async function runCogJob(input: RunJobInput): Promise<void> {
               prompt: promptToUse,
               metadata: {
                 generation_model: modelId,
+                selected_model: selectedModel,
+                actual_model_used: actualModelUsed,
                 step_id: step.id,
                 step_sequence: step.sequence,
-                reference_images_used: referenceCount,
-                used_vertex_ai: useVertexAI,
+                reference_images_count: referenceCount,
+                reference_images_used: usedReferenceImages ? referenceCount : 0,
                 references_note:
-                  referenceCount > 0 && !useVertexAI
-                    ? 'Reference context included in prompt only. Configure Vertex AI to use actual image references.'
+                  referenceCount > 0 && !usedReferenceImages
+                    ? 'Reference images could not be used with the selected model.'
                     : undefined,
               },
             })

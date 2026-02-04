@@ -6,6 +6,7 @@ import type { CogJobWithStepsAndInputs, CogImage } from '@/lib/types/cog';
 import { JobRunner } from './job-runner';
 import { JobActions } from './job-actions';
 import { JobInputs } from './job-inputs';
+import { EditableStepPrompt } from './editable-step-prompt';
 
 interface Props {
   params: Promise<{ id: string; jobId: string }>;
@@ -76,6 +77,71 @@ export default async function JobDetailPage({ params }: Props) {
         </span>
       </div>
 
+      {/* Image Model */}
+      {job.image_model && job.image_model !== 'auto' && (
+        <div className="mb-4 flex items-center gap-2 text-sm">
+          <span className="text-muted-foreground">Model:</span>
+          <span className="px-2 py-0.5 rounded-full bg-muted font-medium">
+            {job.image_model === 'gemini-3-pro-image' && 'Gemini 3 Pro Image'}
+            {job.image_model === 'imagen-3-capability' && 'Imagen 3 Capability'}
+            {job.image_model === 'imagen-4' && 'Imagen 4'}
+          </span>
+        </div>
+      )}
+      {job.image_model === 'auto' && (
+        <div className="mb-4 flex items-center gap-2 text-sm">
+          <span className="text-muted-foreground">Model:</span>
+          <span className="px-2 py-0.5 rounded-full bg-muted text-muted-foreground">Auto</span>
+        </div>
+      )}
+
+      {/* Shoot Setup */}
+      {(job.scene || job.art_direction || job.styling || job.lighting || job.camera || job.framing) && (
+        <div className="mb-6 p-4 border rounded-lg bg-muted/30">
+          <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide mb-3">
+            Shoot Setup
+          </h3>
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
+            {job.scene && (
+              <div>
+                <span className="text-muted-foreground">Scene:</span>
+                <p className="mt-0.5">{job.scene}</p>
+              </div>
+            )}
+            {job.art_direction && (
+              <div>
+                <span className="text-muted-foreground">Art Direction:</span>
+                <p className="mt-0.5">{job.art_direction}</p>
+              </div>
+            )}
+            {job.styling && (
+              <div>
+                <span className="text-muted-foreground">Styling:</span>
+                <p className="mt-0.5">{job.styling}</p>
+              </div>
+            )}
+            {job.lighting && (
+              <div>
+                <span className="text-muted-foreground">Lighting:</span>
+                <p className="mt-0.5">{job.lighting}</p>
+              </div>
+            )}
+            {job.camera && (
+              <div>
+                <span className="text-muted-foreground">Camera:</span>
+                <p className="mt-0.5">{job.camera}</p>
+              </div>
+            )}
+            {job.framing && (
+              <div>
+                <span className="text-muted-foreground">Framing:</span>
+                <p className="mt-0.5">{job.framing}</p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Error message */}
       {isFailed && job.error_message && (
         <div className="p-4 mb-6 bg-destructive/10 text-destructive rounded-lg">
@@ -86,7 +152,12 @@ export default async function JobDetailPage({ params }: Props) {
       {/* Job Runner (client component for running jobs) */}
       {canRun && (
         <div className="mb-8">
-          <JobRunner jobId={job.id} seriesId={seriesId} />
+          <JobRunner
+            jobId={job.id}
+            seriesId={seriesId}
+            currentModel={job.image_model || 'auto'}
+            hasReferenceImages={job.inputs.length > 0}
+          />
         </div>
       )}
 
@@ -98,10 +169,10 @@ export default async function JobDetailPage({ params }: Props) {
         canEdit={canEdit}
       />
 
-      {/* Steps */}
+      {/* Shots */}
       <section>
         <h2 className="text-lg font-semibold mb-4">
-          Steps ({job.steps.length})
+          Shots ({job.steps.length})
         </h2>
         <div className="space-y-4">
           {job.steps.map((step) => (
@@ -116,7 +187,7 @@ export default async function JobDetailPage({ params }: Props) {
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
                   <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-background">
-                    Step {step.sequence}
+                    Shot {step.sequence}
                   </span>
                   <span
                     className={`text-xs font-medium px-2 py-0.5 rounded-full ${
@@ -125,7 +196,7 @@ export default async function JobDetailPage({ params }: Props) {
                         : 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200'
                     }`}
                   >
-                    {step.step_type === 'llm' ? 'LLM Analysis' : 'Image Generation'}
+                    {step.step_type === 'llm' ? 'LLM' : 'Image'}
                   </span>
                   <span className="text-xs text-muted-foreground">{step.model}</span>
                 </div>
@@ -144,7 +215,11 @@ export default async function JobDetailPage({ params }: Props) {
                 </span>
               </div>
 
-              <p className="text-sm whitespace-pre-wrap">{step.prompt}</p>
+              <EditableStepPrompt
+                stepId={step.id}
+                prompt={step.prompt}
+                canEdit={canEdit}
+              />
 
               {/* Step output */}
               {step.output && (
