@@ -64,26 +64,18 @@ Without explicit [N] references in your prompts, the reference images will not b
 
   const systemPrompt = `You are an AI assistant that designs image generation pipelines.
 
-Your task is to create a sequence of steps that will generate ${imageCount} image(s) based on the user's prompt.
+Your task is to create ${imageCount} image generation step(s) based on the user's prompt.
 
-Each image should be produced by a pair of steps:
-1. An LLM step (step_type: "llm") that analyzes and refines the prompt, adding specific details, style guidance, and composition notes
-2. An image generation step (step_type: "image_gen") that uses the refined prompt to generate the image
+Each step should be an image generation step (step_type: "image_gen") with model: "imagen-3".
+Steps should be numbered sequentially starting from 1.
 
-For LLM steps, use model: "gemini-2.0-flash"
-For image generation steps, use model: "imagen-3"
+For each step, write a detailed, refined prompt that includes:
+- The core concept from the user's prompt
+- Specific artistic direction (style, mood, lighting, composition)
+- Technical details (perspective, framing, detail level)
+- If generating multiple images, make each prompt distinct with variations
 
-The steps should be numbered sequentially starting from 1.
-For each image, the LLM step should have an even sequence number and the image_gen step should have the next odd number.
-Example for 2 images: LLM(1), IMG(2), LLM(3), IMG(4)
-
-Each LLM step prompt should:
-- Reference the base concept
-- Add specific artistic direction (style, mood, lighting, composition)
-- Include technical parameters (aspect ratio suggestions, detail level)
-- Make each image distinct if generating multiple
-
-Each image_gen step prompt should be the refined, detailed prompt ready for the image model.
+Write prompts that are ready for direct use with an image generation model - be specific and descriptive.
 ${referenceInstructions}
 ${seriesContext ? `
 Series Context:
@@ -102,7 +94,7 @@ Series Context:
 
 "${basePrompt}"
 
-Generate the step sequence with LLM analysis followed by image generation for each image.`,
+Generate ${imageCount} image_gen step(s), each with a detailed, refined prompt ready for the image model.`,
   });
 
   return result.object;

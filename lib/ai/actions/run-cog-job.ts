@@ -144,8 +144,13 @@ export async function runCogJob(input: RunJobInput): Promise<void> {
             .eq('id', step.id);
 
         } else if (step.step_type === 'image_gen') {
-          // Use the refined prompt from the previous LLM step, or fall back to the step's prompt
-          const promptToUse = previousOutput || step.prompt;
+          // Use the step's prompt (already refined during job creation)
+          // Falls back to previousOutput for backwards compatibility with old LLM+IMG job structure
+          const promptToUse = step.prompt || previousOutput || 'Generate an image';
+
+          if (!step.prompt && !previousOutput) {
+            console.warn(`Step ${step.sequence} has no prompt, using fallback`);
+          }
 
           // Generate image - route to Vertex AI if reference images and configured
           let imageResult: { base64: string; mimeType: string };
