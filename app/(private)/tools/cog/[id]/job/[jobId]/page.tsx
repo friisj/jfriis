@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { notFound } from 'next/navigation';
 import type { CogJobWithSteps } from '@/lib/types/cog';
 import { JobRunner } from './job-runner';
+import { JobActions } from './job-actions';
 
 interface Props {
   params: Promise<{ id: string; jobId: string }>;
@@ -166,15 +167,18 @@ export default async function JobDetailPage({ params }: Props) {
       </section>
 
       {/* Actions */}
-      <div className="mt-8 pt-6 border-t flex gap-4">
-        <Button variant="outline" asChild>
-          <Link href={`/tools/cog/${seriesId}`}>Back to Series</Link>
-        </Button>
-        {isComplete && (
+      <div className="mt-8 pt-6 border-t flex items-center justify-between">
+        <div className="flex gap-4">
           <Button variant="outline" asChild>
-            <Link href={`/tools/cog/${seriesId}/job/new`}>Create New Job</Link>
+            <Link href={`/tools/cog/${seriesId}`}>Back to Series</Link>
           </Button>
-        )}
+          {isComplete && (
+            <Button variant="outline" asChild>
+              <Link href={`/tools/cog/${seriesId}/job/new`}>Create New Job</Link>
+            </Button>
+          )}
+        </div>
+        <JobActions jobId={job.id} seriesId={seriesId} jobStatus={job.status} />
       </div>
     </div>
   );

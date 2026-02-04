@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { getCogImageUrl } from '@/lib/cog';
+import { useRouter } from 'next/navigation';
+import { getCogImageUrl, deleteImage } from '@/lib/cog';
 import { Button } from '@/components/ui/button';
 import type { CogImage } from '@/lib/types/cog';
 
@@ -10,33 +11,77 @@ interface ImageGalleryProps {
   seriesId: string;
 }
 
-export function ImageGallery({ images, seriesId }: ImageGalleryProps) {
+export function ImageGallery({ images: initialImages, seriesId }: ImageGalleryProps) {
+  const router = useRouter();
+  const [images, setImages] = useState(initialImages);
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const isOpen = selectedIndex !== null;
 
   const openImage = (index: number) => {
     setSelectedIndex(index);
+    setShowDeleteConfirm(false);
   };
 
   const closeGallery = () => {
     setSelectedIndex(null);
+    setShowDeleteConfirm(false);
   };
 
   const goToPrevious = useCallback(() => {
     if (selectedIndex === null) return;
     setSelectedIndex(selectedIndex > 0 ? selectedIndex - 1 : images.length - 1);
+    setShowDeleteConfirm(false);
   }, [selectedIndex, images.length]);
 
   const goToNext = useCallback(() => {
     if (selectedIndex === null) return;
     setSelectedIndex(selectedIndex < images.length - 1 ? selectedIndex + 1 : 0);
+    setShowDeleteConfirm(false);
   }, [selectedIndex, images.length]);
+
+  const handleDelete = useCallback(async () => {
+    if (selectedIndex === null) return;
+    const imageToDelete = images[selectedIndex];
+
+    setDeleting(true);
+    try {
+      await deleteImage(imageToDelete.id);
+
+      // Remove from local state
+      const newImages = images.filter((_, i) => i !== selectedIndex);
+      setImages(newImages);
+
+      // Adjust selected index or close if no images left
+      if (newImages.length === 0) {
+        closeGallery();
+      } else if (selectedIndex >= newImages.length) {
+        setSelectedIndex(newImages.length - 1);
+      }
+
+      setShowDeleteConfirm(false);
+      router.refresh();
+    } catch (error) {
+      console.error('Failed to delete image:', error);
+    } finally {
+      setDeleting(false);
+    }
+  }, [selectedIndex, images, router]);
 
   // Keyboard navigation
   useEffect(() => {
     if (!isOpen) return;
 
     const handleKeyDown = (e: KeyboardEvent) => {
+      // Don't handle keys if delete confirm is showing
+      if (showDeleteConfirm) {
+        if (e.key === 'Escape') {
+          setShowDeleteConfirm(false);
+        }
+        return;
+      }
+
       switch (e.key) {
         case 'Escape':
           closeGallery();
@@ -53,12 +98,18 @@ export function ImageGallery({ images, seriesId }: ImageGalleryProps) {
           e.preventDefault();
           goToNext();
           break;
+        case 'd':
+        case 'Delete':
+        case 'Backspace':
+          e.preventDefault();
+          setShowDeleteConfirm(true);
+          break;
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, goToPrevious, goToNext]);
+  }, [isOpen, goToPrevious, goToNext, showDeleteConfirm]);
 
   // Prevent body scroll when gallery is open
   useEffect(() => {
@@ -120,8 +171,16 @@ export function ImageGallery({ images, seriesId }: ImageGalleryProps) {
             </div>
             <div className="flex items-center gap-2">
               <span className="text-xs text-white/40 hidden sm:block">
-                Use arrow keys or j/k to navigate, Esc to close
+                j/k to navigate, d to delete, Esc to close
               </span>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowDeleteConfirm(true)}
+                className="text-red-400 hover:text-red-300 hover:bg-red-500/10"
+              >
+                Delete
+              </Button>
               <Button
                 variant="ghost"
                 size="sm"
@@ -132,6 +191,33 @@ export function ImageGallery({ images, seriesId }: ImageGalleryProps) {
               </Button>
             </div>
           </div>
+
+          {/* Delete Confirmation */}
+          {showDeleteConfirm && (
+            <div
+              className="absolute top-16 left-1/2 -translate-x-1/2 z-10 bg-black/90 border border-red-500/50 rounded-lg p-4 flex items-center gap-4"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <span className="text-white text-sm">Delete this image?</span>
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={handleDelete}
+                disabled={deleting}
+              >
+                {deleting ? 'Deleting...' : 'Yes, delete'}
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowDeleteConfirm(false)}
+                disabled={deleting}
+                className="text-white hover:bg-white/10"
+              >
+                Cancel
+              </Button>
+            </div>
+          )}
 
           {/* Image Container */}
           <div
