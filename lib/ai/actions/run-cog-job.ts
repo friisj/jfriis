@@ -3,6 +3,7 @@
 import { generateText, experimental_generateImage as generateImage } from 'ai';
 import { getModel } from '../models';
 import { getGoogle } from '../providers';
+import { generateImageWithVertex, isVertexConfigured } from '../vertex-imagen';
 import { createClient } from '@/lib/supabase-server';
 import type { CogJobStep } from '@/lib/types/cog';
 
@@ -11,26 +12,64 @@ interface RunJobInput {
   seriesId: string;
 }
 
+interface ReferenceImageData {
+  base64: string;
+  mimeType: string;
+}
+
 /**
- * Count reference images for a job
- * NOTE: Actual image references require Vertex AI (imagen-3.0-capability-001)
- * which isn't available through the Gemini API. For now we just track the count.
+ * Fetch reference images for a job from Supabase storage.
+ * Returns array of base64-encoded images ready for Vertex AI.
  */
-async function countReferenceImages(
+async function fetchReferenceImages(
   jobId: string,
   supabase: Awaited<ReturnType<typeof createClient>>
-): Promise<number> {
-  const { count, error } = await (supabase as any)
+): Promise<ReferenceImageData[]> {
+  // Get job inputs with their associated images
+  const { data: inputs, error } = await (supabase as any)
     .from('cog_job_inputs')
-    .select('*', { count: 'exact', head: true })
-    .eq('job_id', jobId);
+    .select('*, image:cog_images(*)')
+    .eq('job_id', jobId)
+    .order('reference_id', { ascending: true });
 
   if (error) {
-    console.error('Failed to count job inputs:', error);
-    return 0;
+    console.error('Failed to fetch job inputs:', error);
+    return [];
   }
 
-  return count || 0;
+  if (!inputs?.length) {
+    return [];
+  }
+
+  // Download each image and convert to base64
+  const referenceImages: ReferenceImageData[] = [];
+
+  for (const input of inputs) {
+    if (!input.image?.storage_path) {
+      console.warn(`Job input ${input.id} has no associated image storage path`);
+      continue;
+    }
+
+    const { data, error: downloadError } = await supabase.storage
+      .from('cog-images')
+      .download(input.image.storage_path);
+
+    if (downloadError) {
+      console.error(
+        `Failed to download image ${input.image.storage_path}:`,
+        downloadError
+      );
+      continue;
+    }
+
+    const buffer = await data.arrayBuffer();
+    referenceImages.push({
+      base64: Buffer.from(buffer).toString('base64'),
+      mimeType: 'image/png',
+    });
+  }
+
+  return referenceImages;
 }
 
 export async function runCogJob(input: RunJobInput): Promise<void> {
@@ -50,8 +89,10 @@ export async function runCogJob(input: RunJobInput): Promise<void> {
     throw new Error(`Failed to update job status: ${updateError.message}`);
   }
 
-  // Count reference images (context only - actual references require Vertex AI)
-  const referenceCount = await countReferenceImages(jobId, supabase);
+  // Fetch reference images for potential Vertex AI usage
+  const referenceImages = await fetchReferenceImages(jobId, supabase);
+  const referenceCount = referenceImages.length;
+  const useVertexAI = referenceCount > 0 && isVertexConfigured();
 
   // Get all steps for this job
   const { data: steps, error: stepsError } = await (supabase as any)
@@ -106,22 +147,32 @@ export async function runCogJob(input: RunJobInput): Promise<void> {
           // Use the refined prompt from the previous LLM step, or fall back to the step's prompt
           const promptToUse = previousOutput || step.prompt;
 
-          // Generate image using Google's Imagen 4
-          // NOTE: Reference images (imagen-3.0-capability-001) require Vertex AI which isn't
-          // available through the Gemini API. For now, we use Imagen 4 text-to-image only.
-          // The reference image context is included in the prompt but actual image references
-          // would require Vertex AI integration.
-          const google = getGoogle();
-          const modelId = 'imagen-4.0-generate-001';
+          // Generate image - route to Vertex AI if reference images and configured
+          let imageResult: { base64: string; mimeType: string };
+          let modelId: string;
 
-          const { image } = await generateImage({
-            model: google.image(modelId),
-            prompt: promptToUse,
-            aspectRatio: '1:1',
-          });
+          if (useVertexAI) {
+            // Use Vertex AI with Imagen 3 Capability model for subject customization
+            modelId = 'imagen-3.0-capability-001';
+            imageResult = await generateImageWithVertex({
+              prompt: promptToUse,
+              referenceImages,
+              aspectRatio: '1:1',
+            });
+          } else {
+            // Use Gemini API with Imagen 4 (text-to-image only)
+            modelId = 'imagen-4.0-generate-001';
+            const google = getGoogle();
+            const { image } = await generateImage({
+              model: google.image(modelId),
+              prompt: promptToUse,
+              aspectRatio: '1:1',
+            });
+            imageResult = { base64: image.base64, mimeType: 'image/png' };
+          }
 
           // Get base64 data and convert to buffer
-          const base64Data = image.base64;
+          const base64Data = imageResult.base64;
           const imageBuffer = Buffer.from(base64Data, 'base64');
 
           // Generate a unique filename
@@ -149,8 +200,6 @@ export async function runCogJob(input: RunJobInput): Promise<void> {
           const imageUrl = urlData.publicUrl;
 
           // Create a cog_images record
-          // Note: reference_images_requested tracks what was selected, but actual image
-          // references require Vertex AI (not available through Gemini API)
           const { data: imageRecord, error: imageError } = await (supabase as any)
             .from('cog_images')
             .insert({
@@ -164,10 +213,12 @@ export async function runCogJob(input: RunJobInput): Promise<void> {
                 generation_model: modelId,
                 step_id: step.id,
                 step_sequence: step.sequence,
-                reference_images_requested: referenceCount,
-                references_note: referenceCount > 0
-                  ? 'Reference context included in prompt only. Actual image references require Vertex AI.'
-                  : undefined,
+                reference_images_used: referenceCount,
+                used_vertex_ai: useVertexAI,
+                references_note:
+                  referenceCount > 0 && !useVertexAI
+                    ? 'Reference context included in prompt only. Configure Vertex AI to use actual image references.'
+                    : undefined,
               },
             })
             .select()

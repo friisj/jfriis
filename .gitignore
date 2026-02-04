@@ -24,6 +24,12 @@
 .DS_Store
 *.pem
 
+# Google Cloud service account keys
+*-sa-key.json
+*-service-account.json
+gen-lang-client-*.json
+vertex-sa-key.json
+
 # debug
 npm-debug.log*
 yarn-debug.log*

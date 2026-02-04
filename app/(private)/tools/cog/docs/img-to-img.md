@@ -2,17 +2,39 @@
 
 > Using existing images as inputs for new image generation jobs.
 
-## Current Limitation
+## Reference Image Support
 
-**Reference images are NOT yet functional.** The `imagen-3.0-capability-001` model required for subject customization is only available through **Vertex AI**, not the Gemini API that Vercel AI SDK uses.
+Reference images work when **Vertex AI is configured**. The system automatically routes to the appropriate backend:
 
-Current status:
+| Scenario | Backend | Model | Reference Images |
+|----------|---------|-------|------------------|
+| Vertex AI configured + has references | Vertex AI | `imagen-3.0-capability-001` | Passed to generation |
+| Vertex AI not configured | Gemini API | `imagen-4.0-generate-001` | Context in prompt only |
+| No reference images | Gemini API | `imagen-4.0-generate-001` | N/A |
+
+### Current Status
+
 - ✅ UI for selecting reference images
 - ✅ Reference context passed to prompt generator (uses [1], [2] notation)
-- ❌ Actual image data NOT passed to generation (Gemini API limitation)
-- 🔧 Would require: Direct Vertex AI integration with service account
+- ✅ Actual image data passed to Vertex AI when configured
+- ✅ Graceful fallback to text-only when Vertex AI unavailable
 
-For now, reference images help guide prompt generation but don't directly influence image output.
+### Setting Up Vertex AI
+
+To enable full reference image support:
+
+1. **Create/select Google Cloud project**
+2. **Enable Vertex AI API** in Google Cloud Console
+3. **Create service account** with "Vertex AI User" role
+4. **Download service account key** (JSON file)
+5. **Set environment variables**:
+   ```bash
+   GOOGLE_VERTEX_PROJECT_ID=your-project-id
+   GOOGLE_VERTEX_LOCATION=us-central1
+   GOOGLE_APPLICATION_CREDENTIALS=/path/to/service-account.json
+   ```
+
+When these are set, jobs with reference images will automatically use Vertex AI.
 
 ---
 
