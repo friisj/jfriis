@@ -204,6 +204,7 @@ export async function createJob(input: CogJobInsert): Promise<CogJob> {
       lighting: input.lighting || null,
       // Image generation settings
       image_model: input.image_model || 'auto',
+      use_thinking: input.use_thinking || false,
       status: input.status || 'draft',
     })
     .select()
@@ -459,6 +460,7 @@ export async function duplicateJob(jobId: string): Promise<CogJob> {
       framing: originalJob.framing,
       lighting: originalJob.lighting,
       image_model: originalJob.image_model || 'auto',
+      use_thinking: originalJob.use_thinking || false,
       status: 'draft',
     })
     .select()

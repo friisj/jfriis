@@ -64,6 +64,7 @@ export interface CogJob {
   lighting: string | null;
   // Image generation settings
   image_model: CogImageModel;
+  use_thinking: boolean;
   status: CogJobStatus;
   created_at: string;
   updated_at: string;
@@ -134,6 +135,7 @@ export interface CogJobInsert {
   lighting?: string | null;
   // Image generation settings
   image_model?: CogImageModel;
+  use_thinking?: boolean;
   status?: CogJobStatus;
 }
 

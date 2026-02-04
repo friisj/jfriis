@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   Select,
   SelectContent,
@@ -18,6 +19,7 @@ interface JobRunnerProps {
   jobId: string;
   seriesId: string;
   currentModel: CogImageModel;
+  currentThinking: boolean;
   hasReferenceImages: boolean;
 }
 
@@ -35,16 +37,21 @@ const modelDescriptions: Record<CogImageModel, string> = {
   'imagen-4': 'Text-only, no references',
 };
 
-export function JobRunner({ jobId, seriesId, currentModel, hasReferenceImages }: JobRunnerProps) {
+export function JobRunner({ jobId, seriesId, currentModel, currentThinking, hasReferenceImages }: JobRunnerProps) {
   const router = useRouter();
   const [running, setRunning] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [imageModel, setImageModel] = useState<CogImageModel>(currentModel || 'auto');
+  const [useThinking, setUseThinking] = useState(currentThinking || false);
 
-  // Sync state if prop changes (e.g., after page refresh)
+  // Sync state if props change (e.g., after page refresh)
   useEffect(() => {
     setImageModel(currentModel || 'auto');
   }, [currentModel]);
+
+  useEffect(() => {
+    setUseThinking(currentThinking || false);
+  }, [currentThinking]);
 
   async function handleModelChange(value: string) {
     const newModel = value as CogImageModel;
@@ -56,6 +63,18 @@ export function JobRunner({ jobId, seriesId, currentModel, hasReferenceImages }:
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to update model');
+    }
+  }
+
+  async function handleThinkingChange(checked: boolean) {
+    setUseThinking(checked);
+
+    // Update the job immediately
+    try {
+      await updateJob(jobId, { use_thinking: checked });
+      router.refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to update thinking setting');
     }
   }
 
@@ -111,6 +130,24 @@ export function JobRunner({ jobId, seriesId, currentModel, hasReferenceImages }:
           )}
         </p>
       </div>
+
+      {/* Thinking toggle - only shown for Gemini 3 Pro Image */}
+      {(imageModel === 'gemini-3-pro-image' || (imageModel === 'auto' && hasReferenceImages)) && (
+        <div className="flex items-center gap-3 pt-2 border-t">
+          <Checkbox
+            id="use-thinking"
+            checked={useThinking}
+            onCheckedChange={handleThinkingChange}
+            disabled={running}
+          />
+          <label htmlFor="use-thinking" className="text-sm cursor-pointer">
+            Enable thinking mode
+          </label>
+          <span className="text-xs text-muted-foreground">
+            Reasons through composition for more photorealistic results
+          </span>
+        </div>
+      )}
 
       {error && (
         <div className="p-3 bg-destructive/10 text-destructive rounded text-sm">

@@ -77,23 +77,24 @@ export default async function JobDetailPage({ params }: Props) {
         </span>
       </div>
 
-      {/* Image Model */}
-      {job.image_model && job.image_model !== 'auto' && (
-        <div className="mb-4 flex items-center gap-2 text-sm">
-          <span className="text-muted-foreground">Model:</span>
+      {/* Image Model and Settings */}
+      <div className="mb-4 flex items-center gap-2 text-sm flex-wrap">
+        <span className="text-muted-foreground">Model:</span>
+        {job.image_model && job.image_model !== 'auto' ? (
           <span className="px-2 py-0.5 rounded-full bg-muted font-medium">
             {job.image_model === 'gemini-3-pro-image' && 'Gemini 3 Pro Image'}
             {job.image_model === 'imagen-3-capability' && 'Imagen 3 Capability'}
             {job.image_model === 'imagen-4' && 'Imagen 4'}
           </span>
-        </div>
-      )}
-      {job.image_model === 'auto' && (
-        <div className="mb-4 flex items-center gap-2 text-sm">
-          <span className="text-muted-foreground">Model:</span>
+        ) : (
           <span className="px-2 py-0.5 rounded-full bg-muted text-muted-foreground">Auto</span>
-        </div>
-      )}
+        )}
+        {job.use_thinking && (
+          <span className="px-2 py-0.5 rounded-full bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200 font-medium">
+            Thinking
+          </span>
+        )}
+      </div>
 
       {/* Shoot Setup */}
       {(job.scene || job.art_direction || job.styling || job.lighting || job.camera || job.framing) && (
@@ -156,6 +157,7 @@ export default async function JobDetailPage({ params }: Props) {
             jobId={job.id}
             seriesId={seriesId}
             currentModel={job.image_model || 'auto'}
+            currentThinking={job.use_thinking || false}
             hasReferenceImages={job.inputs.length > 0}
           />
         </div>

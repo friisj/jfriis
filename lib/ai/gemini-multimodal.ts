@@ -18,6 +18,13 @@ interface GeminiMultimodalOptions {
   prompt: string;
   referenceImages?: ReferenceImage[];
   aspectRatio?: string;
+  /**
+   * Enable thinking mode for better reasoning about image composition.
+   * - undefined/false: No thinking (fastest)
+   * - true: Default thinking budget (1024 tokens)
+   * - number: Specific thinking budget (e.g., 2048, 4096, 8192)
+   */
+  thinking?: boolean | number;
 }
 
 interface GeneratedImage {
@@ -32,7 +39,7 @@ interface GeneratedImage {
 export async function generateImageWithGemini3Pro(
   options: GeminiMultimodalOptions
 ): Promise<GeneratedImage> {
-  const { prompt, referenceImages = [], aspectRatio = '1:1' } = options;
+  const { prompt, referenceImages = [], aspectRatio = '1:1', thinking } = options;
 
   const apiKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY;
   if (!apiKey) {
@@ -69,6 +76,20 @@ export async function generateImageWithGemini3Pro(
   // Add the text prompt
   parts.push({ text: finalPrompt });
 
+  // Build generation config
+  const generationConfig: Record<string, unknown> = {
+    responseModalities: ['IMAGE', 'TEXT'],
+  };
+
+  // Add thinking config if enabled
+  // Thinking helps the model reason about composition, lighting, style, etc.
+  if (thinking) {
+    const thinkingBudget = typeof thinking === 'number' ? thinking : 1024;
+    generationConfig.thinkingConfig = {
+      thinkingBudget,
+    };
+  }
+
   // Build request body
   // Note: responseModalities controls output type, NOT responseMimeType
   // responseMimeType is for text formats only (json, xml, etc.)
@@ -78,9 +99,7 @@ export async function generateImageWithGemini3Pro(
         parts,
       },
     ],
-    generationConfig: {
-      responseModalities: ['IMAGE', 'TEXT'],
-    },
+    generationConfig,
   };
 
   const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp-image-generation:generateContent`;
@@ -97,6 +116,7 @@ export async function generateImageWithGemini3Pro(
     promptPreview: finalPrompt.slice(0, 200),
     partsCount: parts.length,
     aspectRatio,
+    thinking: thinking ? (typeof thinking === 'number' ? `${thinking} tokens` : 'enabled (1024)') : 'disabled',
   });
 
   const response = await fetch(endpoint, {
