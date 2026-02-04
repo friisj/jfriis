@@ -1,7 +1,8 @@
 'use server';
 
-import { generateText } from 'ai';
+import { generateText, experimental_generateImage as generateImage } from 'ai';
 import { getModel } from '../models';
+import { getGoogle } from '../providers';
 import { createClient } from '@/lib/supabase-server';
 import type { CogJobStep } from '@/lib/types/cog';
 
@@ -77,25 +78,80 @@ export async function runCogJob(input: RunJobInput): Promise<void> {
             .eq('id', step.id);
 
         } else if (step.step_type === 'image_gen') {
-          // For now, we'll simulate image generation
-          // TODO: Integrate with actual image generation API (Imagen 3 / Nano Banana Pro)
-
+          // Use the refined prompt from the previous LLM step, or fall back to the step's prompt
           const promptToUse = previousOutput || step.prompt;
 
-          // Placeholder: In production, call the actual image generation API
-          // For now, we store the prompt that would be used
-          const output = {
+          // Generate image using Google's Imagen model
+          const google = getGoogle();
+          const { image } = await generateImage({
+            model: google.image('imagen-3.0-generate-002'),
             prompt: promptToUse,
-            model: step.model,
-            status: 'simulated',
-            note: 'Image generation not yet implemented - would use: ' + step.model,
-          };
+            aspectRatio: '1:1',
+          });
 
+          // Get base64 data and convert to buffer
+          const base64Data = image.base64;
+          const imageBuffer = Buffer.from(base64Data, 'base64');
+
+          // Generate a unique filename
+          const timestamp = Date.now();
+          const filename = `${jobId}_step${step.sequence}_${timestamp}.png`;
+          const storagePath = `${seriesId}/${filename}`;
+
+          // Upload to Supabase storage
+          const { error: uploadError } = await supabase.storage
+            .from('cog-images')
+            .upload(storagePath, imageBuffer, {
+              contentType: 'image/png',
+              upsert: false,
+            });
+
+          if (uploadError) {
+            throw new Error(`Failed to upload image: ${uploadError.message}`);
+          }
+
+          // Get public URL
+          const { data: urlData } = supabase.storage
+            .from('cog-images')
+            .getPublicUrl(storagePath);
+
+          const imageUrl = urlData.publicUrl;
+
+          // Create a cog_images record
+          const { data: imageRecord, error: imageError } = await (supabase as any)
+            .from('cog_images')
+            .insert({
+              series_id: seriesId,
+              job_id: jobId,
+              storage_path: storagePath,
+              filename,
+              source: 'generated',
+              generation_prompt: promptToUse,
+              generation_model: step.model,
+              metadata: {
+                step_id: step.id,
+                step_sequence: step.sequence,
+              },
+            })
+            .select()
+            .single();
+
+          if (imageError) {
+            throw new Error(`Failed to create image record: ${imageError.message}`);
+          }
+
+          // Update step with output
           await (supabase as any)
             .from('cog_job_steps')
             .update({
               status: 'completed',
-              output,
+              output: {
+                prompt: promptToUse,
+                model: step.model,
+                imageUrl,
+                imageId: imageRecord.id,
+                storagePath,
+              },
               completed_at: new Date().toISOString(),
             })
             .eq('id', step.id);
