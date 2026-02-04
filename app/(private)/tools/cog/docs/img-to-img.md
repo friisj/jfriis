@@ -2,6 +2,20 @@
 
 > Using existing images as inputs for new image generation jobs.
 
+## Current Limitation
+
+**Reference images are NOT yet functional.** The `imagen-3.0-capability-001` model required for subject customization is only available through **Vertex AI**, not the Gemini API that Vercel AI SDK uses.
+
+Current status:
+- ✅ UI for selecting reference images
+- ✅ Reference context passed to prompt generator (uses [1], [2] notation)
+- ❌ Actual image data NOT passed to generation (Gemini API limitation)
+- 🔧 Would require: Direct Vertex AI integration with service account
+
+For now, reference images help guide prompt generation but don't directly influence image output.
+
+---
+
 ## Research Summary
 
 ### Imagen Capabilities
