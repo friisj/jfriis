@@ -14,22 +14,210 @@ interface ReferenceImage {
   subjectDescription?: string;
 }
 
+interface ShootParams {
+  scene?: string | null;
+  art_direction?: string | null;
+  styling?: string | null;
+  camera?: string | null;
+  framing?: string | null;
+  lighting?: string | null;
+}
+
 interface GeminiMultimodalOptions {
   prompt: string;
   referenceImages?: ReferenceImage[];
   aspectRatio?: string;
   /**
    * Enable thinking mode for better reasoning about image composition.
-   * - undefined/false: No thinking (fastest)
-   * - true: Default thinking budget (1024 tokens)
-   * - number: Specific thinking budget (e.g., 2048, 4096, 8192)
+   * When enabled:
+   * - If reference images exist: Uses vision to describe them, then LLM reasoning
+   * - If no reference images: Uses LLM reasoning on prompt + shoot params
    */
-  thinking?: boolean | number;
+  thinking?: boolean;
+  /**
+   * Shoot parameters for the thinking step to consider
+   */
+  shootParams?: ShootParams;
 }
 
 interface GeneratedImage {
   base64: string;
   mimeType: string;
+}
+
+/**
+ * Analyze reference images using Gemini's vision capabilities.
+ * Returns detailed descriptions of each image for use in prompt refinement.
+ */
+async function analyzeReferenceImages(
+  referenceImages: ReferenceImage[],
+  apiKey: string
+): Promise<string[]> {
+  const descriptions: string[] = [];
+
+  for (let i = 0; i < referenceImages.length; i++) {
+    const img = referenceImages[i];
+
+    const requestBody = {
+      contents: [
+        {
+          parts: [
+            {
+              inlineData: {
+                mimeType: img.mimeType,
+                data: img.base64,
+              },
+            },
+            {
+              text: `Analyze this reference image for use in AI image generation. Describe:
+1. Subject: What/who is in the image (appearance, features, distinguishing characteristics)
+2. Style: Visual style, artistic treatment, color palette
+3. Lighting: Type, direction, quality of light
+4. Composition: Framing, perspective, depth
+5. Mood/Atmosphere: Overall feeling the image conveys
+6. Technical: Image quality, focus, any notable photographic techniques
+
+${img.subjectDescription ? `Context provided by user: "${img.subjectDescription}"` : ''}
+
+Provide a concise but detailed description that would help recreate similar visual elements.`,
+            },
+          ],
+        },
+      ],
+      generationConfig: {
+        temperature: 0.3,
+        maxOutputTokens: 500,
+      },
+    };
+
+    const endpoint = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
+
+    try {
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-goog-api-key': apiKey,
+        },
+        body: JSON.stringify(requestBody),
+      });
+
+      if (!response.ok) {
+        console.error(`Vision analysis failed for image ${i + 1}:`, await response.text());
+        descriptions.push(`[Image ${i + 1}: Analysis failed]`);
+        continue;
+      }
+
+      const result = await response.json();
+      const text = result.candidates?.[0]?.content?.parts?.[0]?.text;
+
+      if (text) {
+        descriptions.push(`[Reference Image ${i + 1}]\n${text}`);
+        console.log(`Vision analysis for image ${i + 1} complete (${text.length} chars)`);
+      } else {
+        descriptions.push(`[Image ${i + 1}: No description generated]`);
+      }
+    } catch (error) {
+      console.error(`Vision analysis error for image ${i + 1}:`, error);
+      descriptions.push(`[Image ${i + 1}: Analysis error]`);
+    }
+  }
+
+  return descriptions;
+}
+
+/**
+ * Use LLM reasoning to refine the prompt for image generation.
+ * Considers reference image descriptions, shoot parameters, and the original prompt.
+ */
+async function refinePromptWithReasoning(
+  originalPrompt: string,
+  referenceDescriptions: string[],
+  shootParams: ShootParams | undefined,
+  apiKey: string
+): Promise<string> {
+  const shootContext = shootParams ? `
+Shoot Parameters:
+- Scene: ${shootParams.scene || 'Not specified'}
+- Art Direction: ${shootParams.art_direction || 'Not specified'}
+- Styling: ${shootParams.styling || 'Not specified'}
+- Camera: ${shootParams.camera || 'Not specified'}
+- Framing: ${shootParams.framing || 'Not specified'}
+- Lighting: ${shootParams.lighting || 'Not specified'}
+` : '';
+
+  const referenceContext = referenceDescriptions.length > 0
+    ? `Reference Images Analysis:\n${referenceDescriptions.join('\n\n')}\n\n`
+    : '';
+
+  const reasoningPrompt = `You are an expert photographer and art director preparing a prompt for AI image generation.
+
+${referenceContext}${shootContext}
+Original Prompt: "${originalPrompt}"
+
+Your task: Create an optimized, detailed prompt for the image generation model that:
+1. Incorporates the visual style, lighting, and mood from reference images (if provided)
+2. Applies the shoot parameters for technical direction
+3. Maintains the core intent of the original prompt
+4. Adds specific details about composition, lighting, colors, and atmosphere
+5. Uses clear, descriptive language that image models understand well
+
+Important guidelines:
+- Be specific about lighting (direction, quality, color temperature)
+- Describe the desired composition and framing
+- Include details about textures, materials, and surfaces
+- Specify the mood and atmosphere
+- If references show a person, describe how to maintain their likeness
+- Keep the prompt focused and coherent (under 300 words)
+
+Output ONLY the refined prompt, nothing else.`;
+
+  const requestBody = {
+    contents: [
+      {
+        parts: [{ text: reasoningPrompt }],
+      },
+    ],
+    generationConfig: {
+      temperature: 0.7,
+      maxOutputTokens: 500,
+    },
+  };
+
+  const endpoint = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
+
+  try {
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-goog-api-key': apiKey,
+      },
+      body: JSON.stringify(requestBody),
+    });
+
+    if (!response.ok) {
+      console.error('Prompt refinement failed:', await response.text());
+      return originalPrompt;
+    }
+
+    const result = await response.json();
+    const refinedPrompt = result.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+
+    if (refinedPrompt) {
+      console.log('Prompt refinement complete:', {
+        originalLength: originalPrompt.length,
+        refinedLength: refinedPrompt.length,
+        preview: refinedPrompt.slice(0, 150) + '...',
+      });
+      return refinedPrompt;
+    }
+
+    return originalPrompt;
+  } catch (error) {
+    console.error('Prompt refinement error:', error);
+    return originalPrompt;
+  }
 }
 
 /**
@@ -39,21 +227,41 @@ interface GeneratedImage {
 export async function generateImageWithGemini3Pro(
   options: GeminiMultimodalOptions
 ): Promise<GeneratedImage> {
-  const { prompt, referenceImages = [], aspectRatio = '1:1', thinking } = options;
+  const { prompt, referenceImages = [], aspectRatio = '1:1', thinking, shootParams } = options;
 
   const apiKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY;
   if (!apiKey) {
     throw new Error('GOOGLE_GENERATIVE_AI_API_KEY not configured');
   }
 
-  // Build the prompt with reference markers if we have reference images
+  // If thinking is enabled, use vision + reasoning pipeline
   let finalPrompt = prompt;
-  if (referenceImages.length > 0) {
-    const hasMarkers = /\[\d+\]/.test(prompt);
-    if (!hasMarkers) {
-      // Prepend reference markers to help the model understand which images to reference
-      const markers = referenceImages.map((_, idx) => `[${idx + 1}]`).join(' ');
-      finalPrompt = `${markers} ${prompt}`;
+  if (thinking) {
+    console.log('Thinking mode enabled - running vision + reasoning pipeline');
+
+    // Step 1: Analyze reference images with vision (if any)
+    let referenceDescriptions: string[] = [];
+    if (referenceImages.length > 0) {
+      console.log(`Analyzing ${referenceImages.length} reference images...`);
+      referenceDescriptions = await analyzeReferenceImages(referenceImages, apiKey);
+    }
+
+    // Step 2: Refine prompt with LLM reasoning
+    console.log('Refining prompt with LLM reasoning...');
+    finalPrompt = await refinePromptWithReasoning(
+      prompt,
+      referenceDescriptions,
+      shootParams,
+      apiKey
+    );
+  } else {
+    // Without thinking, just add reference markers if needed
+    if (referenceImages.length > 0) {
+      const hasMarkers = /\[\d+\]/.test(prompt);
+      if (!hasMarkers) {
+        const markers = referenceImages.map((_, idx) => `[${idx + 1}]`).join(' ');
+        finalPrompt = `${markers} ${prompt}`;
+      }
     }
   }
 
@@ -75,14 +283,6 @@ export async function generateImageWithGemini3Pro(
 
   // Add the text prompt
   parts.push({ text: finalPrompt });
-
-  // Build generation config
-  // Note: thinking mode is NOT supported by gemini-2.0-flash-exp-image-generation
-  // The API returns "Thinking is not enabled for models/gemini-2.0-flash-exp-image-generation"
-  // Keeping the parameter for future compatibility if/when it becomes available
-  if (thinking) {
-    console.warn('Thinking mode requested but not supported by gemini-2.0-flash-exp-image-generation. Ignoring.');
-  }
 
   const generationConfig: Record<string, unknown> = {
     responseModalities: ['IMAGE', 'TEXT'],
@@ -114,7 +314,7 @@ export async function generateImageWithGemini3Pro(
     promptPreview: finalPrompt.slice(0, 200),
     partsCount: parts.length,
     aspectRatio,
-    thinking: thinking ? (typeof thinking === 'number' ? `${thinking} tokens` : 'enabled (1024)') : 'disabled',
+    thinking: thinking ? 'enabled (vision + reasoning)' : 'disabled',
   });
 
   const response = await fetch(endpoint, {

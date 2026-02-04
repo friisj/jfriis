@@ -89,13 +89,11 @@ export default async function JobDetailPage({ params }: Props) {
         ) : (
           <span className="px-2 py-0.5 rounded-full bg-muted text-muted-foreground">Auto</span>
         )}
-        {/* Thinking badge hidden - not supported by current model
         {job.use_thinking && (
           <span className="px-2 py-0.5 rounded-full bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200 font-medium">
             Thinking
           </span>
         )}
-        */}
       </div>
 
       {/* Shoot Setup */}

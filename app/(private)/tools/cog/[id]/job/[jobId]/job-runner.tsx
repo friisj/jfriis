@@ -131,9 +131,7 @@ export function JobRunner({ jobId, seriesId, currentModel, currentThinking, hasR
         </p>
       </div>
 
-      {/* Thinking toggle - hidden because gemini-2.0-flash-exp-image-generation doesn't support it
-          API returns: "Thinking is not enabled for models/gemini-2.0-flash-exp-image-generation"
-          Keeping the code for when/if thinking becomes available for image generation models
+      {/* Thinking toggle - uses vision + LLM reasoning pipeline */}
       {(imageModel === 'gemini-3-pro-image' || (imageModel === 'auto' && hasReferenceImages)) && (
         <div className="flex items-center gap-3 pt-2 border-t">
           <Checkbox
@@ -146,11 +144,12 @@ export function JobRunner({ jobId, seriesId, currentModel, currentThinking, hasR
             Enable thinking mode
           </label>
           <span className="text-xs text-muted-foreground">
-            Reasons through composition for more photorealistic results
+            {hasReferenceImages
+              ? 'Analyzes refs with vision, then reasons about composition'
+              : 'Reasons about composition from prompt + shoot params'}
           </span>
         </div>
       )}
-      */}
 
       {error && (
         <div className="p-3 bg-destructive/10 text-destructive rounded text-sm">

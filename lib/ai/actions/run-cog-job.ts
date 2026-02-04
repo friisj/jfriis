@@ -119,10 +119,10 @@ export async function runCogJob(input: RunJobInput): Promise<void> {
   const { jobId, seriesId } = input;
   const supabase = await createClient();
 
-  // Fetch job to get image_model and use_thinking settings
+  // Fetch job to get image_model, use_thinking, and shoot params
   const { data: job, error: jobFetchError } = await (supabase as any)
     .from('cog_jobs')
-    .select('image_model, use_thinking')
+    .select('image_model, use_thinking, scene, art_direction, styling, camera, framing, lighting')
     .eq('id', jobId)
     .single();
 
@@ -132,6 +132,14 @@ export async function runCogJob(input: RunJobInput): Promise<void> {
 
   const jobImageModel: CogImageModel = job?.image_model || 'auto';
   const useThinking: boolean = job?.use_thinking || false;
+  const shootParams = {
+    scene: job?.scene,
+    art_direction: job?.art_direction,
+    styling: job?.styling,
+    camera: job?.camera,
+    framing: job?.framing,
+    lighting: job?.lighting,
+  };
 
   // Update job status to running
   const { error: updateError } = await (supabase as any)
@@ -230,6 +238,7 @@ export async function runCogJob(input: RunJobInput): Promise<void> {
                   referenceImages,
                   aspectRatio: '1:1',
                   thinking: useThinking,
+                  shootParams: useThinking ? shootParams : undefined,
                 });
                 break;
 
