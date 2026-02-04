@@ -77,18 +77,16 @@ export async function generateImageWithGemini3Pro(
   parts.push({ text: finalPrompt });
 
   // Build generation config
+  // Note: thinking mode is NOT supported by gemini-2.0-flash-exp-image-generation
+  // The API returns "Thinking is not enabled for models/gemini-2.0-flash-exp-image-generation"
+  // Keeping the parameter for future compatibility if/when it becomes available
+  if (thinking) {
+    console.warn('Thinking mode requested but not supported by gemini-2.0-flash-exp-image-generation. Ignoring.');
+  }
+
   const generationConfig: Record<string, unknown> = {
     responseModalities: ['IMAGE', 'TEXT'],
   };
-
-  // Add thinking config if enabled
-  // Thinking helps the model reason about composition, lighting, style, etc.
-  if (thinking) {
-    const thinkingBudget = typeof thinking === 'number' ? thinking : 1024;
-    generationConfig.thinkingConfig = {
-      thinkingBudget,
-    };
-  }
 
   // Build request body
   // Note: responseModalities controls output type, NOT responseMimeType
