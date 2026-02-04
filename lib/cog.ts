@@ -20,6 +20,18 @@ import type {
 } from './types/cog';
 
 // ============================================================================
+// Storage Utilities
+// ============================================================================
+
+/**
+ * Get the public URL for a cog image stored in Supabase
+ */
+export function getCogImageUrl(storagePath: string): string {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  return `${supabaseUrl}/storage/v1/object/public/cog-images/${storagePath}`;
+}
+
+// ============================================================================
 // Series Operations (Client)
 // ============================================================================
 

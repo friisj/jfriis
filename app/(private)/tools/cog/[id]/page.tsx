@@ -1,5 +1,7 @@
 import { getSeriesWithImagesServer, getSeriesJobsServer, getChildSeriesServer } from '@/lib/cog-server';
+import { getCogImageUrl } from '@/lib/cog';
 import Link from 'next/link';
+import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { notFound } from 'next/navigation';
 import type { CogSeriesWithImages, CogJob, CogSeries } from '@/lib/types/cog';
@@ -179,11 +181,12 @@ export default async function SeriesDetailPage({ params }: Props) {
                 href={`/tools/cog/${id}/image/${image.id}`}
                 className="border rounded-lg overflow-hidden hover:ring-2 ring-primary transition-all"
               >
-                <div className="aspect-square bg-muted flex items-center justify-center">
-                  {/* TODO: Render actual image from Supabase storage */}
-                  <span className="text-xs text-muted-foreground">
-                    {image.filename}
-                  </span>
+                <div className="aspect-square bg-muted relative">
+                  <img
+                    src={getCogImageUrl(image.storage_path)}
+                    alt={image.filename}
+                    className="w-full h-full object-cover"
+                  />
                 </div>
                 <div className="p-2 text-xs">
                   <p className="truncate">{image.filename}</p>
