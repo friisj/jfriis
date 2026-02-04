@@ -42,12 +42,23 @@ export interface CogJob {
   series_id: string;
   title: string | null;
   base_prompt: string;
+  negative_prompt: string | null;
   status: CogJobStatus;
   created_at: string;
   updated_at: string;
   started_at: string | null;
   completed_at: string | null;
   error_message: string | null;
+}
+
+export interface CogJobInput {
+  id: string;
+  job_id: string;
+  image_id: string;
+  reference_id: number;
+  context: string | null;
+  negative_prompt: string | null;
+  created_at: string;
 }
 
 export interface CogJobStep {
@@ -92,7 +103,16 @@ export interface CogJobInsert {
   series_id: string;
   title?: string | null;
   base_prompt: string;
+  negative_prompt?: string | null;
   status?: CogJobStatus;
+}
+
+export interface CogJobInputInsert {
+  job_id: string;
+  image_id: string;
+  reference_id: number;
+  context?: string | null;
+  negative_prompt?: string | null;
 }
 
 export interface CogJobStepInsert {
@@ -110,6 +130,7 @@ export type CogSeriesUpdate = Partial<Omit<CogSeries, 'id' | 'created_at'>>;
 export type CogImageUpdate = Partial<Omit<CogImage, 'id' | 'created_at'>>;
 export type CogJobUpdate = Partial<Omit<CogJob, 'id' | 'created_at'>>;
 export type CogJobStepUpdate = Partial<Omit<CogJobStep, 'id' | 'created_at'>>;
+export type CogJobInputUpdate = Partial<Omit<CogJobInput, 'id' | 'created_at'>>;
 
 // Extended types with relations
 export interface CogSeriesWithImages extends CogSeries {
@@ -126,6 +147,19 @@ export interface CogSeriesWithChildren extends CogSeries {
 
 export interface CogJobWithSteps extends CogJob {
   steps: CogJobStep[];
+}
+
+export interface CogJobInputWithImage extends CogJobInput {
+  image: CogImage;
+}
+
+export interface CogJobWithInputs extends CogJob {
+  inputs: CogJobInputWithImage[];
+}
+
+export interface CogJobWithStepsAndInputs extends CogJob {
+  steps: CogJobStep[];
+  inputs: CogJobInputWithImage[];
 }
 
 export interface CogSeriesFull extends CogSeries {

@@ -1,4 +1,4 @@
-import { getSeriesByIdServer } from '@/lib/cog-server';
+import { getSeriesWithImagesServer } from '@/lib/cog-server';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { NewJobForm } from './new-job-form';
@@ -10,9 +10,9 @@ interface Props {
 export default async function NewJobPage({ params }: Props) {
   const { id: seriesId } = await params;
 
-  let series;
+  let seriesWithImages;
   try {
-    series = await getSeriesByIdServer(seriesId);
+    seriesWithImages = await getSeriesWithImagesServer(seriesId);
   } catch {
     notFound();
   }
@@ -27,7 +27,7 @@ export default async function NewJobPage({ params }: Props) {
           </Link>
           <span>/</span>
           <Link href={`/tools/cog/${seriesId}`} className="hover:text-foreground">
-            {series.title}
+            {seriesWithImages.title}
           </Link>
           <span>/</span>
           <span>New Job</span>
@@ -38,7 +38,7 @@ export default async function NewJobPage({ params }: Props) {
         </p>
       </div>
 
-      <NewJobForm series={series} />
+      <NewJobForm series={seriesWithImages} images={seriesWithImages.images} />
     </div>
   );
 }

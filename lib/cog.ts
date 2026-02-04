@@ -17,6 +17,8 @@ import type {
   CogJobStep,
   CogJobStepInsert,
   CogJobStepUpdate,
+  CogJobInput,
+  CogJobInputInsert,
 } from './types/cog';
 
 // ============================================================================
@@ -152,6 +154,7 @@ export async function createJob(input: CogJobInsert): Promise<CogJob> {
       series_id: input.series_id,
       title: input.title || null,
       base_prompt: input.base_prompt,
+      negative_prompt: input.negative_prompt || null,
       status: input.status || 'draft',
     })
     .select()
@@ -260,4 +263,61 @@ export async function createJobSteps(steps: CogJobStepInsert[]): Promise<CogJobS
 
   if (error) throw error;
   return data as CogJobStep[];
+}
+
+// ============================================================================
+// Job Input Operations (Client)
+// ============================================================================
+
+/**
+ * Create a job input - client-side
+ */
+export async function createJobInput(input: CogJobInputInsert): Promise<CogJobInput> {
+  const { data, error } = await (supabase as any)
+    .from('cog_job_inputs')
+    .insert({
+      job_id: input.job_id,
+      image_id: input.image_id,
+      reference_id: input.reference_id,
+      context: input.context || null,
+      negative_prompt: input.negative_prompt || null,
+    })
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data as CogJobInput;
+}
+
+/**
+ * Batch create job inputs - client-side
+ */
+export async function createJobInputs(inputs: CogJobInputInsert[]): Promise<CogJobInput[]> {
+  if (inputs.length === 0) return [];
+
+  const { data, error } = await (supabase as any)
+    .from('cog_job_inputs')
+    .insert(inputs.map(input => ({
+      job_id: input.job_id,
+      image_id: input.image_id,
+      reference_id: input.reference_id,
+      context: input.context || null,
+      negative_prompt: input.negative_prompt || null,
+    })))
+    .select();
+
+  if (error) throw error;
+  return data as CogJobInput[];
+}
+
+/**
+ * Delete a job input - client-side
+ */
+export async function deleteJobInput(id: string): Promise<void> {
+  const { error } = await (supabase as any)
+    .from('cog_job_inputs')
+    .delete()
+    .eq('id', id);
+
+  if (error) throw error;
 }
