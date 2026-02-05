@@ -4,7 +4,7 @@ import { generateText, experimental_generateImage as generateImage } from 'ai';
 import { getModel } from '../models';
 import { getGoogle } from '../providers';
 import { generateImageWithVertex, isVertexConfigured } from '../vertex-imagen';
-import { generateImageWithGemini3Pro, isGemini3ProConfigured } from '../gemini-multimodal';
+import { generateImageWithGemini3Pro, isGemini3ProConfigured, analyzeReferenceImages, type VisionAnalysisResult } from '../gemini-multimodal';
 import { createClient } from '@/lib/supabase-server';
 import type { CogJobStep, CogImageModel, CogImageSize, CogAspectRatio } from '@/lib/types/cog';
 
@@ -177,6 +177,18 @@ export async function runCogJob(input: RunJobInput): Promise<void> {
     throw new Error(`Failed to fetch steps: ${stepsError.message}`);
   }
 
+  // Pre-compute vision analysis once for the entire job (when thinking is enabled)
+  // This avoids redundant vision API calls for each shot
+  let cachedVisionAnalysis: VisionAnalysisResult | undefined;
+  if (useThinking && selectedModel === 'gemini-3-pro-image' && referenceCount > 0) {
+    const apiKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY;
+    if (apiKey) {
+      console.log(`Job ${jobId}: Pre-computing vision analysis for ${referenceCount} reference images (once for all shots)`);
+      cachedVisionAnalysis = await analyzeReferenceImages(referenceImages, apiKey);
+      console.log(`Job ${jobId}: Vision analysis cached: ${cachedVisionAnalysis.metrics.durationMs}ms, ${cachedVisionAnalysis.metrics.tokensIn} in / ${cachedVisionAnalysis.metrics.tokensOut} out`);
+    }
+  }
+
   let previousOutput: string | null = null;
 
   try {
@@ -256,6 +268,8 @@ export async function runCogJob(input: RunJobInput): Promise<void> {
                   imageSize: jobImageSize,
                   thinking: useThinking,
                   shootParams: useThinking ? shootParams : undefined,
+                  // Use cached vision analysis to avoid redundant API calls per shot
+                  preComputedReferenceAnalysis: cachedVisionAnalysis,
                 });
                 break;
 

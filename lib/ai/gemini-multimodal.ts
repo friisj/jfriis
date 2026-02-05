@@ -48,6 +48,11 @@ interface GeminiMultimodalOptions {
    * Shoot parameters for the thinking step to consider
    */
   shootParams?: ShootParams;
+  /**
+   * Pre-computed reference image analysis from a previous call to analyzeReferenceImages().
+   * When provided, skips the vision analysis step (saving tokens on multi-shot jobs).
+   */
+  preComputedReferenceAnalysis?: VisionAnalysisResult;
 }
 
 interface StepMetrics {
@@ -75,7 +80,7 @@ interface GeneratedImage {
   thinkingChain?: ThinkingChain;
 }
 
-interface VisionAnalysisResult {
+export interface VisionAnalysisResult {
   descriptions: string[];
   metrics: StepMetrics;
 }
@@ -83,8 +88,11 @@ interface VisionAnalysisResult {
 /**
  * Analyze reference images using Gemini's vision capabilities.
  * Returns detailed descriptions of each image for use in prompt refinement.
+ *
+ * Export this function to allow callers to pre-compute vision analysis
+ * once per job instead of once per shot (token optimization).
  */
-async function analyzeReferenceImages(
+export async function analyzeReferenceImages(
   referenceImages: ReferenceImage[],
   apiKey: string
 ): Promise<VisionAnalysisResult> {
@@ -316,7 +324,7 @@ Output ONLY the refined prompt, nothing else.`;
 export async function generateImageWithGemini3Pro(
   options: GeminiMultimodalOptions
 ): Promise<GeneratedImage> {
-  const { prompt, referenceImages = [], aspectRatio = '1:1', imageSize = '2K', thinking, shootParams } = options;
+  const { prompt, referenceImages = [], aspectRatio = '1:1', imageSize = '2K', thinking, shootParams, preComputedReferenceAnalysis } = options;
 
   const apiKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY;
   if (!apiKey) {
@@ -336,13 +344,20 @@ export async function generateImageWithGemini3Pro(
     let reasoningMetrics: StepMetrics | undefined;
 
     // Step 1: Analyze reference images with vision (if any)
+    // Use pre-computed analysis if available (avoids repeated vision calls for multi-shot jobs)
     let referenceDescriptions: string[] = [];
     if (referenceImages.length > 0) {
-      console.log(`Analyzing ${referenceImages.length} reference images...`);
-      const visionResult = await analyzeReferenceImages(referenceImages, apiKey);
-      referenceDescriptions = visionResult.descriptions;
-      visionMetrics = visionResult.metrics;
-      console.log(`Vision analysis complete: ${visionMetrics.durationMs}ms, ${visionMetrics.tokensIn} in / ${visionMetrics.tokensOut} out`);
+      if (preComputedReferenceAnalysis) {
+        console.log(`Using pre-computed vision analysis for ${referenceImages.length} reference images (cached)`);
+        referenceDescriptions = preComputedReferenceAnalysis.descriptions;
+        visionMetrics = preComputedReferenceAnalysis.metrics;
+      } else {
+        console.log(`Analyzing ${referenceImages.length} reference images...`);
+        const visionResult = await analyzeReferenceImages(referenceImages, apiKey);
+        referenceDescriptions = visionResult.descriptions;
+        visionMetrics = visionResult.metrics;
+        console.log(`Vision analysis complete: ${visionMetrics.durationMs}ms, ${visionMetrics.tokensIn} in / ${visionMetrics.tokensOut} out`);
+      }
     }
 
     // Step 2: Refine prompt with LLM reasoning
