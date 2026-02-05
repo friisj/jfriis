@@ -409,13 +409,7 @@ function ImagesPanel({
   seriesId: string;
 }) {
   return (
-    <div>
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="text-lg font-semibold">Images ({images.length})</h2>
-        <Button size="sm" variant="outline" asChild>
-          <Link href={`/tools/cog/${seriesId}/upload`}>Upload</Link>
-        </Button>
-      </div>
+    <div className="flex flex-col">
       {images.length === 0 ? (
         <div className="text-center py-12 border rounded-lg bg-muted/50">
           <p className="text-muted-foreground mb-4">
@@ -426,7 +420,15 @@ function ImagesPanel({
           </Button>
         </div>
       ) : (
-        <ImageGallery images={images} seriesId={seriesId} />
+        <>
+          <ImageGallery images={images} seriesId={seriesId} />
+
+          <div className="p-6 border-t">
+            <Button size="sm" variant="outline" asChild>
+              <Link href={`/tools/cog/${seriesId}/upload`}>Upload</Link>
+            </Button>
+          </div>
+      </>
       )}
     </div>
   );
@@ -441,13 +443,13 @@ export function SeriesLayout({
   const images = series.images;
 
   return (
-    <>
+    <div className="flex-1 relative">
       {/* Wide layout: 2 resizable columns */}
-      <div className="hidden lg:block h-[calc(100vh-8rem)]">
+      <div className="hidden lg:block h-full border border-red-500">
         <ResizablePanelGroup direction="horizontal">
           {/* Config column */}
           <ResizablePanel defaultSize={25} minSize={15} maxSize={40}>
-            <div className="h-full overflow-y-auto pr-4">
+            <div className="h-full overflow-y-auto p-6">
               <ConfigPanel
                 series={series}
                 childSeries={childSeries}
@@ -462,7 +464,7 @@ export function SeriesLayout({
 
           {/* Jobs/Images column with tabs */}
           <ResizablePanel defaultSize={75} minSize={50}>
-            <div className="h-full overflow-y-auto pl-4">
+            <div className="h-full overflow-y-auto p-6">
               <Tabs defaultValue="images" className="h-full flex flex-col">
                 <TabsList className="w-fit">
                   <TabsTrigger value="jobs">Jobs ({jobs.length})</TabsTrigger>
@@ -507,6 +509,6 @@ export function SeriesLayout({
           </TabsContent>
         </Tabs>
       </div>
-    </>
+    </div>
   );
 }

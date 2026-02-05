@@ -228,19 +228,19 @@ WHERE EXISTS (SELECT 1 FROM log_entries le WHERE le.id = les.log_entry_id)
   AND EXISTS (SELECT 1 FROM specimens s WHERE s.id = les.specimen_id)
 ON CONFLICT (source_type, source_id, target_type, target_id, link_type) DO NOTHING;
 
--- Migrate log_entry_projects
+-- Migrate log_entry_ventures (formerly log_entry_projects)
 INSERT INTO entity_links (source_type, source_id, target_type, target_id, link_type, metadata, created_at)
 SELECT DISTINCT
   'log_entry',
-  lep.log_entry_id,
-  'project',
-  lep.project_id,
+  lev.log_entry_id,
+  'venture',
+  lev.venture_id,
   'references',
   '{}'::jsonb,
-  lep.created_at
-FROM log_entry_projects lep
-WHERE EXISTS (SELECT 1 FROM log_entries le WHERE le.id = lep.log_entry_id)
-  AND EXISTS (SELECT 1 FROM projects p WHERE p.id = lep.project_id)
+  lev.created_at
+FROM log_entry_ventures lev
+WHERE EXISTS (SELECT 1 FROM log_entries le WHERE le.id = lev.log_entry_id)
+  AND EXISTS (SELECT 1 FROM ventures v WHERE v.id = lev.venture_id)
 ON CONFLICT (source_type, source_id, target_type, target_id, link_type) DO NOTHING;
 
 -- ============================================================================

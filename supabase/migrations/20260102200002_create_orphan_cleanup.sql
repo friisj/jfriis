@@ -152,10 +152,10 @@ CREATE TRIGGER cleanup_specimen_links
   BEFORE DELETE ON specimens
   FOR EACH ROW EXECUTE FUNCTION cleanup_entity_links('specimen');
 
--- Projects (portfolio ventures)
-CREATE TRIGGER cleanup_project_links
-  BEFORE DELETE ON projects
-  FOR EACH ROW EXECUTE FUNCTION cleanup_entity_links('project');
+-- Ventures (portfolio ventures, formerly projects)
+CREATE TRIGGER cleanup_venture_links
+  BEFORE DELETE ON ventures
+  FOR EACH ROW EXECUTE FUNCTION cleanup_entity_links('venture');
 
 -- Studio Projects
 CREATE TRIGGER cleanup_studio_project_links

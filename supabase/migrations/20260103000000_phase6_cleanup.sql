@@ -11,20 +11,20 @@
 -- 1. MIGRATE REMAINING JUNCTION TABLE DATA
 -- ============================================================================
 
--- Migrate project_specimens to entity_links
+-- Migrate venture_specimens to entity_links (formerly project_specimens)
 INSERT INTO entity_links (source_type, source_id, target_type, target_id, link_type, position, metadata, created_at)
 SELECT DISTINCT
-  'project',
-  ps.project_id,
+  'venture',
+  vs.venture_id,
   'specimen',
-  ps.specimen_id,
+  vs.specimen_id,
   'contains',
-  ps.position,
+  vs.position,
   '{}'::jsonb,
-  ps.created_at
-FROM project_specimens ps
-WHERE EXISTS (SELECT 1 FROM projects p WHERE p.id = ps.project_id)
-  AND EXISTS (SELECT 1 FROM specimens s WHERE s.id = ps.specimen_id)
+  vs.created_at
+FROM venture_specimens vs
+WHERE EXISTS (SELECT 1 FROM ventures v WHERE v.id = vs.venture_id)
+  AND EXISTS (SELECT 1 FROM specimens s WHERE s.id = vs.specimen_id)
 ON CONFLICT (source_type, source_id, target_type, target_id, link_type) DO NOTHING;
 
 -- Migrate gallery_specimen_items to entity_links
@@ -96,37 +96,37 @@ ALTER TABLE user_journeys
 -- 4. DROP DEPRECATED JUNCTION TABLES
 -- ============================================================================
 
--- Drop triggers first
-DROP TRIGGER IF EXISTS update_project_specimens_updated_at ON project_specimens;
+-- Drop triggers first (using renamed table names)
+DROP TRIGGER IF EXISTS update_venture_specimens_updated_at ON venture_specimens;
 DROP TRIGGER IF EXISTS update_log_entry_specimens_updated_at ON log_entry_specimens;
-DROP TRIGGER IF EXISTS update_log_entry_projects_updated_at ON log_entry_projects;
+DROP TRIGGER IF EXISTS update_log_entry_ventures_updated_at ON log_entry_ventures;
 DROP TRIGGER IF EXISTS update_gallery_specimen_items_updated_at ON gallery_specimen_items;
 
--- Drop RLS policies for junction tables
-DROP POLICY IF EXISTS "Project specimens readable by authenticated users" ON project_specimens;
-DROP POLICY IF EXISTS "Project specimens insertable by authenticated users" ON project_specimens;
-DROP POLICY IF EXISTS "Project specimens updatable by authenticated users" ON project_specimens;
-DROP POLICY IF EXISTS "Project specimens deletable by authenticated users" ON project_specimens;
+-- Drop RLS policies for junction tables (using renamed table names)
+DROP POLICY IF EXISTS "Venture specimens readable by authenticated users" ON venture_specimens;
+DROP POLICY IF EXISTS "Venture specimens insertable by authenticated users" ON venture_specimens;
+DROP POLICY IF EXISTS "Venture specimens updatable by authenticated users" ON venture_specimens;
+DROP POLICY IF EXISTS "Venture specimens deletable by authenticated users" ON venture_specimens;
 
 DROP POLICY IF EXISTS "Log entry specimens readable by authenticated users" ON log_entry_specimens;
 DROP POLICY IF EXISTS "Log entry specimens insertable by authenticated users" ON log_entry_specimens;
 DROP POLICY IF EXISTS "Log entry specimens updatable by authenticated users" ON log_entry_specimens;
 DROP POLICY IF EXISTS "Log entry specimens deletable by authenticated users" ON log_entry_specimens;
 
-DROP POLICY IF EXISTS "Log entry projects readable by authenticated users" ON log_entry_projects;
-DROP POLICY IF EXISTS "Log entry projects insertable by authenticated users" ON log_entry_projects;
-DROP POLICY IF EXISTS "Log entry projects updatable by authenticated users" ON log_entry_projects;
-DROP POLICY IF EXISTS "Log entry projects deletable by authenticated users" ON log_entry_projects;
+DROP POLICY IF EXISTS "Log entry ventures readable by authenticated users" ON log_entry_ventures;
+DROP POLICY IF EXISTS "Log entry ventures insertable by authenticated users" ON log_entry_ventures;
+DROP POLICY IF EXISTS "Log entry ventures updatable by authenticated users" ON log_entry_ventures;
+DROP POLICY IF EXISTS "Log entry ventures deletable by authenticated users" ON log_entry_ventures;
 
 DROP POLICY IF EXISTS "Gallery specimen items readable by authenticated users" ON gallery_specimen_items;
 DROP POLICY IF EXISTS "Gallery specimen items insertable by authenticated users" ON gallery_specimen_items;
 DROP POLICY IF EXISTS "Gallery specimen items updatable by authenticated users" ON gallery_specimen_items;
 DROP POLICY IF EXISTS "Gallery specimen items deletable by authenticated users" ON gallery_specimen_items;
 
--- Drop the deprecated junction tables
-DROP TABLE IF EXISTS project_specimens CASCADE;
+-- Drop the deprecated junction tables (using renamed table names)
+DROP TABLE IF EXISTS venture_specimens CASCADE;
 DROP TABLE IF EXISTS log_entry_specimens CASCADE;
-DROP TABLE IF EXISTS log_entry_projects CASCADE;
+DROP TABLE IF EXISTS log_entry_ventures CASCADE;
 DROP TABLE IF EXISTS gallery_specimen_items CASCADE;
 
 -- ============================================================================

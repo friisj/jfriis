@@ -41,16 +41,7 @@ export default async function SeriesDetailPage({ params }: Props) {
   const { series, jobs, children } = data;
 
   return (
-    <div className="px-6 py-6">
-      {/* Breadcrumb */}
-      <div className="flex items-center gap-2 text-sm text-muted-foreground mb-4">
-        <Link href="/tools/cog" className="hover:text-foreground">
-          Series
-        </Link>
-        <span>/</span>
-        <span className="text-foreground font-medium">{series.title}</span>
-      </div>
-
+    <div className="flex-1 border border-blue-500">
       <SeriesLayout
         series={series}
         jobs={jobs}

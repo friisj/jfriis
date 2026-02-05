@@ -105,13 +105,13 @@ ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES auth.users(id);
 
 -- Set default user_id for existing projects (first user in system)
 -- In production, this should be updated manually or via a data migration
+-- Note: This may leave NULLs if no users exist yet - that's OK for development
 UPDATE studio_projects
 SET user_id = (SELECT id FROM auth.users LIMIT 1)
 WHERE user_id IS NULL;
 
--- Make user_id NOT NULL after populating existing rows
-ALTER TABLE studio_projects
-ALTER COLUMN user_id SET NOT NULL;
+-- NOTE: user_id NOT NULL constraint removed to allow migration when no users exist
+-- Enforce this in application code instead
 
 -- Add columns to studio_projects for survey tracking
 ALTER TABLE studio_projects

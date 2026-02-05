@@ -138,7 +138,7 @@ export function ImageGallery({ images: initialImages, seriesId }: ImageGalleryPr
   const currentImage = selectedIndex !== null ? images[selectedIndex] : null;
 
   return (
-    <>
+    <div className="flex-1">
       {/* Thumbnail Grid */}
       <div className="grid gap-4 grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
         {images.map((image, index) => (
@@ -328,6 +328,6 @@ export function ImageGallery({ images: initialImages, seriesId }: ImageGalleryPr
           </div>
         </div>
       )}
-    </>
+    </div>
   );
 }
