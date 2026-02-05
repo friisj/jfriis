@@ -7,8 +7,12 @@ import { JobRunner } from './job-runner';
 import { JobActions } from './job-actions';
 import { JobInputs } from './job-inputs';
 import { EditableStepPrompt } from './editable-step-prompt';
+import { EditableJobTitle } from './editable-job-title';
 import { ThinkingChainViewer } from './thinking-chain-viewer';
 import { RefineImageDialog } from './refine-image-dialog';
+import { RetryStepButton } from './retry-step-button';
+import { StepActions } from './step-actions';
+import { Disclosure, DisclosureContent, DisclosureTrigger } from './disclosure';
 
 interface Props {
   params: Promise<{ id: string; jobId: string }>;
@@ -61,7 +65,7 @@ export default async function JobDetailPage({ params }: Props) {
             <span>/</span>
             <span>Job</span>
           </div>
-          <h1 className="text-3xl font-bold">{job.title || 'Untitled Job'}</h1>
+          <EditableJobTitle jobId={job.id} title={job.title || 'Untitled Job'} canEdit={canEdit} />
           <p className="text-muted-foreground mt-2 line-clamp-2">{job.base_prompt}</p>
         </div>
         <span
@@ -98,51 +102,57 @@ export default async function JobDetailPage({ params }: Props) {
         )}
       </div>
 
-      {/* Shoot Setup */}
+      {/* Shoot Setup - collapsed by default */}
       {(job.scene || job.art_direction || job.styling || job.lighting || job.camera || job.framing) && (
-        <div className="mb-6 p-4 border rounded-lg bg-muted/30">
-          <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide mb-3">
-            Shoot Setup
-          </h3>
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
-            {job.scene && (
-              <div>
-                <span className="text-muted-foreground">Scene:</span>
-                <p className="mt-0.5">{job.scene}</p>
+        <Disclosure>
+          <div className="mb-6 border rounded-lg bg-muted/30">
+            <DisclosureTrigger className="p-4">
+              <span className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
+                Shoot Setup
+              </span>
+            </DisclosureTrigger>
+            <DisclosureContent className="px-4 pb-4">
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
+                {job.scene && (
+                  <div>
+                    <span className="text-muted-foreground">Scene:</span>
+                    <p className="mt-0.5">{job.scene}</p>
+                  </div>
+                )}
+                {job.art_direction && (
+                  <div>
+                    <span className="text-muted-foreground">Art Direction:</span>
+                    <p className="mt-0.5">{job.art_direction}</p>
+                  </div>
+                )}
+                {job.styling && (
+                  <div>
+                    <span className="text-muted-foreground">Styling:</span>
+                    <p className="mt-0.5">{job.styling}</p>
+                  </div>
+                )}
+                {job.lighting && (
+                  <div>
+                    <span className="text-muted-foreground">Lighting:</span>
+                    <p className="mt-0.5">{job.lighting}</p>
+                  </div>
+                )}
+                {job.camera && (
+                  <div>
+                    <span className="text-muted-foreground">Camera:</span>
+                    <p className="mt-0.5">{job.camera}</p>
+                  </div>
+                )}
+                {job.framing && (
+                  <div>
+                    <span className="text-muted-foreground">Framing:</span>
+                    <p className="mt-0.5">{job.framing}</p>
+                  </div>
+                )}
               </div>
-            )}
-            {job.art_direction && (
-              <div>
-                <span className="text-muted-foreground">Art Direction:</span>
-                <p className="mt-0.5">{job.art_direction}</p>
-              </div>
-            )}
-            {job.styling && (
-              <div>
-                <span className="text-muted-foreground">Styling:</span>
-                <p className="mt-0.5">{job.styling}</p>
-              </div>
-            )}
-            {job.lighting && (
-              <div>
-                <span className="text-muted-foreground">Lighting:</span>
-                <p className="mt-0.5">{job.lighting}</p>
-              </div>
-            )}
-            {job.camera && (
-              <div>
-                <span className="text-muted-foreground">Camera:</span>
-                <p className="mt-0.5">{job.camera}</p>
-              </div>
-            )}
-            {job.framing && (
-              <div>
-                <span className="text-muted-foreground">Framing:</span>
-                <p className="mt-0.5">{job.framing}</p>
-              </div>
-            )}
+            </DisclosureContent>
           </div>
-        </div>
+        </Disclosure>
       )}
 
       {/* Error message */}
@@ -206,19 +216,22 @@ export default async function JobDetailPage({ params }: Props) {
                   </span>
                   <span className="text-xs text-muted-foreground">{step.model}</span>
                 </div>
-                <span
-                  className={`text-xs px-2 py-0.5 rounded-full ${
-                    step.status === 'completed'
-                      ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-                      : step.status === 'running'
-                        ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
-                        : step.status === 'failed'
-                          ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
-                          : 'bg-muted'
-                  }`}
-                >
-                  {step.status}
-                </span>
+                <div className="flex items-center gap-2">
+                  <span
+                    className={`text-xs px-2 py-0.5 rounded-full ${
+                      step.status === 'completed'
+                        ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+                        : step.status === 'running'
+                          ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
+                          : step.status === 'failed'
+                            ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
+                            : 'bg-muted'
+                    }`}
+                  >
+                    {step.status}
+                  </span>
+                  <StepActions stepId={step.id} canEdit={canEdit} />
+                </div>
               </div>
 
               <EditableStepPrompt
@@ -275,7 +288,7 @@ export default async function JobDetailPage({ params }: Props) {
                                   alt="Generated"
                                   className="max-w-full h-auto rounded"
                                 />
-                                {/* Refine button - only for completed image_gen steps */}
+                                {/* Refine and Retry buttons - only for completed image_gen steps */}
                                 {step.status === 'completed' && (
                                   <div className="flex items-center gap-2">
                                     <RefineImageDialog
@@ -283,6 +296,7 @@ export default async function JobDetailPage({ params }: Props) {
                                       currentImageUrl={String(output.imageUrl)}
                                       refinementHistory={refinementHistory}
                                     />
+                                    <RetryStepButton stepId={step.id} />
                                     {refinementCount > 0 && (
                                       <span className="text-xs text-muted-foreground">
                                         {refinementCount} refinement{refinementCount !== 1 ? 's' : ''}

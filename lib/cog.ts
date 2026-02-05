@@ -19,6 +19,16 @@ import type {
   CogJobStepUpdate,
   CogJobInput,
   CogJobInputInsert,
+  CogTagGroup,
+  CogTagGroupInsert,
+  CogTagGroupUpdate,
+  CogTag,
+  CogTagInsert,
+  CogTagUpdate,
+  CogSeriesTag,
+  CogSeriesTagInsert,
+  CogImageTag,
+  CogImageTagInsert,
 } from './types/cog';
 
 // ============================================================================
@@ -509,4 +519,405 @@ export async function duplicateJob(jobId: string): Promise<CogJob> {
   }
 
   return newJob as CogJob;
+}
+
+// ============================================================================
+// Tag Group Operations (Client)
+// ============================================================================
+
+/**
+ * Create a new tag group - client-side
+ */
+export async function createTagGroup(input: CogTagGroupInsert): Promise<CogTagGroup> {
+  const { data, error } = await (supabase as any)
+    .from('cog_tag_groups')
+    .insert({
+      name: input.name,
+      color: input.color || null,
+      position: input.position || 0,
+    })
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data as CogTagGroup;
+}
+
+/**
+ * Update a tag group - client-side
+ */
+export async function updateTagGroup(id: string, updates: CogTagGroupUpdate): Promise<CogTagGroup> {
+  const { data, error } = await (supabase as any)
+    .from('cog_tag_groups')
+    .update(updates)
+    .eq('id', id)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data as CogTagGroup;
+}
+
+/**
+ * Delete a tag group - client-side
+ */
+export async function deleteTagGroup(id: string): Promise<void> {
+  const { error } = await (supabase as any)
+    .from('cog_tag_groups')
+    .delete()
+    .eq('id', id);
+
+  if (error) throw error;
+}
+
+/**
+ * Reorder tag groups - client-side
+ */
+export async function reorderTagGroups(orderedIds: string[]): Promise<void> {
+  const updates = orderedIds.map((id, index) => ({
+    id,
+    position: index,
+  }));
+
+  for (const update of updates) {
+    const { error } = await (supabase as any)
+      .from('cog_tag_groups')
+      .update({ position: update.position })
+      .eq('id', update.id);
+
+    if (error) throw error;
+  }
+}
+
+// ============================================================================
+// Tag Operations (Client)
+// ============================================================================
+
+/**
+ * Create a new tag - client-side
+ */
+export async function createTag(input: CogTagInsert): Promise<CogTag> {
+  const { data, error } = await (supabase as any)
+    .from('cog_tags')
+    .insert({
+      series_id: input.series_id || null,
+      group_id: input.group_id || null,
+      name: input.name,
+      shortcut: input.shortcut || null,
+      color: input.color || null,
+      position: input.position || 0,
+    })
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data as CogTag;
+}
+
+/**
+ * Update a tag - client-side
+ */
+export async function updateTag(id: string, updates: CogTagUpdate): Promise<CogTag> {
+  const { data, error } = await (supabase as any)
+    .from('cog_tags')
+    .update(updates)
+    .eq('id', id)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data as CogTag;
+}
+
+/**
+ * Delete a tag - client-side
+ */
+export async function deleteTag(id: string): Promise<void> {
+  const { error } = await (supabase as any)
+    .from('cog_tags')
+    .delete()
+    .eq('id', id);
+
+  if (error) throw error;
+}
+
+/**
+ * Reorder tags within a group - client-side
+ */
+export async function reorderTags(orderedIds: string[]): Promise<void> {
+  const updates = orderedIds.map((id, index) => ({
+    id,
+    position: index,
+  }));
+
+  for (const update of updates) {
+    const { error } = await (supabase as any)
+      .from('cog_tags')
+      .update({ position: update.position })
+      .eq('id', update.id);
+
+    if (error) throw error;
+  }
+}
+
+// ============================================================================
+// Series Tag Operations (Client)
+// ============================================================================
+
+/**
+ * Enable a global tag for a series - client-side
+ */
+export async function enableTagForSeries(seriesId: string, tagId: string, position?: number): Promise<CogSeriesTag> {
+  // Get current max position if not provided
+  let pos = position;
+  if (pos === undefined) {
+    const { data: existing } = await (supabase as any)
+      .from('cog_series_tags')
+      .select('position')
+      .eq('series_id', seriesId)
+      .order('position', { ascending: false })
+      .limit(1);
+
+    pos = existing && existing.length > 0 ? existing[0].position + 1 : 0;
+  }
+
+  const { data, error } = await (supabase as any)
+    .from('cog_series_tags')
+    .insert({
+      series_id: seriesId,
+      tag_id: tagId,
+      position: pos,
+    })
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data as CogSeriesTag;
+}
+
+/**
+ * Disable a global tag for a series - client-side
+ */
+export async function disableTagForSeries(seriesId: string, tagId: string): Promise<void> {
+  const { error } = await (supabase as any)
+    .from('cog_series_tags')
+    .delete()
+    .eq('series_id', seriesId)
+    .eq('tag_id', tagId);
+
+  if (error) throw error;
+}
+
+/**
+ * Reorder enabled tags for a series - client-side
+ */
+export async function reorderSeriesTags(seriesId: string, orderedTagIds: string[]): Promise<void> {
+  for (let i = 0; i < orderedTagIds.length; i++) {
+    const { error } = await (supabase as any)
+      .from('cog_series_tags')
+      .update({ position: i })
+      .eq('series_id', seriesId)
+      .eq('tag_id', orderedTagIds[i]);
+
+    if (error) throw error;
+  }
+}
+
+// ============================================================================
+// Image Tag Operations (Client)
+// ============================================================================
+
+/**
+ * Add a tag to an image - client-side
+ */
+export async function addTagToImage(imageId: string, tagId: string): Promise<CogImageTag> {
+  const { data, error } = await (supabase as any)
+    .from('cog_image_tags')
+    .insert({
+      image_id: imageId,
+      tag_id: tagId,
+    })
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data as CogImageTag;
+}
+
+/**
+ * Remove a tag from an image - client-side
+ */
+export async function removeTagFromImage(imageId: string, tagId: string): Promise<void> {
+  const { error } = await (supabase as any)
+    .from('cog_image_tags')
+    .delete()
+    .eq('image_id', imageId)
+    .eq('tag_id', tagId);
+
+  if (error) throw error;
+}
+
+/**
+ * Toggle a tag on/off for an image - client-side
+ * Returns true if tag was added, false if removed
+ */
+export async function toggleImageTag(imageId: string, tagId: string): Promise<boolean> {
+  // Check if tag is currently applied
+  const { data: existing } = await (supabase as any)
+    .from('cog_image_tags')
+    .select('id')
+    .eq('image_id', imageId)
+    .eq('tag_id', tagId)
+    .single();
+
+  if (existing) {
+    // Tag exists, remove it
+    await removeTagFromImage(imageId, tagId);
+    return false;
+  } else {
+    // Tag doesn't exist, add it
+    await addTagToImage(imageId, tagId);
+    return true;
+  }
+}
+
+/**
+ * Get all tags for an image - client-side
+ */
+export async function getImageTags(imageId: string): Promise<CogTag[]> {
+  const { data, error } = await (supabase as any)
+    .from('cog_image_tags')
+    .select('tag:cog_tags(*)')
+    .eq('image_id', imageId);
+
+  if (error) throw error;
+  return (data || []).map((row: { tag: CogTag }) => row.tag);
+}
+
+/**
+ * Batch get tags for multiple images - client-side
+ */
+export async function getImageTagsBatch(imageIds: string[]): Promise<Map<string, CogTag[]>> {
+  if (imageIds.length === 0) return new Map();
+
+  const { data, error } = await (supabase as any)
+    .from('cog_image_tags')
+    .select('image_id, tag:cog_tags(*)')
+    .in('image_id', imageIds);
+
+  if (error) throw error;
+
+  const tagsByImage = new Map<string, CogTag[]>();
+  for (const row of data || []) {
+    const existing = tagsByImage.get(row.image_id) || [];
+    existing.push(row.tag);
+    tagsByImage.set(row.image_id, existing);
+  }
+
+  return tagsByImage;
+}
+
+// ============================================================================
+// Image Versioning Operations (Client)
+// ============================================================================
+
+/**
+ * Get the full version chain for an image - client-side
+ * Returns array from root to latest descendant
+ */
+export async function getImageVersionChain(imageId: string): Promise<CogImage[]> {
+  // First get the image to find its series
+  const { data: image, error: imageError } = await (supabase as any)
+    .from('cog_images')
+    .select('*')
+    .eq('id', imageId)
+    .single();
+
+  if (imageError) throw imageError;
+
+  // Get all images in this series
+  const { data: allImages, error: allError } = await (supabase as any)
+    .from('cog_images')
+    .select('*')
+    .eq('series_id', image.series_id);
+
+  if (allError) throw allError;
+
+  // Build parent lookup
+  const imageMap = new Map<string, CogImage>();
+  const childrenMap = new Map<string, CogImage[]>();
+
+  for (const img of allImages) {
+    imageMap.set(img.id, img);
+    if (img.parent_image_id) {
+      const children = childrenMap.get(img.parent_image_id) || [];
+      children.push(img);
+      childrenMap.set(img.parent_image_id, children);
+    }
+  }
+
+  // Find the root
+  let root = image;
+  while (root.parent_image_id) {
+    const parent = imageMap.get(root.parent_image_id);
+    if (!parent) break;
+    root = parent;
+  }
+
+  // Build chain from root through this image to latest
+  function findPathToTarget(currentId: string, targetId: string, path: CogImage[]): CogImage[] | null {
+    if (currentId === targetId) return path;
+    const children = childrenMap.get(currentId) || [];
+    for (const child of children) {
+      const result = findPathToTarget(child.id, targetId, [...path, child]);
+      if (result) return result;
+    }
+    return null;
+  }
+
+  const pathToTarget = findPathToTarget(root.id, imageId, [root]);
+
+  if (pathToTarget) {
+    // Extend from target to latest
+    let current = imageMap.get(imageId)!;
+    const result = [...pathToTarget];
+    while (true) {
+      const children = childrenMap.get(current.id) || [];
+      if (children.length === 0) break;
+      const latestChild = children.sort((a, b) =>
+        new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      )[0];
+      result.push(latestChild);
+      current = latestChild;
+    }
+    return result;
+  }
+
+  // Fallback: full chain from root
+  const fullChain: CogImage[] = [root];
+  let current = root;
+  while (true) {
+    const children = childrenMap.get(current.id) || [];
+    if (children.length === 0) break;
+    const latestChild = children.sort((a, b) =>
+      new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+    )[0];
+    fullChain.push(latestChild);
+    current = latestChild;
+  }
+  return fullChain;
+}
+
+/**
+ * Get a single image by ID - client-side
+ */
+export async function getImageById(id: string): Promise<CogImage> {
+  const { data, error } = await (supabase as any)
+    .from('cog_images')
+    .select('*')
+    .eq('id', id)
+    .single();
+
+  if (error) throw error;
+  return data as CogImage;
 }

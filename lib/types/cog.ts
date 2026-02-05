@@ -31,6 +31,7 @@ export interface CogImage {
   id: string;
   series_id: string;
   job_id: string | null;
+  parent_image_id: string | null;
   storage_path: string;
   filename: string;
   mime_type: string;
@@ -116,6 +117,7 @@ export interface CogSeriesInsert {
 export interface CogImageInsert {
   series_id: string;
   job_id?: string | null;
+  parent_image_id?: string | null;
   storage_path: string;
   filename: string;
   mime_type?: string;
@@ -206,4 +208,104 @@ export interface CogSeriesFull extends CogSeries {
   children: CogSeries[];
   images: CogImage[];
   jobs: CogJobWithSteps[];
+}
+
+// ============================================================================
+// Tag Types
+// ============================================================================
+
+export interface CogTagGroup {
+  id: string;
+  name: string;
+  color: string | null;
+  position: number;
+  created_at: string;
+}
+
+export interface CogTag {
+  id: string;
+  series_id: string | null;  // null = global tag
+  group_id: string | null;
+  name: string;
+  shortcut: string | null;  // single key: '1', '2', 'a', 'b', etc.
+  color: string | null;
+  position: number;
+  created_at: string;
+}
+
+export interface CogSeriesTag {
+  id: string;
+  series_id: string;
+  tag_id: string;
+  position: number;
+  created_at: string;
+}
+
+export interface CogImageTag {
+  id: string;
+  image_id: string;
+  tag_id: string;
+  created_at: string;
+}
+
+// Insert types for tags
+export interface CogTagGroupInsert {
+  name: string;
+  color?: string | null;
+  position?: number;
+}
+
+export interface CogTagInsert {
+  series_id?: string | null;
+  group_id?: string | null;
+  name: string;
+  shortcut?: string | null;
+  color?: string | null;
+  position?: number;
+}
+
+export interface CogSeriesTagInsert {
+  series_id: string;
+  tag_id: string;
+  position?: number;
+}
+
+export interface CogImageTagInsert {
+  image_id: string;
+  tag_id: string;
+}
+
+// Update types for tags
+export type CogTagGroupUpdate = Partial<Omit<CogTagGroup, 'id' | 'created_at'>>;
+export type CogTagUpdate = Partial<Omit<CogTag, 'id' | 'created_at'>>;
+export type CogSeriesTagUpdate = Partial<Omit<CogSeriesTag, 'id' | 'created_at'>>;
+
+// Extended types with relations
+export interface CogTagWithGroup extends CogTag {
+  group: CogTagGroup | null;
+}
+
+export interface CogTagGroupWithTags extends CogTagGroup {
+  tags: CogTag[];
+}
+
+export interface CogImageWithTags extends CogImage {
+  tags: CogTag[];
+}
+
+// Extended series type that includes enabled tags
+export interface CogSeriesWithTags extends CogSeries {
+  enabled_tags: CogTagWithGroup[];
+}
+
+export interface CogSeriesWithImagesAndTags extends CogSeriesWithImages {
+  enabled_tags: CogTagWithGroup[];
+}
+
+// ============================================================================
+// Image Versioning Types
+// ============================================================================
+
+export interface CogImageWithVersions extends CogImage {
+  version_count: number;
 }

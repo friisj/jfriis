@@ -1,7 +1,14 @@
-import { getSeriesWithImagesServer, getSeriesJobsServer, getChildSeriesServer } from '@/lib/cog-server';
+import {
+  getSeriesByIdServer,
+  getRootImagesWithVersionCountsServer,
+  getSeriesJobsServer,
+  getChildSeriesServer,
+  getEnabledTagsForSeriesServer,
+  getGlobalTagsServer,
+} from '@/lib/cog-server';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import type { CogSeriesWithImages, CogJob, CogSeries } from '@/lib/types/cog';
+import type { CogSeries, CogJob, CogTag, CogTagWithGroup, CogImageWithVersions } from '@/lib/types/cog';
 import { SeriesLayout } from './series-layout';
 
 interface Props {
@@ -9,21 +16,42 @@ interface Props {
 }
 
 async function getSeriesData(id: string): Promise<{
-  series: CogSeriesWithImages;
+  series: CogSeries;
+  images: CogImageWithVersions[];
   jobs: CogJob[];
   children: CogSeries[];
+  enabledTags: CogTagWithGroup[];
+  globalTags: CogTag[];
 } | null> {
   try {
-    const [seriesWithImages, jobs, children] = await Promise.all([
-      getSeriesWithImagesServer(id),
+    // Core data (required)
+    const [series, images, jobs, children] = await Promise.all([
+      getSeriesByIdServer(id),
+      getRootImagesWithVersionCountsServer(id),
       getSeriesJobsServer(id),
       getChildSeriesServer(id),
     ]);
 
+    // Tag data (optional - tables may not exist yet)
+    let enabledTags: CogTagWithGroup[] = [];
+    let globalTags: CogTag[] = [];
+    try {
+      [enabledTags, globalTags] = await Promise.all([
+        getEnabledTagsForSeriesServer(id),
+        getGlobalTagsServer(),
+      ]);
+    } catch (tagError) {
+      // Tags tables may not exist yet - that's OK
+      console.warn('Tags not available (tables may not exist yet):', tagError);
+    }
+
     return {
-      series: seriesWithImages,
+      series,
+      images,
       jobs,
       children,
+      enabledTags,
+      globalTags,
     };
   } catch {
     return null;
@@ -38,15 +66,18 @@ export default async function SeriesDetailPage({ params }: Props) {
     notFound();
   }
 
-  const { series, jobs, children } = data;
+  const { series, images, jobs, children, enabledTags, globalTags } = data;
 
   return (
     <div className="flex-1 border border-blue-500">
       <SeriesLayout
         series={series}
+        images={images}
         jobs={jobs}
         childSeries={children}
         seriesId={id}
+        enabledTags={enabledTags}
+        globalTags={globalTags}
       />
     </div>
   );
