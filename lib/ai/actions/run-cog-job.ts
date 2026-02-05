@@ -248,7 +248,7 @@ export async function runCogJob(input: RunJobInput): Promise<void> {
           try {
             switch (selectedModel) {
               case 'gemini-3-pro-image':
-                modelId = 'gemini-2.0-flash-exp-image-generation';
+                modelId = 'gemini-3-pro-image-preview';
                 imageResult = await generateImageWithGemini3Pro({
                   prompt: promptToUse,
                   referenceImages,

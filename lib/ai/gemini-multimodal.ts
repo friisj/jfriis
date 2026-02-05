@@ -209,26 +209,39 @@ Shoot Parameters:
     ? `Reference Images Analysis:\n${referenceDescriptions.join('\n\n')}\n\n`
     : '';
 
-  const reasoningPrompt = `You are an expert photographer and art director preparing a prompt for AI image generation.
+  const reasoningPrompt = `You are an expert photographer and art director preparing a prompt for AI image generation. Your goal is to transform simple prompts into highly detailed, photorealistic specifications.
 
 ${referenceContext}${shootContext}
 Original Prompt: "${originalPrompt}"
 
-Your task: Create an optimized, detailed prompt for the image generation model that:
-1. Incorporates the visual style, lighting, and mood from reference images (if provided)
-2. Applies the shoot parameters for technical direction
-3. Maintains the core intent of the original prompt
-4. Adds specific details about composition, lighting, colors, and atmosphere
-5. Uses clear, descriptive language that image models understand well
+Your task: Create an EXTENSIVELY DETAILED prompt that will produce photorealistic, professional-quality output. The image model responds best to specific technical details.
 
-Important guidelines:
-- Be specific about lighting (direction, quality, color temperature)
-- Describe the desired composition and framing
-- Include details about textures, materials, and surfaces
-- Specify the mood and atmosphere
-- If references show a person, describe how to maintain their likeness
-- Keep the prompt focused and coherent (under 300 words)
-- CRITICAL: If reference images are provided, you MUST include reference markers like [1], [2], etc. at the START of your prompt to ensure the image model uses them. For example: "[1] [2] A portrait of the subject from the reference images..."
+REQUIRED ELEMENTS (include ALL of these):
+
+1. **Resolution & Quality Keywords**: Always include phrases like "8K resolution", "ultra high definition", "extremely detailed", "photorealistic", "hyperrealistic"
+
+2. **Camera & Lens Specifications**: Include specific details like:
+   - Lens type: "shot on 35mm lens", "85mm portrait lens", "wide angle 24mm"
+   - Camera: "shot on Sony A7R IV", "DSLR quality", "medium format"
+   - Aperture effects: "shallow depth of field, f/1.4", "bokeh background"
+
+3. **Lighting (be VERY specific)**:
+   - Type: "soft diffused lighting", "dramatic rim lighting", "golden hour sunlight", "studio three-point lighting"
+   - Direction: "backlit", "side-lit from the left", "overhead soft box"
+   - Quality: "volumetric light rays", "soft shadows", "specular highlights"
+   - Color temperature: "warm tungsten glow", "cool blue hour tones"
+
+4. **Textures & Materials**: Describe surface qualities - "skin pores visible", "fabric texture detail", "reflective metallic surfaces", "matte finish"
+
+5. **Atmosphere & Mood**: "cinematic atmosphere", "moody and dramatic", "ethereal and dreamy", "gritty and raw"
+
+6. **Professional Photography Terms**: "professional color grading", "film grain", "RAW photo", "award-winning photography", "editorial quality"
+
+CRITICAL RULES:
+- If reference images are provided, you MUST start with reference markers: "[1] [2] A portrait of the subject..."
+- If references show a person, emphasize: "maintaining exact facial features, likeness, and characteristics from reference"
+- Keep under 400 words but be MAXIMALLY descriptive
+- Every sentence should add specific visual detail
 
 Output ONLY the refined prompt, nothing else.`;
 
@@ -240,7 +253,7 @@ Output ONLY the refined prompt, nothing else.`;
     ],
     generationConfig: {
       temperature: 0.7,
-      maxOutputTokens: 500,
+      maxOutputTokens: 800, // Increased for more detailed photorealistic prompts
     },
   };
 
@@ -394,11 +407,11 @@ export async function generateImageWithGemini3Pro(
   // Add the text prompt
   parts.push({ text: finalPrompt });
 
-  // Note: gemini-2.0-flash-exp-image-generation doesn't support aspectRatio in imageConfig
-  // Only imageSize is supported for this model
+  // gemini-3-pro-image-preview supports both aspectRatio and imageSize
   const generationConfig: Record<string, unknown> = {
     responseModalities: ['IMAGE', 'TEXT'],
     imageConfig: {
+      aspectRatio,
       imageSize,
     },
   };
@@ -413,7 +426,7 @@ export async function generateImageWithGemini3Pro(
     generationConfig,
   };
 
-  const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp-image-generation:generateContent`;
+  const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-pro-image-preview:generateContent`;
 
   console.log('Gemini 3 Pro Image request:', {
     endpoint,
@@ -610,7 +623,7 @@ export async function refineImageWithFeedback(
 
   parts.push({ text: refinementPrompt });
 
-  // Note: gemini-2.0-flash-exp-image-generation doesn't support aspectRatio in imageConfig
+  // gemini-3-pro-image-preview supports both aspectRatio and imageSize
   const requestBody = {
     contents: [
       {
@@ -620,12 +633,13 @@ export async function refineImageWithFeedback(
     generationConfig: {
       responseModalities: ['IMAGE', 'TEXT'],
       imageConfig: {
+        aspectRatio,
         imageSize,
       },
     },
   };
 
-  const endpoint = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp-image-generation:generateContent';
+  const endpoint = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-3-pro-image-preview:generateContent';
 
   console.log('Gemini refinement request:', {
     endpoint,
@@ -633,6 +647,7 @@ export async function refineImageWithFeedback(
     currentImageSize: Math.round(imageBase64.length * 0.75 / 1024) + 'KB',
     feedbackPreview: feedback.slice(0, 100),
     hasOriginalPrompt: !!originalPrompt,
+    aspectRatio,
     imageSize,
   });
 
