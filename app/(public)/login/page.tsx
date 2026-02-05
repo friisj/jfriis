@@ -10,7 +10,7 @@ export default function LoginPage() {
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold mb-2">Admin Login</h1>
           <p className="text-muted-foreground">
-            Enter your email to receive a magic link
+            Sign in with a passkey or magic link
           </p>
         </div>
 
