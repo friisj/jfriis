@@ -76,7 +76,7 @@ export async function touchupCogImage(input: TouchupInput): Promise<TouchupResul
 
     // Calculate target dimensions:
     // - Max 512px (SD 1.5 native resolution)
-    // - Divisible by 8 (model requirement)
+    // - Divisible by 64 (stability-ai model requirement)
     // - Maintain aspect ratio
     const MAX_DIMENSION = 512;
 
@@ -86,20 +86,20 @@ export async function touchupCogImage(input: TouchupInput): Promise<TouchupResul
     if (originalWidth >= originalHeight) {
       // Landscape or square
       targetWidth = Math.min(MAX_DIMENSION, originalWidth);
-      targetWidth = Math.floor(targetWidth / 8) * 8;
+      targetWidth = Math.floor(targetWidth / 64) * 64;
       const scale = targetWidth / originalWidth;
       targetHeight = Math.round(originalHeight * scale);
-      targetHeight = Math.floor(targetHeight / 8) * 8;
+      targetHeight = Math.floor(targetHeight / 64) * 64;
     } else {
       // Portrait
       targetHeight = Math.min(MAX_DIMENSION, originalHeight);
-      targetHeight = Math.floor(targetHeight / 8) * 8;
+      targetHeight = Math.floor(targetHeight / 64) * 64;
       const scale = targetHeight / originalHeight;
       targetWidth = Math.round(originalWidth * scale);
-      targetWidth = Math.floor(targetWidth / 8) * 8;
+      targetWidth = Math.floor(targetWidth / 64) * 64;
     }
 
-    // Ensure minimum dimensions
+    // Ensure minimum dimensions (at least 64x64)
     targetWidth = Math.max(64, targetWidth);
     targetHeight = Math.max(64, targetHeight);
 
@@ -117,7 +117,7 @@ export async function touchupCogImage(input: TouchupInput): Promise<TouchupResul
     // Process mask:
     // 1. Decode from base64
     // 2. Resize to match image
-    // 3. Convert to TRUE grayscale (single channel, no alpha)
+    // 3. Convert to TRUE single-channel grayscale
     const maskBuffer = Buffer.from(maskBase64, 'base64');
 
     const processedMaskBuffer = await sharp(maskBuffer)
@@ -125,8 +125,7 @@ export async function touchupCogImage(input: TouchupInput): Promise<TouchupResul
         fit: 'fill',
         kernel: 'nearest', // Preserve hard edges
       })
-      .grayscale()
-      .removeAlpha() // Ensure no alpha channel
+      .toColourspace('b-w') // True single-channel grayscale
       .png()
       .toBuffer();
 
@@ -170,6 +169,8 @@ export async function touchupCogImage(input: TouchupInput): Promise<TouchupResul
       negativePrompt: getDefaultNegativePrompt(),
       numInferenceSteps: 50,
       guidanceScale: mode === 'spot_removal' ? 7.5 : 8,
+      width: targetWidth,
+      height: targetHeight,
     });
 
     // Upload the result image

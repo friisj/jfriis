@@ -9,9 +9,9 @@
 
 import Replicate from 'replicate';
 
-// Model configuration - using andreasjansson's well-maintained SD inpainting
-const INPAINTING_MODEL = 'andreasjansson/stable-diffusion-inpainting';
-const INPAINTING_VERSION = 'e490d072a34a94a11e9711ed5a6ba621c3fab884eda1665d9d3a282d65a21180';
+// Model configuration - using stability-ai model which allows disabling safety filter
+const INPAINTING_MODEL = 'stability-ai/stable-diffusion-inpainting';
+const INPAINTING_VERSION = '95b7223104132402a9ae91cc677285bc5eb997834bd2349fa486f53910fd68b3';
 
 export interface InpaintingOptions {
   /** Image buffer (PNG format) */
@@ -26,6 +26,10 @@ export interface InpaintingOptions {
   guidanceScale?: number;
   /** Number of denoising steps. Default 50 */
   numInferenceSteps?: number;
+  /** Output width (must be multiple of 64) */
+  width: number;
+  /** Output height (must be multiple of 64) */
+  height: number;
 }
 
 export interface InpaintingResult {
@@ -62,6 +66,8 @@ export async function inpaintWithReplicate(
     negativePrompt = 'blurry, low quality, distorted, artifacts',
     guidanceScale = 7.5,
     numInferenceSteps = 50,
+    width,
+    height,
   } = options;
 
   const startTime = Date.now();
@@ -91,6 +97,10 @@ export async function inpaintWithReplicate(
         guidance_scale: guidanceScale,
         num_inference_steps: numInferenceSteps,
         num_outputs: 1,
+        width,
+        height,
+        // Disable NSFW filter for legitimate artistic edits
+        disable_safety_checker: true,
       },
     }
   );
