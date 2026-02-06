@@ -146,6 +146,8 @@ function buildModelInput(
       num_inference_steps: numInferenceSteps,
       scheduler: 'DPMSolverMultistep',
       num_outputs: 1,
+      // Disable overly aggressive safety checker for legitimate artistic use
+      disable_safety_checker: true,
     };
 
     // Add explicit dimensions if provided
