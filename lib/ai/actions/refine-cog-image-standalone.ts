@@ -1,13 +1,18 @@
 'use server';
 
 import { refineImageWithFeedback } from '../gemini-multimodal';
+import { generateWithFlux, type FluxModel } from '../replicate-flux';
 import { createClient } from '@/lib/supabase-server';
+
+type RefinementModel = 'gemini-3-pro' | 'flux-2-pro' | 'flux-2-dev';
 
 interface RefineImageStandaloneInput {
   /** The image ID to refine */
   imageId: string;
   /** Natural language feedback for refinement */
   feedback: string;
+  /** Model to use for refinement */
+  model?: RefinementModel;
 }
 
 interface RefineImageStandaloneResult {
@@ -27,7 +32,7 @@ interface RefineImageStandaloneResult {
 export async function refineCogImageStandalone(
   input: RefineImageStandaloneInput
 ): Promise<RefineImageStandaloneResult> {
-  const { imageId, feedback } = input;
+  const { imageId, feedback, model = 'gemini-3-pro' } = input;
   const supabase = await createClient();
 
   try {
@@ -61,21 +66,45 @@ export async function refineCogImageStandalone(
     const imageBase64 = Buffer.from(imageBuffer).toString('base64');
     const imageMimeType = sourceImage.mime_type || 'image/png';
 
-    // Call the refinement API (standalone - no reference images)
-    const refinedResult = await refineImageWithFeedback({
-      imageBase64,
-      imageMimeType,
-      feedback,
-      originalPrompt: sourceImage.prompt || 'Image refinement',
-      referenceImages: [], // Standalone mode - no reference images
-    });
+    let refinedBuffer: Buffer;
+    let durationMs: number;
+
+    console.log('Refinement request:', { model, feedback: feedback.slice(0, 50) });
+
+    if (model === 'gemini-3-pro') {
+      // Gemini: Conversational refinement with current image as context
+      const refinedResult = await refineImageWithFeedback({
+        imageBase64,
+        imageMimeType,
+        feedback,
+        originalPrompt: sourceImage.prompt || 'Image refinement',
+        referenceImages: [], // Standalone mode - no reference images
+      });
+      refinedBuffer = Buffer.from(refinedResult.base64, 'base64');
+      durationMs = refinedResult.metrics.durationMs;
+    } else {
+      // Flux: Use current image as reference, feedback as prompt
+      const fluxModel: FluxModel = model === 'flux-2-pro' ? 'flux-2-pro' : 'flux-2-dev';
+
+      // Build a prompt that incorporates the feedback and context
+      const refinementPrompt = sourceImage.prompt
+        ? `${feedback}. Based on original: ${sourceImage.prompt}`
+        : feedback;
+
+      const fluxResult = await generateWithFlux({
+        prompt: refinementPrompt,
+        referenceImages: [{ base64: imageBase64, mimeType: imageMimeType }],
+        model: fluxModel,
+        aspectRatio: '1:1', // Could be derived from image dimensions
+      });
+      refinedBuffer = fluxResult.buffer;
+      durationMs = fluxResult.durationMs;
+    }
 
     // Upload the refined image
     const timestamp = Date.now();
     const filename = `refined_${timestamp}.png`;
     const storagePath = `${seriesId}/${filename}`;
-
-    const refinedBuffer = Buffer.from(refinedResult.base64, 'base64');
 
     const { error: uploadError } = await supabase.storage
       .from('cog-images')
@@ -111,7 +140,8 @@ export async function refineCogImageStandalone(
           refinement: true,
           parentImageId: imageId,
           feedback,
-          durationMs: refinedResult.metrics.durationMs,
+          model,
+          durationMs,
         },
       })
       .select()
@@ -126,7 +156,7 @@ export async function refineCogImageStandalone(
       newImageId: newImage.id,
       imageUrl,
       storagePath,
-      durationMs: refinedResult.metrics.durationMs,
+      durationMs,
     };
   } catch (error) {
     console.error('Standalone refinement error:', error);

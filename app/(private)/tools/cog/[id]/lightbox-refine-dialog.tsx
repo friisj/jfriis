@@ -3,8 +3,29 @@
 import { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Loader2 } from 'lucide-react';
 import { refineCogImageStandalone } from '@/lib/ai/actions/refine-cog-image-standalone';
+
+type RefinementModel = 'gemini-3-pro' | 'flux-2-pro' | 'flux-2-dev';
+
+const modelLabels: Record<RefinementModel, string> = {
+  'gemini-3-pro': 'Gemini 3 Pro',
+  'flux-2-pro': 'Flux 2 Pro',
+  'flux-2-dev': 'Flux 2 Dev',
+};
+
+const modelDescriptions: Record<RefinementModel, string> = {
+  'gemini-3-pro': 'Conversational refinement, best for subtle edits',
+  'flux-2-pro': 'High quality regeneration with reference',
+  'flux-2-dev': 'Fast regeneration with reference',
+};
 
 interface LightboxRefineDialogProps {
   imageId: string;
@@ -22,6 +43,7 @@ export function LightboxRefineDialog({
   onSuccess,
 }: LightboxRefineDialogProps) {
   const [feedback, setFeedback] = useState('');
+  const [model, setModel] = useState<RefinementModel>('gemini-3-pro');
   const [isRefining, setIsRefining] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -59,6 +81,7 @@ export function LightboxRefineDialog({
       const result = await refineCogImageStandalone({
         imageId,
         feedback: feedback.trim(),
+        model,
       });
 
       if (result.success && result.newImageId) {
@@ -119,6 +142,26 @@ export function LightboxRefineDialog({
 
           {/* Feedback */}
           <div className="space-y-3">
+            {/* Model selector */}
+            <div>
+              <p className="text-xs text-white/50 mb-2">Model</p>
+              <Select
+                value={model}
+                onValueChange={(v) => setModel(v as RefinementModel)}
+                disabled={isRefining}
+              >
+                <SelectTrigger className="bg-white/5 border-white/20 text-white h-9">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="gemini-3-pro">{modelLabels['gemini-3-pro']}</SelectItem>
+                  <SelectItem value="flux-2-pro">{modelLabels['flux-2-pro']}</SelectItem>
+                  <SelectItem value="flux-2-dev">{modelLabels['flux-2-dev']}</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-white/40 mt-1">{modelDescriptions[model]}</p>
+            </div>
+
             <div>
               <p className="text-xs text-white/50 mb-2">Your Feedback</p>
               <Textarea
