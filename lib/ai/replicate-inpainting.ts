@@ -38,6 +38,10 @@ export interface InpaintingOptions {
   strength?: number;
   /** Which model to use. Default SD_INPAINTING */
   model?: InpaintingModel;
+  /** Output width (for models that support explicit dimensions). Must be multiple of 64. */
+  width?: number;
+  /** Output height (for models that support explicit dimensions). Must be multiple of 64. */
+  height?: number;
 }
 
 export interface InpaintingResult {
@@ -131,9 +135,9 @@ function buildModelInput(
 
   // Different models have different input schemas
   if (model === INPAINTING_MODELS.SD_INPAINTING) {
-    // stability-ai/stable-diffusion-inpainting (SD 2.0 based)
-    // Note: This model uses 512x512 natively
-    return {
+    // stability-ai/stable-diffusion-inpainting
+    // Supports explicit width/height parameters (multiples of 64, max 1024)
+    const input: Record<string, unknown> = {
       image: imageDataUri,
       mask: maskDataUri,
       prompt,
@@ -143,6 +147,12 @@ function buildModelInput(
       scheduler: 'DPMSolverMultistep',
       num_outputs: 1,
     };
+
+    // Add explicit dimensions if provided
+    if (options.width) input.width = options.width;
+    if (options.height) input.height = options.height;
+
+    return input;
   }
 
   if (model === INPAINTING_MODELS.SDXL_INPAINTING) {

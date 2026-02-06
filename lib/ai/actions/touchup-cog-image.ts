@@ -76,42 +76,60 @@ export async function touchupCogImage(input: TouchupInput): Promise<TouchupResul
       throw new Error('Could not determine image dimensions');
     }
 
-    // The lucataco/sdxl-inpainting model does its own internal resizing:
-    // 1. Scales image to max 1024px
-    // 2. Makes dimensions divisible by 8
-    // 3. Resizes mask to match
-    //
-    // We should NOT pre-resize - let the model handle it consistently.
-    // Just ensure the mask matches the original image dimensions.
+    // Using stability-ai/stable-diffusion-inpainting which requires:
+    // - Explicit width/height parameters (multiples of 64, max 1024)
+    // - Image and mask pre-resized to exact target dimensions
+    // This is more reliable than models with internal resize logic.
 
-    const maskBuffer = Buffer.from(maskBase64, 'base64');
-    const maskMetadata = await sharp(maskBuffer).metadata();
+    const MAX_DIMENSION = 768; // Good balance for SD 1.5 inpainting
 
-    // The mask canvas might be at a different size than the original image
-    // (e.g., if the canvas was scaled for display). Resize mask to match original.
-    let finalMaskBase64: string;
+    // Calculate target dimensions (multiples of 64)
+    let targetWidth: number;
+    let targetHeight: number;
 
-    if (maskMetadata.width !== originalWidth || maskMetadata.height !== originalHeight) {
-      console.log('Resizing mask to match original image:', {
-        from: `${maskMetadata.width}x${maskMetadata.height}`,
-        to: `${originalWidth}x${originalHeight}`,
-      });
-
-      const resizedMaskBuffer = await sharp(maskBuffer)
-        .resize(originalWidth, originalHeight, {
-          fit: 'fill', // Exact dimensions
-          kernel: 'nearest', // Preserve hard edges
-        })
-        .png()
-        .toBuffer();
-
-      finalMaskBase64 = resizedMaskBuffer.toString('base64');
+    if (originalWidth > originalHeight) {
+      // Landscape
+      targetWidth = Math.min(MAX_DIMENSION, Math.floor(originalWidth / 64) * 64);
+      targetWidth = Math.max(64, Math.min(1024, targetWidth));
+      const scale = targetWidth / originalWidth;
+      targetHeight = Math.floor((originalHeight * scale) / 64) * 64;
+      targetHeight = Math.max(64, Math.min(1024, targetHeight));
     } else {
-      finalMaskBase64 = maskBase64;
+      // Portrait or square
+      targetHeight = Math.min(MAX_DIMENSION, Math.floor(originalHeight / 64) * 64);
+      targetHeight = Math.max(64, Math.min(1024, targetHeight));
+      const scale = targetHeight / originalHeight;
+      targetWidth = Math.floor((originalWidth * scale) / 64) * 64;
+      targetWidth = Math.max(64, Math.min(1024, targetWidth));
     }
 
-    // Use original image - model will resize as needed
-    const processedImageBase64 = imageBuffer.toString('base64');
+    console.log('Resizing for SD inpainting:', {
+      from: `${originalWidth}x${originalHeight}`,
+      to: `${targetWidth}x${targetHeight}`,
+    });
+
+    // Resize image to target dimensions
+    const resizedImageBuffer = await sharp(imageBuffer)
+      .resize(targetWidth, targetHeight, {
+        fit: 'fill',
+      })
+      .png()
+      .toBuffer();
+
+    const processedImageBase64 = resizedImageBuffer.toString('base64');
+
+    // Resize mask to exactly match image dimensions
+    const maskBuffer = Buffer.from(maskBase64, 'base64');
+
+    const resizedMaskBuffer = await sharp(maskBuffer)
+      .resize(targetWidth, targetHeight, {
+        fit: 'fill',
+        kernel: 'nearest',
+      })
+      .png()
+      .toBuffer();
+
+    const finalMaskBase64 = resizedMaskBuffer.toString('base64');
 
     // Build the inpainting prompt
     let inpaintPrompt: string;
@@ -127,24 +145,24 @@ export async function touchupCogImage(input: TouchupInput): Promise<TouchupResul
     console.log('Touchup request:', {
       mode,
       prompt: inpaintPrompt.slice(0, 100),
-      imageDimensions: `${originalWidth}x${originalHeight}`,
+      originalDimensions: `${originalWidth}x${originalHeight}`,
+      targetDimensions: `${targetWidth}x${targetHeight}`,
       imageSize: Math.round((processedImageBase64.length * 0.75) / 1024) + 'KB',
       maskSize: Math.round((finalMaskBase64.length * 0.75) / 1024) + 'KB',
-      note: 'Sending original dimensions - model handles resize internally',
     });
 
-    // Call the inpainting API
+    // Call the inpainting API with explicit dimensions
+    // Using stability-ai model which is more reliable
     const inpaintResult = await inpaintWithReplicate({
       imageBase64: processedImageBase64,
-      imageMimeType, // Use original MIME type
+      imageMimeType: 'image/png',
       maskBase64: finalMaskBase64,
       prompt: inpaintPrompt,
       negativePrompt: getDefaultNegativePrompt(),
-      // Use SDXL for higher quality results
-      model: INPAINTING_MODELS.SDXL_INPAINTING,
-      // Adjust strength based on mode
-      strength: mode === 'spot_removal' ? 0.8 : 0.7,
-      numInferenceSteps: 30,
+      model: INPAINTING_MODELS.SD_INPAINTING,
+      width: targetWidth,
+      height: targetHeight,
+      numInferenceSteps: 50,
       guidanceScale: mode === 'spot_removal' ? 7.5 : 8,
     });
 
