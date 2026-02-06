@@ -1,219 +1,51 @@
 /**
  * Replicate Inpainting Client
  *
- * Uses Replicate API to perform mask-based inpainting with Stable Diffusion models.
- * Supports both SD 1.5 inpainting and SDXL inpainting variants.
+ * Uses the official Replicate SDK for mask-based inpainting.
+ * Properly handles file uploads and long-running predictions.
  *
  * Requires: REPLICATE_API_TOKEN env var
  */
 
-// Available inpainting models on Replicate
-export const INPAINTING_MODELS = {
-  // andreasjansson's SD inpainting - reliable and well-maintained
-  SD_INPAINTING: 'andreasjansson/stable-diffusion-inpainting',
-  // Stability AI version (deprecated, often returns empty images)
-  SD_INPAINTING_STABILITY: 'stability-ai/stable-diffusion-inpainting',
-  // SDXL-based inpainting - higher quality, but has dimension issues
-  SDXL_INPAINTING: 'lucataco/sdxl-inpainting',
-  // Alternative SDXL model
-  REALISTIC_VISION_INPAINTING: 'cjwbw/realistic-vision-v5-inpainting',
-} as const;
+import Replicate from 'replicate';
 
-export type InpaintingModel = (typeof INPAINTING_MODELS)[keyof typeof INPAINTING_MODELS];
+// Model configuration - using andreasjansson's well-maintained SD inpainting
+const INPAINTING_MODEL = 'andreasjansson/stable-diffusion-inpainting';
+const INPAINTING_VERSION = 'e490d072a34a94a11e9711ed5a6ba621c3fab884eda1665d9d3a282d65a21180';
 
 export interface InpaintingOptions {
-  /** Base64-encoded source image (PNG/JPEG) */
-  imageBase64: string;
-  /** MIME type of the source image */
-  imageMimeType: string;
-  /** Base64-encoded mask image (PNG). White = edit area, Black = preserve */
-  maskBase64: string;
-  /** Optional prompt for guided editing. For spot removal, can be minimal or omitted */
-  prompt?: string;
+  /** Image buffer (PNG format) */
+  imageBuffer: Buffer;
+  /** Mask buffer (PNG format, grayscale - white = edit, black = preserve) */
+  maskBuffer: Buffer;
+  /** Prompt describing what to generate in masked area */
+  prompt: string;
   /** Negative prompt to avoid certain elements */
   negativePrompt?: string;
   /** Guidance scale for prompt adherence. Default 7.5 */
   guidanceScale?: number;
   /** Number of denoising steps. Default 50 */
   numInferenceSteps?: number;
-  /** Strength of the inpainting. Default 0.8 (0-1, higher = more change) */
-  strength?: number;
-  /** Which model to use. Default SD_INPAINTING */
-  model?: InpaintingModel;
-  /** Output width (for models that support explicit dimensions). Must be multiple of 64. */
-  width?: number;
-  /** Output height (for models that support explicit dimensions). Must be multiple of 64. */
-  height?: number;
 }
 
 export interface InpaintingResult {
-  /** Base64-encoded result image */
-  base64: string;
-  /** MIME type (always image/png for Replicate outputs) */
-  mimeType: string;
+  /** Result image buffer (PNG) */
+  buffer: Buffer;
   /** Processing duration in milliseconds */
   durationMs: number;
-  /** The model that was used */
-  model: InpaintingModel;
-}
-
-interface ReplicatePrediction {
-  id: string;
-  version: string;
-  status: 'starting' | 'processing' | 'succeeded' | 'failed' | 'canceled';
-  output: string[] | null;
-  error: string | null;
-  metrics?: {
-    predict_time?: number;
-  };
 }
 
 /**
- * Poll a Replicate prediction until it completes
- */
-async function pollPrediction(
-  predictionId: string,
-  apiToken: string,
-  maxAttempts = 60,
-  pollIntervalMs = 1000
-): Promise<ReplicatePrediction> {
-  for (let i = 0; i < maxAttempts; i++) {
-    const response = await fetch(
-      `https://api.replicate.com/v1/predictions/${predictionId}`,
-      {
-        headers: {
-          Authorization: `Bearer ${apiToken}`,
-          'Content-Type': 'application/json',
-        },
-      }
-    );
-
-    if (!response.ok) {
-      throw new Error(`Failed to poll prediction: ${response.status}`);
-    }
-
-    const prediction: ReplicatePrediction = await response.json();
-
-    if (prediction.status === 'succeeded') {
-      return prediction;
-    }
-
-    if (prediction.status === 'failed' || prediction.status === 'canceled') {
-      throw new Error(prediction.error || `Prediction ${prediction.status}`);
-    }
-
-    // Wait before polling again
-    await new Promise((resolve) => setTimeout(resolve, pollIntervalMs));
-  }
-
-  throw new Error('Prediction timed out');
-}
-
-/**
- * Convert a URL to base64 by fetching it
- */
-async function urlToBase64(url: string): Promise<string> {
-  const response = await fetch(url);
-  const buffer = await response.arrayBuffer();
-  return Buffer.from(buffer).toString('base64');
-}
-
-/**
- * Build input object based on model type
- */
-function buildModelInput(
-  options: InpaintingOptions,
-  imageDataUri: string,
-  maskDataUri: string
-): Record<string, unknown> {
-  const {
-    prompt = 'high quality, detailed, photorealistic',
-    negativePrompt = 'blurry, low quality, distorted, artifacts',
-    guidanceScale = 7.5,
-    numInferenceSteps = 30,
-    strength = 0.7,
-    model = INPAINTING_MODELS.SD_INPAINTING,
-  } = options;
-
-  // Different models have different input schemas
-  if (model === INPAINTING_MODELS.SD_INPAINTING) {
-    // andreasjansson/stable-diffusion-inpainting
-    // More reliable than stability-ai version
-    // Image dimensions must be divisible by 8
-    return {
-      image: imageDataUri,
-      mask: maskDataUri,
-      prompt,
-      negative_prompt: negativePrompt,
-      guidance_scale: guidanceScale,
-      num_inference_steps: numInferenceSteps,
-      num_outputs: 1,
-    };
-  }
-
-  if (model === INPAINTING_MODELS.SD_INPAINTING_STABILITY) {
-    // stability-ai/stable-diffusion-inpainting (often returns empty images)
-    const input: Record<string, unknown> = {
-      image: imageDataUri,
-      mask: maskDataUri,
-      prompt,
-      negative_prompt: negativePrompt,
-      guidance_scale: guidanceScale,
-      num_inference_steps: numInferenceSteps,
-      scheduler: 'DPMSolverMultistep',
-      num_outputs: 1,
-      disable_safety_checker: true,
-    };
-    if (options.width) input.width = options.width;
-    if (options.height) input.height = options.height;
-    return input;
-  }
-
-  if (model === INPAINTING_MODELS.SDXL_INPAINTING) {
-    // lucataco/sdxl-inpainting (SDXL based, higher quality)
-    // Note: This model works with larger images natively
-    return {
-      image: imageDataUri,
-      mask: maskDataUri,
-      prompt,
-      negative_prompt: negativePrompt,
-      guidance_scale: Math.min(guidanceScale, 10), // Max 10 for this model
-      steps: Math.min(numInferenceSteps, 80), // Max 80 for this model
-      strength: Math.max(0.01, Math.min(strength, 1)), // 0.01-1 range
-      scheduler: 'K_EULER',
-      num_outputs: 1,
-    };
-  }
-
-  if (model === INPAINTING_MODELS.REALISTIC_VISION_INPAINTING) {
-    // cjwbw/realistic-vision-v5-inpainting
-    return {
-      image: imageDataUri,
-      mask: maskDataUri,
-      prompt,
-      negative_prompt: negativePrompt,
-      guidance_scale: guidanceScale,
-      num_inference_steps: numInferenceSteps,
-      strength,
-    };
-  }
-
-  // Default fallback
-  return {
-    image: imageDataUri,
-    mask: maskDataUri,
-    prompt,
-    negative_prompt: negativePrompt,
-    guidance_scale: guidanceScale,
-    num_inference_steps: numInferenceSteps,
-  };
-}
-
-/**
- * Perform inpainting on an image using a mask.
+ * Perform inpainting using Replicate's stable-diffusion-inpainting model.
  *
- * @param options - Inpainting configuration
- * @returns The inpainted image as base64
+ * Both image and mask should be:
+ * - Same dimensions
+ * - Dimensions divisible by 8
+ * - PNG format
+ *
+ * Mask should be grayscale where:
+ * - White (255) = areas to inpaint
+ * - Black (0) = areas to preserve
  */
 export async function inpaintWithReplicate(
   options: InpaintingOptions
@@ -224,119 +56,82 @@ export async function inpaintWithReplicate(
   }
 
   const {
-    imageBase64,
-    imageMimeType,
-    maskBase64,
-    model = INPAINTING_MODELS.SD_INPAINTING,
+    imageBuffer,
+    maskBuffer,
+    prompt,
+    negativePrompt = 'blurry, low quality, distorted, artifacts',
+    guidanceScale = 7.5,
+    numInferenceSteps = 50,
   } = options;
 
   const startTime = Date.now();
 
-  // Convert to data URIs for Replicate
-  const imageDataUri = `data:${imageMimeType};base64,${imageBase64}`;
-  const maskDataUri = `data:image/png;base64,${maskBase64}`;
-
-  // Build model-specific input
-  const input = buildModelInput(options, imageDataUri, maskDataUri);
-
   console.log('Replicate inpainting request:', {
-    model,
-    promptPreview: options.prompt?.slice(0, 100),
-    imageSize: Math.round((imageBase64.length * 0.75) / 1024) + 'KB',
-    maskSize: Math.round((maskBase64.length * 0.75) / 1024) + 'KB',
+    model: INPAINTING_MODEL,
+    prompt: prompt.slice(0, 80),
+    imageSize: `${Math.round(imageBuffer.length / 1024)}KB`,
+    maskSize: `${Math.round(maskBuffer.length / 1024)}KB`,
   });
 
-  // Create prediction
-  const createResponse = await fetch('https://api.replicate.com/v1/predictions', {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${apiToken}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      version: getModelVersion(model),
-      input,
-    }),
+  // Initialize the Replicate client
+  const replicate = new Replicate({
+    auth: apiToken,
   });
 
-  if (!createResponse.ok) {
-    const errorText = await createResponse.text();
-    console.error('Replicate create error:', {
-      status: createResponse.status,
-      body: errorText.slice(0, 500),
-    });
-    throw new Error(
-      `Replicate API error: ${createResponse.status} - ${errorText.slice(0, 200)}`
-    );
+  // Run the prediction
+  // The SDK automatically uploads buffers for us
+  const output = await replicate.run(
+    `${INPAINTING_MODEL}:${INPAINTING_VERSION}`,
+    {
+      input: {
+        image: imageBuffer,
+        mask: maskBuffer,
+        prompt,
+        negative_prompt: negativePrompt,
+        guidance_scale: guidanceScale,
+        num_inference_steps: numInferenceSteps,
+        num_outputs: 1,
+      },
+    }
+  );
+
+  // Output is an array of URLs
+  const outputUrls = output as string[];
+  if (!outputUrls || outputUrls.length === 0) {
+    throw new Error('No output from Replicate');
   }
 
-  const createResult: ReplicatePrediction = await createResponse.json();
-  console.log('Replicate prediction created:', {
-    id: createResult.id,
-    status: createResult.status,
-  });
+  const outputUrl = outputUrls[0];
+  console.log('Fetching result from:', outputUrl);
 
-  // Poll until complete
-  const finalPrediction = await pollPrediction(createResult.id, apiToken);
-
-  if (!finalPrediction.output || finalPrediction.output.length === 0) {
-    throw new Error('No output from Replicate prediction');
+  // Fetch the result image
+  const response = await fetch(outputUrl);
+  if (!response.ok) {
+    throw new Error(`Failed to fetch result: ${response.status}`);
   }
 
-  // Fetch the output image and convert to base64
-  const outputUrl = finalPrediction.output[0];
-  console.log('Fetching output from:', outputUrl);
-  const resultBase64 = await urlToBase64(outputUrl);
-
-  // Warn if output is suspiciously small
-  const outputBytes = Math.round(resultBase64.length * 0.75);
-  if (outputBytes < 10000) {
-    console.warn('WARNING: Output image is very small:', outputBytes, 'bytes');
-    console.warn('This may indicate an error image or empty result');
-  }
+  const resultBuffer = Buffer.from(await response.arrayBuffer());
 
   const durationMs = Date.now() - startTime;
 
   console.log('Replicate inpainting complete:', {
-    id: createResult.id,
     durationMs,
-    predictTime: finalPrediction.metrics?.predict_time,
-    outputSize: Math.round((resultBase64.length * 0.75) / 1024) + 'KB',
+    outputSize: `${Math.round(resultBuffer.length / 1024)}KB`,
   });
 
+  // Validate output size - real images should be substantial
+  if (resultBuffer.length < 10000) {
+    console.warn('WARNING: Output is very small, may be an error image');
+  }
+
   return {
-    base64: resultBase64,
-    mimeType: 'image/png',
+    buffer: resultBuffer,
     durationMs,
-    model,
   };
 }
 
 /**
- * Get the specific model version for Replicate.
- * These are pinned versions that we know work.
- */
-function getModelVersion(model: InpaintingModel): string {
-  switch (model) {
-    case INPAINTING_MODELS.SD_INPAINTING:
-      // andreasjansson/stable-diffusion-inpainting
-      return 'e490d072a34a94a11e9711ed5a6ba621c3fab884eda1665d9d3a282d65a21180';
-    case INPAINTING_MODELS.SD_INPAINTING_STABILITY:
-      // stability-ai/stable-diffusion-inpainting (SD 2.0 based)
-      return '95b7223104132402a9ae91cc677285bc5eb997834bd2349fa486f53910fd68b3';
-    case INPAINTING_MODELS.SDXL_INPAINTING:
-      // lucataco/sdxl-inpainting
-      return 'a5b13068cc81a89a4fbeefeccc774869fcb34df4dbc92c1555e0f2771d49dde7';
-    case INPAINTING_MODELS.REALISTIC_VISION_INPAINTING:
-      // cjwbw/realistic-vision-v5-inpainting - will verify if needed
-      return 'aff48af9c68d162388d230a2ab003f68d2638b33e4a46d40b76f1a6ee22d8f41';
-    default:
-      throw new Error(`Unknown model: ${model}`);
-  }
-}
-
-/**
- * Check if Replicate inpainting is configured and available.
+ * Check if Replicate is configured.
  */
 export function isReplicateConfigured(): boolean {
   return !!process.env.REPLICATE_API_TOKEN;

@@ -3,7 +3,6 @@
 import sharp from 'sharp';
 import {
   inpaintWithReplicate,
-  INPAINTING_MODELS,
   getSpotRemovalPrompt,
   getDefaultNegativePrompt,
 } from '../replicate-inpainting';
@@ -65,7 +64,6 @@ export async function touchupCogImage(input: TouchupInput): Promise<TouchupResul
     }
 
     const imageBuffer = Buffer.from(await imageData.arrayBuffer());
-    const imageMimeType = sourceImage.mime_type || 'image/png';
 
     // Get actual image dimensions using sharp
     const imageMetadata = await sharp(imageBuffer).metadata();
@@ -76,103 +74,100 @@ export async function touchupCogImage(input: TouchupInput): Promise<TouchupResul
       throw new Error('Could not determine image dimensions');
     }
 
-    // Using andreasjansson/stable-diffusion-inpainting which requires:
-    // - Dimensions divisible by 8
-    // - Image and mask pre-resized to matching dimensions
-    // This model is more reliable than stability-ai version.
+    // Calculate target dimensions:
+    // - Max 512px (SD 1.5 native resolution)
+    // - Divisible by 8 (model requirement)
+    // - Maintain aspect ratio
+    const MAX_DIMENSION = 512;
 
-    const MAX_DIMENSION = 512; // SD 1.5 native resolution
-
-    // Calculate target dimensions (multiples of 8)
     let targetWidth: number;
     let targetHeight: number;
 
-    if (originalWidth > originalHeight) {
-      // Landscape
-      targetWidth = Math.min(MAX_DIMENSION, Math.floor(originalWidth / 8) * 8);
-      targetWidth = Math.max(64, Math.min(1024, targetWidth));
+    if (originalWidth >= originalHeight) {
+      // Landscape or square
+      targetWidth = Math.min(MAX_DIMENSION, originalWidth);
+      targetWidth = Math.floor(targetWidth / 8) * 8;
       const scale = targetWidth / originalWidth;
-      targetHeight = Math.floor((originalHeight * scale) / 8) * 8;
-      targetHeight = Math.max(64, Math.min(1024, targetHeight));
+      targetHeight = Math.round(originalHeight * scale);
+      targetHeight = Math.floor(targetHeight / 8) * 8;
     } else {
-      // Portrait or square
-      targetHeight = Math.min(MAX_DIMENSION, Math.floor(originalHeight / 8) * 8);
-      targetHeight = Math.max(64, Math.min(1024, targetHeight));
+      // Portrait
+      targetHeight = Math.min(MAX_DIMENSION, originalHeight);
+      targetHeight = Math.floor(targetHeight / 8) * 8;
       const scale = targetHeight / originalHeight;
-      targetWidth = Math.floor((originalWidth * scale) / 8) * 8;
-      targetWidth = Math.max(64, Math.min(1024, targetWidth));
+      targetWidth = Math.round(originalWidth * scale);
+      targetWidth = Math.floor(targetWidth / 8) * 8;
     }
 
-    console.log('Resizing for SD inpainting:', {
-      from: `${originalWidth}x${originalHeight}`,
-      to: `${targetWidth}x${targetHeight}`,
+    // Ensure minimum dimensions
+    targetWidth = Math.max(64, targetWidth);
+    targetHeight = Math.max(64, targetHeight);
+
+    console.log('Processing image for inpainting:', {
+      original: `${originalWidth}x${originalHeight}`,
+      target: `${targetWidth}x${targetHeight}`,
     });
 
     // Resize image to target dimensions
-    const resizedImageBuffer = await sharp(imageBuffer)
-      .resize(targetWidth, targetHeight, {
-        fit: 'fill',
-      })
+    const processedImageBuffer = await sharp(imageBuffer)
+      .resize(targetWidth, targetHeight, { fit: 'fill' })
       .png()
       .toBuffer();
 
-    const processedImageBase64 = resizedImageBuffer.toString('base64');
-
-    // Resize mask to exactly match image dimensions
-    // Convert to grayscale (single channel) as required by the model
+    // Process mask:
+    // 1. Decode from base64
+    // 2. Resize to match image
+    // 3. Convert to TRUE grayscale (single channel, no alpha)
     const maskBuffer = Buffer.from(maskBase64, 'base64');
 
-    const resizedMaskBuffer = await sharp(maskBuffer)
+    const processedMaskBuffer = await sharp(maskBuffer)
       .resize(targetWidth, targetHeight, {
         fit: 'fill',
-        kernel: 'nearest',
+        kernel: 'nearest', // Preserve hard edges
       })
-      .grayscale() // Convert to single-channel grayscale
+      .grayscale()
+      .removeAlpha() // Ensure no alpha channel
       .png()
       .toBuffer();
 
-    const finalMaskBase64 = resizedMaskBuffer.toString('base64');
+    // Verify mask properties
+    const maskMetadata = await sharp(processedMaskBuffer).metadata();
+    const maskStats = await sharp(processedMaskBuffer).stats();
 
-    // Debug: Check mask statistics to ensure it has white pixels
-    const maskStats = await sharp(resizedMaskBuffer).stats();
-    console.log('Mask stats:', {
-      channels: maskStats.channels.length,
+    console.log('Mask verification:', {
+      dimensions: `${maskMetadata.width}x${maskMetadata.height}`,
+      channels: maskMetadata.channels,
+      hasAlpha: maskMetadata.hasAlpha,
       min: maskStats.channels[0]?.min,
       max: maskStats.channels[0]?.max,
       mean: maskStats.channels[0]?.mean?.toFixed(2),
     });
 
-    // Build the inpainting prompt
-    let inpaintPrompt: string;
-    if (mode === 'spot_removal') {
-      inpaintPrompt = getSpotRemovalPrompt();
-    } else {
-      // For guided edit, use the user's prompt with some quality enhancers
-      inpaintPrompt = prompt
-        ? `${prompt}, high quality, detailed, photorealistic`
-        : 'high quality, detailed';
+    // Validate mask has some white pixels (edit area)
+    if (maskStats.channels[0]?.max === 0) {
+      throw new Error('Mask has no white pixels - nothing to edit');
     }
 
-    console.log('Touchup request:', {
+    // Build the inpainting prompt
+    const inpaintPrompt = mode === 'spot_removal'
+      ? getSpotRemovalPrompt()
+      : prompt
+        ? `${prompt}, high quality, detailed, photorealistic`
+        : 'high quality, detailed';
+
+    console.log('Calling inpainting API:', {
       mode,
-      prompt: inpaintPrompt.slice(0, 100),
-      originalDimensions: `${originalWidth}x${originalHeight}`,
-      targetDimensions: `${targetWidth}x${targetHeight}`,
-      imageSize: Math.round((processedImageBase64.length * 0.75) / 1024) + 'KB',
-      maskSize: Math.round((finalMaskBase64.length * 0.75) / 1024) + 'KB',
+      prompt: inpaintPrompt.slice(0, 80),
+      imageSize: `${Math.round(processedImageBuffer.length / 1024)}KB`,
+      maskSize: `${Math.round(processedMaskBuffer.length / 1024)}KB`,
     });
 
-    // Call the inpainting API with explicit dimensions
-    // Using stability-ai model which is more reliable
+    // Call the inpainting API
     const inpaintResult = await inpaintWithReplicate({
-      imageBase64: processedImageBase64,
-      imageMimeType: 'image/png',
-      maskBase64: finalMaskBase64,
+      imageBuffer: processedImageBuffer,
+      maskBuffer: processedMaskBuffer,
       prompt: inpaintPrompt,
       negativePrompt: getDefaultNegativePrompt(),
-      model: INPAINTING_MODELS.SD_INPAINTING,
-      width: targetWidth,
-      height: targetHeight,
       numInferenceSteps: 50,
       guidanceScale: mode === 'spot_removal' ? 7.5 : 8,
     });
@@ -182,11 +177,9 @@ export async function touchupCogImage(input: TouchupInput): Promise<TouchupResul
     const filename = `touchup_${timestamp}.png`;
     const storagePath = `${seriesId}/${filename}`;
 
-    const resultBuffer = Buffer.from(inpaintResult.base64, 'base64');
-
     const { error: uploadError } = await supabase.storage
       .from('cog-images')
-      .upload(storagePath, resultBuffer, {
+      .upload(storagePath, inpaintResult.buffer, {
         contentType: 'image/png',
         upsert: false,
       });
@@ -207,8 +200,8 @@ export async function touchupCogImage(input: TouchupInput): Promise<TouchupResul
       .from('cog_images')
       .insert({
         series_id: seriesId,
-        job_id: sourceImage.job_id, // Preserve original job association if any
-        parent_image_id: imageId, // Link to parent for version tracking
+        job_id: sourceImage.job_id,
+        parent_image_id: imageId,
         storage_path: storagePath,
         filename,
         mime_type: 'image/png',
@@ -218,8 +211,9 @@ export async function touchupCogImage(input: TouchupInput): Promise<TouchupResul
           touchup: true,
           mode,
           parentImageId: imageId,
-          model: inpaintResult.model,
           durationMs: inpaintResult.durationMs,
+          originalDimensions: `${originalWidth}x${originalHeight}`,
+          processedDimensions: `${targetWidth}x${targetHeight}`,
           ...(mode === 'guided_edit' && { userPrompt: prompt }),
         },
       })
