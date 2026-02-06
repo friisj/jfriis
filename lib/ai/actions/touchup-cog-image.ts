@@ -1,5 +1,6 @@
 'use server';
 
+import sharp from 'sharp';
 import {
   inpaintWithReplicate,
   INPAINTING_MODELS,
@@ -63,9 +64,41 @@ export async function touchupCogImage(input: TouchupInput): Promise<TouchupResul
       throw new Error(`Failed to download image: ${downloadError.message}`);
     }
 
-    const imageBuffer = await imageData.arrayBuffer();
-    const imageBase64 = Buffer.from(imageBuffer).toString('base64');
+    const imageBuffer = Buffer.from(await imageData.arrayBuffer());
+    const imageBase64 = imageBuffer.toString('base64');
     const imageMimeType = sourceImage.mime_type || 'image/png';
+
+    // Get actual image dimensions using sharp
+    const imageMetadata = await sharp(imageBuffer).metadata();
+    const imageWidth = imageMetadata.width;
+    const imageHeight = imageMetadata.height;
+
+    if (!imageWidth || !imageHeight) {
+      throw new Error('Could not determine image dimensions');
+    }
+
+    // Resize mask to match source image dimensions
+    // The mask may have been created at different dimensions (e.g., 1024x1024 default)
+    const maskBuffer = Buffer.from(maskBase64, 'base64');
+    const maskMetadata = await sharp(maskBuffer).metadata();
+
+    let resizedMaskBase64 = maskBase64;
+    if (maskMetadata.width !== imageWidth || maskMetadata.height !== imageHeight) {
+      console.log('Resizing mask:', {
+        from: `${maskMetadata.width}x${maskMetadata.height}`,
+        to: `${imageWidth}x${imageHeight}`,
+      });
+
+      const resizedMaskBuffer = await sharp(maskBuffer)
+        .resize(imageWidth, imageHeight, {
+          fit: 'fill', // Stretch to exact dimensions
+          kernel: 'nearest', // Use nearest-neighbor to preserve hard edges in mask
+        })
+        .png()
+        .toBuffer();
+
+      resizedMaskBase64 = resizedMaskBuffer.toString('base64');
+    }
 
     // Build the inpainting prompt
     let inpaintPrompt: string;
@@ -81,15 +114,16 @@ export async function touchupCogImage(input: TouchupInput): Promise<TouchupResul
     console.log('Touchup request:', {
       mode,
       prompt: inpaintPrompt.slice(0, 100),
+      imageDimensions: `${imageWidth}x${imageHeight}`,
       imageSize: Math.round((imageBase64.length * 0.75) / 1024) + 'KB',
-      maskSize: Math.round((maskBase64.length * 0.75) / 1024) + 'KB',
+      maskSize: Math.round((resizedMaskBase64.length * 0.75) / 1024) + 'KB',
     });
 
     // Call the inpainting API
     const inpaintResult = await inpaintWithReplicate({
       imageBase64,
       imageMimeType,
-      maskBase64,
+      maskBase64: resizedMaskBase64,
       prompt: inpaintPrompt,
       negativePrompt: getDefaultNegativePrompt(),
       // Use SDXL for higher quality results
