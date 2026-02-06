@@ -81,24 +81,32 @@ export async function touchupCogImage(input: TouchupInput): Promise<TouchupResul
     // IMPORTANT: All dimensions must be divisible by 8 (VAE requirement for diffusion models)
     const MAX_DIMENSION = 1024;
 
-    // Calculate target dimensions
+    // Calculate target dimensions maintaining exact aspect ratio
     let processedWidth: number;
     let processedHeight: number;
 
+    const aspectRatio = originalWidth / originalHeight;
+
     if (originalWidth > MAX_DIMENSION || originalHeight > MAX_DIMENSION) {
       // Scale down large images
-      const scale = MAX_DIMENSION / Math.max(originalWidth, originalHeight);
-      processedWidth = Math.round((originalWidth * scale) / 8) * 8;
-      processedHeight = Math.round((originalHeight * scale) / 8) * 8;
+      if (originalWidth > originalHeight) {
+        // Landscape: width is the limiting dimension
+        processedWidth = Math.floor(MAX_DIMENSION / 8) * 8;
+        processedHeight = Math.floor((processedWidth / aspectRatio) / 8) * 8;
+      } else {
+        // Portrait or square: height is the limiting dimension
+        processedHeight = Math.floor(MAX_DIMENSION / 8) * 8;
+        processedWidth = Math.floor((processedHeight * aspectRatio) / 8) * 8;
+      }
     } else {
-      // Even small images need dimensions divisible by 8
-      processedWidth = Math.round(originalWidth / 8) * 8;
-      processedHeight = Math.round(originalHeight / 8) * 8;
+      // Small images: just ensure divisible by 8
+      processedWidth = Math.floor(originalWidth / 8) * 8;
+      processedHeight = Math.floor(originalHeight / 8) * 8;
     }
 
-    // Ensure minimum dimension of 8
-    processedWidth = Math.max(8, processedWidth);
-    processedHeight = Math.max(8, processedHeight);
+    // Ensure minimum dimension of 64 (some models require this)
+    processedWidth = Math.max(64, processedWidth);
+    processedHeight = Math.max(64, processedHeight);
 
     const needsResize = processedWidth !== originalWidth || processedHeight !== originalHeight;
     let processedImageBase64: string;
@@ -107,11 +115,14 @@ export async function touchupCogImage(input: TouchupInput): Promise<TouchupResul
       console.log('Resizing image for model compatibility:', {
         from: `${originalWidth}x${originalHeight}`,
         to: `${processedWidth}x${processedHeight}`,
+        aspectRatio: aspectRatio.toFixed(3),
       });
 
+      // Use 'cover' + extract to maintain exact aspect ratio and dimensions
       const resizedImageBuffer = await sharp(imageBuffer)
         .resize(processedWidth, processedHeight, {
-          fit: 'fill', // Force exact dimensions
+          fit: 'cover',
+          position: 'center',
         })
         .png()
         .toBuffer();
@@ -132,7 +143,8 @@ export async function touchupCogImage(input: TouchupInput): Promise<TouchupResul
 
     const resizedMaskBuffer = await sharp(maskBuffer)
       .resize(processedWidth, processedHeight, {
-        fit: 'fill', // Stretch to exact dimensions
+        fit: 'cover', // Match image resize behavior exactly
+        position: 'center',
         kernel: 'nearest', // Use nearest-neighbor to preserve hard edges in mask
       })
       .png()
