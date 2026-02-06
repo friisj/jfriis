@@ -119,6 +119,7 @@ export async function touchupCogImage(input: TouchupInput): Promise<TouchupResul
     const processedImageBase64 = resizedImageBuffer.toString('base64');
 
     // Resize mask to exactly match image dimensions
+    // Convert to grayscale (single channel) as required by the model
     const maskBuffer = Buffer.from(maskBase64, 'base64');
 
     const resizedMaskBuffer = await sharp(maskBuffer)
@@ -126,10 +127,20 @@ export async function touchupCogImage(input: TouchupInput): Promise<TouchupResul
         fit: 'fill',
         kernel: 'nearest',
       })
+      .grayscale() // Convert to single-channel grayscale
       .png()
       .toBuffer();
 
     const finalMaskBase64 = resizedMaskBuffer.toString('base64');
+
+    // Debug: Check mask statistics to ensure it has white pixels
+    const maskStats = await sharp(resizedMaskBuffer).stats();
+    console.log('Mask stats:', {
+      channels: maskStats.channels.length,
+      min: maskStats.channels[0]?.min,
+      max: maskStats.channels[0]?.max,
+      mean: maskStats.channels[0]?.mean?.toFixed(2),
+    });
 
     // Build the inpainting prompt
     let inpaintPrompt: string;
