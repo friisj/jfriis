@@ -17,15 +17,278 @@ import {
 } from '@/components/ui/resizable';
 import { ImageGallery } from './image-gallery';
 import { JobsList } from './jobs-list';
-import { updateSeries, deleteSeriesWithCleanup } from '@/lib/cog';
+import {
+  updateSeries,
+  deleteSeriesWithCleanup,
+  enableTagForSeries,
+  disableTagForSeries,
+  createTag,
+  deleteTag,
+} from '@/lib/cog';
 import { generateSeriesDescription } from '@/lib/ai/actions/generate-series-description';
-import type { CogSeriesWithImages, CogJob, CogSeries } from '@/lib/types/cog';
+import type { CogSeries, CogJob, CogTag, CogTagWithGroup, CogImageWithVersions } from '@/lib/types/cog';
 
 interface SeriesLayoutProps {
-  series: CogSeriesWithImages;
+  series: CogSeries;
+  images: CogImageWithVersions[];
   jobs: CogJob[];
   childSeries: CogSeries[];
   seriesId: string;
+  enabledTags: CogTagWithGroup[];
+  globalTags: CogTag[];
+}
+
+function TagsSection({
+  seriesId,
+  enabledTags,
+  globalTags,
+}: {
+  seriesId: string;
+  enabledTags: CogTagWithGroup[];
+  globalTags: CogTag[];
+}) {
+  const router = useRouter();
+  const [localEnabled, setLocalEnabled] = useState<CogTagWithGroup[]>(enabledTags);
+  const [localTags, setLocalTags] = useState<CogTag[]>(
+    enabledTags.filter((t) => t.series_id === seriesId)
+  );
+  const [showNewTagForm, setShowNewTagForm] = useState(false);
+  const [newTagName, setNewTagName] = useState('');
+  const [newTagShortcut, setNewTagShortcut] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // Get global tags that aren't enabled yet
+  const availableGlobal = globalTags.filter(
+    (gt) => !localEnabled.some((et) => et.id === gt.id)
+  );
+
+  // Already enabled global tags
+  const enabledGlobal = localEnabled.filter((t) => t.series_id === null);
+
+  async function handleEnableTag(tagId: string) {
+    setSaving(true);
+    setError(null);
+    try {
+      await enableTagForSeries(seriesId, tagId);
+      const tag = globalTags.find((t) => t.id === tagId);
+      if (tag) {
+        setLocalEnabled((prev) => [...prev, { ...tag, group: null }]);
+      }
+      router.refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to enable tag');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleDisableTag(tagId: string) {
+    setSaving(true);
+    setError(null);
+    try {
+      await disableTagForSeries(seriesId, tagId);
+      setLocalEnabled((prev) => prev.filter((t) => t.id !== tagId));
+      router.refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to disable tag');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleCreateLocalTag() {
+    if (!newTagName.trim()) {
+      setError('Tag name is required');
+      return;
+    }
+
+    setSaving(true);
+    setError(null);
+    try {
+      const created = await createTag({
+        series_id: seriesId,
+        name: newTagName.trim(),
+        shortcut: newTagShortcut.trim() || null,
+      });
+      setLocalTags((prev) => [...prev, created]);
+      setLocalEnabled((prev) => [...prev, { ...created, group: null }]);
+      setNewTagName('');
+      setNewTagShortcut('');
+      setShowNewTagForm(false);
+      router.refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to create tag');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleDeleteLocalTag(tagId: string) {
+    if (!confirm('Delete this series-local tag?')) return;
+
+    setSaving(true);
+    setError(null);
+    try {
+      await deleteTag(tagId);
+      setLocalTags((prev) => prev.filter((t) => t.id !== tagId));
+      setLocalEnabled((prev) => prev.filter((t) => t.id !== tagId));
+      router.refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to delete tag');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-3">
+        <h2 className="text-lg font-semibold">Image Tags</h2>
+        <Button size="sm" variant="outline" asChild>
+          <Link href="/tools/cog/tags">Manage</Link>
+        </Button>
+      </div>
+
+      {error && (
+        <div className="p-2 mb-3 bg-destructive/10 text-destructive text-xs rounded-lg">
+          {error}
+        </div>
+      )}
+
+      {/* Enabled tags */}
+      <div className="space-y-3">
+        <div>
+          <p className="text-xs text-muted-foreground uppercase tracking-wide mb-2">
+            Enabled for this series
+          </p>
+          <div className="flex flex-wrap gap-1.5">
+            {enabledGlobal.map((tag) => (
+              <button
+                key={tag.id}
+                onClick={() => handleDisableTag(tag.id)}
+                disabled={saving}
+                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs border bg-primary/10 border-primary/30 hover:bg-destructive/10 hover:border-destructive/30 transition-colors disabled:opacity-50"
+                title="Click to disable"
+              >
+                {tag.shortcut && (
+                  <kbd className="text-[10px] px-0.5 bg-muted rounded font-mono">
+                    {tag.shortcut}
+                  </kbd>
+                )}
+                {tag.name}
+                <span className="text-muted-foreground ml-0.5">×</span>
+              </button>
+            ))}
+            {localTags.map((tag) => (
+              <button
+                key={tag.id}
+                onClick={() => handleDeleteLocalTag(tag.id)}
+                disabled={saving}
+                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs border border-dashed bg-muted/50 hover:bg-destructive/10 hover:border-destructive/30 transition-colors disabled:opacity-50"
+                title="Click to delete (series-local)"
+              >
+                {tag.shortcut && (
+                  <kbd className="text-[10px] px-0.5 bg-background rounded font-mono">
+                    {tag.shortcut}
+                  </kbd>
+                )}
+                {tag.name}
+                <span className="text-muted-foreground ml-0.5">×</span>
+              </button>
+            ))}
+            {enabledGlobal.length === 0 && localTags.length === 0 && (
+              <p className="text-xs text-muted-foreground">No tags enabled</p>
+            )}
+          </div>
+        </div>
+
+        {/* Available global tags */}
+        {availableGlobal.length > 0 && (
+          <div>
+            <p className="text-xs text-muted-foreground uppercase tracking-wide mb-2">
+              Available to enable
+            </p>
+            <div className="flex flex-wrap gap-1.5">
+              {availableGlobal.map((tag) => (
+                <button
+                  key={tag.id}
+                  onClick={() => handleEnableTag(tag.id)}
+                  disabled={saving}
+                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs border border-muted-foreground/30 hover:bg-primary/10 hover:border-primary/30 transition-colors disabled:opacity-50"
+                  title="Click to enable"
+                >
+                  {tag.shortcut && (
+                    <kbd className="text-[10px] px-0.5 bg-muted rounded font-mono">
+                      {tag.shortcut}
+                    </kbd>
+                  )}
+                  {tag.name}
+                  <span className="text-primary ml-0.5">+</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Create series-local tag */}
+        <div className="pt-2">
+          {showNewTagForm ? (
+            <div className="space-y-2 p-2 bg-muted/50 rounded-lg">
+              <div className="flex gap-2">
+                <Input
+                  value={newTagName}
+                  onChange={(e) => setNewTagName(e.target.value)}
+                  placeholder="Tag name"
+                  className="text-sm h-8"
+                  autoFocus
+                />
+                <Input
+                  value={newTagShortcut}
+                  onChange={(e) => setNewTagShortcut(e.target.value.slice(-1))}
+                  placeholder="Key"
+                  className="text-sm h-8 w-14"
+                  maxLength={1}
+                />
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  size="sm"
+                  onClick={handleCreateLocalTag}
+                  disabled={saving || !newTagName.trim()}
+                  className="h-7 text-xs"
+                >
+                  {saving ? '...' : 'Create'}
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => {
+                    setShowNewTagForm(false);
+                    setNewTagName('');
+                    setNewTagShortcut('');
+                  }}
+                  disabled={saving}
+                  className="h-7 text-xs"
+                >
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => setShowNewTagForm(true)}
+              className="h-7 text-xs"
+            >
+              + Create series-local tag
+            </Button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
 }
 
 function ConfigPanel({
@@ -34,12 +297,16 @@ function ConfigPanel({
   seriesId,
   imageCount,
   jobCount,
+  enabledTags,
+  globalTags,
 }: {
-  series: CogSeriesWithImages;
+  series: CogSeries;
   childSeries: CogSeries[];
   seriesId: string;
   imageCount: number;
   jobCount: number;
+  enabledTags: CogTagWithGroup[];
+  globalTags: CogTag[];
 }) {
   const router = useRouter();
   const [isEditing, setIsEditing] = useState(false);
@@ -334,6 +601,15 @@ function ConfigPanel({
         </div>
       )}
 
+      {/* Image Tags */}
+      <div className="pt-4 border-t">
+        <TagsSection
+          seriesId={seriesId}
+          enabledTags={enabledTags}
+          globalTags={globalTags}
+        />
+      </div>
+
       {/* Delete Series */}
       <div className="pt-6 border-t">
         {showDeleteConfirm ? (
@@ -404,9 +680,11 @@ function JobsPanel({ jobs, seriesId }: { jobs: CogJob[]; seriesId: string }) {
 function ImagesPanel({
   images,
   seriesId,
+  enabledTags,
 }: {
-  images: CogSeriesWithImages['images'];
+  images: CogImageWithVersions[];
   seriesId: string;
+  enabledTags: CogTagWithGroup[];
 }) {
   return (
     <div className="flex flex-col">
@@ -421,7 +699,7 @@ function ImagesPanel({
         </div>
       ) : (
         <>
-          <ImageGallery images={images} seriesId={seriesId} />
+          <ImageGallery images={images} seriesId={seriesId} enabledTags={enabledTags} />
 
           <div className="p-6 border-t">
             <Button size="sm" variant="outline" asChild>
@@ -436,11 +714,13 @@ function ImagesPanel({
 
 export function SeriesLayout({
   series,
+  images,
   jobs,
   childSeries,
   seriesId,
+  enabledTags,
+  globalTags,
 }: SeriesLayoutProps) {
-  const images = series.images;
 
   return (
     <div className="flex-1 relative">
@@ -456,6 +736,8 @@ export function SeriesLayout({
                 seriesId={seriesId}
                 imageCount={images.length}
                 jobCount={jobs.length}
+                enabledTags={enabledTags}
+                globalTags={globalTags}
               />
             </div>
           </ResizablePanel>
@@ -476,7 +758,7 @@ export function SeriesLayout({
                   <JobsPanel jobs={jobs} seriesId={seriesId} />
                 </TabsContent>
                 <TabsContent value="images" className="flex-1 mt-4 overflow-y-auto">
-                  <ImagesPanel images={images} seriesId={seriesId} />
+                  <ImagesPanel images={images} seriesId={seriesId} enabledTags={enabledTags} />
                 </TabsContent>
               </Tabs>
             </div>
@@ -499,13 +781,15 @@ export function SeriesLayout({
               seriesId={seriesId}
               imageCount={images.length}
               jobCount={jobs.length}
+              enabledTags={enabledTags}
+              globalTags={globalTags}
             />
           </TabsContent>
           <TabsContent value="jobs" className="mt-4">
             <JobsPanel jobs={jobs} seriesId={seriesId} />
           </TabsContent>
           <TabsContent value="images" className="mt-4">
-            <ImagesPanel images={images} seriesId={seriesId} />
+            <ImagesPanel images={images} seriesId={seriesId} enabledTags={enabledTags} />
           </TabsContent>
         </Tabs>
       </div>

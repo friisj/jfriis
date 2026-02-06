@@ -27,6 +27,8 @@ interface JobRunnerProps {
 
 const modelLabels: Record<CogImageModel, string> = {
   'auto': 'Auto (recommended)',
+  'flux-2-pro': 'Flux 2 Pro',
+  'flux-2-dev': 'Flux 2 Dev',
   'gemini-3-pro-image': 'Gemini 3 Pro Image',
   'imagen-3-capability': 'Imagen 3 Capability',
   'imagen-4': 'Imagen 4',
@@ -34,6 +36,8 @@ const modelLabels: Record<CogImageModel, string> = {
 
 const modelDescriptions: Record<CogImageModel, string> = {
   'auto': 'Auto-select based on references',
+  'flux-2-pro': 'Up to 8 refs, 4MP, excellent text',
+  'flux-2-dev': 'Up to 5 refs, 2MP, fast',
   'gemini-3-pro-image': 'Up to 14 refs, 4K output',
   'imagen-3-capability': 'Up to 4 subject refs (Vertex)',
   'imagen-4': 'Text-only, no references',
@@ -178,6 +182,8 @@ export function JobRunner({
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="auto">{modelLabels['auto']}</SelectItem>
+              <SelectItem value="flux-2-pro">{modelLabels['flux-2-pro']}</SelectItem>
+              <SelectItem value="flux-2-dev">{modelLabels['flux-2-dev']}</SelectItem>
               <SelectItem value="gemini-3-pro-image">{modelLabels['gemini-3-pro-image']}</SelectItem>
               <SelectItem value="imagen-3-capability">{modelLabels['imagen-3-capability']}</SelectItem>
               <SelectItem value="imagen-4">{modelLabels['imagen-4']}</SelectItem>
