@@ -23,6 +23,7 @@ export interface CogSeries {
   title: string;
   description: string | null;
   tags: string[];
+  primary_image_id: string | null;
   created_at: string;
   updated_at: string;
 }

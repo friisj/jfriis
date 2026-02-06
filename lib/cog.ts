@@ -94,6 +94,23 @@ export async function deleteSeries(id: string): Promise<void> {
 }
 
 /**
+ * Set the primary image for a series - client-side
+ * When set, this image is displayed in grids instead of the root.
+ * Pass null to clear and revert to showing the root image.
+ */
+export async function setSeriesPrimaryImage(seriesId: string, imageId: string | null): Promise<CogSeries> {
+  const { data, error } = await (supabase as any)
+    .from('cog_series')
+    .update({ primary_image_id: imageId })
+    .eq('id', seriesId)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data as CogSeries;
+}
+
+/**
  * Delete a series with full cleanup - removes storage files first, then DB records
  * Returns count of deleted images for confirmation
  */
@@ -179,7 +196,7 @@ export async function updateImage(id: string, updates: CogImageUpdate): Promise<
 }
 
 /**
- * Delete an image - client-side
+ * Delete an image - client-side (simple, no cleanup)
  */
 export async function deleteImage(id: string): Promise<void> {
   const { error } = await (supabase as any)
@@ -188,6 +205,71 @@ export async function deleteImage(id: string): Promise<void> {
     .eq('id', id);
 
   if (error) throw error;
+}
+
+/**
+ * Delete an image with full cleanup - client-side
+ * Handles:
+ * - Re-parenting children to this image's parent (preserves version chain)
+ * - Clearing primary_image_id if this is the primary image
+ * - Removing from storage
+ * - Deleting the database record
+ */
+export async function deleteImageWithCleanup(id: string): Promise<void> {
+  // 1. Fetch the image to get storage_path, parent_image_id, and series_id
+  const { data: image, error: fetchError } = await (supabase as any)
+    .from('cog_images')
+    .select('storage_path, parent_image_id, series_id')
+    .eq('id', id)
+    .single();
+
+  if (fetchError) throw fetchError;
+
+  // 2. Re-parent any children to this image's parent
+  const { error: reparentError } = await (supabase as any)
+    .from('cog_images')
+    .update({ parent_image_id: image.parent_image_id })
+    .eq('parent_image_id', id);
+
+  if (reparentError) throw reparentError;
+
+  // 3. Clear primary_image_id if this is the primary image for the series
+  const { data: series } = await (supabase as any)
+    .from('cog_series')
+    .select('primary_image_id')
+    .eq('id', image.series_id)
+    .single();
+
+  if (series?.primary_image_id === id) {
+    const { error: clearPrimaryError } = await (supabase as any)
+      .from('cog_series')
+      .update({ primary_image_id: null })
+      .eq('id', image.series_id);
+
+    if (clearPrimaryError) {
+      console.error('Failed to clear primary image (continuing):', clearPrimaryError);
+    }
+  }
+
+  // 4. Delete from storage
+  if (image.storage_path) {
+    const { error: storageError } = await supabase.storage
+      .from('cog-images')
+      .remove([image.storage_path]);
+
+    if (storageError) {
+      console.error('Storage cleanup error (continuing):', storageError);
+      // Continue even if storage cleanup fails
+    }
+  }
+
+  // 5. Delete the database record
+  const { error: deleteError } = await (supabase as any)
+    .from('cog_images')
+    .delete()
+    .eq('id', id);
+
+  if (deleteError) throw deleteError;
 }
 
 // ============================================================================

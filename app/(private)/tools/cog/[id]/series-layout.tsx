@@ -680,12 +680,16 @@ function JobsPanel({ jobs, seriesId }: { jobs: CogJob[]; seriesId: string }) {
 function ImagesPanel({
   images,
   seriesId,
+  primaryImageId,
   enabledTags,
 }: {
   images: CogImageWithVersions[];
   seriesId: string;
+  primaryImageId: string | null;
   enabledTags: CogTagWithGroup[];
 }) {
+  const router = useRouter();
+
   return (
     <div className="flex flex-col">
       {images.length === 0 ? (
@@ -699,7 +703,13 @@ function ImagesPanel({
         </div>
       ) : (
         <>
-          <ImageGallery images={images} seriesId={seriesId} enabledTags={enabledTags} />
+          <ImageGallery
+            images={images}
+            seriesId={seriesId}
+            primaryImageId={primaryImageId}
+            enabledTags={enabledTags}
+            onPrimaryImageChange={() => router.refresh()}
+          />
 
           <div className="p-6 border-t">
             <Button size="sm" variant="outline" asChild>
@@ -758,7 +768,7 @@ export function SeriesLayout({
                   <JobsPanel jobs={jobs} seriesId={seriesId} />
                 </TabsContent>
                 <TabsContent value="images" className="flex-1 mt-4 overflow-y-auto">
-                  <ImagesPanel images={images} seriesId={seriesId} enabledTags={enabledTags} />
+                  <ImagesPanel images={images} seriesId={seriesId} primaryImageId={series.primary_image_id} enabledTags={enabledTags} />
                 </TabsContent>
               </Tabs>
             </div>
@@ -789,7 +799,7 @@ export function SeriesLayout({
             <JobsPanel jobs={jobs} seriesId={seriesId} />
           </TabsContent>
           <TabsContent value="images" className="mt-4">
-            <ImagesPanel images={images} seriesId={seriesId} enabledTags={enabledTags} />
+            <ImagesPanel images={images} seriesId={seriesId} primaryImageId={series.primary_image_id} enabledTags={enabledTags} />
           </TabsContent>
         </Tabs>
       </div>

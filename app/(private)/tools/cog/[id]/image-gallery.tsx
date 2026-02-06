@@ -11,7 +11,9 @@ import type { CogImage, CogTag, CogTagWithGroup, CogImageWithVersions } from '@/
 interface ImageGalleryProps {
   images: CogImageWithVersions[];
   seriesId: string;
+  primaryImageId?: string | null;
   enabledTags?: CogTagWithGroup[];
+  onPrimaryImageChange?: (imageId: string | null) => void;
 }
 
 // Batch Tag Panel - similar to TagPanel but for batch operations
@@ -268,7 +270,9 @@ function TagPanel({
 export function ImageGallery({
   images: initialImages,
   seriesId,
+  primaryImageId: initialPrimaryImageId = null,
   enabledTags = [],
+  onPrimaryImageChange,
 }: ImageGalleryProps) {
   const router = useRouter();
   const [images, setImages] = useState(initialImages);
@@ -292,6 +296,9 @@ export function ImageGallery({
   const [showBatchTagPanel, setShowBatchTagPanel] = useState(false);
   const [batchTagging, setBatchTagging] = useState(false);
   const [batchDeleting, setBatchDeleting] = useState(false);
+
+  // Primary image state
+  const [primaryImageId, setPrimaryImageId] = useState<string | null>(initialPrimaryImageId);
 
   const isOpen = selectedIndex !== null;
   const hasSelection = selectedIds.size > 0;
@@ -653,6 +660,43 @@ export function ImageGallery({
     [versionChain]
   );
 
+  // Handle primary image change
+  const handlePrimaryChanged = useCallback(
+    (imageId: string | null) => {
+      setPrimaryImageId(imageId);
+      onPrimaryImageChange?.(imageId);
+    },
+    [onPrimaryImageChange]
+  );
+
+  // Handle version deletion
+  const handleVersionDeleted = useCallback(
+    (deletedImageId: string, newActiveImage: CogImage | null) => {
+      // Update version chain
+      setVersionChain((prev) => prev.filter((v) => v.id !== deletedImageId));
+
+      // If we deleted the current image, switch to the new active one
+      if (newActiveImage) {
+        const newIdx = versionChain.findIndex((v) => v.id === newActiveImage.id);
+        if (newIdx >= 0) {
+          setVersionIndex(Math.max(0, newIdx - (deletedImageId === versionChain[newIdx]?.id ? 1 : 0)));
+        }
+      }
+
+      // Update images list if the deleted image was a root
+      setImages((prev) => prev.filter((img) => img.id !== deletedImageId));
+
+      // If primary was deleted, it's already cleared by deleteImageWithCleanup
+      if (primaryImageId === deletedImageId) {
+        setPrimaryImageId(null);
+        onPrimaryImageChange?.(null);
+      }
+
+      router.refresh();
+    },
+    [versionChain, primaryImageId, onPrimaryImageChange, router]
+  );
+
   // Handle tag toggle with optimistic update
   const handleToggleTag = useCallback(
     async (tagId: string) => {
@@ -921,6 +965,7 @@ export function ImageGallery({
           const tagCount = imageTags.size;
           const versionCount = image.version_count || 1;
           const isSelected = selectedIds.has(image.id);
+          const isPrimary = image.id === primaryImageId;
 
           return (
             <div
@@ -969,6 +1014,14 @@ export function ImageGallery({
                   {versionCount > 1 && (
                     <div className="absolute bottom-2 right-2 px-1.5 py-0.5 bg-blue-600/80 rounded text-[10px] text-white">
                       v{versionCount}
+                    </div>
+                  )}
+                  {/* Primary star indicator */}
+                  {isPrimary && (
+                    <div className="absolute top-2 right-10 text-yellow-400" title="Primary image">
+                      <svg className="w-5 h-5 drop-shadow-md" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
+                      </svg>
                     </div>
                   )}
                 </div>
@@ -1247,9 +1300,13 @@ export function ImageGallery({
             {/* Version History Panel */}
             <VersionHistoryPanel
               imageId={currentImage.id}
+              seriesId={seriesId}
+              primaryImageId={primaryImageId}
               isExpanded={showVersionPanel}
               onClose={() => setShowVersionPanel(false)}
               onSelectVersion={handleVersionSelect}
+              onPrimaryChanged={handlePrimaryChanged}
+              onVersionDeleted={handleVersionDeleted}
             />
 
             {/* Prompt info */}
