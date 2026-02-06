@@ -189,14 +189,28 @@ export async function generateWithFlux(
   // Run the prediction
   const output = await replicate.run(modelId, { input });
 
-  // Output can be a single URL string or array
+  // Output can be:
+  // - A single URL string
+  // - An array of URL strings
+  // - An array of FileOutput objects (Replicate SDK v1.x)
+  // FileOutput objects have a .url() async method or can be converted with String()
   let outputUrl: string;
   if (typeof output === 'string') {
     outputUrl = output;
   } else if (Array.isArray(output) && output.length > 0) {
-    outputUrl = output[0] as string;
-  } else if (output && typeof output === 'object' && 'url' in output) {
-    outputUrl = (output as { url: string }).url;
+    const firstOutput = output[0];
+    if (typeof firstOutput === 'string') {
+      outputUrl = firstOutput;
+    } else if (firstOutput && typeof firstOutput === 'object') {
+      // FileOutput object - convert to string (calls internal toString which returns URL)
+      outputUrl = String(firstOutput);
+    } else {
+      console.error('Unexpected array element format:', firstOutput);
+      throw new Error('Invalid output format from Flux generation');
+    }
+  } else if (output && typeof output === 'object') {
+    // Single FileOutput object
+    outputUrl = String(output);
   } else {
     console.error('Unexpected Flux output format:', output);
     throw new Error('No output from Flux generation');
