@@ -78,19 +78,32 @@ export async function touchupCogImage(input: TouchupInput): Promise<TouchupResul
 
     // SDXL inpainting works best with images around 1024px
     // Resize large images to prevent model errors
+    // IMPORTANT: All dimensions must be divisible by 8 (VAE requirement for diffusion models)
     const MAX_DIMENSION = 1024;
-    const needsResize = originalWidth > MAX_DIMENSION || originalHeight > MAX_DIMENSION;
 
-    let processedWidth = originalWidth;
-    let processedHeight = originalHeight;
+    // Calculate target dimensions
+    let processedWidth: number;
+    let processedHeight: number;
+
+    if (originalWidth > MAX_DIMENSION || originalHeight > MAX_DIMENSION) {
+      // Scale down large images
+      const scale = MAX_DIMENSION / Math.max(originalWidth, originalHeight);
+      processedWidth = Math.round((originalWidth * scale) / 8) * 8;
+      processedHeight = Math.round((originalHeight * scale) / 8) * 8;
+    } else {
+      // Even small images need dimensions divisible by 8
+      processedWidth = Math.round(originalWidth / 8) * 8;
+      processedHeight = Math.round(originalHeight / 8) * 8;
+    }
+
+    // Ensure minimum dimension of 8
+    processedWidth = Math.max(8, processedWidth);
+    processedHeight = Math.max(8, processedHeight);
+
+    const needsResize = processedWidth !== originalWidth || processedHeight !== originalHeight;
     let processedImageBase64: string;
 
     if (needsResize) {
-      // Calculate new dimensions maintaining aspect ratio
-      const scale = MAX_DIMENSION / Math.max(originalWidth, originalHeight);
-      processedWidth = Math.round(originalWidth * scale);
-      processedHeight = Math.round(originalHeight * scale);
-
       console.log('Resizing image for model compatibility:', {
         from: `${originalWidth}x${originalHeight}`,
         to: `${processedWidth}x${processedHeight}`,
@@ -98,8 +111,7 @@ export async function touchupCogImage(input: TouchupInput): Promise<TouchupResul
 
       const resizedImageBuffer = await sharp(imageBuffer)
         .resize(processedWidth, processedHeight, {
-          fit: 'inside',
-          withoutEnlargement: true,
+          fit: 'fill', // Force exact dimensions
         })
         .png()
         .toBuffer();
