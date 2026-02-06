@@ -168,22 +168,16 @@ export async function generateWithFlux(
   }
 
   // Add reference images if provided
-  // Flux 2 Pro uses 'image_prompt' array, Dev uses single or array
+  // Both Flux 2 Pro and Dev use 'input_images' array parameter
+  // Pro supports up to 8 images, Dev supports up to 5
   if (refs.length > 0) {
-    const imagePrompts = refs.map((ref) => toDataUri(ref.base64, ref.mimeType));
-    if (model === 'flux-2-pro') {
-      // Pro model accepts array of image prompts
-      input.image_prompt = imagePrompts;
-    } else {
-      // Dev model - use image_prompt for single, or image_prompts for multiple
-      if (refs.length === 1) {
-        input.image_prompt = imagePrompts[0];
-      } else {
-        input.image_prompts = imagePrompts;
-      }
-    }
-    // Set image prompt strength (how much to follow reference)
-    input.image_prompt_strength = 0.1; // Default value, can be tuned
+    const imageUris = refs.map((ref) => toDataUri(ref.base64, ref.mimeType));
+    input.input_images = imageUris;
+
+    console.log('Flux reference images:', {
+      count: imageUris.length,
+      firstImagePreview: imageUris[0].slice(0, 50) + '...',
+    });
   }
 
   // Run the prediction
