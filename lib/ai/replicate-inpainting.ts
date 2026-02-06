@@ -320,7 +320,7 @@ function getModelVersion(model: InpaintingModel): string {
   switch (model) {
     case INPAINTING_MODELS.SD_INPAINTING:
       // andreasjansson/stable-diffusion-inpainting
-      return 'e490d072a34a94a11e9711ed5a6ba621c3fab884eda1665d9d3a282d65a21f2d';
+      return 'e490d072a34a94a11e9711ed5a6ba621c3fab884eda1665d9d3a282d65a21180';
     case INPAINTING_MODELS.SD_INPAINTING_STABILITY:
       // stability-ai/stable-diffusion-inpainting (SD 2.0 based)
       return '95b7223104132402a9ae91cc677285bc5eb997834bd2349fa486f53910fd68b3';
