@@ -9,10 +9,10 @@
 
 import Replicate from 'replicate';
 
-// Model configuration - using Flux-based inpainting for quality and reliability
-// This model handles various image sizes and has good mask interpretation
-// See: https://replicate.com/zsxkib/flux-dev-inpainting
-const INPAINTING_MODEL = 'zsxkib/flux-dev-inpainting' as const;
+// Model configuration - using official Black Forest Labs Flux Fill model
+// This is the official inpainting model with excellent mask interpretation
+// See: https://replicate.com/black-forest-labs/flux-fill-dev
+const INPAINTING_MODEL = 'black-forest-labs/flux-fill-dev' as const;
 
 export interface InpaintingOptions {
   /** Image buffer (PNG format) */
@@ -41,7 +41,7 @@ export interface InpaintingResult {
 }
 
 /**
- * Perform inpainting using Replicate's zsxkib/flux-dev-inpainting model.
+ * Perform inpainting using Black Forest Labs' official flux-fill-dev model.
  *
  * Both image and mask should be:
  * - Same dimensions
@@ -51,7 +51,7 @@ export interface InpaintingResult {
  * - White (255) = areas to inpaint
  * - Black (0) = areas to preserve
  *
- * @see https://replicate.com/zsxkib/flux-dev-inpainting
+ * @see https://replicate.com/black-forest-labs/flux-fill-dev
  */
 export async function inpaintWithReplicate(
   options: InpaintingOptions
@@ -65,8 +65,8 @@ export async function inpaintWithReplicate(
     imageBuffer,
     maskBuffer,
     prompt,
-    guidanceScale = 7, // Model default
-    numInferenceSteps = 30, // Model default
+    guidanceScale = 30, // flux-fill-dev default is 30 (high guidance)
+    numInferenceSteps = 28, // flux-fill-dev default
     width,
     height,
   } = options;
@@ -86,21 +86,18 @@ export async function inpaintWithReplicate(
     auth: apiToken,
   });
 
-  // Run the prediction using the model without version pinning
-  // The SDK will use the latest version
+  // Run the prediction using the official flux-fill-dev model
+  // See: https://replicate.com/black-forest-labs/flux-fill-dev
   const output = await replicate.run(INPAINTING_MODEL, {
     input: {
       image: imageBuffer,
       mask: maskBuffer,
       prompt,
-      guidance_scale: guidanceScale,
+      guidance: guidanceScale, // flux-fill-dev uses 'guidance' not 'guidance_scale'
       num_inference_steps: numInferenceSteps,
-      width,
-      height,
-      // Flux inpainting parameters
-      strength: 0.85, // How much to change the masked area (0-1)
+      megapixels: 'match_input', // Preserve input resolution
       output_format: 'png',
-      output_quality: 100, // Max quality for PNG
+      output_quality: 100,
     },
   });
 

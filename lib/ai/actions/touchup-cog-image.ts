@@ -166,14 +166,14 @@ export async function touchupCogImage(input: TouchupInput): Promise<TouchupResul
       maskSize: `${Math.round(processedMaskBuffer.length / 1024)}KB`,
     });
 
-    // Call the inpainting API (Flux model)
+    // Call the inpainting API (flux-fill-dev model)
     const inpaintResult = await inpaintWithReplicate({
       imageBuffer: processedImageBuffer,
       maskBuffer: processedMaskBuffer,
       prompt: inpaintPrompt,
-      // Flux uses lower guidance and fewer steps
+      // flux-fill-dev uses high guidance (0-100, default 30)
       numInferenceSteps: 28,
-      guidanceScale: mode === 'spot_removal' ? 3.0 : 3.5,
+      guidanceScale: mode === 'spot_removal' ? 25 : 30,
       width: targetWidth,
       height: targetHeight,
     });
