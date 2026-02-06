@@ -16,6 +16,12 @@ export interface TouchupInput {
   mode: 'spot_removal' | 'guided_edit';
   /** Prompt for guided edit mode */
   prompt?: string;
+  /** Guidance strength (0-100). Higher = more literal prompt following. Default 25 for spot, 30 for guided */
+  guidance?: number;
+  /** Quality/steps (1-50). Higher = better quality, slower. Default 28 */
+  quality?: number;
+  /** Random seed for reproducibility. Omit for random */
+  seed?: number;
 }
 
 export interface TouchupResult {
@@ -32,7 +38,7 @@ export interface TouchupResult {
  * Creates a new image record with parent_image_id pointing to the source.
  */
 export async function touchupCogImage(input: TouchupInput): Promise<TouchupResult> {
-  const { imageId, maskBase64, mode, prompt } = input;
+  const { imageId, maskBase64, mode, prompt, guidance, quality, seed } = input;
   const supabase = await createClient();
 
   try {
@@ -167,13 +173,15 @@ export async function touchupCogImage(input: TouchupInput): Promise<TouchupResul
     });
 
     // Call the inpainting API (flux-fill-dev model)
+    // Use provided values or sensible defaults based on mode
+    const defaultGuidance = mode === 'spot_removal' ? 25 : 30;
     const inpaintResult = await inpaintWithReplicate({
       imageBuffer: processedImageBuffer,
       maskBuffer: processedMaskBuffer,
       prompt: inpaintPrompt,
-      // flux-fill-dev uses high guidance (0-100, default 30)
-      numInferenceSteps: 28,
-      guidanceScale: mode === 'spot_removal' ? 25 : 30,
+      guidanceScale: guidance ?? defaultGuidance,
+      numInferenceSteps: quality ?? 28,
+      seed,
       width: targetWidth,
       height: targetHeight,
     });

@@ -3,7 +3,9 @@
 import { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { Loader2 } from 'lucide-react';
+import { Slider } from '@/components/ui/slider';
+import { Input } from '@/components/ui/input';
+import { Loader2, Shuffle } from 'lucide-react';
 import { MaskCanvas } from './mask-canvas';
 import { touchupCogImage } from '@/lib/ai/actions/touchup-cog-image';
 
@@ -31,6 +33,10 @@ export function LightboxTouchupDialog({
   const [mode, setMode] = useState<Mode>('spot_removal');
   const [maskBase64, setMaskBase64] = useState<string | null>(null);
   const [prompt, setPrompt] = useState('');
+  const [guidance, setGuidance] = useState(30);
+  const [quality, setQuality] = useState(28);
+  const [seed, setSeed] = useState<string>('');
+  const [showAdvanced, setShowAdvanced] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const promptRef = useRef<HTMLTextAreaElement>(null);
@@ -40,6 +46,10 @@ export function LightboxTouchupDialog({
     if (isOpen) {
       setMaskBase64(null);
       setPrompt('');
+      setGuidance(30);
+      setQuality(28);
+      setSeed('');
+      setShowAdvanced(false);
       setError(null);
       setIsProcessing(false);
     }
@@ -88,6 +98,9 @@ export function LightboxTouchupDialog({
         maskBase64,
         mode,
         prompt: mode === 'guided_edit' ? prompt.trim() : undefined,
+        guidance,
+        quality,
+        seed: seed.trim() ? parseInt(seed.trim(), 10) : undefined,
       });
 
       if (result.success && result.newImageId) {
@@ -223,6 +236,101 @@ export function LightboxTouchupDialog({
           {mode === 'spot_removal' && (
             <div className="text-xs text-white/50">
               Tip: For best results with spot removal, use a brush just slightly larger than the area you want to remove.
+            </div>
+          )}
+
+          {/* Advanced controls toggle */}
+          <button
+            onClick={() => setShowAdvanced(!showAdvanced)}
+            className="text-xs text-white/50 hover:text-white/70 flex items-center gap-1"
+          >
+            <span>{showAdvanced ? '▼' : '▶'}</span>
+            Advanced options
+          </button>
+
+          {/* Advanced controls */}
+          {showAdvanced && (
+            <div className="space-y-4 p-3 bg-white/5 rounded-lg border border-white/10">
+              {/* Guidance slider */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs text-white/70">
+                    Guidance
+                    <span className="ml-2 text-white/40">
+                      {mode === 'spot_removal' ? '(lower = natural blend)' : '(higher = follow prompt)'}
+                    </span>
+                  </label>
+                  <span className="text-xs text-white/60 font-mono">{guidance}</span>
+                </div>
+                <Slider
+                  value={[guidance]}
+                  onValueChange={([v]) => setGuidance(v)}
+                  min={0}
+                  max={100}
+                  step={5}
+                  disabled={isProcessing}
+                  className="w-full"
+                />
+                <div className="flex justify-between text-[10px] text-white/30">
+                  <span>Natural</span>
+                  <span>Literal</span>
+                </div>
+              </div>
+
+              {/* Quality slider */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs text-white/70">
+                    Quality
+                    <span className="ml-2 text-white/40">(steps)</span>
+                  </label>
+                  <span className="text-xs text-white/60 font-mono">{quality}</span>
+                </div>
+                <Slider
+                  value={[quality]}
+                  onValueChange={([v]) => setQuality(v)}
+                  min={10}
+                  max={50}
+                  step={2}
+                  disabled={isProcessing}
+                  className="w-full"
+                />
+                <div className="flex justify-between text-[10px] text-white/30">
+                  <span>Fast</span>
+                  <span>Best</span>
+                </div>
+              </div>
+
+              {/* Seed input */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs text-white/70">
+                    Seed
+                    <span className="ml-2 text-white/40">(for reproducibility)</span>
+                  </label>
+                </div>
+                <div className="flex gap-2">
+                  <Input
+                    type="text"
+                    value={seed}
+                    onChange={(e) => setSeed(e.target.value.replace(/\D/g, ''))}
+                    placeholder="Random"
+                    disabled={isProcessing}
+                    className="flex-1 bg-white/5 border-white/20 text-white placeholder:text-white/30 text-sm h-8"
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setSeed(String(Math.floor(Math.random() * 2147483647)))}
+                    disabled={isProcessing}
+                    className="text-white/70 hover:text-white hover:bg-white/10 h-8 px-2"
+                    title="Generate random seed"
+                  >
+                    <Shuffle className="w-4 h-4" />
+                  </Button>
+                </div>
+              </div>
             </div>
           )}
 

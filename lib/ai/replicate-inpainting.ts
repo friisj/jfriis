@@ -23,10 +23,14 @@ export interface InpaintingOptions {
   prompt: string;
   /** Negative prompt to avoid certain elements */
   negativePrompt?: string;
-  /** Guidance scale for prompt adherence. Default 7.5 */
+  /** Guidance for prompt adherence. Range 0-100, default 30 */
   guidanceScale?: number;
-  /** Number of denoising steps. Default 28 for Flux */
+  /** Number of denoising steps. Range 1-50, default 28 */
   numInferenceSteps?: number;
+  /** Random seed for reproducibility */
+  seed?: number;
+  /** Number of outputs to generate. Range 1-4, default 1 */
+  numOutputs?: number;
   /** Output width */
   width: number;
   /** Output height */
@@ -34,10 +38,14 @@ export interface InpaintingOptions {
 }
 
 export interface InpaintingResult {
-  /** Result image buffer (PNG) */
+  /** Result image buffer (PNG) - first/only output */
   buffer: Buffer;
+  /** All result buffers when numOutputs > 1 */
+  buffers?: Buffer[];
   /** Processing duration in milliseconds */
   durationMs: number;
+  /** Seed used for generation (for reproducibility) */
+  seed?: number;
 }
 
 /**
@@ -67,6 +75,8 @@ export async function inpaintWithReplicate(
     prompt,
     guidanceScale = 30, // flux-fill-dev default is 30 (high guidance)
     numInferenceSteps = 28, // flux-fill-dev default
+    seed,
+    numOutputs = 1,
     width,
     height,
   } = options;
@@ -77,6 +87,10 @@ export async function inpaintWithReplicate(
     model: INPAINTING_MODEL,
     prompt: prompt.slice(0, 80),
     dimensions: `${width}x${height}`,
+    guidance: guidanceScale,
+    steps: numInferenceSteps,
+    seed: seed ?? 'random',
+    numOutputs,
     imageSize: `${Math.round(imageBuffer.length / 1024)}KB`,
     maskSize: `${Math.round(maskBuffer.length / 1024)}KB`,
   });
@@ -86,57 +100,69 @@ export async function inpaintWithReplicate(
     auth: apiToken,
   });
 
+  // Build input parameters
+  const input: Record<string, unknown> = {
+    image: imageBuffer,
+    mask: maskBuffer,
+    prompt,
+    guidance: guidanceScale, // flux-fill-dev uses 'guidance' not 'guidance_scale'
+    num_inference_steps: numInferenceSteps,
+    num_outputs: numOutputs,
+    megapixels: 'match_input', // Preserve input resolution
+    output_format: 'png',
+    output_quality: 100,
+  };
+
+  // Only add seed if specified (otherwise let model generate random)
+  if (seed !== undefined) {
+    input.seed = seed;
+  }
+
   // Run the prediction using the official flux-fill-dev model
   // See: https://replicate.com/black-forest-labs/flux-fill-dev
-  const output = await replicate.run(INPAINTING_MODEL, {
-    input: {
-      image: imageBuffer,
-      mask: maskBuffer,
-      prompt,
-      guidance: guidanceScale, // flux-fill-dev uses 'guidance' not 'guidance_scale'
-      num_inference_steps: numInferenceSteps,
-      megapixels: 'match_input', // Preserve input resolution
-      output_format: 'png',
-      output_quality: 100,
-    },
-  });
+  const output = await replicate.run(INPAINTING_MODEL, { input });
 
-  // Output can be a single URL string or array
-  let outputUrl: string;
+  // Output is always an array of URLs for flux-fill-dev
+  let outputUrls: string[];
   if (typeof output === 'string') {
-    outputUrl = output;
+    outputUrls = [output];
   } else if (Array.isArray(output) && output.length > 0) {
-    outputUrl = output[0] as string;
+    outputUrls = output as string[];
   } else {
     console.error('Unexpected output format:', output);
     throw new Error('No output from Replicate');
   }
 
-  console.log('Fetching result from:', outputUrl);
+  console.log(`Fetching ${outputUrls.length} result(s)...`);
 
-  // Fetch the result image
-  const response = await fetch(outputUrl);
-  if (!response.ok) {
-    throw new Error(`Failed to fetch result: ${response.status}`);
+  // Fetch all result images
+  const buffers: Buffer[] = [];
+  for (const url of outputUrls) {
+    const response = await fetch(url);
+    if (!response.ok) {
+      throw new Error(`Failed to fetch result: ${response.status}`);
+    }
+    buffers.push(Buffer.from(await response.arrayBuffer()));
   }
-
-  const resultBuffer = Buffer.from(await response.arrayBuffer());
 
   const durationMs = Date.now() - startTime;
 
   console.log('Replicate inpainting complete:', {
     durationMs,
-    outputSize: `${Math.round(resultBuffer.length / 1024)}KB`,
+    numOutputs: buffers.length,
+    outputSize: `${Math.round(buffers[0].length / 1024)}KB`,
   });
 
   // Validate output size - real images should be substantial
-  if (resultBuffer.length < 10000) {
+  if (buffers[0].length < 10000) {
     console.warn('WARNING: Output is very small, may be an error image');
   }
 
   return {
-    buffer: resultBuffer,
+    buffer: buffers[0],
+    buffers: buffers.length > 1 ? buffers : undefined,
     durationMs,
+    seed,
   };
 }
 
