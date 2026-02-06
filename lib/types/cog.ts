@@ -10,7 +10,7 @@ export type CogJobStepType = 'llm' | 'image_gen';
 
 export type CogImageSource = 'upload' | 'generated';
 
-export type CogImageModel = 'auto' | 'imagen-4' | 'imagen-3-capability' | 'gemini-3-pro-image';
+export type CogImageModel = 'auto' | 'imagen-4' | 'imagen-3-capability' | 'gemini-3-pro-image' | 'flux-2-pro' | 'flux-2-dev';
 
 export type CogImageSize = '1K' | '2K' | '4K';
 

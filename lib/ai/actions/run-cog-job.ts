@@ -5,10 +5,11 @@ import { getModel } from '../models';
 import { getGoogle } from '../providers';
 import { generateImageWithVertex, isVertexConfigured } from '../vertex-imagen';
 import { generateImageWithGemini3Pro, isGemini3ProConfigured, analyzeReferenceImages, type VisionAnalysisResult } from '../gemini-multimodal';
+import { generateWithFlux, isFluxConfigured, type FluxAspectRatio, type FluxResolution } from '../replicate-flux';
 import { createClient } from '@/lib/supabase-server';
 import type { CogJobStep, CogImageModel, CogImageSize, CogAspectRatio } from '@/lib/types/cog';
 
-type ResolvedImageModel = 'imagen-4' | 'imagen-3-capability' | 'gemini-3-pro-image';
+type ResolvedImageModel = 'imagen-4' | 'imagen-3-capability' | 'gemini-3-pro-image' | 'flux-2-pro' | 'flux-2-dev';
 
 /**
  * Select the appropriate image generation model based on job settings and capabilities.
@@ -16,7 +17,8 @@ type ResolvedImageModel = 'imagen-4' | 'imagen-3-capability' | 'gemini-3-pro-ima
  */
 function selectImageModel(
   jobModel: CogImageModel,
-  hasReferenceImages: boolean
+  hasReferenceImages: boolean,
+  referenceCount: number = 0
 ): ResolvedImageModel {
   // Manual override - use specified model
   if (jobModel !== 'auto') {
@@ -25,11 +27,23 @@ function selectImageModel(
 
   // Auto selection logic:
   // 1. No reference images → Imagen 4 (best quality text-to-image)
-  // 2. Has refs + Gemini 3 Pro configured → Gemini 3 Pro (up to 14 refs, 4K)
-  // 3. Has refs + Vertex configured → Imagen 3 Capability (up to 4 refs)
-  // 4. Has refs, neither configured → Imagen 4 (refs ignored)
+  // 2. Has refs (1-5) + Flux configured → Flux 2 Dev (fast, good quality)
+  // 3. Has refs (6-8) + Flux configured → Flux 2 Pro (more refs, higher quality)
+  // 4. Has refs + Gemini 3 Pro configured → Gemini 3 Pro (up to 14 refs, 4K)
+  // 5. Has refs + Vertex configured → Imagen 3 Capability (up to 4 refs)
+  // 6. Has refs, none configured → Imagen 4 (refs ignored)
   if (!hasReferenceImages) {
     return 'imagen-4';
+  }
+
+  // Prefer Flux for reference-based generation when configured
+  if (isFluxConfigured()) {
+    // Use Pro for 6-8 refs (Dev max is 5)
+    if (referenceCount > 5) {
+      return 'flux-2-pro';
+    }
+    // Use Dev for 1-5 refs (faster, cheaper)
+    return 'flux-2-dev';
   }
 
   if (isGemini3ProConfigured()) {
@@ -43,6 +57,40 @@ function selectImageModel(
   // Fallback - reference images won't be used
   console.warn('Reference images provided but no supporting API configured. Using Imagen 4 (refs will be ignored).');
   return 'imagen-4';
+}
+
+/**
+ * Map Cog aspect ratio to Flux aspect ratio.
+ * Flux supports: 1:1, 16:9, 3:2, 2:3, 4:5, 5:4, 9:16, 3:4, 4:3, 21:9
+ */
+function mapAspectRatioToFlux(ratio: CogAspectRatio): FluxAspectRatio {
+  // Direct mapping for supported ratios
+  const supported: FluxAspectRatio[] = ['1:1', '16:9', '3:2', '2:3', '4:5', '5:4', '9:16', '3:4', '4:3', '21:9'];
+  if (supported.includes(ratio as FluxAspectRatio)) {
+    return ratio as FluxAspectRatio;
+  }
+  // Fallback to 1:1 for unsupported ratios
+  console.warn(`Aspect ratio ${ratio} not directly supported by Flux, using 1:1`);
+  return '1:1';
+}
+
+/**
+ * Map Cog image size to Flux resolution in megapixels.
+ */
+function mapSizeToFluxResolution(size: CogImageSize, model: 'flux-2-pro' | 'flux-2-dev'): FluxResolution {
+  const maxRes = model === 'flux-2-pro' ? 4 : 2;
+
+  switch (size) {
+    case '1K':
+      return '1';
+    case '2K':
+      return '2';
+    case '4K':
+      // Flux Dev max is 2MP
+      return maxRes === 4 ? '4' : '2';
+    default:
+      return '1';
+  }
 }
 
 interface RunJobInput {
@@ -163,7 +211,7 @@ export async function runCogJob(input: RunJobInput): Promise<void> {
   console.log(`Job ${jobId}: Loaded ${referenceCount} reference images, model setting: ${jobImageModel}`);
 
   // Select the appropriate model based on job settings and available APIs
-  const selectedModel = selectImageModel(jobImageModel, referenceCount > 0);
+  const selectedModel = selectImageModel(jobImageModel, referenceCount > 0, referenceCount);
   console.log(`Job ${jobId}: Selected model: ${selectedModel}`);
 
   // Get all steps for this job
@@ -259,6 +307,27 @@ export async function runCogJob(input: RunJobInput): Promise<void> {
 
           try {
             switch (selectedModel) {
+              case 'flux-2-pro':
+              case 'flux-2-dev': {
+                modelId = selectedModel === 'flux-2-pro' ? 'black-forest-labs/flux-2-pro' : 'black-forest-labs/flux-2-dev';
+                const fluxResult = await generateWithFlux({
+                  prompt: promptToUse,
+                  referenceImages: referenceImages.map(ref => ({
+                    base64: ref.base64,
+                    mimeType: ref.mimeType,
+                  })),
+                  aspectRatio: mapAspectRatioToFlux(jobAspectRatio),
+                  resolution: mapSizeToFluxResolution(jobImageSize, selectedModel),
+                  model: selectedModel,
+                });
+                // Convert buffer to base64 for consistency with other models
+                imageResult = {
+                  base64: fluxResult.buffer.toString('base64'),
+                  mimeType: 'image/png',
+                };
+                break;
+              }
+
               case 'gemini-3-pro-image':
                 modelId = 'gemini-3-pro-image-preview';
                 imageResult = await generateImageWithGemini3Pro({

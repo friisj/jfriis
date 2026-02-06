@@ -4,6 +4,7 @@ import { experimental_generateImage as generateImage } from 'ai';
 import { getGoogle } from '../providers';
 import { generateImageWithVertex, isVertexConfigured } from '../vertex-imagen';
 import { generateImageWithGemini3Pro, isGemini3ProConfigured } from '../gemini-multimodal';
+import { generateWithFlux, isFluxConfigured, type FluxAspectRatio, type FluxResolution } from '../replicate-flux';
 import { createClient } from '@/lib/supabase-server';
 import type { CogImageModel, CogImageSize, CogAspectRatio } from '@/lib/types/cog';
 
@@ -21,11 +22,12 @@ interface ReferenceImageData {
   mimeType: string;
 }
 
-type ResolvedImageModel = 'imagen-4' | 'imagen-3-capability' | 'gemini-3-pro-image';
+type ResolvedImageModel = 'imagen-4' | 'imagen-3-capability' | 'gemini-3-pro-image' | 'flux-2-pro' | 'flux-2-dev';
 
 function selectImageModel(
   jobModel: CogImageModel,
-  hasReferenceImages: boolean
+  hasReferenceImages: boolean,
+  referenceCount: number = 0
 ): ResolvedImageModel {
   if (jobModel !== 'auto') {
     return jobModel;
@@ -33,6 +35,11 @@ function selectImageModel(
 
   if (!hasReferenceImages) {
     return 'imagen-4';
+  }
+
+  // Prefer Flux for reference-based generation
+  if (isFluxConfigured()) {
+    return referenceCount > 5 ? 'flux-2-pro' : 'flux-2-dev';
   }
 
   if (isGemini3ProConfigured()) {
@@ -44,6 +51,24 @@ function selectImageModel(
   }
 
   return 'imagen-4';
+}
+
+function mapAspectRatioToFlux(ratio: CogAspectRatio): FluxAspectRatio {
+  const supported: FluxAspectRatio[] = ['1:1', '16:9', '3:2', '2:3', '4:5', '5:4', '9:16', '3:4', '4:3', '21:9'];
+  if (supported.includes(ratio as FluxAspectRatio)) {
+    return ratio as FluxAspectRatio;
+  }
+  return '1:1';
+}
+
+function mapSizeToFluxResolution(size: CogImageSize, model: 'flux-2-pro' | 'flux-2-dev'): FluxResolution {
+  const maxRes = model === 'flux-2-pro' ? 4 : 2;
+  switch (size) {
+    case '1K': return '1';
+    case '2K': return '2';
+    case '4K': return maxRes === 4 ? '4' : '2';
+    default: return '1';
+  }
 }
 
 async function fetchReferenceImages(
@@ -145,12 +170,12 @@ export async function retryCogStep({ stepId }: RetryStepInput): Promise<RetrySte
       })
       .eq('id', stepId);
 
-    // Fetch reference images (needed for Gemini/Vertex models)
+    // Fetch reference images (needed for Gemini/Vertex/Flux models)
     const referenceImages = await fetchReferenceImages(job.id, supabase);
     const hasReferenceImages = referenceImages.length > 0;
 
     // Use the same model selection as the original job
-    const resolvedModel = selectImageModel(job.image_model || 'auto', hasReferenceImages);
+    const resolvedModel = selectImageModel(job.image_model || 'auto', hasReferenceImages, referenceImages.length);
     const imageSize: CogImageSize = job.image_size || '2K';
     const aspectRatio: CogAspectRatio = job.aspect_ratio || '1:1';
     const { width, height } = getImagenDimensions(imageSize, aspectRatio);
@@ -159,7 +184,34 @@ export async function retryCogStep({ stepId }: RetryStepInput): Promise<RetrySte
     let newStoragePath: string;
 
     // Generate based on model - same logic as original, but NO thinking analysis
-    if (resolvedModel === 'gemini-3-pro-image') {
+    if (resolvedModel === 'flux-2-pro' || resolvedModel === 'flux-2-dev') {
+      const fluxResult = await generateWithFlux({
+        prompt: promptToUse,
+        referenceImages: referenceImages.map(ref => ({
+          base64: ref.base64,
+          mimeType: ref.mimeType,
+        })),
+        aspectRatio: mapAspectRatioToFlux(aspectRatio),
+        resolution: mapSizeToFluxResolution(imageSize, resolvedModel),
+        model: resolvedModel,
+      });
+
+      const filename = `retry-${Date.now()}.png`;
+      newStoragePath = `series/${job.series_id}/${filename}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('cog-images')
+        .upload(newStoragePath, fluxResult.buffer, { contentType: 'image/png' });
+
+      if (uploadError) throw uploadError;
+
+      const { data: urlData } = supabase.storage
+        .from('cog-images')
+        .getPublicUrl(newStoragePath);
+
+      newImageUrl = urlData.publicUrl;
+
+    } else if (resolvedModel === 'gemini-3-pro-image') {
       const result = await generateImageWithGemini3Pro({
         prompt: promptToUse,
         referenceImages: referenceImages,
