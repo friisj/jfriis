@@ -12,5 +12,5 @@ export const rpID =
 
 export const origin =
   process.env.NODE_ENV === 'production'
-    ? 'https://jonfriis.com'
-    : 'http://localhost:3000'
+    ? ['https://jonfriis.com', 'https://www.jonfriis.com']
+    : ['http://localhost:3000', 'http://localhost:3001']
