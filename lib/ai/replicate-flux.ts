@@ -196,10 +196,10 @@ export async function generateWithFlux(
   };
 
   // Set most permissive safety settings for private creative use
-  // Flux 2 Pro uses safety_tolerance (1=strict, 6=permissive)
+  // Flux 2 Pro uses safety_tolerance (1=strict, 5=most permissive)
   // Flux 2 Dev uses disable_safety_checker boolean
   if (model === 'flux-2-pro') {
-    input.safety_tolerance = 6;
+    input.safety_tolerance = 5;
   } else {
     input.disable_safety_checker = true;
   }
