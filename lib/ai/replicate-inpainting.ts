@@ -273,7 +273,15 @@ export async function inpaintWithReplicate(
 
   // Fetch the output image and convert to base64
   const outputUrl = finalPrediction.output[0];
+  console.log('Fetching output from:', outputUrl);
   const resultBase64 = await urlToBase64(outputUrl);
+
+  // Warn if output is suspiciously small
+  const outputBytes = Math.round(resultBase64.length * 0.75);
+  if (outputBytes < 10000) {
+    console.warn('WARNING: Output image is very small:', outputBytes, 'bytes');
+    console.warn('This may indicate an error image or empty result');
+  }
 
   const durationMs = Date.now() - startTime;
 
