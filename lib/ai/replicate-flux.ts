@@ -149,7 +149,6 @@ export async function generateWithFlux(
   const modelId = model === 'flux-2-pro' ? FLUX_2_PRO_MODEL : FLUX_2_DEV_MODEL;
 
   // Build input parameters
-  // Note: Flux 2 uses 'image_prompt' for reference images
   const input: Record<string, unknown> = {
     prompt,
     aspect_ratio: aspectRatio,
@@ -158,6 +157,15 @@ export async function generateWithFlux(
     guidance_scale: guidanceScale,
     num_inference_steps: numInferenceSteps,
   };
+
+  // Set most permissive safety settings for private creative use
+  // Flux 2 Pro uses safety_tolerance (1=strict, 6=permissive)
+  // Flux 2 Dev uses disable_safety_checker boolean
+  if (model === 'flux-2-pro') {
+    input.safety_tolerance = 6;
+  } else {
+    input.disable_safety_checker = true;
+  }
 
   if (seed !== undefined) {
     input.seed = seed;
