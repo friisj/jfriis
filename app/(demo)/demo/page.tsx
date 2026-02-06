@@ -2,8 +2,7 @@ import Link from 'next/link'
 
 // Register demos here. Each entry creates a card on the index page.
 const demos: { slug: string; title: string; description: string }[] = [
-  // Example:
-  // { slug: 'example', title: 'Example Demo', description: 'A sample standalone demo.' },
+  { slug: 'adsk', title: 'ADSK', description: 'Autodesk demo.' },
 ]
 
 export const metadata = {

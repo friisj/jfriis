@@ -1,9 +1,9 @@
 import { notFound } from 'next/navigation'
+import AdskDemo from '@/components/demo/adsk'
 
 // Map slugs to demo components. Import and register each demo here.
 const demoRegistry: Record<string, React.ComponentType> = {
-  // Example:
-  // 'example': ExampleDemo,
+  'adsk': AdskDemo,
 }
 
 interface DemoPageProps {
