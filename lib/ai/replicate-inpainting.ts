@@ -9,9 +9,10 @@
 
 import Replicate from 'replicate';
 
-// Model configuration - using stability-ai model which allows disabling safety filter
-const INPAINTING_MODEL = 'stability-ai/stable-diffusion-inpainting';
-const INPAINTING_VERSION = '95b7223104132402a9ae91cc677285bc5eb997834bd2349fa486f53910fd68b3';
+// Model configuration - using Flux-based inpainting for quality and reliability
+// This model handles various image sizes and has good mask interpretation
+// See: https://replicate.com/zsxkib/flux-dev-inpainting
+const INPAINTING_MODEL = 'zsxkib/flux-dev-inpainting' as const;
 
 export interface InpaintingOptions {
   /** Image buffer (PNG format) */
@@ -24,11 +25,11 @@ export interface InpaintingOptions {
   negativePrompt?: string;
   /** Guidance scale for prompt adherence. Default 7.5 */
   guidanceScale?: number;
-  /** Number of denoising steps. Default 50 */
+  /** Number of denoising steps. Default 28 for Flux */
   numInferenceSteps?: number;
-  /** Output width (must be multiple of 64) */
+  /** Output width */
   width: number;
-  /** Output height (must be multiple of 64) */
+  /** Output height */
   height: number;
 }
 
@@ -40,16 +41,17 @@ export interface InpaintingResult {
 }
 
 /**
- * Perform inpainting using Replicate's stable-diffusion-inpainting model.
+ * Perform inpainting using Replicate's zsxkib/flux-dev-inpainting model.
  *
  * Both image and mask should be:
  * - Same dimensions
- * - Dimensions divisible by 8
  * - PNG format
  *
  * Mask should be grayscale where:
  * - White (255) = areas to inpaint
  * - Black (0) = areas to preserve
+ *
+ * @see https://replicate.com/zsxkib/flux-dev-inpainting
  */
 export async function inpaintWithReplicate(
   options: InpaintingOptions
@@ -63,9 +65,8 @@ export async function inpaintWithReplicate(
     imageBuffer,
     maskBuffer,
     prompt,
-    negativePrompt = 'blurry, low quality, distorted, artifacts',
-    guidanceScale = 7.5,
-    numInferenceSteps = 50,
+    guidanceScale = 7, // Model default
+    numInferenceSteps = 30, // Model default
     width,
     height,
   } = options;
@@ -75,6 +76,7 @@ export async function inpaintWithReplicate(
   console.log('Replicate inpainting request:', {
     model: INPAINTING_MODEL,
     prompt: prompt.slice(0, 80),
+    dimensions: `${width}x${height}`,
     imageSize: `${Math.round(imageBuffer.length / 1024)}KB`,
     maskSize: `${Math.round(maskBuffer.length / 1024)}KB`,
   });
@@ -84,34 +86,35 @@ export async function inpaintWithReplicate(
     auth: apiToken,
   });
 
-  // Run the prediction
-  // The SDK automatically uploads buffers for us
-  const output = await replicate.run(
-    `${INPAINTING_MODEL}:${INPAINTING_VERSION}`,
-    {
-      input: {
-        image: imageBuffer,
-        mask: maskBuffer,
-        prompt,
-        negative_prompt: negativePrompt,
-        guidance_scale: guidanceScale,
-        num_inference_steps: numInferenceSteps,
-        num_outputs: 1,
-        width,
-        height,
-        // Disable NSFW filter for legitimate artistic edits
-        disable_safety_checker: true,
-      },
-    }
-  );
+  // Run the prediction using the model without version pinning
+  // The SDK will use the latest version
+  const output = await replicate.run(INPAINTING_MODEL, {
+    input: {
+      image: imageBuffer,
+      mask: maskBuffer,
+      prompt,
+      guidance_scale: guidanceScale,
+      num_inference_steps: numInferenceSteps,
+      width,
+      height,
+      // Flux inpainting parameters
+      strength: 0.85, // How much to change the masked area (0-1)
+      output_format: 'png',
+      output_quality: 100, // Max quality for PNG
+    },
+  });
 
-  // Output is an array of URLs
-  const outputUrls = output as string[];
-  if (!outputUrls || outputUrls.length === 0) {
+  // Output can be a single URL string or array
+  let outputUrl: string;
+  if (typeof output === 'string') {
+    outputUrl = output;
+  } else if (Array.isArray(output) && output.length > 0) {
+    outputUrl = output[0] as string;
+  } else {
+    console.error('Unexpected output format:', output);
     throw new Error('No output from Replicate');
   }
 
-  const outputUrl = outputUrls[0];
   console.log('Fetching result from:', outputUrl);
 
   // Fetch the result image

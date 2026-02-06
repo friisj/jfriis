@@ -4,7 +4,6 @@ import sharp from 'sharp';
 import {
   inpaintWithReplicate,
   getSpotRemovalPrompt,
-  getDefaultNegativePrompt,
 } from '../replicate-inpainting';
 import { createClient } from '@/lib/supabase-server';
 
@@ -75,10 +74,10 @@ export async function touchupCogImage(input: TouchupInput): Promise<TouchupResul
     }
 
     // Calculate target dimensions:
-    // - Max 512px (SD 1.5 native resolution)
-    // - Divisible by 64 (stability-ai model requirement)
+    // - Flux can handle up to 1024px well
+    // - Divisible by 8 (standard requirement)
     // - Maintain aspect ratio
-    const MAX_DIMENSION = 512;
+    const MAX_DIMENSION = 1024;
 
     let targetWidth: number;
     let targetHeight: number;
@@ -86,17 +85,17 @@ export async function touchupCogImage(input: TouchupInput): Promise<TouchupResul
     if (originalWidth >= originalHeight) {
       // Landscape or square
       targetWidth = Math.min(MAX_DIMENSION, originalWidth);
-      targetWidth = Math.floor(targetWidth / 64) * 64;
+      targetWidth = Math.floor(targetWidth / 8) * 8;
       const scale = targetWidth / originalWidth;
       targetHeight = Math.round(originalHeight * scale);
-      targetHeight = Math.floor(targetHeight / 64) * 64;
+      targetHeight = Math.floor(targetHeight / 8) * 8;
     } else {
       // Portrait
       targetHeight = Math.min(MAX_DIMENSION, originalHeight);
-      targetHeight = Math.floor(targetHeight / 64) * 64;
+      targetHeight = Math.floor(targetHeight / 8) * 8;
       const scale = targetHeight / originalHeight;
       targetWidth = Math.round(originalWidth * scale);
-      targetWidth = Math.floor(targetWidth / 64) * 64;
+      targetWidth = Math.floor(targetWidth / 8) * 8;
     }
 
     // Ensure minimum dimensions (at least 64x64)
@@ -117,15 +116,21 @@ export async function touchupCogImage(input: TouchupInput): Promise<TouchupResul
     // Process mask:
     // 1. Decode from base64
     // 2. Resize to match image
-    // 3. Convert to TRUE single-channel grayscale
+    // 3. Extract single channel to create true grayscale
     const maskBuffer = Buffer.from(maskBase64, 'base64');
 
-    const processedMaskBuffer = await sharp(maskBuffer)
+    // First resize the mask
+    const resizedMask = await sharp(maskBuffer)
       .resize(targetWidth, targetHeight, {
         fit: 'fill',
         kernel: 'nearest', // Preserve hard edges
       })
-      .toColourspace('b-w') // True single-channel grayscale
+      .toBuffer();
+
+    // Extract just the red channel (all channels are same for grayscale mask)
+    // This creates a true single-channel image
+    const processedMaskBuffer = await sharp(resizedMask)
+      .extractChannel(0)
       .png()
       .toBuffer();
 
@@ -161,14 +166,14 @@ export async function touchupCogImage(input: TouchupInput): Promise<TouchupResul
       maskSize: `${Math.round(processedMaskBuffer.length / 1024)}KB`,
     });
 
-    // Call the inpainting API
+    // Call the inpainting API (Flux model)
     const inpaintResult = await inpaintWithReplicate({
       imageBuffer: processedImageBuffer,
       maskBuffer: processedMaskBuffer,
       prompt: inpaintPrompt,
-      negativePrompt: getDefaultNegativePrompt(),
-      numInferenceSteps: 50,
-      guidanceScale: mode === 'spot_removal' ? 7.5 : 8,
+      // Flux uses lower guidance and fewer steps
+      numInferenceSteps: 28,
+      guidanceScale: mode === 'spot_removal' ? 3.0 : 3.5,
       width: targetWidth,
       height: targetHeight,
     });
