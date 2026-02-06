@@ -9,9 +9,11 @@
 
 // Available inpainting models on Replicate
 export const INPAINTING_MODELS = {
-  // Stable Diffusion 1.5 Inpainting - fast, good for general use
-  SD_INPAINTING: 'stability-ai/stable-diffusion-inpainting',
-  // SDXL-based inpainting - higher quality, slower
+  // andreasjansson's SD inpainting - reliable and well-maintained
+  SD_INPAINTING: 'andreasjansson/stable-diffusion-inpainting',
+  // Stability AI version (deprecated, often returns empty images)
+  SD_INPAINTING_STABILITY: 'stability-ai/stable-diffusion-inpainting',
+  // SDXL-based inpainting - higher quality, but has dimension issues
   SDXL_INPAINTING: 'lucataco/sdxl-inpainting',
   // Alternative SDXL model
   REALISTIC_VISION_INPAINTING: 'cjwbw/realistic-vision-v5-inpainting',
@@ -135,8 +137,22 @@ function buildModelInput(
 
   // Different models have different input schemas
   if (model === INPAINTING_MODELS.SD_INPAINTING) {
-    // stability-ai/stable-diffusion-inpainting
-    // Supports explicit width/height parameters (multiples of 64, max 1024)
+    // andreasjansson/stable-diffusion-inpainting
+    // More reliable than stability-ai version
+    // Image dimensions must be divisible by 8
+    return {
+      image: imageDataUri,
+      mask: maskDataUri,
+      prompt,
+      negative_prompt: negativePrompt,
+      guidance_scale: guidanceScale,
+      num_inference_steps: numInferenceSteps,
+      num_outputs: 1,
+    };
+  }
+
+  if (model === INPAINTING_MODELS.SD_INPAINTING_STABILITY) {
+    // stability-ai/stable-diffusion-inpainting (often returns empty images)
     const input: Record<string, unknown> = {
       image: imageDataUri,
       mask: maskDataUri,
@@ -146,14 +162,10 @@ function buildModelInput(
       num_inference_steps: numInferenceSteps,
       scheduler: 'DPMSolverMultistep',
       num_outputs: 1,
-      // Disable overly aggressive safety checker for legitimate artistic use
       disable_safety_checker: true,
     };
-
-    // Add explicit dimensions if provided
     if (options.width) input.width = options.width;
     if (options.height) input.height = options.height;
-
     return input;
   }
 
@@ -307,6 +319,9 @@ export async function inpaintWithReplicate(
 function getModelVersion(model: InpaintingModel): string {
   switch (model) {
     case INPAINTING_MODELS.SD_INPAINTING:
+      // andreasjansson/stable-diffusion-inpainting
+      return 'e490d072a34a94a11e9711ed5a6ba621c3fab884eda1665d9d3a282d65a21f2d';
+    case INPAINTING_MODELS.SD_INPAINTING_STABILITY:
       // stability-ai/stable-diffusion-inpainting (SD 2.0 based)
       return '95b7223104132402a9ae91cc677285bc5eb997834bd2349fa486f53910fd68b3';
     case INPAINTING_MODELS.SDXL_INPAINTING:

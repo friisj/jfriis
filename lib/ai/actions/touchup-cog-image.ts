@@ -76,30 +76,30 @@ export async function touchupCogImage(input: TouchupInput): Promise<TouchupResul
       throw new Error('Could not determine image dimensions');
     }
 
-    // Using stability-ai/stable-diffusion-inpainting which requires:
-    // - Explicit width/height parameters (multiples of 64, max 1024)
-    // - Image and mask pre-resized to exact target dimensions
-    // This is more reliable than models with internal resize logic.
+    // Using andreasjansson/stable-diffusion-inpainting which requires:
+    // - Dimensions divisible by 8
+    // - Image and mask pre-resized to matching dimensions
+    // This model is more reliable than stability-ai version.
 
-    const MAX_DIMENSION = 768; // Good balance for SD 1.5 inpainting
+    const MAX_DIMENSION = 512; // SD 1.5 native resolution
 
-    // Calculate target dimensions (multiples of 64)
+    // Calculate target dimensions (multiples of 8)
     let targetWidth: number;
     let targetHeight: number;
 
     if (originalWidth > originalHeight) {
       // Landscape
-      targetWidth = Math.min(MAX_DIMENSION, Math.floor(originalWidth / 64) * 64);
+      targetWidth = Math.min(MAX_DIMENSION, Math.floor(originalWidth / 8) * 8);
       targetWidth = Math.max(64, Math.min(1024, targetWidth));
       const scale = targetWidth / originalWidth;
-      targetHeight = Math.floor((originalHeight * scale) / 64) * 64;
+      targetHeight = Math.floor((originalHeight * scale) / 8) * 8;
       targetHeight = Math.max(64, Math.min(1024, targetHeight));
     } else {
       // Portrait or square
-      targetHeight = Math.min(MAX_DIMENSION, Math.floor(originalHeight / 64) * 64);
+      targetHeight = Math.min(MAX_DIMENSION, Math.floor(originalHeight / 8) * 8);
       targetHeight = Math.max(64, Math.min(1024, targetHeight));
       const scale = targetHeight / originalHeight;
-      targetWidth = Math.floor((originalWidth * scale) / 64) * 64;
+      targetWidth = Math.floor((originalWidth * scale) / 8) * 8;
       targetWidth = Math.max(64, Math.min(1024, targetWidth));
     }
 
