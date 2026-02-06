@@ -1,13 +1,55 @@
 /**
  * Replicate Inpainting Client
  *
- * Uses the official Replicate SDK for mask-based inpainting.
- * Properly handles file uploads and long-running predictions.
+ * Uses the Replicate HTTP API for mask-based inpainting.
+ * Avoids SDK bundling issues with Next.js server actions.
  *
  * Requires: REPLICATE_API_TOKEN env var
  */
 
-import Replicate from 'replicate';
+// Use HTTP API directly to avoid Replicate SDK bundling issues with Next.js
+async function runReplicateModel(
+  model: string,
+  input: Record<string, unknown>,
+  apiToken: string
+): Promise<unknown> {
+  // Use the model-specific predictions endpoint for official models
+  // Format: POST /v1/models/{owner}/{name}/predictions
+  const createResponse = await fetch(
+    `https://api.replicate.com/v1/models/${model}/predictions`,
+    {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiToken}`,
+        'Content-Type': 'application/json',
+        'Prefer': 'wait', // Wait for result (up to 60s)
+      },
+      body: JSON.stringify({ input }),
+    }
+  );
+
+  if (!createResponse.ok) {
+    const errorText = await createResponse.text();
+    throw new Error(`Replicate API error: ${createResponse.status} - ${errorText}`);
+  }
+
+  let prediction = await createResponse.json();
+
+  // Poll if not complete (Prefer: wait may timeout for long generations)
+  while (prediction.status === 'starting' || prediction.status === 'processing') {
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+    const pollResponse = await fetch(prediction.urls.get, {
+      headers: { 'Authorization': `Bearer ${apiToken}` },
+    });
+    prediction = await pollResponse.json();
+  }
+
+  if (prediction.status === 'failed') {
+    throw new Error(`Replicate prediction failed: ${prediction.error}`);
+  }
+
+  return prediction.output;
+}
 
 // Model configuration - using official Black Forest Labs Flux Fill model
 // This is the official inpainting model with excellent mask interpretation
@@ -95,15 +137,14 @@ export async function inpaintWithReplicate(
     maskSize: `${Math.round(maskBuffer.length / 1024)}KB`,
   });
 
-  // Initialize the Replicate client
-  const replicate = new Replicate({
-    auth: apiToken,
-  });
+  // Convert buffers to data URIs for the HTTP API
+  const imageDataUri = `data:image/png;base64,${imageBuffer.toString('base64')}`;
+  const maskDataUri = `data:image/png;base64,${maskBuffer.toString('base64')}`;
 
   // Build input parameters
   const input: Record<string, unknown> = {
-    image: imageBuffer,
-    mask: maskBuffer,
+    image: imageDataUri,
+    mask: maskDataUri,
     prompt,
     guidance: guidanceScale, // flux-fill-dev uses 'guidance' not 'guidance_scale'
     num_inference_steps: numInferenceSteps,
@@ -118,9 +159,9 @@ export async function inpaintWithReplicate(
     input.seed = seed;
   }
 
-  // Run the prediction using the official flux-fill-dev model
+  // Run the prediction using HTTP API (avoids SDK bundling issues)
   // See: https://replicate.com/black-forest-labs/flux-fill-dev
-  const output = await replicate.run(INPAINTING_MODEL, { input });
+  const output = await runReplicateModel(INPAINTING_MODEL, input, apiToken);
 
   // Output is always an array of URLs for flux-fill-dev
   let outputUrls: string[];

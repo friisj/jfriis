@@ -2,10 +2,9 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { getCogImageUrl, deleteImage, toggleImageTag, getImageTagsBatch, getImageVersionChain, addTagToImage, removeTagFromImage } from '@/lib/cog';
+import { getCogImageUrl, deleteImage, toggleImageTag, getImageTagsBatch, getImageVersionChain, getImageById, addTagToImage, removeTagFromImage } from '@/lib/cog';
 import { Button } from '@/components/ui/button';
-import { LightboxRefineDialog } from './lightbox-refine-dialog';
-import { LightboxTouchupDialog } from './lightbox-touchup-dialog';
+import { LightboxEditMode } from './lightbox-edit-mode';
 import { VersionHistoryPanel } from './version-history-panel';
 import type { CogImage, CogTag, CogTagWithGroup, CogImageWithVersions } from '@/lib/types/cog';
 
@@ -277,8 +276,7 @@ export function ImageGallery({
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [showTagPanel, setShowTagPanel] = useState(false);
-  const [showRefineDialog, setShowRefineDialog] = useState(false);
-  const [showTouchupDialog, setShowTouchupDialog] = useState(false);
+  const [showEditMode, setShowEditMode] = useState(false);
   const [showVersionPanel, setShowVersionPanel] = useState(false);
   const [imageTagsMap, setImageTagsMap] = useState<Map<string, Set<string>>>(new Map());
   const [loadingTags, setLoadingTags] = useState(false);
@@ -368,8 +366,7 @@ export function ImageGallery({
   const openImage = (index: number) => {
     setSelectedIndex(index);
     setShowDeleteConfirm(false);
-    setShowRefineDialog(false);
-    setShowTouchupDialog(false);
+    setShowEditMode(false);
     setShowVersionPanel(false);
   };
 
@@ -377,8 +374,7 @@ export function ImageGallery({
     setSelectedIndex(null);
     setShowDeleteConfirm(false);
     setShowTagPanel(false);
-    setShowRefineDialog(false);
-    setShowTouchupDialog(false);
+    setShowEditMode(false);
     setShowVersionPanel(false);
   };
 
@@ -620,10 +616,26 @@ export function ImageGallery({
     [selectedIds, imageTagsMap]
   );
 
-  // Handle refine success - refresh to show new version
-  const handleRefineSuccess = useCallback(
-    (newImageId: string) => {
-      router.refresh();
+  // Handle edit success - show the new image immediately
+  const handleEditSuccess = useCallback(
+    async (newImageId: string) => {
+      try {
+        // Fetch the new image
+        const newImage = await getImageById(newImageId);
+
+        // Add it to the version chain (new versions go at the end)
+        setVersionChain((prev) => [...prev, newImage]);
+
+        // Navigate to the new image (last in chain)
+        setVersionIndex((prev) => prev + 1);
+
+        // Close edit mode
+        setShowEditMode(false);
+      } catch (error) {
+        console.error('Failed to load new image:', error);
+        // Fallback to refresh
+        router.refresh();
+      }
     },
     [router]
   );
@@ -716,8 +728,8 @@ export function ImageGallery({
     if (!isOpen) return;
 
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Don't handle keys if refine or touchup dialog is showing
-      if (showRefineDialog || showTouchupDialog) {
+      // Don't handle keys if edit mode is active
+      if (showEditMode) {
         return;
       }
 
@@ -729,23 +741,12 @@ export function ImageGallery({
         return;
       }
 
-      // 'r' opens refine dialog
-      if (e.key === 'r' || e.key === 'R') {
+      // 'r' or 'e' opens edit mode
+      if (e.key === 'r' || e.key === 'R' || e.key === 'e' || e.key === 'E') {
         e.preventDefault();
-        setShowRefineDialog(true);
+        setShowEditMode(true);
         setShowTagPanel(false);
         setShowVersionPanel(false);
-        setShowTouchupDialog(false);
-        return;
-      }
-
-      // 'e' opens touchup/edit dialog
-      if (e.key === 'e' || e.key === 'E') {
-        e.preventDefault();
-        setShowTouchupDialog(true);
-        setShowTagPanel(false);
-        setShowVersionPanel(false);
-        setShowRefineDialog(false);
         return;
       }
 
@@ -845,7 +846,7 @@ export function ImageGallery({
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, goToPrevious, goToNext, goToOlderVersion, goToNewerVersion, versionChain.length, showDeleteConfirm, showTagPanel, showVersionPanel, showRefineDialog, showTouchupDialog, enabledTags, handleToggleTag]);
+  }, [isOpen, goToPrevious, goToNext, goToOlderVersion, goToNewerVersion, versionChain.length, showDeleteConfirm, showTagPanel, showVersionPanel, showEditMode, enabledTags, handleToggleTag]);
 
   // Prevent body scroll when gallery is open
   useEffect(() => {
@@ -1042,29 +1043,15 @@ export function ImageGallery({
             </div>
             <div className="flex items-center gap-2">
               <span className="text-xs text-white/40 hidden sm:block">
-                {versionChain.length > 1 ? '←→ images, ↑↓ versions' : '←→↑↓ nav'}, r refine, e edit, t tags, d delete
+                {versionChain.length > 1 ? '←→ images, ↑↓ versions' : '←→↑↓ nav'}, e edit, t tags, d delete
               </span>
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={() => {
-                  setShowRefineDialog(true);
+                  setShowEditMode(true);
                   setShowTagPanel(false);
                   setShowVersionPanel(false);
-                  setShowTouchupDialog(false);
-                }}
-                className="text-white hover:bg-white/10"
-              >
-                Refine
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => {
-                  setShowTouchupDialog(true);
-                  setShowTagPanel(false);
-                  setShowVersionPanel(false);
-                  setShowRefineDialog(false);
                 }}
                 className="text-white hover:bg-white/10"
               >
@@ -1116,25 +1103,17 @@ export function ImageGallery({
             </div>
           </div>
 
-          {/* Refine Dialog */}
-          <LightboxRefineDialog
-            imageId={currentImage.id}
-            imageUrl={getCogImageUrl(currentImage.storage_path)}
-            isOpen={showRefineDialog}
-            onClose={() => setShowRefineDialog(false)}
-            onSuccess={handleRefineSuccess}
-          />
-
-          {/* Touchup Dialog */}
-          <LightboxTouchupDialog
-            imageId={currentImage.id}
-            imageUrl={getCogImageUrl(currentImage.storage_path)}
-            imageWidth={currentImage.width || 1024}
-            imageHeight={currentImage.height || 1024}
-            isOpen={showTouchupDialog}
-            onClose={() => setShowTouchupDialog(false)}
-            onSuccess={handleRefineSuccess}
-          />
+          {/* Edit Mode Overlay */}
+          {showEditMode && (
+            <LightboxEditMode
+              imageId={currentImage.id}
+              imageUrl={getCogImageUrl(currentImage.storage_path)}
+              imageWidth={currentImage.width || 1024}
+              imageHeight={currentImage.height || 1024}
+              onClose={() => setShowEditMode(false)}
+              onSuccess={handleEditSuccess}
+            />
+          )}
 
           {/* Delete Confirmation */}
           {showDeleteConfirm && (

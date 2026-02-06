@@ -7,7 +7,49 @@
  * Requires: REPLICATE_API_TOKEN env var
  */
 
-import Replicate from 'replicate';
+// Use HTTP API directly to avoid Replicate SDK bundling issues with Next.js
+async function runReplicateModel(
+  model: string,
+  input: Record<string, unknown>,
+  apiToken: string
+): Promise<unknown> {
+  // Use the model-specific predictions endpoint for official models
+  // Format: POST /v1/models/{owner}/{name}/predictions
+  const createResponse = await fetch(
+    `https://api.replicate.com/v1/models/${model}/predictions`,
+    {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiToken}`,
+        'Content-Type': 'application/json',
+        'Prefer': 'wait', // Wait for result (up to 60s)
+      },
+      body: JSON.stringify({ input }),
+    }
+  );
+
+  if (!createResponse.ok) {
+    const errorText = await createResponse.text();
+    throw new Error(`Replicate API error: ${createResponse.status} - ${errorText}`);
+  }
+
+  let prediction = await createResponse.json();
+
+  // Poll if not complete (Prefer: wait may timeout for long generations)
+  while (prediction.status === 'starting' || prediction.status === 'processing') {
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+    const pollResponse = await fetch(prediction.urls.get, {
+      headers: { 'Authorization': `Bearer ${apiToken}` },
+    });
+    prediction = await pollResponse.json();
+  }
+
+  if (prediction.status === 'failed') {
+    throw new Error(`Replicate prediction failed: ${prediction.error}`);
+  }
+
+  return prediction.output;
+}
 
 // Model identifiers on Replicate
 const FLUX_2_PRO_MODEL = 'black-forest-labs/flux-2-pro' as const;
@@ -140,11 +182,6 @@ export async function generateWithFlux(
     promptUpsampling,
   });
 
-  // Initialize the Replicate client
-  const replicate = new Replicate({
-    auth: apiToken,
-  });
-
   // Select the model
   const modelId = model === 'flux-2-pro' ? FLUX_2_PRO_MODEL : FLUX_2_DEV_MODEL;
 
@@ -188,8 +225,8 @@ export async function generateWithFlux(
     });
   }
 
-  // Run the prediction
-  const output = await replicate.run(modelId, { input });
+  // Run the prediction using HTTP API (avoids SDK bundling issues)
+  const output = await runReplicateModel(modelId, input, apiToken);
 
   // Output can be:
   // - A single URL string

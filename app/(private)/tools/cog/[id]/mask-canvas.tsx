@@ -1,8 +1,14 @@
 'use client';
 
-import { useRef, useEffect, useState, useCallback } from 'react';
+import { useRef, useEffect, useState, useCallback, forwardRef, useImperativeHandle } from 'react';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
+
+export interface MaskCanvasRef {
+  clearMask: () => void;
+}
+
+export type MaskTool = 'brush' | 'eraser';
 
 interface MaskCanvasProps {
   /** URL of the source image to overlay the mask on */
@@ -15,9 +21,17 @@ interface MaskCanvasProps {
   onMaskChange?: (maskBase64: string | null) => void;
   /** Optional initial mask (base64 PNG) */
   initialMask?: string;
+  /** Optional max height for the canvas container (CSS value) */
+  maxHeight?: string;
+  /** Hide the built-in toolbar */
+  hideToolbar?: boolean;
+  /** Controlled tool selection (optional - uses internal state if not provided) */
+  tool?: MaskTool;
+  /** Controlled brush size (optional - uses internal state if not provided) */
+  brushSize?: number;
+  /** Controlled mask opacity (optional - uses internal state if not provided) */
+  maskOpacity?: number;
 }
-
-type Tool = 'brush' | 'eraser';
 
 /**
  * Canvas component for drawing inpainting masks.
@@ -26,37 +40,91 @@ type Tool = 'brush' | 'eraser';
  * - Supports mouse, touch, and stylus input
  * - Exports mask as PNG (white = edit, black = preserve)
  */
-export function MaskCanvas({
+export const MaskCanvas = forwardRef<MaskCanvasRef, MaskCanvasProps>(function MaskCanvas({
   imageUrl,
   imageWidth,
   imageHeight,
   onMaskChange,
   initialMask,
-}: MaskCanvasProps) {
+  maxHeight,
+  hideToolbar,
+  tool: controlledTool,
+  brushSize: controlledBrushSize,
+  maskOpacity: controlledMaskOpacity,
+}, ref) {
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const ctxRef = useRef<CanvasRenderingContext2D | null>(null);
   const [ctxReady, setCtxReady] = useState(false);
 
-  const [tool, setTool] = useState<Tool>('brush');
-  const [brushSize, setBrushSize] = useState(30);
-  const [maskOpacity, setMaskOpacity] = useState(0.5);
+  // Actual image dimensions (detected from loaded image)
+  const [actualWidth, setActualWidth] = useState<number | null>(null);
+  const [actualHeight, setActualHeight] = useState<number | null>(null);
+  const [dimensionsLoaded, setDimensionsLoaded] = useState(false);
+
+  // Internal state (used when not controlled)
+  const [internalTool, setInternalTool] = useState<MaskTool>('brush');
+  const [internalBrushSize, setInternalBrushSize] = useState(30);
+  const [internalMaskOpacity, setInternalMaskOpacity] = useState(0.5);
   const [isDrawing, setIsDrawing] = useState(false);
   const [hasMask, setHasMask] = useState(false);
+
+  // Use controlled values if provided, otherwise use internal state
+  const tool = controlledTool ?? internalTool;
+  const brushSize = controlledBrushSize ?? internalBrushSize;
+  const maskOpacity = controlledMaskOpacity ?? internalMaskOpacity;
+  const setTool = controlledTool !== undefined ? () => {} : setInternalTool;
+  const setBrushSize = controlledBrushSize !== undefined ? () => {} : setInternalBrushSize;
+  const setMaskOpacity = controlledMaskOpacity !== undefined ? () => {} : setInternalMaskOpacity;
 
   // Track last point for smooth line drawing
   const lastPointRef = useRef<{ x: number; y: number } | null>(null);
 
-  // Canvas scaling for display
+  // Load image to get actual dimensions
+  useEffect(() => {
+    setDimensionsLoaded(false);
+    const img = new Image();
+    img.onload = () => {
+      setActualWidth(img.naturalWidth);
+      setActualHeight(img.naturalHeight);
+      setDimensionsLoaded(true);
+    };
+    img.src = imageUrl;
+  }, [imageUrl]);
+
+  // Parse maxHeight for scale calculation
+  const parseMaxHeight = useCallback((mh: string | undefined): number => {
+    if (!mh) return 600; // reasonable default
+    if (mh.includes('calc')) {
+      const match = mh.match(/calc\(100vh\s*-\s*(\d+)px\)/);
+      if (match) {
+        return (typeof window !== 'undefined' ? window.innerHeight : 800) - parseInt(match[1], 10);
+      }
+    } else if (mh.endsWith('px')) {
+      return parseInt(mh, 10);
+    }
+    return 600;
+  }, []);
+
+  // Calculate scale based on actual dimensions and available space
+  const calculateScale = useCallback((w: number, h: number) => {
+    const availableHeight = parseMaxHeight(maxHeight);
+    const availableWidth = typeof window !== 'undefined' ? window.innerWidth - 100 : 800;
+    const scaleX = availableWidth / w;
+    const scaleY = availableHeight / h;
+    return Math.min(scaleX, scaleY, 1);
+  }, [maxHeight, parseMaxHeight]);
+
+  // Canvas scaling for display - default to 1 until dimensions are loaded
   const [displayScale, setDisplayScale] = useState(1);
 
-  // Initialize canvas
+  // Initialize canvas when actual dimensions are known
   useEffect(() => {
     const canvas = canvasRef.current;
-    if (!canvas) return;
+    if (!canvas || !actualWidth || !actualHeight) return;
 
-    canvas.width = imageWidth;
-    canvas.height = imageHeight;
+    canvas.width = actualWidth;
+    canvas.height = actualHeight;
 
     const context = canvas.getContext('2d', { willReadFrequently: true });
     if (!context) return;
@@ -66,7 +134,7 @@ export function MaskCanvas({
 
     // Fill with black (preserve everything by default)
     context.fillStyle = '#000000';
-    context.fillRect(0, 0, imageWidth, imageHeight);
+    context.fillRect(0, 0, actualWidth, actualHeight);
 
     // Load initial mask if provided
     if (initialMask) {
@@ -79,28 +147,41 @@ export function MaskCanvas({
     }
 
     setCtxReady(true);
-  }, [imageWidth, imageHeight, initialMask]);
+  }, [actualWidth, actualHeight, initialMask]);
 
-  // Calculate display scale when container size changes
+  // Update display scale when container size or maxHeight changes
   useEffect(() => {
+    const container = containerRef.current;
+    if (!container || !actualWidth || !actualHeight) return;
+
     const updateScale = () => {
-      const container = containerRef.current;
-      if (!container) return;
+      // Get available space
+      const containerWidth = container.clientWidth || container.parentElement?.clientWidth || window.innerWidth - 100;
+      const availableHeight = parseMaxHeight(maxHeight);
 
-      const containerWidth = container.clientWidth;
-      const containerHeight = container.clientHeight;
-
-      const scaleX = containerWidth / imageWidth;
-      const scaleY = containerHeight / imageHeight;
-      const scale = Math.min(scaleX, scaleY, 1); // Don't scale up
+      // Calculate scale to fit within available space while maintaining aspect ratio
+      const scaleX = containerWidth / actualWidth;
+      const scaleY = availableHeight / actualHeight;
+      const scale = Math.min(scaleX, scaleY, 1); // Don't scale up beyond original
 
       setDisplayScale(scale);
     };
 
+    // Initial calculation (may refine the initial value)
     updateScale();
+
+    // Use ResizeObserver for responsiveness
+    const resizeObserver = new ResizeObserver(updateScale);
+    resizeObserver.observe(container);
+
+    // Also listen for window resize
     window.addEventListener('resize', updateScale);
-    return () => window.removeEventListener('resize', updateScale);
-  }, [imageWidth, imageHeight]);
+
+    return () => {
+      resizeObserver.disconnect();
+      window.removeEventListener('resize', updateScale);
+    };
+  }, [actualWidth, actualHeight, maxHeight, parseMaxHeight]);
 
   // Convert screen coordinates to canvas coordinates
   const getCanvasPoint = useCallback(
@@ -215,16 +296,21 @@ export function MaskCanvas({
   // Clear mask
   const handleClear = useCallback(() => {
     const ctx = ctxRef.current;
-    if (!ctx) return;
+    if (!ctx || !actualWidth || !actualHeight) return;
 
     ctx.fillStyle = '#000000';
-    ctx.fillRect(0, 0, imageWidth, imageHeight);
+    ctx.fillRect(0, 0, actualWidth, actualHeight);
     setHasMask(false);
 
     if (onMaskChange) {
       onMaskChange(null);
     }
-  }, [imageWidth, imageHeight, onMaskChange]);
+  }, [actualWidth, actualHeight, onMaskChange]);
+
+  // Expose clearMask via ref for external control
+  useImperativeHandle(ref, () => ({
+    clearMask: handleClear,
+  }), [handleClear]);
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -255,130 +341,156 @@ export function MaskCanvas({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  const displayWidth = imageWidth * displayScale;
-  const displayHeight = imageHeight * displayScale;
+  // Calculate display dimensions - show nothing until dimensions are loaded
+  const displayWidth = dimensionsLoaded && actualWidth ? actualWidth * displayScale : 0;
+  const displayHeight = dimensionsLoaded && actualHeight ? actualHeight * displayScale : 0;
 
   return (
     <div className="flex flex-col gap-4">
-      {/* Toolbar */}
-      <div className="flex items-center gap-4 flex-wrap">
-        {/* Tool selection */}
-        <div className="flex gap-1 bg-white/10 rounded-lg p-1">
+      {/* Toolbar - hidden when hideToolbar is true */}
+      {!hideToolbar && (
+        <div className="flex items-center gap-4 flex-wrap">
+          {/* Tool selection */}
+          <div className="flex gap-1 bg-white/10 rounded-lg p-1">
+            <Button
+              variant={tool === 'brush' ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => setTool('brush')}
+              className="gap-1.5"
+              title="Brush (B)"
+            >
+              <BrushIcon className="w-4 h-4" />
+              <span className="hidden sm:inline">Brush</span>
+            </Button>
+            <Button
+              variant={tool === 'eraser' ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => setTool('eraser')}
+              className="gap-1.5"
+              title="Eraser (E/X)"
+            >
+              <EraserIcon className="w-4 h-4" />
+              <span className="hidden sm:inline">Eraser</span>
+            </Button>
+          </div>
+
+          {/* Brush size */}
+          <div className="flex items-center gap-2 min-w-[150px]">
+            <span className="text-xs text-white/60 whitespace-nowrap">Size</span>
+            <Slider
+              value={[brushSize]}
+              onValueChange={([v]) => setBrushSize(v)}
+              min={5}
+              max={200}
+              step={1}
+              className="flex-1"
+            />
+            <span className="text-xs text-white/60 w-8">{brushSize}</span>
+          </div>
+
+          {/* Mask opacity */}
+          <div className="flex items-center gap-2 min-w-[150px]">
+            <span className="text-xs text-white/60 whitespace-nowrap">Opacity</span>
+            <Slider
+              value={[maskOpacity * 100]}
+              onValueChange={([v]) => setMaskOpacity(v / 100)}
+              min={10}
+              max={90}
+              step={5}
+              className="flex-1"
+            />
+          </div>
+
+          {/* Clear button */}
           <Button
-            variant={tool === 'brush' ? 'default' : 'ghost'}
+            variant="ghost"
             size="sm"
-            onClick={() => setTool('brush')}
-            className="gap-1.5"
-            title="Brush (B)"
+            onClick={handleClear}
+            disabled={!hasMask}
+            className="text-white/70 hover:text-white"
           >
-            <BrushIcon className="w-4 h-4" />
-            <span className="hidden sm:inline">Brush</span>
-          </Button>
-          <Button
-            variant={tool === 'eraser' ? 'default' : 'ghost'}
-            size="sm"
-            onClick={() => setTool('eraser')}
-            className="gap-1.5"
-            title="Eraser (E/X)"
-          >
-            <EraserIcon className="w-4 h-4" />
-            <span className="hidden sm:inline">Eraser</span>
+            Clear
           </Button>
         </div>
-
-        {/* Brush size */}
-        <div className="flex items-center gap-2 min-w-[150px]">
-          <span className="text-xs text-white/60 whitespace-nowrap">Size</span>
-          <Slider
-            value={[brushSize]}
-            onValueChange={([v]) => setBrushSize(v)}
-            min={5}
-            max={200}
-            step={1}
-            className="flex-1"
-          />
-          <span className="text-xs text-white/60 w-8">{brushSize}</span>
-        </div>
-
-        {/* Mask opacity */}
-        <div className="flex items-center gap-2 min-w-[150px]">
-          <span className="text-xs text-white/60 whitespace-nowrap">Opacity</span>
-          <Slider
-            value={[maskOpacity * 100]}
-            onValueChange={([v]) => setMaskOpacity(v / 100)}
-            min={10}
-            max={90}
-            step={5}
-            className="flex-1"
-          />
-        </div>
-
-        {/* Clear button */}
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={handleClear}
-          disabled={!hasMask}
-          className="text-white/70 hover:text-white"
-        >
-          Clear
-        </Button>
-      </div>
+      )}
 
       {/* Canvas container */}
       <div
         ref={containerRef}
-        className="relative w-full flex items-center justify-center bg-black/50 rounded-lg overflow-hidden"
-        style={{ minHeight: Math.min(400, imageHeight * displayScale) }}
+        className="relative flex items-center justify-center overflow-hidden"
+        style={{
+          width: '100%',
+          height: maxHeight || 'auto',
+        }}
       >
-        {/* Source image as background */}
-        <img
-          src={imageUrl}
-          alt="Source"
-          className="absolute pointer-events-none select-none"
-          style={{
-            width: displayWidth,
-            height: displayHeight,
-          }}
-          draggable={false}
-        />
+        {/* Loading state while detecting image dimensions */}
+        {!dimensionsLoaded && (
+          <div className="flex items-center justify-center text-white/50">
+            <div className="w-6 h-6 border-2 border-white/30 border-t-white/80 rounded-full animate-spin" />
+          </div>
+        )}
 
-        {/* Mask canvas overlay */}
-        <canvas
-          ref={canvasRef}
-          className="relative touch-none"
-          style={{
-            width: displayWidth,
-            height: displayHeight,
-            opacity: maskOpacity,
-            cursor: getCursor(tool, brushSize * displayScale),
-          }}
-          onPointerDown={handlePointerDown}
-          onPointerMove={handlePointerMove}
-          onPointerUp={handlePointerUp}
-          onPointerLeave={handlePointerUp}
-          onPointerCancel={handlePointerUp}
-        />
+        {/* Sized wrapper that maintains aspect ratio - only show when dimensions are loaded */}
+        {dimensionsLoaded && (
+          <div
+            className="relative"
+            style={{
+              width: displayWidth,
+              height: displayHeight,
+            }}
+          >
+            {/* Source image as background */}
+            <img
+              src={imageUrl}
+              alt="Source"
+              className="absolute inset-0 pointer-events-none select-none"
+              style={{
+              width: displayWidth,
+              height: displayHeight,
+            }}
+            draggable={false}
+          />
+
+          {/* Mask canvas overlay */}
+          <canvas
+            ref={canvasRef}
+            className="absolute inset-0 touch-none"
+            style={{
+              width: displayWidth,
+              height: displayHeight,
+              opacity: maskOpacity,
+              cursor: getCursor(tool, brushSize * displayScale),
+            }}
+            onPointerDown={handlePointerDown}
+            onPointerMove={handlePointerMove}
+            onPointerUp={handlePointerUp}
+            onPointerLeave={handlePointerUp}
+            onPointerCancel={handlePointerUp}
+          />
+        </div>
+        )}
       </div>
 
-      {/* Help text */}
-      <div className="flex items-center justify-between text-xs text-white/50">
-        <span>
-          <kbd className="px-1 py-0.5 bg-white/10 rounded">B</kbd> brush,{' '}
-          <kbd className="px-1 py-0.5 bg-white/10 rounded">E</kbd> eraser,{' '}
-          <kbd className="px-1 py-0.5 bg-white/10 rounded">[</kbd>
-          <kbd className="px-1 py-0.5 bg-white/10 rounded">]</kbd> size
-        </span>
-        <span className={hasMask ? 'text-green-400' : ''}>
-          {hasMask ? 'Mask ready' : 'Draw on the image'}
-        </span>
-      </div>
+      {/* Help text - hidden when hideToolbar is true */}
+      {!hideToolbar && (
+        <div className="flex items-center justify-between text-xs text-white/50">
+          <span>
+            <kbd className="px-1 py-0.5 bg-white/10 rounded">B</kbd> brush,{' '}
+            <kbd className="px-1 py-0.5 bg-white/10 rounded">E</kbd> eraser,{' '}
+            <kbd className="px-1 py-0.5 bg-white/10 rounded">[</kbd>
+            <kbd className="px-1 py-0.5 bg-white/10 rounded">]</kbd> size
+          </span>
+          <span className={hasMask ? 'text-green-400' : ''}>
+            {hasMask ? 'Mask ready' : 'Draw on the image'}
+          </span>
+        </div>
+      )}
     </div>
   );
-}
+});
 
 /** Get cursor style for the current tool */
-function getCursor(tool: Tool, displaySize: number): string {
+function getCursor(tool: MaskTool, displaySize: number): string {
   // Use a circle cursor that matches the brush size
   const size = Math.max(4, Math.min(128, displaySize));
   const half = size / 2;
