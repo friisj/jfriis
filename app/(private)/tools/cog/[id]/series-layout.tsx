@@ -17,6 +17,7 @@ import {
 } from '@/components/ui/resizable';
 import { ImageGallery } from './image-gallery';
 import { JobsList } from './jobs-list';
+import { UploadModal } from './upload-modal';
 import {
   updateSeries,
   deleteSeriesWithCleanup,
@@ -674,11 +675,13 @@ function ImagesPanel({
   seriesId,
   primaryImageId,
   enabledTags,
+  onUploadClick,
 }: {
   images: CogImageWithVersions[];
   seriesId: string;
   primaryImageId: string | null;
   enabledTags: CogTagWithGroup[];
+  onUploadClick: () => void;
 }) {
   const router = useRouter();
 
@@ -689,8 +692,8 @@ function ImagesPanel({
           <p className="text-muted-foreground mb-4">
             No images yet. Upload images or run a job to generate them.
           </p>
-          <Button variant="outline" asChild>
-            <Link href={`/tools/cog/${seriesId}/upload`}>Upload Images</Link>
+          <Button variant="outline" onClick={onUploadClick}>
+            Upload Images
           </Button>
         </div>
       ) : (
@@ -715,6 +718,7 @@ export function SeriesLayout({
   enabledTags,
   globalTags,
 }: SeriesLayoutProps) {
+  const [showUploadModal, setShowUploadModal] = useState(false);
 
   return (
     <div className="flex-1 relative">
@@ -750,8 +754,8 @@ export function SeriesLayout({
                     </TabsTrigger>
                   </TabsList>
                   <div>
-                    <Button size="sm" variant="outline" asChild>
-                      <Link href={`/tools/cog/${seriesId}/upload`}>Upload</Link>
+                    <Button size="sm" variant="outline" onClick={() => setShowUploadModal(true)}>
+                      Upload
                     </Button>
                   </div>
                 </div>
@@ -759,7 +763,13 @@ export function SeriesLayout({
                   <JobsPanel jobs={jobs} seriesId={seriesId} />
                 </TabsContent>
                 <TabsContent value="images" className="flex-1 mt-4 overflow-y-auto">
-                  <ImagesPanel images={images} seriesId={seriesId} primaryImageId={series.primary_image_id} enabledTags={enabledTags} />
+                  <ImagesPanel
+                    images={images}
+                    seriesId={seriesId}
+                    primaryImageId={series.primary_image_id}
+                    enabledTags={enabledTags}
+                    onUploadClick={() => setShowUploadModal(true)}
+                  />
                 </TabsContent>
               </Tabs>
             </div>
@@ -790,10 +800,23 @@ export function SeriesLayout({
             <JobsPanel jobs={jobs} seriesId={seriesId} />
           </TabsContent>
           <TabsContent value="images" className="mt-4">
-            <ImagesPanel images={images} seriesId={seriesId} primaryImageId={series.primary_image_id} enabledTags={enabledTags} />
+            <ImagesPanel
+              images={images}
+              seriesId={seriesId}
+              primaryImageId={series.primary_image_id}
+              enabledTags={enabledTags}
+              onUploadClick={() => setShowUploadModal(true)}
+            />
           </TabsContent>
         </Tabs>
       </div>
+
+      {/* Upload Modal */}
+      <UploadModal
+        seriesId={seriesId}
+        isOpen={showUploadModal}
+        onClose={() => setShowUploadModal(false)}
+      />
     </div>
   );
 }
