@@ -251,15 +251,14 @@ export async function deleteImageWithCleanup(id: string): Promise<void> {
     }
   }
 
-  // 4. Delete from storage
+  // 4. Delete from storage (fatal - don't leave orphaned DB records)
   if (image.storage_path) {
     const { error: storageError } = await supabase.storage
       .from('cog-images')
       .remove([image.storage_path]);
 
     if (storageError) {
-      console.error('Storage cleanup error (continuing):', storageError);
-      // Continue even if storage cleanup fails
+      throw new Error(`Storage cleanup failed: ${storageError.message}`);
     }
   }
 
