@@ -665,15 +665,7 @@ function ConfigPanel({
 
 function JobsPanel({ jobs, seriesId }: { jobs: CogJob[]; seriesId: string }) {
   return (
-    <div>
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="text-lg font-semibold">Jobs ({jobs.length})</h2>
-        <Button size="sm" variant="outline" asChild>
-          <Link href={`/tools/cog/${seriesId}/job/new`}>New Job</Link>
-        </Button>
-      </div>
-      <JobsList jobs={jobs} seriesId={seriesId} />
-    </div>
+    <JobsList jobs={jobs} seriesId={seriesId} />
   );
 }
 
@@ -702,21 +694,13 @@ function ImagesPanel({
           </Button>
         </div>
       ) : (
-        <>
-          <ImageGallery
-            images={images}
-            seriesId={seriesId}
-            primaryImageId={primaryImageId}
-            enabledTags={enabledTags}
-            onPrimaryImageChange={() => router.refresh()}
-          />
-
-          <div className="p-6 border-t">
-            <Button size="sm" variant="outline" asChild>
-              <Link href={`/tools/cog/${seriesId}/upload`}>Upload</Link>
-            </Button>
-          </div>
-      </>
+        <ImageGallery
+          images={images}
+          seriesId={seriesId}
+          primaryImageId={primaryImageId}
+          enabledTags={enabledTags}
+          onPrimaryImageChange={() => router.refresh()}
+        />
       )}
     </div>
   );
@@ -758,12 +742,19 @@ export function SeriesLayout({
           <ResizablePanel defaultSize={75} minSize={50}>
             <div className="h-full overflow-y-auto p-6">
               <Tabs defaultValue="images" className="h-full flex flex-col">
-                <TabsList className="w-fit">
-                  <TabsTrigger value="jobs">Jobs ({jobs.length})</TabsTrigger>
-                  <TabsTrigger value="images">
-                    Images ({images.length})
-                  </TabsTrigger>
-                </TabsList>
+                <div className="flex items-center justify-between">
+                  <TabsList className="w-fit">
+                    <TabsTrigger value="jobs">Jobs ({jobs.length})</TabsTrigger>
+                    <TabsTrigger value="images">
+                      Images ({images.length})
+                    </TabsTrigger>
+                  </TabsList>
+                  <div>
+                    <Button size="sm" variant="outline" asChild>
+                      <Link href={`/tools/cog/${seriesId}/upload`}>Upload</Link>
+                    </Button>
+                  </div>
+                </div>
                 <TabsContent value="jobs" className="flex-1 mt-4 overflow-y-auto">
                   <JobsPanel jobs={jobs} seriesId={seriesId} />
                 </TabsContent>

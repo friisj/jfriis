@@ -42,6 +42,10 @@ export function JobsList({ jobs: initialJobs, seriesId }: JobsListProps) {
 
   return (
     <div className="space-y-2">
+      
+      <button className="border rounded-lg p-4 hover:bg-muted/50 transition-colors w-full">
+        <Link href={`/tools/cog/${seriesId}/job/new`}>New Job</Link>
+      </button>
       {jobs.map((job) => (
         <div
           key={job.id}
