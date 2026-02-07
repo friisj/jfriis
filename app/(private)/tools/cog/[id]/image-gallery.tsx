@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { getCogImageUrl, deleteImage, toggleImageTag, getImageTagsBatch, getImageVersionChain, getImageById, addTagToImage, removeTagFromImage } from '@/lib/cog';
+import { getCogImageUrl, deleteImageWithCleanup, toggleImageTag, getImageTagsBatch, getImageVersionChain, getImageById, addTagToImage, removeTagFromImage } from '@/lib/cog';
 import { Button } from '@/components/ui/button';
 import { LightboxEditMode } from './lightbox-edit-mode';
 import { VersionHistoryPanel } from './version-history-panel';
@@ -154,6 +154,124 @@ function BatchTagPanel({
   );
 }
 
+// Delete Confirmation Modal - shows what will be deleted
+function DeleteConfirmationModal({
+  images,
+  imageIds,
+  primaryImageId,
+  onConfirm,
+  onCancel,
+  isDeleting,
+}: {
+  images: CogImageWithVersions[];
+  imageIds: string[];
+  primaryImageId: string | null;
+  onConfirm: () => void;
+  onCancel: () => void;
+  isDeleting: boolean;
+}) {
+  const imagesToDelete = images.filter((img) => imageIds.includes(img.id));
+  const count = imagesToDelete.length;
+  const isPrimaryIncluded = primaryImageId && imageIds.includes(primaryImageId);
+  const totalVersions = imagesToDelete.reduce((sum, img) => sum + (img.version_count || 1), 0);
+  const hasVersions = totalVersions > count;
+
+  return (
+    <div className="fixed inset-0 z-[100] bg-black/80 flex items-center justify-center p-4" onClick={onCancel}>
+      <div
+        className="bg-background border border-border rounded-lg shadow-xl max-w-md w-full"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="p-4 border-b border-border">
+          <h2 className="text-lg font-semibold text-destructive">
+            Delete {count} Image{count !== 1 ? 's' : ''}?
+          </h2>
+        </div>
+
+        <div className="p-4 space-y-3">
+          <p className="text-sm text-muted-foreground">
+            This action cannot be undone. The following will be permanently deleted:
+          </p>
+
+          <ul className="text-sm space-y-1.5 text-foreground">
+            <li className="flex items-center gap-2">
+              <svg className="w-4 h-4 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              </svg>
+              {count} image{count !== 1 ? 's' : ''} from storage
+            </li>
+            {hasVersions && (
+              <li className="flex items-center gap-2 text-amber-600">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+                Including {totalVersions - count} version{totalVersions - count !== 1 ? 's' : ''} in chains
+              </li>
+            )}
+            {isPrimaryIncluded && (
+              <li className="flex items-center gap-2 text-amber-600">
+                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
+                </svg>
+                Primary image will be cleared
+              </li>
+            )}
+          </ul>
+
+          {/* Preview thumbnails (max 4) */}
+          {count <= 6 && (
+            <div className="flex gap-2 pt-2">
+              {imagesToDelete.slice(0, 4).map((img) => (
+                <div
+                  key={img.id}
+                  className="relative w-12 h-12 rounded overflow-hidden border border-border"
+                >
+                  <img
+                    src={getCogImageUrl(img.storage_path)}
+                    alt={img.filename}
+                    className="w-full h-full object-cover"
+                  />
+                  {img.id === primaryImageId && (
+                    <div className="absolute top-0 right-0 text-yellow-400 text-[8px]">
+                      <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
+                      </svg>
+                    </div>
+                  )}
+                </div>
+              ))}
+              {count > 4 && (
+                <div className="w-12 h-12 rounded bg-muted flex items-center justify-center text-xs text-muted-foreground">
+                  +{count - 4}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        <div className="p-4 border-t border-border flex justify-end gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onCancel}
+            disabled={isDeleting}
+          >
+            Cancel
+          </Button>
+          <Button
+            variant="destructive"
+            size="sm"
+            onClick={onConfirm}
+            disabled={isDeleting}
+          >
+            {isDeleting ? 'Deleting...' : `Delete ${count} Image${count !== 1 ? 's' : ''}`}
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function TagPanel({
   imageId,
   enabledTags,
@@ -297,6 +415,14 @@ export function ImageGallery({
   const [batchTagging, setBatchTagging] = useState(false);
   const [batchDeleting, setBatchDeleting] = useState(false);
 
+  // Delete confirmation modal state (for grid + batch deletes)
+  const [deleteModalTarget, setDeleteModalTarget] = useState<{
+    type: 'single' | 'batch';
+    imageId?: string;
+    imageIds?: string[];
+  } | null>(null);
+  const [modalDeleting, setModalDeleting] = useState(false);
+
   // Primary image state
   const [primaryImageId, setPrimaryImageId] = useState<string | null>(initialPrimaryImageId);
 
@@ -414,7 +540,13 @@ export function ImageGallery({
 
     setDeleting(true);
     try {
-      await deleteImage(imageToDelete.id);
+      await deleteImageWithCleanup(imageToDelete.id);
+
+      // If primary was deleted, update local state
+      if (primaryImageId === imageToDelete.id) {
+        setPrimaryImageId(null);
+        onPrimaryImageChange?.(null);
+      }
 
       // Remove from local state
       const newImages = images.filter((_, i) => i !== selectedIndex);
@@ -434,14 +566,28 @@ export function ImageGallery({
     } finally {
       setDeleting(false);
     }
-  }, [selectedIndex, images, router]);
+  }, [selectedIndex, images, router, primaryImageId, onPrimaryImageChange]);
 
+  // Open delete confirmation modal for a single image from grid
   const handleDeleteFromGrid = useCallback(
-    async (imageId: string) => {
-      if (!confirm('Delete this image?')) return;
+    (imageId: string) => {
+      setDeleteModalTarget({ type: 'single', imageId });
+    },
+    []
+  );
 
+  // Execute single image delete after modal confirmation
+  const executeDeleteSingle = useCallback(
+    async (imageId: string) => {
       try {
-        await deleteImage(imageId);
+        await deleteImageWithCleanup(imageId);
+
+        // If primary was deleted, update local state
+        if (primaryImageId === imageId) {
+          setPrimaryImageId(null);
+          onPrimaryImageChange?.(null);
+        }
+
         setImages(images.filter((img) => img.id !== imageId));
         setSelectedIds((prev) => {
           const next = new Set(prev);
@@ -451,9 +597,10 @@ export function ImageGallery({
         router.refresh();
       } catch (error) {
         console.error('Failed to delete image:', error);
+        throw error;
       }
     },
-    [images, router]
+    [images, router, primaryImageId, onPrimaryImageChange]
   );
 
   // Multi-select handlers
@@ -577,35 +724,44 @@ export function ImageGallery({
     [selectedIds, imageTagsMap]
   );
 
-  // Batch delete
-  const handleBatchDelete = useCallback(async () => {
+  // Open delete confirmation modal for batch delete
+  const handleBatchDelete = useCallback(() => {
     if (selectedIds.size === 0) return;
+    setDeleteModalTarget({ type: 'batch', imageIds: Array.from(selectedIds) });
+  }, [selectedIds]);
 
-    const count = selectedIds.size;
-    if (!confirm(`Delete ${count} image${count !== 1 ? 's' : ''}? This cannot be undone.`)) {
-      return;
-    }
+  // Execute batch delete after modal confirmation
+  const executeBatchDelete = useCallback(
+    async (imageIds: string[]) => {
+      setBatchDeleting(true);
+      try {
+        // Delete all selected images in parallel using proper cleanup
+        const promises = imageIds.map((imageId) => deleteImageWithCleanup(imageId));
+        await Promise.all(promises);
 
-    setBatchDeleting(true);
-    try {
-      // Delete all selected images in parallel
-      const promises = Array.from(selectedIds).map((imageId) => deleteImage(imageId));
-      await Promise.all(promises);
+        // If primary was deleted, update local state
+        if (primaryImageId && imageIds.includes(primaryImageId)) {
+          setPrimaryImageId(null);
+          onPrimaryImageChange?.(null);
+        }
 
-      // Update local state
-      setImages((prev) => prev.filter((img) => !selectedIds.has(img.id)));
+        // Update local state
+        setImages((prev) => prev.filter((img) => !imageIds.includes(img.id)));
 
-      // Clear selection
-      setSelectedIds(new Set());
-      setShowBatchTagPanel(false);
+        // Clear selection
+        setSelectedIds(new Set());
+        setShowBatchTagPanel(false);
 
-      router.refresh();
-    } catch (error) {
-      console.error('Failed to batch delete:', error);
-    } finally {
-      setBatchDeleting(false);
-    }
-  }, [selectedIds, router]);
+        router.refresh();
+      } catch (error) {
+        console.error('Failed to batch delete:', error);
+        throw error;
+      } finally {
+        setBatchDeleting(false);
+      }
+    },
+    [router, primaryImageId, onPrimaryImageChange]
+  );
 
   // Get tag application state for batch selection (all, some, none)
   const getBatchTagState = useCallback(
@@ -1032,31 +1188,34 @@ export function ImageGallery({
                   </p>
                 </div>
               </button>
-              {/* Delete button on hover */}
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleDeleteFromGrid(image.id);
-                }}
-                className="absolute top-2 right-2 p-1.5 rounded-full bg-black/60 text-white opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600"
-                aria-label="Delete image"
-              >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  width="14"
-                  height="14"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
+              {/* Delete button - only visible when hovering AND holding Shift, or in selection mode */}
+              {hasSelection && isSelected && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleDeleteFromGrid(image.id);
+                  }}
+                  className="absolute top-2 right-2 p-1.5 rounded-full bg-red-600/90 text-white transition-opacity hover:bg-red-600"
+                  aria-label="Delete image"
+                  title="Delete this image"
                 >
-                  <path d="M3 6h18" />
-                  <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
-                  <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
-                </svg>
-              </button>
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="14"
+                    height="14"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M3 6h18" />
+                    <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
+                    <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
+                  </svg>
+                </button>
+              )}
             </div>
           );
         })}
@@ -1072,6 +1231,34 @@ export function ImageGallery({
           onRemoveTag={handleBatchRemoveTag}
           onClose={() => setShowBatchTagPanel(false)}
           isLoading={batchTagging}
+        />
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {deleteModalTarget && (
+        <DeleteConfirmationModal
+          images={images}
+          imageIds={deleteModalTarget.type === 'batch' ? deleteModalTarget.imageIds || [] : [deleteModalTarget.imageId || '']}
+          primaryImageId={primaryImageId}
+          isDeleting={modalDeleting}
+          onCancel={() => {
+            if (!modalDeleting) setDeleteModalTarget(null);
+          }}
+          onConfirm={async () => {
+            setModalDeleting(true);
+            try {
+              if (deleteModalTarget.type === 'batch' && deleteModalTarget.imageIds) {
+                await executeBatchDelete(deleteModalTarget.imageIds);
+              } else if (deleteModalTarget.imageId) {
+                await executeDeleteSingle(deleteModalTarget.imageId);
+              }
+              setDeleteModalTarget(null);
+            } catch {
+              // Error already logged in execute functions
+            } finally {
+              setModalDeleting(false);
+            }
+          }}
         />
       )}
 
@@ -1169,24 +1356,45 @@ export function ImageGallery({
           )}
 
           {/* Delete Confirmation */}
-          {showDeleteConfirm && (
+          {showDeleteConfirm && currentImage && (
             <div
-              className="absolute top-16 left-1/2 -translate-x-1/2 z-10 bg-black/90 border border-red-500/50 rounded-lg p-4 flex items-center gap-4"
+              className="absolute top-16 left-1/2 -translate-x-1/2 z-10 bg-black/90 border border-red-500/50 rounded-lg p-4 max-w-sm"
               onClick={(e) => e.stopPropagation()}
             >
-              <span className="text-white text-sm">Delete this image?</span>
-              <Button variant="destructive" size="sm" onClick={handleDelete} disabled={deleting}>
-                {deleting ? 'Deleting...' : 'Yes, delete'}
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setShowDeleteConfirm(false)}
-                disabled={deleting}
-                className="text-white hover:bg-white/10"
-              >
-                Cancel
-              </Button>
+              <p className="text-white text-sm mb-2">Delete this image?</p>
+              {/* Contextual warnings */}
+              <div className="space-y-1 mb-3">
+                {versionChain.length > 1 && (
+                  <p className="text-amber-400 text-xs flex items-center gap-1.5">
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                    </svg>
+                    Version {versionIndex + 1} of {versionChain.length} - children will be re-parented
+                  </p>
+                )}
+                {currentImage.id === primaryImageId && (
+                  <p className="text-amber-400 text-xs flex items-center gap-1.5">
+                    <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24">
+                      <path d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
+                    </svg>
+                    This is the primary image
+                  </p>
+                )}
+              </div>
+              <div className="flex items-center gap-2">
+                <Button variant="destructive" size="sm" onClick={handleDelete} disabled={deleting}>
+                  {deleting ? 'Deleting...' : 'Yes, delete'}
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowDeleteConfirm(false)}
+                  disabled={deleting}
+                  className="text-white hover:bg-white/10"
+                >
+                  Cancel
+                </Button>
+              </div>
             </div>
           )}
 
