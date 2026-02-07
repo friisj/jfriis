@@ -34,6 +34,7 @@ export interface CogImage {
   job_id: string | null;
   parent_image_id: string | null;
   group_id: string;
+  group_position: number | null;
   storage_path: string;
   filename: string;
   mime_type: string;

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { getCogImageUrl, getImageGroup, setSeriesPrimaryImage, deleteImageWithCleanup } from '@/lib/cog';
+import { getCogImageUrl, getImageGroup, setSeriesPrimaryImage, deleteImageWithCleanup, removeImageFromGroup, reorderGroupImages } from '@/lib/cog';
 import type { CogImage } from '@/lib/types/cog';
 
 interface GroupPanelProps {
@@ -13,6 +13,8 @@ interface GroupPanelProps {
   onSelectImage: (image: CogImage) => void;
   onPrimaryChanged?: (imageId: string | null) => void;
   onImageDeleted?: (deletedImageId: string, newActiveImage: CogImage | null) => void;
+  onImageRemovedFromGroup?: (removedImageId: string, newActiveImage: CogImage | null) => void;
+  onGroupReordered?: (newOrder: CogImage[]) => void;
 }
 
 export function GroupPanel({
@@ -24,11 +26,17 @@ export function GroupPanel({
   onSelectImage,
   onPrimaryChanged,
   onImageDeleted,
+  onImageRemovedFromGroup,
+  onGroupReordered,
 }: GroupPanelProps) {
   const [groupImages, setGroupImages] = useState<CogImage[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [actionInProgress, setActionInProgress] = useState<string | null>(null);
+
+  // Drag-and-drop state
+  const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
+  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
 
   // Load group images when panel expands
   useEffect(() => {
@@ -110,6 +118,101 @@ export function GroupPanel({
     }
   }, [groupImages, imageId, onImageDeleted]);
 
+  // Handle removing an image from the group (makes it its own group)
+  const handleRemoveFromGroup = useCallback(async (image: CogImage, index: number, e: React.MouseEvent) => {
+    e.stopPropagation();
+
+    // Don't allow removing the only image in group (nothing to remove from)
+    if (groupImages.length <= 1) {
+      return;
+    }
+
+    // Confirm removal
+    if (!confirm(`Remove this image from the group? It will become its own group.`)) {
+      return;
+    }
+
+    setActionInProgress(image.id);
+
+    try {
+      await removeImageFromGroup(image.id);
+
+      // Determine which image to show next
+      let newActiveImage: CogImage | null = null;
+      if (image.id === imageId) {
+        // Removed the current image - show previous or next in group
+        newActiveImage = index > 0 ? groupImages[index - 1] : groupImages[index + 1] || null;
+      }
+
+      // Update local state
+      setGroupImages(prev => prev.filter(img => img.id !== image.id));
+
+      // Notify parent
+      onImageRemovedFromGroup?.(image.id, newActiveImage);
+    } catch (err) {
+      console.error('Failed to remove image from group:', err);
+      setError('Failed to remove from group');
+    } finally {
+      setActionInProgress(null);
+    }
+  }, [groupImages, imageId, onImageRemovedFromGroup]);
+
+  // Drag-and-drop handlers
+  const handleDragStart = useCallback((index: number, e: React.DragEvent) => {
+    setDraggedIndex(index);
+    e.dataTransfer.effectAllowed = 'move';
+    // Set drag image to be the thumbnail
+    const target = e.currentTarget as HTMLElement;
+    e.dataTransfer.setDragImage(target, 32, 32);
+  }, []);
+
+  const handleDragOver = useCallback((index: number, e: React.DragEvent) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    if (draggedIndex !== null && index !== draggedIndex) {
+      setDragOverIndex(index);
+    }
+  }, [draggedIndex]);
+
+  const handleDragLeave = useCallback(() => {
+    setDragOverIndex(null);
+  }, []);
+
+  const handleDrop = useCallback(async (dropIndex: number, e: React.DragEvent) => {
+    e.preventDefault();
+    setDragOverIndex(null);
+
+    if (draggedIndex === null || draggedIndex === dropIndex) {
+      setDraggedIndex(null);
+      return;
+    }
+
+    // Reorder the array
+    const newOrder = [...groupImages];
+    const [draggedItem] = newOrder.splice(draggedIndex, 1);
+    newOrder.splice(dropIndex, 0, draggedItem);
+
+    // Optimistically update UI
+    setGroupImages(newOrder);
+    setDraggedIndex(null);
+
+    // Persist to database
+    try {
+      await reorderGroupImages(newOrder.map(img => img.id));
+      onGroupReordered?.(newOrder);
+    } catch (err) {
+      console.error('Failed to reorder group:', err);
+      setError('Failed to reorder');
+      // Revert on error
+      setGroupImages(groupImages);
+    }
+  }, [draggedIndex, groupImages, onGroupReordered]);
+
+  const handleDragEnd = useCallback(() => {
+    setDraggedIndex(null);
+    setDragOverIndex(null);
+  }, []);
+
   if (!isExpanded) return null;
 
   // Find current image index in group
@@ -156,9 +259,22 @@ export function GroupPanel({
             const isCurrent = image.id === imageId;
             const isPrimary = image.id === primaryImageId;
             const isLoading = actionInProgress === image.id;
+            const isDragging = draggedIndex === index;
+            const isDragOver = dragOverIndex === index;
 
             return (
-              <div key={image.id} className="relative flex-shrink-0 group">
+              <div
+                key={image.id}
+                className={`relative flex-shrink-0 group cursor-grab active:cursor-grabbing transition-all ${
+                  isDragging ? 'opacity-50 scale-95' : ''
+                } ${isDragOver ? 'ring-2 ring-blue-400 ring-offset-2 ring-offset-black' : ''}`}
+                draggable={!isLoading && groupImages.length > 1}
+                onDragStart={(e) => handleDragStart(index, e)}
+                onDragOver={(e) => handleDragOver(index, e)}
+                onDragLeave={handleDragLeave}
+                onDrop={(e) => handleDrop(index, e)}
+                onDragEnd={handleDragEnd}
+              >
                 <button
                   onClick={() => onSelectImage(image)}
                   disabled={isLoading}
@@ -171,7 +287,7 @@ export function GroupPanel({
                   <img
                     src={getCogImageUrl(image.storage_path)}
                     alt={`Image ${index + 1}`}
-                    className="w-16 h-16 object-cover rounded"
+                    className="w-16 h-16 object-cover rounded pointer-events-none"
                   />
 
                   {/* Hover tooltip with prompt */}
@@ -209,13 +325,28 @@ export function GroupPanel({
                   </svg>
                 </button>
 
+                {/* Remove from group button (bottom left, visible on hover) */}
+                {groupImages.length > 1 && (
+                  <button
+                    onClick={(e) => handleRemoveFromGroup(image, index, e)}
+                    disabled={isLoading}
+                    className="absolute bottom-1 left-1 p-0.5 rounded text-white/30 hover:text-orange-400 opacity-0 group-hover:opacity-100 transition-all"
+                    aria-label="Remove from group"
+                    title="Remove from group"
+                  >
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+                    </svg>
+                  </button>
+                )}
+
                 {/* Delete button (bottom right, visible on hover) */}
                 {groupImages.length > 1 && (
                   <button
                     onClick={(e) => handleDeleteImage(image, index, e)}
                     disabled={isLoading}
                     className="absolute bottom-1 right-1 p-0.5 rounded text-white/30 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all"
-                    aria-label={`Delete image`}
+                    aria-label="Delete image"
                     title="Delete image"
                   >
                     <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -229,9 +360,13 @@ export function GroupPanel({
         </div>
       )}
 
-      {/* Keyboard hint */}
+      {/* Hint */}
       <div className="mt-2 text-xs text-white/40">
-        <kbd className="px-1 py-0.5 bg-white/10 rounded">g</kbd> toggle panel
+        <kbd className="px-1 py-0.5 bg-white/10 rounded">←→</kbd> navigate
+        <span className="mx-2">·</span>
+        drag to reorder
+        <span className="mx-2">·</span>
+        <kbd className="px-1 py-0.5 bg-white/10 rounded">g</kbd> close
       </div>
     </div>
   );

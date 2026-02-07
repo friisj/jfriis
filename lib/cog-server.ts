@@ -477,7 +477,7 @@ export async function getGroupPrimaryImagesServer(seriesId: string): Promise<Cog
 
 /**
  * Get all images in the same group - server-side
- * Returns images in the group ordered by creation date (oldest first)
+ * Returns images in the group ordered by group_position (if set), then by created_at
  */
 export async function getImageGroupServer(imageId: string): Promise<CogImage[]> {
   const client = await createClient();
@@ -497,8 +497,7 @@ export async function getImageGroupServer(imageId: string): Promise<CogImage[]> 
   const { data: groupImages, error: groupError } = await (client as any)
     .from('cog_images')
     .select('*')
-    .eq('group_id', groupId)
-    .order('created_at', { ascending: true });
+    .eq('group_id', groupId);
 
   if (groupError) throw groupError;
 
@@ -507,7 +506,21 @@ export async function getImageGroupServer(imageId: string): Promise<CogImage[]> 
     return await getImageVersionChainServerLegacy(imageId, image);
   }
 
-  return groupImages as CogImage[];
+  // Sort by group_position (if set), then by created_at
+  const sorted = (groupImages as CogImage[]).sort((a, b) => {
+    // If both have positions, sort by position
+    if (a.group_position !== null && b.group_position !== null) {
+      return a.group_position - b.group_position;
+    }
+    // If only a has position, a comes first
+    if (a.group_position !== null) return -1;
+    // If only b has position, b comes first
+    if (b.group_position !== null) return 1;
+    // Neither has position, sort by created_at
+    return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+  });
+
+  return sorted;
 }
 
 /**

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { getCogImageUrl, deleteImageWithCleanup, toggleImageTag, getImageTagsBatch, getImageGroup, getImageById, addTagToImage, removeTagFromImage } from '@/lib/cog';
+import { getCogImageUrl, deleteImageWithCleanup, toggleImageTag, getImageTagsBatch, getImageGroup, getImageById, addTagToImage, removeTagFromImage, mergeImagesIntoGroup, addImageToGroup } from '@/lib/cog';
 import { Button } from '@/components/ui/button';
 import { LightboxEditMode } from './lightbox-edit-mode';
 import { GroupPanel } from './group-panel';
@@ -429,6 +429,11 @@ export function ImageGallery({
   const [showBatchTagPanel, setShowBatchTagPanel] = useState(false);
   const [batchTagging, setBatchTagging] = useState(false);
   const [batchDeleting, setBatchDeleting] = useState(false);
+  const [batchGrouping, setBatchGrouping] = useState(false);
+
+  // Grid drag-and-drop state for adding to groups
+  const [gridDraggedId, setGridDraggedId] = useState<string | null>(null);
+  const [gridDragOverId, setGridDragOverId] = useState<string | null>(null);
 
   // Delete confirmation modal state (for grid + batch deletes)
   const [deleteModalTarget, setDeleteModalTarget] = useState<{
@@ -794,6 +799,77 @@ export function ImageGallery({
     [selectedIds, imageTagsMap]
   );
 
+  // Handle batch group - merge selected images into a new group
+  const handleBatchGroup = useCallback(async () => {
+    if (selectedIds.size < 2) return;
+
+    setBatchGrouping(true);
+    try {
+      // Convert to array (first selected becomes the group primary)
+      const imageIds = Array.from(selectedIds);
+      await mergeImagesIntoGroup(imageIds);
+
+      // Clear selection
+      setSelectedIds(new Set());
+      setShowBatchTagPanel(false);
+
+      // Refresh to show updated grid (only primary visible)
+      router.refresh();
+    } catch (error) {
+      console.error('Failed to group images:', error);
+    } finally {
+      setBatchGrouping(false);
+    }
+  }, [selectedIds, router]);
+
+  // Grid drag-and-drop handlers for adding images to groups
+  const handleGridDragStart = useCallback((imageId: string, e: React.DragEvent) => {
+    setGridDraggedId(imageId);
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', imageId);
+  }, []);
+
+  const handleGridDragOver = useCallback((targetId: string, e: React.DragEvent) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    // Don't allow dropping on self
+    if (gridDraggedId !== targetId) {
+      setGridDragOverId(targetId);
+    }
+  }, [gridDraggedId]);
+
+  const handleGridDragLeave = useCallback(() => {
+    setGridDragOverId(null);
+  }, []);
+
+  const handleGridDrop = useCallback(async (targetId: string, targetImage: CogImageWithGroupInfo, e: React.DragEvent) => {
+    e.preventDefault();
+    setGridDragOverId(null);
+
+    if (!gridDraggedId || gridDraggedId === targetId) {
+      setGridDraggedId(null);
+      return;
+    }
+
+    // Add the dragged image to the target's group
+    const targetGroupId = targetImage.group_id || targetId;
+
+    try {
+      await addImageToGroup(gridDraggedId, targetGroupId);
+      setGridDraggedId(null);
+      // Refresh to show updated grid
+      router.refresh();
+    } catch (error) {
+      console.error('Failed to add image to group:', error);
+      setGridDraggedId(null);
+    }
+  }, [gridDraggedId, router]);
+
+  const handleGridDragEnd = useCallback(() => {
+    setGridDraggedId(null);
+    setGridDragOverId(null);
+  }, []);
+
   // Handle edit success - show the new image immediately
   const handleEditSuccess = useCallback(
     async (newImageId: string) => {
@@ -866,6 +942,39 @@ export function ImageGallery({
       router.refresh();
     },
     [groupImages, primaryImageId, onPrimaryImageChange, router]
+  );
+
+  // Handle image removal from group (image becomes its own group)
+  const handleGroupImageRemoved = useCallback(
+    (removedImageId: string, newActiveImage: CogImage | null) => {
+      // Remove from group images
+      setGroupImages((prev) => prev.filter((img) => img.id !== removedImageId));
+
+      // If we removed the current image, switch to the new active one
+      if (newActiveImage) {
+        const newIdx = groupImages.findIndex((img) => img.id === newActiveImage.id);
+        if (newIdx >= 0) {
+          // Adjust index since we're removing an item
+          const adjustedIdx = removedImageId === groupImages[groupIndex]?.id
+            ? Math.max(0, newIdx - 1)
+            : newIdx;
+          setGroupIndex(adjustedIdx);
+        }
+      }
+
+      // The removed image is now its own group - refresh to show it in the grid
+      router.refresh();
+    },
+    [groupImages, groupIndex, router]
+  );
+
+  // Handle group reorder from group panel
+  const handleGroupReordered = useCallback(
+    (newOrder: CogImage[]) => {
+      // Update local group images state
+      setGroupImages(newOrder);
+    },
+    []
   );
 
   // Handle tag toggle with optimistic update
@@ -1020,35 +1129,34 @@ export function ImageGallery({
         case 'Escape':
           closeGallery();
           break;
-        // Horizontal: navigate between images in grid
+        // Navigation: when group panel is open, navigate within group; otherwise navigate grid
         case 'ArrowLeft':
         case 'h':
           e.preventDefault();
-          goToPrevious();
-          break;
-        case 'ArrowRight':
-        case 'l':
-          e.preventDefault();
-          goToNext();
-          break;
-        // Vertical: navigate between group images (up = older, down = newer)
-        case 'ArrowUp':
-        case 'k':
-          e.preventDefault();
-          if (groupImages.length > 1) {
+          if (showGroupPanel && groupImages.length > 1) {
             goToPreviousInGroup();
           } else {
             goToPrevious();
           }
           break;
-        case 'ArrowDown':
-        case 'j':
+        case 'ArrowRight':
+        case 'l':
           e.preventDefault();
-          if (groupImages.length > 1) {
+          if (showGroupPanel && groupImages.length > 1) {
             goToNextInGroup();
           } else {
             goToNext();
           }
+          break;
+        case 'ArrowUp':
+        case 'k':
+          e.preventDefault();
+          goToPrevious();
+          break;
+        case 'ArrowDown':
+        case 'j':
+          e.preventDefault();
+          goToNext();
           break;
         case 'd':
         case 'Delete':
@@ -1107,6 +1215,16 @@ export function ImageGallery({
             </button>
           </div>
           <div className="flex items-center gap-2">
+            {selectedIds.size >= 2 && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleBatchGroup}
+                disabled={batchGrouping}
+              >
+                {batchGrouping ? 'Grouping...' : 'Group'}
+              </Button>
+            )}
             {enabledTags.length > 0 && (
               <Button
                 variant={showBatchTagPanel ? "default" : "outline"}
@@ -1197,15 +1315,25 @@ export function ImageGallery({
           const groupCount = image.group_count || 1;
           const isSelected = selectedIds.has(image.id);
           const isPrimary = image.id === primaryImageId;
+          const isDragging = gridDraggedId === image.id;
+          const isDragTarget = gridDragOverId === image.id;
 
           return (
             <div
               key={image.id}
-              className={`group relative border rounded-lg overflow-hidden transition-all ${
+              className={`group relative border rounded-lg overflow-hidden transition-all cursor-grab active:cursor-grabbing ${
                 isSelected
                   ? 'ring-2 ring-primary border-primary'
+                  : isDragTarget
+                  ? 'ring-2 ring-blue-400 border-blue-400 scale-105'
                   : 'hover:ring-2 ring-primary/50'
-              }`}
+              } ${isDragging ? 'opacity-50 scale-95' : ''}`}
+              draggable={!hasSelection}
+              onDragStart={(e) => handleGridDragStart(image.id, e)}
+              onDragOver={(e) => handleGridDragOver(image.id, e)}
+              onDragLeave={handleGridDragLeave}
+              onDrop={(e) => handleGridDrop(image.id, image, e)}
+              onDragEnd={handleGridDragEnd}
             >
               {/* Selection checkbox - always visible when selection mode is active */}
               <button
@@ -1361,7 +1489,7 @@ export function ImageGallery({
             </div>
             <div className="flex items-center gap-2">
               <span className="text-xs text-white/40 hidden sm:block">
-                {groupImages.length > 1 ? '←→ images, ↑↓ group' : '←→↑↓ nav'}, e edit, g group, t tags, d delete
+                ←→ nav, e edit, {groupImages.length > 1 ? 'g group, ' : ''}t tags, d delete
               </span>
               <Button
                 variant="ghost"
@@ -1566,7 +1694,7 @@ export function ImageGallery({
                     onClick={() => setShowGroupPanel(true)}
                     className="flex items-center gap-2 text-white/60 hover:text-white text-sm"
                   >
-                    <kbd className="text-[10px] px-1 py-0.5 bg-white/10 rounded font-mono">↑↓</kbd>
+                    <kbd className="text-[10px] px-1 py-0.5 bg-white/10 rounded font-mono">g</kbd>
                     <span>{groupIndex + 1} of {groupImages.length} in group</span>
                   </button>
                 )}
@@ -1593,6 +1721,8 @@ export function ImageGallery({
               onSelectImage={handleGroupSelect}
               onPrimaryChanged={handlePrimaryChanged}
               onImageDeleted={handleGroupImageDeleted}
+              onImageRemovedFromGroup={handleGroupImageRemoved}
+              onGroupReordered={handleGroupReordered}
             />
 
             {/* Prompt info */}
