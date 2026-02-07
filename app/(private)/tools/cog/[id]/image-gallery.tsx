@@ -2,11 +2,11 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { getCogImageUrl, deleteImageWithCleanup, toggleImageTag, getImageTagsBatch, getImageVersionChain, getImageById, addTagToImage, removeTagFromImage } from '@/lib/cog';
+import { getCogImageUrl, deleteImageWithCleanup, toggleImageTag, getImageTagsBatch, getImageGroup, getImageById, addTagToImage, removeTagFromImage } from '@/lib/cog';
 import { Button } from '@/components/ui/button';
 import { LightboxEditMode } from './lightbox-edit-mode';
-import { VersionHistoryPanel } from './version-history-panel';
-import type { CogImage, CogTag, CogTagWithGroup, CogImageWithVersions } from '@/lib/types/cog';
+import { GroupPanel } from './group-panel';
+import type { CogImage, CogTag, CogTagWithGroup, CogImageWithGroupInfo } from '@/lib/types/cog';
 
 // Represents a file being uploaded
 export interface UploadingFile {
@@ -19,7 +19,7 @@ export interface UploadingFile {
 }
 
 interface ImageGalleryProps {
-  images: CogImageWithVersions[];
+  images: CogImageWithGroupInfo[];
   seriesId: string;
   primaryImageId?: string | null;
   enabledTags?: CogTagWithGroup[];
@@ -176,7 +176,7 @@ function DeleteConfirmationModal({
   onCancel,
   isDeleting,
 }: {
-  images: CogImageWithVersions[];
+  images: CogImageWithGroupInfo[];
   imageIds: string[];
   primaryImageId: string | null;
   onConfirm: () => void;
@@ -186,8 +186,8 @@ function DeleteConfirmationModal({
   const imagesToDelete = images.filter((img) => imageIds.includes(img.id));
   const count = imagesToDelete.length;
   const isPrimaryIncluded = primaryImageId && imageIds.includes(primaryImageId);
-  const totalVersions = imagesToDelete.reduce((sum, img) => sum + (img.version_count || 1), 0);
-  const hasVersions = totalVersions > count;
+  const totalGroupMembers = imagesToDelete.reduce((sum, img) => sum + (img.group_count || 1), 0);
+  const hasGroupMembers = totalGroupMembers > count;
 
   return (
     <div className="fixed inset-0 z-[100] bg-black/80 flex items-center justify-center p-4" onClick={onCancel}>
@@ -213,12 +213,12 @@ function DeleteConfirmationModal({
               </svg>
               {count} image{count !== 1 ? 's' : ''} from storage
             </li>
-            {hasVersions && (
+            {hasGroupMembers && (
               <li className="flex items-center gap-2 text-amber-600">
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                 </svg>
-                Including {totalVersions - count} version{totalVersions - count !== 1 ? 's' : ''} in chains
+                Note: {totalGroupMembers - count} other image{totalGroupMembers - count !== 1 ? 's' : ''} in same groups
               </li>
             )}
             {isPrimaryIncluded && (
@@ -414,14 +414,14 @@ export function ImageGallery({
   const [deleting, setDeleting] = useState(false);
   const [showTagPanel, setShowTagPanel] = useState(false);
   const [showEditMode, setShowEditMode] = useState(false);
-  const [showVersionPanel, setShowVersionPanel] = useState(false);
+  const [showGroupPanel, setShowGroupPanel] = useState(false);
   const [imageTagsMap, setImageTagsMap] = useState<Map<string, Set<string>>>(new Map());
   const [loadingTags, setLoadingTags] = useState(false);
 
-  // Version navigation state
-  const [versionChain, setVersionChain] = useState<CogImage[]>([]);
-  const [versionIndex, setVersionIndex] = useState<number>(0);
-  const [loadingVersions, setLoadingVersions] = useState(false);
+  // Group navigation state
+  const [groupImages, setGroupImages] = useState<CogImage[]>([]);
+  const [groupIndex, setGroupIndex] = useState<number>(0);
+  const [loadingGroup, setLoadingGroup] = useState(false);
 
   // Multi-select state
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -475,47 +475,47 @@ export function ImageGallery({
     loadTags();
   }, [images, enabledTags.length]);
 
-  // Load version chain when lightbox opens for an image with versions
+  // Load group when lightbox opens for an image with group members
   useEffect(() => {
     if (selectedIndex === null) {
-      setVersionChain([]);
-      setVersionIndex(0);
+      setGroupImages([]);
+      setGroupIndex(0);
       return;
     }
 
-    const rootImage = images[selectedIndex];
-    if (!rootImage || rootImage.version_count <= 1) {
-      // No versions, just show the single image
-      setVersionChain([rootImage]);
-      setVersionIndex(0);
+    const primaryImage = images[selectedIndex];
+    if (!primaryImage || primaryImage.group_count <= 1) {
+      // No group members, just show the single image
+      setGroupImages([primaryImage]);
+      setGroupIndex(0);
       return;
     }
 
-    // Load the full version chain
-    async function loadVersionChain() {
-      setLoadingVersions(true);
+    // Load the full group
+    async function loadGroup() {
+      setLoadingGroup(true);
       try {
-        const chain = await getImageVersionChain(rootImage.id);
-        setVersionChain(chain);
-        // Start at the root (index 0)
-        setVersionIndex(0);
+        const group = await getImageGroup(primaryImage.id);
+        setGroupImages(group);
+        // Start at the first image (index 0)
+        setGroupIndex(0);
       } catch (error) {
-        console.error('Failed to load version chain:', error);
-        setVersionChain([rootImage]);
-        setVersionIndex(0);
+        console.error('Failed to load group:', error);
+        setGroupImages([primaryImage]);
+        setGroupIndex(0);
       } finally {
-        setLoadingVersions(false);
+        setLoadingGroup(false);
       }
     }
 
-    loadVersionChain();
+    loadGroup();
   }, [selectedIndex, images]);
 
   const openImage = (index: number) => {
     setSelectedIndex(index);
     setShowDeleteConfirm(false);
     setShowEditMode(false);
-    setShowVersionPanel(false);
+    setShowGroupPanel(false);
   };
 
   const closeGallery = () => {
@@ -523,7 +523,7 @@ export function ImageGallery({
     setShowDeleteConfirm(false);
     setShowTagPanel(false);
     setShowEditMode(false);
-    setShowVersionPanel(false);
+    setShowGroupPanel(false);
   };
 
   const goToPrevious = useCallback(() => {
@@ -538,16 +538,16 @@ export function ImageGallery({
     setShowDeleteConfirm(false);
   }, [selectedIndex, images.length]);
 
-  // Version navigation (up = older/parent, down = newer/child)
-  const goToOlderVersion = useCallback(() => {
-    if (versionChain.length <= 1) return;
-    setVersionIndex((prev) => (prev > 0 ? prev - 1 : prev));
-  }, [versionChain.length]);
+  // Group navigation (up = older, down = newer)
+  const goToPreviousInGroup = useCallback(() => {
+    if (groupImages.length <= 1) return;
+    setGroupIndex((prev) => (prev > 0 ? prev - 1 : prev));
+  }, [groupImages.length]);
 
-  const goToNewerVersion = useCallback(() => {
-    if (versionChain.length <= 1) return;
-    setVersionIndex((prev) => (prev < versionChain.length - 1 ? prev + 1 : prev));
-  }, [versionChain.length]);
+  const goToNextInGroup = useCallback(() => {
+    if (groupImages.length <= 1) return;
+    setGroupIndex((prev) => (prev < groupImages.length - 1 ? prev + 1 : prev));
+  }, [groupImages.length]);
 
   const handleDelete = useCallback(async () => {
     if (selectedIndex === null) return;
@@ -801,11 +801,11 @@ export function ImageGallery({
         // Fetch the new image
         const newImage = await getImageById(newImageId);
 
-        // Add it to the version chain (new versions go at the end)
-        setVersionChain((prev) => [...prev, newImage]);
+        // Add it to the group (new images go at the end)
+        setGroupImages((prev) => [...prev, newImage]);
 
-        // Navigate to the new image (last in chain)
-        setVersionIndex((prev) => prev + 1);
+        // Navigate to the new image (last in group)
+        setGroupIndex((prev) => prev + 1);
 
         // Close edit mode
         setShowEditMode(false);
@@ -818,17 +818,17 @@ export function ImageGallery({
     [router]
   );
 
-  // Handle version selection from history panel
-  const handleVersionSelect = useCallback(
+  // Handle image selection from group panel
+  const handleGroupSelect = useCallback(
     (image: CogImage) => {
-      // Find the index of the selected version in our chain
-      const idx = versionChain.findIndex((v) => v.id === image.id);
+      // Find the index of the selected image in our group
+      const idx = groupImages.findIndex((img) => img.id === image.id);
       if (idx >= 0) {
-        setVersionIndex(idx);
+        setGroupIndex(idx);
       }
-      setShowVersionPanel(false);
+      setShowGroupPanel(false);
     },
-    [versionChain]
+    [groupImages]
   );
 
   // Handle primary image change
@@ -840,21 +840,21 @@ export function ImageGallery({
     [onPrimaryImageChange]
   );
 
-  // Handle version deletion
-  const handleVersionDeleted = useCallback(
+  // Handle image deletion from group panel
+  const handleGroupImageDeleted = useCallback(
     (deletedImageId: string, newActiveImage: CogImage | null) => {
-      // Update version chain
-      setVersionChain((prev) => prev.filter((v) => v.id !== deletedImageId));
+      // Update group images
+      setGroupImages((prev) => prev.filter((img) => img.id !== deletedImageId));
 
       // If we deleted the current image, switch to the new active one
       if (newActiveImage) {
-        const newIdx = versionChain.findIndex((v) => v.id === newActiveImage.id);
+        const newIdx = groupImages.findIndex((img) => img.id === newActiveImage.id);
         if (newIdx >= 0) {
-          setVersionIndex(Math.max(0, newIdx - (deletedImageId === versionChain[newIdx]?.id ? 1 : 0)));
+          setGroupIndex(Math.max(0, newIdx - (deletedImageId === groupImages[newIdx]?.id ? 1 : 0)));
         }
       }
 
-      // Update images list if the deleted image was a root
+      // Update images list if the deleted image was a group primary
       setImages((prev) => prev.filter((img) => img.id !== deletedImageId));
 
       // If primary was deleted, it's already cleared by deleteImageWithCleanup
@@ -865,7 +865,7 @@ export function ImageGallery({
 
       router.refresh();
     },
-    [versionChain, primaryImageId, onPrimaryImageChange, router]
+    [groupImages, primaryImageId, onPrimaryImageChange, router]
   );
 
   // Handle tag toggle with optimistic update
@@ -961,14 +961,14 @@ export function ImageGallery({
         e.preventDefault();
         setShowEditMode(true);
         setShowTagPanel(false);
-        setShowVersionPanel(false);
+        setShowGroupPanel(false);
         return;
       }
 
-      // 'v' toggles version panel
-      if (e.key === 'v' || e.key === 'V') {
+      // 'g' toggles group panel
+      if (e.key === 'g' || e.key === 'G') {
         e.preventDefault();
-        setShowVersionPanel((prev) => !prev);
+        setShowGroupPanel((prev) => !prev);
         setShowTagPanel(false);
         return;
       }
@@ -977,7 +977,7 @@ export function ImageGallery({
       if (e.key === 't' || e.key === 'T') {
         e.preventDefault();
         setShowTagPanel((prev) => !prev);
-        setShowVersionPanel(false);
+        setShowGroupPanel(false);
         return;
       }
 
@@ -1009,10 +1009,10 @@ export function ImageGallery({
         }
       }
 
-      // If version panel is open, Escape closes it
-      if (showVersionPanel && e.key === 'Escape') {
+      // If group panel is open, Escape closes it
+      if (showGroupPanel && e.key === 'Escape') {
         e.preventDefault();
-        setShowVersionPanel(false);
+        setShowGroupPanel(false);
         return;
       }
 
@@ -1031,12 +1031,12 @@ export function ImageGallery({
           e.preventDefault();
           goToNext();
           break;
-        // Vertical: navigate between versions (up = older, down = newer)
+        // Vertical: navigate between group images (up = older, down = newer)
         case 'ArrowUp':
         case 'k':
           e.preventDefault();
-          if (versionChain.length > 1) {
-            goToOlderVersion();
+          if (groupImages.length > 1) {
+            goToPreviousInGroup();
           } else {
             goToPrevious();
           }
@@ -1044,8 +1044,8 @@ export function ImageGallery({
         case 'ArrowDown':
         case 'j':
           e.preventDefault();
-          if (versionChain.length > 1) {
-            goToNewerVersion();
+          if (groupImages.length > 1) {
+            goToNextInGroup();
           } else {
             goToNext();
           }
@@ -1061,7 +1061,7 @@ export function ImageGallery({
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, goToPrevious, goToNext, goToOlderVersion, goToNewerVersion, versionChain.length, showDeleteConfirm, showTagPanel, showVersionPanel, showEditMode, enabledTags, handleToggleTag]);
+  }, [isOpen, goToPrevious, goToNext, goToPreviousInGroup, goToNextInGroup, groupImages.length, showDeleteConfirm, showTagPanel, showGroupPanel, showEditMode, enabledTags, handleToggleTag]);
 
   // Prevent body scroll when gallery is open
   useEffect(() => {
@@ -1075,10 +1075,10 @@ export function ImageGallery({
     };
   }, [isOpen]);
 
-  // Root image from grid selection
-  const rootImage = selectedIndex !== null ? images[selectedIndex] : null;
-  // Currently displayed image (may be a version)
-  const currentImage = versionChain.length > 0 ? versionChain[versionIndex] : rootImage;
+  // Primary image from grid selection
+  const gridImage = selectedIndex !== null ? images[selectedIndex] : null;
+  // Currently displayed image (may be a group member)
+  const currentImage = groupImages.length > 0 ? groupImages[groupIndex] : gridImage;
   const currentImageTags: Set<string> = currentImage ? imageTagsMap.get(currentImage.id) || new Set<string>() : new Set<string>();
 
   // Get applied tag names for display
@@ -1194,7 +1194,7 @@ export function ImageGallery({
         {images.map((image, index) => {
           const imageTags = imageTagsMap.get(image.id) || new Set();
           const tagCount = imageTags.size;
-          const versionCount = image.version_count || 1;
+          const groupCount = image.group_count || 1;
           const isSelected = selectedIds.has(image.id);
           const isPrimary = image.id === primaryImageId;
 
@@ -1241,10 +1241,13 @@ export function ImageGallery({
                       {tagCount} tag{tagCount !== 1 ? 's' : ''}
                     </div>
                   )}
-                  {/* Version count badge */}
-                  {versionCount > 1 && (
-                    <div className="absolute bottom-2 right-2 px-1.5 py-0.5 bg-blue-600/80 rounded text-[10px] text-white">
-                      v{versionCount}
+                  {/* Group count badge */}
+                  {groupCount > 1 && (
+                    <div className="absolute bottom-2 right-2 px-1.5 py-0.5 bg-blue-600/80 rounded text-[10px] text-white flex items-center gap-0.5">
+                      <svg className="w-2.5 h-2.5" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M4 5a2 2 0 012-2h12a2 2 0 012 2v14a2 2 0 01-2 2H6a2 2 0 01-2-2V5zm4 0v14h12V5H8z" />
+                      </svg>
+                      {groupCount}
                     </div>
                   )}
                   {/* Primary star indicator */}
@@ -1349,16 +1352,16 @@ export function ImageGallery({
               <span className="font-medium">
                 {selectedIndex! + 1} / {images.length}
               </span>
-              {versionChain.length > 1 && (
+              {groupImages.length > 1 && (
                 <span className="ml-2 px-1.5 py-0.5 bg-blue-600/80 rounded text-[10px]">
-                  v{versionIndex + 1}/{versionChain.length}
+                  {groupIndex + 1}/{groupImages.length}
                 </span>
               )}
               <span className="ml-4 text-white/60">{currentImage.filename}</span>
             </div>
             <div className="flex items-center gap-2">
               <span className="text-xs text-white/40 hidden sm:block">
-                {versionChain.length > 1 ? '←→ images, ↑↓ versions' : '←→↑↓ nav'}, e edit, t tags, d delete
+                {groupImages.length > 1 ? '←→ images, ↑↓ group' : '←→↑↓ nav'}, e edit, g group, t tags, d delete
               </span>
               <Button
                 variant="ghost"
@@ -1366,23 +1369,23 @@ export function ImageGallery({
                 onClick={() => {
                   setShowEditMode(true);
                   setShowTagPanel(false);
-                  setShowVersionPanel(false);
+                  setShowGroupPanel(false);
                 }}
                 className="text-white hover:bg-white/10"
               >
                 Edit
               </Button>
-              {versionChain.length > 1 && (
+              {groupImages.length > 1 && (
                 <Button
                   variant="ghost"
                   size="sm"
                   onClick={() => {
-                    setShowVersionPanel((prev) => !prev);
+                    setShowGroupPanel((prev) => !prev);
                     setShowTagPanel(false);
                   }}
-                  className={`hover:bg-white/10 ${showVersionPanel ? 'text-primary' : 'text-white'}`}
+                  className={`hover:bg-white/10 ${showGroupPanel ? 'text-primary' : 'text-white'}`}
                 >
-                  Versions
+                  Group
                 </Button>
               )}
               <Button
@@ -1390,7 +1393,7 @@ export function ImageGallery({
                 size="sm"
                 onClick={() => {
                   setShowTagPanel((prev) => !prev);
-                  setShowVersionPanel(false);
+                  setShowGroupPanel(false);
                 }}
                 className={`hover:bg-white/10 ${showTagPanel ? 'text-primary' : 'text-white'}`}
               >
@@ -1439,12 +1442,12 @@ export function ImageGallery({
               <p className="text-white text-sm mb-2">Delete this image?</p>
               {/* Contextual warnings */}
               <div className="space-y-1 mb-3">
-                {versionChain.length > 1 && (
+                {groupImages.length > 1 && (
                   <p className="text-amber-400 text-xs flex items-center gap-1.5">
                     <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                     </svg>
-                    Version {versionIndex + 1} of {versionChain.length} - children will be re-parented
+                    Image {groupIndex + 1} of {groupImages.length} in group
                   </p>
                 )}
                 {currentImage.id === primaryImageId && (
@@ -1504,7 +1507,7 @@ export function ImageGallery({
               src={getCogImageUrl(currentImage.storage_path)}
               alt={currentImage.filename}
               className={`max-w-full object-contain transition-all ${
-                showTagPanel || showVersionPanel ? 'max-h-[calc(100vh-280px)]' : 'max-h-[calc(100vh-180px)]'
+                showTagPanel || showGroupPanel ? 'max-h-[calc(100vh-280px)]' : 'max-h-[calc(100vh-180px)]'
               }`}
             />
 
@@ -1530,10 +1533,10 @@ export function ImageGallery({
             </button>
           </div>
 
-          {/* Footer - Tags/Versions + Image Info */}
+          {/* Footer - Tags/Group + Image Info */}
           <div className="relative" onClick={(e) => e.stopPropagation()}>
             {/* Collapsed bar */}
-            {!showTagPanel && !showVersionPanel && (
+            {!showTagPanel && !showGroupPanel && (
               <div className="px-4 py-2 border-t border-white/10 flex items-center gap-4">
                 {enabledTags.length > 0 && (
                   <button
@@ -1558,13 +1561,13 @@ export function ImageGallery({
                     )}
                   </button>
                 )}
-                {versionChain.length > 1 && (
+                {groupImages.length > 1 && (
                   <button
-                    onClick={() => setShowVersionPanel(true)}
+                    onClick={() => setShowGroupPanel(true)}
                     className="flex items-center gap-2 text-white/60 hover:text-white text-sm"
                   >
                     <kbd className="text-[10px] px-1 py-0.5 bg-white/10 rounded font-mono">↑↓</kbd>
-                    <span>Version {versionIndex + 1} of {versionChain.length}</span>
+                    <span>{groupIndex + 1} of {groupImages.length} in group</span>
                   </button>
                 )}
               </div>
@@ -1580,20 +1583,20 @@ export function ImageGallery({
               onClose={() => setShowTagPanel(false)}
             />
 
-            {/* Version History Panel */}
-            <VersionHistoryPanel
+            {/* Group Panel */}
+            <GroupPanel
               imageId={currentImage.id}
               seriesId={seriesId}
               primaryImageId={primaryImageId}
-              isExpanded={showVersionPanel}
-              onClose={() => setShowVersionPanel(false)}
-              onSelectVersion={handleVersionSelect}
+              isExpanded={showGroupPanel}
+              onClose={() => setShowGroupPanel(false)}
+              onSelectImage={handleGroupSelect}
               onPrimaryChanged={handlePrimaryChanged}
-              onVersionDeleted={handleVersionDeleted}
+              onImageDeleted={handleGroupImageDeleted}
             />
 
             {/* Prompt info */}
-            {currentImage.prompt && !showTagPanel && !showVersionPanel && (
+            {currentImage.prompt && !showTagPanel && !showGroupPanel && (
               <div className="p-4 text-white/60 text-sm border-t border-white/10">
                 <p className="line-clamp-2 max-w-3xl mx-auto text-center">{currentImage.prompt}</p>
               </div>

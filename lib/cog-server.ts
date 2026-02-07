@@ -21,7 +21,7 @@ import type {
   CogTagGroupWithTags,
   CogImageWithTags,
   CogSeriesWithImagesAndTags,
-  CogImageWithVersions,
+  CogImageWithGroupInfo,
 } from './types/cog';
 
 // ============================================================================
@@ -429,14 +429,14 @@ export async function getUngroupedTagsServer(): Promise<CogTag[]> {
 }
 
 // ============================================================================
-// Image Versioning Operations (Server)
+// Image Grouping Operations (Server)
 // ============================================================================
 
 /**
- * Get root images (no parent) with version counts for a series - server-side
- * Returns images ordered by creation date, newest first
+ * Get group primary images (one per group) with group counts for a series - server-side
+ * Returns images where id = group_id (the group representative), ordered by creation date
  */
-export async function getRootImagesWithVersionCountsServer(seriesId: string): Promise<CogImageWithVersions[]> {
+export async function getGroupPrimaryImagesServer(seriesId: string): Promise<CogImageWithGroupInfo[]> {
   const client = await createClient();
 
   // Get all images for the series
@@ -448,58 +448,41 @@ export async function getRootImagesWithVersionCountsServer(seriesId: string): Pr
   if (imagesError) throw imagesError;
   if (!allImages || allImages.length === 0) return [];
 
-  // Build a map of parent_id -> count of children
-  // Note: parent_image_id may be undefined if migration hasn't run yet
-  const childCountMap = new Map<string, number>();
+  // Count images per group
+  const groupCountMap = new Map<string, number>();
   for (const img of allImages) {
-    if (img.parent_image_id) {
-      const count = childCountMap.get(img.parent_image_id) || 0;
-      childCountMap.set(img.parent_image_id, count + 1);
-    }
+    const groupId = img.group_id || img.id; // Fallback for legacy images without group_id
+    const count = groupCountMap.get(groupId) || 0;
+    groupCountMap.set(groupId, count + 1);
   }
 
-  // For version count, we need to count the full chain depth
-  // Build parent -> children map for traversal
-  const childrenMap = new Map<string, CogImage[]>();
-  for (const img of allImages) {
-    if (img.parent_image_id) {
-      const children = childrenMap.get(img.parent_image_id) || [];
-      children.push(img);
-      childrenMap.set(img.parent_image_id, children);
-    }
-  }
-
-  // Count total versions in chain (including root)
-  function countVersions(imageId: string): number {
-    const children = childrenMap.get(imageId) || [];
-    if (children.length === 0) return 1;
-    // Take max depth of any child path
-    return 1 + Math.max(...children.map((c) => countVersions(c.id)));
-  }
-
-  // Filter to root images and add version count
-  // Note: parent_image_id may be undefined if migration hasn't run yet
-  const rootImages = allImages
-    .filter((img: CogImage) => !img.parent_image_id) // handles null, undefined, and empty string
+  // Filter to group primaries (id === group_id) and add group count
+  const groupPrimaries = allImages
+    .filter((img: CogImage) => {
+      // An image is a group primary if its id equals its group_id
+      // For legacy images without group_id, root images (no parent) are primaries
+      const groupId = img.group_id || img.id;
+      return img.id === groupId || (!img.group_id && !img.parent_image_id);
+    })
     .map((img: CogImage) => ({
       ...img,
-      version_count: countVersions(img.id),
+      group_count: groupCountMap.get(img.group_id || img.id) || 1,
     }))
-    .sort((a: CogImageWithVersions, b: CogImageWithVersions) =>
+    .sort((a: CogImageWithGroupInfo, b: CogImageWithGroupInfo) =>
       new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
     );
 
-  return rootImages as CogImageWithVersions[];
+  return groupPrimaries as CogImageWithGroupInfo[];
 }
 
 /**
- * Get the full version chain for an image - server-side
- * Returns array from root to latest descendant (chronological order)
+ * Get all images in the same group - server-side
+ * Returns images in the group ordered by creation date (oldest first)
  */
-export async function getImageVersionChainServer(imageId: string): Promise<CogImage[]> {
+export async function getImageGroupServer(imageId: string): Promise<CogImage[]> {
   const client = await createClient();
 
-  // First get the image to find its series
+  // First get the image to find its group_id
   const { data: image, error: imageError } = await (client as any)
     .from('cog_images')
     .select('*')
@@ -507,6 +490,32 @@ export async function getImageVersionChainServer(imageId: string): Promise<CogIm
     .single();
 
   if (imageError) throw imageError;
+
+  const groupId = image.group_id || image.id;
+
+  // Get all images in this group
+  const { data: groupImages, error: groupError } = await (client as any)
+    .from('cog_images')
+    .select('*')
+    .eq('group_id', groupId)
+    .order('created_at', { ascending: true });
+
+  if (groupError) throw groupError;
+
+  // If no images found with group_id, fallback to legacy parent chain
+  if (!groupImages || groupImages.length === 0) {
+    return await getImageVersionChainServerLegacy(imageId, image);
+  }
+
+  return groupImages as CogImage[];
+}
+
+/**
+ * Legacy: Get the full version chain for an image using parent_image_id
+ * Used as fallback for images created before group_id migration
+ */
+async function getImageVersionChainServerLegacy(imageId: string, image: CogImage): Promise<CogImage[]> {
+  const client = await createClient();
 
   // Get all images in this series to build the chain
   const { data: allImages, error: allError } = await (client as any)
@@ -537,55 +546,22 @@ export async function getImageVersionChainServer(imageId: string): Promise<CogIm
     root = parent;
   }
 
-  // Build chain from root, following the path that leads to our target image
-  // If the image IS the root or a direct ancestor, build the full chain
+  // Build chain from root following creation time
   const chain: CogImage[] = [root];
-
-  // Check if target image is in the chain starting from root
-  function findPathToTarget(currentId: string, targetId: string, path: CogImage[]): CogImage[] | null {
-    if (currentId === targetId) return path;
-
-    const children = childrenMap.get(currentId) || [];
-    for (const child of children) {
-      const result = findPathToTarget(child.id, targetId, [...path, child]);
-      if (result) return result;
-    }
-    return null;
-  }
-
-  const pathToTarget = findPathToTarget(root.id, imageId, chain);
-
-  if (pathToTarget) {
-    // Now extend from target to latest descendant
-    let current = imageMap.get(imageId)!;
-    const result = [...pathToTarget];
-
-    while (true) {
-      const children = childrenMap.get(current.id) || [];
-      if (children.length === 0) break;
-      // Follow the most recent child
-      const latestChild = children.sort((a, b) =>
-        new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-      )[0];
-      result.push(latestChild);
-      current = latestChild;
-    }
-
-    return result;
-  }
-
-  // Fallback: just return the full chain from root
-  const fullChain: CogImage[] = [root];
   let current = root;
   while (true) {
     const children = childrenMap.get(current.id) || [];
     if (children.length === 0) break;
     const latestChild = children.sort((a, b) =>
-      new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
     )[0];
-    fullChain.push(latestChild);
+    chain.push(latestChild);
     current = latestChild;
   }
 
-  return fullChain;
+  return chain;
 }
+
+// Legacy aliases for backwards compatibility
+export const getRootImagesWithVersionCountsServer = getGroupPrimaryImagesServer;
+export const getImageVersionChainServer = getImageGroupServer;

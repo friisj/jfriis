@@ -133,13 +133,14 @@ export async function refineCogImageStandalone(
 
     const imageUrl = urlData.publicUrl;
 
-    // Create new image record with parent reference
+    // Create new image record with parent reference and inherited group
     const { data: newImage, error: insertError } = await (supabase as any)
       .from('cog_images')
       .insert({
         series_id: seriesId,
         job_id: sourceImage.job_id, // Preserve original job association if any
-        parent_image_id: imageId, // Link to parent
+        parent_image_id: imageId, // Link to parent for provenance
+        group_id: sourceImage.group_id || imageId, // Inherit group from parent
         storage_path: storagePath,
         filename,
         mime_type: 'image/png',

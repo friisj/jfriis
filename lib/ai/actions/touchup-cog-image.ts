@@ -209,13 +209,14 @@ export async function touchupCogImage(input: TouchupInput): Promise<TouchupResul
 
     const imageUrl = urlData.publicUrl;
 
-    // Create new image record with parent reference
+    // Create new image record with parent reference and inherited group
     const { data: newImage, error: insertError } = await (supabase as any)
       .from('cog_images')
       .insert({
         series_id: seriesId,
         job_id: sourceImage.job_id,
         parent_image_id: imageId,
+        group_id: sourceImage.group_id || imageId, // Inherit group from parent
         storage_path: storagePath,
         filename,
         mime_type: 'image/png',

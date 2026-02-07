@@ -156,13 +156,30 @@ export async function deleteSeriesWithCleanup(id: string): Promise<{ deletedImag
 
 /**
  * Create an image record - client-side
+ * If group_id is not provided and parent_image_id is set, inherits parent's group_id
+ * If neither is set, the DB trigger sets group_id to the new image's id
  */
 export async function createImage(input: CogImageInsert): Promise<CogImage> {
+  // If parent_image_id is provided but group_id isn't, fetch parent's group_id
+  let groupId = input.group_id;
+  if (!groupId && input.parent_image_id) {
+    const { data: parent } = await (supabase as any)
+      .from('cog_images')
+      .select('group_id')
+      .eq('id', input.parent_image_id)
+      .single();
+    if (parent?.group_id) {
+      groupId = parent.group_id;
+    }
+  }
+
   const { data, error } = await (supabase as any)
     .from('cog_images')
     .insert({
       series_id: input.series_id,
       job_id: input.job_id || null,
+      parent_image_id: input.parent_image_id || null,
+      group_id: groupId || null, // null lets DB trigger set it to own id
       storage_path: input.storage_path,
       filename: input.filename,
       mime_type: input.mime_type || 'image/png',
@@ -210,22 +227,23 @@ export async function deleteImage(id: string): Promise<void> {
 /**
  * Delete an image with full cleanup - client-side
  * Handles:
- * - Re-parenting children to this image's parent (preserves version chain)
- * - Clearing primary_image_id if this is the primary image
+ * - Re-parenting children to this image's parent (preserves provenance chain)
+ * - Re-grouping: if this is the group primary, reassign group to first remaining member
+ * - Clearing primary_image_id if this is the primary image for the series
  * - Removing from storage
  * - Deleting the database record
  */
 export async function deleteImageWithCleanup(id: string): Promise<void> {
-  // 1. Fetch the image to get storage_path, parent_image_id, and series_id
+  // 1. Fetch the image to get storage_path, parent_image_id, group_id, and series_id
   const { data: image, error: fetchError } = await (supabase as any)
     .from('cog_images')
-    .select('storage_path, parent_image_id, series_id')
+    .select('storage_path, parent_image_id, group_id, series_id')
     .eq('id', id)
     .single();
 
   if (fetchError) throw fetchError;
 
-  // 2. Re-parent any children to this image's parent
+  // 2. Re-parent any children to this image's parent (for provenance tracking)
   const { error: reparentError } = await (supabase as any)
     .from('cog_images')
     .update({ parent_image_id: image.parent_image_id })
@@ -233,7 +251,34 @@ export async function deleteImageWithCleanup(id: string): Promise<void> {
 
   if (reparentError) throw reparentError;
 
-  // 3. Clear primary_image_id if this is the primary image for the series
+  // 3. Handle group reassignment if this is the group primary
+  const groupId = image.group_id || id;
+  if (id === groupId) {
+    // This image is the group primary - find other group members
+    const { data: groupMembers, error: groupError } = await (supabase as any)
+      .from('cog_images')
+      .select('id, created_at')
+      .eq('group_id', groupId)
+      .neq('id', id)
+      .order('created_at', { ascending: true });
+
+    if (!groupError && groupMembers && groupMembers.length > 0) {
+      // Reassign group_id for all remaining members to the oldest one
+      const newGroupPrimary = groupMembers[0].id;
+      const memberIds = groupMembers.map((m: { id: string }) => m.id);
+
+      const { error: regroupError } = await (supabase as any)
+        .from('cog_images')
+        .update({ group_id: newGroupPrimary })
+        .in('id', memberIds);
+
+      if (regroupError) {
+        console.error('Failed to reassign group (continuing):', regroupError);
+      }
+    }
+  }
+
+  // 4. Clear primary_image_id if this is the primary image for the series
   const { data: series } = await (supabase as any)
     .from('cog_series')
     .select('primary_image_id')
@@ -251,7 +296,7 @@ export async function deleteImageWithCleanup(id: string): Promise<void> {
     }
   }
 
-  // 4. Delete from storage (fatal - don't leave orphaned DB records)
+  // 5. Delete from storage (fatal - don't leave orphaned DB records)
   if (image.storage_path) {
     const { error: storageError } = await supabase.storage
       .from('cog-images')
@@ -262,7 +307,7 @@ export async function deleteImageWithCleanup(id: string): Promise<void> {
     }
   }
 
-  // 5. Delete the database record
+  // 6. Delete the database record
   const { error: deleteError } = await (supabase as any)
     .from('cog_images')
     .delete()
@@ -899,15 +944,15 @@ export async function getImageTagsBatch(imageIds: string[]): Promise<Map<string,
 }
 
 // ============================================================================
-// Image Versioning Operations (Client)
+// Image Grouping Operations (Client)
 // ============================================================================
 
 /**
- * Get the full version chain for an image - client-side
- * Returns array from root to latest descendant
+ * Get all images in the same group - client-side
+ * Returns images in the group ordered by creation date (oldest first)
  */
-export async function getImageVersionChain(imageId: string): Promise<CogImage[]> {
-  // First get the image to find its series
+export async function getImageGroup(imageId: string): Promise<CogImage[]> {
+  // First get the image to find its group_id
   const { data: image, error: imageError } = await (supabase as any)
     .from('cog_images')
     .select('*')
@@ -916,6 +961,30 @@ export async function getImageVersionChain(imageId: string): Promise<CogImage[]>
 
   if (imageError) throw imageError;
 
+  const groupId = image.group_id || image.id;
+
+  // Get all images in this group
+  const { data: groupImages, error: groupError } = await (supabase as any)
+    .from('cog_images')
+    .select('*')
+    .eq('group_id', groupId)
+    .order('created_at', { ascending: true });
+
+  if (groupError) throw groupError;
+
+  // If no images found with group_id, fallback to legacy parent chain
+  if (!groupImages || groupImages.length === 0) {
+    return await getImageGroupLegacy(image);
+  }
+
+  return groupImages as CogImage[];
+}
+
+/**
+ * Legacy: Get the full version chain for an image using parent_image_id
+ * Used as fallback for images created before group_id migration
+ */
+async function getImageGroupLegacy(image: CogImage): Promise<CogImage[]> {
   // Get all images in this series
   const { data: allImages, error: allError } = await (supabase as any)
     .from('cog_images')
@@ -945,49 +1014,23 @@ export async function getImageVersionChain(imageId: string): Promise<CogImage[]>
     root = parent;
   }
 
-  // Build chain from root through this image to latest
-  function findPathToTarget(currentId: string, targetId: string, path: CogImage[]): CogImage[] | null {
-    if (currentId === targetId) return path;
-    const children = childrenMap.get(currentId) || [];
-    for (const child of children) {
-      const result = findPathToTarget(child.id, targetId, [...path, child]);
-      if (result) return result;
-    }
-    return null;
-  }
-
-  const pathToTarget = findPathToTarget(root.id, imageId, [root]);
-
-  if (pathToTarget) {
-    // Extend from target to latest
-    let current = imageMap.get(imageId)!;
-    const result = [...pathToTarget];
-    while (true) {
-      const children = childrenMap.get(current.id) || [];
-      if (children.length === 0) break;
-      const latestChild = children.sort((a, b) =>
-        new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-      )[0];
-      result.push(latestChild);
-      current = latestChild;
-    }
-    return result;
-  }
-
-  // Fallback: full chain from root
-  const fullChain: CogImage[] = [root];
+  // Build chain from root following creation time
+  const chain: CogImage[] = [root];
   let current = root;
   while (true) {
     const children = childrenMap.get(current.id) || [];
     if (children.length === 0) break;
-    const latestChild = children.sort((a, b) =>
-      new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+    const oldest = children.sort((a, b) =>
+      new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
     )[0];
-    fullChain.push(latestChild);
-    current = latestChild;
+    chain.push(oldest);
+    current = oldest;
   }
-  return fullChain;
+  return chain;
 }
+
+// Legacy alias for backwards compatibility
+export const getImageVersionChain = getImageGroup;
 
 /**
  * Get a single image by ID - client-side

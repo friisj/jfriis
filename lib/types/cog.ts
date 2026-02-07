@@ -33,6 +33,7 @@ export interface CogImage {
   series_id: string;
   job_id: string | null;
   parent_image_id: string | null;
+  group_id: string;
   storage_path: string;
   filename: string;
   mime_type: string;
@@ -119,6 +120,7 @@ export interface CogImageInsert {
   series_id: string;
   job_id?: string | null;
   parent_image_id?: string | null;
+  group_id?: string | null;  // If null, defaults to own id (new group)
   storage_path: string;
   filename: string;
   mime_type?: string;
@@ -304,9 +306,12 @@ export interface CogSeriesWithImagesAndTags extends CogSeriesWithImages {
 }
 
 // ============================================================================
-// Image Versioning Types
+// Image Grouping Types
 // ============================================================================
 
-export interface CogImageWithVersions extends CogImage {
-  version_count: number;
+export interface CogImageWithGroupInfo extends CogImage {
+  group_count: number;
 }
+
+// Legacy alias for backwards compatibility during migration
+export type CogImageWithVersions = CogImageWithGroupInfo;

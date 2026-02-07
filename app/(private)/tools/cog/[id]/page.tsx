@@ -1,6 +1,6 @@
 import {
   getSeriesByIdServer,
-  getRootImagesWithVersionCountsServer,
+  getGroupPrimaryImagesServer,
   getSeriesJobsServer,
   getChildSeriesServer,
   getEnabledTagsForSeriesServer,
@@ -8,7 +8,7 @@ import {
 } from '@/lib/cog-server';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import type { CogSeries, CogJob, CogTag, CogTagWithGroup, CogImageWithVersions } from '@/lib/types/cog';
+import type { CogSeries, CogJob, CogTag, CogTagWithGroup, CogImageWithGroupInfo } from '@/lib/types/cog';
 import { SeriesLayout } from './series-layout';
 
 interface Props {
@@ -17,7 +17,7 @@ interface Props {
 
 async function getSeriesData(id: string): Promise<{
   series: CogSeries;
-  images: CogImageWithVersions[];
+  images: CogImageWithGroupInfo[];
   jobs: CogJob[];
   children: CogSeries[];
   enabledTags: CogTagWithGroup[];
@@ -27,7 +27,7 @@ async function getSeriesData(id: string): Promise<{
     // Core data (required)
     const [series, images, jobs, children] = await Promise.all([
       getSeriesByIdServer(id),
-      getRootImagesWithVersionCountsServer(id),
+      getGroupPrimaryImagesServer(id),
       getSeriesJobsServer(id),
       getChildSeriesServer(id),
     ]);

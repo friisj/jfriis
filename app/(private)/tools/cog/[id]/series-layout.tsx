@@ -29,11 +29,11 @@ import {
 } from '@/lib/cog';
 import { supabase } from '@/lib/supabase';
 import { generateSeriesDescription } from '@/lib/ai/actions/generate-series-description';
-import type { CogSeries, CogJob, CogTag, CogTagWithGroup, CogImageWithVersions } from '@/lib/types/cog';
+import type { CogSeries, CogJob, CogTag, CogTagWithGroup, CogImageWithGroupInfo } from '@/lib/types/cog';
 
 interface SeriesLayoutProps {
   series: CogSeries;
-  images: CogImageWithVersions[];
+  images: CogImageWithGroupInfo[];
   jobs: CogJob[];
   childSeries: CogSeries[];
   seriesId: string;
@@ -695,7 +695,7 @@ function ImagesPanel({
   enabledTags,
   onUploadClick,
 }: {
-  images: CogImageWithVersions[];
+  images: CogImageWithGroupInfo[];
   seriesId: string;
   primaryImageId: string | null;
   enabledTags: CogTagWithGroup[];
