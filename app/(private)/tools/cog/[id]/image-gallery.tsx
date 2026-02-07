@@ -8,12 +8,25 @@ import { LightboxEditMode } from './lightbox-edit-mode';
 import { VersionHistoryPanel } from './version-history-panel';
 import type { CogImage, CogTag, CogTagWithGroup, CogImageWithVersions } from '@/lib/types/cog';
 
+// Represents a file being uploaded
+export interface UploadingFile {
+  id: string;
+  file: File;
+  preview: string;
+  status: 'uploading' | 'success' | 'error';
+  progress?: number;
+  error?: string;
+}
+
 interface ImageGalleryProps {
   images: CogImageWithVersions[];
   seriesId: string;
   primaryImageId?: string | null;
   enabledTags?: CogTagWithGroup[];
   onPrimaryImageChange?: (imageId: string | null) => void;
+  // Drop zone support
+  uploadingFiles?: UploadingFile[];
+  isDragOver?: boolean;
 }
 
 // Batch Tag Panel - similar to TagPanel but for batch operations
@@ -391,6 +404,8 @@ export function ImageGallery({
   primaryImageId: initialPrimaryImageId = null,
   enabledTags = [],
   onPrimaryImageChange,
+  uploadingFiles = [],
+  isDragOver = false,
 }: ImageGalleryProps) {
   const router = useRouter();
   const [images, setImages] = useState(initialImages);
@@ -1115,7 +1130,67 @@ export function ImageGallery({
       )}
 
       {/* Thumbnail Grid */}
-      <div className="grid gap-4 grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+      <div className={`grid gap-4 grid-cols-2 md:grid-cols-3 lg:grid-cols-4 relative rounded-lg transition-all ${
+        isDragOver ? 'ring-2 ring-primary ring-offset-2 bg-primary/5' : ''
+      }`}>
+        {/* Drag over overlay */}
+        {isDragOver && (
+          <div className="absolute inset-0 z-20 flex items-center justify-center bg-primary/10 rounded-lg pointer-events-none">
+            <div className="text-center">
+              <svg className="w-12 h-12 mx-auto text-primary mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+              </svg>
+              <p className="font-medium text-primary">Drop images to upload</p>
+            </div>
+          </div>
+        )}
+
+        {/* Uploading placeholders - show at the start */}
+        {uploadingFiles.map((uploadingFile) => (
+          <div
+            key={uploadingFile.id}
+            className={`relative border rounded-lg overflow-hidden ${
+              uploadingFile.status === 'error' ? 'border-destructive' : 'border-primary'
+            }`}
+          >
+            <div className="aspect-square bg-muted relative">
+              <img
+                src={uploadingFile.preview}
+                alt={uploadingFile.file.name}
+                className="w-full h-full object-cover opacity-50"
+              />
+              {/* Upload overlay */}
+              {uploadingFile.status === 'uploading' && (
+                <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
+                  <div className="w-10 h-10 border-3 border-white border-t-transparent rounded-full animate-spin" />
+                </div>
+              )}
+              {uploadingFile.status === 'success' && (
+                <div className="absolute inset-0 bg-green-500/30 flex items-center justify-center">
+                  <svg className="w-10 h-10 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                  </svg>
+                </div>
+              )}
+              {uploadingFile.status === 'error' && (
+                <div className="absolute inset-0 bg-destructive/30 flex items-center justify-center">
+                  <svg className="w-10 h-10 text-destructive" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </div>
+              )}
+            </div>
+            <div className="p-2 text-xs">
+              <p className="truncate">{uploadingFile.file.name}</p>
+              <p className="text-muted-foreground">
+                {uploadingFile.status === 'uploading' ? 'Uploading...' :
+                 uploadingFile.status === 'success' ? 'Done' :
+                 uploadingFile.error || 'Failed'}
+              </p>
+            </div>
+          </div>
+        ))}
+
         {images.map((image, index) => {
           const imageTags = imageTagsMap.get(image.id) || new Set();
           const tagCount = imageTags.size;

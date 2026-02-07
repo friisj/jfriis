@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import ReactMarkdown from 'react-markdown';
@@ -15,7 +15,7 @@ import {
   ResizablePanel,
   ResizableHandle,
 } from '@/components/ui/resizable';
-import { ImageGallery } from './image-gallery';
+import { ImageGallery, type UploadingFile } from './image-gallery';
 import { JobsList } from './jobs-list';
 import { UploadModal } from './upload-modal';
 import {
@@ -25,7 +25,9 @@ import {
   disableTagForSeries,
   createTag,
   deleteTag,
+  createImage,
 } from '@/lib/cog';
+import { supabase } from '@/lib/supabase';
 import { generateSeriesDescription } from '@/lib/ai/actions/generate-series-description';
 import type { CogSeries, CogJob, CogTag, CogTagWithGroup, CogImageWithVersions } from '@/lib/types/cog';
 
@@ -670,6 +672,22 @@ function JobsPanel({ jobs, seriesId }: { jobs: CogJob[]; seriesId: string }) {
   );
 }
 
+// Helper to get image dimensions
+function getImageDimensions(file: File): Promise<{ width: number; height: number }> {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      resolve({ width: img.naturalWidth, height: img.naturalHeight });
+      URL.revokeObjectURL(img.src);
+    };
+    img.onerror = () => {
+      resolve({ width: 0, height: 0 });
+      URL.revokeObjectURL(img.src);
+    };
+    img.src = URL.createObjectURL(file);
+  });
+}
+
 function ImagesPanel({
   images,
   seriesId,
@@ -684,17 +702,134 @@ function ImagesPanel({
   onUploadClick: () => void;
 }) {
   const router = useRouter();
+  const [isDragOver, setIsDragOver] = useState(false);
+  const [uploadingFiles, setUploadingFiles] = useState<UploadingFile[]>([]);
+
+  // Upload a single file
+  const uploadFile = useCallback(async (uploadingFile: UploadingFile) => {
+    const { file, id } = uploadingFile;
+    const timestamp = Date.now();
+    const safeName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
+    const storagePath = `${seriesId}/upload_${timestamp}_${safeName}`;
+
+    try {
+      const { error: uploadError } = await supabase.storage
+        .from('cog-images')
+        .upload(storagePath, file, {
+          contentType: file.type,
+          upsert: false,
+        });
+
+      if (uploadError) throw uploadError;
+
+      const dimensions = await getImageDimensions(file);
+
+      await createImage({
+        series_id: seriesId,
+        storage_path: storagePath,
+        filename: file.name,
+        mime_type: file.type,
+        width: dimensions.width,
+        height: dimensions.height,
+        file_size: file.size,
+        source: 'upload',
+      });
+
+      // Update status to success
+      setUploadingFiles((prev) =>
+        prev.map((f) => (f.id === id ? { ...f, status: 'success' as const } : f))
+      );
+
+      // Remove after a short delay and refresh
+      setTimeout(() => {
+        setUploadingFiles((prev) => prev.filter((f) => f.id !== id));
+        router.refresh();
+      }, 1000);
+    } catch (err) {
+      setUploadingFiles((prev) =>
+        prev.map((f) =>
+          f.id === id
+            ? { ...f, status: 'error' as const, error: err instanceof Error ? err.message : 'Upload failed' }
+            : f
+        )
+      );
+
+      // Remove error items after a delay
+      setTimeout(() => {
+        setUploadingFiles((prev) => prev.filter((f) => f.id !== id));
+      }, 3000);
+    }
+  }, [seriesId, router]);
+
+  // Handle dropped files
+  const handleFilesDropped = useCallback((files: FileList) => {
+    const imageFiles = Array.from(files).filter((f) => f.type.startsWith('image/'));
+    if (imageFiles.length === 0) return;
+
+    const newUploadingFiles: UploadingFile[] = imageFiles.map((file) => ({
+      id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      file,
+      preview: URL.createObjectURL(file),
+      status: 'uploading' as const,
+    }));
+
+    setUploadingFiles((prev) => [...newUploadingFiles, ...prev]);
+
+    // Start uploading each file
+    newUploadingFiles.forEach((uf) => uploadFile(uf));
+  }, [uploadFile]);
+
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(true);
+  }, []);
+
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(false);
+  }, []);
+
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(false);
+    if (e.dataTransfer.files.length > 0) {
+      handleFilesDropped(e.dataTransfer.files);
+    }
+  }, [handleFilesDropped]);
+
+  const hasContent = images.length > 0 || uploadingFiles.length > 0;
 
   return (
-    <div className="flex flex-col">
-      {images.length === 0 ? (
-        <div className="text-center py-12 border rounded-lg bg-muted/50">
-          <p className="text-muted-foreground mb-4">
-            No images yet. Upload images or run a job to generate them.
-          </p>
-          <Button variant="outline" onClick={onUploadClick}>
-            Upload Images
-          </Button>
+    <div
+      className="flex flex-col min-h-[200px]"
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
+    >
+      {!hasContent ? (
+        <div className={`text-center py-12 border-2 border-dashed rounded-lg transition-colors ${
+          isDragOver ? 'border-primary bg-primary/5' : 'border-muted-foreground/25 bg-muted/50'
+        }`}>
+          {isDragOver ? (
+            <>
+              <svg className="w-12 h-12 mx-auto text-primary mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+              </svg>
+              <p className="font-medium text-primary">Drop images to upload</p>
+            </>
+          ) : (
+            <>
+              <p className="text-muted-foreground mb-4">
+                No images yet. Drag & drop images here, or use the button below.
+              </p>
+              <Button variant="outline" onClick={onUploadClick}>
+                Upload Images
+              </Button>
+            </>
+          )}
         </div>
       ) : (
         <ImageGallery
@@ -703,6 +838,8 @@ function ImagesPanel({
           primaryImageId={primaryImageId}
           enabledTags={enabledTags}
           onPrimaryImageChange={() => router.refresh()}
+          uploadingFiles={uploadingFiles}
+          isDragOver={isDragOver}
         />
       )}
     </div>
