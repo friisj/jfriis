@@ -1,16 +1,59 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
+import Image from 'next/image'
+
+// --- Data ---
+
+interface TimelineEntry {
+  id: string
+  title: string
+  description: string
+  specimen: {
+    type: 'image' | 'code' | 'diagram'
+    src?: string
+    alt?: string
+    code?: string
+    lang?: string
+  }
+}
+
+const timelineEntries: TimelineEntry[] = [
+  {
+    id: 'work-1',
+    title: 'Project Title',
+    description: 'Short description of the work — what it was, what you did, why it mattered.',
+    specimen: { type: 'image', alt: 'Placeholder' },
+  },
+  {
+    id: 'work-2',
+    title: 'Project Title',
+    description: 'Short description of the work — what it was, what you did, why it mattered.',
+    specimen: { type: 'image', alt: 'Placeholder' },
+  },
+  {
+    id: 'work-3',
+    title: 'Project Title',
+    description: 'Short description of the work — what it was, what you did, why it mattered.',
+    specimen: { type: 'image', alt: 'Placeholder' },
+  },
+  {
+    id: 'work-4',
+    title: 'Project Title',
+    description: 'Short description of the work — what it was, what you did, why it mattered.',
+    specimen: { type: 'image', alt: 'Placeholder' },
+  },
+  {
+    id: 'work-5',
+    title: 'Project Title',
+    description: 'Short description of the work — what it was, what you did, why it mattered.',
+    specimen: { type: 'image', alt: 'Placeholder' },
+  },
+]
 
 const sections = [
-  {
-    id: 'cover',
-    label: 'Cover',
-  },
-  {
-    id: 'panel',
-    label: 'Panel',
-  },
+  { id: 'cover', label: 'Cover' },
+  { id: 'panel', label: 'Panel' },
   {
     id: 'story',
     label: 'My Story',
@@ -22,6 +65,8 @@ const sections = [
       'How you typically partner with PM, engineering, data science, or research in shaping direction',
     ],
   },
+  { id: 'work', label: 'Work' },
+  { id: 'project-intro', label: 'Project' },
   {
     id: 'case-study-1',
     label: 'Case Study 1',
@@ -48,16 +93,35 @@ const sections = [
       'Same deep-dive dimensions as Case Study 1',
     ],
   },
-  {
-    id: 'qa',
-    label: 'Q&A',
-    time: '20 min',
-  },
+  { id: 'qa', label: 'Q&A', time: '20 min' },
 ]
+
+// All observable IDs (sections + individual timeline entries)
+const observableIds = [
+  'cover', 'panel', 'story',
+  ...timelineEntries.map((e) => e.id),
+  'project-intro', 'case-study-1', 'case-study-2', 'qa',
+]
+
+// Map timeline entry IDs back to their nav parent
+function navIdFor(observedId: string): string {
+  if (observedId.startsWith('work-')) return 'work'
+  return observedId
+}
+
+const panelMembers = [
+  { name: 'Jason Bejot', role: null },
+  { name: 'Michelangelo Capraro', role: 'UX Architect' },
+  { name: 'Capra J\'neva', role: 'UX Architect' },
+  { name: 'Rahul Verma', role: 'Senior Engineering Manager' },
+]
+
+// --- Components ---
 
 function SectionNav({ activeId }: { activeId: string }) {
   const scrollTo = (id: string) => {
-    document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' })
+    const target = id === 'work' ? 'work-1' : id
+    document.getElementById(target)?.scrollIntoView({ behavior: 'smooth' })
   }
 
   return (
@@ -86,7 +150,7 @@ function SectionNav({ activeId }: { activeId: string }) {
   )
 }
 
-function Section({ id, children, className = '' }: { id: string; children: React.ReactNode; className?: string }) {
+function Section({ id, children, className = '' }: { id: string; children: ReactNode; className?: string }) {
   return (
     <section
       id={id}
@@ -110,36 +174,99 @@ function Prompts({ items }: { items: string[] }) {
   )
 }
 
-const panelMembers = [
-  { name: 'Jason Bejot', role: null },
-  { name: 'Michelangelo Capraro', role: 'UX Architect' },
-  { name: 'Capra J\'neva', role: 'UX Architect' },
-  { name: 'Rahul Verma', role: 'Senior Engineering Manager' },
-]
+function Specimen({ entry }: { entry: TimelineEntry }) {
+  const { specimen } = entry
+
+  if (specimen.type === 'code' && specimen.code) {
+    return (
+      <div className="rounded-lg border border-border bg-muted/30 p-4 overflow-x-auto">
+        <pre className="text-xs font-mono text-muted-foreground leading-relaxed">
+          <code>{specimen.code}</code>
+        </pre>
+      </div>
+    )
+  }
+
+  if (specimen.type === 'image' && specimen.src) {
+    return (
+      <div className="rounded-lg border border-border overflow-hidden bg-muted/10">
+        <Image
+          src={specimen.src}
+          alt={specimen.alt || entry.title}
+          width={640}
+          height={400}
+          className="w-full h-auto"
+        />
+      </div>
+    )
+  }
+
+  // Placeholder for unfilled specimens
+  return (
+    <div className="rounded-lg border border-dashed border-border bg-muted/5 aspect-[16/10] flex items-center justify-center">
+      <span className="text-xs text-muted-foreground/30 uppercase tracking-widest">
+        {specimen.type}
+      </span>
+    </div>
+  )
+}
+
+function TimelineItem({ entry, index }: { entry: TimelineEntry; index: number }) {
+  const isEven = index % 2 === 0
+
+  return (
+    <Section id={entry.id}>
+      <div className="max-w-5xl w-full mx-auto">
+        <div className={`grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-12 items-center ${
+          isEven ? '' : 'md:[direction:rtl]'
+        }`}>
+          {/* Text */}
+          <div className={isEven ? '' : 'md:[direction:ltr]'}>
+            <span className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground/40">
+              {String(index + 1).padStart(2, '0')}
+            </span>
+            <h3 className="text-xl font-semibold tracking-tight mt-1">{entry.title}</h3>
+            <p className="text-sm text-muted-foreground mt-2 leading-relaxed">{entry.description}</p>
+          </div>
+          {/* Visual */}
+          <div className={isEven ? '' : 'md:[direction:ltr]'}>
+            <Specimen entry={entry} />
+          </div>
+        </div>
+      </div>
+    </Section>
+  )
+}
+
+// --- Main ---
 
 export default function AdskDemo() {
-  const [activeId, setActiveId] = useState('cover')
+  const [activeNavId, setActiveNavId] = useState('cover')
 
   useEffect(() => {
     const observer = new IntersectionObserver(
       (entries) => {
         const visible = entries.find((e) => e.isIntersecting)
-        if (visible) setActiveId(visible.target.id)
+        if (visible) setActiveNavId(navIdFor(visible.target.id))
       },
       { threshold: 0.5 }
     )
 
-    sections.forEach((s) => {
-      const el = document.getElementById(s.id)
+    observableIds.forEach((id) => {
+      const el = document.getElementById(id)
       if (el) observer.observe(el)
     })
 
     return () => observer.disconnect()
   }, [])
 
+  const storySection = sections.find((s) => s.id === 'story')!
+  const cs1Section = sections.find((s) => s.id === 'case-study-1')!
+  const cs2Section = sections.find((s) => s.id === 'case-study-2')!
+
   return (
     <div className="relative">
-      <SectionNav activeId={activeId} />
+      <SectionNav activeId={activeNavId} />
 
       {/* Cover */}
       <Section id="cover">
@@ -175,12 +302,26 @@ export default function AdskDemo() {
         <div className="max-w-2xl">
           <div className="flex items-baseline gap-3 mb-2">
             <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Part 1</p>
-            {sections[2].time && (
-              <span className="text-[10px] text-muted-foreground/50">{sections[2].time}</span>
-            )}
+            <span className="text-[10px] text-muted-foreground/50">{storySection.time}</span>
           </div>
           <h2 className="text-3xl font-semibold tracking-tight">Tell Us Your Story</h2>
-          <Prompts items={sections[2].prompts!} />
+          <Prompts items={storySection.prompts!} />
+        </div>
+      </Section>
+
+      {/* Work Timeline */}
+      {timelineEntries.map((entry, i) => (
+        <TimelineItem key={entry.id} entry={entry} index={i} />
+      ))}
+
+      {/* Project Intro — transition into main case study */}
+      <Section id="project-intro">
+        <div className="max-w-2xl">
+          <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground mb-4">Deep Dive</p>
+          <h2 className="text-3xl font-semibold tracking-tight">Project Title</h2>
+          <p className="text-muted-foreground mt-3">
+            Brief introduction to the principal project — what it is, why it matters, and what you&apos;ll walk through.
+          </p>
         </div>
       </Section>
 
@@ -189,13 +330,11 @@ export default function AdskDemo() {
         <div className="max-w-2xl">
           <div className="flex items-baseline gap-3 mb-2">
             <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Part 2</p>
-            {sections[3].time && (
-              <span className="text-[10px] text-muted-foreground/50">{sections[3].time}</span>
-            )}
+            <span className="text-[10px] text-muted-foreground/50">{cs1Section.time}</span>
           </div>
           <h2 className="text-3xl font-semibold tracking-tight">Case Study 1</h2>
           <p className="text-muted-foreground mt-2">Complex, intelligent, or system-level experience involving AI, automation, or decision support</p>
-          <Prompts items={sections[3].prompts!} />
+          <Prompts items={cs1Section.prompts!} />
         </div>
       </Section>
 
@@ -204,13 +343,11 @@ export default function AdskDemo() {
         <div className="max-w-2xl">
           <div className="flex items-baseline gap-3 mb-2">
             <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Part 3</p>
-            {sections[4].time && (
-              <span className="text-[10px] text-muted-foreground/50">{sections[4].time}</span>
-            )}
+            <span className="text-[10px] text-muted-foreground/50">{cs2Section.time}</span>
           </div>
           <h2 className="text-3xl font-semibold tracking-tight">Case Study 2</h2>
           <p className="text-muted-foreground mt-2">Evolving or scaling an existing system over time</p>
-          <Prompts items={sections[4].prompts!} />
+          <Prompts items={cs2Section.prompts!} />
         </div>
       </Section>
 
