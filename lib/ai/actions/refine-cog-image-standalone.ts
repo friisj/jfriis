@@ -5,6 +5,8 @@ import { generateWithFlux, type FluxModel } from '../replicate-flux';
 import { createClient } from '@/lib/supabase-server';
 
 type RefinementModel = 'gemini-3-pro' | 'flux-2-pro' | 'flux-2-dev';
+type ImageSize = '1K' | '2K' | '4K';
+type AspectRatio = '1:1' | '2:3' | '3:2' | '3:4' | '4:3' | '4:5' | '5:4' | '9:16' | '16:9' | '21:9';
 
 interface RefineImageStandaloneInput {
   /** The image ID to refine */
@@ -13,6 +15,10 @@ interface RefineImageStandaloneInput {
   feedback: string;
   /** Model to use for refinement */
   model?: RefinementModel;
+  /** Output resolution (Flux only) */
+  imageSize?: ImageSize;
+  /** Aspect ratio (Flux only) */
+  aspectRatio?: AspectRatio;
 }
 
 interface RefineImageStandaloneResult {
@@ -32,7 +38,7 @@ interface RefineImageStandaloneResult {
 export async function refineCogImageStandalone(
   input: RefineImageStandaloneInput
 ): Promise<RefineImageStandaloneResult> {
-  const { imageId, feedback, model = 'gemini-3-pro' } = input;
+  const { imageId, feedback, model = 'gemini-3-pro', imageSize = '2K', aspectRatio = '1:1' } = input;
   const supabase = await createClient();
 
   try {
@@ -79,6 +85,8 @@ export async function refineCogImageStandalone(
         feedback,
         originalPrompt: sourceImage.prompt || 'Image refinement',
         referenceImages: [], // Standalone mode - no reference images
+        aspectRatio,
+        imageSize,
       });
       refinedBuffer = Buffer.from(refinedResult.base64, 'base64');
       durationMs = refinedResult.metrics.durationMs;
@@ -95,7 +103,8 @@ export async function refineCogImageStandalone(
         prompt: refinementPrompt,
         referenceImages: [{ base64: imageBase64, mimeType: imageMimeType }],
         model: fluxModel,
-        aspectRatio: '1:1', // Could be derived from image dimensions
+        aspectRatio,
+        resolution: imageSize === '4K' ? '4' : imageSize === '2K' ? '2' : '1',
       });
       refinedBuffer = fluxResult.buffer;
       durationMs = fluxResult.durationMs;

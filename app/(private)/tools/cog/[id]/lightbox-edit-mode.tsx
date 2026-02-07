@@ -20,6 +20,8 @@ import { refineCogImageStandalone } from '@/lib/ai/actions/refine-cog-image-stan
 type EditMode = 'spot_removal' | 'guided_edit' | 'refine';
 type TouchupModel = 'flux-fill-dev';
 type RefinementModel = 'gemini-3-pro' | 'flux-2-pro' | 'flux-2-dev';
+type ImageSize = '1K' | '2K' | '4K';
+type AspectRatio = '1:1' | '2:3' | '3:2' | '3:4' | '4:3' | '4:5' | '5:4' | '9:16' | '16:9' | '21:9';
 
 const editModeLabels: Record<EditMode, string> = {
   spot_removal: 'Spot Removal',
@@ -43,6 +45,25 @@ const refinementModelDescriptions: Record<RefinementModel, string> = {
   'gemini-3-pro': 'Conversational refinement, best for subtle edits',
   'flux-2-pro': 'High quality regeneration with reference',
   'flux-2-dev': 'Fast regeneration with reference',
+};
+
+const imageSizeLabels: Record<ImageSize, string> = {
+  '1K': '1K (~1024px)',
+  '2K': '2K (~2048px)',
+  '4K': '4K (~4096px)',
+};
+
+const aspectRatioLabels: Record<AspectRatio, string> = {
+  '1:1': '1:1 Square',
+  '2:3': '2:3 Portrait',
+  '3:2': '3:2 Landscape',
+  '3:4': '3:4 Portrait',
+  '4:3': '4:3 Landscape',
+  '4:5': '4:5 Portrait',
+  '5:4': '5:4 Landscape',
+  '9:16': '9:16 Tall',
+  '16:9': '16:9 Wide',
+  '21:9': '21:9 Ultra-wide',
 };
 
 interface LightboxEditModeProps {
@@ -88,6 +109,8 @@ export function LightboxEditMode({
 
   // Model selection (for refine mode)
   const [refinementModel, setRefinementModel] = useState<RefinementModel>('gemini-3-pro');
+  const [imageSize, setImageSize] = useState<ImageSize>('2K');
+  const [aspectRatio, setAspectRatio] = useState<AspectRatio>('1:1');
 
   // Reset state when mode changes
   useEffect(() => {
@@ -181,6 +204,8 @@ export function LightboxEditMode({
           imageId,
           feedback: prompt.trim(),
           model: refinementModel,
+          imageSize,
+          aspectRatio,
         });
 
         if (result.success && result.newImageId) {
@@ -244,22 +269,59 @@ export function LightboxEditMode({
 
           {/* Model selector for refine mode */}
           {mode === 'refine' && (
-            <Select
-              value={refinementModel}
-              onValueChange={(v) => setRefinementModel(v as RefinementModel)}
-              disabled={isProcessing}
-            >
-              <SelectTrigger className="w-40 bg-white/10 border-white/20 text-white h-9">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {(Object.keys(refinementModelLabels) as RefinementModel[]).map((m) => (
-                  <SelectItem key={m} value={m}>
-                    {refinementModelLabels[m]}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <>
+              <Select
+                value={refinementModel}
+                onValueChange={(v) => setRefinementModel(v as RefinementModel)}
+                disabled={isProcessing}
+              >
+                <SelectTrigger className="w-40 bg-white/10 border-white/20 text-white h-9">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {(Object.keys(refinementModelLabels) as RefinementModel[]).map((m) => (
+                    <SelectItem key={m} value={m}>
+                      {refinementModelLabels[m]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              {/* Size and aspect ratio - available for all refinement models */}
+              <Select
+                value={imageSize}
+                onValueChange={(v) => setImageSize(v as ImageSize)}
+                disabled={isProcessing}
+              >
+                <SelectTrigger className="w-32 bg-white/10 border-white/20 text-white h-9">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {(Object.keys(imageSizeLabels) as ImageSize[]).map((s) => (
+                    <SelectItem key={s} value={s}>
+                      {imageSizeLabels[s]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              <Select
+                value={aspectRatio}
+                onValueChange={(v) => setAspectRatio(v as AspectRatio)}
+                disabled={isProcessing}
+              >
+                <SelectTrigger className="w-36 bg-white/10 border-white/20 text-white h-9">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {(Object.keys(aspectRatioLabels) as AspectRatio[]).map((ar) => (
+                    <SelectItem key={ar} value={ar}>
+                      {aspectRatioLabels[ar]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </>
           )}
         </div>
 
