@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, type ReactNode } from 'react'
+import { useEffect, useState, useCallback, type ReactNode } from 'react'
 import Image from 'next/image'
 
 // --- Data ---
@@ -116,6 +116,146 @@ const panelMembers = [
   { name: 'Rahul Verma', role: 'Senior Engineering Manager' },
 ]
 
+// --- Q&A Prep Data ---
+
+interface QAItem {
+  question: string
+  notes: string
+  from?: string // panelist name or 'extrapolated'
+}
+
+const theirQuestions: QAItem[] = [
+  // From the brief — design process & systems thinking
+  {
+    question: 'How do you decide what the system should handle vs. what the user should control?',
+    notes: 'Talk about the autonomy spectrum. Reference specific moments in case studies where you drew that line and why. Mention user research signals, risk tolerance, and reversibility as decision factors.',
+    from: 'Brief',
+  },
+  {
+    question: 'How do you evaluate success when outcomes are probabilistic or emergent?',
+    notes: 'Leading vs. lagging indicators. Proxy metrics for trust and adoption. Qualitative signals — support tickets, workaround behavior. Mention designing measurement into the system from the start.',
+    from: 'Brief',
+  },
+  {
+    question: 'How do you design for trust and transparency in AI-driven experiences?',
+    notes: 'Explainability, progressive disclosure of system confidence, graceful fallbacks. Reference specific patterns you\'ve used — confidence indicators, audit trails, undo affordances.',
+    from: 'Brief',
+  },
+  {
+    question: 'Where did you set direction rather than respond to requirements?',
+    notes: 'Distinguish between reacting to feature requests and identifying the underlying system need. Show strategic framing — how you reframed problems to change what got built.',
+    from: 'Brief',
+  },
+  {
+    question: 'How do you handle guardrails and failure modes in intelligent systems?',
+    notes: 'Defensive design, graceful degradation, human-in-the-loop patterns. What happens when the model is wrong? How do you prevent cascading failures? Reference concrete examples.',
+    from: 'Brief',
+  },
+  // Extrapolated — likely from Jason (conversational AI, innovation leadership)
+  {
+    question: 'How do you think about the relationship between conversational interfaces and traditional UI in complex workflows?',
+    notes: 'Multimodal interaction design. When conversation helps vs. hinders. Context switching costs. Reference Autodesk Assistant\'s approach to text-to-command in Fusion as a relevant parallel.',
+    from: 'Jason Bejot',
+  },
+  {
+    question: 'How do you build alignment when you\'re pushing a team toward a vision they haven\'t validated yet?',
+    notes: 'Storytelling, prototyping to make the abstract tangible, creating shared vocabulary. Incremental buy-in vs. big-bang reveals. Reference Jason\'s Alexa Profile work as an example of paradigm-setting.',
+    from: 'Jason Bejot',
+  },
+  // Extrapolated — likely from Michelangelo (creative direction, multi-platform)
+  {
+    question: 'How do you maintain design quality and coherence across a complex system with many surfaces?',
+    notes: 'Design systems, shared principles vs. shared components, governance models. How you balance consistency with context-appropriate variation.',
+    from: 'Michelangelo Capraro',
+  },
+  // Extrapolated — likely from Capra (platform, API experience, scaling)
+  {
+    question: 'How do you design experiences that serve both end users and the developer ecosystem building on top of the platform?',
+    notes: 'Platform thinking — APIs as UX, developer experience as product design. Reference Capra\'s APIX work. Talk about experience layers: end-user, integrator, platform.',
+    from: 'Capra J\'neva',
+  },
+  {
+    question: 'How have you identified and extracted common experience patterns across different products or domains?',
+    notes: 'Cross-product architecture, shared components vs. shared principles. Contribution models for design systems. How you get adoption without mandating it.',
+    from: 'Capra J\'neva',
+  },
+  // Extrapolated — likely from Rahul (engineering, feasibility, cross-functional)
+  {
+    question: 'How do you collaborate with engineering when the technical feasibility of a design is uncertain?',
+    notes: 'Spiking together, shared understanding of constraints, design-engineering co-creation. Prototyping as a negotiation tool. When to push back vs. adapt.',
+    from: 'Rahul Verma',
+  },
+  {
+    question: 'How do you think about technical debt in the experience layer?',
+    notes: 'UX debt — accumulated inconsistencies, workarounds, and patterns that no longer serve users. How you identify it, prioritize it, and make the case for addressing it.',
+    from: 'Rahul Verma',
+  },
+]
+
+interface MyQuestion {
+  target: string // panelist name or 'Team'
+  question: string
+  context: string // why you're asking
+}
+
+const myQuestions: MyQuestion[] = [
+  // Jason — innovation leadership, AI, team building
+  {
+    target: 'Jason Bejot',
+    question: 'You\'ve led paradigm-shifting work at Amazon and Disney. How does the innovation culture at Autodesk compare, and what does the team need most right now?',
+    context: 'Understand leadership style and what gap this role fills. Jason values innovation and complex challenges — signal that you do too.',
+  },
+  {
+    target: 'Jason Bejot',
+    question: 'Autodesk is positioning AI as an architectural layer across the platform. How is the experience design org structured to influence that — is it embedded, centralized, or something else?',
+    context: 'Understand org design and where this role sits relative to product, engineering, and research.',
+  },
+  // Michelangelo — design craft, multi-platform, creative technology
+  {
+    target: 'Michelangelo Capraro',
+    question: 'With your background spanning everything from Palm OS to VR — how do you think about the craft of interaction design when the interface is increasingly agentic rather than visual?',
+    context: 'Signal respect for his breadth. Explore how the team thinks about designing for AI-driven interactions vs. traditional UI.',
+  },
+  {
+    target: 'Michelangelo Capraro',
+    question: 'What does the design review and critique process look like on this team? How do you maintain quality bar across such different product surfaces?',
+    context: 'Understand team culture and standards. Michelangelo values art + usability — signal alignment.',
+  },
+  // Capra — platform architecture, developer experience, scaling
+  {
+    target: 'Capra J\'neva',
+    question: 'The APIX program you built scaled API experience practices across Autodesk. What did you learn about getting cross-functional adoption of experience standards at that scale?',
+    context: 'Show you\'ve done your research. Understand platform team dynamics and what\'s worked.',
+  },
+  {
+    target: 'Capra J\'neva',
+    question: 'With the shift toward MCP servers and a developer marketplace — how is the team thinking about the experience layer for third-party developers building on Autodesk\'s AI capabilities?',
+    context: 'Connect to Autodesk\'s announced MCP/marketplace strategy. Show strategic awareness.',
+  },
+  // Rahul — engineering partnership, technical feasibility
+  {
+    target: 'Rahul Verma',
+    question: 'What does the engineering-design partnership look like day to day on this team? Where does it work well, and where do you see the most friction?',
+    context: 'Understand cross-functional dynamics from the engineering perspective. Show you value the partnership.',
+  },
+  {
+    target: 'Rahul Verma',
+    question: 'When the team is working on AI-powered features, how do you think about shipping iteratively when model behavior is inherently non-deterministic?',
+    context: 'Explore engineering philosophy around shipping AI features. Show awareness of the unique challenges.',
+  },
+  // Team-level / strategic
+  {
+    target: 'Team',
+    question: 'What does success look like for whoever fills this role in the first 6 months?',
+    context: 'Clarify expectations and scope. Understand urgency and priorities.',
+  },
+  {
+    target: 'Team',
+    question: 'Autodesk has talked about the "agentic era" and Neural CAD automating 80–90% of routine design tasks. How is the experience team preparing users for that level of change in their workflow?',
+    context: 'Show you understand the strategic moment. Explore change management and user trust at scale.',
+  },
+]
+
 // --- Components ---
 
 function SectionNav({ activeId }: { activeId: string }) {
@@ -211,6 +351,78 @@ function Specimen({ entry }: { entry: TimelineEntry }) {
   )
 }
 
+function QAToggle({ activeTab, onToggle }: { activeTab: 'theirs' | 'mine'; onToggle: (tab: 'theirs' | 'mine') => void }) {
+  return (
+    <div className="flex gap-1 p-0.5 rounded-lg bg-muted/50 w-fit">
+      <button
+        onClick={() => onToggle('theirs')}
+        className={`px-3 py-1 text-xs rounded-md transition-colors ${
+          activeTab === 'theirs'
+            ? 'bg-background text-foreground shadow-sm'
+            : 'text-muted-foreground hover:text-foreground'
+        }`}
+      >
+        Their Questions
+      </button>
+      <button
+        onClick={() => onToggle('mine')}
+        className={`px-3 py-1 text-xs rounded-md transition-colors ${
+          activeTab === 'mine'
+            ? 'bg-background text-foreground shadow-sm'
+            : 'text-muted-foreground hover:text-foreground'
+        }`}
+      >
+        My Questions
+      </button>
+    </div>
+  )
+}
+
+function TheirQuestionsPanel() {
+  return (
+    <div className="space-y-6 mt-6">
+      {theirQuestions.map((q, i) => (
+        <div key={i} className="group">
+          <div className="flex items-baseline gap-2 mb-1">
+            <span className="text-[10px] text-muted-foreground/30 select-none">{String(i + 1).padStart(2, '0')}</span>
+            {q.from && (
+              <span className="text-[10px] uppercase tracking-widest text-muted-foreground/40">{q.from}</span>
+            )}
+          </div>
+          <p className="text-sm font-medium">{q.question}</p>
+          <p className="text-xs text-muted-foreground mt-1 leading-relaxed">{q.notes}</p>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function MyQuestionsPanel() {
+  const grouped = myQuestions.reduce<Record<string, MyQuestion[]>>((acc, q) => {
+    if (!acc[q.target]) acc[q.target] = []
+    acc[q.target].push(q)
+    return acc
+  }, {})
+
+  return (
+    <div className="space-y-8 mt-6">
+      {Object.entries(grouped).map(([target, questions]) => (
+        <div key={target}>
+          <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground/50 mb-3">{target}</p>
+          <div className="space-y-4">
+            {questions.map((q, i) => (
+              <div key={i}>
+                <p className="text-sm font-medium">{q.question}</p>
+                <p className="text-xs text-muted-foreground/60 mt-1 italic">{q.context}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
 function TimelineItem({ entry, index }: { entry: TimelineEntry; index: number }) {
   const isEven = index % 2 === 0
 
@@ -242,6 +454,11 @@ function TimelineItem({ entry, index }: { entry: TimelineEntry; index: number })
 
 export default function AdskDemo() {
   const [activeNavId, setActiveNavId] = useState('cover')
+  const [qaTab, setQaTab] = useState<'theirs' | 'mine'>('theirs')
+
+  const handleQaToggle = useCallback((tab: 'theirs' | 'mine') => {
+    setQaTab(tab)
+  }, [])
 
   useEffect(() => {
     const observer = new IntersectionObserver(
@@ -352,16 +569,22 @@ export default function AdskDemo() {
       </Section>
 
       {/* Q&A */}
-      <Section id="qa">
-        <div className="max-w-2xl">
+      <section
+        id="qa"
+        className="min-h-screen flex flex-col px-8 md:px-16 lg:px-24 py-16"
+      >
+        <div className="max-w-3xl">
           <div className="flex items-baseline gap-3 mb-2">
             <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Part 4</p>
             <span className="text-[10px] text-muted-foreground/50">20 min</span>
           </div>
-          <h2 className="text-3xl font-semibold tracking-tight">Q&A</h2>
-          <p className="text-muted-foreground mt-2">Open discussion with the panel</p>
+          <div className="flex items-center justify-between gap-4 mb-2">
+            <h2 className="text-3xl font-semibold tracking-tight">Q&A</h2>
+            <QAToggle activeTab={qaTab} onToggle={handleQaToggle} />
+          </div>
+          {qaTab === 'theirs' ? <TheirQuestionsPanel /> : <MyQuestionsPanel />}
         </div>
-      </Section>
+      </section>
     </div>
   )
 }
