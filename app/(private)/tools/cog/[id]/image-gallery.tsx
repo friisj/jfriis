@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { getCogImageUrl, deleteImageWithCleanup, toggleImageTag, getImageTagsBatch, getImageGroup, getImageById, addTagToImage, removeTagFromImage, mergeImagesIntoGroup, addImageToGroup } from '@/lib/cog';
+import { getCogImageUrl, deleteImageWithCleanup, toggleImageTag, getImageTagsBatch, getImageGroup, getImageById, addTagToImage, removeTagFromImage, mergeImagesIntoGroup, addImageToGroup, updateImage } from '@/lib/cog';
 import { Button } from '@/components/ui/button';
 import { LightboxEditMode } from './lightbox-edit-mode';
 import { GroupPanel } from './group-panel';
@@ -434,6 +434,11 @@ export function ImageGallery({
   // Grid drag-and-drop state for adding to groups
   const [gridDraggedId, setGridDraggedId] = useState<string | null>(null);
   const [gridDragOverId, setGridDragOverId] = useState<string | null>(null);
+
+  // Title editing state
+  const [editingTitle, setEditingTitle] = useState(false);
+  const [titleInput, setTitleInput] = useState('');
+  const [savingTitle, setSavingTitle] = useState(false);
 
   // Delete confirmation modal state (for grid + batch deletes)
   const [deleteModalTarget, setDeleteModalTarget] = useState<{
@@ -1189,6 +1194,56 @@ export function ImageGallery({
   const currentImage = groupImages.length > 0 ? groupImages[groupIndex] : gridImage;
   const currentImageTags: Set<string> = currentImage ? imageTagsMap.get(currentImage.id) || new Set<string>() : new Set<string>();
 
+  // Get display name for an image (title or filename)
+  const getDisplayName = useCallback((image: CogImage | CogImageWithGroupInfo) => {
+    return image.title || image.filename;
+  }, []);
+
+  // Start editing title
+  const handleStartEditTitle = useCallback(() => {
+    if (!currentImage) return;
+    setTitleInput(currentImage.title || currentImage.filename);
+    setEditingTitle(true);
+  }, [currentImage]);
+
+  // Save title
+  const handleSaveTitle = useCallback(async () => {
+    if (!currentImage) return;
+
+    const newTitle = titleInput.trim();
+    // If empty or same as filename, set to null (use filename as display)
+    const titleToSave = newTitle === '' || newTitle === currentImage.filename ? null : newTitle;
+
+    setSavingTitle(true);
+    try {
+      await updateImage(currentImage.id, { title: titleToSave });
+
+      // Update local state
+      setGroupImages((prev) =>
+        prev.map((img) =>
+          img.id === currentImage.id ? { ...img, title: titleToSave } : img
+        )
+      );
+      setImages((prev) =>
+        prev.map((img) =>
+          img.id === currentImage.id ? { ...img, title: titleToSave } : img
+        )
+      );
+
+      setEditingTitle(false);
+    } catch (error) {
+      console.error('Failed to save title:', error);
+    } finally {
+      setSavingTitle(false);
+    }
+  }, [currentImage, titleInput]);
+
+  // Cancel title editing
+  const handleCancelEditTitle = useCallback(() => {
+    setEditingTitle(false);
+    setTitleInput('');
+  }, []);
+
   // Get applied tag names for display
   const appliedTagNames = useMemo(() => {
     return enabledTags.filter((t) => currentImageTags.has(t.id)).map((t) => t.name);
@@ -1388,7 +1443,7 @@ export function ImageGallery({
                   )}
                 </div>
                 <div className="p-2 text-xs">
-                  <p className="truncate">{image.filename}</p>
+                  <p className="truncate">{getDisplayName(image)}</p>
                   <p className="text-muted-foreground">
                     {image.source === 'generated' ? 'Generated' : 'Uploaded'}
                   </p>
@@ -1476,16 +1531,56 @@ export function ImageGallery({
             className="flex items-center justify-between p-4 text-white"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="text-sm">
+            <div className="text-sm flex items-center gap-2">
               <span className="font-medium">
                 {selectedIndex! + 1} / {images.length}
               </span>
               {groupImages.length > 1 && (
-                <span className="ml-2 px-1.5 py-0.5 bg-blue-600/80 rounded text-[10px]">
+                <span className="px-1.5 py-0.5 bg-blue-600/80 rounded text-[10px]">
                   {groupIndex + 1}/{groupImages.length}
                 </span>
               )}
-              <span className="ml-4 text-white/60">{currentImage.filename}</span>
+              {editingTitle ? (
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    handleSaveTitle();
+                  }}
+                  className="flex items-center gap-2"
+                >
+                  <input
+                    type="text"
+                    value={titleInput}
+                    onChange={(e) => setTitleInput(e.target.value)}
+                    className="bg-white/10 border border-white/30 rounded px-2 py-0.5 text-white text-sm w-48 focus:outline-none focus:border-white/60"
+                    autoFocus
+                    disabled={savingTitle}
+                  />
+                  <button
+                    type="submit"
+                    disabled={savingTitle}
+                    className="text-green-400 hover:text-green-300 text-xs"
+                  >
+                    {savingTitle ? '...' : '✓'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleCancelEditTitle}
+                    disabled={savingTitle}
+                    className="text-white/60 hover:text-white text-xs"
+                  >
+                    ✕
+                  </button>
+                </form>
+              ) : (
+                <button
+                  onClick={handleStartEditTitle}
+                  className="text-white/60 hover:text-white hover:underline cursor-pointer"
+                  title="Click to edit title"
+                >
+                  {getDisplayName(currentImage)}
+                </button>
+              )}
             </div>
             <div className="flex items-center gap-2">
               <span className="text-xs text-white/40 hidden sm:block">

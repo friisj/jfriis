@@ -37,6 +37,7 @@ export interface CogImage {
   group_position: number | null;
   storage_path: string;
   filename: string;
+  title: string | null;
   mime_type: string;
   width: number | null;
   height: number | null;
@@ -124,6 +125,7 @@ export interface CogImageInsert {
   group_id?: string | null;  // If null, defaults to own id (new group)
   storage_path: string;
   filename: string;
+  title?: string | null;
   mime_type?: string;
   width?: number | null;
   height?: number | null;
