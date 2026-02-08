@@ -114,6 +114,14 @@ interface StoryPrompt {
   stickies: Omit<Sticky, 'color'>[]
 }
 
+// Theme labels for sticky notes
+const themeLabels = {
+  yellow: 'Systems',
+  blue: 'Ambiguity',
+  green: 'Constraints',
+  pink: 'Partnership',
+} as const
+
 const storyPrompts: StoryPrompt[] = [
   {
     id: 'perspective',
@@ -177,6 +185,7 @@ const allStickies = storyPrompts.flatMap((prompt, promptIndex) =>
   prompt.stickies.map((sticky, stickyIndex) => ({
     ...sticky,
     color: prompt.color,
+    theme: themeLabels[prompt.color],
     number: String(promptIndex * 10 + stickyIndex + 1).padStart(2, '0'),
   }))
 )
@@ -689,64 +698,50 @@ function MyQuestionsPanel() {
 function FlippableSticky({
   text,
   color,
-  number
+  number,
+  theme,
 }: {
   text: string
   color: 'yellow' | 'blue' | 'green' | 'pink'
   number: string
+  theme: string
 }) {
-  const [flipped, setFlipped] = useState(false)
+  const [revealed, setRevealed] = useState(false)
+  const [isPulsing, setIsPulsing] = useState(false)
 
   const colorClasses = {
-    yellow: { front: 'bg-yellow-100 border-yellow-200', back: 'bg-yellow-100 border-yellow-200 text-yellow-900' },
-    blue: { front: 'bg-blue-100 border-blue-200', back: 'bg-blue-100 border-blue-200 text-blue-900' },
-    green: { front: 'bg-green-100 border-green-200', back: 'bg-green-100 border-green-200 text-green-900' },
-    pink: { front: 'bg-pink-100 border-pink-200', back: 'bg-pink-100 border-pink-200 text-pink-900' },
+    yellow: 'bg-yellow-100 border-yellow-200 text-yellow-900',
+    blue: 'bg-blue-100 border-blue-200 text-blue-900',
+    green: 'bg-green-100 border-green-200 text-green-900',
+    pink: 'bg-pink-100 border-pink-200 text-pink-900',
+  }
+
+  const handleClick = () => {
+    setIsPulsing(true)
+    setTimeout(() => setIsPulsing(false), 300)
+    setRevealed(!revealed)
   }
 
   return (
     <button
-      onClick={() => setFlipped(!flipped)}
-      className="relative w-full h-[120px] perspective-1000"
-      style={{ perspective: '1000px' }}
+      onClick={handleClick}
+      className={`
+        relative w-full h-[120px] rounded border-2 shadow-md p-3
+        transition-all duration-300
+        ${colorClasses[color]}
+        ${isPulsing ? 'scale-105' : 'scale-100'}
+      `}
     >
-      <div
-        className={`
-          relative w-full h-full transition-transform duration-500 preserve-3d
-          ${flipped ? 'rotate-y-180' : ''}
-        `}
-        style={{
-          transformStyle: 'preserve-3d',
-          transform: flipped ? 'rotateY(180deg)' : 'rotateY(0deg)',
-        }}
-      >
-        {/* Front (blank with number) */}
-        <div
-          className={`
-            absolute inset-0 rounded border-2 shadow-md
-            flex items-center justify-center backface-hidden
-            ${colorClasses[color].front}
-          `}
-          style={{ backfaceVisibility: 'hidden' }}
-        >
-          <span className="text-3xl font-light opacity-20">{number}</span>
-        </div>
-
-        {/* Back (content) */}
-        <div
-          className={`
-            absolute inset-0 rounded border-2 shadow-md
-            p-3 text-xs leading-relaxed flex items-center backface-hidden
-            ${colorClasses[color].back}
-          `}
-          style={{
-            backfaceVisibility: 'hidden',
-            transform: 'rotateY(180deg)',
-          }}
-        >
+      {revealed ? (
+        <div className="text-xs leading-relaxed flex items-center h-full">
           {text}
         </div>
-      </div>
+      ) : (
+        <div className="flex flex-col items-center justify-center h-full gap-2">
+          <span className="text-3xl font-light opacity-20">{number}</span>
+          <span className="text-[10px] uppercase tracking-widest opacity-40">{theme}</span>
+        </div>
+      )}
     </button>
   )
 }
@@ -851,6 +846,7 @@ export default function AdskDemo() {
                 text={sticky.text}
                 color={sticky.color}
                 number={sticky.number}
+                theme={sticky.theme}
               />
             ))}
           </div>
