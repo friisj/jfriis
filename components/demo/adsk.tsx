@@ -68,11 +68,13 @@ const sections = [
   { id: 'work', label: 'Work' },
   { id: 'tilt-intro', label: 'Tilt' },
   { id: 'tilt-context', label: 'Context' },
+  { id: 'tilt-discovery', label: 'Discovery' },
   { id: 'tilt-problem', label: 'Problem' },
   { id: 'tilt-solution', label: 'Solution' },
   { id: 'tilt-demo', label: 'Demo' },
   { id: 'tilt-pattern', label: 'Pattern' },
   { id: 'tilt-skill', label: 'Agent Skill' },
+  { id: 'tilt-outcomes', label: 'Outcomes' },
   { id: 'qa', label: 'Q&A', time: '20 min' },
 ]
 
@@ -80,8 +82,8 @@ const sections = [
 const observableIds = [
   'cover', 'panel', 'story',
   ...timelineEntries.map((e) => e.id),
-  'tilt-intro', 'tilt-context', 'tilt-problem', 'tilt-solution',
-  'tilt-demo', 'tilt-pattern', 'tilt-skill', 'qa',
+  'tilt-intro', 'tilt-context', 'tilt-discovery', 'tilt-problem', 'tilt-solution',
+  'tilt-demo', 'tilt-pattern', 'tilt-skill', 'tilt-outcomes', 'qa',
 ]
 
 // Map timeline entry IDs back to their nav parent
@@ -527,7 +529,7 @@ export default function AdskDemo() {
             to establishing an extensible platform pattern governed by an agent skill.
           </p>
           <div className="flex gap-4 mt-6 text-xs text-muted-foreground">
-            <span>Problem &rarr; Solution &rarr; Pattern &rarr; Architecture</span>
+            <span>Discovery &rarr; Problem &rarr; Solution &rarr; Pattern &rarr; Architecture &rarr; Outcomes</span>
           </div>
         </div>
       </Section>
@@ -548,6 +550,79 @@ export default function AdskDemo() {
           </p>
           <div className="mt-6 rounded-lg border border-dashed border-border bg-muted/5 aspect-[16/9] flex items-center justify-center">
             <span className="text-xs text-muted-foreground/30 uppercase tracking-widest">Tilt platform screenshot / diagram</span>
+          </div>
+        </div>
+      </Section>
+
+      {/* Tilt Discovery — customer insights, user profiling, what was working */}
+      <Section id="tilt-discovery">
+        <div className="max-w-3xl">
+          <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground mb-2">Discovery</p>
+          <h2 className="text-2xl font-semibold tracking-tight">Users, Insights &amp; What Was Working</h2>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
+            <div>
+              <p className="text-[10px] uppercase tracking-widest text-muted-foreground/50 mb-3">User profiles</p>
+              <div className="space-y-3">
+                <div className="p-3 rounded-lg border border-border bg-muted/5">
+                  <p className="text-sm font-medium">Index strategists</p>
+                  <p className="text-xs text-muted-foreground mt-1">Domain experts building thematic and broad market indices. High financial sophistication, variable technical comfort with AI-driven tools.</p>
+                </div>
+                <div className="p-3 rounded-lg border border-border bg-muted/5">
+                  <p className="text-sm font-medium">Research analysts</p>
+                  <p className="text-xs text-muted-foreground mt-1">Exploring themes, vetting securities, and validating investment hypotheses. Need to move fast between exploration and precision.</p>
+                </div>
+                <div className="p-3 rounded-lg border border-border bg-muted/5">
+                  <p className="text-sm font-medium">Portfolio managers</p>
+                  <p className="text-xs text-muted-foreground mt-1">Reviewing and approving index compositions. Need transparency into how the agent contributed to construction decisions.</p>
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <p className="text-[10px] uppercase tracking-widest text-muted-foreground/50 mb-3">Customer insights</p>
+              <div className="space-y-3">
+                <div className="p-3 rounded-lg border border-border bg-muted/5">
+                  <p className="text-sm font-medium">&ldquo;I didn&apos;t know I could do that&rdquo;</p>
+                  <p className="text-xs text-muted-foreground mt-1">Early cohort users consistently underestimated the platform&apos;s capabilities. Tool use was invisible — discovery happened by accident or not at all.</p>
+                </div>
+                <div className="p-3 rounded-lg border border-border bg-muted/5">
+                  <p className="text-sm font-medium">Workaround behaviors</p>
+                  <p className="text-xs text-muted-foreground mt-1">Users developed verbose prompting strategies to coerce the agent into specific tool use — writing paragraphs when a button would do.</p>
+                </div>
+                <div className="p-3 rounded-lg border border-border bg-muted/5">
+                  <p className="text-sm font-medium">Trust erosion</p>
+                  <p className="text-xs text-muted-foreground mt-1">When the agent used the wrong tool or missed intent, users lost confidence in the entire system — not just that interaction.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-8">
+            <p className="text-[10px] uppercase tracking-widest text-muted-foreground/50 mb-3">What was already working</p>
+            <div className="space-y-3">
+              <div className="flex items-start gap-3">
+                <span className="text-[10px] text-muted-foreground/30 mt-1 select-none">01</span>
+                <div>
+                  <p className="text-sm font-medium">Rich tool ecosystem</p>
+                  <p className="text-xs text-muted-foreground">Multiple teams had built powerful tools — theme generation, expert sourcing, security screening, index construction. The capabilities existed.</p>
+                </div>
+              </div>
+              <div className="flex items-start gap-3">
+                <span className="text-[10px] text-muted-foreground/30 mt-1 select-none">02</span>
+                <div>
+                  <p className="text-sm font-medium">Conversational fluency</p>
+                  <p className="text-xs text-muted-foreground">The agent was strong at natural language interaction, domain reasoning, and multi-step conversation. Chat itself wasn&apos;t the problem.</p>
+                </div>
+              </div>
+              <div className="flex items-start gap-3">
+                <span className="text-[10px] text-muted-foreground/30 mt-1 select-none">03</span>
+                <div>
+                  <p className="text-sm font-medium">Guardrails and evals</p>
+                  <p className="text-xs text-muted-foreground">The system had established safety rails, evaluation criteria, and quality checks for agent outputs. The infrastructure was solid — the interaction layer was the gap.</p>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </Section>
@@ -689,6 +764,108 @@ export default function AdskDemo() {
             Oversight shifts from reviewing implementations to evolving the spec.
             The system self-extends because the spec is the teacher.
           </p>
+        </div>
+      </Section>
+
+      {/* Tilt Outcomes — deliverables, distribution, maintenance, design thinking */}
+      <Section id="tilt-outcomes">
+        <div className="max-w-3xl">
+          <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground mb-2">Outcomes</p>
+          <h2 className="text-2xl font-semibold tracking-tight">What Shipped, What Changed</h2>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
+            <div className="p-4 rounded-lg border border-border bg-muted/5">
+              <p className="text-[10px] uppercase tracking-widest text-muted-foreground/50 mb-2">Shipped</p>
+              <p className="text-sm font-medium">Attachments feature</p>
+              <p className="text-xs text-muted-foreground mt-1">Structured context sharing in chat. Multiple attachment types live in production.</p>
+            </div>
+            <div className="p-4 rounded-lg border border-border bg-muted/5">
+              <p className="text-[10px] uppercase tracking-widest text-muted-foreground/50 mb-2">Established</p>
+              <p className="text-sm font-medium">Platform pattern</p>
+              <p className="text-xs text-muted-foreground mt-1">Principles, schematics, wireframes, and extension protocol adopted by other product teams.</p>
+            </div>
+            <div className="p-4 rounded-lg border border-border bg-muted/5">
+              <p className="text-[10px] uppercase tracking-widest text-muted-foreground/50 mb-2">Authored</p>
+              <p className="text-sm font-medium">Agent skill</p>
+              <p className="text-xs text-muted-foreground mt-1">Spec consumed by coding agents for new implementations. Self-sustaining governance without top-down oversight.</p>
+            </div>
+          </div>
+
+          <div className="mt-8">
+            <p className="text-[10px] uppercase tracking-widest text-muted-foreground/50 mb-3">Full deliverables</p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-2">
+              <div className="flex items-center gap-2 py-1.5 border-b border-border/50">
+                <span className="text-xs text-muted-foreground/30">01</span>
+                <span className="text-sm">Chat attachments feature (shipped)</span>
+              </div>
+              <div className="flex items-center gap-2 py-1.5 border-b border-border/50">
+                <span className="text-xs text-muted-foreground/30">02</span>
+                <span className="text-sm">Attachment type system &amp; schema</span>
+              </div>
+              <div className="flex items-center gap-2 py-1.5 border-b border-border/50">
+                <span className="text-xs text-muted-foreground/30">03</span>
+                <span className="text-sm">Documented design principles</span>
+              </div>
+              <div className="flex items-center gap-2 py-1.5 border-b border-border/50">
+                <span className="text-xs text-muted-foreground/30">04</span>
+                <span className="text-sm">Exemplar flow schematics</span>
+              </div>
+              <div className="flex items-center gap-2 py-1.5 border-b border-border/50">
+                <span className="text-xs text-muted-foreground/30">05</span>
+                <span className="text-sm">Subcomponent wireframe library</span>
+              </div>
+              <div className="flex items-center gap-2 py-1.5 border-b border-border/50">
+                <span className="text-xs text-muted-foreground/30">06</span>
+                <span className="text-sm">Extension protocol &amp; registration spec</span>
+              </div>
+              <div className="flex items-center gap-2 py-1.5 border-b border-border/50">
+                <span className="text-xs text-muted-foreground/30">07</span>
+                <span className="text-sm">Agent skill (markdown spec for coding agents)</span>
+              </div>
+              <div className="flex items-center gap-2 py-1.5 border-b border-border/50">
+                <span className="text-xs text-muted-foreground/30">08</span>
+                <span className="text-sm">Adoption &amp; governance process</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-8">
+            <p className="text-[10px] uppercase tracking-widest text-muted-foreground/50 mb-3">Impact</p>
+            <div className="space-y-3">
+              <div className="flex items-start gap-3">
+                <span className="text-[10px] text-muted-foreground/30 mt-1 select-none">&rarr;</span>
+                <div>
+                  <p className="text-sm font-medium">Shifted product direction</p>
+                  <p className="text-xs text-muted-foreground">Attachments became the standard mechanism for user-to-agent context sharing across the platform — not just a feature on one team&apos;s roadmap.</p>
+                </div>
+              </div>
+              <div className="flex items-start gap-3">
+                <span className="text-[10px] text-muted-foreground/30 mt-1 select-none">&rarr;</span>
+                <div>
+                  <p className="text-sm font-medium">Enabled other teams</p>
+                  <p className="text-xs text-muted-foreground">Teams building new tools could ship with an attachment type, knowing it would integrate into the chat experience without coordination overhead.</p>
+                </div>
+              </div>
+              <div className="flex items-start gap-3">
+                <span className="text-[10px] text-muted-foreground/30 mt-1 select-none">&rarr;</span>
+                <div>
+                  <p className="text-sm font-medium">Changed how the org builds</p>
+                  <p className="text-xs text-muted-foreground">The agent skill established a precedent: experience architecture as a spec that machines enforce, not just humans review. Design outputs that scale through AI, not meetings.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-8 p-4 rounded-lg border border-foreground/10 bg-muted/5">
+            <p className="text-[10px] uppercase tracking-widest text-muted-foreground/50 mb-2">Design thinking breadth</p>
+            <div className="flex flex-wrap gap-2 mt-2">
+              {['Customer research', 'User profiling', 'Systems analysis', 'Interaction design', 'Prototyping', 'Pattern architecture', 'Spec authoring', 'Agent skill design', 'Governance design', 'Cross-team enablement'].map((method) => (
+                <span key={method} className="px-2 py-1 text-xs rounded-md border border-border text-muted-foreground">
+                  {method}
+                </span>
+              ))}
+            </div>
+          </div>
         </div>
       </Section>
 
