@@ -454,6 +454,10 @@ export function ImageGallery({
   const isOpen = selectedIndex !== null;
   const hasSelection = selectedIds.size > 0;
 
+  // Compute current image early so callbacks can reference it
+  const gridImage = selectedIndex !== null ? images[selectedIndex] : null;
+  const currentImage = groupImages.length > 0 ? groupImages[groupIndex] : gridImage;
+
   // Load tags for all images on mount
   useEffect(() => {
     if (images.length === 0 || enabledTags.length === 0) return;
@@ -560,28 +564,44 @@ export function ImageGallery({
   }, [groupImages.length]);
 
   const handleDelete = useCallback(async () => {
-    if (selectedIndex === null) return;
-    const imageToDelete = images[selectedIndex];
+    if (selectedIndex === null || !currentImage) return;
 
     setDeleting(true);
     try {
-      await deleteImageWithCleanup(imageToDelete.id);
+      await deleteImageWithCleanup(currentImage.id);
 
       // If primary was deleted, update local state
-      if (primaryImageId === imageToDelete.id) {
+      if (primaryImageId === currentImage.id) {
         setPrimaryImageId(null);
         onPrimaryImageChange?.(null);
       }
 
-      // Remove from local state
-      const newImages = images.filter((_, i) => i !== selectedIndex);
-      setImages(newImages);
+      // Check if the deleted image is the grid image (group primary)
+      const gridImage = images[selectedIndex];
+      const deletedIsGridImage = gridImage?.id === currentImage.id;
 
-      // Adjust selected index or close if no images left
-      if (newImages.length === 0) {
-        closeGallery();
-      } else if (selectedIndex >= newImages.length) {
-        setSelectedIndex(newImages.length - 1);
+      if (deletedIsGridImage) {
+        // Remove from main grid images
+        const newImages = images.filter((_, i) => i !== selectedIndex);
+        setImages(newImages);
+
+        // Adjust selected index or close if no images left
+        if (newImages.length === 0) {
+          closeGallery();
+        } else if (selectedIndex >= newImages.length) {
+          setSelectedIndex(newImages.length - 1);
+        }
+      } else {
+        // Deleted a group member (not the grid primary)
+        // Update group images and adjust group index
+        const newGroupImages = groupImages.filter((img) => img.id !== currentImage.id);
+        setGroupImages(newGroupImages);
+
+        if (newGroupImages.length === 0) {
+          closeGallery();
+        } else if (groupIndex >= newGroupImages.length) {
+          setGroupIndex(newGroupImages.length - 1);
+        }
       }
 
       setShowDeleteConfirm(false);
@@ -591,7 +611,7 @@ export function ImageGallery({
     } finally {
       setDeleting(false);
     }
-  }, [selectedIndex, images, router, primaryImageId, onPrimaryImageChange]);
+  }, [selectedIndex, currentImage, images, groupImages, groupIndex, router, primaryImageId, onPrimaryImageChange]);
 
   // Open delete confirmation modal for a single image from grid
   const handleDeleteFromGrid = useCallback(
@@ -1188,10 +1208,7 @@ export function ImageGallery({
     };
   }, [isOpen]);
 
-  // Primary image from grid selection
-  const gridImage = selectedIndex !== null ? images[selectedIndex] : null;
-  // Currently displayed image (may be a group member)
-  const currentImage = groupImages.length > 0 ? groupImages[groupIndex] : gridImage;
+  // Compute current image tags (currentImage is computed earlier in the component)
   const currentImageTags: Set<string> = currentImage ? imageTagsMap.get(currentImage.id) || new Set<string>() : new Set<string>();
 
   // Get display name for an image (title or filename)
