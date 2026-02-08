@@ -384,6 +384,110 @@ const myQuestions: MyQuestion[] = [
 
 // --- Components ---
 
+function Timer({
+  label,
+  durationMinutes,
+  pulseIntervalSeconds = 30,
+}: {
+  label: string
+  durationMinutes: number
+  pulseIntervalSeconds?: number
+}) {
+  const [isRunning, setIsRunning] = useState(false)
+  const [secondsRemaining, setSecondsRemaining] = useState(durationMinutes * 60)
+  const [shouldPulse, setShouldPulse] = useState(false)
+
+  const totalSeconds = durationMinutes * 60
+  const progress = ((totalSeconds - secondsRemaining) / totalSeconds) * 100
+
+  useEffect(() => {
+    if (!isRunning) return
+
+    const interval = setInterval(() => {
+      setSecondsRemaining((prev) => {
+        if (prev <= 1) {
+          setIsRunning(false)
+          return 0
+        }
+        return prev - 1
+      })
+    }, 1000)
+
+    return () => clearInterval(interval)
+  }, [isRunning])
+
+  // Pulse effect at intervals
+  useEffect(() => {
+    if (!isRunning) return
+
+    const pulseInterval = setInterval(() => {
+      setShouldPulse(true)
+      setTimeout(() => setShouldPulse(false), 300)
+    }, pulseIntervalSeconds * 1000)
+
+    return () => clearInterval(pulseInterval)
+  }, [isRunning, pulseIntervalSeconds])
+
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60)
+    const secs = seconds % 60
+    return `${mins}:${String(secs).padStart(2, '0')}`
+  }
+
+  const radius = 16
+  const circumference = 2 * Math.PI * radius
+  const strokeDashoffset = circumference - (progress / 100) * circumference
+
+  return (
+    <button
+      onClick={() => setIsRunning(!isRunning)}
+      className="flex items-center gap-2 group"
+    >
+      {/* Radial progress indicator */}
+      <div className="relative w-10 h-10">
+        <svg className="w-10 h-10 -rotate-90" viewBox="0 0 36 36">
+          {/* Background circle */}
+          <circle
+            cx="18"
+            cy="18"
+            r={radius}
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            className="text-muted-foreground/20"
+          />
+          {/* Progress circle */}
+          <circle
+            cx="18"
+            cy="18"
+            r={radius}
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeDasharray={circumference}
+            strokeDashoffset={strokeDashoffset}
+            strokeLinecap="round"
+            className={`
+              text-foreground transition-all duration-300
+              ${shouldPulse ? 'scale-105 opacity-80' : ''}
+            `}
+          />
+        </svg>
+      </div>
+
+      {/* Label and time */}
+      <div className="text-left">
+        <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground group-hover:text-foreground transition-colors">
+          {label}
+        </p>
+        <p className="text-[10px] text-muted-foreground/50">
+          {isRunning ? `${formatTime(secondsRemaining)} remaining` : `${durationMinutes} min`}
+        </p>
+      </div>
+    </button>
+  )
+}
+
 function SectionNav({ activeId }: { activeId: string }) {
   const scrollTo = (id: string) => {
     const target = id === 'work' ? 'work-1' : id
@@ -693,13 +797,8 @@ export default function AdskDemo() {
       {/* My Story */}
       <Section id="story">
         <div className="max-w-6xl">
-          <div className="flex items-baseline gap-3 mb-4">
-            <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Part 1</p>
-            <span className="text-[10px] text-muted-foreground/50">{storySection.time}</span>
-          </div>
-          <h2 className="text-3xl font-semibold tracking-tight mb-2">Tell Us Your Story</h2>
-          <p className="text-sm text-muted-foreground mb-8">Click stickies to reveal key points as you tell your story</p>
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+          <Timer label="P1: Story" durationMinutes={5} pulseIntervalSeconds={30} />
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mt-8">
             {allStickies.map((sticky) => (
               <FlippableSticky
                 key={`${sticky.color}-${sticky.id}`}
