@@ -101,6 +101,79 @@ const panelMembers = [
 
 // --- Story Narratives (Part 1) ---
 
+interface Sticky {
+  id: string
+  text: string
+  color: 'yellow' | 'blue' | 'green' | 'pink'
+}
+
+interface StoryPrompt {
+  id: string
+  prompt: string
+  color: 'yellow' | 'blue' | 'green' | 'pink'
+  stickies: Omit<Sticky, 'color'>[]
+}
+
+const storyPrompts: StoryPrompt[] = [
+  {
+    id: 'perspective',
+    prompt: 'How your perspective shapes the way you design intelligent or complex systems',
+    color: 'yellow',
+    stickies: [
+      { id: '1', text: 'Came up through entrepreneurship — 0-to-1 products where complexity is the territory' },
+      { id: '2', text: 'Joined Autodesk via Kera acquisition (2013), pushed Project Orion inter-product design system' },
+      { id: '3', text: 'Strategyzer: Led platform UX for Airbus, Ikea, Bayer — real-time multiplayer + persistent objects' },
+      { id: '4', text: 'Design from the data model up, not just the interface down' },
+      { id: '5', text: 'Tilt: 1500+ commits to production — agentic workflows, conversational AI, emergent outcomes' },
+      { id: '6', text: 'Intelligent systems demand interaction principles, tool protocols, and agent skills — not just wireframes' },
+      { id: '7', text: 'You can\'t design these systems from the outside. You have to be in the loop.' },
+    ],
+  },
+  {
+    id: 'ambiguity',
+    prompt: 'How you approach ambiguity and emerging technology',
+    color: 'blue',
+    stickies: [
+      { id: '1', text: 'Prototype early, validate often, treat uncertainty as signal' },
+      { id: '2', text: 'fforward.ai: Launched AI PM assistant early 2024 — #2 Product Hunt, 20%+ conversion' },
+      { id: '3', text: 'Learned in public, iterated fast' },
+      { id: '4', text: 'Tilt attachments: Prototyped in code, tested with users, shipped, then documented as platform pattern' },
+      { id: '5', text: 'Partner closely with AI team on prompt design, tool schemas, model behavior' },
+      { id: '6', text: 'Ambiguity isn\'t a problem to resolve before design starts — it\'s the material we\'re shaping together' },
+    ],
+  },
+  {
+    id: 'constraints',
+    prompt: 'How you balance user needs with technical and organizational constraints',
+    color: 'green',
+    stickies: [
+      { id: '1', text: 'Design WITH constraints, not around them' },
+      { id: '2', text: 'Stay close to implementation to know where the leverage points are' },
+      { id: '3', text: 'Project Orion: Built coalition, not consensus — quick wins + documentation made adoption easy' },
+      { id: '4', text: 'Strategyzer: Architectural constraint → hybrid solution (real-time + saved views)' },
+      { id: '5', text: 'Tilt: LLMs are non-deterministic → explicit affordances (attachments) absorb uncertainty' },
+      { id: '6', text: 'I code, which changes how I think about constraints — I see what\'s expensive vs. cheap to change' },
+      { id: '7', text: 'Propose solutions engineering can actually ship' },
+    ],
+  },
+  {
+    id: 'partnership',
+    prompt: 'How you typically partner with PM, engineering, data science, or research in shaping direction',
+    color: 'pink',
+    stickies: [
+      { id: '1', text: 'Design WITH the team, not in isolation — collaborative sense-making' },
+      { id: '2', text: 'Tilt: Daily in codebase (1500+ commits), pairing with engineers on implementation' },
+      { id: '3', text: 'Run customer interviews, synthesize insights, translate to testable hypotheses' },
+      { id: '4', text: 'Strategyzer: Research → synthesize → hypothesize → prototype loop shaped roadmap' },
+      { id: '5', text: 'Partnered with data science on recommendation systems — co-designed UX + feedback loops' },
+      { id: '6', text: 'Autodesk: Alignment without authority — enablement over mandates' },
+      { id: '7', text: 'Partnership as co-creation, not coordination' },
+    ],
+  },
+]
+
+// Long-form narratives kept for reference (speaker notes)
+/*
 interface StorySection {
   id: string
   prompt: string
@@ -152,6 +225,7 @@ const storyNarratives: StorySection[] = [
     ],
   },
 ]
+*/
 
 // --- Q&A Prep Data ---
 
@@ -453,19 +527,64 @@ function MyQuestionsPanel() {
   )
 }
 
-function StoryNarrative({ section, index }: { section: StorySection; index: number }) {
+function StickyNote({ text, color, revealed }: { text: string; color: string; revealed: boolean }) {
+  const colorClasses = {
+    yellow: 'bg-yellow-100 border-yellow-200 text-yellow-900',
+    blue: 'bg-blue-100 border-blue-200 text-blue-900',
+    green: 'bg-green-100 border-green-200 text-green-900',
+    pink: 'bg-pink-100 border-pink-200 text-pink-900',
+  }
+
   return (
-    <div className="mb-12 last:mb-0">
-      <div className="flex items-baseline gap-2 mb-3">
-        <span className="text-[10px] text-muted-foreground/30 select-none">{String(index + 1).padStart(2, '0')}</span>
-        <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground/70">{section.prompt}</p>
-      </div>
-      <div className="space-y-4">
-        {section.narrative.map((paragraph, i) => (
-          <p key={i} className="text-sm text-muted-foreground leading-relaxed">
-            {paragraph}
-          </p>
-        ))}
+    <div
+      className={`
+        p-3 rounded border shadow-sm text-xs leading-relaxed min-h-[60px] flex items-center
+        transition-all duration-300
+        ${revealed ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'}
+        ${colorClasses[color as keyof typeof colorClasses]}
+      `}
+    >
+      {text}
+    </div>
+  )
+}
+
+function StoryPromptSection({ prompt, index }: { prompt: StoryPrompt; index: number }) {
+  const [revealed, setRevealed] = useState(false)
+
+  return (
+    <div className="mb-10 last:mb-0">
+      <div className="flex items-start gap-3 mb-4">
+        <span className="text-[10px] text-muted-foreground/30 select-none mt-0.5">
+          {String(index + 1).padStart(2, '0')}
+        </span>
+        <div className="flex-1">
+          <button
+            onClick={() => setRevealed(!revealed)}
+            className="group text-left w-full"
+          >
+            <div className="flex items-center gap-2">
+              <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground/70 group-hover:text-foreground transition-colors">
+                {prompt.prompt}
+              </p>
+              <span className="text-xs text-muted-foreground/40 group-hover:text-muted-foreground transition-colors">
+                {revealed ? '▼' : '▶'}
+              </span>
+            </div>
+          </button>
+          {revealed && (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 mt-4">
+              {prompt.stickies.map((sticky, i) => (
+                <StickyNote
+                  key={sticky.id}
+                  text={sticky.text}
+                  color={prompt.color}
+                  revealed={revealed}
+                />
+              ))}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   )
@@ -562,14 +681,15 @@ export default function AdskDemo() {
 
       {/* My Story */}
       <Section id="story">
-        <div className="max-w-3xl">
+        <div className="max-w-5xl">
           <div className="flex items-baseline gap-3 mb-4">
             <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Part 1</p>
             <span className="text-[10px] text-muted-foreground/50">{storySection.time}</span>
           </div>
-          <h2 className="text-3xl font-semibold tracking-tight mb-8">Tell Us Your Story</h2>
-          {storyNarratives.map((section, i) => (
-            <StoryNarrative key={section.id} section={section} index={i} />
+          <h2 className="text-3xl font-semibold tracking-tight mb-2">Tell Us Your Story</h2>
+          <p className="text-sm text-muted-foreground mb-8">Click each prompt to reveal key points</p>
+          {storyPrompts.map((prompt, i) => (
+            <StoryPromptSection key={prompt.id} prompt={prompt} index={i} />
           ))}
         </div>
       </Section>
