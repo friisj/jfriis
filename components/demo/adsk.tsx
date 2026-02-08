@@ -99,6 +99,60 @@ const panelMembers = [
   { name: 'Rahul Verma', role: 'Senior Engineering Manager' },
 ]
 
+// --- Story Narratives (Part 1) ---
+
+interface StorySection {
+  id: string
+  prompt: string
+  narrative: string[]
+}
+
+const storyNarratives: StorySection[] = [
+  {
+    id: 'perspective',
+    prompt: 'How your perspective shapes the way you design intelligent or complex systems',
+    narrative: [
+      'I came up through entrepreneurship and studio work — designing and building 0-to-1 products where complexity is the territory, not an edge case. Early on, that meant multiplayer SaaS tools and mobile apps. More recently, it\'s been conversational AI platforms where the system itself is probabilistic, the user\'s intent is ambiguous, and the interaction model is still being invented.',
+      'That trajectory taught me to see complexity as a design challenge, not just an engineering one. When I joined Autodesk via acquisition in 2013, I was already thinking about systems — not just screens. I pushed for Project Orion, an inter-product design system, because I saw AutoCAD\'s fragmentation as an experience problem. The technical debt was real, but the user pain was about coherence, not just consistency.',
+      'At Strategyzer, I led platform UX for enterprise innovation teams at Airbus, Ikea, and Bayer. The product combined persistent business objects with real-time multiplayer workspaces — a system where the complexity was structural, not superficial. My perspective was: if the architecture doesn\'t support the user\'s mental model, no amount of UI polish will save you. So I designed from the data model up, not just the interface down.',
+      'Now, as Founding Designer at Tilt, I\'m building AI-first tools for financial analysts creating thematic indices. The system is agentic, the workflows are conversational, and the outcomes are emergent. My perspective is that intelligent systems demand a different kind of rigor — not wireframes and user flows, but interaction principles, tool protocols, and agent skills. I\'ve shipped 1500+ commits to the codebase because I believe you can\'t design these systems from the outside. You have to be in the loop.',
+    ],
+  },
+  {
+    id: 'ambiguity',
+    prompt: 'How you approach ambiguity and emerging technology',
+    narrative: [
+      'Ambiguity is the default state in emerging technology. The stack is unstable, the patterns aren\'t established, and users don\'t yet have language for what they need. I approach it by prototyping early, validating often, and treating uncertainty as signal, not noise.',
+      'At fforward.ai, we launched an AI product manager assistant in early 2024 — a year when "AI PM tools" meant ten different things depending on who you asked. We didn\'t wait for the category to settle. We built multiple prototypes, tested them with real PMs, and shipped what worked. We hit #2 on Product Hunt and converted 20%+ of visitors to sign-ups because we learned in public and iterated fast.',
+      'The same approach shaped my work at Tilt. When we realized users couldn\'t discover the agent\'s tool capabilities, I didn\'t spec a solution in Figma and hand it off. I prototyped chat attachments — structured objects that make tool use explicit — and tested it in code. The pattern worked, so we shipped it. Then I documented it as an extensible platform pattern with agent skill specs that other teams could adopt without needing my oversight.',
+      'Ambiguity is also where I partner most closely with engineering and product. At Strategyzer, I worked with data science on recommendation algorithms for innovation portfolios. At Tilt, I collaborate with the AI team on prompt design, tool schemas, and model behavior. The ambiguity isn\'t a problem to resolve before design starts — it\'s the material we\'re shaping together.',
+    ],
+  },
+  {
+    id: 'constraints',
+    prompt: 'How you balance user needs with technical and organizational constraints',
+    narrative: [
+      'User needs, technical constraints, and organizational realities aren\'t separate concerns — they\'re interconnected forces that define what\'s possible. I balance them by designing *with* constraints, not around them, and by staying close enough to the implementation to know where the leverage points are.',
+      'At Autodesk, I learned that organizational constraints are often more rigid than technical ones. Project Orion was a design system that crossed product boundaries — AutoCAD, Fusion, Maya. The technical work was straightforward. The organizational work was about aligning teams who didn\'t report to each other and had competing roadmaps. I balanced it by building coalition, not consensus — showing quick wins, documenting patterns, and making it easy for teams to adopt without mandating it.',
+      'At Strategyzer, the constraint was architectural. We had real-time multiplayer workspaces for corporate innovation teams, but the data model wasn\'t built for persistence. Users wanted to save their work, version it, and share it across sessions. We couldn\'t rebuild the architecture overnight, so I designed a hybrid: workspaces remained real-time and ephemeral, but we introduced "saved views" that persisted the essential state without rewriting the system. It wasn\'t perfect, but it shipped, and it unblocked users immediately.',
+      'At Tilt, the constraint is the model itself. LLMs are non-deterministic, tool use is probabilistic, and users need reliability. I balanced it by designing explicit affordances — like chat attachments — that give users control at the moment intent matters most. Instead of prompting the agent to "use the right tool," users attach structured context that guarantees the right tool fires. The UX absorbs the uncertainty so users don\'t have to.',
+      'I also code, which changes how I think about constraints. When I\'m in the codebase, I see what\'s expensive to change and what\'s cheap. I see where the system wants to go, not just where I wish it would. That makes me a better designer because I propose solutions that engineering can actually ship.',
+    ],
+  },
+  {
+    id: 'partnership',
+    prompt: 'How you typically partner with PM, engineering, data science, or research in shaping direction',
+    narrative: [
+      'I don\'t design in isolation and hand off specs. I design *with* the team — PM, engineering, research, data science — because the best solutions come from collaborative sense-making, not solo brilliance.',
+      'At Tilt, I work directly with the founders and engineering team on discovery, experiments, and roadmap. We don\'t have a formal PM, so I fill that gap — running customer interviews, synthesizing insights, and translating them into hypotheses we can test. I\'m in the codebase daily (1500+ commits in the last year), which means I\'m pairing with engineers on implementation, not just reviewing designs. When we built chat attachments, I didn\'t wireframe it and wait — I prototyped it in code, got feedback from the AI team on tool schemas, and iterated with users in beta.',
+      'At Strategyzer, I led platform UX and worked closely with PM and engineering on discovery and validation. I ran regular research with customers like Airbus and Ikea — not to gather requirements, but to understand their workflows, mental models, and pain points. Then I\'d synthesize findings with PM and propose hypotheses. Engineering would spike feasibility, and we\'d prototype together. That loop — research, synthesis, hypothesize, prototype — shaped our roadmap more than any top-down strategy deck.',
+      'I also partnered with data science at Strategyzer on recommendation systems for innovation portfolios. They brought the models, I brought the UX lens. We co-designed how recommendations surfaced, what signals we\'d use, and how users could provide feedback to improve the model over time. The partnership was iterative and hands-on — not "data science builds it, design skins it."',
+      'At Autodesk, I collaborated with PMs across AutoCAD, Fusion, and Maya on Project Orion. The partnership was about alignment without authority — I didn\'t manage those teams, but I needed their buy-in to scale the design system. So I focused on enablement: documented patterns, reusable components, and clear guidance that made it easier for teams to adopt than to go their own way.',
+      'The common thread: I treat partnership as co-creation, not coordination. I bring design thinking to the table, but I don\'t hoard the design work. I prototype with engineers, hypothesize with PMs, and validate with research. The direction emerges from the collaboration, not from me alone.',
+    ],
+  },
+]
+
 // --- Q&A Prep Data ---
 
 interface QAItem {
@@ -290,19 +344,6 @@ function Section({ id, children, className = '' }: { id: string; children: React
   )
 }
 
-function Prompts({ items }: { items: string[] }) {
-  return (
-    <ul className="space-y-2 mt-6">
-      {items.map((item, i) => (
-        <li key={i} className="flex gap-3 text-sm text-muted-foreground">
-          <span className="text-muted-foreground/30 select-none">{String(i + 1).padStart(2, '0')}</span>
-          <span>{item}</span>
-        </li>
-      ))}
-    </ul>
-  )
-}
-
 function Specimen({ entry }: { entry: TimelineEntry }) {
   const { specimen } = entry
 
@@ -412,6 +453,24 @@ function MyQuestionsPanel() {
   )
 }
 
+function StoryNarrative({ section, index }: { section: StorySection; index: number }) {
+  return (
+    <div className="mb-12 last:mb-0">
+      <div className="flex items-baseline gap-2 mb-3">
+        <span className="text-[10px] text-muted-foreground/30 select-none">{String(index + 1).padStart(2, '0')}</span>
+        <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground/70">{section.prompt}</p>
+      </div>
+      <div className="space-y-4">
+        {section.narrative.map((paragraph, i) => (
+          <p key={i} className="text-sm text-muted-foreground leading-relaxed">
+            {paragraph}
+          </p>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 function TimelineItem({ entry, index }: { entry: TimelineEntry; index: number }) {
   const isEven = index % 2 === 0
 
@@ -503,13 +562,15 @@ export default function AdskDemo() {
 
       {/* My Story */}
       <Section id="story">
-        <div className="max-w-2xl">
-          <div className="flex items-baseline gap-3 mb-2">
+        <div className="max-w-3xl">
+          <div className="flex items-baseline gap-3 mb-4">
             <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Part 1</p>
             <span className="text-[10px] text-muted-foreground/50">{storySection.time}</span>
           </div>
-          <h2 className="text-3xl font-semibold tracking-tight">Tell Us Your Story</h2>
-          <Prompts items={storySection.prompts!} />
+          <h2 className="text-3xl font-semibold tracking-tight mb-8">Tell Us Your Story</h2>
+          {storyNarratives.map((section, i) => (
+            <StoryNarrative key={section.id} section={section} index={i} />
+          ))}
         </div>
       </Section>
 
