@@ -33,9 +33,9 @@ const timelineEntries: TimelineEntry[] = [
   },
   {
     id: 'work-3',
-    title: 'Project Title',
-    description: 'Short description of the work — what it was, what you did, why it mattered.',
-    specimen: { type: 'image', alt: 'Placeholder' },
+    title: 'Ask User Question',
+    description: 'Replicated the AskUserQuestion tool pattern in Tilt to handle ambiguity when the agent isn\'t certain how to proceed. Instead of guessing or stalling, the agent surfaces a structured clarification request — giving the user control at the moment it matters most.',
+    specimen: { type: 'image', alt: 'Ask User Question pattern' },
   },
   {
     id: 'work-4',
@@ -45,9 +45,9 @@ const timelineEntries: TimelineEntry[] = [
   },
   {
     id: 'work-5',
-    title: 'Project Title',
-    description: 'Short description of the work — what it was, what you did, why it mattered.',
-    specimen: { type: 'image', alt: 'Placeholder' },
+    title: 'Chat Attachments',
+    description: 'Designed a structured attachments pattern for Tilt\'s chat interface — enabling users to share rich context (investment themes, expert selections, securities, index seeds) that reliably triggers the right tool use. Shipped the feature, then established it as an extensible platform pattern.',
+    specimen: { type: 'image', alt: 'Chat Attachments pattern' },
   },
 ]
 
@@ -66,41 +66,22 @@ const sections = [
     ],
   },
   { id: 'work', label: 'Work' },
-  { id: 'project-intro', label: 'Project' },
-  {
-    id: 'case-study-1',
-    label: 'Case Study 1',
-    time: '~18 min',
-    prompts: [
-      'What system were you designing within? Constraints and forces shaping it?',
-      'How did you structure the experience across time, states, and levels of autonomy?',
-      'What decisions were made by the system vs. the user, and why?',
-      'Architectural or strategic decisions requiring alignment across teams?',
-      'Where did you set direction rather than respond to requirements?',
-      'How did you evaluate success when outcomes were probabilistic or emergent?',
-      'How did you design for trust, transparency, or user control?',
-      'How did the system learn, adapt, or change behavior over time?',
-      'Guardrails or failure modes considered?',
-      'Outcomes: shifts in product direction, team enablement, long-term impact',
-    ],
-  },
-  {
-    id: 'case-study-2',
-    label: 'Case Study 2',
-    time: '~17 min',
-    prompts: [
-      'Show how you evolved or scaled an existing system over time',
-      'Same deep-dive dimensions as Case Study 1',
-    ],
-  },
+  { id: 'tilt-intro', label: 'Tilt' },
+  { id: 'tilt-context', label: 'Context' },
+  { id: 'tilt-problem', label: 'Problem' },
+  { id: 'tilt-solution', label: 'Solution' },
+  { id: 'tilt-demo', label: 'Demo' },
+  { id: 'tilt-pattern', label: 'Pattern' },
+  { id: 'tilt-skill', label: 'Agent Skill' },
   { id: 'qa', label: 'Q&A', time: '20 min' },
 ]
 
-// All observable IDs (sections + individual timeline entries)
+// All observable IDs (sections + individual timeline entries + Tilt sub-sections)
 const observableIds = [
   'cover', 'panel', 'story',
   ...timelineEntries.map((e) => e.id),
-  'project-intro', 'case-study-1', 'case-study-2', 'qa',
+  'tilt-intro', 'tilt-context', 'tilt-problem', 'tilt-solution',
+  'tilt-demo', 'tilt-pattern', 'tilt-skill', 'qa',
 ]
 
 // Map timeline entry IDs back to their nav parent
@@ -484,8 +465,6 @@ export default function AdskDemo() {
   }, [])
 
   const storySection = sections.find((s) => s.id === 'story')!
-  const cs1Section = sections.find((s) => s.id === 'case-study-1')!
-  const cs2Section = sections.find((s) => s.id === 'case-study-2')!
 
   return (
     <div className="relative">
@@ -537,40 +516,179 @@ export default function AdskDemo() {
         <TimelineItem key={entry.id} entry={entry} index={i} />
       ))}
 
-      {/* Project Intro — transition into main case study */}
-      <Section id="project-intro">
+      {/* Tilt Intro — transition from timeline to deep dive */}
+      <Section id="tilt-intro">
         <div className="max-w-2xl">
           <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground mb-4">Deep Dive</p>
-          <h2 className="text-3xl font-semibold tracking-tight">Project Title</h2>
+          <h2 className="text-3xl font-semibold tracking-tight">Tilt: Chat Attachments</h2>
           <p className="text-muted-foreground mt-3">
-            Brief introduction to the principal project — what it is, why it matters, and what you&apos;ll walk through.
+            A pattern for communicating rich, structured context to an AI agent —
+            from solving a discoverability problem, to shipping a feature,
+            to establishing an extensible platform pattern governed by an agent skill.
           </p>
+          <div className="flex gap-4 mt-6 text-xs text-muted-foreground">
+            <span>Problem &rarr; Solution &rarr; Pattern &rarr; Architecture</span>
+          </div>
         </div>
       </Section>
 
-      {/* Case Study 1 */}
-      <Section id="case-study-1">
-        <div className="max-w-2xl">
-          <div className="flex items-baseline gap-3 mb-2">
-            <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Part 2</p>
-            <span className="text-[10px] text-muted-foreground/50">{cs1Section.time}</span>
+      {/* Tilt Context — the system before */}
+      <Section id="tilt-context">
+        <div className="max-w-3xl">
+          <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground mb-2">Context</p>
+          <h2 className="text-2xl font-semibold tracking-tight">The System</h2>
+          <p className="text-muted-foreground mt-3 leading-relaxed">
+            Tilt is a tool for building sophisticated market indices — broad market, thematic, and more.
+            Users work with an AI agent via chat to sketch investment themes, select experts by topic,
+            pick specific securities, seed from existing indices, and compose complex strategies.
+          </p>
+          <p className="text-muted-foreground mt-3 leading-relaxed">
+            The platform had a powerful chat interface with rich integrated tooling.
+            Multiple teams had built tools the agent could use — the capability was there.
+          </p>
+          <div className="mt-6 rounded-lg border border-dashed border-border bg-muted/5 aspect-[16/9] flex items-center justify-center">
+            <span className="text-xs text-muted-foreground/30 uppercase tracking-widest">Tilt platform screenshot / diagram</span>
           </div>
-          <h2 className="text-3xl font-semibold tracking-tight">Case Study 1</h2>
-          <p className="text-muted-foreground mt-2">Complex, intelligent, or system-level experience involving AI, automation, or decision support</p>
-          <Prompts items={cs1Section.prompts!} />
         </div>
       </Section>
 
-      {/* Case Study 2 */}
-      <Section id="case-study-2">
-        <div className="max-w-2xl">
-          <div className="flex items-baseline gap-3 mb-2">
-            <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Part 3</p>
-            <span className="text-[10px] text-muted-foreground/50">{cs2Section.time}</span>
+      {/* Tilt Problem — what wasn't working */}
+      <Section id="tilt-problem">
+        <div className="max-w-3xl">
+          <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground mb-2">Problem</p>
+          <h2 className="text-2xl font-semibold tracking-tight">Implicit Needs, Unreliable Outcomes</h2>
+          <div className="space-y-4 mt-4">
+            <div className="p-4 rounded-lg border border-border bg-muted/5">
+              <p className="text-sm font-medium">High learning curve</p>
+              <p className="text-xs text-muted-foreground mt-1">Users didn&apos;t know what they could do without extensive alignment with the agent via chat. Capabilities were hidden behind conversation.</p>
+            </div>
+            <div className="p-4 rounded-lg border border-border bg-muted/5">
+              <p className="text-sm font-medium">No guarantee of tool use</p>
+              <p className="text-xs text-muted-foreground mt-1">Users could prompt the agent to use any tool, but there was no guarantee it would fire the right one. Intent was lost in translation.</p>
+            </div>
+            <div className="p-4 rounded-lg border border-border bg-muted/5">
+              <p className="text-sm font-medium">Implicit needs</p>
+              <p className="text-xs text-muted-foreground mt-1">Needs were based on tools already built by other teams on the platform. Their assets weren&apos;t reliably leveraged by early user cohorts.</p>
+            </div>
           </div>
-          <h2 className="text-3xl font-semibold tracking-tight">Case Study 2</h2>
-          <p className="text-muted-foreground mt-2">Evolving or scaling an existing system over time</p>
-          <Prompts items={cs2Section.prompts!} />
+        </div>
+      </Section>
+
+      {/* Tilt Solution — the attachments pattern */}
+      <Section id="tilt-solution">
+        <div className="max-w-3xl">
+          <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground mb-2">Solution</p>
+          <h2 className="text-2xl font-semibold tracking-tight">Chat Attachments</h2>
+          <p className="text-muted-foreground mt-3 leading-relaxed">
+            Structured objects the user attaches to a message — an investment theme, a selected expert,
+            a security, an index seed — that give the agent reliable context to trigger the right tool use.
+            Turns implicit prompting into explicit intent.
+          </p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
+            <div className="p-4 rounded-lg border border-border">
+              <p className="text-[10px] uppercase tracking-widest text-muted-foreground/50 mb-2">Before</p>
+              <p className="text-sm text-muted-foreground">&ldquo;Can you look at clean energy stocks and maybe compare them to the S&P?&rdquo;</p>
+              <p className="text-xs text-muted-foreground/50 mt-2">Agent guesses intent. May or may not use the right tool.</p>
+            </div>
+            <div className="p-4 rounded-lg border border-foreground/20 bg-muted/5">
+              <p className="text-[10px] uppercase tracking-widest text-muted-foreground/50 mb-2">After</p>
+              <p className="text-sm text-muted-foreground">&ldquo;Compare these&rdquo; + <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-muted text-xs font-mono">Theme: Clean Energy</span> + <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-muted text-xs font-mono">Index: S&P 500</span></p>
+              <p className="text-xs text-muted-foreground/50 mt-2">Agent receives structured context. Tool use is deterministic.</p>
+            </div>
+          </div>
+          <div className="mt-6 rounded-lg border border-dashed border-border bg-muted/5 aspect-[16/9] flex items-center justify-center">
+            <span className="text-xs text-muted-foreground/30 uppercase tracking-widest">Prototype extract / screenshot</span>
+          </div>
+        </div>
+      </Section>
+
+      {/* Tilt Demo — interactive prototype placeholder */}
+      <Section id="tilt-demo">
+        <div className="max-w-4xl w-full mx-auto">
+          <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground mb-4">Interactive Demo</p>
+          <div className="rounded-lg border border-dashed border-border bg-muted/5 aspect-[16/10] flex items-center justify-center">
+            <div className="text-center">
+              <p className="text-sm text-muted-foreground/40">Prototype placeholder</p>
+              <p className="text-xs text-muted-foreground/20 mt-1">Chat interface with attachments pattern</p>
+            </div>
+          </div>
+        </div>
+      </Section>
+
+      {/* Tilt Pattern — architecture and dissemination */}
+      <Section id="tilt-pattern">
+        <div className="max-w-3xl">
+          <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground mb-2">Pattern</p>
+          <h2 className="text-2xl font-semibold tracking-tight">From Feature to Architecture</h2>
+          <p className="text-muted-foreground mt-3 leading-relaxed">
+            The initial implementation shipped, but the real value was establishing attachments
+            as a principled, extensible pattern — with specs, rules, and guidelines that other
+            teams adopt and build on.
+          </p>
+          <div className="space-y-3 mt-6">
+            <div className="flex items-start gap-3">
+              <span className="text-[10px] text-muted-foreground/30 mt-1 select-none">01</span>
+              <div>
+                <p className="text-sm font-medium">Documented principles</p>
+                <p className="text-xs text-muted-foreground">Structural rules for what an attachment must contain — type, schema, display component, tool mapping.</p>
+              </div>
+            </div>
+            <div className="flex items-start gap-3">
+              <span className="text-[10px] text-muted-foreground/30 mt-1 select-none">02</span>
+              <div>
+                <p className="text-sm font-medium">Exemplar flow schematics</p>
+                <p className="text-xs text-muted-foreground">How attachments behave end-to-end: compose area, message history, agent acknowledgment.</p>
+              </div>
+            </div>
+            <div className="flex items-start gap-3">
+              <span className="text-[10px] text-muted-foreground/30 mt-1 select-none">03</span>
+              <div>
+                <p className="text-sm font-medium">Wireframe mockups</p>
+                <p className="text-xs text-muted-foreground">Common subcomponents and their variants — reusable building blocks for new attachment types.</p>
+              </div>
+            </div>
+            <div className="flex items-start gap-3">
+              <span className="text-[10px] text-muted-foreground/30 mt-1 select-none">04</span>
+              <div>
+                <p className="text-sm font-medium">Extension protocol</p>
+                <p className="text-xs text-muted-foreground">Registration mechanism so the chat agent resolves new types via schema, not hardcoded logic.</p>
+              </div>
+            </div>
+          </div>
+          <div className="mt-6 rounded-lg border border-dashed border-border bg-muted/5 aspect-[16/9] flex items-center justify-center">
+            <span className="text-xs text-muted-foreground/30 uppercase tracking-widest">Flow schematic / wireframe mockups</span>
+          </div>
+        </div>
+      </Section>
+
+      {/* Tilt Agent Skill — the capstone */}
+      <Section id="tilt-skill">
+        <div className="max-w-3xl">
+          <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground mb-2">Capstone</p>
+          <h2 className="text-2xl font-semibold tracking-tight">The Agent Skill</h2>
+          <p className="text-muted-foreground mt-3 leading-relaxed">
+            The critical output: a markdown spec that coding agents consume when building new
+            attachment types. The spec is the governance — teams don&apos;t come to you, the agent
+            reads the skill and enforces the pattern.
+          </p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
+            <div>
+              <p className="text-[10px] uppercase tracking-widest text-muted-foreground/50 mb-3">The spec</p>
+              <div className="rounded-lg border border-dashed border-border bg-muted/5 aspect-[3/4] flex items-center justify-center">
+                <span className="text-xs text-muted-foreground/30 uppercase tracking-widest">Agent skill markdown</span>
+              </div>
+            </div>
+            <div>
+              <p className="text-[10px] uppercase tracking-widest text-muted-foreground/50 mb-3">Governance &amp; adoption</p>
+              <div className="rounded-lg border border-dashed border-border bg-muted/5 aspect-[3/4] flex items-center justify-center">
+                <span className="text-xs text-muted-foreground/30 uppercase tracking-widest">Adoption schematic</span>
+              </div>
+            </div>
+          </div>
+          <p className="text-sm text-muted-foreground mt-6 leading-relaxed">
+            Oversight shifts from reviewing implementations to evolving the spec.
+            The system self-extends because the spec is the teacher.
+          </p>
         </div>
       </Section>
 
