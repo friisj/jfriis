@@ -431,6 +431,14 @@ export async function generateImageWithGemini3Pro(
     },
   };
 
+  // Safety settings - allow anatomical/artistic content (block only high-severity)
+  const safetySettings = [
+    { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_ONLY_HIGH' },
+    { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_ONLY_HIGH' },
+    { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_ONLY_HIGH' },
+    { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_ONLY_HIGH' },
+  ];
+
   // Build request body
   const requestBody = {
     contents: [
@@ -439,6 +447,7 @@ export async function generateImageWithGemini3Pro(
       },
     ],
     generationConfig,
+    safetySettings,
   };
 
   const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-pro-image-preview:generateContent`;
@@ -638,6 +647,14 @@ export async function refineImageWithFeedback(
 
   parts.push({ text: refinementPrompt });
 
+  // Safety settings - allow anatomical/artistic content (block only high-severity)
+  const safetySettings = [
+    { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_ONLY_HIGH' },
+    { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_ONLY_HIGH' },
+    { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_ONLY_HIGH' },
+    { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_ONLY_HIGH' },
+  ];
+
   // gemini-3-pro-image-preview supports both aspectRatio and imageSize
   const requestBody = {
     contents: [
@@ -652,6 +669,7 @@ export async function refineImageWithFeedback(
         imageSize,
       },
     },
+    safetySettings,
   };
 
   const endpoint = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-3-pro-image-preview:generateContent';
