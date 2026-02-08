@@ -327,70 +327,6 @@ const theirQuestions: QAItem[] = [
   },
 ]
 
-interface MyQuestion {
-  target: string // panelist name or 'Team'
-  question: string
-  context: string // why you're asking
-}
-
-const myQuestions: MyQuestion[] = [
-  // Jason — innovation leadership, AI, team building
-  {
-    target: 'Jason Bejot',
-    question: 'You\'ve led paradigm-shifting work at Amazon and Disney. How does the innovation culture at Autodesk compare, and what does the team need most right now?',
-    context: 'Understand leadership style and what gap this role fills. Jason values innovation and complex challenges — signal that you do too.',
-  },
-  {
-    target: 'Jason Bejot',
-    question: 'Autodesk is positioning AI as an architectural layer across the platform. How is the experience design org structured to influence that — is it embedded, centralized, or something else?',
-    context: 'Understand org design and where this role sits relative to product, engineering, and research.',
-  },
-  // Michelangelo — design craft, multi-platform, creative technology
-  {
-    target: 'Michelangelo Capraro',
-    question: 'With your background spanning everything from Palm OS to VR — how do you think about the craft of interaction design when the interface is increasingly agentic rather than visual?',
-    context: 'Signal respect for his breadth. Explore how the team thinks about designing for AI-driven interactions vs. traditional UI.',
-  },
-  {
-    target: 'Michelangelo Capraro',
-    question: 'What does the design review and critique process look like on this team? How do you maintain quality bar across such different product surfaces?',
-    context: 'Understand team culture and standards. Michelangelo values art + usability — signal alignment.',
-  },
-  // Capra — platform architecture, developer experience, scaling
-  {
-    target: 'Capra J\'neva',
-    question: 'The APIX program you built scaled API experience practices across Autodesk. What did you learn about getting cross-functional adoption of experience standards at that scale?',
-    context: 'Show you\'ve done your research. Understand platform team dynamics and what\'s worked.',
-  },
-  {
-    target: 'Capra J\'neva',
-    question: 'With the shift toward MCP servers and a developer marketplace — how is the team thinking about the experience layer for third-party developers building on Autodesk\'s AI capabilities?',
-    context: 'Connect to Autodesk\'s announced MCP/marketplace strategy. Show strategic awareness.',
-  },
-  // Rahul — engineering partnership, technical feasibility
-  {
-    target: 'Rahul Verma',
-    question: 'What does the engineering-design partnership look like day to day on this team? Where does it work well, and where do you see the most friction?',
-    context: 'Understand cross-functional dynamics from the engineering perspective. Show you value the partnership.',
-  },
-  {
-    target: 'Rahul Verma',
-    question: 'When the team is working on AI-powered features, how do you think about shipping iteratively when model behavior is inherently non-deterministic?',
-    context: 'Explore engineering philosophy around shipping AI features. Show awareness of the unique challenges.',
-  },
-  // Team-level / strategic
-  {
-    target: 'Team',
-    question: 'What does success look like for whoever fills this role in the first 6 months?',
-    context: 'Clarify expectations and scope. Understand urgency and priorities.',
-  },
-  {
-    target: 'Team',
-    question: 'Autodesk has talked about the "agentic era" and Neural CAD automating 80–90% of routine design tasks. How is the experience team preparing users for that level of change in their workflow?',
-    context: 'Show you understand the strategic moment. Explore change management and user trust at scale.',
-  },
-]
-
 // --- Components ---
 
 function Timer({
@@ -623,33 +559,6 @@ function Specimen({ entry }: { entry: TimelineEntry }) {
   )
 }
 
-function QAToggle({ activeTab, onToggle }: { activeTab: 'theirs' | 'mine'; onToggle: (tab: 'theirs' | 'mine') => void }) {
-  return (
-    <div className="flex gap-1 p-0.5 rounded-lg bg-muted/50 w-fit">
-      <button
-        onClick={() => onToggle('theirs')}
-        className={`px-3 py-1 text-xs rounded-md transition-colors ${
-          activeTab === 'theirs'
-            ? 'bg-background text-foreground shadow-sm'
-            : 'text-muted-foreground hover:text-foreground'
-        }`}
-      >
-        Their Questions
-      </button>
-      <button
-        onClick={() => onToggle('mine')}
-        className={`px-3 py-1 text-xs rounded-md transition-colors ${
-          activeTab === 'mine'
-            ? 'bg-background text-foreground shadow-sm'
-            : 'text-muted-foreground hover:text-foreground'
-        }`}
-      >
-        My Questions
-      </button>
-    </div>
-  )
-}
-
 function TheirQuestionsPanel() {
   return (
     <div className="space-y-6 mt-6">
@@ -663,32 +572,6 @@ function TheirQuestionsPanel() {
           </div>
           <p className="text-sm font-medium">{q.question}</p>
           <p className="text-xs text-muted-foreground mt-1 leading-relaxed">{q.notes}</p>
-        </div>
-      ))}
-    </div>
-  )
-}
-
-function MyQuestionsPanel() {
-  const grouped = myQuestions.reduce<Record<string, MyQuestion[]>>((acc, q) => {
-    if (!acc[q.target]) acc[q.target] = []
-    acc[q.target].push(q)
-    return acc
-  }, {})
-
-  return (
-    <div className="space-y-8 mt-6">
-      {Object.entries(grouped).map(([target, questions]) => (
-        <div key={target}>
-          <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground/50 mb-3">{target}</p>
-          <div className="space-y-4">
-            {questions.map((q, i) => (
-              <div key={i}>
-                <p className="text-sm font-medium">{q.question}</p>
-                <p className="text-xs text-muted-foreground/60 mt-1 italic">{q.context}</p>
-              </div>
-            ))}
-          </div>
         </div>
       ))}
     </div>
@@ -777,11 +660,6 @@ function TimelineItem({ entry, index }: { entry: TimelineEntry; index: number })
 
 export default function AdskDemo() {
   const [activeNavId, setActiveNavId] = useState('cover')
-  const [qaTab, setQaTab] = useState<'theirs' | 'mine'>('theirs')
-
-  const handleQaToggle = useCallback((tab: 'theirs' | 'mine') => {
-    setQaTab(tab)
-  }, [])
 
   useEffect(() => {
     const observer = new IntersectionObserver(
@@ -1215,15 +1093,12 @@ export default function AdskDemo() {
         className="min-h-screen flex flex-col px-8 md:px-16 lg:px-24 py-16"
       >
         <div className="max-w-3xl">
-          <div className="flex items-baseline gap-3 mb-2">
+          <div className="flex items-baseline gap-3 mb-4">
             <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Part 4</p>
             <span className="text-[10px] text-muted-foreground/50">20 min</span>
           </div>
-          <div className="flex items-center justify-between gap-4 mb-2">
-            <h2 className="text-3xl font-semibold tracking-tight">Q&A</h2>
-            <QAToggle activeTab={qaTab} onToggle={handleQaToggle} />
-          </div>
-          {qaTab === 'theirs' ? <TheirQuestionsPanel /> : <MyQuestionsPanel />}
+          <h2 className="text-3xl font-semibold tracking-tight mb-6">Q&A</h2>
+          <TheirQuestionsPanel />
         </div>
       </section>
     </div>
