@@ -172,6 +172,15 @@ const storyPrompts: StoryPrompt[] = [
   },
 ]
 
+// Flatten stickies into a single grid with sequential numbering
+const allStickies = storyPrompts.flatMap((prompt, promptIndex) =>
+  prompt.stickies.map((sticky, stickyIndex) => ({
+    ...sticky,
+    color: prompt.color,
+    number: String(promptIndex * 10 + stickyIndex + 1).padStart(2, '0'),
+  }))
+)
+
 // Long-form narratives kept for reference (speaker notes)
 /*
 interface StorySection {
@@ -527,66 +536,68 @@ function MyQuestionsPanel() {
   )
 }
 
-function StickyNote({ text, color, revealed }: { text: string; color: string; revealed: boolean }) {
+function FlippableSticky({
+  text,
+  color,
+  number
+}: {
+  text: string
+  color: 'yellow' | 'blue' | 'green' | 'pink'
+  number: string
+}) {
+  const [flipped, setFlipped] = useState(false)
+
   const colorClasses = {
-    yellow: 'bg-yellow-100 border-yellow-200 text-yellow-900',
-    blue: 'bg-blue-100 border-blue-200 text-blue-900',
-    green: 'bg-green-100 border-green-200 text-green-900',
-    pink: 'bg-pink-100 border-pink-200 text-pink-900',
+    yellow: { front: 'bg-yellow-100 border-yellow-200', back: 'bg-yellow-100 border-yellow-200 text-yellow-900' },
+    blue: { front: 'bg-blue-100 border-blue-200', back: 'bg-blue-100 border-blue-200 text-blue-900' },
+    green: { front: 'bg-green-100 border-green-200', back: 'bg-green-100 border-green-200 text-green-900' },
+    pink: { front: 'bg-pink-100 border-pink-200', back: 'bg-pink-100 border-pink-200 text-pink-900' },
   }
 
   return (
-    <div
-      className={`
-        p-3 rounded border shadow-sm text-xs leading-relaxed min-h-[60px] flex items-center
-        transition-all duration-300
-        ${revealed ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'}
-        ${colorClasses[color as keyof typeof colorClasses]}
-      `}
+    <button
+      onClick={() => setFlipped(!flipped)}
+      className="relative w-full h-[120px] perspective-1000"
+      style={{ perspective: '1000px' }}
     >
-      {text}
-    </div>
-  )
-}
+      <div
+        className={`
+          relative w-full h-full transition-transform duration-500 preserve-3d
+          ${flipped ? 'rotate-y-180' : ''}
+        `}
+        style={{
+          transformStyle: 'preserve-3d',
+          transform: flipped ? 'rotateY(180deg)' : 'rotateY(0deg)',
+        }}
+      >
+        {/* Front (blank with number) */}
+        <div
+          className={`
+            absolute inset-0 rounded border-2 shadow-md
+            flex items-center justify-center backface-hidden
+            ${colorClasses[color].front}
+          `}
+          style={{ backfaceVisibility: 'hidden' }}
+        >
+          <span className="text-3xl font-light opacity-20">{number}</span>
+        </div>
 
-function StoryPromptSection({ prompt, index }: { prompt: StoryPrompt; index: number }) {
-  const [revealed, setRevealed] = useState(false)
-
-  return (
-    <div className="mb-10 last:mb-0">
-      <div className="flex items-start gap-3 mb-4">
-        <span className="text-[10px] text-muted-foreground/30 select-none mt-0.5">
-          {String(index + 1).padStart(2, '0')}
-        </span>
-        <div className="flex-1">
-          <button
-            onClick={() => setRevealed(!revealed)}
-            className="group text-left w-full"
-          >
-            <div className="flex items-center gap-2">
-              <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground/70 group-hover:text-foreground transition-colors">
-                {prompt.prompt}
-              </p>
-              <span className="text-xs text-muted-foreground/40 group-hover:text-muted-foreground transition-colors">
-                {revealed ? '▼' : '▶'}
-              </span>
-            </div>
-          </button>
-          {revealed && (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 mt-4">
-              {prompt.stickies.map((sticky, i) => (
-                <StickyNote
-                  key={sticky.id}
-                  text={sticky.text}
-                  color={prompt.color}
-                  revealed={revealed}
-                />
-              ))}
-            </div>
-          )}
+        {/* Back (content) */}
+        <div
+          className={`
+            absolute inset-0 rounded border-2 shadow-md
+            p-3 text-xs leading-relaxed flex items-center backface-hidden
+            ${colorClasses[color].back}
+          `}
+          style={{
+            backfaceVisibility: 'hidden',
+            transform: 'rotateY(180deg)',
+          }}
+        >
+          {text}
         </div>
       </div>
-    </div>
+    </button>
   )
 }
 
@@ -681,16 +692,23 @@ export default function AdskDemo() {
 
       {/* My Story */}
       <Section id="story">
-        <div className="max-w-5xl">
+        <div className="max-w-6xl">
           <div className="flex items-baseline gap-3 mb-4">
             <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Part 1</p>
             <span className="text-[10px] text-muted-foreground/50">{storySection.time}</span>
           </div>
           <h2 className="text-3xl font-semibold tracking-tight mb-2">Tell Us Your Story</h2>
-          <p className="text-sm text-muted-foreground mb-8">Click each prompt to reveal key points</p>
-          {storyPrompts.map((prompt, i) => (
-            <StoryPromptSection key={prompt.id} prompt={prompt} index={i} />
-          ))}
+          <p className="text-sm text-muted-foreground mb-8">Click stickies to reveal key points as you tell your story</p>
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            {allStickies.map((sticky) => (
+              <FlippableSticky
+                key={`${sticky.color}-${sticky.id}`}
+                text={sticky.text}
+                color={sticky.color}
+                number={sticky.number}
+              />
+            ))}
+          </div>
         </div>
       </Section>
 
