@@ -190,6 +190,12 @@ const theirQuestions: QAItem[] = [
     notes: 'UX debt — accumulated inconsistencies, workarounds, and patterns that no longer serve users. How you identify it, prioritize it, and make the case for addressing it.',
     from: 'Rahul Verma',
   },
+  // Extrapolated — Tilt-specific follow-ups on scaling and governance
+  {
+    question: 'How does the attachments pattern sustain itself as new teams extend it without your direct oversight?',
+    notes: 'The agent skill IS the governance. The spec acts as a contract: structural rules (what an attachment must contain — type, schema, display component, tool mapping), interaction principles (compose area behavior, message history rendering, agent acknowledgment), and an extension protocol (registration so the chat agent resolves new types via schema, not hardcoded logic). Teams that deviate get friction from the agent itself. Your oversight shifts from reviewing implementations to evolving the spec. Connects directly to Capra\'s APIX scaling work and Rahul\'s coordination overhead concerns.',
+    from: 'Extrapolated',
+  },
 ]
 
 interface MyQuestion {
