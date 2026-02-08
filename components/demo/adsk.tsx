@@ -394,6 +394,7 @@ function Timer({
   pulseIntervalSeconds?: number
 }) {
   const [isRunning, setIsRunning] = useState(false)
+  const [hasStarted, setHasStarted] = useState(false)
   const [secondsRemaining, setSecondsRemaining] = useState(durationMinutes * 60)
   const [shouldPulse, setShouldPulse] = useState(false)
 
@@ -434,36 +435,48 @@ function Timer({
     return `${mins}:${String(secs).padStart(2, '0')}`
   }
 
-  const radius = 16
+  const handleStart = () => {
+    setIsRunning(true)
+    setHasStarted(true)
+  }
+
+  const handlePause = () => {
+    setIsRunning(false)
+  }
+
+  const handleReset = () => {
+    setIsRunning(false)
+    setHasStarted(false)
+    setSecondsRemaining(totalSeconds)
+  }
+
+  const radius = 12
   const circumference = 2 * Math.PI * radius
   const strokeDashoffset = circumference - (progress / 100) * circumference
 
   return (
-    <button
-      onClick={() => setIsRunning(!isRunning)}
-      className="flex items-center gap-2 group"
-    >
+    <div className="flex items-center gap-3 mb-8">
       {/* Radial progress indicator */}
-      <div className="relative w-10 h-10">
-        <svg className="w-10 h-10 -rotate-90" viewBox="0 0 36 36">
+      <div className="relative w-7 h-7 flex-shrink-0">
+        <svg className="w-7 h-7 -rotate-90" viewBox="0 0 28 28">
           {/* Background circle */}
           <circle
-            cx="18"
-            cy="18"
+            cx="14"
+            cy="14"
             r={radius}
             fill="none"
             stroke="currentColor"
-            strokeWidth="2"
+            strokeWidth="1.5"
             className="text-muted-foreground/20"
           />
           {/* Progress circle */}
           <circle
-            cx="18"
-            cy="18"
+            cx="14"
+            cy="14"
             r={radius}
             fill="none"
             stroke="currentColor"
-            strokeWidth="2"
+            strokeWidth="1.5"
             strokeDasharray={circumference}
             strokeDashoffset={strokeDashoffset}
             strokeLinecap="round"
@@ -475,16 +488,49 @@ function Timer({
         </svg>
       </div>
 
-      {/* Label and time */}
-      <div className="text-left">
-        <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground group-hover:text-foreground transition-colors">
-          {label}
-        </p>
-        <p className="text-[10px] text-muted-foreground/50">
-          {isRunning ? `${formatTime(secondsRemaining)} remaining` : `${durationMinutes} min`}
-        </p>
-      </div>
-    </button>
+      {/* Label and controls */}
+      {!hasStarted ? (
+        <button
+          onClick={handleStart}
+          className="flex items-baseline gap-2 group"
+        >
+          <span className="text-xs uppercase tracking-[0.2em] text-muted-foreground group-hover:text-foreground transition-colors">
+            {label}
+          </span>
+          <span className="text-[10px] text-muted-foreground/50">
+            {durationMinutes} min
+          </span>
+        </button>
+      ) : isRunning ? (
+        <button
+          onClick={handlePause}
+          className="flex items-baseline gap-2 group"
+        >
+          <span className="text-xs uppercase tracking-[0.2em] text-muted-foreground group-hover:text-foreground transition-colors">
+            {label}
+          </span>
+          <span className="text-[10px] text-muted-foreground/50">
+            {formatTime(secondsRemaining)} remaining
+          </span>
+        </button>
+      ) : (
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setIsRunning(true)}
+            className="text-xs uppercase tracking-[0.2em] text-muted-foreground hover:text-foreground transition-colors"
+          >
+            Resume
+          </button>
+          <span className="text-[10px] text-muted-foreground/30">|</span>
+          <button
+            onClick={handleReset}
+            className="text-xs uppercase tracking-[0.2em] text-muted-foreground hover:text-foreground transition-colors"
+          >
+            Reset
+          </button>
+        </div>
+      )}
+    </div>
   )
 }
 
@@ -798,7 +844,7 @@ export default function AdskDemo() {
       <Section id="story">
         <div className="max-w-6xl">
           <Timer label="P1: Story" durationMinutes={5} pulseIntervalSeconds={30} />
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mt-8">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
             {allStickies.map((sticky) => (
               <FlippableSticky
                 key={`${sticky.color}-${sticky.id}`}
