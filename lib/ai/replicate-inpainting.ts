@@ -152,6 +152,9 @@ export async function inpaintWithReplicate(
     megapixels: 'match_input', // Preserve input resolution
     output_format: 'png',
     output_quality: 100,
+    // Safety settings - most permissive for private creative use
+    // flux-fill-dev uses safety_tolerance (1=strict, 6=most permissive)
+    safety_tolerance: 6,
   };
 
   // Only add seed if specified (otherwise let model generate random)
