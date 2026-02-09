@@ -14,10 +14,13 @@ import {
 } from '@/components/ui/select';
 import { Loader2, Shuffle, Trash2, Paintbrush, Eraser } from 'lucide-react';
 import { MaskCanvas, type MaskCanvasRef, type MaskTool } from './mask-canvas';
+import { MorphCanvas, type MorphCanvasRef } from './morph-canvas';
 import { touchupCogImage } from '@/lib/ai/actions/touchup-cog-image';
 import { refineCogImageStandalone } from '@/lib/ai/actions/refine-cog-image-standalone';
+import { morphCogImage } from '@/lib/ai/actions/morph-cog-image';
 
-type EditMode = 'spot_removal' | 'guided_edit' | 'refine';
+type EditMode = 'spot_removal' | 'guided_edit' | 'refine' | 'morph';
+type MorphTool = 'bloat' | 'pucker';
 type TouchupModel = 'flux-fill-dev';
 type RefinementModel = 'gemini-3-pro' | 'flux-2-pro' | 'flux-2-dev';
 type ImageSize = '1K' | '2K' | '4K';
@@ -27,12 +30,14 @@ const editModeLabels: Record<EditMode, string> = {
   spot_removal: 'Spot Removal',
   guided_edit: 'Guided Edit',
   refine: 'Refine',
+  morph: 'Morph',
 };
 
 const editModeDescriptions: Record<EditMode, string> = {
   spot_removal: 'Paint over areas to remove (blemishes, objects). AI fills naturally.',
   guided_edit: 'Paint areas to change, describe what you want instead.',
   refine: 'Describe changes to regenerate the image with reference.',
+  morph: 'Click to bloat or pucker areas. Save creates a duplicate in the group.',
 };
 
 const refinementModelLabels: Record<RefinementModel, string> = {
@@ -112,6 +117,13 @@ export function LightboxEditMode({
   const [imageSize, setImageSize] = useState<ImageSize>('2K');
   const [aspectRatio, setAspectRatio] = useState<AspectRatio>('1:1');
 
+  // Morph state (for morph mode)
+  const [morphTool, setMorphTool] = useState<MorphTool>('bloat');
+  const [morphStrength, setMorphStrength] = useState(50);
+  const [morphRadius, setMorphRadius] = useState(100);
+  const [hasMorphed, setHasMorphed] = useState(false);
+  const morphCanvasRef = useRef<MorphCanvasRef | null>(null);
+
   // Reset state when mode changes
   useEffect(() => {
     setError(null);
@@ -185,6 +197,9 @@ export function LightboxEditMode({
     if (mode === 'refine') {
       return prompt.trim().length > 0;
     }
+    if (mode === 'morph') {
+      return hasMorphed;
+    }
     // Touchup modes require mask
     if (!maskBase64) return false;
     if (mode === 'guided_edit' && !prompt.trim()) return false;
@@ -213,6 +228,24 @@ export function LightboxEditMode({
         } else {
           setError(result.error || 'Refinement failed');
         }
+      } else if (mode === 'morph') {
+        // Use morph action
+        const morphedDataURL = morphCanvasRef.current?.getResultDataURL();
+        if (!morphedDataURL) {
+          setError('No morphed image to save');
+          return;
+        }
+
+        const result = await morphCogImage({
+          originalImageId: imageId,
+          morphedImageDataURL: morphedDataURL,
+        });
+
+        if (result.success && result.imageId) {
+          onSuccess(result.imageId);
+        } else {
+          setError(result.error || 'Morph failed');
+        }
       } else {
         // Use touchup action (spot_removal or guided_edit)
         const result = await touchupCogImage({
@@ -240,6 +273,7 @@ export function LightboxEditMode({
 
   const needsMask = mode === 'spot_removal' || mode === 'guided_edit';
   const needsPrompt = mode === 'guided_edit' || mode === 'refine';
+  const needsMorphCanvas = mode === 'morph';
 
   return (
     <div
@@ -356,12 +390,105 @@ export function LightboxEditMode({
             brushSize={brushSize}
             maskOpacity={maskOpacity}
           />
+        ) : needsMorphCanvas ? (
+          <MorphCanvas
+            ref={morphCanvasRef}
+            imageUrl={imageUrl}
+            imageWidth={imageWidth}
+            imageHeight={imageHeight}
+            tool={morphTool}
+            strength={morphStrength}
+            radius={morphRadius}
+            onMorphApplied={() => setHasMorphed(true)}
+          />
         ) : (
           <img
             src={imageUrl}
             alt="Image to refine"
             className="max-w-full max-h-[calc(100vh-200px)] object-contain rounded"
           />
+        )}
+
+        {/* Floating Morph Tool Palette */}
+        {needsMorphCanvas && (
+          <div className="absolute bottom-4 left-4 flex items-center gap-3 bg-black/80 backdrop-blur-sm rounded-lg p-2 border border-white/20">
+            {/* Tool selection */}
+            <div className="flex gap-1 bg-white/10 rounded-md p-0.5">
+              <Button
+                variant={morphTool === 'bloat' ? 'default' : 'ghost'}
+                size="sm"
+                onClick={() => setMorphTool('bloat')}
+                disabled={isProcessing}
+                className="h-8 px-3 text-xs"
+              >
+                Bloat
+              </Button>
+              <Button
+                variant={morphTool === 'pucker' ? 'default' : 'ghost'}
+                size="sm"
+                onClick={() => setMorphTool('pucker')}
+                disabled={isProcessing}
+                className="h-8 px-3 text-xs"
+              >
+                Pucker
+              </Button>
+            </div>
+
+            <div className="w-px h-6 bg-white/20" />
+
+            {/* Strength */}
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-white/60">Strength</span>
+              <Slider
+                value={[morphStrength]}
+                onValueChange={([v]) => setMorphStrength(v)}
+                min={10}
+                max={100}
+                step={5}
+                disabled={isProcessing}
+                className="w-24"
+              />
+              <span className="text-xs text-white/60 w-8 text-right">{morphStrength}</span>
+            </div>
+
+            <div className="w-px h-6 bg-white/20" />
+
+            {/* Radius */}
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-white/60">Radius</span>
+              <Slider
+                value={[morphRadius]}
+                onValueChange={([v]) => setMorphRadius(v)}
+                min={30}
+                max={300}
+                step={10}
+                disabled={isProcessing}
+                className="w-24"
+              />
+              <span className="text-xs text-white/60 w-8 text-right">{morphRadius}</span>
+            </div>
+
+            <div className="w-px h-6 bg-white/20" />
+
+            {/* Clear morph */}
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                morphCanvasRef.current?.clearMorph();
+                setHasMorphed(false);
+              }}
+              disabled={isProcessing || !hasMorphed}
+              className="h-8 px-2 text-white/70 hover:text-white hover:bg-white/10"
+              title="Reset to original"
+            >
+              <Trash2 className="w-4 h-4" />
+            </Button>
+
+            {hasMorphed && (
+              <span className="text-xs text-green-400 ml-1">Modified</span>
+            )}
+          </div>
         )}
 
         {/* Floating Tool Palette */}
@@ -572,6 +699,28 @@ export function LightboxEditMode({
                 )}
               </Button>
             </>
+          ) : mode === 'morph' ? (
+            <div className="flex-1 flex items-center justify-between">
+              <div className="text-sm text-white/50">
+                {hasMorphed
+                  ? 'Click Save to create a duplicate with your changes.'
+                  : 'Click on the image to morph. Use the tools above to adjust effect.'}
+              </div>
+              <Button
+                onClick={handleSubmit}
+                disabled={!canSubmit || isProcessing}
+                className="bg-white text-black hover:bg-white/90 h-11 px-6"
+              >
+                {isProcessing ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  'Save'
+                )}
+              </Button>
+            </div>
           ) : (
             <div className="flex-1 flex items-center justify-between">
               <div className="text-sm text-white/50">
