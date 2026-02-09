@@ -27,6 +27,7 @@ export const MorphCanvas = forwardRef<MorphCanvasRef, MorphCanvasProps>(
     const textureRef = useRef<any>(null)
     const [isLoaded, setIsLoaded] = useState(false)
     const [isApplying, setIsApplying] = useState(false)
+    const [cursorPos, setCursorPos] = useState<{ x: number; y: number } | null>(null)
 
     // Initialize glfx canvas
     useEffect(() => {
@@ -79,6 +80,20 @@ export const MorphCanvas = forwardRef<MorphCanvasRef, MorphCanvasProps>(
         mounted = false
       }
     }, [imageUrl])
+
+    // Handle mouse move to show cursor
+    const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
+      if (!displayCanvasRef.current) return
+      const rect = displayCanvasRef.current.getBoundingClientRect()
+      setCursorPos({
+        x: e.clientX - rect.left,
+        y: e.clientY - rect.top,
+      })
+    }
+
+    const handleMouseLeave = () => {
+      setCursorPos(null)
+    }
 
     // Handle click to apply morph
     const handleCanvasClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
@@ -158,6 +173,11 @@ export const MorphCanvas = forwardRef<MorphCanvasRef, MorphCanvasProps>(
       },
     }))
 
+    // Calculate cursor radius in screen space
+    const cursorRadius = displayCanvasRef.current
+      ? (radius * displayCanvasRef.current.getBoundingClientRect().width) / imageWidth
+      : radius
+
     return (
       <div ref={containerRef} className="relative w-full h-full flex items-center justify-center bg-black">
         <canvas
@@ -165,10 +185,28 @@ export const MorphCanvas = forwardRef<MorphCanvasRef, MorphCanvasProps>(
           width={imageWidth}
           height={imageHeight}
           onClick={handleCanvasClick}
+          onMouseMove={handleMouseMove}
+          onMouseLeave={handleMouseLeave}
           className={`max-w-full max-h-full object-contain ${
-            isApplying ? 'cursor-wait' : 'cursor-crosshair'
+            isApplying ? 'cursor-none' : 'cursor-none'
           }`}
         />
+
+        {/* Cursor overlay */}
+        {cursorPos && !isApplying && (
+          <div
+            className="absolute pointer-events-none rounded-full border-2 border-white/60"
+            style={{
+              left: cursorPos.x,
+              top: cursorPos.y,
+              width: cursorRadius * 2,
+              height: cursorRadius * 2,
+              transform: 'translate(-50%, -50%)',
+              boxShadow: '0 0 0 1px rgba(0,0,0,0.3)',
+            }}
+          />
+        )}
+
         {!isLoaded && (
           <div className="absolute inset-0 flex items-center justify-center">
             <div className="text-sm text-muted-foreground">Loading...</div>
