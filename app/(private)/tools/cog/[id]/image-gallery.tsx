@@ -552,15 +552,15 @@ export function ImageGallery({
     setShowDeleteConfirm(false);
   }, [selectedIndex, images.length]);
 
-  // Group navigation (up = older, down = newer)
+  // Group navigation (loops at boundaries)
   const goToPreviousInGroup = useCallback(() => {
     if (groupImages.length <= 1) return;
-    setGroupIndex((prev) => (prev > 0 ? prev - 1 : prev));
+    setGroupIndex((prev) => (prev > 0 ? prev - 1 : groupImages.length - 1));
   }, [groupImages.length]);
 
   const goToNextInGroup = useCallback(() => {
     if (groupImages.length <= 1) return;
-    setGroupIndex((prev) => (prev < groupImages.length - 1 ? prev + 1 : prev));
+    setGroupIndex((prev) => (prev < groupImages.length - 1 ? prev + 1 : 0));
   }, [groupImages.length]);
 
   const handleDelete = useCallback(async () => {
@@ -927,7 +927,7 @@ export function ImageGallery({
       if (idx >= 0) {
         setGroupIndex(idx);
       }
-      setShowGroupPanel(false);
+      // Keep group panel open so user can continue browsing
     },
     [groupImages]
   );
