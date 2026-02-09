@@ -384,7 +384,11 @@ export function ImageEditor({ seriesId, imageId }: ImageEditorProps) {
                         <div
                           key={img.id}
                           className={`relative flex-shrink-0 rounded-lg overflow-hidden ${
-                            isCurrent ? 'ring-2 ring-white' : ''
+                            isCurrent
+                              ? 'ring-2 ring-white'
+                              : isPrimary
+                              ? 'ring-2 ring-blue-500'
+                              : 'ring-1 ring-white/10'
                           }`}
                         >
                           {/* Thumbnail */}
@@ -406,7 +410,16 @@ export function ImageEditor({ seriesId, imageId }: ImageEditorProps) {
 
                           {/* Primary badge */}
                           {isPrimary && (
-                            <div className="absolute top-1 left-1 px-1.5 py-0.5 bg-blue-500 rounded text-[10px] font-medium text-white">
+                            <div className="absolute top-1 left-1 px-2 py-0.5 bg-blue-500 rounded-md text-[10px] font-semibold text-white shadow-lg flex items-center gap-1">
+                              <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                width="10"
+                                height="10"
+                                viewBox="0 0 24 24"
+                                fill="currentColor"
+                              >
+                                <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+                              </svg>
                               Primary
                             </div>
                           )}
