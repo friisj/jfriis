@@ -6,6 +6,7 @@ import { TransformWrapper, TransformComponent } from 'react-zoom-pan-pinch'
 import { Button } from '@/components/ui/button'
 import { getCogImageUrl } from '@/lib/cog'
 import type { CogImageWithGroupInfo } from '@/lib/types/cog'
+import { setPrimaryImage, removeFromGroup, deleteImage } from '@/lib/ai/actions/manage-group'
 
 interface ImageEditorProps {
   seriesId: string
@@ -17,6 +18,9 @@ export function ImageEditor({ seriesId, imageId }: ImageEditorProps) {
   const [images, setImages] = useState<CogImageWithGroupInfo[]>([])
   const [currentIndex, setCurrentIndex] = useState(0)
   const [isLoading, setIsLoading] = useState(true)
+  const [showGroupMode, setShowGroupMode] = useState(false)
+  const [groupImages, setGroupImages] = useState<CogImageWithGroupInfo[]>([])
+  const [loadingGroup, setLoadingGroup] = useState(false)
 
   // Fetch series images
   useEffect(() => {
@@ -43,7 +47,35 @@ export function ImageEditor({ seriesId, imageId }: ImageEditorProps) {
 
   const currentImage = images[currentIndex]
 
+  // Fetch group images when current image changes
+  useEffect(() => {
+    async function loadGroupImages() {
+      if (!currentImage?.group_id) {
+        setGroupImages([])
+        return
+      }
+
+      setLoadingGroup(true)
+      try {
+        const response = await fetch(`/api/cog/groups/${currentImage.group_id}/images`)
+        const data = await response.json()
+        setGroupImages(data)
+      } catch (error) {
+        console.error('Failed to load group images:', error)
+      } finally {
+        setLoadingGroup(false)
+      }
+    }
+
+    loadGroupImages()
+  }, [currentImage?.group_id])
+
+  const hasGroup = groupImages.length > 1
+
   // Navigation
+  const exitToGrid = useCallback(() => {
+    router.push(`/tools/cog/${seriesId}`)
+  }, [router, seriesId])
   const goToPrevious = useCallback(() => {
     if (currentIndex > 0) {
       const prevImage = images[currentIndex - 1]
@@ -58,9 +90,69 @@ export function ImageEditor({ seriesId, imageId }: ImageEditorProps) {
     }
   }, [currentIndex, images, router, seriesId])
 
-  const exitToGrid = useCallback(() => {
-    router.push(`/tools/cog/${seriesId}`)
-  }, [router, seriesId])
+  // Group management actions
+  const handleSetPrimary = useCallback(async (imageId: string) => {
+    const result = await setPrimaryImage(imageId)
+    if (result.success) {
+      // Reload group images to reflect change
+      if (currentImage?.group_id) {
+        const response = await fetch(`/api/cog/groups/${currentImage.group_id}/images`)
+        const data = await response.json()
+        setGroupImages(data)
+      }
+    } else {
+      alert(`Failed to set primary: ${result.error}`)
+    }
+  }, [currentImage?.group_id])
+
+  const handleRemoveFromGroup = useCallback(async (imageId: string) => {
+    if (!confirm('Remove this image from the group?')) return
+
+    const result = await removeFromGroup(imageId)
+    if (result.success) {
+      // Reload group images
+      if (currentImage?.group_id) {
+        const response = await fetch(`/api/cog/groups/${currentImage.group_id}/images`)
+        const data = await response.json()
+        setGroupImages(data)
+
+        // If we removed the current image, exit group mode
+        if (imageId === currentImage.id) {
+          setShowGroupMode(false)
+        }
+      }
+    } else {
+      alert(`Failed to remove from group: ${result.error}`)
+    }
+  }, [currentImage?.group_id, currentImage?.id])
+
+  const handleDeleteImage = useCallback(async (imageId: string) => {
+    if (!confirm('Permanently delete this image? This cannot be undone.')) return
+
+    const result = await deleteImage(imageId)
+    if (result.success) {
+      // If we deleted the current image, navigate away
+      if (imageId === currentImage.id) {
+        // Try to go to next image, or previous, or back to grid
+        if (currentIndex < images.length - 1) {
+          goToNext()
+        } else if (currentIndex > 0) {
+          goToPrevious()
+        } else {
+          exitToGrid()
+        }
+      } else {
+        // Reload group images
+        if (currentImage?.group_id) {
+          const response = await fetch(`/api/cog/groups/${currentImage.group_id}/images`)
+          const data = await response.json()
+          setGroupImages(data)
+        }
+      }
+    } else {
+      alert(`Failed to delete image: ${result.error}`)
+    }
+  }, [currentImage?.group_id, currentImage?.id, currentIndex, images.length, goToNext, goToPrevious, exitToGrid])
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -72,7 +164,11 @@ export function ImageEditor({ seriesId, imageId }: ImageEditorProps) {
 
       switch (e.key) {
         case 'Escape':
-          exitToGrid()
+          if (showGroupMode) {
+            setShowGroupMode(false)
+          } else {
+            exitToGrid()
+          }
           break
         case 'ArrowLeft':
           e.preventDefault()
@@ -82,12 +178,18 @@ export function ImageEditor({ seriesId, imageId }: ImageEditorProps) {
           e.preventDefault()
           goToNext()
           break
+        case 'g':
+        case 'G':
+          if (hasGroup) {
+            setShowGroupMode((prev) => !prev)
+          }
+          break
       }
     }
 
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [exitToGrid, goToPrevious, goToNext])
+  }, [exitToGrid, goToPrevious, goToNext, hasGroup, showGroupMode])
 
   if (isLoading || !currentImage) {
     return (
@@ -102,20 +204,48 @@ export function ImageEditor({ seriesId, imageId }: ImageEditorProps) {
       {/* Header */}
       <header className="flex items-center justify-between px-4 py-3 border-b border-white/10">
         <div className="flex items-center gap-3 text-white">
-          <span className="text-sm font-medium">
-            {currentIndex + 1} / {images.length}
-          </span>
+          {showGroupMode ? (
+            <span className="text-sm font-medium">
+              {currentImage.title || currentImage.filename} (Group)
+            </span>
+          ) : (
+            <span className="text-sm font-medium">
+              {currentIndex + 1} / {images.length}
+            </span>
+          )}
         </div>
 
         <div className="flex items-center gap-2">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={exitToGrid}
-            className="text-white hover:bg-white/10"
-          >
-            Close
-          </Button>
+          {hasGroup && !showGroupMode && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowGroupMode(true)}
+              className="text-white hover:bg-white/10"
+            >
+              Group
+            </Button>
+          )}
+          {showGroupMode && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowGroupMode(false)}
+              className="text-white hover:bg-white/10"
+            >
+              Close Group
+            </Button>
+          )}
+          {!showGroupMode && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={exitToGrid}
+              className="text-white hover:bg-white/10"
+            >
+              Close
+            </Button>
+          )}
         </div>
       </header>
 
@@ -229,10 +359,100 @@ export function ImageEditor({ seriesId, imageId }: ImageEditorProps) {
         </TransformWrapper>
       </div>
 
+      {/* Group Drawer - Overlays bottom when active */}
+      {showGroupMode && (
+        <div className="absolute bottom-0 left-0 right-0 z-20 bg-black/90 backdrop-blur-md border-t border-white/10">
+          <div className="px-4 py-4">
+            {loadingGroup ? (
+              <div className="flex items-center justify-center py-8">
+                <div className="text-sm text-white/40">Loading group...</div>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <div className="text-xs text-white/60 font-medium">
+                  {groupImages.length} images in group
+                </div>
+
+                {/* Horizontal thumbnail scroll */}
+                <div className="overflow-x-auto -mx-4 px-4">
+                  <div className="flex gap-3 pb-2">
+                    {groupImages.map((img) => {
+                      const isCurrent = img.id === currentImage.id
+                      const isPrimary = img.id === img.group_id
+
+                      return (
+                        <div
+                          key={img.id}
+                          className={`relative flex-shrink-0 rounded-lg overflow-hidden ${
+                            isCurrent ? 'ring-2 ring-white' : ''
+                          }`}
+                        >
+                          {/* Thumbnail */}
+                          <button
+                            onClick={() => {
+                              const index = images.findIndex((i) => i.id === img.id)
+                              if (index !== -1) {
+                                router.push(`/tools/cog/${seriesId}/editor/${img.id}`)
+                              }
+                            }}
+                            className="block w-32 h-32 bg-white/5"
+                          >
+                            <img
+                              src={getCogImageUrl(img.storage_path)}
+                              alt={img.filename}
+                              className="w-full h-full object-cover"
+                            />
+                          </button>
+
+                          {/* Primary badge */}
+                          {isPrimary && (
+                            <div className="absolute top-1 left-1 px-1.5 py-0.5 bg-blue-500 rounded text-[10px] font-medium text-white">
+                              Primary
+                            </div>
+                          )}
+
+                          {/* Controls */}
+                          <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-2 space-y-1">
+                            {!isPrimary && (
+                              <button
+                                onClick={() => handleSetPrimary(img.id)}
+                                className="w-full px-2 py-1 text-[10px] font-medium text-white bg-white/10 hover:bg-white/20 rounded transition-colors"
+                              >
+                                Set Primary
+                              </button>
+                            )}
+
+                            <div className="flex gap-1">
+                              <button
+                                onClick={() => handleRemoveFromGroup(img.id)}
+                                className="flex-1 px-2 py-1 text-[10px] font-medium text-white/70 bg-white/5 hover:bg-white/10 rounded transition-colors"
+                              >
+                                Remove
+                              </button>
+
+                              <button
+                                onClick={() => handleDeleteImage(img.id)}
+                                className="flex-1 px-2 py-1 text-[10px] font-medium text-red-400/70 bg-red-500/10 hover:bg-red-500/20 rounded transition-colors"
+                              >
+                                Delete
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Footer - Keyboard hints */}
       <footer className="px-4 py-2 border-t border-white/10">
         <div className="text-xs text-white/40 text-center">
-          ←→ navigate · +/- zoom · double-click reset · esc close
+          ←→ navigate · +/- zoom · double-click reset{hasGroup ? ' · g group' : ''} · esc close
         </div>
       </footer>
     </div>
