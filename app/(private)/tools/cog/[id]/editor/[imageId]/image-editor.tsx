@@ -8,7 +8,10 @@ import { getCogImageUrl } from '@/lib/cog'
 import type { CogImageWithGroupInfo } from '@/lib/types/cog'
 import { setPrimaryImage, removeFromGroup, deleteImage } from '@/lib/ai/actions/manage-group'
 import { MorphCanvas, type MorphCanvasRef } from '../../morph-canvas'
+import { MaskCanvas, type MaskCanvasRef } from '../../mask-canvas'
 import { morphCogImage } from '@/lib/ai/actions/morph-cog-image'
+import { refineCogImageStandalone } from '@/lib/ai/actions/refine-cog-image-standalone'
+import { touchupCogImage } from '@/lib/ai/actions/touchup-cog-image'
 
 interface ImageEditorProps {
   seriesId: string
@@ -37,6 +40,27 @@ export function ImageEditor({ seriesId, imageId }: ImageEditorProps) {
   const [morphRadius, setMorphRadius] = useState(100)
   const [hasMorphed, setHasMorphed] = useState(false)
   const [isSavingMorph, setIsSavingMorph] = useState(false)
+
+  // Refine mode state
+  type RefinementModel = 'gemini-3-pro' | 'flux-2-pro' | 'flux-2-dev'
+  type ImageSize = '1K' | '2K' | '4K'
+  type AspectRatio = '1:1' | '16:9' | '4:3' | '3:2' | '9:16' | '2:3'
+  const [refinePrompt, setRefinePrompt] = useState('')
+  const [refineModel, setRefineModel] = useState<RefinementModel>('gemini-3-pro')
+  const [refineSize, setRefineSize] = useState<ImageSize>('2K')
+  const [refineAspectRatio, setRefineAspectRatio] = useState<AspectRatio>('1:1')
+  const [isRefining, setIsRefining] = useState(false)
+
+  // Spot removal mode state
+  const spotMaskCanvasRef = useRef<MaskCanvasRef>(null)
+  const [spotMaskBase64, setSpotMaskBase64] = useState<string | null>(null)
+  const [isSavingSpotRemoval, setIsSavingSpotRemoval] = useState(false)
+
+  // Guided edit mode state
+  const guidedMaskCanvasRef = useRef<MaskCanvasRef>(null)
+  const [guidedMaskBase64, setGuidedMaskBase64] = useState<string | null>(null)
+  const [guidedPrompt, setGuidedPrompt] = useState('')
+  const [isSavingGuidedEdit, setIsSavingGuidedEdit] = useState(false)
 
   // Fetch series images
   useEffect(() => {
@@ -132,6 +156,108 @@ export function ImageEditor({ seriesId, imageId }: ImageEditorProps) {
     }
   }, [])
 
+  // Refine handler
+  const handleRefineGenerate = useCallback(async () => {
+    if (!refinePrompt.trim() || !currentImage) return
+
+    setIsRefining(true)
+    try {
+      const result = await refineCogImageStandalone({
+        imageId: currentImage.id,
+        feedback: refinePrompt.trim(),
+        model: refineModel,
+        imageSize: refineSize,
+        aspectRatio: refineAspectRatio,
+      })
+
+      if (result.success) {
+        setEditMode(null)
+        setRefinePrompt('')
+
+        const response = await fetch(`/api/cog/series/${seriesId}/images`)
+        const data = await response.json()
+        setImages(data)
+
+        alert('Refined image generated successfully!')
+      } else {
+        alert(`Failed to refine: ${result.error}`)
+      }
+    } catch (error) {
+      console.error('Refine error:', error)
+      alert('Failed to generate refinement')
+    } finally {
+      setIsRefining(false)
+    }
+  }, [refinePrompt, refineModel, refineSize, refineAspectRatio, currentImage, seriesId])
+
+  // Spot removal handler
+  const handleSpotRemoval = useCallback(async () => {
+    if (!spotMaskBase64 || !currentImage) return
+
+    setIsSavingSpotRemoval(true)
+    try {
+      const result = await touchupCogImage({
+        imageId: currentImage.id,
+        maskBase64: spotMaskBase64,
+        mode: 'spot_removal',
+      })
+
+      if (result.success) {
+        setEditMode(null)
+        setSpotMaskBase64(null)
+        spotMaskCanvasRef.current?.clearMask()
+
+        const response = await fetch(`/api/cog/series/${seriesId}/images`)
+        const data = await response.json()
+        setImages(data)
+
+        alert('Spot removal complete!')
+      } else {
+        alert(`Failed: ${result.error}`)
+      }
+    } catch (error) {
+      console.error('Spot removal error:', error)
+      alert('Failed to remove spots')
+    } finally {
+      setIsSavingSpotRemoval(false)
+    }
+  }, [spotMaskBase64, currentImage, seriesId])
+
+  // Guided edit handler
+  const handleGuidedEdit = useCallback(async () => {
+    if (!guidedMaskBase64 || !guidedPrompt.trim() || !currentImage) return
+
+    setIsSavingGuidedEdit(true)
+    try {
+      const result = await touchupCogImage({
+        imageId: currentImage.id,
+        maskBase64: guidedMaskBase64,
+        prompt: guidedPrompt.trim(),
+        mode: 'guided_edit',
+      })
+
+      if (result.success) {
+        setEditMode(null)
+        setGuidedMaskBase64(null)
+        setGuidedPrompt('')
+        guidedMaskCanvasRef.current?.clearMask()
+
+        const response = await fetch(`/api/cog/series/${seriesId}/images`)
+        const data = await response.json()
+        setImages(data)
+
+        alert('Guided edit complete!')
+      } else {
+        alert(`Failed: ${result.error}`)
+      }
+    } catch (error) {
+      console.error('Guided edit error:', error)
+      alert('Failed to apply edit')
+    } finally {
+      setIsSavingGuidedEdit(false)
+    }
+  }, [guidedMaskBase64, guidedPrompt, currentImage, seriesId])
+
   // Navigation
   const exitToGrid = useCallback(() => {
     router.push(`/tools/cog/${seriesId}`)
@@ -213,6 +339,35 @@ export function ImageEditor({ seriesId, imageId }: ImageEditorProps) {
       alert(`Failed to delete image: ${result.error}`)
     }
   }, [currentImage?.group_id, currentImage?.id, currentIndex, images.length, goToNext, goToPrevious, exitToGrid])
+
+  // Reset edit state when mode changes
+  useEffect(() => {
+    if (editMode !== 'refine') {
+      setRefinePrompt('')
+      setIsRefining(false)
+    }
+    if (editMode !== 'spot_removal') {
+      setSpotMaskBase64(null)
+      setIsSavingSpotRemoval(false)
+    }
+    if (editMode !== 'guided_edit') {
+      setGuidedMaskBase64(null)
+      setGuidedPrompt('')
+      setIsSavingGuidedEdit(false)
+    }
+  }, [editMode])
+
+  // Reset all edit state when navigating to different image
+  useEffect(() => {
+    setEditMode(null)
+    setRefinePrompt('')
+    setSpotMaskBase64(null)
+    setGuidedMaskBase64(null)
+    setGuidedPrompt('')
+    setIsRefining(false)
+    setIsSavingSpotRemoval(false)
+    setIsSavingGuidedEdit(false)
+  }, [currentImage?.id])
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -468,6 +623,27 @@ export function ImageEditor({ seriesId, imageId }: ImageEditorProps) {
             )}
           </TransformWrapper>
         )}
+
+        {/* Mask Canvas Overlays for Spot Removal and Guided Edit */}
+        {(editMode === 'spot_removal' || editMode === 'guided_edit') && (
+          <div className="absolute inset-0 z-10 pointer-events-auto">
+            <MaskCanvas
+              ref={editMode === 'spot_removal' ? spotMaskCanvasRef : guidedMaskCanvasRef}
+              imageUrl={getCogImageUrl(currentImage.storage_path)}
+              imageWidth={currentImage.width || 1024}
+              imageHeight={currentImage.height || 1024}
+              onMaskChange={(mask) => {
+                if (editMode === 'spot_removal') {
+                  setSpotMaskBase64(mask)
+                } else {
+                  setGuidedMaskBase64(mask)
+                }
+              }}
+              hideToolbar={false}
+              maxHeight="calc(100vh - 200px)"
+            />
+          </div>
+        )}
       </div>
 
       {/* Edit Mode Palette - Overlays bottom when active */}
@@ -603,18 +779,178 @@ export function ImageEditor({ seriesId, imageId }: ImageEditorProps) {
                 </div>
               )}
               {editMode === 'refine' && (
-                <div className="text-sm text-white/70">
-                  Refine mode - Coming soon
+                <div className="space-y-3">
+                  {/* Prompt */}
+                  <div>
+                    <label className="text-xs text-white/60 font-medium mb-1 block">
+                      Describe Changes
+                    </label>
+                    <textarea
+                      value={refinePrompt}
+                      onChange={(e) => setRefinePrompt(e.target.value)}
+                      placeholder="E.g., 'Make the sky more dramatic' or 'Add warmer tones'"
+                      className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded text-sm text-white resize-none"
+                      rows={2}
+                      disabled={isRefining}
+                    />
+                  </div>
+
+                  {/* Model Selector */}
+                  <div className="flex items-center gap-3">
+                    <label className="text-xs text-white/60 font-medium">Model:</label>
+                    <select
+                      value={refineModel}
+                      onChange={(e) => setRefineModel(e.target.value as RefinementModel)}
+                      className="flex-1 px-3 py-1.5 bg-white/10 border border-white/20 rounded text-xs text-white"
+                      disabled={isRefining}
+                    >
+                      <option value="gemini-3-pro">Gemini 3 Pro (Conversational)</option>
+                      <option value="flux-2-pro">Flux 2 Pro (High Quality)</option>
+                      <option value="flux-2-dev">Flux 2 Dev (Fast)</option>
+                    </select>
+                  </div>
+
+                  {/* Resolution + Aspect Ratio */}
+                  <div className="flex items-center gap-3">
+                    <div className="flex-1">
+                      <label className="text-xs text-white/60 font-medium mb-1 block">
+                        Resolution
+                      </label>
+                      <select
+                        value={refineSize}
+                        onChange={(e) => setRefineSize(e.target.value as ImageSize)}
+                        className="w-full px-3 py-1.5 bg-white/10 border border-white/20 rounded text-xs text-white"
+                        disabled={isRefining}
+                      >
+                        <option value="1K">1K (~1024px)</option>
+                        <option value="2K">2K (~2048px)</option>
+                        <option value="4K">4K (~4096px)</option>
+                      </select>
+                    </div>
+                    <div className="flex-1">
+                      <label className="text-xs text-white/60 font-medium mb-1 block">
+                        Aspect Ratio
+                      </label>
+                      <select
+                        value={refineAspectRatio}
+                        onChange={(e) => setRefineAspectRatio(e.target.value as AspectRatio)}
+                        className="w-full px-3 py-1.5 bg-white/10 border border-white/20 rounded text-xs text-white"
+                        disabled={isRefining}
+                      >
+                        <option value="1:1">1:1 Square</option>
+                        <option value="16:9">16:9 Wide</option>
+                        <option value="4:3">4:3 Landscape</option>
+                        <option value="3:2">3:2 Standard</option>
+                        <option value="9:16">9:16 Portrait</option>
+                        <option value="2:3">2:3 Portrait</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* Actions */}
+                  <div className="flex items-center gap-2 pt-2">
+                    <button
+                      onClick={handleRefineGenerate}
+                      disabled={!refinePrompt.trim() || isRefining}
+                      className="px-3 py-1.5 text-xs font-medium text-white bg-blue-500 hover:bg-blue-600 rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                    >
+                      {isRefining ? 'Generating...' : 'Generate Refinement'}
+                    </button>
+                    <button
+                      onClick={() => setRefinePrompt('')}
+                      disabled={!refinePrompt || isRefining}
+                      className="px-3 py-1.5 text-xs font-medium text-white bg-white/10 hover:bg-white/20 rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                    >
+                      Clear
+                    </button>
+                    <div className="text-xs text-white/40 ml-2">
+                      Takes 30-60 seconds depending on model
+                    </div>
+                  </div>
                 </div>
               )}
               {editMode === 'spot_removal' && (
-                <div className="text-sm text-white/70">
-                  Spot removal mode - Coming soon
+                <div className="space-y-3">
+                  <div className="text-sm text-white/70">
+                    Paint over areas to remove. Click Generate when ready.
+                  </div>
+
+                  {/* Actions */}
+                  <div className="flex items-center gap-2 pt-2">
+                    <button
+                      onClick={() => {
+                        setSpotMaskBase64(null)
+                        spotMaskCanvasRef.current?.clearMask()
+                      }}
+                      disabled={!spotMaskBase64 || isSavingSpotRemoval}
+                      className="px-3 py-1.5 text-xs font-medium text-white bg-white/10 hover:bg-white/20 rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                    >
+                      Clear Mask
+                    </button>
+                    <button
+                      onClick={handleSpotRemoval}
+                      disabled={!spotMaskBase64 || isSavingSpotRemoval}
+                      className="px-3 py-1.5 text-xs font-medium text-white bg-blue-500 hover:bg-blue-600 rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                    >
+                      {isSavingSpotRemoval ? 'Generating...' : 'Generate Removal'}
+                    </button>
+                    <div className="text-xs text-white/40 ml-2">
+                      Takes 15-30 seconds
+                    </div>
+                  </div>
                 </div>
               )}
               {editMode === 'guided_edit' && (
-                <div className="text-sm text-white/70">
-                  Guided edit mode - Coming soon
+                <div className="space-y-3">
+                  <div className="text-sm text-white/70">
+                    Paint over the area to edit, then describe what you want to change.
+                  </div>
+
+                  {/* Prompt */}
+                  <div>
+                    <label className="text-xs text-white/60 font-medium mb-1 block">
+                      Edit Instruction
+                    </label>
+                    <input
+                      type="text"
+                      value={guidedPrompt}
+                      onChange={(e) => setGuidedPrompt(e.target.value)}
+                      placeholder="E.g., 'Replace with a window' or 'Change to sunset lighting'"
+                      className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded text-sm text-white"
+                      disabled={isSavingGuidedEdit}
+                    />
+                  </div>
+
+                  {/* Actions */}
+                  <div className="flex items-center gap-2 pt-2">
+                    <button
+                      onClick={() => {
+                        setGuidedMaskBase64(null)
+                        guidedMaskCanvasRef.current?.clearMask()
+                      }}
+                      disabled={!guidedMaskBase64 || isSavingGuidedEdit}
+                      className="px-3 py-1.5 text-xs font-medium text-white bg-white/10 hover:bg-white/20 rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                    >
+                      Clear Mask
+                    </button>
+                    <button
+                      onClick={handleGuidedEdit}
+                      disabled={!guidedMaskBase64 || !guidedPrompt.trim() || isSavingGuidedEdit}
+                      className="px-3 py-1.5 text-xs font-medium text-white bg-blue-500 hover:bg-blue-600 rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                    >
+                      {isSavingGuidedEdit ? 'Generating...' : 'Generate Edit'}
+                    </button>
+                    <button
+                      onClick={() => setGuidedPrompt('')}
+                      disabled={!guidedPrompt || isSavingGuidedEdit}
+                      className="px-3 py-1.5 text-xs font-medium text-white bg-white/10 hover:bg-white/20 rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                    >
+                      Clear Prompt
+                    </button>
+                    <div className="text-xs text-white/40 ml-2">
+                      Takes 15-40 seconds
+                    </div>
+                  </div>
                 </div>
               )}
             </div>
@@ -721,6 +1057,21 @@ export function ImageEditor({ seriesId, imageId }: ImageEditorProps) {
                 </div>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Loading overlay - shown during any edit generation */}
+      {(isRefining || isSavingSpotRemoval || isSavingGuidedEdit) && (
+        <div className="absolute inset-0 bg-black/70 flex items-center justify-center z-40 backdrop-blur-sm">
+          <div className="flex flex-col items-center gap-3 bg-black/80 px-8 py-6 rounded-lg border border-white/10">
+            <div className="w-10 h-10 border-3 border-white/30 border-t-white rounded-full animate-spin" />
+            <div className="text-sm font-medium text-white">
+              {isRefining && 'Generating refinement...'}
+              {isSavingSpotRemoval && 'Removing spots...'}
+              {isSavingGuidedEdit && 'Applying guided edit...'}
+            </div>
+            <div className="text-xs text-white/50">This may take 30-60 seconds</div>
           </div>
         </div>
       )}
