@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { getCogImageUrl, getCogThumbnailUrl, getImageGroup, setSeriesPrimaryImage, deleteImageWithCleanup, removeImageFromGroup, reorderGroupImages } from '@/lib/cog';
+import { getImageGroup, setSeriesPrimaryImage, deleteImageWithCleanup, removeImageFromGroup, reorderGroupImages } from '@/lib/cog';
+import { CogDrawerImage } from '@/components/cog/cog-image';
 import type { CogImage } from '@/lib/types/cog';
 
 interface GroupPanelProps {
@@ -284,12 +285,14 @@ export function GroupPanel({
                       : 'hover:ring-2 hover:ring-white/40 hover:ring-offset-2 hover:ring-offset-black'
                   } ${isLoading ? 'opacity-50' : ''}`}
                 >
-                  <img
-                    src={getCogThumbnailUrl(image.storage_path, image.thumbnail_128, 128)}
+                  <CogDrawerImage
+                    storagePath={image.storage_path}
                     alt={`Image ${index + 1}`}
-                    className="w-16 h-16 object-cover rounded pointer-events-none"
-                    loading="lazy"
-                    decoding="async"
+                    thumbnail128={image.thumbnail_128}
+                    thumbnail64={image.thumbnail_64}
+                    width={64}
+                    height={64}
+                    className="rounded pointer-events-none"
                   />
 
                   {/* Hover tooltip with prompt */}

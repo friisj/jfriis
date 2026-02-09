@@ -4,7 +4,8 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { TransformWrapper, TransformComponent } from 'react-zoom-pan-pinch'
 import { Button } from '@/components/ui/button'
-import { getCogImageUrl, getCogThumbnailUrl } from '@/lib/cog'
+import { getCogImageUrl } from '@/lib/cog'
+import { CogDrawerImage } from '@/components/cog/cog-image'
 import type { CogImageWithGroupInfo } from '@/lib/types/cog'
 import { setPrimaryImage, removeFromGroup, deleteImage } from '@/lib/ai/actions/manage-group'
 import { MorphCanvas, type MorphCanvasRef } from '../../morph-canvas'
@@ -1299,12 +1300,14 @@ export function ImageEditor({ seriesId, imageId }: ImageEditorProps) {
                             }}
                             className="block w-32 h-32 bg-white/5"
                           >
-                            <img
-                              src={getCogThumbnailUrl(img.storage_path, img.thumbnail_128, 128)}
+                            <CogDrawerImage
+                              storagePath={img.storage_path}
                               alt={img.filename}
-                              className="w-full h-full object-cover"
-                              loading="lazy"
-                              decoding="async"
+                              thumbnail128={img.thumbnail_128}
+                              thumbnail64={img.thumbnail_64}
+                              width={128}
+                              height={128}
+                              className="object-cover"
                             />
                           </button>
 
