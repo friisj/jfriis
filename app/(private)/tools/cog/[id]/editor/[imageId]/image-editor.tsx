@@ -28,6 +28,7 @@ export function ImageEditor({ seriesId, imageId }: ImageEditorProps) {
   const [showGroupMode, setShowGroupMode] = useState(searchParams.get('group') === 'true')
   const [groupImages, setGroupImages] = useState<CogImageWithGroupInfo[]>([])
   const [loadingGroup, setLoadingGroup] = useState(false)
+  const [currentGroupIndex, setCurrentGroupIndex] = useState(0)
 
   // Edit mode state
   type EditMode = 'morph' | 'refine' | 'spot_removal' | 'guided_edit'
@@ -107,11 +108,17 @@ export function ImageEditor({ seriesId, imageId }: ImageEditorProps) {
 
   const currentImage = images[currentIndex]
 
+  // Get the displayed image (group image when in group mode, series image otherwise)
+  const displayedImage = showGroupMode && groupImages.length > 0
+    ? groupImages[currentGroupIndex]
+    : currentImage
+
   // Fetch group images when current image changes
   useEffect(() => {
     async function loadGroupImages() {
       if (!currentImage?.group_id) {
         setGroupImages([])
+        setCurrentGroupIndex(0)
         return
       }
 
@@ -120,6 +127,10 @@ export function ImageEditor({ seriesId, imageId }: ImageEditorProps) {
         const response = await fetch(`/api/cog/groups/${currentImage.group_id}/images`)
         const data = await response.json()
         setGroupImages(data)
+
+        // Find the index of the current image in the group
+        const index = data.findIndex((img: CogImageWithGroupInfo) => img.id === currentImage.id)
+        setCurrentGroupIndex(index >= 0 ? index : 0)
       } catch (error) {
         console.error('Failed to load group images:', error)
       } finally {
@@ -128,7 +139,7 @@ export function ImageEditor({ seriesId, imageId }: ImageEditorProps) {
     }
 
     loadGroupImages()
-  }, [currentImage?.group_id])
+  }, [currentImage?.group_id, currentImage?.id])
 
   const hasGroup = groupImages.length > 1
 
@@ -286,11 +297,9 @@ export function ImageEditor({ seriesId, imageId }: ImageEditorProps) {
   // Navigate within current scope (group or series)
   const goToPrevious = useCallback(() => {
     if (showGroupMode) {
-      // Navigate within group
-      const currentGroupIndex = groupImages.findIndex(img => img.id === currentImage.id)
+      // Navigate within group (use local state, no page reload)
       if (currentGroupIndex > 0) {
-        const prevImage = groupImages[currentGroupIndex - 1]
-        router.push(`/tools/cog/${seriesId}/editor/${prevImage.id}?group=true`)
+        setCurrentGroupIndex(currentGroupIndex - 1)
       }
     } else {
       // Navigate within series
@@ -299,15 +308,13 @@ export function ImageEditor({ seriesId, imageId }: ImageEditorProps) {
         router.push(`/tools/cog/${seriesId}/editor/${prevImage.id}`)
       }
     }
-  }, [showGroupMode, groupImages, currentImage, currentIndex, images, router, seriesId])
+  }, [showGroupMode, currentGroupIndex, currentIndex, images, router, seriesId])
 
   const goToNext = useCallback(() => {
     if (showGroupMode) {
-      // Navigate within group
-      const currentGroupIndex = groupImages.findIndex(img => img.id === currentImage.id)
+      // Navigate within group (use local state, no page reload)
       if (currentGroupIndex < groupImages.length - 1) {
-        const nextImage = groupImages[currentGroupIndex + 1]
-        router.push(`/tools/cog/${seriesId}/editor/${nextImage.id}?group=true`)
+        setCurrentGroupIndex(currentGroupIndex + 1)
       }
     } else {
       // Navigate within series
@@ -316,7 +323,7 @@ export function ImageEditor({ seriesId, imageId }: ImageEditorProps) {
         router.push(`/tools/cog/${seriesId}/editor/${nextImage.id}`)
       }
     }
-  }, [showGroupMode, groupImages, currentImage, currentIndex, images, router, seriesId])
+  }, [showGroupMode, currentGroupIndex, groupImages.length, currentIndex, images, router, seriesId])
 
   // Group management actions
   const handleSetPrimary = useCallback(async (imageId: string) => {
@@ -500,19 +507,14 @@ export function ImageEditor({ seriesId, imageId }: ImageEditorProps) {
     const links: HTMLLinkElement[] = []
     const currentIdx = images.findIndex((img) => img.id === currentImage.id)
 
-    // In group mode, preload adjacent group images
+    // In group mode, preload ALL group images for instant navigation
     if (showGroupMode && groupImages.length > 0) {
-      const groupIdx = groupImages.findIndex((img) => img.id === currentImage.id)
-
-      // Preload next in group
-      if (groupIdx < groupImages.length - 1) {
-        links.push(preloadImage(getCogImageUrl(groupImages[groupIdx + 1].storage_path)))
-      }
-
-      // Preload previous in group
-      if (groupIdx > 0) {
-        links.push(preloadImage(getCogImageUrl(groupImages[groupIdx - 1].storage_path)))
-      }
+      groupImages.forEach((img) => {
+        // Skip the currently displayed image
+        if (img.id !== displayedImage.id) {
+          links.push(preloadImage(getCogImageUrl(img.storage_path)))
+        }
+      })
     } else {
       // In series mode, preload adjacent series images
       if (currentIdx < images.length - 1) {
@@ -528,7 +530,7 @@ export function ImageEditor({ seriesId, imageId }: ImageEditorProps) {
     return () => {
       links.forEach((link) => link.remove())
     }
-  }, [currentImage, images, showGroupMode, groupImages])
+  }, [currentImage, displayedImage, images, showGroupMode, groupImages])
 
   if (isLoading || !currentImage) {
     return (
@@ -662,9 +664,9 @@ export function ImageEditor({ seriesId, imageId }: ImageEditorProps) {
           /* Morph Canvas */
           <MorphCanvas
             ref={morphCanvasRef}
-            imageUrl={getCogImageUrl(currentImage.storage_path)}
-            imageWidth={currentImage.width || 1024}
-            imageHeight={currentImage.height || 1024}
+            imageUrl={getCogImageUrl(displayedImage.storage_path)}
+            imageWidth={displayedImage.width || 1024}
+            imageHeight={displayedImage.height || 1024}
             tool={morphTool}
             strength={morphStrength}
             radius={morphRadius}
@@ -675,9 +677,9 @@ export function ImageEditor({ seriesId, imageId }: ImageEditorProps) {
           <div className="w-full h-full flex items-center justify-center bg-black">
             <MaskCanvas
               ref={editMode === 'spot_removal' ? spotMaskCanvasRef : guidedMaskCanvasRef}
-              imageUrl={getCogImageUrl(currentImage.storage_path)}
-              imageWidth={currentImage.width || 1024}
-              imageHeight={currentImage.height || 1024}
+              imageUrl={getCogImageUrl(displayedImage.storage_path)}
+              imageWidth={displayedImage.width || 1024}
+              imageHeight={displayedImage.height || 1024}
               onMaskChange={(mask) => {
                 if (editMode === 'spot_removal') {
                   setSpotMaskBase64(mask)
@@ -832,8 +834,8 @@ export function ImageEditor({ seriesId, imageId }: ImageEditorProps) {
                   }}
                 >
                   <img
-                    src={getCogImageUrl(currentImage.storage_path)}
-                    alt={currentImage.filename}
+                    src={getCogImageUrl(displayedImage.storage_path)}
+                    alt={displayedImage.filename}
                     className="max-w-[90vw] max-h-[90vh] object-contain select-none"
                     draggable={false}
                     style={{ maxWidth: '90vw', maxHeight: '90vh' }}
@@ -1283,8 +1285,8 @@ export function ImageEditor({ seriesId, imageId }: ImageEditorProps) {
                 {/* Horizontal thumbnail scroll */}
                 <div className="overflow-x-auto -mx-4 px-4">
                   <div className="flex gap-3 pb-2">
-                    {groupImages.map((img) => {
-                      const isCurrent = img.id === currentImage.id
+                    {groupImages.map((img, index) => {
+                      const isCurrent = index === currentGroupIndex
                       const isPrimary = img.id === img.group_id
 
                       return (
@@ -1301,7 +1303,11 @@ export function ImageEditor({ seriesId, imageId }: ImageEditorProps) {
                           {/* Thumbnail */}
                           <button
                             onClick={() => {
-                              router.push(`/tools/cog/${seriesId}/editor/${img.id}?group=true`)
+                              // Navigate within group using local state (no page reload)
+                              const index = groupImages.findIndex(g => g.id === img.id)
+                              if (index >= 0) {
+                                setCurrentGroupIndex(index)
+                              }
                             }}
                             className="block w-32 h-32 bg-white/5"
                           >
