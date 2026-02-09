@@ -1538,6 +1538,7 @@ export function ImageGallery({
       {/* Lightbox */}
       {isOpen && currentImage && (
         <TransformWrapper
+          key={currentImage.id} // Force remount on image change
           initialScale={1}
           minScale={0.5}
           maxScale={4}
@@ -1786,7 +1787,8 @@ export function ImageGallery({
 
             {/* Main Image with Zoom */}
             <TransformComponent
-              wrapperStyle={{
+              wrapperClass="!w-full !h-full"
+              contentStyle={{
                 width: '100%',
                 height: '100%',
                 display: 'flex',
