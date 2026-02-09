@@ -77,6 +77,11 @@ export function ImageEditor({ seriesId, imageId }: ImageEditorProps) {
   const zoomIndicatorTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const transformInstanceRef = useRef<any>(null)
 
+  // Sync showGroupMode with URL query params
+  useEffect(() => {
+    setShowGroupMode(searchParams.get('group') === 'true')
+  }, [searchParams])
+
   // Fetch series images
   useEffect(() => {
     async function loadImages() {
