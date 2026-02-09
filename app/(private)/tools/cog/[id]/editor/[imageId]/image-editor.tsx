@@ -456,12 +456,9 @@ export function ImageEditor({ seriesId, imageId }: ImageEditorProps) {
     <div className="fixed inset-0 bg-black flex flex-col">
       {/* Header */}
       <header className="flex items-center justify-between px-4 py-3 border-b border-white/10">
-        <div className="flex items-center gap-3 text-white">
-          {showEditMode ? (
-            <span className="text-sm font-medium capitalize">
-              {editMode?.replace('_', ' ')} Mode
-            </span>
-          ) : showGroupMode ? (
+        {/* Left: Counter or title */}
+        <div className="flex items-center gap-3 text-white min-w-[120px]">
+          {showGroupMode ? (
             <span className="text-sm font-medium">
               {currentImage.title || currentImage.filename} (Group)
             </span>
@@ -472,7 +469,54 @@ export function ImageEditor({ seriesId, imageId }: ImageEditorProps) {
           )}
         </div>
 
-        <div className="flex items-center gap-2">
+        {/* Center: Edit Mode Selector */}
+        {showEditMode && (
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => setEditMode('morph')}
+              className={`px-3 py-1.5 text-xs font-medium rounded transition-colors ${
+                editMode === 'morph'
+                  ? 'bg-white text-black'
+                  : 'bg-white/10 text-white hover:bg-white/20'
+              }`}
+            >
+              Morph
+            </button>
+            <button
+              onClick={() => setEditMode('refine')}
+              className={`px-3 py-1.5 text-xs font-medium rounded transition-colors ${
+                editMode === 'refine'
+                  ? 'bg-white text-black'
+                  : 'bg-white/10 text-white hover:bg-white/20'
+              }`}
+            >
+              Refine
+            </button>
+            <button
+              onClick={() => setEditMode('spot_removal')}
+              className={`px-3 py-1.5 text-xs font-medium rounded transition-colors ${
+                editMode === 'spot_removal'
+                  ? 'bg-white text-black'
+                  : 'bg-white/10 text-white hover:bg-white/20'
+              }`}
+            >
+              Spot Removal
+            </button>
+            <button
+              onClick={() => setEditMode('guided_edit')}
+              className={`px-3 py-1.5 text-xs font-medium rounded transition-colors ${
+                editMode === 'guided_edit'
+                  ? 'bg-white text-black'
+                  : 'bg-white/10 text-white hover:bg-white/20'
+              }`}
+            >
+              Guided Edit
+            </button>
+          </div>
+        )}
+
+        {/* Right: Action buttons */}
+        <div className="flex items-center gap-2 min-w-[120px] justify-end">
           {showEditMode && (
             <Button
               variant="ghost"
@@ -596,49 +640,51 @@ export function ImageEditor({ seriesId, imageId }: ImageEditorProps) {
                   </div>
                 )}
 
-                {/* Enhanced Zoom Controls - Bottom right */}
-                <div className="absolute bottom-4 right-4 z-10 flex flex-col gap-2">
-                  {/* Preset zoom levels */}
-                  <div className="flex items-center gap-0.5 bg-black/75 backdrop-blur-md border border-white/10 rounded-lg px-1.5 py-1.5 font-mono text-xs">
-                    <button
-                      onClick={() => resetTransform(300)}
-                      className="px-2 py-0.5 text-white/70 hover:text-white hover:bg-white/10 rounded transition-colors"
-                      title="Fit to screen (0)"
-                    >
-                      Fit
-                    </button>
-                  </div>
+                {/* Enhanced Zoom Controls - Bottom right (hidden in edit mode) */}
+                {!showEditMode && (
+                  <div className="absolute bottom-4 right-4 z-10 flex flex-col gap-2">
+                    {/* Preset zoom levels */}
+                    <div className="flex items-center gap-0.5 bg-black/75 backdrop-blur-md border border-white/10 rounded-lg px-1.5 py-1.5 font-mono text-xs">
+                      <button
+                        onClick={() => resetTransform(300)}
+                        className="px-2 py-0.5 text-white/70 hover:text-white hover:bg-white/10 rounded transition-colors"
+                        title="Fit to screen (0)"
+                      >
+                        Fit
+                      </button>
+                    </div>
 
-                  {/* Zoom controls */}
-                  <div className="flex items-center gap-0.5 bg-black/75 backdrop-blur-md border border-white/10 rounded-lg px-2 py-2 font-mono text-xs">
-                    <button
-                      onClick={() => zoomOut()}
-                      disabled={instance.transformState.scale <= 0.1}
-                      className="px-2 py-1 text-white/70 hover:text-white hover:bg-white/10 rounded disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-                      title="Zoom out (-)"
-                      aria-label="Zoom out (minus key)"
-                    >
-                      −
-                    </button>
-                    <button
-                      onClick={() => resetTransform(300)}
-                      className="px-2 py-1 text-white/70 hover:text-white hover:bg-white/10 rounded min-w-[52px] transition-colors"
-                      title="Reset zoom (0)"
-                      aria-label="Reset zoom to fit (0 key)"
-                    >
-                      {Math.round(instance.transformState.scale * 100)}%
-                    </button>
-                    <button
-                      onClick={() => zoomIn()}
-                      disabled={instance.transformState.scale >= 8}
-                      className="px-2 py-1 text-white/70 hover:text-white hover:bg-white/10 rounded disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-                      title="Zoom in (=)"
-                      aria-label="Zoom in (plus key)"
-                    >
-                      +
-                    </button>
+                    {/* Zoom controls */}
+                    <div className="flex items-center gap-0.5 bg-black/75 backdrop-blur-md border border-white/10 rounded-lg px-2 py-2 font-mono text-xs">
+                      <button
+                        onClick={() => zoomOut()}
+                        disabled={instance.transformState.scale <= 0.1}
+                        className="px-2 py-1 text-white/70 hover:text-white hover:bg-white/10 rounded disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                        title="Zoom out (-)"
+                        aria-label="Zoom out (minus key)"
+                      >
+                        −
+                      </button>
+                      <button
+                        onClick={() => resetTransform(300)}
+                        className="px-2 py-1 text-white/70 hover:text-white hover:bg-white/10 rounded min-w-[52px] transition-colors"
+                        title="Reset zoom (0)"
+                        aria-label="Reset zoom to fit (0 key)"
+                      >
+                        {Math.round(instance.transformState.scale * 100)}%
+                      </button>
+                      <button
+                        onClick={() => zoomIn()}
+                        disabled={instance.transformState.scale >= 8}
+                        className="px-2 py-1 text-white/70 hover:text-white hover:bg-white/10 rounded disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                        title="Zoom in (=)"
+                        aria-label="Zoom in (plus key)"
+                      >
+                        +
+                      </button>
+                    </div>
                   </div>
-                </div>
+                )}
 
                 {/* Previous Button */}
                 {currentIndex > 0 && (
@@ -710,9 +756,9 @@ export function ImageEditor({ seriesId, imageId }: ImageEditorProps) {
           </TransformWrapper>
         )}
 
-        {/* Mask Canvas Overlays for Spot Removal and Guided Edit */}
+        {/* Mask Canvas Overlays for Spot Removal and Guided Edit - Layered with margin */}
         {(editMode === 'spot_removal' || editMode === 'guided_edit') && (
-          <div className="absolute inset-0 z-10 pointer-events-auto">
+          <div className="absolute inset-8 z-10 pointer-events-auto shadow-2xl border border-white/20 rounded-lg overflow-hidden">
             <MaskCanvas
               ref={editMode === 'spot_removal' ? spotMaskCanvasRef : guidedMaskCanvasRef}
               imageUrl={getCogImageUrl(currentImage.storage_path)}
@@ -725,324 +771,280 @@ export function ImageEditor({ seriesId, imageId }: ImageEditorProps) {
                   setGuidedMaskBase64(mask)
                 }
               }}
-              hideToolbar={false}
+              hideToolbar={true}
               maxHeight="calc(100vh - 200px)"
             />
           </div>
         )}
       </div>
 
-      {/* Edit Mode Palette - Overlays bottom when active */}
-      {showEditMode && (
-        <div className="absolute bottom-0 left-0 right-0 z-20 bg-black/90 backdrop-blur-md border-t border-white/10">
-          <div className="px-4 py-4">
-            {/* Edit Mode Selector */}
-            <div className="flex items-center gap-2 mb-4">
-              <div className="text-xs text-white/60 font-medium">Edit Mode:</div>
-              <div className="flex gap-1">
-                <button
-                  onClick={() => setEditMode('morph')}
-                  className={`px-3 py-1.5 text-xs font-medium rounded transition-colors ${
-                    editMode === 'morph'
-                      ? 'bg-white text-black'
-                      : 'bg-white/10 text-white hover:bg-white/20'
-                  }`}
+      {/* Floating Palettes for Edit Modes */}
+
+      {/* Morph Mode Palettes */}
+      {editMode === 'morph' && (
+        <>
+          {/* Tools Palette - Bottom Left */}
+          <div className="absolute bottom-8 left-8 z-20 bg-black/90 backdrop-blur-md border border-white/10 rounded-lg shadow-2xl p-4 min-w-[300px]">
+            <div className="space-y-3">
+              {/* Tool selector */}
+              <div>
+                <div className="text-xs text-white/60 font-medium mb-2">Tool</div>
+                <div className="flex gap-1">
+                  <button
+                    onClick={() => setMorphTool('bloat')}
+                    className={`flex-1 px-3 py-2 text-xs font-medium rounded transition-colors ${
+                      morphTool === 'bloat'
+                        ? 'bg-blue-500 text-white'
+                        : 'bg-white/10 text-white hover:bg-white/20'
+                    }`}
+                  >
+                    Bloat
+                  </button>
+                  <button
+                    onClick={() => setMorphTool('pucker')}
+                    className={`flex-1 px-3 py-2 text-xs font-medium rounded transition-colors ${
+                      morphTool === 'pucker'
+                        ? 'bg-blue-500 text-white'
+                        : 'bg-white/10 text-white hover:bg-white/20'
+                    }`}
+                  >
+                    Pucker
+                  </button>
+                </div>
+              </div>
+
+              {/* Strength slider */}
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="text-xs text-white/60 font-medium">Strength</label>
+                  <span className="text-xs text-white/60 font-mono">{morphStrength}</span>
+                </div>
+                <input
+                  type="range"
+                  min="10"
+                  max="100"
+                  value={morphStrength}
+                  onChange={(e) => setMorphStrength(Number(e.target.value))}
+                  className="w-full h-1 bg-white/20 rounded-lg appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white"
+                />
+              </div>
+
+              {/* Radius slider */}
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="text-xs text-white/60 font-medium">Radius</label>
+                  <span className="text-xs text-white/60 font-mono">{morphRadius}</span>
+                </div>
+                <input
+                  type="range"
+                  min="20"
+                  max="200"
+                  value={morphRadius}
+                  onChange={(e) => setMorphRadius(Number(e.target.value))}
+                  className="w-full h-1 bg-white/20 rounded-lg appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Actions Palette - Bottom Right */}
+          <div className="absolute bottom-8 right-8 z-20 bg-black/90 backdrop-blur-md border border-white/10 rounded-lg shadow-2xl p-4">
+            <div className="space-y-2">
+              <button
+                onClick={handleClearMorph}
+                disabled={!hasMorphed}
+                className="w-full px-4 py-2 text-xs font-medium text-white bg-white/10 hover:bg-white/20 rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+              >
+                Clear
+              </button>
+              <button
+                onClick={handleSaveMorph}
+                disabled={!hasMorphed || isSavingMorph}
+                className="w-full px-4 py-2 text-xs font-medium text-white bg-blue-500 hover:bg-blue-600 rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+              >
+                {isSavingMorph ? 'Saving...' : 'Save Morph'}
+              </button>
+              <div className="text-xs text-white/40 text-center pt-1">
+                Click image to apply {morphTool}
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* Refine Mode Palettes */}
+      {editMode === 'refine' && (
+        <>
+          {/* Prompt Palette - Bottom Center */}
+          <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-20 bg-black/90 backdrop-blur-md border border-white/10 rounded-lg shadow-2xl p-4 w-[600px] max-w-[90vw]">
+            <div className="space-y-3">
+              {/* Prompt */}
+              <div>
+                <label className="text-xs text-white/60 font-medium mb-2 block">
+                  Describe Changes
+                </label>
+                <textarea
+                  value={refinePrompt}
+                  onChange={(e) => setRefinePrompt(e.target.value)}
+                  placeholder="E.g., 'Make the sky more dramatic' or 'Add warmer tones'"
+                  className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded text-sm text-white resize-none focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+                  rows={2}
+                  disabled={isRefining}
+                />
+              </div>
+
+              {/* Model + Size + Aspect */}
+              <div className="flex items-center gap-3">
+                <select
+                  value={refineModel}
+                  onChange={(e) => setRefineModel(e.target.value as RefinementModel)}
+                  className="flex-1 px-3 py-2 bg-white/10 border border-white/20 rounded text-xs text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+                  disabled={isRefining}
                 >
-                  Morph
+                  <option value="gemini-3-pro">Gemini 3 Pro</option>
+                  <option value="flux-2-pro">Flux 2 Pro</option>
+                  <option value="flux-2-dev">Flux 2 Dev</option>
+                </select>
+                <select
+                  value={refineSize}
+                  onChange={(e) => setRefineSize(e.target.value as ImageSize)}
+                  className="px-3 py-2 bg-white/10 border border-white/20 rounded text-xs text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+                  disabled={isRefining}
+                >
+                  <option value="1K">1K</option>
+                  <option value="2K">2K</option>
+                  <option value="4K">4K</option>
+                </select>
+                <select
+                  value={refineAspectRatio}
+                  onChange={(e) => setRefineAspectRatio(e.target.value as AspectRatio)}
+                  className="px-3 py-2 bg-white/10 border border-white/20 rounded text-xs text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+                  disabled={isRefining}
+                >
+                  <option value="1:1">1:1</option>
+                  <option value="16:9">16:9</option>
+                  <option value="4:3">4:3</option>
+                  <option value="3:2">3:2</option>
+                  <option value="9:16">9:16</option>
+                  <option value="2:3">2:3</option>
+                </select>
+              </div>
+
+              {/* Actions */}
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={handleRefineGenerate}
+                  disabled={!refinePrompt.trim() || isRefining}
+                  className="flex-1 px-4 py-2 text-xs font-medium text-white bg-blue-500 hover:bg-blue-600 rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                >
+                  {isRefining ? 'Generating...' : 'Generate Refinement'}
                 </button>
                 <button
-                  onClick={() => setEditMode('refine')}
-                  className={`px-3 py-1.5 text-xs font-medium rounded transition-colors ${
-                    editMode === 'refine'
-                      ? 'bg-white text-black'
-                      : 'bg-white/10 text-white hover:bg-white/20'
-                  }`}
+                  onClick={() => setRefinePrompt('')}
+                  disabled={!refinePrompt || isRefining}
+                  className="px-4 py-2 text-xs font-medium text-white bg-white/10 hover:bg-white/20 rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
                 >
-                  Refine
-                </button>
-                <button
-                  onClick={() => setEditMode('spot_removal')}
-                  className={`px-3 py-1.5 text-xs font-medium rounded transition-colors ${
-                    editMode === 'spot_removal'
-                      ? 'bg-white text-black'
-                      : 'bg-white/10 text-white hover:bg-white/20'
-                  }`}
-                >
-                  Spot Removal
-                </button>
-                <button
-                  onClick={() => setEditMode('guided_edit')}
-                  className={`px-3 py-1.5 text-xs font-medium rounded transition-colors ${
-                    editMode === 'guided_edit'
-                      ? 'bg-white text-black'
-                      : 'bg-white/10 text-white hover:bg-white/20'
-                  }`}
-                >
-                  Guided Edit
+                  Clear
                 </button>
               </div>
             </div>
+          </div>
+        </>
+      )}
 
-            {/* Mode-specific controls */}
-            <div className="space-y-3">
-              {editMode === 'morph' && (
-                <div className="space-y-3">
-                  {/* Tool selector */}
-                  <div className="flex items-center gap-3">
-                    <div className="text-xs text-white/60 font-medium">Tool:</div>
-                    <div className="flex gap-1">
-                      <button
-                        onClick={() => setMorphTool('bloat')}
-                        className={`px-3 py-1 text-xs font-medium rounded transition-colors ${
-                          morphTool === 'bloat'
-                            ? 'bg-blue-500 text-white'
-                            : 'bg-white/10 text-white hover:bg-white/20'
-                        }`}
-                      >
-                        Bloat
-                      </button>
-                      <button
-                        onClick={() => setMorphTool('pucker')}
-                        className={`px-3 py-1 text-xs font-medium rounded transition-colors ${
-                          morphTool === 'pucker'
-                            ? 'bg-blue-500 text-white'
-                            : 'bg-white/10 text-white hover:bg-white/20'
-                        }`}
-                      >
-                        Pucker
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Strength slider */}
-                  <div className="flex items-center gap-3">
-                    <div className="text-xs text-white/60 font-medium w-16">Strength:</div>
-                    <input
-                      type="range"
-                      min="10"
-                      max="100"
-                      value={morphStrength}
-                      onChange={(e) => setMorphStrength(Number(e.target.value))}
-                      className="flex-1 h-1 bg-white/20 rounded-lg appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white"
-                    />
-                    <div className="text-xs text-white/60 font-mono w-8 text-right">{morphStrength}</div>
-                  </div>
-
-                  {/* Radius slider */}
-                  <div className="flex items-center gap-3">
-                    <div className="text-xs text-white/60 font-medium w-16">Radius:</div>
-                    <input
-                      type="range"
-                      min="20"
-                      max="200"
-                      value={morphRadius}
-                      onChange={(e) => setMorphRadius(Number(e.target.value))}
-                      className="flex-1 h-1 bg-white/20 rounded-lg appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white"
-                    />
-                    <div className="text-xs text-white/60 font-mono w-8 text-right">{morphRadius}</div>
-                  </div>
-
-                  {/* Action buttons */}
-                  <div className="flex items-center gap-2 pt-2">
-                    <button
-                      onClick={handleClearMorph}
-                      disabled={!hasMorphed}
-                      className="px-3 py-1.5 text-xs font-medium text-white bg-white/10 hover:bg-white/20 rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-                    >
-                      Clear
-                    </button>
-                    <button
-                      onClick={handleSaveMorph}
-                      disabled={!hasMorphed || isSavingMorph}
-                      className="px-3 py-1.5 text-xs font-medium text-white bg-blue-500 hover:bg-blue-600 rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-                    >
-                      {isSavingMorph ? 'Saving...' : 'Save Morph'}
-                    </button>
-                    <div className="text-xs text-white/40 ml-2">
-                      Click on the image to apply {morphTool} effect
-                    </div>
-                  </div>
-                </div>
-              )}
-              {editMode === 'refine' && (
-                <div className="space-y-3">
-                  {/* Prompt */}
-                  <div>
-                    <label className="text-xs text-white/60 font-medium mb-1 block">
-                      Describe Changes
-                    </label>
-                    <textarea
-                      value={refinePrompt}
-                      onChange={(e) => setRefinePrompt(e.target.value)}
-                      placeholder="E.g., 'Make the sky more dramatic' or 'Add warmer tones'"
-                      className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded text-sm text-white resize-none"
-                      rows={2}
-                      disabled={isRefining}
-                    />
-                  </div>
-
-                  {/* Model Selector */}
-                  <div className="flex items-center gap-3">
-                    <label className="text-xs text-white/60 font-medium">Model:</label>
-                    <select
-                      value={refineModel}
-                      onChange={(e) => setRefineModel(e.target.value as RefinementModel)}
-                      className="flex-1 px-3 py-1.5 bg-white/10 border border-white/20 rounded text-xs text-white"
-                      disabled={isRefining}
-                    >
-                      <option value="gemini-3-pro">Gemini 3 Pro (Conversational)</option>
-                      <option value="flux-2-pro">Flux 2 Pro (High Quality)</option>
-                      <option value="flux-2-dev">Flux 2 Dev (Fast)</option>
-                    </select>
-                  </div>
-
-                  {/* Resolution + Aspect Ratio */}
-                  <div className="flex items-center gap-3">
-                    <div className="flex-1">
-                      <label className="text-xs text-white/60 font-medium mb-1 block">
-                        Resolution
-                      </label>
-                      <select
-                        value={refineSize}
-                        onChange={(e) => setRefineSize(e.target.value as ImageSize)}
-                        className="w-full px-3 py-1.5 bg-white/10 border border-white/20 rounded text-xs text-white"
-                        disabled={isRefining}
-                      >
-                        <option value="1K">1K (~1024px)</option>
-                        <option value="2K">2K (~2048px)</option>
-                        <option value="4K">4K (~4096px)</option>
-                      </select>
-                    </div>
-                    <div className="flex-1">
-                      <label className="text-xs text-white/60 font-medium mb-1 block">
-                        Aspect Ratio
-                      </label>
-                      <select
-                        value={refineAspectRatio}
-                        onChange={(e) => setRefineAspectRatio(e.target.value as AspectRatio)}
-                        className="w-full px-3 py-1.5 bg-white/10 border border-white/20 rounded text-xs text-white"
-                        disabled={isRefining}
-                      >
-                        <option value="1:1">1:1 Square</option>
-                        <option value="16:9">16:9 Wide</option>
-                        <option value="4:3">4:3 Landscape</option>
-                        <option value="3:2">3:2 Standard</option>
-                        <option value="9:16">9:16 Portrait</option>
-                        <option value="2:3">2:3 Portrait</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  {/* Actions */}
-                  <div className="flex items-center gap-2 pt-2">
-                    <button
-                      onClick={handleRefineGenerate}
-                      disabled={!refinePrompt.trim() || isRefining}
-                      className="px-3 py-1.5 text-xs font-medium text-white bg-blue-500 hover:bg-blue-600 rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-                    >
-                      {isRefining ? 'Generating...' : 'Generate Refinement'}
-                    </button>
-                    <button
-                      onClick={() => setRefinePrompt('')}
-                      disabled={!refinePrompt || isRefining}
-                      className="px-3 py-1.5 text-xs font-medium text-white bg-white/10 hover:bg-white/20 rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-                    >
-                      Clear
-                    </button>
-                    <div className="text-xs text-white/40 ml-2">
-                      Takes 30-60 seconds depending on model
-                    </div>
-                  </div>
-                </div>
-              )}
-              {editMode === 'spot_removal' && (
-                <div className="space-y-3">
-                  <div className="text-sm text-white/70">
-                    Paint over areas to remove. Click Generate when ready.
-                  </div>
-
-                  {/* Actions */}
-                  <div className="flex items-center gap-2 pt-2">
-                    <button
-                      onClick={() => {
-                        setSpotMaskBase64(null)
-                        spotMaskCanvasRef.current?.clearMask()
-                      }}
-                      disabled={!spotMaskBase64 || isSavingSpotRemoval}
-                      className="px-3 py-1.5 text-xs font-medium text-white bg-white/10 hover:bg-white/20 rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-                    >
-                      Clear Mask
-                    </button>
-                    <button
-                      onClick={handleSpotRemoval}
-                      disabled={!spotMaskBase64 || isSavingSpotRemoval}
-                      className="px-3 py-1.5 text-xs font-medium text-white bg-blue-500 hover:bg-blue-600 rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-                    >
-                      {isSavingSpotRemoval ? 'Generating...' : 'Generate Removal'}
-                    </button>
-                    <div className="text-xs text-white/40 ml-2">
-                      Takes 15-30 seconds
-                    </div>
-                  </div>
-                </div>
-              )}
-              {editMode === 'guided_edit' && (
-                <div className="space-y-3">
-                  <div className="text-sm text-white/70">
-                    Paint over the area to edit, then describe what you want to change.
-                  </div>
-
-                  {/* Prompt */}
-                  <div>
-                    <label className="text-xs text-white/60 font-medium mb-1 block">
-                      Edit Instruction
-                    </label>
-                    <input
-                      type="text"
-                      value={guidedPrompt}
-                      onChange={(e) => setGuidedPrompt(e.target.value)}
-                      placeholder="E.g., 'Replace with a window' or 'Change to sunset lighting'"
-                      className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded text-sm text-white"
-                      disabled={isSavingGuidedEdit}
-                    />
-                  </div>
-
-                  {/* Actions */}
-                  <div className="flex items-center gap-2 pt-2">
-                    <button
-                      onClick={() => {
-                        setGuidedMaskBase64(null)
-                        guidedMaskCanvasRef.current?.clearMask()
-                      }}
-                      disabled={!guidedMaskBase64 || isSavingGuidedEdit}
-                      className="px-3 py-1.5 text-xs font-medium text-white bg-white/10 hover:bg-white/20 rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-                    >
-                      Clear Mask
-                    </button>
-                    <button
-                      onClick={handleGuidedEdit}
-                      disabled={!guidedMaskBase64 || !guidedPrompt.trim() || isSavingGuidedEdit}
-                      className="px-3 py-1.5 text-xs font-medium text-white bg-blue-500 hover:bg-blue-600 rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-                    >
-                      {isSavingGuidedEdit ? 'Generating...' : 'Generate Edit'}
-                    </button>
-                    <button
-                      onClick={() => setGuidedPrompt('')}
-                      disabled={!guidedPrompt || isSavingGuidedEdit}
-                      className="px-3 py-1.5 text-xs font-medium text-white bg-white/10 hover:bg-white/20 rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-                    >
-                      Clear Prompt
-                    </button>
-                    <div className="text-xs text-white/40 ml-2">
-                      Takes 15-40 seconds
-                    </div>
-                  </div>
-                </div>
-              )}
+      {/* Spot Removal Mode Palettes */}
+      {editMode === 'spot_removal' && (
+        <>
+          {/* Brush Palette - Bottom Left */}
+          <div className="absolute bottom-8 left-8 z-20 bg-black/90 backdrop-blur-md border border-white/10 rounded-lg shadow-2xl p-4">
+            <div className="text-xs text-white/60 font-medium mb-3">Brush Tools</div>
+            <div className="text-sm text-white/70">
+              Paint over areas to remove
             </div>
           </div>
-        </div>
+
+          {/* Actions Palette - Bottom Right */}
+          <div className="absolute bottom-8 right-8 z-20 bg-black/90 backdrop-blur-md border border-white/10 rounded-lg shadow-2xl p-4">
+            <div className="space-y-2">
+              <button
+                onClick={() => {
+                  setSpotMaskBase64(null)
+                  spotMaskCanvasRef.current?.clearMask()
+                }}
+                disabled={!spotMaskBase64 || isSavingSpotRemoval}
+                className="w-full px-4 py-2 text-xs font-medium text-white bg-white/10 hover:bg-white/20 rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+              >
+                Clear Mask
+              </button>
+              <button
+                onClick={handleSpotRemoval}
+                disabled={!spotMaskBase64 || isSavingSpotRemoval}
+                className="w-full px-4 py-2 text-xs font-medium text-white bg-blue-500 hover:bg-blue-600 rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+              >
+                {isSavingSpotRemoval ? 'Generating...' : 'Generate Removal'}
+              </button>
+              <div className="text-xs text-white/40 text-center pt-1">
+                Takes 15-30 seconds
+              </div>
+            </div>
+          </div>
+        </>
       )}
+
+      {/* Guided Edit Mode Palettes */}
+      {editMode === 'guided_edit' && (
+        <>
+          {/* Brush Palette - Bottom Left */}
+          <div className="absolute bottom-8 left-8 z-20 bg-black/90 backdrop-blur-md border border-white/10 rounded-lg shadow-2xl p-4">
+            <div className="text-xs text-white/60 font-medium mb-3">Brush Tools</div>
+            <div className="text-sm text-white/70 max-w-[200px]">
+              Paint over the area to edit
+            </div>
+          </div>
+
+          {/* Prompt + Actions Palette - Bottom Right */}
+          <div className="absolute bottom-8 right-8 z-20 bg-black/90 backdrop-blur-md border border-white/10 rounded-lg shadow-2xl p-4 w-[400px]">
+            <div className="space-y-3">
+              {/* Prompt */}
+              <div>
+                <label className="text-xs text-white/60 font-medium mb-2 block">
+                  Edit Instruction
+                </label>
+                <input
+                  type="text"
+                  value={guidedPrompt}
+                  onChange={(e) => setGuidedPrompt(e.target.value)}
+                  placeholder="E.g., 'Replace with a window'"
+                  className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded text-sm text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+                  disabled={isSavingGuidedEdit}
+                />
+              </div>
+
+              {/* Actions */}
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => {
+                    setGuidedMaskBase64(null)
+                    guidedMaskCanvasRef.current?.clearMask()
+                  }}
+                  disabled={!guidedMaskBase64 || isSavingGuidedEdit}
+                  className="px-3 py-2 text-xs font-medium text-white bg-white/10 hover:bg-white/20 rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                >
+                  Clear
+                </button>
+                <button
+                  onClick={handleGuidedEdit}
+                  disabled={!guidedMaskBase64 || !guidedPrompt.trim() || isSavingGuidedEdit}
+                  className="flex-1 px-4 py-2 text-xs font-medium text-white bg-blue-500 hover:bg-blue-600 rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                >
+                  {isSavingGuidedEdit ? 'Generating...' : 'Generate Edit'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+
 
       {/* Group Drawer - Overlays bottom when active */}
       {showGroupMode && (
