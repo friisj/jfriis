@@ -244,6 +244,8 @@ function DeleteConfirmationModal({
                     src={getCogImageUrl(img.storage_path)}
                     alt={img.filename}
                     className="w-full h-full object-cover"
+                    loading="lazy"
+                    decoding="async"
                   />
                   {img.id === primaryImageId && (
                     <div className="absolute top-0 right-0 text-yellow-400 text-[8px]">
@@ -1203,6 +1205,39 @@ export function ImageGallery({
     };
   }, [isOpen]);
 
+  // Preload adjacent images for faster navigation
+  useEffect(() => {
+    if (!isOpen || selectedIndex === null) return;
+
+    const preloadImage = (url: string) => {
+      const link = document.createElement('link');
+      link.rel = 'preload';
+      link.as = 'image';
+      link.href = url;
+      document.head.appendChild(link);
+      return link;
+    };
+
+    const links: HTMLLinkElement[] = [];
+
+    // Preload next image
+    if (selectedIndex < images.length - 1) {
+      const nextImage = images[selectedIndex + 1];
+      links.push(preloadImage(getCogImageUrl(nextImage.storage_path)));
+    }
+
+    // Preload previous image
+    if (selectedIndex > 0) {
+      const prevImage = images[selectedIndex - 1];
+      links.push(preloadImage(getCogImageUrl(prevImage.storage_path)));
+    }
+
+    // Cleanup preload links when selection changes
+    return () => {
+      links.forEach((link) => link.remove());
+    };
+  }, [isOpen, selectedIndex, images]);
+
   // Compute current image tags (currentImage is computed earlier in the component)
   const currentImageTags: Set<string> = currentImage ? imageTagsMap.get(currentImage.id) || new Set<string>() : new Set<string>();
 
@@ -1343,6 +1378,8 @@ export function ImageGallery({
                 src={uploadingFile.preview}
                 alt={uploadingFile.file.name}
                 className="w-full h-full object-cover opacity-50"
+                loading="eager"
+                decoding="async"
               />
               {/* Upload overlay */}
               {uploadingFile.status === 'uploading' && (
@@ -1429,6 +1466,8 @@ export function ImageGallery({
                     className={`w-full h-full object-cover transition-opacity ${
                       isSelected ? 'opacity-80' : ''
                     }`}
+                    loading="lazy"
+                    decoding="async"
                   />
                   {/* Tag count badge */}
                   {tagCount > 0 && (
@@ -1803,6 +1842,8 @@ export function ImageGallery({
                   showTagPanel || showGroupPanel ? 'max-h-[calc(100vh-280px)]' : 'max-h-[calc(100vh-180px)]'
                 }`}
                 style={{ maxWidth: '100%' }}
+                fetchPriority="high"
+                decoding="async"
               />
             </TransformComponent>
 

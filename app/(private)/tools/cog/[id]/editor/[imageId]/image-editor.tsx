@@ -478,6 +478,52 @@ export function ImageEditor({ seriesId, imageId }: ImageEditorProps) {
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [exitToGrid, goToPrevious, goToNext, hasGroup, showGroupMode, showEditMode])
 
+  // Preload adjacent images for faster navigation
+  useEffect(() => {
+    if (!currentImage) return
+
+    const preloadImage = (url: string) => {
+      const link = document.createElement('link')
+      link.rel = 'preload'
+      link.as = 'image'
+      link.href = url
+      document.head.appendChild(link)
+      return link
+    }
+
+    const links: HTMLLinkElement[] = []
+    const currentIdx = images.findIndex((img) => img.id === currentImage.id)
+
+    // In group mode, preload adjacent group images
+    if (showGroupMode && groupImages.length > 0) {
+      const groupIdx = groupImages.findIndex((img) => img.id === currentImage.id)
+
+      // Preload next in group
+      if (groupIdx < groupImages.length - 1) {
+        links.push(preloadImage(getCogImageUrl(groupImages[groupIdx + 1].storage_path)))
+      }
+
+      // Preload previous in group
+      if (groupIdx > 0) {
+        links.push(preloadImage(getCogImageUrl(groupImages[groupIdx - 1].storage_path)))
+      }
+    } else {
+      // In series mode, preload adjacent series images
+      if (currentIdx < images.length - 1) {
+        links.push(preloadImage(getCogImageUrl(images[currentIdx + 1].storage_path)))
+      }
+
+      if (currentIdx > 0) {
+        links.push(preloadImage(getCogImageUrl(images[currentIdx - 1].storage_path)))
+      }
+    }
+
+    // Cleanup preload links when selection changes
+    return () => {
+      links.forEach((link) => link.remove())
+    }
+  }, [currentImage, images, showGroupMode, groupImages])
+
   if (isLoading || !currentImage) {
     return (
       <div className="fixed inset-0 bg-black flex items-center justify-center">
@@ -785,6 +831,8 @@ export function ImageEditor({ seriesId, imageId }: ImageEditorProps) {
                     className="max-w-[90vw] max-h-[90vh] object-contain select-none"
                     draggable={false}
                     style={{ maxWidth: '90vw', maxHeight: '90vh' }}
+                    fetchPriority="high"
+                    decoding="async"
                   />
                 </TransformComponent>
 
@@ -1255,6 +1303,8 @@ export function ImageEditor({ seriesId, imageId }: ImageEditorProps) {
                               src={getCogImageUrl(img.storage_path)}
                               alt={img.filename}
                               className="w-full h-full object-cover"
+                              loading="lazy"
+                              decoding="async"
                             />
                           </button>
 

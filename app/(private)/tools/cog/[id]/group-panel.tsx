@@ -288,6 +288,8 @@ export function GroupPanel({
                     src={getCogImageUrl(image.storage_path)}
                     alt={`Image ${index + 1}`}
                     className="w-16 h-16 object-cover rounded pointer-events-none"
+                    loading="lazy"
+                    decoding="async"
                   />
 
                   {/* Hover tooltip with prompt */}
