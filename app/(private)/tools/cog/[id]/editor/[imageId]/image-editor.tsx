@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { TransformWrapper, TransformComponent } from 'react-zoom-pan-pinch'
 import { Button } from '@/components/ui/button'
 import { getCogImageUrl } from '@/lib/cog'
@@ -20,10 +20,11 @@ interface ImageEditorProps {
 
 export function ImageEditor({ seriesId, imageId }: ImageEditorProps) {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [images, setImages] = useState<CogImageWithGroupInfo[]>([])
   const [currentIndex, setCurrentIndex] = useState(0)
   const [isLoading, setIsLoading] = useState(true)
-  const [showGroupMode, setShowGroupMode] = useState(false)
+  const [showGroupMode, setShowGroupMode] = useState(searchParams.get('group') === 'true')
   const [groupImages, setGroupImages] = useState<CogImageWithGroupInfo[]>([])
   const [loadingGroup, setLoadingGroup] = useState(false)
 
@@ -275,19 +276,41 @@ export function ImageEditor({ seriesId, imageId }: ImageEditorProps) {
   const exitToGrid = useCallback(() => {
     router.push(`/tools/cog/${seriesId}`)
   }, [router, seriesId])
+
+  // Navigate within current scope (group or series)
   const goToPrevious = useCallback(() => {
-    if (currentIndex > 0) {
-      const prevImage = images[currentIndex - 1]
-      router.push(`/tools/cog/${seriesId}/editor/${prevImage.id}`)
+    if (showGroupMode) {
+      // Navigate within group
+      const currentGroupIndex = groupImages.findIndex(img => img.id === currentImage.id)
+      if (currentGroupIndex > 0) {
+        const prevImage = groupImages[currentGroupIndex - 1]
+        router.push(`/tools/cog/${seriesId}/editor/${prevImage.id}?group=true`)
+      }
+    } else {
+      // Navigate within series
+      if (currentIndex > 0) {
+        const prevImage = images[currentIndex - 1]
+        router.push(`/tools/cog/${seriesId}/editor/${prevImage.id}`)
+      }
     }
-  }, [currentIndex, images, router, seriesId])
+  }, [showGroupMode, groupImages, currentImage, currentIndex, images, router, seriesId])
 
   const goToNext = useCallback(() => {
-    if (currentIndex < images.length - 1) {
-      const nextImage = images[currentIndex + 1]
-      router.push(`/tools/cog/${seriesId}/editor/${nextImage.id}`)
+    if (showGroupMode) {
+      // Navigate within group
+      const currentGroupIndex = groupImages.findIndex(img => img.id === currentImage.id)
+      if (currentGroupIndex < groupImages.length - 1) {
+        const nextImage = groupImages[currentGroupIndex + 1]
+        router.push(`/tools/cog/${seriesId}/editor/${nextImage.id}?group=true`)
+      }
+    } else {
+      // Navigate within series
+      if (currentIndex < images.length - 1) {
+        const nextImage = images[currentIndex + 1]
+        router.push(`/tools/cog/${seriesId}/editor/${nextImage.id}`)
+      }
     }
-  }, [currentIndex, images, router, seriesId])
+  }, [showGroupMode, groupImages, currentImage, currentIndex, images, router, seriesId])
 
   // Group management actions
   const handleSetPrimary = useCallback(async (imageId: string) => {
@@ -415,7 +438,11 @@ export function ImageEditor({ seriesId, imageId }: ImageEditorProps) {
         case 'g':
         case 'G':
           if (hasGroup && !showEditMode) {
-            setShowGroupMode((prev) => !prev)
+            if (showGroupMode) {
+              router.push(`/tools/cog/${seriesId}/editor/${imageId}`)
+            } else {
+              router.push(`/tools/cog/${seriesId}/editor/${imageId}?group=true`)
+            }
           }
           break
         case 'e':
@@ -538,7 +565,7 @@ export function ImageEditor({ seriesId, imageId }: ImageEditorProps) {
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => setShowGroupMode(true)}
+              onClick={() => router.push(`/tools/cog/${seriesId}/editor/${imageId}?group=true`)}
               className="text-white hover:bg-white/10"
             >
               Group
@@ -548,7 +575,7 @@ export function ImageEditor({ seriesId, imageId }: ImageEditorProps) {
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => setShowGroupMode(false)}
+              onClick={() => router.push(`/tools/cog/${seriesId}/editor/${imageId}`)}
               className="text-white hover:bg-white/10"
             >
               Close Group
@@ -1217,10 +1244,7 @@ export function ImageEditor({ seriesId, imageId }: ImageEditorProps) {
                           {/* Thumbnail */}
                           <button
                             onClick={() => {
-                              const index = images.findIndex((i) => i.id === img.id)
-                              if (index !== -1) {
-                                router.push(`/tools/cog/${seriesId}/editor/${img.id}`)
-                              }
+                              router.push(`/tools/cog/${seriesId}/editor/${img.id}?group=true`)
                             }}
                             className="block w-32 h-32 bg-white/5"
                           >
