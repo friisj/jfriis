@@ -1,12 +1,14 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { TransformWrapper, TransformComponent } from 'react-zoom-pan-pinch'
 import { Button } from '@/components/ui/button'
 import { getCogImageUrl } from '@/lib/cog'
 import type { CogImageWithGroupInfo } from '@/lib/types/cog'
 import { setPrimaryImage, removeFromGroup, deleteImage } from '@/lib/ai/actions/manage-group'
+import { MorphCanvas, type MorphCanvasRef } from '../../morph-canvas'
+import { morphCogImage } from '@/lib/ai/actions/morph-cog-image'
 
 interface ImageEditorProps {
   seriesId: string
@@ -24,8 +26,17 @@ export function ImageEditor({ seriesId, imageId }: ImageEditorProps) {
 
   // Edit mode state
   type EditMode = 'morph' | 'refine' | 'spot_removal' | 'guided_edit'
+  type MorphTool = 'bloat' | 'pucker'
   const [editMode, setEditMode] = useState<EditMode | null>(null)
   const showEditMode = editMode !== null
+
+  // Morph mode state
+  const morphCanvasRef = useRef<MorphCanvasRef>(null)
+  const [morphTool, setMorphTool] = useState<MorphTool>('bloat')
+  const [morphStrength, setMorphStrength] = useState(50)
+  const [morphRadius, setMorphRadius] = useState(100)
+  const [hasMorphed, setHasMorphed] = useState(false)
+  const [isSavingMorph, setIsSavingMorph] = useState(false)
 
   // Fetch series images
   useEffect(() => {
@@ -76,6 +87,50 @@ export function ImageEditor({ seriesId, imageId }: ImageEditorProps) {
   }, [currentImage?.group_id])
 
   const hasGroup = groupImages.length > 1
+
+  // Morph handlers
+  const handleSaveMorph = useCallback(async () => {
+    if (!morphCanvasRef.current || !currentImage) return
+
+    setIsSavingMorph(true)
+    try {
+      const dataURL = morphCanvasRef.current.getResultDataURL()
+      if (!dataURL) {
+        alert('No morphed image to save')
+        return
+      }
+
+      const result = await morphCogImage({
+        originalImageId: currentImage.id,
+        morphedImageDataURL: dataURL,
+      })
+
+      if (result.success) {
+        // Exit edit mode and reload images
+        setEditMode(null)
+        setHasMorphed(false)
+        // Reload the series images to include the new morphed image
+        const response = await fetch(`/api/cog/series/${seriesId}/images`)
+        const data = await response.json()
+        setImages(data)
+        alert('Morphed image saved!')
+      } else {
+        alert(`Failed to save: ${result.error}`)
+      }
+    } catch (error) {
+      console.error('Save morph error:', error)
+      alert('Failed to save morphed image')
+    } finally {
+      setIsSavingMorph(false)
+    }
+  }, [currentImage, seriesId])
+
+  const handleClearMorph = useCallback(() => {
+    if (morphCanvasRef.current) {
+      morphCanvasRef.current.clearMorph()
+      setHasMorphed(false)
+    }
+  }, [])
 
   // Navigation
   const exitToGrid = useCallback(() => {
@@ -292,112 +347,127 @@ export function ImageEditor({ seriesId, imageId }: ImageEditorProps) {
 
       {/* Canvas Viewport */}
       <div className="flex-1 relative overflow-hidden">
-        <TransformWrapper
-          key={currentImage.id}
-          initialScale={1}
-          minScale={0.5}
-          maxScale={4}
-          centerOnInit
-          wheel={{ step: 0.1 }}
-          doubleClick={{ mode: 'reset' }}
-          panning={{ velocityDisabled: true }}
-        >
-          {({ zoomIn, zoomOut, resetTransform, instance }) => (
-            <>
-              {/* Zoom Controls - Floating top right */}
-              <div className="absolute top-4 right-4 z-10 flex items-center gap-0.5 bg-black/75 backdrop-blur-md border border-white/10 rounded-lg px-2 py-2 font-mono text-xs">
-                <button
-                  onClick={() => zoomOut()}
-                  disabled={instance.transformState.scale <= 0.5}
-                  className="px-2 py-1 text-white/70 hover:text-white hover:bg-white/10 rounded disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-                  title="Zoom out"
-                >
-                  −
-                </button>
-                <button
-                  onClick={() => resetTransform()}
-                  className="px-2 py-1 text-white/70 hover:text-white hover:bg-white/10 rounded min-w-[52px] transition-colors"
-                  title="Reset zoom (double-click image)"
-                >
-                  {Math.round(instance.transformState.scale * 100)}%
-                </button>
-                <button
-                  onClick={() => zoomIn()}
-                  disabled={instance.transformState.scale >= 4}
-                  className="px-2 py-1 text-white/70 hover:text-white hover:bg-white/10 rounded disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-                  title="Zoom in"
-                >
-                  +
-                </button>
-              </div>
-
-              {/* Previous Button */}
-              {currentIndex > 0 && (
-                <button
-                  onClick={goToPrevious}
-                  className="absolute left-4 top-1/2 -translate-y-1/2 z-10 p-3 rounded-full bg-white/10 hover:bg-white/20 transition-colors text-white"
-                  aria-label="Previous image"
-                >
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    width="24"
-                    height="24"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
+        {editMode === 'morph' ? (
+          /* Morph Canvas */
+          <MorphCanvas
+            ref={morphCanvasRef}
+            imageUrl={getCogImageUrl(currentImage.storage_path)}
+            imageWidth={currentImage.width || 1024}
+            imageHeight={currentImage.height || 1024}
+            tool={morphTool}
+            strength={morphStrength}
+            radius={morphRadius}
+            onMorphApplied={() => setHasMorphed(true)}
+          />
+        ) : (
+          /* View Mode Canvas with Zoom */
+          <TransformWrapper
+            key={currentImage.id}
+            initialScale={1}
+            minScale={0.5}
+            maxScale={4}
+            centerOnInit
+            wheel={{ step: 0.1 }}
+            doubleClick={{ mode: 'reset' }}
+            panning={{ velocityDisabled: true }}
+          >
+            {({ zoomIn, zoomOut, resetTransform, instance }) => (
+              <>
+                {/* Zoom Controls - Floating top right */}
+                <div className="absolute top-4 right-4 z-10 flex items-center gap-0.5 bg-black/75 backdrop-blur-md border border-white/10 rounded-lg px-2 py-2 font-mono text-xs">
+                  <button
+                    onClick={() => zoomOut()}
+                    disabled={instance.transformState.scale <= 0.5}
+                    className="px-2 py-1 text-white/70 hover:text-white hover:bg-white/10 rounded disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                    title="Zoom out"
                   >
-                    <path d="m15 18-6-6 6-6" />
-                  </svg>
-                </button>
-              )}
-
-              {/* Image Canvas */}
-              <TransformComponent
-                wrapperClass="!w-full !h-full"
-                contentStyle={{
-                  width: '100%',
-                  height: '100%',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
-                <img
-                  src={getCogImageUrl(currentImage.storage_path)}
-                  alt={currentImage.filename}
-                  className="max-w-[90vw] max-h-[90vh] object-contain"
-                  style={{ maxWidth: '90vw', maxHeight: '90vh' }}
-                />
-              </TransformComponent>
-
-              {/* Next Button */}
-              {currentIndex < images.length - 1 && (
-                <button
-                  onClick={goToNext}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 z-10 p-3 rounded-full bg-white/10 hover:bg-white/20 transition-colors text-white"
-                  aria-label="Next image"
-                >
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    width="24"
-                    height="24"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
+                    −
+                  </button>
+                  <button
+                    onClick={() => resetTransform()}
+                    className="px-2 py-1 text-white/70 hover:text-white hover:bg-white/10 rounded min-w-[52px] transition-colors"
+                    title="Reset zoom (double-click image)"
                   >
-                    <path d="m9 18 6-6-6-6" />
-                  </svg>
-                </button>
-              )}
-            </>
-          )}
-        </TransformWrapper>
+                    {Math.round(instance.transformState.scale * 100)}%
+                  </button>
+                  <button
+                    onClick={() => zoomIn()}
+                    disabled={instance.transformState.scale >= 4}
+                    className="px-2 py-1 text-white/70 hover:text-white hover:bg-white/10 rounded disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                    title="Zoom in"
+                  >
+                    +
+                  </button>
+                </div>
+
+                {/* Previous Button */}
+                {currentIndex > 0 && (
+                  <button
+                    onClick={goToPrevious}
+                    className="absolute left-4 top-1/2 -translate-y-1/2 z-10 p-3 rounded-full bg-white/10 hover:bg-white/20 transition-colors text-white"
+                    aria-label="Previous image"
+                  >
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      width="24"
+                      height="24"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <path d="m15 18-6-6 6-6" />
+                    </svg>
+                  </button>
+                )}
+
+                {/* Image Canvas */}
+                <TransformComponent
+                  wrapperClass="!w-full !h-full"
+                  contentStyle={{
+                    width: '100%',
+                    height: '100%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <img
+                    src={getCogImageUrl(currentImage.storage_path)}
+                    alt={currentImage.filename}
+                    className="max-w-[90vw] max-h-[90vh] object-contain"
+                    style={{ maxWidth: '90vw', maxHeight: '90vh' }}
+                  />
+                </TransformComponent>
+
+                {/* Next Button */}
+                {currentIndex < images.length - 1 && (
+                  <button
+                    onClick={goToNext}
+                    className="absolute right-4 top-1/2 -translate-y-1/2 z-10 p-3 rounded-full bg-white/10 hover:bg-white/20 transition-colors text-white"
+                    aria-label="Next image"
+                  >
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      width="24"
+                      height="24"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <path d="m9 18 6-6-6-6" />
+                    </svg>
+                  </button>
+                )}
+              </>
+            )}
+          </TransformWrapper>
+        )}
       </div>
 
       {/* Edit Mode Palette - Overlays bottom when active */}
@@ -454,8 +524,82 @@ export function ImageEditor({ seriesId, imageId }: ImageEditorProps) {
             {/* Mode-specific controls */}
             <div className="space-y-3">
               {editMode === 'morph' && (
-                <div className="text-sm text-white/70">
-                  Morph mode - Click and drag on the image to bloat or pucker areas
+                <div className="space-y-3">
+                  {/* Tool selector */}
+                  <div className="flex items-center gap-3">
+                    <div className="text-xs text-white/60 font-medium">Tool:</div>
+                    <div className="flex gap-1">
+                      <button
+                        onClick={() => setMorphTool('bloat')}
+                        className={`px-3 py-1 text-xs font-medium rounded transition-colors ${
+                          morphTool === 'bloat'
+                            ? 'bg-blue-500 text-white'
+                            : 'bg-white/10 text-white hover:bg-white/20'
+                        }`}
+                      >
+                        Bloat
+                      </button>
+                      <button
+                        onClick={() => setMorphTool('pucker')}
+                        className={`px-3 py-1 text-xs font-medium rounded transition-colors ${
+                          morphTool === 'pucker'
+                            ? 'bg-blue-500 text-white'
+                            : 'bg-white/10 text-white hover:bg-white/20'
+                        }`}
+                      >
+                        Pucker
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Strength slider */}
+                  <div className="flex items-center gap-3">
+                    <div className="text-xs text-white/60 font-medium w-16">Strength:</div>
+                    <input
+                      type="range"
+                      min="10"
+                      max="100"
+                      value={morphStrength}
+                      onChange={(e) => setMorphStrength(Number(e.target.value))}
+                      className="flex-1 h-1 bg-white/20 rounded-lg appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white"
+                    />
+                    <div className="text-xs text-white/60 font-mono w-8 text-right">{morphStrength}</div>
+                  </div>
+
+                  {/* Radius slider */}
+                  <div className="flex items-center gap-3">
+                    <div className="text-xs text-white/60 font-medium w-16">Radius:</div>
+                    <input
+                      type="range"
+                      min="20"
+                      max="200"
+                      value={morphRadius}
+                      onChange={(e) => setMorphRadius(Number(e.target.value))}
+                      className="flex-1 h-1 bg-white/20 rounded-lg appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white"
+                    />
+                    <div className="text-xs text-white/60 font-mono w-8 text-right">{morphRadius}</div>
+                  </div>
+
+                  {/* Action buttons */}
+                  <div className="flex items-center gap-2 pt-2">
+                    <button
+                      onClick={handleClearMorph}
+                      disabled={!hasMorphed}
+                      className="px-3 py-1.5 text-xs font-medium text-white bg-white/10 hover:bg-white/20 rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                    >
+                      Clear
+                    </button>
+                    <button
+                      onClick={handleSaveMorph}
+                      disabled={!hasMorphed || isSavingMorph}
+                      className="px-3 py-1.5 text-xs font-medium text-white bg-blue-500 hover:bg-blue-600 rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                    >
+                      {isSavingMorph ? 'Saving...' : 'Save Morph'}
+                    </button>
+                    <div className="text-xs text-white/40 ml-2">
+                      Click on the image to apply {morphTool} effect
+                    </div>
+                  </div>
                 </div>
               )}
               {editMode === 'refine' && (
