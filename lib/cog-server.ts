@@ -434,9 +434,15 @@ export async function getUngroupedTagsServer(): Promise<CogTag[]> {
 
 /**
  * Get group primary images (one per group) with group counts for a series - server-side
- * Returns images where id = group_id (the group representative), ordered by creation date
+ * Returns one image per group, ordered by creation date.
+ *
+ * If primaryImageId is provided and exists in a group, that image will be shown
+ * as the cover for that group instead of the default group primary.
  */
-export async function getGroupPrimaryImagesServer(seriesId: string): Promise<CogImageWithGroupInfo[]> {
+export async function getGroupPrimaryImagesServer(
+  seriesId: string,
+  primaryImageId?: string | null
+): Promise<CogImageWithGroupInfo[]> {
   const client = await createClient();
 
   // Get all images for the series
@@ -448,31 +454,54 @@ export async function getGroupPrimaryImagesServer(seriesId: string): Promise<Cog
   if (imagesError) throw imagesError;
   if (!allImages || allImages.length === 0) return [];
 
-  // Count images per group
+  // Count images per group and track group primaries
   const groupCountMap = new Map<string, number>();
+  const groupPrimaryMap = new Map<string, CogImage>(); // group_id -> default group primary
+  let seriesPrimaryGroupId: string | null = null;
+  let seriesPrimaryImage: CogImage | null = null;
+
   for (const img of allImages) {
-    const groupId = img.group_id || img.id; // Fallback for legacy images without group_id
+    const groupId = img.group_id || img.id;
+
+    // Count images per group
     const count = groupCountMap.get(groupId) || 0;
     groupCountMap.set(groupId, count + 1);
+
+    // Track default group primaries (id === group_id)
+    const isGroupPrimary = img.id === groupId || (!img.group_id && !img.parent_image_id);
+    if (isGroupPrimary && !groupPrimaryMap.has(groupId)) {
+      groupPrimaryMap.set(groupId, img);
+    }
+
+    // Track if series primary is in this group
+    if (primaryImageId && img.id === primaryImageId) {
+      seriesPrimaryGroupId = groupId;
+      seriesPrimaryImage = img;
+    }
   }
 
-  // Filter to group primaries (id === group_id) and add group count
-  const groupPrimaries = allImages
-    .filter((img: CogImage) => {
-      // An image is a group primary if its id equals its group_id
-      // For legacy images without group_id, root images (no parent) are primaries
-      const groupId = img.group_id || img.id;
-      return img.id === groupId || (!img.group_id && !img.parent_image_id);
-    })
-    .map((img: CogImage) => ({
-      ...img,
-      group_count: groupCountMap.get(img.group_id || img.id) || 1,
-    }))
-    .sort((a: CogImageWithGroupInfo, b: CogImageWithGroupInfo) =>
-      new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-    );
+  // Build the list of representative images (one per group)
+  const representatives: CogImageWithGroupInfo[] = [];
 
-  return groupPrimaries as CogImageWithGroupInfo[];
+  for (const [groupId, defaultPrimary] of groupPrimaryMap) {
+    // If series primary is in this group, use it instead of default primary
+    const representativeImage =
+      seriesPrimaryGroupId === groupId && seriesPrimaryImage
+        ? seriesPrimaryImage
+        : defaultPrimary;
+
+    representatives.push({
+      ...representativeImage,
+      group_count: groupCountMap.get(groupId) || 1,
+    });
+  }
+
+  // Sort by creation date (newest first)
+  representatives.sort((a, b) =>
+    new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+  );
+
+  return representatives;
 }
 
 /**

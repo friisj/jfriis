@@ -24,10 +24,12 @@ async function getSeriesData(id: string): Promise<{
   globalTags: CogTag[];
 } | null> {
   try {
-    // Core data (required)
-    const [series, images, jobs, children] = await Promise.all([
-      getSeriesByIdServer(id),
-      getGroupPrimaryImagesServer(id),
+    // Fetch series first to get primary_image_id
+    const series = await getSeriesByIdServer(id);
+
+    // Then fetch remaining data in parallel, using primary_image_id for group covers
+    const [images, jobs, children] = await Promise.all([
+      getGroupPrimaryImagesServer(id, series.primary_image_id),
       getSeriesJobsServer(id),
       getChildSeriesServer(id),
     ]);
