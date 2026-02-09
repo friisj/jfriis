@@ -527,10 +527,10 @@ export function ImageGallery({
   }, [selectedIndex, images]);
 
   const openImage = (index: number) => {
-    setSelectedIndex(index);
-    setShowDeleteConfirm(false);
-    setShowEditMode(false);
-    setShowGroupPanel(false);
+    const image = images[index]
+    if (image) {
+      router.push(`/tools/cog/${seriesId}/editor/${image.id}`)
+    }
   };
 
   const closeGallery = () => {
