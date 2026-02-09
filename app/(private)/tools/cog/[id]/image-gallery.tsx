@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
+import { TransformWrapper, TransformComponent } from 'react-zoom-pan-pinch';
 import { getCogImageUrl, deleteImageWithCleanup, toggleImageTag, getImageTagsBatch, getImageGroup, getImageById, addTagToImage, removeTagFromImage, mergeImagesIntoGroup, addImageToGroup, updateImage } from '@/lib/cog';
 import { Button } from '@/components/ui/button';
 import { LightboxEditMode } from './lightbox-edit-mode';
@@ -1536,124 +1537,171 @@ export function ImageGallery({
 
       {/* Lightbox */}
       {isOpen && currentImage && (
-        <div className="fixed inset-0 z-50 bg-black/95 flex flex-col" onClick={closeGallery}>
-          {/* Header */}
-          <div
-            className="flex items-center justify-between p-4 text-white"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="text-sm flex items-center gap-2">
-              <span className="font-medium">
-                {selectedIndex! + 1} / {images.length}
-              </span>
-              {groupImages.length > 1 && (
-                <span className="px-1.5 py-0.5 bg-blue-600/80 rounded text-[10px]">
-                  {groupIndex + 1}/{groupImages.length}
-                </span>
-              )}
-              {editingTitle ? (
-                <form
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    handleSaveTitle();
-                  }}
-                  className="flex items-center gap-2"
-                >
-                  <input
-                    type="text"
-                    value={titleInput}
-                    onChange={(e) => setTitleInput(e.target.value)}
-                    className="bg-white/10 border border-white/30 rounded px-2 py-0.5 text-white text-sm w-48 focus:outline-none focus:border-white/60"
-                    autoFocus
-                    disabled={savingTitle}
-                  />
-                  <button
-                    type="submit"
-                    disabled={savingTitle}
-                    className="text-green-400 hover:text-green-300 text-xs"
+        <TransformWrapper
+          initialScale={1}
+          minScale={0.5}
+          maxScale={4}
+          centerOnInit
+          wheel={{ step: 0.1 }}
+          doubleClick={{ mode: 'reset' }}
+          panning={{ velocityDisabled: true }}
+        >
+          {({ zoomIn, zoomOut, resetTransform, instance }) => (
+            <div className="fixed inset-0 z-50 bg-black/95 flex flex-col" onClick={closeGallery}>
+              {/* Header */}
+              <div
+                className="flex items-center justify-between p-4 text-white"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="text-sm flex items-center gap-2">
+                  <span className="font-medium">
+                    {selectedIndex! + 1} / {images.length}
+                  </span>
+                  {groupImages.length > 1 && (
+                    <span className="px-1.5 py-0.5 bg-blue-600/80 rounded text-[10px]">
+                      {groupIndex + 1}/{groupImages.length}
+                    </span>
+                  )}
+                  {editingTitle ? (
+                    <form
+                      onSubmit={(e) => {
+                        e.preventDefault();
+                        handleSaveTitle();
+                      }}
+                      className="flex items-center gap-2"
+                    >
+                      <input
+                        type="text"
+                        value={titleInput}
+                        onChange={(e) => setTitleInput(e.target.value)}
+                        className="bg-white/10 border border-white/30 rounded px-2 py-0.5 text-white text-sm w-48 focus:outline-none focus:border-white/60"
+                        autoFocus
+                        disabled={savingTitle}
+                      />
+                      <button
+                        type="submit"
+                        disabled={savingTitle}
+                        className="text-green-400 hover:text-green-300 text-xs"
+                      >
+                        {savingTitle ? '...' : '✓'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleCancelEditTitle}
+                        disabled={savingTitle}
+                        className="text-white/60 hover:text-white text-xs"
+                      >
+                        ✕
+                      </button>
+                    </form>
+                  ) : (
+                    <button
+                      onClick={handleStartEditTitle}
+                      className="text-white/60 hover:text-white hover:underline cursor-pointer"
+                      title="Click to edit title"
+                    >
+                      {getDisplayName(currentImage)}
+                    </button>
+                  )}
+                </div>
+                <div className="flex items-center gap-2">
+                  {/* Zoom controls */}
+                  {!showEditMode && (
+                    <div className="flex items-center gap-0.5 bg-black/60 backdrop-blur-sm border border-white/10 rounded-md px-1 py-1 font-mono text-[11px]">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          zoomOut();
+                        }}
+                        disabled={instance.transformState.scale <= 0.5}
+                        className="px-2 py-1 text-white/70 hover:text-white hover:bg-white/10 rounded disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                        title="Zoom out"
+                      >
+                        −
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          resetTransform();
+                        }}
+                        className="px-2 py-1 text-white/70 hover:text-white hover:bg-white/10 rounded min-w-[52px] transition-colors"
+                        title="Reset zoom (double-click image)"
+                      >
+                        {Math.round(instance.transformState.scale * 100)}%
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          zoomIn();
+                        }}
+                        disabled={instance.transformState.scale >= 4}
+                        className="px-2 py-1 text-white/70 hover:text-white hover:bg-white/10 rounded disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                        title="Zoom in"
+                      >
+                        +
+                      </button>
+                    </div>
+                  )}
+                  <span className="text-xs text-white/40 hidden sm:block">
+                    ←→ nav, e edit, {groupImages.length > 1 ? 'g group, ' : ''}t tags, d delete
+                  </span>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setShowEditMode(true);
+                      setShowTagPanel(false);
+                      setShowGroupPanel(false);
+                    }}
+                    className="text-white hover:bg-white/10"
                   >
-                    {savingTitle ? '...' : '✓'}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleCancelEditTitle}
-                    disabled={savingTitle}
-                    className="text-white/60 hover:text-white text-xs"
+                    Edit
+                  </Button>
+                  {groupImages.length > 1 && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setShowGroupPanel((prev) => !prev);
+                        setShowTagPanel(false);
+                      }}
+                      className={`hover:bg-white/10 ${showGroupPanel ? 'text-primary' : 'text-white'}`}
+                    >
+                      Group
+                    </Button>
+                  )}
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setShowTagPanel((prev) => !prev);
+                      setShowGroupPanel(false);
+                    }}
+                    className={`hover:bg-white/10 ${showTagPanel ? 'text-primary' : 'text-white'}`}
                   >
-                    ✕
-                  </button>
-                </form>
-              ) : (
-                <button
-                  onClick={handleStartEditTitle}
-                  className="text-white/60 hover:text-white hover:underline cursor-pointer"
-                  title="Click to edit title"
-                >
-                  {getDisplayName(currentImage)}
-                </button>
-              )}
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-white/40 hidden sm:block">
-                ←→ nav, e edit, {groupImages.length > 1 ? 'g group, ' : ''}t tags, d delete
-              </span>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => {
-                  setShowEditMode(true);
-                  setShowTagPanel(false);
-                  setShowGroupPanel(false);
-                }}
-                className="text-white hover:bg-white/10"
-              >
-                Edit
-              </Button>
-              {groupImages.length > 1 && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => {
-                    setShowGroupPanel((prev) => !prev);
-                    setShowTagPanel(false);
-                  }}
-                  className={`hover:bg-white/10 ${showGroupPanel ? 'text-primary' : 'text-white'}`}
-                >
-                  Group
-                </Button>
-              )}
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => {
-                  setShowTagPanel((prev) => !prev);
-                  setShowGroupPanel(false);
-                }}
-                className={`hover:bg-white/10 ${showTagPanel ? 'text-primary' : 'text-white'}`}
-              >
-                Tags
-                {appliedTagNames.length > 0 && (
-                  <span className="ml-1 text-xs opacity-60">({appliedTagNames.length})</span>
-                )}
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setShowDeleteConfirm(true)}
-                className="text-red-400 hover:text-red-300 hover:bg-red-500/10"
-              >
-                Delete
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={closeGallery}
-                className="text-white hover:bg-white/10"
-              >
-                Close
-              </Button>
-            </div>
-          </div>
+                    Tags
+                    {appliedTagNames.length > 0 && (
+                      <span className="ml-1 text-xs opacity-60">({appliedTagNames.length})</span>
+                    )}
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setShowDeleteConfirm(true)}
+                    className="text-red-400 hover:text-red-300 hover:bg-red-500/10"
+                  >
+                    Delete
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={closeGallery}
+                    className="text-white hover:bg-white/10"
+                  >
+                    Close
+                  </Button>
+                </div>
+              </div>
 
           {/* Edit Mode Overlay */}
           {showEditMode && (
@@ -1718,7 +1766,7 @@ export function ImageGallery({
             {/* Previous Button */}
             <button
               onClick={goToPrevious}
-              className="absolute left-4 p-3 rounded-full bg-white/10 hover:bg-white/20 transition-colors text-white"
+              className="absolute left-4 p-3 rounded-full bg-white/10 hover:bg-white/20 transition-colors text-white z-10"
               aria-label="Previous image"
             >
               <svg
@@ -1736,19 +1784,30 @@ export function ImageGallery({
               </svg>
             </button>
 
-            {/* Main Image */}
-            <img
-              src={getCogImageUrl(currentImage.storage_path)}
-              alt={currentImage.filename}
-              className={`max-w-full object-contain transition-all ${
-                showTagPanel || showGroupPanel ? 'max-h-[calc(100vh-280px)]' : 'max-h-[calc(100vh-180px)]'
-              }`}
-            />
+            {/* Main Image with Zoom */}
+            <TransformComponent
+              wrapperStyle={{
+                width: '100%',
+                height: '100%',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <img
+                src={getCogImageUrl(currentImage.storage_path)}
+                alt={currentImage.filename}
+                className={`object-contain ${
+                  showTagPanel || showGroupPanel ? 'max-h-[calc(100vh-280px)]' : 'max-h-[calc(100vh-180px)]'
+                }`}
+                style={{ maxWidth: '100%' }}
+              />
+            </TransformComponent>
 
             {/* Next Button */}
             <button
               onClick={goToNext}
-              className="absolute right-4 p-3 rounded-full bg-white/10 hover:bg-white/20 transition-colors text-white"
+              className="absolute right-4 p-3 rounded-full bg-white/10 hover:bg-white/20 transition-colors text-white z-10"
               aria-label="Next image"
             >
               <svg
@@ -1839,6 +1898,8 @@ export function ImageGallery({
             )}
           </div>
         </div>
+          )}
+        </TransformWrapper>
       )}
     </div>
   );
