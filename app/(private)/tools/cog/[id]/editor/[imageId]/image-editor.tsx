@@ -667,6 +667,9 @@ export function ImageEditor({ seriesId, imageId }: ImageEditorProps) {
             alignmentAnimation={{
               animationTime: 300,
             }}
+            onInit={(ref) => {
+              setZoomIndicatorValue(Math.round(ref.state.scale * 100))
+            }}
             onZoom={(ref) => {
               setZoomIndicatorValue(Math.round(ref.state.scale * 100))
               setShowZoomIndicator(true)
@@ -727,7 +730,7 @@ export function ImageEditor({ seriesId, imageId }: ImageEditorProps) {
                         title="Reset zoom (0)"
                         aria-label="Reset zoom to fit (0 key)"
                       >
-                        {Math.round(instance.transformState.scale * 100)}%
+                        {zoomIndicatorValue}%
                       </button>
                       <button
                         onClick={() => zoomIn()}
