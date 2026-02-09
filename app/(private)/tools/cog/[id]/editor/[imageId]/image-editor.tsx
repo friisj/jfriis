@@ -62,6 +62,12 @@ export function ImageEditor({ seriesId, imageId }: ImageEditorProps) {
   const [guidedPrompt, setGuidedPrompt] = useState('')
   const [isSavingGuidedEdit, setIsSavingGuidedEdit] = useState(false)
 
+  // Zoom state
+  const [showZoomIndicator, setShowZoomIndicator] = useState(false)
+  const [zoomIndicatorValue, setZoomIndicatorValue] = useState(100)
+  const zoomIndicatorTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const transformInstanceRef = useRef<any>(null)
+
   // Fetch series images
   useEffect(() => {
     async function loadImages() {
@@ -411,6 +417,26 @@ export function ImageEditor({ seriesId, imageId }: ImageEditorProps) {
             setEditMode((prev) => (prev ? null : 'morph'))
           }
           break
+        case '0':
+          if (!showEditMode && transformInstanceRef.current) {
+            e.preventDefault()
+            transformInstanceRef.current.resetTransform(300)
+          }
+          break
+        case '-':
+        case '_':
+          if (!showEditMode && transformInstanceRef.current) {
+            e.preventDefault()
+            transformInstanceRef.current.zoomOut()
+          }
+          break
+        case '=':
+        case '+':
+          if (!showEditMode && transformInstanceRef.current) {
+            e.preventDefault()
+            transformInstanceRef.current.zoomIn()
+          }
+          break
       }
     }
 
@@ -519,40 +545,99 @@ export function ImageEditor({ seriesId, imageId }: ImageEditorProps) {
           <TransformWrapper
             key={currentImage.id}
             initialScale={1}
-            minScale={0.5}
-            maxScale={4}
+            minScale={0.1}
+            maxScale={8}
             centerOnInit
-            wheel={{ step: 0.1 }}
-            doubleClick={{ mode: 'reset' }}
-            panning={{ velocityDisabled: true }}
+            wheel={{
+              step: 0.05,
+              smoothStep: 0.002,
+            }}
+            doubleClick={{
+              mode: 'reset',
+              animationTime: 300,
+            }}
+            panning={{
+              velocityDisabled: false,
+              excluded: ['button', 'a'],
+            }}
+            velocityAnimation={{
+              sensitivity: 1,
+              animationTime: 400,
+            }}
+            alignmentAnimation={{
+              animationTime: 300,
+            }}
+            onZoom={(ref) => {
+              setZoomIndicatorValue(Math.round(ref.state.scale * 100))
+              setShowZoomIndicator(true)
+
+              if (zoomIndicatorTimeoutRef.current) {
+                clearTimeout(zoomIndicatorTimeoutRef.current)
+              }
+              zoomIndicatorTimeoutRef.current = setTimeout(() => {
+                setShowZoomIndicator(false)
+              }, 1000)
+            }}
           >
-            {({ zoomIn, zoomOut, resetTransform, instance }) => (
+            {({ zoomIn, zoomOut, resetTransform, instance }) => {
+              // Store instance methods in ref for keyboard shortcuts
+              transformInstanceRef.current = { zoomIn, zoomOut, resetTransform, instance }
+
+              return (
               <>
-                {/* Zoom Controls - Floating top right */}
-                <div className="absolute top-4 right-4 z-10 flex items-center gap-0.5 bg-black/75 backdrop-blur-md border border-white/10 rounded-lg px-2 py-2 font-mono text-xs">
-                  <button
-                    onClick={() => zoomOut()}
-                    disabled={instance.transformState.scale <= 0.5}
-                    className="px-2 py-1 text-white/70 hover:text-white hover:bg-white/10 rounded disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-                    title="Zoom out"
-                  >
-                    −
-                  </button>
-                  <button
-                    onClick={() => resetTransform()}
-                    className="px-2 py-1 text-white/70 hover:text-white hover:bg-white/10 rounded min-w-[52px] transition-colors"
-                    title="Reset zoom (double-click image)"
-                  >
-                    {Math.round(instance.transformState.scale * 100)}%
-                  </button>
-                  <button
-                    onClick={() => zoomIn()}
-                    disabled={instance.transformState.scale >= 4}
-                    className="px-2 py-1 text-white/70 hover:text-white hover:bg-white/10 rounded disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-                    title="Zoom in"
-                  >
-                    +
-                  </button>
+                {/* Transient zoom indicator - center screen */}
+                {showZoomIndicator && (
+                  <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-30 pointer-events-none">
+                    <div className="bg-black/90 backdrop-blur-md border border-white/20 rounded-lg px-4 py-2 shadow-2xl">
+                      <div className="text-2xl font-mono font-semibold text-white">
+                        {zoomIndicatorValue}%
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Enhanced Zoom Controls - Bottom right */}
+                <div className="absolute bottom-4 right-4 z-10 flex flex-col gap-2">
+                  {/* Preset zoom levels */}
+                  <div className="flex items-center gap-0.5 bg-black/75 backdrop-blur-md border border-white/10 rounded-lg px-1.5 py-1.5 font-mono text-xs">
+                    <button
+                      onClick={() => resetTransform(300)}
+                      className="px-2 py-0.5 text-white/70 hover:text-white hover:bg-white/10 rounded transition-colors"
+                      title="Fit to screen (0)"
+                    >
+                      Fit
+                    </button>
+                  </div>
+
+                  {/* Zoom controls */}
+                  <div className="flex items-center gap-0.5 bg-black/75 backdrop-blur-md border border-white/10 rounded-lg px-2 py-2 font-mono text-xs">
+                    <button
+                      onClick={() => zoomOut()}
+                      disabled={instance.transformState.scale <= 0.1}
+                      className="px-2 py-1 text-white/70 hover:text-white hover:bg-white/10 rounded disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                      title="Zoom out (-)"
+                      aria-label="Zoom out (minus key)"
+                    >
+                      −
+                    </button>
+                    <button
+                      onClick={() => resetTransform(300)}
+                      className="px-2 py-1 text-white/70 hover:text-white hover:bg-white/10 rounded min-w-[52px] transition-colors"
+                      title="Reset zoom (0)"
+                      aria-label="Reset zoom to fit (0 key)"
+                    >
+                      {Math.round(instance.transformState.scale * 100)}%
+                    </button>
+                    <button
+                      onClick={() => zoomIn()}
+                      disabled={instance.transformState.scale >= 8}
+                      className="px-2 py-1 text-white/70 hover:text-white hover:bg-white/10 rounded disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                      title="Zoom in (=)"
+                      aria-label="Zoom in (plus key)"
+                    >
+                      +
+                    </button>
+                  </div>
                 </div>
 
                 {/* Previous Button */}
@@ -580,7 +665,7 @@ export function ImageEditor({ seriesId, imageId }: ImageEditorProps) {
 
                 {/* Image Canvas */}
                 <TransformComponent
-                  wrapperClass="!w-full !h-full"
+                  wrapperClass="!w-full !h-full cursor-grab active:cursor-grabbing"
                   contentStyle={{
                     width: '100%',
                     height: '100%',
@@ -592,7 +677,8 @@ export function ImageEditor({ seriesId, imageId }: ImageEditorProps) {
                   <img
                     src={getCogImageUrl(currentImage.storage_path)}
                     alt={currentImage.filename}
-                    className="max-w-[90vw] max-h-[90vh] object-contain"
+                    className="max-w-[90vw] max-h-[90vh] object-contain select-none"
+                    draggable={false}
                     style={{ maxWidth: '90vw', maxHeight: '90vh' }}
                   />
                 </TransformComponent>
@@ -620,7 +706,7 @@ export function ImageEditor({ seriesId, imageId }: ImageEditorProps) {
                   </button>
                 )}
               </>
-            )}
+            )}}
           </TransformWrapper>
         )}
 
@@ -1078,13 +1164,20 @@ export function ImageEditor({ seriesId, imageId }: ImageEditorProps) {
 
       {/* Footer - Keyboard hints */}
       <footer className="px-4 py-2 border-t border-white/10">
-        <div className="text-xs text-white/40 text-center">
-          {showEditMode ? (
-            'esc exit edit mode'
-          ) : (
-            <>
-              ←→ navigate · +/- zoom · double-click reset{hasGroup ? ' · g group' : ''} · e edit · esc close
-            </>
+        <div className="flex items-center justify-between text-xs text-white/40">
+          <div className="text-center flex-1">
+            {showEditMode ? (
+              'esc exit edit mode'
+            ) : (
+              <>
+                ←→ navigate · 0 fit · +/- zoom · double-click reset{hasGroup ? ' · g group' : ''} · e edit · esc close
+              </>
+            )}
+          </div>
+          {!showEditMode && currentImage && (
+            <div className="font-mono text-white/30">
+              {currentImage.width}×{currentImage.height}
+            </div>
           )}
         </div>
       </footer>
