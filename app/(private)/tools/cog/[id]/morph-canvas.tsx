@@ -83,11 +83,11 @@ export const MorphCanvas = forwardRef<MorphCanvasRef, MorphCanvasProps>(
 
     // Handle mouse move to show cursor
     const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
-      if (!displayCanvasRef.current) return
-      const rect = displayCanvasRef.current.getBoundingClientRect()
+      if (!displayCanvasRef.current || !containerRef.current) return
+      const containerRect = containerRef.current.getBoundingClientRect()
       setCursorPos({
-        x: e.clientX - rect.left,
-        y: e.clientY - rect.top,
+        x: e.clientX - containerRect.left,
+        y: e.clientY - containerRect.top,
       })
     }
 
@@ -179,38 +179,40 @@ export const MorphCanvas = forwardRef<MorphCanvasRef, MorphCanvasProps>(
       : radius
 
     return (
-      <div ref={containerRef} className="relative w-full h-full flex items-center justify-center bg-black">
-        <canvas
-          ref={displayCanvasRef}
-          width={imageWidth}
-          height={imageHeight}
-          onClick={handleCanvasClick}
-          onMouseMove={handleMouseMove}
-          onMouseLeave={handleMouseLeave}
-          className={`max-w-full max-h-full object-contain ${
-            isApplying ? 'cursor-none' : 'cursor-none'
-          }`}
-        />
-
-        {/* Cursor overlay */}
-        {cursorPos && !isApplying && (
-          <div
-            className="absolute pointer-events-none rounded-full border-2 border-white/60"
-            style={{
-              left: cursorPos.x,
-              top: cursorPos.y,
-              width: cursorRadius * 2,
-              height: cursorRadius * 2,
-              transform: 'translate(-50%, -50%)',
-              boxShadow: '0 0 0 1px rgba(0,0,0,0.3)',
-            }}
-          />
-        )}
-
+      <div ref={containerRef} className="relative w-full h-full flex items-center justify-center bg-black overflow-hidden">
         {!isLoaded && (
           <div className="absolute inset-0 flex items-center justify-center">
             <div className="text-sm text-muted-foreground">Loading...</div>
           </div>
+        )}
+
+        {isLoaded && (
+          <>
+            <canvas
+              ref={displayCanvasRef}
+              width={imageWidth}
+              height={imageHeight}
+              onClick={handleCanvasClick}
+              onMouseMove={handleMouseMove}
+              onMouseLeave={handleMouseLeave}
+              className="max-w-full max-h-full object-contain cursor-none"
+            />
+
+            {/* Cursor overlay */}
+            {cursorPos && !isApplying && (
+              <div
+                className="absolute pointer-events-none rounded-full border-2 border-white/60"
+                style={{
+                  left: cursorPos.x,
+                  top: cursorPos.y,
+                  width: cursorRadius * 2,
+                  height: cursorRadius * 2,
+                  transform: 'translate(-50%, -50%)',
+                  boxShadow: '0 0 0 1px rgba(0,0,0,0.3)',
+                }}
+              />
+            )}
+          </>
         )}
       </div>
     )
