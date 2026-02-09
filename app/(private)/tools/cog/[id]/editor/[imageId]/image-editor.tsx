@@ -22,6 +22,11 @@ export function ImageEditor({ seriesId, imageId }: ImageEditorProps) {
   const [groupImages, setGroupImages] = useState<CogImageWithGroupInfo[]>([])
   const [loadingGroup, setLoadingGroup] = useState(false)
 
+  // Edit mode state
+  type EditMode = 'morph' | 'refine' | 'spot_removal' | 'guided_edit'
+  const [editMode, setEditMode] = useState<EditMode | null>(null)
+  const showEditMode = editMode !== null
+
   // Fetch series images
   useEffect(() => {
     async function loadImages() {
@@ -164,24 +169,36 @@ export function ImageEditor({ seriesId, imageId }: ImageEditorProps) {
 
       switch (e.key) {
         case 'Escape':
-          if (showGroupMode) {
+          if (showEditMode) {
+            setEditMode(null)
+          } else if (showGroupMode) {
             setShowGroupMode(false)
           } else {
             exitToGrid()
           }
           break
         case 'ArrowLeft':
-          e.preventDefault()
-          goToPrevious()
+          if (!showEditMode) {
+            e.preventDefault()
+            goToPrevious()
+          }
           break
         case 'ArrowRight':
-          e.preventDefault()
-          goToNext()
+          if (!showEditMode) {
+            e.preventDefault()
+            goToNext()
+          }
           break
         case 'g':
         case 'G':
-          if (hasGroup) {
+          if (hasGroup && !showEditMode) {
             setShowGroupMode((prev) => !prev)
+          }
+          break
+        case 'e':
+        case 'E':
+          if (!showGroupMode) {
+            setEditMode((prev) => (prev ? null : 'morph'))
           }
           break
       }
@@ -189,7 +206,7 @@ export function ImageEditor({ seriesId, imageId }: ImageEditorProps) {
 
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [exitToGrid, goToPrevious, goToNext, hasGroup, showGroupMode])
+  }, [exitToGrid, goToPrevious, goToNext, hasGroup, showGroupMode, showEditMode])
 
   if (isLoading || !currentImage) {
     return (
@@ -204,7 +221,11 @@ export function ImageEditor({ seriesId, imageId }: ImageEditorProps) {
       {/* Header */}
       <header className="flex items-center justify-between px-4 py-3 border-b border-white/10">
         <div className="flex items-center gap-3 text-white">
-          {showGroupMode ? (
+          {showEditMode ? (
+            <span className="text-sm font-medium capitalize">
+              {editMode?.replace('_', ' ')} Mode
+            </span>
+          ) : showGroupMode ? (
             <span className="text-sm font-medium">
               {currentImage.title || currentImage.filename} (Group)
             </span>
@@ -216,7 +237,17 @@ export function ImageEditor({ seriesId, imageId }: ImageEditorProps) {
         </div>
 
         <div className="flex items-center gap-2">
-          {hasGroup && !showGroupMode && (
+          {showEditMode && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setEditMode(null)}
+              className="text-white hover:bg-white/10"
+            >
+              Close Edit
+            </Button>
+          )}
+          {!showEditMode && hasGroup && !showGroupMode && (
             <Button
               variant="ghost"
               size="sm"
@@ -226,7 +257,7 @@ export function ImageEditor({ seriesId, imageId }: ImageEditorProps) {
               Group
             </Button>
           )}
-          {showGroupMode && (
+          {!showEditMode && showGroupMode && (
             <Button
               variant="ghost"
               size="sm"
@@ -236,15 +267,25 @@ export function ImageEditor({ seriesId, imageId }: ImageEditorProps) {
               Close Group
             </Button>
           )}
-          {!showGroupMode && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={exitToGrid}
-              className="text-white hover:bg-white/10"
-            >
-              Close
-            </Button>
+          {!showEditMode && !showGroupMode && (
+            <>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setEditMode('morph')}
+                className="text-white hover:bg-white/10"
+              >
+                Edit
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={exitToGrid}
+                className="text-white hover:bg-white/10"
+              >
+                Close
+              </Button>
+            </>
           )}
         </div>
       </header>
@@ -359,6 +400,84 @@ export function ImageEditor({ seriesId, imageId }: ImageEditorProps) {
         </TransformWrapper>
       </div>
 
+      {/* Edit Mode Palette - Overlays bottom when active */}
+      {showEditMode && (
+        <div className="absolute bottom-0 left-0 right-0 z-20 bg-black/90 backdrop-blur-md border-t border-white/10">
+          <div className="px-4 py-4">
+            {/* Edit Mode Selector */}
+            <div className="flex items-center gap-2 mb-4">
+              <div className="text-xs text-white/60 font-medium">Edit Mode:</div>
+              <div className="flex gap-1">
+                <button
+                  onClick={() => setEditMode('morph')}
+                  className={`px-3 py-1.5 text-xs font-medium rounded transition-colors ${
+                    editMode === 'morph'
+                      ? 'bg-white text-black'
+                      : 'bg-white/10 text-white hover:bg-white/20'
+                  }`}
+                >
+                  Morph
+                </button>
+                <button
+                  onClick={() => setEditMode('refine')}
+                  className={`px-3 py-1.5 text-xs font-medium rounded transition-colors ${
+                    editMode === 'refine'
+                      ? 'bg-white text-black'
+                      : 'bg-white/10 text-white hover:bg-white/20'
+                  }`}
+                >
+                  Refine
+                </button>
+                <button
+                  onClick={() => setEditMode('spot_removal')}
+                  className={`px-3 py-1.5 text-xs font-medium rounded transition-colors ${
+                    editMode === 'spot_removal'
+                      ? 'bg-white text-black'
+                      : 'bg-white/10 text-white hover:bg-white/20'
+                  }`}
+                >
+                  Spot Removal
+                </button>
+                <button
+                  onClick={() => setEditMode('guided_edit')}
+                  className={`px-3 py-1.5 text-xs font-medium rounded transition-colors ${
+                    editMode === 'guided_edit'
+                      ? 'bg-white text-black'
+                      : 'bg-white/10 text-white hover:bg-white/20'
+                  }`}
+                >
+                  Guided Edit
+                </button>
+              </div>
+            </div>
+
+            {/* Mode-specific controls */}
+            <div className="space-y-3">
+              {editMode === 'morph' && (
+                <div className="text-sm text-white/70">
+                  Morph mode - Click and drag on the image to bloat or pucker areas
+                </div>
+              )}
+              {editMode === 'refine' && (
+                <div className="text-sm text-white/70">
+                  Refine mode - Coming soon
+                </div>
+              )}
+              {editMode === 'spot_removal' && (
+                <div className="text-sm text-white/70">
+                  Spot removal mode - Coming soon
+                </div>
+              )}
+              {editMode === 'guided_edit' && (
+                <div className="text-sm text-white/70">
+                  Guided edit mode - Coming soon
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Group Drawer - Overlays bottom when active */}
       {showGroupMode && (
         <div className="absolute bottom-0 left-0 right-0 z-20 bg-black/90 backdrop-blur-md border-t border-white/10">
@@ -465,7 +584,13 @@ export function ImageEditor({ seriesId, imageId }: ImageEditorProps) {
       {/* Footer - Keyboard hints */}
       <footer className="px-4 py-2 border-t border-white/10">
         <div className="text-xs text-white/40 text-center">
-          ←→ navigate · +/- zoom · double-click reset{hasGroup ? ' · g group' : ''} · esc close
+          {showEditMode ? (
+            'esc exit edit mode'
+          ) : (
+            <>
+              ←→ navigate · +/- zoom · double-click reset{hasGroup ? ' · g group' : ''} · e edit · esc close
+            </>
+          )}
         </div>
       </footer>
     </div>
