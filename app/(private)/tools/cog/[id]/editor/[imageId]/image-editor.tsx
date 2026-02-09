@@ -584,8 +584,27 @@ export function ImageEditor({ seriesId, imageId }: ImageEditorProps) {
             radius={morphRadius}
             onMorphApplied={() => setHasMorphed(true)}
           />
+        ) : editMode === 'spot_removal' || editMode === 'guided_edit' ? (
+          /* Mask Canvas (Spot Removal / Guided Edit) - Full viewport */
+          <div className="w-full h-full flex items-center justify-center bg-black">
+            <MaskCanvas
+              ref={editMode === 'spot_removal' ? spotMaskCanvasRef : guidedMaskCanvasRef}
+              imageUrl={getCogImageUrl(currentImage.storage_path)}
+              imageWidth={currentImage.width || 1024}
+              imageHeight={currentImage.height || 1024}
+              onMaskChange={(mask) => {
+                if (editMode === 'spot_removal') {
+                  setSpotMaskBase64(mask)
+                } else {
+                  setGuidedMaskBase64(mask)
+                }
+              }}
+              hideToolbar={true}
+              maxHeight="calc(100vh - 120px)"
+            />
+          </div>
         ) : (
-          /* View Mode Canvas with Zoom */
+          /* View Mode / Refine Mode Canvas with Zoom */
           <TransformWrapper
             key={currentImage.id}
             initialScale={1}
@@ -686,8 +705,8 @@ export function ImageEditor({ seriesId, imageId }: ImageEditorProps) {
                   </div>
                 )}
 
-                {/* Previous Button */}
-                {currentIndex > 0 && (
+                {/* Previous Button - Hidden in edit mode */}
+                {!showEditMode && currentIndex > 0 && (
                   <button
                     onClick={goToPrevious}
                     className="absolute left-4 top-1/2 -translate-y-1/2 z-10 p-3 rounded-full bg-white/10 hover:bg-white/20 transition-colors text-white"
@@ -729,8 +748,8 @@ export function ImageEditor({ seriesId, imageId }: ImageEditorProps) {
                   />
                 </TransformComponent>
 
-                {/* Next Button */}
-                {currentIndex < images.length - 1 && (
+                {/* Next Button - Hidden in edit mode */}
+                {!showEditMode && currentIndex < images.length - 1 && (
                   <button
                     onClick={goToNext}
                     className="absolute right-4 top-1/2 -translate-y-1/2 z-10 p-3 rounded-full bg-white/10 hover:bg-white/20 transition-colors text-white"
@@ -754,27 +773,6 @@ export function ImageEditor({ seriesId, imageId }: ImageEditorProps) {
               </>
             )}}
           </TransformWrapper>
-        )}
-
-        {/* Mask Canvas Overlays for Spot Removal and Guided Edit - Layered with margin */}
-        {(editMode === 'spot_removal' || editMode === 'guided_edit') && (
-          <div className="absolute inset-8 z-10 pointer-events-auto shadow-2xl border border-white/20 rounded-lg overflow-hidden">
-            <MaskCanvas
-              ref={editMode === 'spot_removal' ? spotMaskCanvasRef : guidedMaskCanvasRef}
-              imageUrl={getCogImageUrl(currentImage.storage_path)}
-              imageWidth={currentImage.width || 1024}
-              imageHeight={currentImage.height || 1024}
-              onMaskChange={(mask) => {
-                if (editMode === 'spot_removal') {
-                  setSpotMaskBase64(mask)
-                } else {
-                  setGuidedMaskBase64(mask)
-                }
-              }}
-              hideToolbar={true}
-              maxHeight="calc(100vh - 200px)"
-            />
-          </div>
         )}
       </div>
 
