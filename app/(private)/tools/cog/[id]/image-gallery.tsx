@@ -1154,9 +1154,11 @@ export function ImageGallery({
         case 'Escape':
           closeGallery();
           break;
-        // Navigation: when group panel is open, navigate within group; otherwise navigate grid
+        // Navigation: when group panel is open, all arrow keys navigate within group
         case 'ArrowLeft':
+        case 'ArrowUp':
         case 'h':
+        case 'k':
           e.preventDefault();
           if (showGroupPanel && groupImages.length > 1) {
             goToPreviousInGroup();
@@ -1165,23 +1167,15 @@ export function ImageGallery({
           }
           break;
         case 'ArrowRight':
+        case 'ArrowDown':
         case 'l':
+        case 'j':
           e.preventDefault();
           if (showGroupPanel && groupImages.length > 1) {
             goToNextInGroup();
           } else {
             goToNext();
           }
-          break;
-        case 'ArrowUp':
-        case 'k':
-          e.preventDefault();
-          goToPrevious();
-          break;
-        case 'ArrowDown':
-        case 'j':
-          e.preventDefault();
-          goToNext();
           break;
         case 'd':
         case 'Delete':
