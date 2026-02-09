@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { getCogImageUrl, getImageGroup, setSeriesPrimaryImage, deleteImageWithCleanup, removeImageFromGroup, reorderGroupImages } from '@/lib/cog';
+import { getCogImageUrl, getCogThumbnailUrl, getImageGroup, setSeriesPrimaryImage, deleteImageWithCleanup, removeImageFromGroup, reorderGroupImages } from '@/lib/cog';
 import type { CogImage } from '@/lib/types/cog';
 
 interface GroupPanelProps {
@@ -285,7 +285,7 @@ export function GroupPanel({
                   } ${isLoading ? 'opacity-50' : ''}`}
                 >
                   <img
-                    src={getCogImageUrl(image.storage_path)}
+                    src={getCogThumbnailUrl(image.storage_path, image.thumbnail_128, 128)}
                     alt={`Image ${index + 1}`}
                     className="w-16 h-16 object-cover rounded pointer-events-none"
                     loading="lazy"

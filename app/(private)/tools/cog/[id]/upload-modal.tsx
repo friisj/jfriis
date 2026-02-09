@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/lib/supabase';
 import { createImage } from '@/lib/cog';
+import { generateThumbnails } from '@/lib/cog-thumbnails';
 
 interface UploadModalProps {
   seriesId: string;
@@ -98,7 +99,7 @@ export function UploadModal({ seriesId, isOpen, onClose }: UploadModalProps) {
 
       const dimensions = await getImageDimensions(file);
 
-      await createImage({
+      const image = await createImage({
         series_id: seriesId,
         storage_path: storagePath,
         filename: file.name,
@@ -107,6 +108,12 @@ export function UploadModal({ seriesId, isOpen, onClose }: UploadModalProps) {
         height: dimensions.height,
         file_size: file.size,
         source: 'upload',
+      });
+
+      // Generate thumbnails in the background (don't block UI on this)
+      generateThumbnails(image.id, storagePath).catch((err) => {
+        console.error('Thumbnail generation failed:', err);
+        // Don't fail the upload if thumbnails fail
       });
 
       setFiles((prev) =>

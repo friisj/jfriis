@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { TransformWrapper, TransformComponent } from 'react-zoom-pan-pinch';
-import { getCogImageUrl, deleteImageWithCleanup, toggleImageTag, getImageTagsBatch, getImageGroup, getImageById, addTagToImage, removeTagFromImage, mergeImagesIntoGroup, addImageToGroup, updateImage } from '@/lib/cog';
+import { getCogImageUrl, getCogThumbnailUrl, deleteImageWithCleanup, toggleImageTag, getImageTagsBatch, getImageGroup, getImageById, addTagToImage, removeTagFromImage, mergeImagesIntoGroup, addImageToGroup, updateImage } from '@/lib/cog';
 import { Button } from '@/components/ui/button';
 import { LightboxEditMode } from './lightbox-edit-mode';
 import { GroupPanel } from './group-panel';
@@ -241,7 +241,7 @@ function DeleteConfirmationModal({
                   className="relative w-12 h-12 rounded overflow-hidden border border-border"
                 >
                   <img
-                    src={getCogImageUrl(img.storage_path)}
+                    src={getCogThumbnailUrl(img.storage_path, img.thumbnail_64, 64)}
                     alt={img.filename}
                     className="w-full h-full object-cover"
                     loading="lazy"
@@ -1461,7 +1461,7 @@ export function ImageGallery({
               <button onClick={() => openImage(index)} className="w-full text-left">
                 <div className="aspect-square bg-muted relative">
                   <img
-                    src={getCogImageUrl(image.storage_path)}
+                    src={getCogThumbnailUrl(image.storage_path, image.thumbnail_256, 256)}
                     alt={image.filename}
                     className={`w-full h-full object-cover transition-opacity ${
                       isSelected ? 'opacity-80' : ''

@@ -46,6 +46,10 @@ export interface CogImage {
   prompt: string | null;
   metadata: Record<string, unknown>;
   created_at: string;
+  // Thumbnail storage paths (WebP optimized)
+  thumbnail_256: string | null;
+  thumbnail_128: string | null;
+  thumbnail_64: string | null;
 }
 
 // Shoot parameters for "photo shoot" style job creation
