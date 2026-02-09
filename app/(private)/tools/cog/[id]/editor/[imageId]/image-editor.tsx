@@ -55,12 +55,19 @@ export function ImageEditor({ seriesId, imageId }: ImageEditorProps) {
   const spotMaskCanvasRef = useRef<MaskCanvasRef>(null)
   const [spotMaskBase64, setSpotMaskBase64] = useState<string | null>(null)
   const [isSavingSpotRemoval, setIsSavingSpotRemoval] = useState(false)
+  type MaskTool = 'brush' | 'eraser'
+  const [spotBrushTool, setSpotBrushTool] = useState<MaskTool>('brush')
+  const [spotBrushSize, setSpotBrushSize] = useState(30)
+  const [spotMaskOpacity, setSpotMaskOpacity] = useState(0.5)
 
   // Guided edit mode state
   const guidedMaskCanvasRef = useRef<MaskCanvasRef>(null)
   const [guidedMaskBase64, setGuidedMaskBase64] = useState<string | null>(null)
   const [guidedPrompt, setGuidedPrompt] = useState('')
   const [isSavingGuidedEdit, setIsSavingGuidedEdit] = useState(false)
+  const [guidedBrushTool, setGuidedBrushTool] = useState<MaskTool>('brush')
+  const [guidedBrushSize, setGuidedBrushSize] = useState(30)
+  const [guidedMaskOpacity, setGuidedMaskOpacity] = useState(0.5)
 
   // Zoom state
   const [showZoomIndicator, setShowZoomIndicator] = useState(false)
@@ -600,6 +607,9 @@ export function ImageEditor({ seriesId, imageId }: ImageEditorProps) {
                 }
               }}
               hideToolbar={true}
+              tool={editMode === 'spot_removal' ? spotBrushTool : guidedBrushTool}
+              brushSize={editMode === 'spot_removal' ? spotBrushSize : guidedBrushSize}
+              maskOpacity={editMode === 'spot_removal' ? spotMaskOpacity : guidedMaskOpacity}
               maxHeight="calc(100vh - 120px)"
             />
           </div>
@@ -954,10 +964,74 @@ export function ImageEditor({ seriesId, imageId }: ImageEditorProps) {
       {editMode === 'spot_removal' && (
         <>
           {/* Brush Palette - Bottom Left */}
-          <div className="absolute bottom-8 left-8 z-20 bg-black/90 backdrop-blur-md border border-white/10 rounded-lg shadow-2xl p-4">
-            <div className="text-xs text-white/60 font-medium mb-3">Brush Tools</div>
-            <div className="text-sm text-white/70">
-              Paint over areas to remove
+          <div className="absolute bottom-8 left-8 z-20 bg-black/90 backdrop-blur-md border border-white/10 rounded-lg shadow-2xl p-4 min-w-[280px]">
+            <div className="space-y-3">
+              {/* Tool selector */}
+              <div>
+                <div className="text-xs text-white/60 font-medium mb-2">Tool</div>
+                <div className="flex gap-1">
+                  <button
+                    onClick={() => setSpotBrushTool('brush')}
+                    className={`flex-1 px-3 py-2 text-xs font-medium rounded transition-colors ${
+                      spotBrushTool === 'brush'
+                        ? 'bg-blue-500 text-white'
+                        : 'bg-white/10 text-white hover:bg-white/20'
+                    }`}
+                    title="Brush (B)"
+                  >
+                    Brush
+                  </button>
+                  <button
+                    onClick={() => setSpotBrushTool('eraser')}
+                    className={`flex-1 px-3 py-2 text-xs font-medium rounded transition-colors ${
+                      spotBrushTool === 'eraser'
+                        ? 'bg-blue-500 text-white'
+                        : 'bg-white/10 text-white hover:bg-white/20'
+                    }`}
+                    title="Eraser (E)"
+                  >
+                    Eraser
+                  </button>
+                </div>
+              </div>
+
+              {/* Brush size */}
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="text-xs text-white/60 font-medium">Brush Size</label>
+                  <span className="text-xs text-white/60 font-mono">{spotBrushSize}px</span>
+                </div>
+                <input
+                  type="range"
+                  min="5"
+                  max="100"
+                  value={spotBrushSize}
+                  onChange={(e) => setSpotBrushSize(Number(e.target.value))}
+                  className="w-full h-1 bg-white/20 rounded-lg appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white"
+                />
+              </div>
+
+              {/* Mask opacity */}
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="text-xs text-white/60 font-medium">Mask Opacity</label>
+                  <span className="text-xs text-white/60 font-mono">{Math.round(spotMaskOpacity * 100)}%</span>
+                </div>
+                <input
+                  type="range"
+                  min="0"
+                  max="1"
+                  step="0.1"
+                  value={spotMaskOpacity}
+                  onChange={(e) => setSpotMaskOpacity(Number(e.target.value))}
+                  className="w-full h-1 bg-white/20 rounded-lg appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white"
+                />
+              </div>
+
+              {/* Keyboard hints */}
+              <div className="text-xs text-white/40 pt-2 border-t border-white/10">
+                <kbd className="px-1 py-0.5 bg-white/10 rounded">B</kbd> brush · <kbd className="px-1 py-0.5 bg-white/10 rounded">E</kbd> eraser · <kbd className="px-1 py-0.5 bg-white/10 rounded">[</kbd><kbd className="px-1 py-0.5 bg-white/10 rounded">]</kbd> size
+              </div>
             </div>
           </div>
 
@@ -993,10 +1067,74 @@ export function ImageEditor({ seriesId, imageId }: ImageEditorProps) {
       {editMode === 'guided_edit' && (
         <>
           {/* Brush Palette - Bottom Left */}
-          <div className="absolute bottom-8 left-8 z-20 bg-black/90 backdrop-blur-md border border-white/10 rounded-lg shadow-2xl p-4">
-            <div className="text-xs text-white/60 font-medium mb-3">Brush Tools</div>
-            <div className="text-sm text-white/70 max-w-[200px]">
-              Paint over the area to edit
+          <div className="absolute bottom-8 left-8 z-20 bg-black/90 backdrop-blur-md border border-white/10 rounded-lg shadow-2xl p-4 min-w-[280px]">
+            <div className="space-y-3">
+              {/* Tool selector */}
+              <div>
+                <div className="text-xs text-white/60 font-medium mb-2">Tool</div>
+                <div className="flex gap-1">
+                  <button
+                    onClick={() => setGuidedBrushTool('brush')}
+                    className={`flex-1 px-3 py-2 text-xs font-medium rounded transition-colors ${
+                      guidedBrushTool === 'brush'
+                        ? 'bg-blue-500 text-white'
+                        : 'bg-white/10 text-white hover:bg-white/20'
+                    }`}
+                    title="Brush (B)"
+                  >
+                    Brush
+                  </button>
+                  <button
+                    onClick={() => setGuidedBrushTool('eraser')}
+                    className={`flex-1 px-3 py-2 text-xs font-medium rounded transition-colors ${
+                      guidedBrushTool === 'eraser'
+                        ? 'bg-blue-500 text-white'
+                        : 'bg-white/10 text-white hover:bg-white/20'
+                    }`}
+                    title="Eraser (E)"
+                  >
+                    Eraser
+                  </button>
+                </div>
+              </div>
+
+              {/* Brush size */}
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="text-xs text-white/60 font-medium">Brush Size</label>
+                  <span className="text-xs text-white/60 font-mono">{guidedBrushSize}px</span>
+                </div>
+                <input
+                  type="range"
+                  min="5"
+                  max="100"
+                  value={guidedBrushSize}
+                  onChange={(e) => setGuidedBrushSize(Number(e.target.value))}
+                  className="w-full h-1 bg-white/20 rounded-lg appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white"
+                />
+              </div>
+
+              {/* Mask opacity */}
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="text-xs text-white/60 font-medium">Mask Opacity</label>
+                  <span className="text-xs text-white/60 font-mono">{Math.round(guidedMaskOpacity * 100)}%</span>
+                </div>
+                <input
+                  type="range"
+                  min="0"
+                  max="1"
+                  step="0.1"
+                  value={guidedMaskOpacity}
+                  onChange={(e) => setGuidedMaskOpacity(Number(e.target.value))}
+                  className="w-full h-1 bg-white/20 rounded-lg appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white"
+                />
+              </div>
+
+              {/* Keyboard hints */}
+              <div className="text-xs text-white/40 pt-2 border-t border-white/10">
+                <kbd className="px-1 py-0.5 bg-white/10 rounded">B</kbd> brush · <kbd className="px-1 py-0.5 bg-white/10 rounded">E</kbd> eraser · <kbd className="px-1 py-0.5 bg-white/10 rounded">[</kbd><kbd className="px-1 py-0.5 bg-white/10 rounded">]</kbd> size
+              </div>
             </div>
           </div>
 
