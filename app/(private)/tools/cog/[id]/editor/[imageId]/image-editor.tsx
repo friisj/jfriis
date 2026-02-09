@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { TransformWrapper, TransformComponent } from 'react-zoom-pan-pinch'
 import { Button } from '@/components/ui/button'
-import { getCogImageUrl } from '@/lib/cog'
+import { getCogImageUrl, getCogThumbnailUrl } from '@/lib/cog'
 import { CogDrawerImage } from '@/components/cog/cog-image'
 import type { CogImageWithGroupInfo } from '@/lib/types/cog'
 import { setPrimaryImage, removeFromGroup, deleteImage } from '@/lib/ai/actions/manage-group'
@@ -495,11 +495,14 @@ export function ImageEditor({ seriesId, imageId }: ImageEditorProps) {
   useEffect(() => {
     if (!currentImage) return
 
-    const preloadImage = (url: string) => {
+    const preloadImage = (url: string, priority: 'high' | 'low' = 'low') => {
       const link = document.createElement('link')
       link.rel = 'preload'
       link.as = 'image'
       link.href = url
+      if (priority === 'high') {
+        link.setAttribute('fetchpriority', 'high')
+      }
       document.head.appendChild(link)
       return link
     }
@@ -516,13 +519,45 @@ export function ImageEditor({ seriesId, imageId }: ImageEditorProps) {
         }
       })
     } else {
-      // In series mode, preload adjacent series images
-      if (currentIdx < images.length - 1) {
-        links.push(preloadImage(getCogImageUrl(images[currentIdx + 1].storage_path)))
-      }
+      // In series mode, aggressively preload surrounding images
+      // Preload 3 images in each direction for smoother navigation
+      const PRELOAD_RADIUS = 3
 
-      if (currentIdx > 0) {
-        links.push(preloadImage(getCogImageUrl(images[currentIdx - 1].storage_path)))
+      for (let offset = 1; offset <= PRELOAD_RADIUS; offset++) {
+        // Preload next images
+        const nextIdx = currentIdx + offset
+        if (nextIdx < images.length) {
+          const nextImage = images[nextIdx]
+          // High priority for immediate neighbors, low for extended radius
+          const priority = offset === 1 ? 'high' : 'low'
+
+          // Preload thumbnail first for faster perceived load
+          if (nextImage.thumbnail_256) {
+            links.push(preloadImage(
+              getCogThumbnailUrl(nextImage.storage_path, nextImage.thumbnail_256, 256),
+              priority
+            ))
+          }
+          // Then preload full image
+          links.push(preloadImage(getCogImageUrl(nextImage.storage_path), priority))
+        }
+
+        // Preload previous images
+        const prevIdx = currentIdx - offset
+        if (prevIdx >= 0) {
+          const prevImage = images[prevIdx]
+          const priority = offset === 1 ? 'high' : 'low'
+
+          // Preload thumbnail first for faster perceived load
+          if (prevImage.thumbnail_256) {
+            links.push(preloadImage(
+              getCogThumbnailUrl(prevImage.storage_path, prevImage.thumbnail_256, 256),
+              priority
+            ))
+          }
+          // Then preload full image
+          links.push(preloadImage(getCogImageUrl(prevImage.storage_path), priority))
+        }
       }
     }
 
