@@ -666,27 +666,24 @@ export default function AdskDemo() {
           </div>
 
           <div className="mt-8">
-            <p className="text-[10px] uppercase tracking-widest text-muted-foreground/50 mb-3">What was already working</p>
-            <div className="space-y-3">
+            <p className="text-xl text-muted-foreground/75 mb-6">What was already working</p>
+            <div className="space-y-8">
               <div className="flex items-start gap-3">
-                <span className="text-[10px] text-muted-foreground/30 mt-1 select-none">01</span>
                 <div>
-                  <p className="text-sm font-medium">Rich tool ecosystem</p>
-                  <p className="text-xs text-muted-foreground">Multiple teams had built powerful tools — theme generation, expert sourcing, security screening, index construction. The capabilities existed.</p>
+                  <p className="text-xl text-foreground font-semibold">Rich tool ecosystem</p>
+                  <p className="text-xl text-muted-foreground/75">Multiple Tilt teams building powerful tools — theme generation, expert sourcing, security screening, index construction. Agentic tools were turning chat into Tilt's primary interface.</p>
                 </div>
               </div>
               <div className="flex items-start gap-3">
-                <span className="text-[10px] text-muted-foreground/30 mt-1 select-none">02</span>
                 <div>
-                  <p className="text-sm font-medium">Conversational fluency</p>
-                  <p className="text-xs text-muted-foreground">The agent was strong at natural language interaction, domain reasoning, and multi-step conversation. Chat itself wasn&apos;t the problem.</p>
+                  <p className="text-xl text-foreground font-semibold">Conversational fluency</p>
+                  <p className="text-xl text-muted-foreground/75">The agent was strong at natural language interaction, domain reasoning, and multi-step conversation. Chat itself wasn&apos;t the problem.</p>
                 </div>
               </div>
               <div className="flex items-start gap-3">
-                <span className="text-[10px] text-muted-foreground/30 mt-1 select-none">03</span>
                 <div>
-                  <p className="text-sm font-medium">Guardrails and evals</p>
-                  <p className="text-xs text-muted-foreground">The system had established safety rails, evaluation criteria, and quality checks for agent outputs. The infrastructure was solid — the interaction layer was the gap.</p>
+                  <p className="text-xl text-foreground font-semibold">Guardrails and evals</p>
+                  <p className="text-xl text-muted-foreground/75">The system had established safety rails, evaluation criteria, and quality checks for agent outputs. The infrastructure was solid — the interaction layer was the gap.</p>
                 </div>
               </div>
             </div>
@@ -697,20 +694,19 @@ export default function AdskDemo() {
       {/* Tilt Problem — what wasn't working */}
       <Section id="tilt-problem">
         <div className="max-w-3xl">
-          <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground mb-2">Problem</p>
-          <h2 className="text-2xl font-semibold tracking-tight">Implicit Needs, Unreliable Outcomes</h2>
-          <div className="space-y-4 mt-4">
-            <div className="p-4 rounded-lg border border-border bg-muted/5">
-              <p className="text-sm font-medium">High learning curve</p>
-              <p className="text-xs text-muted-foreground mt-1">Users didn&apos;t know what they could do without extensive alignment with the agent via chat. Capabilities were hidden behind conversation.</p>
+          <h2 className="text-5xl font-semibold tracking-tight mb-32"><span className="text-muted-foreground/50">Problem: </span><br />Implicit Needs, Unreliable Outcomes</h2>
+          <div className="space-y-8">
+            <div>
+              <p className="text-xl text-foreground font-semibold">High learning curve</p>
+              <p className="text-xl text-muted-foreground/75">Users didn&apos;t know what they could do without extensive alignment with the agent via chat. Capabilities were hidden behind conversation.</p>
             </div>
-            <div className="p-4 rounded-lg border border-border bg-muted/5">
-              <p className="text-sm font-medium">No guarantee of tool use</p>
-              <p className="text-xs text-muted-foreground mt-1">Users could prompt the agent to use any tool, but there was no guarantee it would fire the right one. Intent was lost in translation.</p>
+            <div>
+              <p className="text-xl text-foreground font-semibold">No guarantee of tool use</p>
+              <p className="text-xl text-muted-foreground/75">Users could prompt the agent to use any tool, but there was no guarantee it would fire the right one. Intent was lost in translation.</p>
             </div>
-            <div className="p-4 rounded-lg border border-border bg-muted/5">
-              <p className="text-sm font-medium">Implicit needs</p>
-              <p className="text-xs text-muted-foreground mt-1">Needs were based on tools already built by other teams on the platform. Their assets weren&apos;t reliably leveraged by early user cohorts.</p>
+            <div>
+              <p className="text-xl text-foreground font-semibold">Implicit needs</p>
+              <p className="text-xl text-muted-foreground/75">Needs were based on tools already built by other teams on the platform. Their assets weren&apos;t reliably leveraged by early user cohorts.</p>
             </div>
           </div>
         </div>
@@ -718,29 +714,35 @@ export default function AdskDemo() {
 
       {/* Tilt Solution — the attachments pattern */}
       <Section id="tilt-solution">
-        <div className="max-w-3xl">
-          <p className="text-2xl text-muted-foreground/50">Case:</p>
-          <h2 className="text-2xl font-semibold tracking-tight">Chat Attachments for Tilt</h2>
-          <p className="text-muted-foreground mt-3 leading-relaxed">
+        <div className="max-w-4xl">
+          <p className="text-2xl text-muted-foreground/50">Insight:</p>
+          <h2 className="text-5xl font-semibold tracking-tight mb-32">Attachments</h2>
+          <p className="text-xl text-muted-foreground/75 mb-12">
             Structured objects the user attaches to a message — an investment theme, a selected expert,
             a security, an index seed — that give the agent reliable context to trigger the right tool use.
             Turns implicit prompting into explicit intent.
           </p>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
-            <div className="p-4 rounded-lg border border-border">
-              <p className="text-[10px] uppercase tracking-widest text-muted-foreground/50 mb-2">Before</p>
-              <p className="text-sm text-muted-foreground">&ldquo;Can you look at clean energy stocks and maybe compare them to the S&P?&rdquo;</p>
-              <p className="text-xs text-muted-foreground/50 mt-2">Agent guesses intent. May or may not use the right tool.</p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-12 mb-12">
+            <div>
+              <p className="text-xl text-muted-foreground/75">Before</p>
+              <p className="text-xl text-foreground border-foreground h-28">&ldquo;Can you look at clean energy stocks and maybe compare them to the S&P?&rdquo;</p>
+              <p className="text-xl text-muted-foreground/75">Agent guesses intent. May or may not use the right tool.</p>
             </div>
-            <div className="p-4 rounded-lg border border-foreground/20 bg-muted/5">
-              <p className="text-[10px] uppercase tracking-widest text-muted-foreground/50 mb-2">After</p>
-              <p className="text-sm text-muted-foreground">&ldquo;Compare these&rdquo; + <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-muted text-xs font-mono">Theme: Clean Energy</span> + <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-muted text-xs font-mono">Index: S&P 500</span></p>
-              <p className="text-xs text-muted-foreground/50 mt-2">Agent receives structured context. Tool use is deterministic.</p>
+            <div>
+              <p className="text-xl text-muted-foreground/75">After</p>
+              <p className="text-xl text-foreground border-foreground h-28">&ldquo;Compare these&rdquo; + <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-muted text-base font-mono">Theme: Clean Energy</span> + <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-muted text-base font-mono">Index: S&P 500</span></p>
+              <p className="text-xl text-muted-foreground/75">Agent receives structured context.<br />Tool use is deterministic.</p>
             </div>
           </div>
-          <div className="mt-6 rounded-lg border border-dashed border-border bg-muted/5 aspect-[16/9] flex items-center justify-center">
-            <span className="text-xs text-muted-foreground/30 uppercase tracking-widest">Prototype extract / screenshot</span>
-          </div>
+          <a
+            href="/demo/adsk/chat-attachments"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-2 mt-6 px-4 py-2.5 rounded-lg border border-foreground/20 bg-muted/5 text-sm font-medium hover:bg-muted/20 transition-colors"
+          >
+            Open prototype
+            <span className="text-muted-foreground">&rarr;</span>
+          </a>
         </div>
       </Section>
 
