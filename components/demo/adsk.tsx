@@ -1,55 +1,8 @@
 'use client'
 
-import { useEffect, useState, useCallback, type ReactNode } from 'react'
-import Image from 'next/image'
+import { useEffect, useState, type ReactNode } from 'react'
 
 // --- Data ---
-
-interface TimelineEntry {
-  id: string
-  title: string
-  description: string
-  specimen: {
-    type: 'image' | 'code' | 'diagram'
-    src?: string
-    alt?: string
-    code?: string
-    lang?: string
-  }
-}
-
-const timelineEntries: TimelineEntry[] = [
-  {
-    id: 'work-1',
-    title: 'Project Title',
-    description: 'Short description of the work — what it was, what you did, why it mattered.',
-    specimen: { type: 'image', alt: 'Placeholder' },
-  },
-  {
-    id: 'work-2',
-    title: 'Project Title',
-    description: 'Short description of the work — what it was, what you did, why it mattered.',
-    specimen: { type: 'image', alt: 'Placeholder' },
-  },
-  {
-    id: 'work-3',
-    title: 'Ask User Question',
-    description: 'Replicated the AskUserQuestion tool pattern in Tilt to handle ambiguity when the agent isn\'t certain how to proceed. Instead of guessing or stalling, the agent surfaces a structured clarification request — giving the user control at the moment it matters most.',
-    specimen: { type: 'image', alt: 'Ask User Question pattern' },
-  },
-  {
-    id: 'work-4',
-    title: 'Project Title',
-    description: 'Short description of the work — what it was, what you did, why it mattered.',
-    specimen: { type: 'image', alt: 'Placeholder' },
-  },
-  {
-    id: 'work-5',
-    title: 'Chat Attachments',
-    description: 'Designed a structured attachments pattern for Tilt\'s chat interface — enabling users to share rich context (investment themes, expert selections, securities, index seeds) that reliably triggers the right tool use. Shipped the feature, then established it as an extensible platform pattern.',
-    specimen: { type: 'image', alt: 'Chat Attachments pattern' },
-  },
-]
 
 const sections = [
   { id: 'cover', label: 'Cover' },
@@ -65,7 +18,6 @@ const sections = [
       'How you typically partner with PM, engineering, data science, or research in shaping direction',
     ],
   },
-  { id: 'work', label: 'Work' },
   { id: 'tilt-intro', label: 'Tilt' },
   { id: 'tilt-context', label: 'Context' },
   { id: 'tilt-discovery', label: 'Discovery' },
@@ -78,19 +30,11 @@ const sections = [
   { id: 'qa', label: 'Q&A', time: '20 min' },
 ]
 
-// All observable IDs (sections + individual timeline entries + Tilt sub-sections)
 const observableIds = [
   'cover', 'panel', 'story',
-  ...timelineEntries.map((e) => e.id),
   'tilt-intro', 'tilt-context', 'tilt-discovery', 'tilt-problem', 'tilt-solution',
   'tilt-demo', 'tilt-pattern', 'tilt-skill', 'tilt-outcomes', 'qa',
 ]
-
-// Map timeline entry IDs back to their nav parent
-function navIdFor(observedId: string): string {
-  if (observedId.startsWith('work-')) return 'work'
-  return observedId
-}
 
 const panelMembers = [
   { name: 'Jason Bejot', role: 'Sr Manager, Experience Design' },
@@ -481,8 +425,7 @@ function Timer({
 
 function SectionNav({ activeId }: { activeId: string }) {
   const scrollTo = (id: string) => {
-    const target = id === 'work' ? 'work-1' : id
-    document.getElementById(target)?.scrollIntoView({ behavior: 'smooth' })
+    document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' })
   }
 
   return (
@@ -522,43 +465,6 @@ function Section({ id, children, className = '' }: { id: string; children: React
   )
 }
 
-function Specimen({ entry }: { entry: TimelineEntry }) {
-  const { specimen } = entry
-
-  if (specimen.type === 'code' && specimen.code) {
-    return (
-      <div className="rounded-lg border border-border bg-muted/30 p-4 overflow-x-auto">
-        <pre className="text-xs font-mono text-muted-foreground leading-relaxed">
-          <code>{specimen.code}</code>
-        </pre>
-      </div>
-    )
-  }
-
-  if (specimen.type === 'image' && specimen.src) {
-    return (
-      <div className="rounded-lg border border-border overflow-hidden bg-muted/10">
-        <Image
-          src={specimen.src}
-          alt={specimen.alt || entry.title}
-          width={640}
-          height={400}
-          className="w-full h-auto"
-        />
-      </div>
-    )
-  }
-
-  // Placeholder for unfilled specimens
-  return (
-    <div className="rounded-lg border border-dashed border-border bg-muted/5 aspect-[16/10] flex items-center justify-center">
-      <span className="text-xs text-muted-foreground/30 uppercase tracking-widest">
-        {specimen.type}
-      </span>
-    </div>
-  )
-}
-
 function TheirQuestionsPanel() {
   return (
     <div className="space-y-6 mt-6">
@@ -581,7 +487,6 @@ function TheirQuestionsPanel() {
 function FlippableSticky({
   text,
   color,
-  number,
   theme,
 }: {
   text: string
@@ -593,10 +498,10 @@ function FlippableSticky({
   const [isPulsing, setIsPulsing] = useState(false)
 
   const colorClasses = {
-    yellow: 'bg-yellow-100 border-yellow-200 text-yellow-900',
-    blue: 'bg-blue-100 border-blue-200 text-blue-900',
-    green: 'bg-green-100 border-green-200 text-green-900',
-    pink: 'bg-pink-100 border-pink-200 text-pink-900',
+    yellow: 'bg-yellow-100',
+    blue: 'bg-blue-100',
+    green: 'bg-green-100',
+    pink: 'bg-pink-100',
   }
 
   const handleClick = () => {
@@ -609,50 +514,22 @@ function FlippableSticky({
     <button
       onClick={handleClick}
       className={`
-        relative w-full h-[120px] rounded border-2 shadow-md p-3
+        relative w-full h-60 rounded px-4 py-3
         transition-all duration-300
         ${colorClasses[color]}
         ${isPulsing ? 'scale-105' : 'scale-100'}
       `}
     >
       {revealed ? (
-        <div className="text-xs leading-relaxed flex items-center h-full">
+        <div className="text-base leading-relaxed flex items-start justify-start text-left h-full">
           {text}
         </div>
       ) : (
         <div className="flex flex-col items-center justify-center h-full gap-2">
-          <span className="text-3xl font-light opacity-20">{number}</span>
-          <span className="text-[10px] uppercase tracking-widest opacity-40">{theme}</span>
+          <span className="text-sm uppercase tracking-widest opacity-40">{theme}</span>
         </div>
       )}
     </button>
-  )
-}
-
-function TimelineItem({ entry, index }: { entry: TimelineEntry; index: number }) {
-  const isEven = index % 2 === 0
-
-  return (
-    <Section id={entry.id}>
-      <div className="max-w-5xl w-full mx-auto">
-        <div className={`grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-12 items-center ${
-          isEven ? '' : 'md:[direction:rtl]'
-        }`}>
-          {/* Text */}
-          <div className={isEven ? '' : 'md:[direction:ltr]'}>
-            <span className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground/40">
-              {String(index + 1).padStart(2, '0')}
-            </span>
-            <h3 className="text-xl font-semibold tracking-tight mt-1">{entry.title}</h3>
-            <p className="text-sm text-muted-foreground mt-2 leading-relaxed">{entry.description}</p>
-          </div>
-          {/* Visual */}
-          <div className={isEven ? '' : 'md:[direction:ltr]'}>
-            <Specimen entry={entry} />
-          </div>
-        </div>
-      </div>
-    </Section>
   )
 }
 
@@ -665,7 +542,7 @@ export default function AdskDemo() {
     const observer = new IntersectionObserver(
       (entries) => {
         const visible = entries.find((e) => e.isIntersecting)
-        if (visible) setActiveNavId(navIdFor(visible.target.id))
+        if (visible) setActiveNavId(visible.target.id)
       },
       { threshold: 0.5 }
     )
@@ -677,8 +554,6 @@ export default function AdskDemo() {
 
     return () => observer.disconnect()
   }, [])
-
-  const storySection = sections.find((s) => s.id === 'story')!
 
   return (
     <div className="relative">
@@ -710,7 +585,7 @@ export default function AdskDemo() {
       <Section id="story">
         <div className="max-w-6xl">
           <Timer label="P1: Story" durationMinutes={5} pulseIntervalSeconds={30} />
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 -ml-4">
             {allStickies.map((sticky) => (
               <FlippableSticky
                 key={`${sticky.color}-${sticky.id}`}
@@ -724,86 +599,67 @@ export default function AdskDemo() {
         </div>
       </Section>
 
-      {/* Work Timeline */}
-      {timelineEntries.map((entry, i) => (
-        <TimelineItem key={entry.id} entry={entry} index={i} />
-      ))}
-
-      {/* Tilt Intro — transition from timeline to deep dive */}
+      {/* Tilt Intro */}
       <Section id="tilt-intro">
         <div className="max-w-2xl">
-          <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground mb-4">Deep Dive</p>
-          <h2 className="text-3xl font-semibold tracking-tight">Tilt: Chat Attachments</h2>
-          <p className="text-muted-foreground mt-3">
-            A pattern for communicating rich, structured context to an AI agent —
-            from solving a discoverability problem, to shipping a feature,
-            to establishing an extensible platform pattern governed by an agent skill.
-          </p>
-          <div className="flex gap-4 mt-6 text-xs text-muted-foreground">
-            <span>Discovery &rarr; Problem &rarr; Solution &rarr; Pattern &rarr; Architecture &rarr; Outcomes</span>
-          </div>
+          <h2 className="text-5xl font-semibold tracking-tight"><span className="text-muted-foreground/50">Case: </span><br />Chat Attachments for Tilt</h2>   
         </div>
       </Section>
 
       {/* Tilt Context — the system before */}
       <Section id="tilt-context">
         <div className="max-w-3xl">
-          <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground mb-2">Context</p>
-          <h2 className="text-2xl font-semibold tracking-tight">The System</h2>
-          <p className="text-muted-foreground mt-3 leading-relaxed">
-            Tilt is a tool for building sophisticated market indices — broad market, thematic, and more.
+          <h2 className="text-5xl font-semibold tracking-tight mb-40"><span className="text-muted-foreground/50">Context: </span><br />The Platform</h2>
+          <p className="text-xl text-foreground leading-relaxed mb-6">
+            Tilt is a fintech platform for building and managing sophisticated market tracking indices.
             Users work with an AI agent via chat to sketch investment themes, select experts by topic,
-            pick specific securities, seed from existing indices, and compose complex strategies.
+            screen securities, fork existing indices, and compose complex strategies.
           </p>
-          <p className="text-muted-foreground mt-3 leading-relaxed">
-            The platform had a powerful chat interface with rich integrated tooling.
-            Multiple teams had built tools the agent could use — the capability was there.
+          <p className="text-xl text-foreground leading-relaxed">
+            The platform had a powerful chat interface with a growing set integrated, agent driven tools.
+            Multiple teams had built tools the agent could use. Critical functions were in play.
           </p>
-          <div className="mt-6 rounded-lg border border-dashed border-border bg-muted/5 aspect-[16/9] flex items-center justify-center">
-            <span className="text-xs text-muted-foreground/30 uppercase tracking-widest">Tilt platform screenshot / diagram</span>
-          </div>
         </div>
       </Section>
 
       {/* Tilt Discovery — customer insights, user profiling, what was working */}
       <Section id="tilt-discovery">
-        <div className="max-w-3xl">
-          <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground mb-2">Discovery</p>
-          <h2 className="text-2xl font-semibold tracking-tight">Users, Insights &amp; What Was Working</h2>
+        <div className="max-w-4xl">
+          <h2 className="text-5xl font-semibold tracking-tight mb-32"><span className="text-muted-foreground/50">Discovery: </span><br />Users, Insights &amp; What Was Working</h2>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-12 mb-32">
             <div>
-              <p className="text-[10px] uppercase tracking-widest text-muted-foreground/50 mb-3">User profiles</p>
-              <div className="space-y-3">
-                <div className="p-3 rounded-lg border border-border bg-muted/5">
-                  <p className="text-sm font-medium">Index strategists</p>
-                  <p className="text-xs text-muted-foreground mt-1">Domain experts building thematic and broad market indices. High financial sophistication, variable technical comfort with AI-driven tools.</p>
+              <p className="text-xl text-muted-foreground/75 mb-6">User Profiles</p>
+              <div className="space-y-8">
+                <div>
+                  <p className="text-xl text-foreground font-semibold">Index Strategists</p>
+                  <p className="text-xl text-muted-foreground/75">Domain experts building indices. High financial sophistication, variable proficiency with AI tools.</p>
                 </div>
-                <div className="p-3 rounded-lg border border-border bg-muted/5">
-                  <p className="text-sm font-medium">Research analysts</p>
-                  <p className="text-xs text-muted-foreground mt-1">Exploring themes, vetting securities, and validating investment hypotheses. Need to move fast between exploration and precision.</p>
+                <div>
+                  <p className="text-xl text-foreground font-semibold">Research Analysts</p>
+                  <p className="text-xl text-muted-foreground/75">Exploring themes, vetting securities, and validating investment hypotheses.</p>
                 </div>
-                <div className="p-3 rounded-lg border border-border bg-muted/5">
-                  <p className="text-sm font-medium">Portfolio managers</p>
-                  <p className="text-xs text-muted-foreground mt-1">Reviewing and approving index compositions. Need transparency into how the agent contributed to construction decisions.</p>
+                <div>
+                  <p className="text-xl text-foreground font-semibold">Portfolio Managers</p>
+                  <p className="text-xl text-muted-foreground/75">Need transparency into how the agent contributed to construction decisions.</p>
                 </div>
               </div>
             </div>
 
             <div>
-              <p className="text-[10px] uppercase tracking-widest text-muted-foreground/50 mb-3">Customer insights</p>
-              <div className="space-y-3">
-                <div className="p-3 rounded-lg border border-border bg-muted/5">
-                  <p className="text-sm font-medium">&ldquo;I didn&apos;t know I could do that&rdquo;</p>
-                  <p className="text-xs text-muted-foreground mt-1">Early cohort users consistently underestimated the platform&apos;s capabilities. Tool use was invisible — discovery happened by accident or not at all.</p>
+              <p className="text-xl text-muted-foreground/75 mb-6">Customer Insights</p>
+              <div className="space-y-8">
+                <div>
+                  <p className="text-xl text-foreground font-semibold">&ldquo;I didn&apos;t know I could do that&rdquo;</p>
+                  <p className="text-xl text-muted-foreground/75">Early cohort users consistently underestimated the platform&apos;s capabilities. Tool use was invisible — discovery happened by accident or not at all.</p>
                 </div>
-                <div className="p-3 rounded-lg border border-border bg-muted/5">
-                  <p className="text-sm font-medium">Workaround behaviors</p>
-                  <p className="text-xs text-muted-foreground mt-1">Users developed verbose prompting strategies to coerce the agent into specific tool use — writing paragraphs when a button would do.</p>
+                <div>
+                  <p className="text-xl text-foreground font-semibold">Workaround behaviors</p>
+                  <p className="text-xl text-muted-foreground/75">Users developed verbose prompting strategies to coerce the agent into specific tool use — writing paragraphs when a button would do.</p>
                 </div>
-                <div className="p-3 rounded-lg border border-border bg-muted/5">
-                  <p className="text-sm font-medium">Trust erosion</p>
-                  <p className="text-xs text-muted-foreground mt-1">When the agent used the wrong tool or missed intent, users lost confidence in the entire system — not just that interaction.</p>
+                <div>
+                  <p className="text-xl text-foreground font-semibold">Trust erosion</p>
+                  <p className="text-xl text-muted-foreground/75">When the agent used the wrong tool or missed intent, users lost confidence in the entire system — not just that interaction.</p>
                 </div>
               </div>
             </div>
@@ -863,8 +719,8 @@ export default function AdskDemo() {
       {/* Tilt Solution — the attachments pattern */}
       <Section id="tilt-solution">
         <div className="max-w-3xl">
-          <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground mb-2">Solution</p>
-          <h2 className="text-2xl font-semibold tracking-tight">Chat Attachments</h2>
+          <p className="text-2xl text-muted-foreground/50">Case:</p>
+          <h2 className="text-2xl font-semibold tracking-tight">Chat Attachments for Tilt</h2>
           <p className="text-muted-foreground mt-3 leading-relaxed">
             Structured objects the user attaches to a message — an investment theme, a selected expert,
             a security, an index seed — that give the agent reliable context to trigger the right tool use.
