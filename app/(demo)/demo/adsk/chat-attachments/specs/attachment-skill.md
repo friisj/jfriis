@@ -139,7 +139,7 @@ Used in Ready mode AND message history. Same component, different props.
 
 ## Adding a New Attachment Type
 
-Follow this checklist exactly. Skipping steps creates the inconsistencies documented in the critique.
+Follow this checklist exactly. Skipping steps creates the inconsistencies.
 
 ### 1. Define the Type
 
@@ -233,12 +233,6 @@ Before shipping, verify:
 ---
 
 ## Modifying Existing Types
-
-### Before You Change Anything
-
-1. Read the type's section in `design-target.md` — it documents pattern adherence and intentional deviations
-2. Check `critique.md` and `feedback.md` for known issues — your change may address or reintroduce one
-3. Understand whether the type is Simple or Complex — don't change classification without updating all related behaviors
 
 ### Common Modification Patterns
 

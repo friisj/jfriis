@@ -23,8 +23,7 @@ const sections = [
   { id: 'tilt-discovery', label: 'Discovery' },
   { id: 'tilt-problem', label: 'Problem' },
   { id: 'tilt-solution', label: 'Solution' },
-  { id: 'tilt-demo', label: 'Demo' },
-  { id: 'tilt-pattern', label: 'Pattern' },
+  { id: 'tilt-deliverables', label: 'Deliverables' },
   { id: 'tilt-skill', label: 'Agent Skill' },
   { id: 'tilt-outcomes', label: 'Outcomes' },
   { id: 'qa', label: 'Q&A', time: '20 min' },
@@ -33,7 +32,7 @@ const sections = [
 const observableIds = [
   'cover', 'panel', 'story',
   'tilt-intro', 'tilt-context', 'tilt-discovery', 'tilt-problem', 'tilt-solution',
-  'tilt-demo', 'tilt-pattern', 'tilt-skill', 'tilt-outcomes', 'qa',
+  'tilt-deliverables', 'tilt-skill', 'tilt-outcomes', 'qa',
 ]
 
 const panelMembers = [
@@ -715,8 +714,7 @@ export default function AdskDemo() {
       {/* Tilt Solution — the attachments pattern */}
       <Section id="tilt-solution">
         <div className="max-w-4xl">
-          <p className="text-2xl text-muted-foreground/50">Insight:</p>
-          <h2 className="text-5xl font-semibold tracking-tight mb-32">Attachments</h2>
+          <h2 className="text-5xl font-semibold tracking-tight mb-32"><span className="text-muted-foreground/50">Insight: </span><br />Attachments</h2>
           <p className="text-xl text-muted-foreground/75 mb-12">
             Structured objects the user attaches to a message — an investment theme, a selected expert,
             a security, an index seed — that give the agent reliable context to trigger the right tool use.
@@ -746,67 +744,30 @@ export default function AdskDemo() {
         </div>
       </Section>
 
-      {/* Tilt Demo — link to prototype */}
-      <Section id="tilt-demo">
-        <div className="max-w-3xl">
-          <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground mb-2">Prototype</p>
-          <h2 className="text-2xl font-semibold tracking-tight">Live Demo</h2>
-          <p className="text-muted-foreground mt-3 leading-relaxed">
-            A functional prototype of the chat attachments pattern — showing the compose area,
-            attachment lifecycle (Preparing &rarr; Ready &rarr; Submitted), and all five attachment types
-            working together.
-          </p>
-          <a
-            href="/demo/adsk/chat-attachments"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-2 mt-6 px-4 py-2.5 rounded-lg border border-foreground/20 bg-muted/5 text-sm font-medium hover:bg-muted/20 transition-colors"
-          >
-            Open prototype
-            <span className="text-muted-foreground">&rarr;</span>
-          </a>
-        </div>
-      </Section>
-
-      {/* Tilt Pattern — architecture and dissemination */}
-      <Section id="tilt-pattern">
-        <div className="max-w-3xl">
-          <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground mb-2">Pattern</p>
-          <h2 className="text-2xl font-semibold tracking-tight">From Feature to Architecture</h2>
-          <p className="text-muted-foreground mt-3 leading-relaxed">
-            The initial implementation shipped, but the real value was establishing attachments
-            as a principled, extensible pattern — with specs, a working prototype, and an agent skill
-            that other teams adopt and build on without centralized oversight.
-          </p>
-          <div className="space-y-3 mt-6">
-            <div className="flex items-start gap-3">
-              <span className="text-[10px] text-muted-foreground/30 mt-1 select-none">01</span>
-              <div>
-                <p className="text-sm font-medium">Documented principles</p>
-                <p className="text-xs text-muted-foreground">10 UX principles governing all attachment work — from &ldquo;annotate, don&apos;t replace&rdquo; to &ldquo;discoverable, not interruptive.&rdquo; These are the non-negotiable rules.</p>
-              </div>
-            </div>
-            <div className="flex items-start gap-3">
-              <span className="text-[10px] text-muted-foreground/30 mt-1 select-none">02</span>
-              <div>
-                <p className="text-sm font-medium">Functional prototype</p>
-                <p className="text-xs text-muted-foreground">Working implementation of the full attachment lifecycle — compose area, five types (Ticker, Theme, Expert, Index, Deep Research), shared components (PreparingShell, AttachmentChip), message history rendering.</p>
-              </div>
-            </div>
-            <div className="flex items-start gap-3">
-              <span className="text-[10px] text-muted-foreground/30 mt-1 select-none">03</span>
-              <div>
-                <p className="text-sm font-medium">Extension protocol</p>
-                <p className="text-xs text-muted-foreground">Registration mechanism and shared components so new attachment types integrate via schema — file structure, state management hook, Zod validation, data part conversion. No hardcoded logic to extend.</p>
-              </div>
-            </div>
-            <div className="flex items-start gap-3">
-              <span className="text-[10px] text-muted-foreground/30 mt-1 select-none">04</span>
-              <div>
-                <p className="text-sm font-medium">Agent skill</p>
-                <p className="text-xs text-muted-foreground">A markdown spec that coding agents consume when building new attachment types. Encodes principles, component contracts, anti-patterns, and a validation checklist. The spec IS the governance.</p>
-              </div>
-            </div>
+      {/* Tilt Deliverables — doc links */}
+      <Section id="tilt-deliverables">
+        <div className="max-w-4xl">
+          <h2 className="text-5xl font-semibold tracking-tight mb-12"><span className="text-muted-foreground/50">Deliverables</span></h2>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {[
+              { slug: 'principles', label: 'Principles', description: '10 UX rules governing attachments' },
+              { slug: 'design-target', label: 'Design Target', description: 'Component architecture & specs' },
+              { slug: 'ux-map', label: 'UX Map', description: 'User journeys & state transitions' },
+              { slug: 'attachment-skill', label: 'Agent Skill', description: 'Coding agent governance spec' },
+            ].map((doc) => (
+              <a
+                key={doc.slug}
+                href={`/demo/adsk/docs/${doc.slug}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="group flex flex-col justify-between rounded-lg border border-border bg-muted/5 p-5 aspect-[3/4] hover:bg-muted/15 hover:border-foreground/20 transition-colors"
+              >
+                <div>
+                  <p className="text-xl font-semibold group-hover:text-foreground transition-colors">{doc.label}</p>
+                  <p className="text-xl text-muted-foreground/50 font-semibold">{doc.description}</p>
+                </div>
+              </a>
+            ))}
           </div>
         </div>
       </Section>
