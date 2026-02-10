@@ -34,6 +34,7 @@ export function GroupPanel({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [actionInProgress, setActionInProgress] = useState<string | null>(null);
+  const [loadingImages, setLoadingImages] = useState<Set<string>>(new Set());
 
   // Drag-and-drop state
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
@@ -49,6 +50,8 @@ export function GroupPanel({
       try {
         const images = await getImageGroup(imageId);
         setGroupImages(images);
+        // Mark all images as loading initially
+        setLoadingImages(new Set(images.map(img => img.id)));
       } catch (err) {
         console.error('Failed to load group:', err);
         setError('Failed to load group');
@@ -59,6 +62,15 @@ export function GroupPanel({
 
     loadGroup();
   }, [imageId, isExpanded]);
+
+  // Handle individual image load completion
+  const handleImageLoad = useCallback((imageId: string) => {
+    setLoadingImages(prev => {
+      const next = new Set(prev);
+      next.delete(imageId);
+      return next;
+    });
+  }, []);
 
   // Handle star toggle (set/clear primary image)
   const handleTogglePrimary = useCallback(async (imgId: string, e: React.MouseEvent) => {
@@ -259,7 +271,8 @@ export function GroupPanel({
           {groupImages.map((image, index) => {
             const isCurrent = image.id === imageId;
             const isPrimary = image.id === primaryImageId;
-            const isLoading = actionInProgress === image.id;
+            const isActionLoading = actionInProgress === image.id;
+            const isImageLoading = loadingImages.has(image.id);
             const isDragging = draggedIndex === index;
             const isDragOver = dragOverIndex === index;
 
@@ -269,7 +282,7 @@ export function GroupPanel({
                 className={`relative flex-shrink-0 group cursor-grab active:cursor-grabbing transition-all ${
                   isDragging ? 'opacity-50 scale-95' : ''
                 } ${isDragOver ? 'ring-2 ring-blue-400 ring-offset-2 ring-offset-black' : ''}`}
-                draggable={!isLoading && groupImages.length > 1}
+                draggable={!isActionLoading && groupImages.length > 1}
                 onDragStart={(e) => handleDragStart(index, e)}
                 onDragOver={(e) => handleDragOver(index, e)}
                 onDragLeave={handleDragLeave}
@@ -278,13 +291,18 @@ export function GroupPanel({
               >
                 <button
                   onClick={() => onSelectImage(image)}
-                  disabled={isLoading}
+                  disabled={isActionLoading}
                   className={`relative ${
                     isCurrent
                       ? 'ring-2 ring-primary ring-offset-2 ring-offset-black'
                       : 'hover:ring-2 hover:ring-white/40 hover:ring-offset-2 hover:ring-offset-black'
-                  } ${isLoading ? 'opacity-50' : ''}`}
+                  } ${isActionLoading ? 'opacity-50' : ''}`}
                 >
+                  {/* Loading skeleton */}
+                  {isImageLoading && (
+                    <div className="absolute inset-0 bg-white/10 rounded animate-pulse" />
+                  )}
+
                   <CogDrawerImage
                     storagePath={image.storage_path}
                     alt={`Image ${index + 1}`}
@@ -292,7 +310,10 @@ export function GroupPanel({
                     thumbnail64={image.thumbnail_64}
                     width={64}
                     height={64}
-                    className="rounded pointer-events-none"
+                    className={`rounded pointer-events-none transition-opacity ${
+                      isImageLoading ? 'opacity-0' : 'opacity-100'
+                    }`}
+                    onLoad={() => handleImageLoad(image.id)}
                   />
 
                   {/* Hover tooltip with prompt */}
@@ -306,7 +327,7 @@ export function GroupPanel({
                 {/* Star toggle for primary (top right) */}
                 <button
                   onClick={(e) => handleTogglePrimary(image.id, e)}
-                  disabled={isLoading}
+                  disabled={isActionLoading}
                   className={`absolute top-1 right-1 p-0.5 rounded transition-all ${
                     isPrimary
                       ? 'text-yellow-400'
@@ -334,7 +355,7 @@ export function GroupPanel({
                 {groupImages.length > 1 && (
                   <button
                     onClick={(e) => handleRemoveFromGroup(image, index, e)}
-                    disabled={isLoading}
+                    disabled={isActionLoading}
                     className="absolute bottom-1 left-1 p-0.5 rounded text-white/30 hover:text-orange-400 opacity-0 group-hover:opacity-100 transition-all"
                     aria-label="Remove from group"
                     title="Remove from group"
@@ -349,7 +370,7 @@ export function GroupPanel({
                 {groupImages.length > 1 && (
                   <button
                     onClick={(e) => handleDeleteImage(image, index, e)}
-                    disabled={isLoading}
+                    disabled={isActionLoading}
                     className="absolute bottom-1 right-1 p-0.5 rounded text-white/30 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all"
                     aria-label="Delete image"
                     title="Delete image"
