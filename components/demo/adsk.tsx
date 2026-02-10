@@ -6,18 +6,7 @@ import { useEffect, useState, type ReactNode } from 'react'
 
 const sections = [
   { id: 'cover', label: 'Cover' },
-  { id: 'panel', label: 'Panel' },
-  {
-    id: 'story',
-    label: 'My Story',
-    time: '5 min',
-    prompts: [
-      'How your perspective shapes the way you design intelligent or complex systems',
-      'How you approach ambiguity and emerging technology',
-      'How you balance user needs with technical and organizational constraints',
-      'How you typically partner with PM, engineering, data science, or research in shaping direction',
-    ],
-  },
+  // { id: 'story', label: 'My Story', time: '5 min' },
   { id: 'tilt-intro', label: 'Tilt' },
   { id: 'tilt-context', label: 'Context' },
   { id: 'tilt-discovery', label: 'Discovery' },
@@ -30,16 +19,9 @@ const sections = [
 ]
 
 const observableIds = [
-  'cover', 'panel', 'story',
+  'cover', /* 'story', */
   'tilt-intro', 'tilt-context', 'tilt-discovery', 'tilt-problem', 'tilt-solution',
   'tilt-deliverables', 'tilt-skill', 'tilt-outcomes', 'qa',
-]
-
-const panelMembers = [
-  { name: 'Jason Bejot', role: 'Sr Manager, Experience Design' },
-  { name: 'Michelangelo Capraro', role: 'UX Architect' },
-  { name: 'Capra J\'neva', role: 'UX Architect' },
-  { name: 'Rahul Verma', role: 'Senior Engineering Manager' },
 ]
 
 // --- Story Narratives (Part 1) ---
@@ -566,21 +548,7 @@ export default function AdskDemo() {
         </div>
       </Section>
 
-      {/* Panel */}
-      <Section id="panel">
-        <div className="max-w-2xl">
-          <div className="space-y-4">
-            {panelMembers.map((m) => (
-              <div key={m.name}>
-                <p className="text-xl text-foreground">{m.name}</p>
-                {m.role && <p className="text-xl text-muted-foreground/75">{m.role}</p>}
-              </div>
-            ))}
-          </div>
-        </div>
-      </Section>
-
-      {/* My Story */}
+      {/* My Story — hidden
       <Section id="story">
         <div className="max-w-6xl">
           <Timer label="P1: Story" durationMinutes={5} pulseIntervalSeconds={30} />
@@ -597,6 +565,7 @@ export default function AdskDemo() {
           </div>
         </div>
       </Section>
+      */}
 
       {/* Tilt Intro */}
       <Section id="tilt-intro">
@@ -776,12 +745,12 @@ export default function AdskDemo() {
         <div className="max-w-3xl">
           <h2 className="text-5xl font-semibold tracking-tight mb-32"><span className="text-muted-foreground/50">Capstone: </span><br />The Agent Skill</h2>
           <p className="text-xl text-muted-foreground leading-relaxed mb-6">
-            The critical output: a skill file that coding agents consume when building new
-            attachment types. The spec is the governance — teams don&apos;t search for specs and patterns. Their agents
-            invoke the skill and enforce the pattern.
+            The critical output: an Attachments Skill file that coding agents consume when building new
+            attachment types. The skill does double duty as a specification and governance mechanism — teams don&apos;t search for specs and patterns. Their agents
+            invoke the skill, follows the spec, and enforces the pattern.
           </p>
           <p className="text-xl text-muted-foreground leading-relaxed mb-8">
-            Oversight shifts from reviewing implementations to evolving the skill.
+            Oversight shifts from reviewing implementations to evolving the skill. Through the registered skill and valid exemplar implementations, the agent can explain and enforce relate patterns to extended product stakeholders.
           </p>
           <a
             href="/demo/adsk/docs/attachment-skill"
@@ -799,10 +768,10 @@ export default function AdskDemo() {
         <div className="max-w-4xl">
           <h2 className="text-5xl font-semibold tracking-tight mb-32"><span className="text-muted-foreground/50">Outcomes: </span><br />What Shipped, What Changed</h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-12">
-            <p className="text-xl text-muted-foreground/75">Unified attachment architecture is implemented.</p>
-            <p className="text-xl text-muted-foreground/75">Successful usability testing with early user cohorts.</p>
-            <p className="text-xl text-muted-foreground/75">Engineering team has created new attachment types without design team oversight.</p>
-            <p className="text-xl text-muted-foreground/75">Work continues on attachment discoverability and coverage in new user onboarding.</p>
+            <p className="text-xl text-muted-foreground">Unified attachment architecture is implemented.</p>
+            <p className="text-xl text-muted-foreground">Successful usability testing with early user cohorts.</p>
+            <p className="text-xl text-muted-foreground">Engineering team has created new attachment types without design team oversight.</p>
+            <p className="text-xl text-muted-foreground">Work continues on attachment discoverability and coverage in new user onboarding.</p>
             
           </div>
         </div>

@@ -15,7 +15,6 @@ Code snippets are illustrative, not prescriptive.
 | Attachment Modes | Single mode (always visible) | Two modes: Preparing → Ready (R3) |
 | Textarea Behavior | Always visible | Preparing replaces textarea; Ready shows textarea with attachments below |
 | Starter Text | None | Singular/plural starter text per type, syncs on add/remove (R2) |
-| Menu | Icons only | Icons + descriptions (R7.1) |
 | Expert Search | Topics only | Unified search: topics + experts together (E1.2) |
 | Index Selection | Basic list | List with filters + detail panel with YTD (I1.3-I1.8) |
 
