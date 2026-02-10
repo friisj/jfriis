@@ -145,13 +145,21 @@ export function ImageEditor({ seriesId, imageId }: ImageEditorProps) {
       try {
         const response = await fetch(`/api/cog/groups/${currentImage.group_id}/images`)
         const data = await response.json()
-        setGroupImages(data)
 
-        // Find the index of the current image in the group
-        const index = data.findIndex((img: CogImageWithGroupInfo) => img.id === currentImage.id)
-        setCurrentGroupIndex(index >= 0 ? index : 0)
+        // Ensure data is an array before using it
+        if (Array.isArray(data)) {
+          setGroupImages(data)
+
+          // Find the index of the current image in the group
+          const index = data.findIndex((img: CogImageWithGroupInfo) => img.id === currentImage.id)
+          setCurrentGroupIndex(index >= 0 ? index : 0)
+        } else {
+          console.error('Group images API returned non-array:', data)
+          setGroupImages([])
+        }
       } catch (error) {
         console.error('Failed to load group images:', error)
+        setGroupImages([])
       } finally {
         setLoadingGroup(false)
       }
