@@ -34,8 +34,11 @@ export function JobsList({ jobs: initialJobs, seriesId }: JobsListProps) {
 
   if (jobs.length === 0) {
     return (
-      <div className="text-center py-8 border rounded-lg bg-muted/50">
-        <p className="text-muted-foreground">No jobs yet</p>
+      <div className="flex flex-col items-center justify-center py-12 border rounded-lg bg-muted/50">
+        <p className="text-muted-foreground mb-4">No jobs yet</p>
+        <Button asChild variant="outline">
+          <Link href={`/tools/cog/${seriesId}/job/new`}>Create Job</Link>
+        </Button>
       </div>
     );
   }

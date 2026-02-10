@@ -409,24 +409,116 @@ function ConfigPanel({
 
   return (
     <div className="space-y-6">
-      {/* Series Info */}
-      <div>
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold">Series</h2>
-          {!isEditing && (
-            <Button size="sm" variant="outline" onClick={() => setIsEditing(true)}>
-              Edit
-            </Button>
-          )}
+      {error && (
+        <div className="p-3 bg-destructive/10 text-destructive text-sm rounded-lg">
+          {error}
         </div>
+      )}
 
-        {error && (
-          <div className="p-3 mb-4 bg-destructive/10 text-destructive text-sm rounded-lg">
-            {error}
+      {isEditing ? (
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="title" className="text-sm">Title</Label>
+              <Input
+                id="title"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                className="text-sm"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="description" className="text-sm">Description</Label>
+              <Textarea
+                id="description"
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                placeholder="Markdown supported..."
+                rows={6}
+                className="text-sm font-mono"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="tags" className="text-sm">Tags</Label>
+              <Input
+                id="tags"
+                value={tagsInput}
+                onChange={(e) => setTagsInput(e.target.value)}
+                placeholder="tag1, tag2, tag3"
+                className="text-sm"
+              />
+            </div>
+
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                id="private"
+                checked={isPrivate}
+                onChange={(e) => setIsPrivate(e.target.checked)}
+                className="w-4 h-4 rounded"
+              />
+              <Label htmlFor="private" className="text-sm font-normal cursor-pointer">
+                Private
+              </Label>
+            </div>
+
+            <div className="flex gap-2 pt-2">
+              <Button size="sm" onClick={handleSave} disabled={saving}>
+                {saving ? 'Saving...' : 'Save'}
+              </Button>
+              <Button size="sm" variant="outline" onClick={handleCancel} disabled={saving}>
+                Cancel
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            <div>
+              <h3 className="font-semibold mb-1">{series.title}</h3>
+              <p className="text-xs text-muted-foreground">
+                {imageCount} images · {jobCount} jobs
+              </p>
+            </div>
+
+            {series.description && (
+              <div className="text-sm prose prose-sm dark:prose-invert max-w-none">
+                <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                  {series.description}
+                </ReactMarkdown>
+              </div>
+            )}
+
+            {series.tags.length > 0 && (
+              <div className="flex flex-wrap gap-1.5">
+                {series.tags.map((tag) => (
+                  <span key={tag} className="text-xs px-2 py-0.5 bg-muted rounded-full">
+                    {tag}
+                  </span>
+                ))}
+              </div>
+            )}
+
+            <div className="flex gap-2">
+              <Button size="sm" variant="outline" onClick={() => setIsEditing(true)}>
+                Edit
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => {
+                  setGeneratePrompt('');
+                  // Could open a dialog here
+                }}
+              >
+                Generate
+              </Button>
+            </div>
           </div>
         )}
 
-        {/* Generate Section */}
+      {/* Generate Section - Simple inline for now */}
+      {(generating || generatePrompt) && (
         <div className="p-3 bg-muted/50 rounded-lg space-y-2">
           <Label htmlFor="generate-prompt" className="text-xs">
             Generate description & tags
@@ -454,149 +546,7 @@ function ConfigPanel({
             </Button>
           </div>
         </div>
-
-        {isEditing ? (
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="title">Title</Label>
-              <Input
-                id="title"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                placeholder="Series title"
-              />
-            </div>
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <Label htmlFor="description">Description (Markdown)</Label>
-                <div className="flex gap-1">
-                  <button
-                    type="button"
-                    onClick={() => setShowPreview(false)}
-                    className={`px-2 py-0.5 text-xs rounded ${
-                      !showPreview
-                        ? 'bg-primary text-primary-foreground'
-                        : 'bg-muted text-muted-foreground'
-                    }`}
-                  >
-                    Edit
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setShowPreview(true)}
-                    className={`px-2 py-0.5 text-xs rounded ${
-                      showPreview
-                        ? 'bg-primary text-primary-foreground'
-                        : 'bg-muted text-muted-foreground'
-                    }`}
-                  >
-                    Preview
-                  </button>
-                </div>
-              </div>
-              {!showPreview ? (
-                <Textarea
-                  id="description"
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  placeholder="Describe this series in markdown..."
-                  rows={8}
-                  className="font-mono text-sm"
-                />
-              ) : (
-                <div className="border rounded-lg p-3 bg-background min-h-[160px]">
-                  {description ? (
-                    <div className="prose prose-sm dark:prose-invert max-w-none">
-                      <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                        {description}
-                      </ReactMarkdown>
-                    </div>
-                  ) : (
-                    <p className="text-muted-foreground text-sm">No description yet...</p>
-                  )}
-                </div>
-              )}
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="tags">Tags</Label>
-              <Input
-                id="tags"
-                value={tagsInput}
-                onChange={(e) => setTagsInput(e.target.value)}
-                placeholder="tag1, tag2, tag3"
-              />
-              <p className="text-xs text-muted-foreground">
-                Comma-separated list of tags
-              </p>
-            </div>
-            <div className="space-y-2">
-              <label className="flex items-center gap-2 text-sm">
-                <input
-                  type="checkbox"
-                  checked={isPrivate}
-                  onChange={(e) => setIsPrivate(e.target.checked)}
-                  className="w-4 h-4 rounded border-gray-300"
-                />
-                <span>Private (hidden in privacy mode)</span>
-              </label>
-              <p className="text-xs text-muted-foreground">
-                When privacy mode is enabled, this series will be hidden from view
-              </p>
-            </div>
-            <div className="flex gap-2 pt-2">
-              <Button size="sm" onClick={handleSave} disabled={saving}>
-                {saving ? 'Saving...' : 'Save'}
-              </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={handleCancel}
-                disabled={saving}
-              >
-                Cancel
-              </Button>
-            </div>
-          </div>
-        ) : (
-          <div className="space-y-3">
-            <div>
-              <p className="text-xs text-muted-foreground uppercase tracking-wide">
-                Title
-              </p>
-              <p className="font-medium">{series.title}</p>
-            </div>
-            {series.description && (
-              <div>
-                <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">
-                  Description
-                </p>
-                <div className="prose prose-sm dark:prose-invert max-w-none">
-                  <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                    {series.description}
-                  </ReactMarkdown>
-                </div>
-              </div>
-            )}
-            {series.tags.length > 0 && (
-              <div>
-                <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">
-                  Tags
-                </p>
-                <div className="flex flex-wrap gap-1">
-                  {series.tags.map((tag) => (
-                    <span
-                      key={tag}
-                      className="text-xs px-2 py-0.5 bg-muted rounded-full"
-                    >
-                      {tag}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-      </div>
+      )}
 
       {/* Child Series */}
       {childSeries.length > 0 && (
@@ -875,22 +825,30 @@ export function SeriesLayout({
   const [showUploadModal, setShowUploadModal] = useState(false);
 
   return (
-    <div className="flex-1 relative">
+    <div className="h-[calc(100vh-4rem)]">
       {/* Wide layout: 2 resizable columns */}
-      <div className="hidden lg:block h-full border border-red-500">
-        <ResizablePanelGroup direction="horizontal">
+      <div className="hidden lg:block h-full">
+        <ResizablePanelGroup direction="horizontal" className="h-full">
           {/* Config column */}
           <ResizablePanel defaultSize={25} minSize={15} maxSize={40}>
-            <div className="h-full overflow-y-auto p-6">
-              <ConfigPanel
-                series={series}
-                childSeries={childSeries}
-                seriesId={seriesId}
-                imageCount={images.length}
-                jobCount={jobs.length}
-                enabledTags={enabledTags}
-                globalTags={globalTags}
-              />
+            <div className="h-full flex flex-col overflow-hidden">
+              {/* Fixed header */}
+              <div className="flex-none px-6 py-4 border-b">
+                <h2 className="font-semibold">Series</h2>
+              </div>
+
+              {/* Scrollable content */}
+              <div className="flex-1 overflow-y-auto px-6 py-4">
+                <ConfigPanel
+                  series={series}
+                  childSeries={childSeries}
+                  seriesId={seriesId}
+                  imageCount={images.length}
+                  jobCount={jobs.length}
+                  enabledTags={enabledTags}
+                  globalTags={globalTags}
+                />
+              </div>
             </div>
           </ResizablePanel>
 
@@ -898,41 +856,46 @@ export function SeriesLayout({
 
           {/* Jobs/Images column with tabs */}
           <ResizablePanel defaultSize={75} minSize={50}>
-            <div className="h-full overflow-y-auto p-6">
-              <Tabs defaultValue="images" className="h-full flex flex-col">
-                <div className="flex items-center justify-between">
-                  <TabsList className="w-fit">
-                    <TabsTrigger value="jobs">Jobs ({jobs.length})</TabsTrigger>
-                    <TabsTrigger value="images">
-                      Images ({images.length})
-                    </TabsTrigger>
-                  </TabsList>
-                  <div>
+            <div className="h-full flex flex-col overflow-hidden">
+              {/* Fixed tabs + upload button */}
+              <div className="flex-none px-6 py-4 border-b">
+                <Tabs defaultValue="images" className="w-full">
+                  <div className="flex items-center justify-between">
+                    <TabsList>
+                      <TabsTrigger value="jobs">Jobs ({jobs.length})</TabsTrigger>
+                      <TabsTrigger value="images">Images ({images.length})</TabsTrigger>
+                    </TabsList>
                     <Button size="sm" variant="outline" onClick={() => setShowUploadModal(true)}>
                       Upload
                     </Button>
                   </div>
-                </div>
-                <TabsContent value="jobs" className="flex-1 mt-4 overflow-y-auto">
-                  <JobsPanel jobs={jobs} seriesId={seriesId} />
-                </TabsContent>
-                <TabsContent value="images" className="flex-1 mt-4 overflow-y-auto">
-                  <ImagesPanel
-                    images={images}
-                    seriesId={seriesId}
-                    primaryImageId={series.primary_image_id}
-                    enabledTags={enabledTags}
-                    onUploadClick={() => setShowUploadModal(true)}
-                  />
-                </TabsContent>
-              </Tabs>
+
+                  {/* Scrollable content */}
+                  <TabsContent value="jobs" className="mt-0">
+                    <div className="h-[calc(100vh-12rem)] overflow-y-auto pt-4">
+                      <JobsPanel jobs={jobs} seriesId={seriesId} />
+                    </div>
+                  </TabsContent>
+                  <TabsContent value="images" className="mt-0">
+                    <div className="h-[calc(100vh-12rem)] overflow-y-auto pt-4">
+                      <ImagesPanel
+                        images={images}
+                        seriesId={seriesId}
+                        primaryImageId={series.primary_image_id}
+                        enabledTags={enabledTags}
+                        onUploadClick={() => setShowUploadModal(true)}
+                      />
+                    </div>
+                  </TabsContent>
+                </Tabs>
+              </div>
             </div>
           </ResizablePanel>
         </ResizablePanelGroup>
       </div>
 
       {/* Narrow layout: 3 Tabs */}
-      <div className="lg:hidden">
+      <div className="lg:hidden p-4">
         <Tabs defaultValue="images" className="w-full">
           <TabsList className="w-full grid grid-cols-3">
             <TabsTrigger value="config">Config</TabsTrigger>
@@ -954,13 +917,18 @@ export function SeriesLayout({
             <JobsPanel jobs={jobs} seriesId={seriesId} />
           </TabsContent>
           <TabsContent value="images" className="mt-4">
-            <ImagesPanel
-              images={images}
-              seriesId={seriesId}
-              primaryImageId={series.primary_image_id}
-              enabledTags={enabledTags}
-              onUploadClick={() => setShowUploadModal(true)}
-            />
+            <div className="space-y-4">
+              <Button size="sm" variant="outline" onClick={() => setShowUploadModal(true)}>
+                Upload
+              </Button>
+              <ImagesPanel
+                images={images}
+                seriesId={seriesId}
+                primaryImageId={series.primary_image_id}
+                enabledTags={enabledTags}
+                onUploadClick={() => setShowUploadModal(true)}
+              />
+            </div>
           </TabsContent>
         </Tabs>
       </div>

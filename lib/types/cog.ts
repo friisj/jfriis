@@ -8,6 +8,12 @@ export type CogJobStepStatus = 'pending' | 'running' | 'completed' | 'failed' | 
 
 export type CogJobStepType = 'llm' | 'image_gen';
 
+export type CogJobType = 'batch' | 'pipeline';
+
+export type CogPipelineStepType = 'generate' | 'refine' | 'inpaint' | 'eval' | 'upscale';
+
+export type CogPipelineStepStatus = 'pending' | 'running' | 'completed' | 'failed' | 'cancelled';
+
 export type CogImageSource = 'upload' | 'generated';
 
 export type CogImageModel = 'auto' | 'imagen-4' | 'imagen-3-capability' | 'gemini-3-pro-image' | 'flux-2-pro' | 'flux-2-dev';
@@ -82,6 +88,10 @@ export interface CogJob {
   aspect_ratio: CogAspectRatio;
   use_thinking: boolean;
   status: CogJobStatus;
+  // Pipeline job fields
+  job_type: CogJobType;
+  style_guide_id: string | null;
+  initial_images: string[] | null; // array of image URLs/IDs
   created_at: string;
   updated_at: string;
   started_at: string | null;
@@ -112,6 +122,43 @@ export interface CogJobStep {
   error_message: string | null;
   started_at: string | null;
   completed_at: string | null;
+  created_at: string;
+}
+
+// ============================================================================
+// Pipeline Job Types
+// ============================================================================
+
+export interface CogStyleGuide {
+  id: string;
+  series_id: string;
+  user_id: string;
+  name: string;
+  description: string | null;
+  system_prompt: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CogPipelineStep {
+  id: string;
+  job_id: string;
+  step_order: number;
+  step_type: CogPipelineStepType;
+  model: string;
+  config: Record<string, unknown>; // step-specific params (prompt, mask, eval criteria, etc)
+  status: CogPipelineStepStatus;
+  started_at: string | null;
+  completed_at: string | null;
+  error_message: string | null;
+  created_at: string;
+}
+
+export interface CogPipelineStepOutput {
+  id: string;
+  step_id: string;
+  image_id: string;
+  metadata: Record<string, unknown> | null; // eval scores, generation params, etc
   created_at: string;
 }
 
@@ -158,6 +205,10 @@ export interface CogJobInsert {
   aspect_ratio?: CogAspectRatio;
   use_thinking?: boolean;
   status?: CogJobStatus;
+  // Pipeline job fields
+  job_type?: CogJobType;
+  style_guide_id?: string | null;
+  initial_images?: string[] | null;
 }
 
 export interface CogJobInputInsert {
@@ -178,12 +229,38 @@ export interface CogJobStepInsert {
   status?: CogJobStepStatus;
 }
 
+export interface CogStyleGuideInsert {
+  series_id: string;
+  user_id: string;
+  name: string;
+  description?: string | null;
+  system_prompt: string;
+}
+
+export interface CogPipelineStepInsert {
+  job_id: string;
+  step_order: number;
+  step_type: CogPipelineStepType;
+  model: string;
+  config: Record<string, unknown>;
+  status?: CogPipelineStepStatus;
+}
+
+export interface CogPipelineStepOutputInsert {
+  step_id: string;
+  image_id: string;
+  metadata?: Record<string, unknown> | null;
+}
+
 // Update types (all fields optional)
 export type CogSeriesUpdate = Partial<Omit<CogSeries, 'id' | 'created_at'>>;
 export type CogImageUpdate = Partial<Omit<CogImage, 'id' | 'created_at'>>;
 export type CogJobUpdate = Partial<Omit<CogJob, 'id' | 'created_at'>>;
 export type CogJobStepUpdate = Partial<Omit<CogJobStep, 'id' | 'created_at'>>;
 export type CogJobInputUpdate = Partial<Omit<CogJobInput, 'id' | 'created_at'>>;
+export type CogStyleGuideUpdate = Partial<Omit<CogStyleGuide, 'id' | 'created_at'>>;
+export type CogPipelineStepUpdate = Partial<Omit<CogPipelineStep, 'id' | 'created_at'>>;
+export type CogPipelineStepOutputUpdate = Partial<Omit<CogPipelineStepOutput, 'id' | 'created_at'>>;
 
 // Extended types with relations
 export interface CogSeriesWithImages extends CogSeries {
@@ -219,6 +296,15 @@ export interface CogSeriesFull extends CogSeries {
   children: CogSeries[];
   images: CogImage[];
   jobs: CogJobWithSteps[];
+}
+
+export interface CogPipelineStepWithOutput extends CogPipelineStep {
+  output: CogPipelineStepOutput | null;
+}
+
+export interface CogPipelineJobWithSteps extends CogJob {
+  steps: CogPipelineStepWithOutput[];
+  style_guide: CogStyleGuide | null;
 }
 
 // ============================================================================
