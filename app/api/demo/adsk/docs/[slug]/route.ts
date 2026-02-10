@@ -8,6 +8,7 @@ const ALLOWED_SLUGS = new Set([
   'design-current',
   'design-target',
   'feedback',
+  'message-attachment-anatomy',
   'prd',
   'principles',
   'ux-map',
