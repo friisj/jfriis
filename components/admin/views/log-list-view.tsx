@@ -9,6 +9,7 @@ import {
 } from '@/components/admin'
 import { LogEntryCard } from '@/components/admin/cards'
 import { formatDate } from '@/lib/utils'
+import { usePrivacyMode, filterPrivateRecords } from '@/lib/privacy-mode'
 
 interface LogEntry {
   id: string
@@ -17,6 +18,7 @@ interface LogEntry {
   entry_date: string
   type: string | null
   published: boolean
+  is_private?: boolean | null
   created_at: string
   updated_at: string
   specimenCount?: number
@@ -28,6 +30,10 @@ interface LogListViewProps {
 }
 
 export function LogListView({ entries }: LogListViewProps) {
+  const { isPrivacyMode } = usePrivacyMode()
+
+  // Filter entries based on privacy mode
+  const visibleEntries = filterPrivateRecords(entries, isPrivacyMode)
   const columns: AdminTableColumn<LogEntry>[] = [
     {
       key: 'title',
@@ -96,7 +102,7 @@ export function LogListView({ entries }: LogListViewProps) {
 
   return (
     <AdminDataView
-      data={entries}
+      data={visibleEntries}
       views={{
         table: {
           columns,

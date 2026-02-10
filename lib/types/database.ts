@@ -232,6 +232,7 @@ export interface LogEntry extends BaseRecord {
   seo_title?: string
   seo_description?: string
   published: boolean
+  is_private?: boolean
   published_at?: string
   studio_project_id?: string
   studio_experiment_id?: string

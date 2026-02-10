@@ -28,6 +28,7 @@ interface LogEntryFormData {
   entry_date: string
   type: string
   published: boolean
+  is_private: boolean
   tags: string
 }
 
@@ -60,6 +61,7 @@ export function LogEntryForm({ entryId, initialData }: LogEntryFormProps) {
     entry_date: initialData?.entry_date || new Date().toISOString().split('T')[0],
     type: initialData?.type || '',
     published: initialData?.published || false,
+    is_private: initialData?.is_private || false,
     tags: initialData?.tags || '',
   })
 
@@ -312,6 +314,7 @@ export function LogEntryForm({ entryId, initialData }: LogEntryFormProps) {
         entry_date: formData.entry_date,
         type: formData.type || null,
         published: formData.published,
+        is_private: formData.is_private,
         tags: tagsArray.length > 0 ? tagsArray : null,
         ...(formData.published && !initialData?.published ? { published_at: new Date().toISOString() } : {}),
       }
@@ -556,6 +559,21 @@ export function LogEntryForm({ entryId, initialData }: LogEntryFormProps) {
               </label>
               <p className="text-xs text-muted-foreground mt-1">
                 Make this entry visible to the public
+              </p>
+            </div>
+
+            <div>
+              <label className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={formData.is_private}
+                  onChange={(e) => setFormData({ ...formData, is_private: e.target.checked })}
+                  className="rounded border-gray-300"
+                />
+                <span className="text-sm font-medium">Private</span>
+              </label>
+              <p className="text-xs text-muted-foreground mt-1">
+                Hidden in privacy mode
               </p>
             </div>
           </div>

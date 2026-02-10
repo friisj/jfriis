@@ -327,6 +327,7 @@ function ConfigPanel({
   const [title, setTitle] = useState(series.title);
   const [description, setDescription] = useState(series.description || '');
   const [tagsInput, setTagsInput] = useState(series.tags.join(', '));
+  const [isPrivate, setIsPrivate] = useState(series.is_private || false);
 
   async function handleGenerate() {
     if (!generatePrompt.trim()) return;
@@ -370,6 +371,7 @@ function ConfigPanel({
     setTitle(series.title);
     setDescription(series.description || '');
     setTagsInput(series.tags.join(', '));
+    setIsPrivate(series.is_private || false);
     setError(null);
     setIsEditing(false);
   }
@@ -393,6 +395,7 @@ function ConfigPanel({
         title: title.trim(),
         description: description.trim() || null,
         tags,
+        is_private: isPrivate,
       });
 
       setIsEditing(false);
@@ -524,6 +527,20 @@ function ConfigPanel({
               />
               <p className="text-xs text-muted-foreground">
                 Comma-separated list of tags
+              </p>
+            </div>
+            <div className="space-y-2">
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={isPrivate}
+                  onChange={(e) => setIsPrivate(e.target.checked)}
+                  className="w-4 h-4 rounded border-gray-300"
+                />
+                <span>Private (hidden in privacy mode)</span>
+              </label>
+              <p className="text-xs text-muted-foreground">
+                When privacy mode is enabled, this series will be hidden from view
               </p>
             </div>
             <div className="flex gap-2 pt-2">

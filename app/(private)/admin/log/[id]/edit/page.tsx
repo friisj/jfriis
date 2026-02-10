@@ -34,6 +34,7 @@ export default async function EditLogEntryPage({ params }: EditLogEntryPageProps
     entry_date: entry.entry_date || new Date().toISOString().split('T')[0],
     type: entry.type || '',
     published: entry.published,
+    is_private: entry.is_private || false,
     tags: entry.tags?.join(', ') || '',
   }
 

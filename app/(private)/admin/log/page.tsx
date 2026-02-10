@@ -16,6 +16,7 @@ export default async function AdminLogPage() {
       entry_date,
       type,
       published,
+      is_private,
       created_at,
       updated_at
     `)
