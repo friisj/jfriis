@@ -106,6 +106,25 @@ export function ImageEditor({ seriesId, imageId }: ImageEditorProps) {
     loadImages()
   }, [seriesId, imageId])
 
+  // Handle browser back/forward navigation
+  useEffect(() => {
+    const handlePopState = () => {
+      // When user uses browser back/forward, sync currentIndex with URL
+      const pathParts = window.location.pathname.split('/')
+      const urlImageId = pathParts[pathParts.length - 1]
+
+      if (urlImageId && images.length > 0) {
+        const index = images.findIndex(img => img.id === urlImageId)
+        if (index !== -1) {
+          setCurrentIndex(index)
+        }
+      }
+    }
+
+    window.addEventListener('popstate', handlePopState)
+    return () => window.removeEventListener('popstate', handlePopState)
+  }, [images])
+
   const currentImage = images[currentIndex]
 
   // Get the displayed image (group image when in group mode, series image otherwise)
@@ -302,13 +321,21 @@ export function ImageEditor({ seriesId, imageId }: ImageEditorProps) {
         setCurrentGroupIndex(currentGroupIndex - 1)
       }
     } else {
-      // Navigate within series
+      // Navigate within series (use local state + URL update, no page reload)
       if (currentIndex > 0) {
-        const prevImage = images[currentIndex - 1]
-        router.push(`/tools/cog/${seriesId}/editor/${prevImage.id}`)
+        const newIndex = currentIndex - 1
+        const prevImage = images[newIndex]
+        setCurrentIndex(newIndex)
+
+        // Update URL without triggering navigation
+        window.history.replaceState(
+          null,
+          '',
+          `/tools/cog/${seriesId}/editor/${prevImage.id}${showGroupMode ? '?group=true' : ''}`
+        )
       }
     }
-  }, [showGroupMode, currentGroupIndex, currentIndex, images, router, seriesId])
+  }, [showGroupMode, currentGroupIndex, currentIndex, images, seriesId])
 
   const goToNext = useCallback(() => {
     if (showGroupMode) {
@@ -317,13 +344,21 @@ export function ImageEditor({ seriesId, imageId }: ImageEditorProps) {
         setCurrentGroupIndex(currentGroupIndex + 1)
       }
     } else {
-      // Navigate within series
+      // Navigate within series (use local state + URL update, no page reload)
       if (currentIndex < images.length - 1) {
-        const nextImage = images[currentIndex + 1]
-        router.push(`/tools/cog/${seriesId}/editor/${nextImage.id}`)
+        const newIndex = currentIndex + 1
+        const nextImage = images[newIndex]
+        setCurrentIndex(newIndex)
+
+        // Update URL without triggering navigation
+        window.history.replaceState(
+          null,
+          '',
+          `/tools/cog/${seriesId}/editor/${nextImage.id}${showGroupMode ? '?group=true' : ''}`
+        )
       }
     }
-  }, [showGroupMode, currentGroupIndex, groupImages.length, currentIndex, images, router, seriesId])
+  }, [showGroupMode, currentGroupIndex, groupImages.length, currentIndex, images, seriesId])
 
   // Group management actions
   const handleSetPrimary = useCallback(async (imageId: string) => {
