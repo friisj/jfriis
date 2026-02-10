@@ -722,13 +722,13 @@ export default function AdskDemo() {
           </p>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-12 mb-12">
             <div>
-              <p className="text-xl text-muted-foreground/75">Before</p>
-              <p className="text-xl text-foreground border-foreground h-28">&ldquo;Can you look at clean energy stocks and maybe compare them to the S&P?&rdquo;</p>
+              <p className="text-xl text-muted-foreground/75 mb-4">Before</p>
+              <p className="text-xl text-foreground h-28 border-t border-foreground/20 pt-4">&ldquo;Can you look at clean energy stocks and maybe compare them to the S&P?&rdquo;</p>
               <p className="text-xl text-muted-foreground/75">Agent guesses intent. May or may not use the right tool.</p>
             </div>
             <div>
-              <p className="text-xl text-muted-foreground/75">After</p>
-              <p className="text-xl text-foreground border-foreground h-28">&ldquo;Compare these&rdquo; + <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-muted text-base font-mono">Theme: Clean Energy</span> + <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-muted text-base font-mono">Index: S&P 500</span></p>
+              <p className="text-xl text-muted-foreground/75 mb-4">After</p>
+              <p className="text-xl text-foreground border-foreground/20 h-28 border-t pt-4">&ldquo;Compare these&rdquo; + <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-muted text-base font-mono">Theme: Clean Energy</span> + <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-muted text-base font-mono">Index: S&P 500</span></p>
               <p className="text-xl text-muted-foreground/75">Agent receives structured context.<br />Tool use is deterministic.</p>
             </div>
           </div>
@@ -739,7 +739,6 @@ export default function AdskDemo() {
             className="inline-flex items-center gap-2 mt-6 px-4 py-2.5 rounded-lg border border-foreground/20 bg-muted/5 text-sm font-medium hover:bg-muted/20 transition-colors"
           >
             Open prototype
-            <span className="text-muted-foreground">&rarr;</span>
           </a>
         </div>
       </Section>
@@ -775,31 +774,23 @@ export default function AdskDemo() {
       {/* Tilt Agent Skill — the capstone */}
       <Section id="tilt-skill">
         <div className="max-w-3xl">
-          <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground mb-2">Capstone</p>
-          <h2 className="text-2xl font-semibold tracking-tight">The Agent Skill</h2>
-          <p className="text-muted-foreground mt-3 leading-relaxed">
-            The critical output: a markdown spec that coding agents consume when building new
-            attachment types. The spec is the governance — teams don&apos;t come to you, the agent
-            reads the skill and enforces the pattern.
+          <h2 className="text-5xl font-semibold tracking-tight mb-32"><span className="text-muted-foreground/50">Capstone: </span><br />The Agent Skill</h2>
+          <p className="text-xl text-muted-foreground leading-relaxed mb-6">
+            The critical output: a skill file that coding agents consume when building new
+            attachment types. The spec is the governance — teams don&apos;t search for specs and patterns. Their agents
+            invoke the skill and enforce the pattern.
           </p>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
-            <div>
-              <p className="text-[10px] uppercase tracking-widest text-muted-foreground/50 mb-3">The spec</p>
-              <div className="rounded-lg border border-dashed border-border bg-muted/5 aspect-[3/4] flex items-center justify-center">
-                <span className="text-xs text-muted-foreground/30 uppercase tracking-widest">Agent skill markdown</span>
-              </div>
-            </div>
-            <div>
-              <p className="text-[10px] uppercase tracking-widest text-muted-foreground/50 mb-3">Governance &amp; adoption</p>
-              <div className="rounded-lg border border-dashed border-border bg-muted/5 aspect-[3/4] flex items-center justify-center">
-                <span className="text-xs text-muted-foreground/30 uppercase tracking-widest">Adoption schematic</span>
-              </div>
-            </div>
-          </div>
-          <p className="text-sm text-muted-foreground mt-6 leading-relaxed">
-            Oversight shifts from reviewing implementations to evolving the spec.
-            The system self-extends because the spec is the teacher.
+          <p className="text-xl text-muted-foreground leading-relaxed mb-8">
+            Oversight shifts from reviewing implementations to evolving the skill.
           </p>
+          <a
+            href="/demo/adsk/docs/attachment-skill"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg border border-foreground/20 bg-muted/5 text-sm font-medium hover:bg-muted/20 transition-colors"
+          >
+            Review skill
+          </a>
         </div>
       </Section>
 
@@ -929,12 +920,7 @@ export default function AdskDemo() {
         className="min-h-screen flex flex-col px-8 md:px-16 lg:px-24 py-16"
       >
         <div className="max-w-3xl">
-          <div className="flex items-baseline gap-3 mb-4">
-            <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Part 4</p>
-            <span className="text-[10px] text-muted-foreground/50">20 min</span>
-          </div>
-          <h2 className="text-3xl font-semibold tracking-tight mb-6">Q&A</h2>
-          <TheirQuestionsPanel />
+          <h2 className="text-5xl font-semibold tracking-tight">Q&A</h2>
         </div>
       </section>
     </div>
