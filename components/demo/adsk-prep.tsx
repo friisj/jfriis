@@ -75,215 +75,97 @@ const panelists: Panelist[] = [
   },
 ]
 
-// --- My Questions ---
+// --- Anticipated Questions ---
 
-interface MyQuestion {
-  target: string
+interface AnticipatedQuestion {
   question: string
-  context: string
+  interpretation: string
+  responses: string[]
 }
 
-const myQuestions: MyQuestion[] = [
-  // Jason — innovation leadership, AI, team building
+const anticipatedQuestions: AnticipatedQuestion[] = [
   {
-    target: 'Jason Bejot',
-    question: 'You\'ve led paradigm-shifting work at Amazon and Disney. How does the innovation culture at Autodesk compare, and what does the team need most right now?',
-    context: 'Understand leadership style and what gap this role fills. Jason values innovation and complex challenges — signal that you do too.',
+    question: 'What system were you designing within? What were the constraints and forces shaping it?',
+    interpretation: 'Describe the operating environment — the platform, the stakeholders, and what made the problem hard.',
+    responses: [
+      'Tilt is an agentic fintech platform where users build market indices via conversational AI. The system had a growing set of tools built by multiple teams, but users interacted with all of them through a single chat interface — so the design surface was the conversation itself.',
+      'Key constraints: LLM non-determinism meant tool use was probabilistic, not guaranteed. Multiple teams shipped tools independently, so there was no unified interaction model. Users were domain experts in finance but novices with AI workflows.',
+      'Organizational force: the platform was growing faster than the UX could keep up. New tools were being added, but discoverability and reliability lagged behind capability.',
+    ],
   },
   {
-    target: 'Jason Bejot',
-    question: 'Autodesk is positioning AI as an architectural layer across the platform. How is the experience design org structured to influence that — is it embedded, centralized, or something else?',
-    context: 'Understand org design and where this role sits relative to product, engineering, and research.',
-  },
-  // Michelangelo — design craft, multi-platform, creative technology
-  {
-    target: 'Michelangelo Capraro',
-    question: 'With your background spanning everything from Palm OS to VR — how do you think about the craft of interaction design when the interface is increasingly agentic rather than visual?',
-    context: 'Signal respect for his breadth. Explore how the team thinks about designing for AI-driven interactions vs. traditional UI.',
+    question: 'How did you structure the experience across time, states, and levels of autonomy?',
+    interpretation: 'Walk through the lifecycle of an interaction — what happens when, and how much control the user has at each stage.',
+    responses: [
+      'Designed a two-phase composition model: Preparing (user configures the attachment, replacing the textarea) and Ready (compact chip below the textarea, user adds context and sends). This gave structure to what was previously freeform prompting.',
+      'Autonomy is graduated: the user makes the explicit choice (what to attach), but the agent handles execution (which tool to invoke, how to process context). The attachment guarantees the right tool fires — the user controls intent, the system handles mechanics.',
+      'In message history, attachments render as read-only chips — maintaining a clear record of what was sent and why, across the full conversation timeline.',
+    ],
   },
   {
-    target: 'Michelangelo Capraro',
-    question: 'What does the design review and critique process look like on this team? How do you maintain quality bar across such different product surfaces?',
-    context: 'Understand team culture and standards. Michelangelo values art + usability — signal alignment.',
-  },
-  // Capra — platform architecture, developer experience, scaling
-  {
-    target: 'Capra J\'neva',
-    question: 'The APIX program you built scaled API experience practices across Autodesk. What did you learn about getting cross-functional adoption of experience standards at that scale?',
-    context: 'Show you\'ve done your research. Understand platform team dynamics and what\'s worked.',
+    question: 'What decisions were made by the system vs. the user, and why?',
+    interpretation: 'Where did you draw the line on automation vs. user control, and what informed that boundary?',
+    responses: [
+      'User decides: what to attach, what context to add, when to send. These are intent decisions — the user knows what they want the agent to do.',
+      'System decides: which tool to invoke, how to process the structured context, how to format the response. These are execution decisions — the system is better positioned to handle them reliably.',
+      'The key insight was that the previous design put too much execution burden on the user (verbose prompting to coerce tool use). Attachments shifted the boundary so users express intent structurally and the system guarantees execution.',
+    ],
   },
   {
-    target: 'Capra J\'neva',
-    question: 'With the shift toward MCP servers and a developer marketplace — how is the team thinking about the experience layer for third-party developers building on Autodesk\'s AI capabilities?',
-    context: 'Connect to Autodesk\'s announced MCP/marketplace strategy. Show strategic awareness.',
-  },
-  // Rahul — engineering partnership, technical feasibility
-  {
-    target: 'Rahul Verma',
-    question: 'What does the engineering-design partnership look like day to day on this team? Where does it work well, and where do you see the most friction?',
-    context: 'Understand cross-functional dynamics from the engineering perspective. Show you value the partnership.',
+    question: 'What architectural or strategic decisions required alignment across teams or disciplines?',
+    interpretation: 'Where did you need buy-in beyond your immediate team, and how did you get it?',
+    responses: [
+      'The attachment pattern affected every team that had built a tool — each needed to register their tool as an attachment type with a schema, display component, and conversion function. This was a platform-level change, not a feature.',
+      'Wrote a formal agent skill spec that served as both documentation and governance. Teams didn\'t need to learn the pattern by reading my code — their coding agents consumed the skill and enforced the pattern automatically.',
+      'Alignment came through working code, not decks. Prototyped the pattern end-to-end, tested with users, then presented the validated approach. Teams adopted because it solved a real problem they could see.',
+    ],
   },
   {
-    target: 'Rahul Verma',
-    question: 'When the team is working on AI-powered features, how do you think about shipping iteratively when model behavior is inherently non-deterministic?',
-    context: 'Explore engineering philosophy around shipping AI features. Show awareness of the unique challenges.',
-  },
-  // Team-level / strategic
-  {
-    target: 'Team',
-    question: 'What does success look like for whoever fills this role in the first 6 months?',
-    context: 'Clarify expectations and scope. Understand urgency and priorities.',
+    question: 'Where did you need to set direction rather than respond to requirements?',
+    interpretation: 'When did you identify the problem yourself rather than being handed a brief?',
+    responses: [
+      'The attachment concept wasn\'t requested — it emerged from observing user workarounds. Users were writing paragraphs to coerce the agent into specific tool use. I reframed the problem: this isn\'t a prompting problem, it\'s a discoverability and intent problem.',
+      'Proposed attachments as a platform pattern, not a feature. This was a strategic reframe — instead of fixing one tool\'s discoverability, I designed a system that made all tools discoverable and reliable through a single interaction model.',
+      'Also set direction on the governance model: the agent skill as the scaling mechanism. Rather than reviewing every new attachment type, the spec itself became the quality gate.',
+    ],
   },
   {
-    target: 'Team',
-    question: 'Autodesk has talked about the "agentic era" and Neural CAD automating 80–90% of routine design tasks. How is the experience team preparing users for that level of change in their workflow?',
-    context: 'Show you understand the strategic moment. Explore change management and user trust at scale.',
+    question: 'How did you evaluate success or failure in situations where outcomes were probabilistic, emergent, or hard to measure?',
+    interpretation: 'What signals did you use when you couldn\'t just measure conversion or completion rates?',
+    responses: [
+      'Leading indicators: reduction in verbose workaround prompts, increase in tool-use frequency per session, decrease in "wrong tool" recovery conversations.',
+      'Qualitative signals: user testing showed users discovering capabilities they didn\'t know existed. The "I didn\'t know I could do that" problem shifted to "I can see exactly what I can do."',
+      'Structural signal: engineering teams creating new attachment types without design oversight validated that the pattern was self-sustaining — the spec was working as governance.',
+    ],
+  },
+  {
+    question: 'How did you design for trust, transparency, or user control?',
+    interpretation: 'How did you help users feel confident in what the system was doing on their behalf?',
+    responses: [
+      'Visible intent: attachments make tool use explicit before send. The user sees exactly what structured context the agent will receive — no hidden mechanics.',
+      'No confirmation dialogs — we trust the model. But the user always controls the framing: starter text populates a sensible default, but the user can edit or replace it before sending.',
+      'Errors surface inline on the attachment chip, never block submission. The user stays in control of the flow. Failed attachments are visible, not silently dropped.',
+    ],
+  },
+  {
+    question: 'How did the system learn, adapt, or change behavior over time?',
+    interpretation: 'Did the system evolve based on usage, or was it static once shipped?',
+    responses: [
+      'The attachment pattern is extensible by design — new types are added by registering a schema, display component, and tool mapping. The system grows as the platform grows.',
+      'The agent skill spec evolves based on what we learn: anti-patterns are documented when discovered, and the spec is updated so future implementations avoid known pitfalls.',
+      'User behavior data informs which attachment types need better discoverability or onboarding — work continues on surfacing underused capabilities to new users.',
+    ],
+  },
+  {
+    question: 'What guardrails or failure modes did you consider?',
+    interpretation: 'What happens when things go wrong, and how did you design for graceful degradation?',
+    responses: [
+      'Principle: errors inline, not blocking. Invalid attachments show a warning on the chip but don\'t prevent the user from sending. The message can still go through with text alone.',
+      'Zod validation on the backend catches malformed attachment data before it reaches the LLM. Schema validation is the safety net — bad data never gets converted to context.',
+      'Natural language always works as fallback. Attachments augment the conversation — they never gate functionality. If the attachment system fails entirely, the user can still prompt the agent directly.',
+    ],
   },
 ]
-
-// --- JD Assessment ---
-
-interface JdRequirement {
-  requirement: string
-  alignment: 'strong' | 'moderate' | 'gap'
-  evidence: string[]
-  notes?: string
-}
-
-const jdAssessment = {
-  title: 'Experience Design Architect, Agentic AI',
-  location: 'Ontario, Canada (Remote)',
-  salary: '$138,400–$190,300 CAD',
-
-  responsibilities: [
-    {
-      requirement: 'Own system-level experience architecture for AI platform (Autodesk Assistant)',
-      alignment: 'strong' as const,
-      evidence: [
-        'Tilt: Lead product designer of agentic AI platform — conversational UI, multi-step workflows, system-level architecture',
-        'Strategyzer: Drove UX architecture combining persistent business objects, analysis tools, and real-time multiplayer workspaces',
-        'Autodesk: Conceived and drove Project Orion — inter-product group design system',
-      ],
-    },
-    {
-      requirement: 'Develop innovative solutions to complex organizational challenges',
-      alignment: 'strong' as const,
-      evidence: [
-        'Strategyzer: Platform discovery and validation as Head of Platform on the leadership team',
-        'fforward: Co-founded and launched multiple AI products — #2 Product of the Day on Product Hunt',
-        'Tilt: Active collaboration with leadership on discovery, experiments, and roadmap',
-      ],
-    },
-    {
-      requirement: 'Shape experience strategy and mentor design teams',
-      alignment: 'strong' as const,
-      evidence: [
-        'TWG: Design Director — directed and coached growing design team, focused on senior skill development',
-        'Strategyzer: Managed and recruited product team (designers, PMs, engineers)',
-        'Copp: Built 0-to-1 product design studio with ~10 designers and developers',
-      ],
-    },
-    {
-      requirement: 'Drive implementation of new processes and standards across organizations',
-      alignment: 'strong' as const,
-      evidence: [
-        'Autodesk: Project Orion was an inter-product group design system — exactly this mandate',
-        'Strategyzer: Design system, service design practice, rebrand — all cross-functional standards work',
-        'TWG: Leading contributor to design dept ops, sales, resourcing, and special projects',
-      ],
-    },
-    {
-      requirement: 'Define strategies unifying business, technology, and experience priorities',
-      alignment: 'strong' as const,
-      evidence: [
-        'Strategyzer: Platform value proposition and strategy as Head of Platform',
-        'fforward: Co-founder managing product strategy, sales, marketing, customer success',
-        'Tilt: Bridging discovery, experiments, roadmap, and production codebase (1500+ commits)',
-      ],
-    },
-  ] as JdRequirement[],
-
-  minimumQualifications: [
-    {
-      requirement: '15+ years in experience design, product design, or related field',
-      alignment: 'strong' as const,
-      evidence: ['2008–present: 17+ years across Copp, Kera, Autodesk, TWG, Strategyzer, fforward, Tilt'],
-    },
-    {
-      requirement: 'Proven track record designing and delivering AI-powered experiences at scale',
-      alignment: 'moderate' as const,
-      evidence: [
-        'Tilt: Agentic workflows and conversational UI for finance professionals — shipping now',
-        'fforward: Prototyped conversational workflows with LLM agents, shipped multiple AI products',
-      ],
-      notes: 'AI work is recent (2023+) and startup-scale. Strong depth, but not yet at Autodesk-level scale. The trajectory is clear and accelerating.',
-    },
-    {
-      requirement: 'Deep experience with platforms like ChatGPT, Claude, Figma, or similar tools',
-      alignment: 'strong' as const,
-      evidence: [
-        'Active daily user and builder with Claude, ChatGPT, and AI coding tools',
-        '1500+ production commits at Tilt — hands-on with LLM integration, prompt engineering, agentic patterns',
-        'Deep Figma expertise across all roles',
-      ],
-    },
-    {
-      requirement: 'Expert in human-centered design and designing AI-powered experiences',
-      alignment: 'strong' as const,
-      evidence: [
-        'Core of career: Conversational UI, AI workflow design, UX prototyping & experimentation',
-        'Regular discovery with enterprise customers (Airbus, Arcadis, Ikea, Bayer)',
-        'Resume headline: "I design conversational interfaces where people and AI create together"',
-      ],
-    },
-    {
-      requirement: "Bachelor's degree in UX Design, HCI, Computer Science, or related field",
-      alignment: 'strong' as const,
-      evidence: ['Ryerson University — New Media, Image Arts (2010)'],
-    },
-  ] as JdRequirement[],
-
-  preferredQualifications: [
-    {
-      requirement: "Master's degree in UX Design, HCI, Linguistics, or related field",
-      alignment: 'gap' as const,
-      evidence: ['No master\'s degree'],
-      notes: 'Preferred, not required. 17+ years of progressive experience and founding roles offset this.',
-    },
-    {
-      requirement: 'Experience working on platform teams',
-      alignment: 'strong' as const,
-      evidence: [
-        'Strategyzer: Head of Platform (5 years)',
-        'Autodesk: Project Orion — inter-product group design system',
-      ],
-    },
-    {
-      requirement: 'Current knowledge of AI, conversation design, and UX trends',
-      alignment: 'strong' as const,
-      evidence: [
-        'Actively building AI products daily — Tilt is an agentic AI platform',
-        'Hands-on with LLM integration, prompt engineering, agentic patterns',
-        'Portfolio work demonstrating current conversational UI and AI workflow design',
-      ],
-    },
-  ] as JdRequirement[],
-
-  differentiators: [
-    'Autodesk alumni — joined via Kera acquisition, built Project Orion. Understands the culture, scale, and product ecosystem from the inside.',
-    'Rare designer-engineer hybrid — 1500+ production commits. Can prototype, ship, and speak engineering\'s language fluently.',
-    'Startup founder perspective — has built 0-to-1 AI products, understands the full stack from business model to production code.',
-    'Platform architecture depth — 5 years as Head of Platform at Strategyzer, architecting the same kind of cross-product experience layer this role demands.',
-    'Currently shipping agentic AI — not theoretical knowledge, actively designing and building conversational AI workflows right now at Tilt.',
-  ],
-
-  watchPoints: [
-    'Scale gap: Recent AI work is startup-scale. Need to articulate how platform thinking at Strategyzer and cross-product work at Autodesk bridge to Autodesk-scale AI architecture.',
-    'Recency of AI depth: 15+ years of design, but AI-specific work is 2023+. Frame the full career as building toward this moment — each role added a layer.',
-    'No master\'s degree: Lean into the depth of experience, founding roles, and hands-on technical capability as the equivalent.',
-    'Time away from Autodesk: Left in 2016. Acknowledge the gap, but position it as bringing fresh perspective and startup velocity back to an org you already understand.',
-  ],
-}
 
 // --- Autodesk Context ---
 
@@ -314,140 +196,6 @@ export default function AdskPrep() {
           <h1 className="text-4xl font-semibold tracking-tight mb-2">Autodesk Panel</h1>
           <p className="text-muted-foreground">Research, panelist profiles, and strategic context</p>
         </div>
-
-        {/* JD Assessment */}
-        <section className="mb-16">
-          <h2 className="text-2xl font-semibold tracking-tight mb-6">Role Assessment</h2>
-          <div className="p-6 rounded-lg border border-border bg-muted/5 mb-6">
-            <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1 mb-1">
-              <h3 className="text-lg font-semibold">{jdAssessment.title}</h3>
-              <span className="text-sm text-muted-foreground">{jdAssessment.location}</span>
-            </div>
-            <p className="text-sm text-muted-foreground">{jdAssessment.salary}</p>
-          </div>
-
-          {/* Differentiators */}
-          <div className="mb-8">
-            <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground/70 mb-3">Key Differentiators</p>
-            <div className="space-y-2">
-              {jdAssessment.differentiators.map((item, i) => (
-                <div key={i} className="text-sm text-muted-foreground flex gap-2">
-                  <span className="text-emerald-500/70 shrink-0">+</span>
-                  <span>{item}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Watch Points */}
-          <div className="mb-8">
-            <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground/70 mb-3">Watch Points</p>
-            <div className="space-y-2">
-              {jdAssessment.watchPoints.map((item, i) => (
-                <div key={i} className="text-sm text-muted-foreground flex gap-2">
-                  <span className="text-amber-500/70 shrink-0">!</span>
-                  <span>{item}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Responsibilities */}
-          <div className="mb-8">
-            <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground/70 mb-3">Responsibilities</p>
-            <div className="space-y-4">
-              {jdAssessment.responsibilities.map((req, i) => (
-                <div key={i} className="p-4 rounded-lg border border-border bg-muted/5">
-                  <div className="flex items-start gap-2 mb-2">
-                    <span className={`text-xs font-medium px-1.5 py-0.5 rounded shrink-0 ${
-                      req.alignment === 'strong' ? 'bg-emerald-500/10 text-emerald-600' :
-                      req.alignment === 'moderate' ? 'bg-amber-500/10 text-amber-600' :
-                      'bg-red-500/10 text-red-600'
-                    }`}>
-                      {req.alignment}
-                    </span>
-                    <p className="text-sm font-medium">{req.requirement}</p>
-                  </div>
-                  <ul className="space-y-1 ml-0.5">
-                    {req.evidence.map((e, j) => (
-                      <li key={j} className="text-xs text-muted-foreground/70 flex gap-2">
-                        <span className="text-muted-foreground/30 shrink-0">•</span>
-                        <span>{e}</span>
-                      </li>
-                    ))}
-                  </ul>
-                  {req.notes && (
-                    <p className="text-xs text-muted-foreground/50 italic mt-2">{req.notes}</p>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Minimum Qualifications */}
-          <div className="mb-8">
-            <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground/70 mb-3">Minimum Qualifications</p>
-            <div className="space-y-4">
-              {jdAssessment.minimumQualifications.map((req, i) => (
-                <div key={i} className="p-4 rounded-lg border border-border bg-muted/5">
-                  <div className="flex items-start gap-2 mb-2">
-                    <span className={`text-xs font-medium px-1.5 py-0.5 rounded shrink-0 ${
-                      req.alignment === 'strong' ? 'bg-emerald-500/10 text-emerald-600' :
-                      req.alignment === 'moderate' ? 'bg-amber-500/10 text-amber-600' :
-                      'bg-red-500/10 text-red-600'
-                    }`}>
-                      {req.alignment}
-                    </span>
-                    <p className="text-sm font-medium">{req.requirement}</p>
-                  </div>
-                  <ul className="space-y-1 ml-0.5">
-                    {req.evidence.map((e, j) => (
-                      <li key={j} className="text-xs text-muted-foreground/70 flex gap-2">
-                        <span className="text-muted-foreground/30 shrink-0">•</span>
-                        <span>{e}</span>
-                      </li>
-                    ))}
-                  </ul>
-                  {req.notes && (
-                    <p className="text-xs text-muted-foreground/50 italic mt-2">{req.notes}</p>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Preferred Qualifications */}
-          <div>
-            <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground/70 mb-3">Preferred Qualifications</p>
-            <div className="space-y-4">
-              {jdAssessment.preferredQualifications.map((req, i) => (
-                <div key={i} className="p-4 rounded-lg border border-border bg-muted/5">
-                  <div className="flex items-start gap-2 mb-2">
-                    <span className={`text-xs font-medium px-1.5 py-0.5 rounded shrink-0 ${
-                      req.alignment === 'strong' ? 'bg-emerald-500/10 text-emerald-600' :
-                      req.alignment === 'moderate' ? 'bg-amber-500/10 text-amber-600' :
-                      'bg-red-500/10 text-red-600'
-                    }`}>
-                      {req.alignment}
-                    </span>
-                    <p className="text-sm font-medium">{req.requirement}</p>
-                  </div>
-                  <ul className="space-y-1 ml-0.5">
-                    {req.evidence.map((e, j) => (
-                      <li key={j} className="text-xs text-muted-foreground/70 flex gap-2">
-                        <span className="text-muted-foreground/30 shrink-0">•</span>
-                        <span>{e}</span>
-                      </li>
-                    ))}
-                  </ul>
-                  {req.notes && (
-                    <p className="text-xs text-muted-foreground/50 italic mt-2">{req.notes}</p>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
 
         {/* Panelist Profiles */}
         <section className="mb-16">
@@ -495,27 +243,22 @@ export default function AdskPrep() {
           </div>
         </section>
 
-        {/* My Questions */}
+        {/* Anticipated Questions */}
         <section className="mb-16">
-          <h2 className="text-2xl font-semibold tracking-tight mb-6">My Questions</h2>
-          <div className="space-y-8">
-            {Object.entries(
-              myQuestions.reduce<Record<string, MyQuestion[]>>((acc, q) => {
-                if (!acc[q.target]) acc[q.target] = []
-                acc[q.target].push(q)
-                return acc
-              }, {})
-            ).map(([target, questions]) => (
-              <div key={target}>
-                <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground/70 mb-3">{target}</p>
-                <div className="space-y-4">
-                  {questions.map((q, i) => (
-                    <div key={i} className="p-4 rounded-lg border border-border bg-muted/5">
-                      <p className="text-sm font-medium mb-2">{q.question}</p>
-                      <p className="text-xs text-muted-foreground/60 italic">{q.context}</p>
-                    </div>
+          <h2 className="text-2xl font-semibold tracking-tight mb-6">Anticipated Questions</h2>
+          <div className="space-y-6">
+            {anticipatedQuestions.map((q, i) => (
+              <div key={i} className="p-6 rounded-lg border border-border bg-muted/5">
+                <p className="text-sm font-medium mb-2">{q.question}</p>
+                <p className="text-xs text-muted-foreground/60 italic mb-4">{q.interpretation}</p>
+                <ul className="space-y-2">
+                  {q.responses.map((r, j) => (
+                    <li key={j} className="text-sm text-muted-foreground flex gap-2">
+                      <span className="text-muted-foreground/30 shrink-0">•</span>
+                      <span>{r}</span>
+                    </li>
                   ))}
-                </div>
+                </ul>
               </div>
             ))}
           </div>
