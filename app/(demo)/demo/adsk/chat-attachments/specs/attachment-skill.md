@@ -1,313 +1,205 @@
-# Chat Attachments — Claude Coding Skill
-
-> Use this skill when implementing, extending, or modifying the chat attachment capability.
-> It encodes UX principles, architectural patterns, and known pitfalls so distributed work stays coherent.
-
+---
+name: chat-attachments
+description: Chat attachment architecture and UX patterns. Use when adding, modifying, or debugging chat attachments — the structured data parts users attach to messages in the edit chat.
+user-invocable: true
 ---
 
-## When to Activate
+## Architecture
 
-Activate this skill when your task involves:
-- Adding a new attachment type
-- Modifying an existing attachment type's UI or behavior
-- Changing the attachment lifecycle (Preparing, Ready, Submitted)
-- Touching shared components (PreparingShell, AttachmentChip, AttachmentMenu)
-- Working on message composition (textarea, starter text, placeholders)
-- Modifying how attachments are serialized to message parts or converted for the LLM
+Attachments are structured data, not file uploads. Each attachment has three representations:
 
----
+1. **Data part** — JSON stored in `index_messages.content.parts[]` alongside text parts
+2. **Display** — read-only chip or card rendered in chat history via `renderMessagePart()`
+3. **Agent context** — text block injected into the LLM prompt via `convertDataPartToText()`
 
-## Principles (Non-Negotiable)
+The agent context is the most important layer. It carries the full structured data plus behavioral instructions that tell the model what to do with the attachment. A ticker chip becomes `[Tickers: AAPL (Apple Inc.)]`. An expert chip becomes a multi-paragraph prompt with the expert's perspective, recent posts, and step-by-step instructions.
 
-These are the UX principles that govern all attachment work. Violating them creates the inconsistencies this system was designed to eliminate.
+## UX principles
 
-| # | Principle | What It Means for Code |
-|---|-----------|----------------------|
-| 1 | **Annotate, don't replace** | Attachments augment user text. Never hide, disable, or deprioritize the textarea when attachments are present in Ready mode. |
-| 2 | **Trust the model** | No confirmation dialogs, no previews of "what the LLM will receive." Submit sends. The model infers intent from structured context + user text. |
-| 3 | **Unstructured is valid** | Natural language always works. Never gate functionality behind attachments. Never interrupt flow to suggest using an attachment. |
-| 4 | **Two modes: Preparing → Ready** | Every attachment has exactly two composition states. Preparing replaces the textarea with config UI. Ready shows compact representation below the textarea. These are visually and functionally distinct. |
-| 5 | **Phased complexity** | Multi-step flows show one thing at a time. Back navigation between steps. Never cram a complex config into a single dense view. |
-| 6 | **Standardized controls** | Use shared components for search, select, close, back, done. No per-type inventions for standard interactions. |
-| 7 | **Visible intent** | Starter text and placeholders communicate what the attachment does. User always sees and controls the framing before submit. |
-| 8 | **Literal icons, short descriptions** | Icons represent what the attachment is. Menu items include a description explaining when to use the type. |
-| 9 | **Errors inline, not blocking** | Errors appear on the affected attachment. Submit remains available. Never silently remove or block for recoverable issues. |
-| 10 | **Discoverable, not interruptive** | Features are visible and labeled. Never interrupt user flow with proactive suggestions or modals. |
+These principles govern all attachment design decisions. Violating them creates UX debt.
 
----
+1. **Attachments annotate, they don't replace.** Text and attachments are peers — either can be submitted alone, both work together. Never design an attachment that makes text feel unnecessary.
+2. **Trust the model.** The model infers intent from the attachment's agent context and decides which tool to call. No confirmation dialogs, no action previews before submit. The model resolves conflicts between text and attachment intent.
+3. **Unstructured is valid.** Natural language ("add AAPL") is first-class. Attachments are a structured shortcut, never a requirement. Never interrupt flow to suggest using an attachment instead of text.
+4. **Two modes: Preparing → Ready.** Users always know which state they're in. Preparing replaces the textarea with configuration UI. Ready shows compact chips above the textarea. Transition requires explicit user action.
+5. **Phased complexity.** Complex configuration breaks into discrete steps. One thing at a time. Multi-step flows show clear progression ("Step x of y") and support back navigation.
+6. **Standardized controls.** All types use `AttachmentShell` (PreparingShell) and `AttachmentChip`. No per-type inventions for search, select, close, back, or done interactions.
+7. **Visible intent.** The attachment type informs default message framing via starter text. History shows what the user meant. The user can always edit before sending.
+8. **Literal icons, short descriptions.** Menu items show an icon for what the attachment is and a description for when to use it. Recognition over recall.
+9. **Errors inline, not blocking.** Problems surface on the affected chip via the `error` prop. Submit remains available. Never silently remove or block for recoverable issues.
+10. **Discoverable, not interruptive.** Features are visible and labeled. Never interrupt user flow with suggestions or modals.
 
-## Architecture at a Glance
+## Two-mode architecture
 
-```
-User composes message
-├── [+] Menu → selects attachment type
-├── Preparing mode → type-specific config UI (replaces textarea)
-├── Selection/confirmation → transitions to Ready mode
-├── Ready mode → compact chips below textarea + starter text
-├── Submit → attachments serialized as message parts
-│   ├── Frontend: PromptPayload with typed data parts
-│   ├── Backend: Zod validation → convertDataPart → text for LLM
-│   └── History: read-only AttachmentChip (same component, no onRemove)
-└── Attachments cleared after send
-```
+Attachments exist in distinct states with different UI treatments:
 
-### Key Files (Current Structure)
+| State | UI treatment | Textarea |
+|-------|-------------|----------|
+| **Preparing** | Config UI (InputCard inside `AttachmentShell`) | Hidden — Preparing replaces it |
+| **Ready** | Compact chips (`AttachmentChip`) | Visible — chips sit above it |
+| **Submitted** | Read-only chips in message history | N/A |
 
-```
-src/components/edit/attachments/{type}/
-├── {type}-types.ts         # TypeScript types + factory functions
-├── {type}-schema.ts        # Zod validation schema
-├── {Type}InputCard.tsx      # Preparing UI
-└── {Type}Display.tsx        # Read-only display in message history
-```
+**Preparing replaces the textarea.** This is a hard constraint — when a card is open, the user cannot type a message. This focuses attention on the configuration task and conserves space.
 
-### State Management
+**AttachmentShell** (`attachments/shared/AttachmentShell.tsx`) is the mandatory wrapper for all Preparing UIs. It provides:
+- Title bar: icon + type label + close button (or back button for multi-step)
+- Content area: type-specific UI
+- Action bar (optional): only for complex types that need explicit confirmation
 
-Hook: `usePromptInputAttachments` manages all attachment state.
+### Simple vs complex types
 
-```typescript
-// State shape per type
-{
-  items: TypeAttachment[]     // Confirmed selections (Ready)
-  preparing: TypeAttachment | null  // Currently configuring
-  mode: 'idle' | 'preparing' | 'ready'
-}
-```
+This is the key design decision for any new attachment type:
 
-**Important constraints:**
-- No mutual exclusivity enforcement in UI (model resolves conflicts)
-- All types use single-select per Preparing flow with repeat-to-add-more
-- Feature flags gate visibility per type in the menu
+| Classification | Types | Selection model | Preparing → Ready |
+|---------------|-------|----------------|-------------------|
+| **Simple** | Ticker, Expert, Index | Single-select per flow | Auto-close on selection |
+| **Complex** | Theme, Deep Research | Multi-step or config | Explicit Done/confirm |
 
----
+**Simple types** auto-close Preparing as soon as the user selects an item. Users repeat the flow to add more (open menu again, select next item). This reduces cognitive load — no "Done" step for straightforward picks.
 
-## Shared Components
+**Complex types** require an explicit confirm action because the user needs to review or configure before committing (editing sub-themes, setting research parameters).
 
-### PreparingShell
+**Cardinality:** all types use single-select per flow. Deep Research is capped at one per message. Other types allow multiples — user repeats the flow.
 
-Wrapper for all Preparing mode UIs. Every attachment type MUST use this.
+**No mutual exclusivity.** Allow all attachment type combinations. The model resolves conflicts (principle 2).
 
-```
-┌──────────────────────────────────────────┐
-│ [Icon] Type Label                    [×] │  ← Title bar (always)
-├──────────────────────────────────────────┤
-│                                          │
-│   Type-specific content area             │  ← Your UI goes here
-│                                          │
-├──────────────────────────────────────────┤
-│                              [Done]      │  ← Action bar (complex types only)
-└──────────────────────────────────────────┘
-```
+### Returning to edit
 
-**Props:**
-- `title` — contextual title (changes per step in multi-step flows)
-- `icon` — React node for title bar
-- `onClose` — cancel handler (restores previous state)
-- `onDone?` — shows action bar with Done button (complex types only)
-- `hideActions?` — force-hide action bar (e.g., in detail views)
-- `doneDisabled?` — conditional disable for Done
-- `customActions?` — override default Done with custom action bar content
+- **Theme**: click chip → opens unified edit panel (same format as manual creation)
+- **Ticker, Expert, Index**: use [+] menu to add more; remove via [x] on chip
+- **Deep Research**: config button in Ready mode reopens config modal
+
+## Starter text design
+
+Starter text auto-fills the prompt when attachments are added, making the attachment self-sufficient if the user sends without typing.
 
 **Rules:**
-- Simple types (Ticker, Expert, Index): NO action bar. Selection auto-closes.
-- Complex types (Theme, Deep Research): action bar with explicit Done/Confirm.
-- Close always cancels without saving.
+- Each type defines singular and plural variants ("Add this ticker" / "Add these tickers")
+- Text syncs automatically when attachments are added or removed
+- User-edited text (anything not matching a known starter) is NEVER overwritten
+- Mixed attachment types (e.g., ticker + theme) → clear starter text, show generic placeholder ("Add context to your message...")
 
-### AttachmentChip
+**Detection:** `isStarterText(text)` checks if input exactly matches any singular/plural starter. Anything else is considered user-edited and preserved across attachment changes.
 
-Used in Ready mode AND message history. Same component, different props.
+## Data part convention
 
-```
-[Icon] Primary Text | Secondary Text [×]
-```
+Type format: `data-{name}-add` (e.g., `data-ticker-add`, `data-expert-add`).
 
-**Props:**
-- `icon` — colored circle, semantic icon, etc.
-- `primary` — main text (ticker symbol, expert name, theme name)
-- `secondary?` — supporting text (company name, topic, publisher)
-- `tooltip?` — hover info
-- `onRemove?` — remove handler (omit for read-only in history)
-- `onClick?` — click handler (Theme uses this to return to edit mode)
-- `error?` — inline error message with warning styling
-
-**Rules:**
-- Ready mode: include `onRemove` (and `onClick` for Theme)
-- Message history: omit `onRemove` and `onClick` (read-only)
-- Visual weight varies: simple types are compact, complex types more prominent
-
----
-
-## Adding a New Attachment Type
-
-Follow this checklist exactly. Skipping steps creates the inconsistencies.
-
-### 1. Define the Type
+The type key minus the `data-` prefix must match the schema key in `data-schemas.ts`:
 
 ```
-src/components/edit/attachments/{new-type}/
-├── {new-type}-types.ts      # TypeAttachment interface + factory
-├── {new-type}-schema.ts     # Zod schema for validation
-├── {NewType}Preparing.tsx   # Preparing mode UI (uses PreparingShell)
-├── {NewType}Chips.tsx       # Ready mode renderer (uses AttachmentChip)
-└── {NewType}Display.tsx     # Message history renderer (uses AttachmentChip, read-only)
+data part type:  "data-ticker-add"
+schema key:      "ticker-add"
 ```
 
-### 2. Classify: Simple or Complex
+## File structure per attachment type
 
-| Classification | Behavior | Examples |
-|---------------|----------|---------|
-| **Simple** | Single-select with auto-close. No Done button. Repeat flow to add more. | Ticker, Expert, Index |
-| **Complex** | Multi-step or config flow. Explicit Done/Confirm. May have edit mode. | Theme, Deep Research |
-
-This classification determines:
-- Whether PreparingShell shows an action bar
-- Whether transition to Ready is automatic or explicit
-- Whether the chip is clickable to return to edit mode
-
-### 3. Implement Preparing Mode
-
-**Simple type template:**
 ```
-PreparingShell (no onDone)
-└── Search input (auto-focus)
-    └── Results list
-        └── Click item → confirm selection → auto-close to Ready
+attachments/{name}/
+├── index.ts              # Barrel exports
+├── {name}-types.ts       # TypeScript type + factory function
+├── {name}-schema.ts      # Zod schema (runtime validation + AI SDK dataSchemas)
+├── {Name}InputCard.tsx   # Composing UI (opened from attachment menu)
+├── {Name}Display.tsx     # Read-only display in message history
+└── {Name}AttachmentChip.tsx  # Shared chip used by both InputCard and Display
 ```
 
-**Complex type template:**
-```
-PreparingShell (with onDone)
-└── Step 1: Define/Configure
-    └── Step 2: Select/Confirm (if multi-step)
-        └── Done button → transition to Ready
-```
+## Integration points (checklist for new types)
 
-### 4. Implement Ready Mode Chips
+Adding a new attachment type touches these files in order:
 
-Use AttachmentChip. Include:
-- Type-appropriate icon
-- Primary label (name/symbol/title)
-- Secondary label if useful (company, topic, publisher)
-- `onRemove` for removal
-- `onClick` only if type supports inline editing (like Theme)
+1. **Type + schema** — `attachments/{name}/{name}-types.ts` and `{name}-schema.ts`
+2. **InputCard** — composing UI in `attachments/{name}/`, wrapped in `AttachmentShell`
+3. **Display** — read-only UI in `attachments/{name}/`, using `AttachmentChip`
+4. **Barrel** — `attachments/{name}/index.ts` and `attachments/index.ts`
+5. **Schema registry** — `src/app/api/edit/chat/data-schemas.ts` (add schema key)
+6. **State hook** — `src/components/edit/prompt-input-control-cluster/use-prompt-input-attachments.ts` (add state + actions)
+7. **Card handlers** — `use-card-handlers.ts` (open/close/add/remove handlers)
+8. **Menu item** — `use-attachment-menu-items.tsx` (add to dropdown with icon + description)
+9. **Feature flag** — `use-attachment-feature-flags.ts` (gate behind PostHog flag `chat-attachment-{name}`)
+10. **Message parts** — `src/app/edit/buildMessageParts.ts` (serialize to data part)
+11. **Render** — `src/components/query-builder/chat-message/render-helpers.tsx` (display in history)
+12. **LLM conversion** — `src/app/api/edit/chat/message-converters.ts` (text for agent)
+13. **Start page** — `src/app/edit/GAContent.tsx` (hasAttachments check + prompt generation — easy to miss)
+14. **Starter text** — `starter-text.ts` (singular + plural variants, placeholder text)
 
-### 5. Implement Starter Text
+## LLM conversion pattern
 
-Add entries to the starter text system:
+Every attachment MUST have a `convertDataPartToText` case in `message-converters.ts`. This is how the model understands the attachment — and it's where "trust the model" (principle 2) is operationalized.
 
-| Field | Singular | Plural |
-|-------|----------|--------|
-| Starter text | "Add this {type}" | "Add these {types}" |
-| Placeholder | "Ask about this {type}..." | "Ask about these {types}..." |
+The agent context encodes **the intent the user expressed by choosing that attachment type**. An expert attachment doesn't just pass expert data — it encodes "build an index inspired by this perspective" because that's the intent of attaching an expert. The model needs enough context to act autonomously without asking clarifying questions.
 
-**Rules:**
-- Starter text updates on add/remove
-- Never overwrites user-edited text
-- Mixed types → clear starter text, use generic placeholder
+**Design the conversion by asking:** if a user attaches this with no text, what should the model do? The answer belongs in the agent context.
 
-### 6. Register
+Rules:
+- Wrap in a bracketed label: `[Tickers: AAPL (Apple Inc.)]`
+- Include ALL semantically meaningful data (sub-themes, expert posts, perspective quotes)
+- Include behavioral instructions that encode the implied action (expert → "Search for recent statements... Propose theme expressions...", marketplace asset → "Use: index(\"Name\")")
+- Scale instructions to autonomy granted: tickers are data (1 line), experts are intent (20+ lines with RECOMMENDED NEXT STEPS and DO NOT blocks)
+- Return `{ type: "text", text: "..." }` — the AI SDK substitutes this for the data part in model messages
 
-- Add to `usePromptInputAttachments` state
-- Add to AttachmentMenu with icon + label + description
-- Add feature flag: `chat-attachment-{new-type}`
-- Add data part type: `data-{new-type}-add`
-- Add Zod schema to `queryBuilderDataSchemas`
-- Add `convertDataPart` case in route.ts
-- Add Display component mapping in ChatMessage.tsx
+## Display patterns
 
-### 7. Validate Against Principles
+All display components render as `AttachmentChip` (shared pill component) except Theme which renders as a collapsible `Card` with `ToolHeader`.
 
-Before shipping, verify:
+### Chip content hierarchy
 
-- [ ] Preparing mode replaces textarea (Principle 4)
-- [ ] Ready mode shows compact chip below textarea (Principle 4)
-- [ ] Uses PreparingShell with correct action bar behavior (Principle 6)
-- [ ] Uses AttachmentChip for Ready and history (Principle 6)
-- [ ] Starter text populates and syncs correctly (Principle 7)
-- [ ] Menu item has icon + description (Principle 8)
-- [ ] No confirmation dialog before submit (Principle 2)
-- [ ] Errors inline on chip, don't block submit (Principle 9)
-- [ ] Textarea never hidden in Ready mode (Principle 1)
-- [ ] No proactive suggestions or interruptions (Principle 10)
+The chip is deliberately minimal. Users see a compact pill; the model sees the full context. Follow this hierarchy:
 
----
+- `primary` — the identifier you'd say aloud: ticker symbol, expert name, index name
+- `secondary` — one contextual detail, not all of them: first topic (not all topics), issuer (not description)
+- `tooltip` — the richer thing you'd want on hover: full company name, description, perspective quote
 
-## Modifying Existing Types
+**Same chip in Ready and Submitted.** The only difference is Ready has `onRemove`; Submitted omits it. Visual consistency between composing and history (principle 6).
 
-### Common Modification Patterns
+### Error display
 
-**Adding a detail view to a simple type:**
-- Use `hideActions` on PreparingShell in the detail view
-- Add back navigation via icon in title bar
-- Keep auto-close on final selection (don't add a Done button)
-- See Expert and Index types for reference
+When an attachment has a validation issue, set the `error` prop on `AttachmentChip`:
+- Warning icon replaces normal icon
+- Destructive color styling
+- Error message shown in tooltip
+- Submit remains available — errors are informational, not blocking (principle 9)
 
-**Adding a step to a complex type:**
-- Update step indicator text ("Step x of y")
-- Ensure back navigation works for all steps
-- Update title bar text per step
-- Keep Done button only on final step (or use `customActions` for step-specific actions)
+## InputCard UX patterns
 
-**Changing cardinality:**
-- All types use single-select per flow. Users repeat to add more.
-- If you need to change this, update starter text singular/plural logic
-- Update the cardinality limit constant
+Cards open in place of the prompt input via `AttachmentShell`. Deciding which pattern to use:
 
----
+| Classification | Pattern | Used by | Preparing → Ready |
+|---------------|---------|---------|-------------------|
+| Simple | Search → select → auto-close | Ticker, Expert, Index | Selection triggers close |
+| Complex | Multi-step wizard or config | Theme, Deep Research | Explicit Done/confirm |
 
-## Known Anti-Patterns (Avoid These)
+**Choose simple** when selection is unambiguous (picking a known item from a list).
+**Choose complex** when the user needs to configure, review, or build something before committing.
 
-These are documented issues from critique and feedback. Code that reintroduces them will be flagged.
+Simple types may include a detail view before selection (Expert, Index) when the item is complex enough that users need context for an informed choice. The detail view still auto-closes on the confirm button — it doesn't make the type "complex."
 
-| Anti-Pattern | Why It's Bad | What to Do Instead |
-|-------------|-------------|-------------------|
-| Hiding textarea when attachment is in Ready mode | Breaks Principle 1 — user can't add context | Textarea always visible in Ready mode |
-| Confirmation dialog before submit | Breaks Principle 2 — we trust the model | Just submit. No preview, no confirmation. |
-| Silently clearing one attachment when another is added | Undisclosed mutual exclusivity causes data loss | Allow coexistence. Model resolves conflicts. |
-| Custom interaction patterns for standard actions | 5 types × 5 patterns = cognitive overload | Use PreparingShell and AttachmentChip consistently |
-| No starter text or placeholder on attachment confirm | User doesn't know what to do next | Always populate starter text per the table in PRD R2 |
-| Exact-match-only search | Users don't know exact names | Support partial/fuzzy matching |
-| Dense single-view config for complex types | Overwhelming, high error rate | Break into steps with clear progression |
-| Generated content bloating the user message | Expert perspectives, theme details overwhelming history | Keep message display compact. Pass rich context to model separately. |
-| Missing description in attachment menu | Users don't know when/why to use a type | Every menu item needs icon + label + description |
-| No error state on chips | Invalid attachments silently fail | Use AttachmentChip `error` prop for inline warnings |
+**Dual selection paths** (Index): quick-add [+] on list row for fast selection, or click row → detail view for informed selection. Two paths serve different user needs.
 
----
+## Common pitfalls
 
-## Message Part Contract
+- **Missing start page handler** — `GAContent.tsx` has its own `handleSubmit` that runs before the chat route. If you don't update `hasAttachments` and prompt generation there, submitting an attachment-only message from `/edit` silently fails.
+- **Skipping AttachmentShell** — all Preparing UIs must use `AttachmentShell`. Building custom card chrome violates principle 6 and breaks keyboard/close behavior.
+- **Sparse agent context** — if a user attaches something with no text and the model asks a clarifying question, the agent context is too thin. Design it to be self-sufficient.
+- **Overstuffed chips** — chips show one secondary detail, not all. Multiple topic tags, full descriptions, or multi-line content don't belong in a chip.
+- **Blocking on errors** — errors display inline on the chip. Never disable submit or show a blocking dialog for attachment validation issues.
+- **Backward compatibility** — existing messages may have the old single-item format (`{ theme: {...} }`) vs the current array format (`{ themes: [...] }`). All `convertDataPartToText` and `renderMessagePart` cases handle both.
+- **Feature flag gating** — all attachment types are behind PostHog flags (`chat-attachment-{name}`). The flag must be enabled before the menu item appears.
+- **Deduplication** — `use-prompt-input-attachments.ts` deduplicates by a unique key per type (tilt_asset_id for tickers, id for themes/experts, uuid for marketplace assets). Deep research is a single slot, not an array.
 
-When attachments are submitted, they become typed message parts:
+## Key files reference
 
-```typescript
-// Frontend serialization
-{ type: "data-{type}-add", data: { ...typePayload } }
-
-// Backend validation
-queryBuilderDataSchemas["{type}-add"] // Zod schema
-
-// LLM conversion
-convertDataPart(part) → { type: "text", text: "[Context: ...]" }
-```
-
-**Rules:**
-- Text always precedes attachment context in the message
-- Attachments appear in deterministic order
-- Keep structured data in parts for UI; convert to text for LLM
-- Zod schemas validate on the backend — don't skip validation
-
----
-
-## Testing Checklist
-
-When touching attachment code, verify:
-
-1. **Lifecycle**: Menu → Preparing → Ready → Submit → History (full round-trip)
-2. **Cancel**: Close in Preparing restores previous state exactly
-3. **Starter text**: Populates on confirm, updates on add/remove, preserves user edits
-4. **Mixed types**: Adding a second type clears starter text, uses generic placeholder
-5. **Submit states**: Disabled during Preparing, enabled when text OR attachments present
-6. **History**: Submitted message shows text + read-only chips (same visual as Ready)
-7. **Feature flags**: Type hidden when flag is off, no errors or broken state
-8. **Error states**: Invalid attachment shows inline error, doesn't block submit
-9. **Keyboard**: Arrow keys, Enter, Escape work in search/select flows
-10. **Responsiveness**: Chip interactions feel immediate (<100ms feedback)
+- Attachment components: `apps/web/src/components/edit/attachments/`
+- Shared shell: `attachments/shared/AttachmentShell.tsx`
+- Shared chip: `attachments/shared/AttachmentChip.tsx`
+- State management: `src/components/edit/prompt-input-control-cluster/use-prompt-input-attachments.ts`
+- Card handlers: `src/components/edit/prompt-input-control-cluster/use-card-handlers.ts`
+- Menu items: `src/components/edit/prompt-input-control-cluster/use-attachment-menu-items.tsx`
+- Starter text: `src/components/edit/prompt-input-control-cluster/starter-text.ts`
+- Message building: `src/app/edit/buildMessageParts.ts`
+- LLM conversion: `src/app/api/edit/chat/message-converters.ts`
+- Schema registry: `src/app/api/edit/chat/data-schemas.ts`
+- Chat history rendering: `src/components/query-builder/chat-message/render-helpers.tsx`
+- Start page: `src/app/edit/GAContent.tsx`
+- UX principles: `docs/specs/attachment-skill/` (design-target and principles specs)
+- README: `apps/web/src/components/edit/attachments/README.md`

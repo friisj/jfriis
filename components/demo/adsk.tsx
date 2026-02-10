@@ -420,7 +420,7 @@ function SectionNav({ activeId }: { activeId: string }) {
           }`}
         >
           <span className={`text-[10px] uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-opacity ${
-            activeId === s.id ? 'opacity-100' : ''
+            activeId === s.id ? 'opacity-0' : ''
           }`}>
             {s.label}
           </span>
@@ -578,12 +578,12 @@ export default function AdskDemo() {
       <Section id="tilt-context">
         <div className="max-w-3xl">
           <h2 className="text-5xl font-semibold tracking-tight mb-40"><span className="text-muted-foreground/50">Context: </span><br />The Platform</h2>
-          <p className="text-xl text-foreground leading-relaxed mb-6">
+          <p className="text-xl text-muted-foreground leading-relaxed mb-6">
             Tilt is a fintech platform for building and managing sophisticated market tracking indices.
             Users work with an AI agent via chat to sketch investment themes, select experts by topic,
             screen securities, fork existing indices, and compose complex strategies.
           </p>
-          <p className="text-xl text-foreground leading-relaxed">
+          <p className="text-xl text-muted-foreground leading-relaxed">
             The platform had a powerful chat interface with a growing set integrated, agent driven tools.
             Multiple teams had built tools the agent could use. Critical functions were in play.
           </p>
@@ -684,21 +684,23 @@ export default function AdskDemo() {
       <Section id="tilt-solution">
         <div className="max-w-4xl">
           <h2 className="text-5xl font-semibold tracking-tight mb-32"><span className="text-muted-foreground/50">Insight: </span><br />Attachments</h2>
-          <p className="text-xl text-muted-foreground/75 mb-12">
+          <p className="text-xl text-muted-foreground mb-6">
             Structured objects the user attaches to a message — an investment theme, a selected expert,
             a security, an index seed — that give the agent reliable context to trigger the right tool use.
-            Turns implicit prompting into explicit intent.
+          </p>
+          <p className="text-xl text-muted-foreground mb-12">
+            Implicit prompting turns into explicit intent.
           </p>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-12 mb-12">
             <div>
-              <p className="text-xl text-muted-foreground/75 mb-4">Before</p>
+              <p className="text-xl text-foreground font-semibold mb-4">Before</p>
               <p className="text-xl text-foreground h-28 border-t border-foreground/20 pt-4">&ldquo;Can you look at clean energy stocks and maybe compare them to the S&P?&rdquo;</p>
-              <p className="text-xl text-muted-foreground/75">Agent guesses intent. May or may not use the right tool.</p>
+              <p className="text-xl text-muted-foreground">Agent guesses intent. May or may not use the right tool.</p>
             </div>
             <div>
-              <p className="text-xl text-muted-foreground/75 mb-4">After</p>
+              <p className="text-xl text-foreground font-semibold mb-4">After</p>
               <p className="text-xl text-foreground border-foreground/20 h-28 border-t pt-4">&ldquo;Compare these&rdquo; + <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-muted text-base font-mono">Theme: Clean Energy</span> + <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-muted text-base font-mono">Index: S&P 500</span></p>
-              <p className="text-xl text-muted-foreground/75">Agent receives structured context.<br />Tool use is deterministic.</p>
+              <p className="text-xl text-muted-foreground">Agent receives structured context.<br />Tool use is deterministic.</p>
             </div>
           </div>
           <a
@@ -732,7 +734,7 @@ export default function AdskDemo() {
               >
                 <div>
                   <p className="text-xl font-semibold group-hover:text-foreground transition-colors">{doc.label}</p>
-                  <p className="text-xl text-muted-foreground/50 font-semibold">{doc.description}</p>
+                  <p className="text-xl text-muted-foreground/75">{doc.description}</p>
                 </div>
               </a>
             ))}
@@ -747,10 +749,10 @@ export default function AdskDemo() {
           <p className="text-xl text-muted-foreground leading-relaxed mb-6">
             The critical output: an Attachments Skill file that coding agents consume when building new
             attachment types. The skill does double duty as a specification and governance mechanism — teams don&apos;t search for specs and patterns. Their agents
-            invoke the skill, follows the spec, and enforces the pattern.
+            invoke the skill, follows the spec, and enforce the UX patterns.
           </p>
           <p className="text-xl text-muted-foreground leading-relaxed mb-8">
-            Oversight shifts from reviewing implementations to evolving the skill. Through the registered skill and valid exemplar implementations, the agent can explain and enforce relate patterns to extended product stakeholders.
+            Oversight shifts from reviewing implementations to evolving the skill. Through the registered skill and valid exemplar implementations, the agent can explain and enforce related patterns to extended product stakeholders.
           </p>
           <a
             href="/demo/adsk/docs/attachment-skill"
@@ -770,7 +772,7 @@ export default function AdskDemo() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-12">
             <p className="text-xl text-muted-foreground">Unified attachment architecture is implemented.</p>
             <p className="text-xl text-muted-foreground">Successful usability testing with early user cohorts.</p>
-            <p className="text-xl text-muted-foreground">Engineering team has created new attachment types without design team oversight.</p>
+            <p className="text-xl text-muted-foreground">Engineering team is working on new attachment types with limited design team oversight.</p>
             <p className="text-xl text-muted-foreground">Work continues on attachment discoverability and coverage in new user onboarding.</p>
             
           </div>
