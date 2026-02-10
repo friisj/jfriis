@@ -3,6 +3,7 @@ import { readFile } from 'fs/promises'
 import path from 'path'
 
 const ALLOWED_SLUGS = new Set([
+  'attachment-skill',
   'critique',
   'design-current',
   'design-target',

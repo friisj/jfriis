@@ -15,6 +15,7 @@ const DOCS = [
   { slug: 'ux-map', label: 'UX Map' },
   { slug: 'critique', label: 'Critique' },
   { slug: 'feedback', label: 'Feedback' },
+  { slug: 'attachment-skill', label: 'Attachment Skill' },
 ]
 
 export default function DocViewer() {
