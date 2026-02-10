@@ -141,6 +141,150 @@ const myQuestions: MyQuestion[] = [
   },
 ]
 
+// --- JD Assessment ---
+
+interface JdRequirement {
+  requirement: string
+  alignment: 'strong' | 'moderate' | 'gap'
+  evidence: string[]
+  notes?: string
+}
+
+const jdAssessment = {
+  title: 'Experience Design Architect, Agentic AI',
+  location: 'Ontario, Canada (Remote)',
+  salary: '$138,400–$190,300 CAD',
+
+  responsibilities: [
+    {
+      requirement: 'Own system-level experience architecture for AI platform (Autodesk Assistant)',
+      alignment: 'strong' as const,
+      evidence: [
+        'Tilt: Lead product designer of agentic AI platform — conversational UI, multi-step workflows, system-level architecture',
+        'Strategyzer: Drove UX architecture combining persistent business objects, analysis tools, and real-time multiplayer workspaces',
+        'Autodesk: Conceived and drove Project Orion — inter-product group design system',
+      ],
+    },
+    {
+      requirement: 'Develop innovative solutions to complex organizational challenges',
+      alignment: 'strong' as const,
+      evidence: [
+        'Strategyzer: Platform discovery and validation as Head of Platform on the leadership team',
+        'fforward: Co-founded and launched multiple AI products — #2 Product of the Day on Product Hunt',
+        'Tilt: Active collaboration with leadership on discovery, experiments, and roadmap',
+      ],
+    },
+    {
+      requirement: 'Shape experience strategy and mentor design teams',
+      alignment: 'strong' as const,
+      evidence: [
+        'TWG: Design Director — directed and coached growing design team, focused on senior skill development',
+        'Strategyzer: Managed and recruited product team (designers, PMs, engineers)',
+        'Copp: Built 0-to-1 product design studio with ~10 designers and developers',
+      ],
+    },
+    {
+      requirement: 'Drive implementation of new processes and standards across organizations',
+      alignment: 'strong' as const,
+      evidence: [
+        'Autodesk: Project Orion was an inter-product group design system — exactly this mandate',
+        'Strategyzer: Design system, service design practice, rebrand — all cross-functional standards work',
+        'TWG: Leading contributor to design dept ops, sales, resourcing, and special projects',
+      ],
+    },
+    {
+      requirement: 'Define strategies unifying business, technology, and experience priorities',
+      alignment: 'strong' as const,
+      evidence: [
+        'Strategyzer: Platform value proposition and strategy as Head of Platform',
+        'fforward: Co-founder managing product strategy, sales, marketing, customer success',
+        'Tilt: Bridging discovery, experiments, roadmap, and production codebase (1500+ commits)',
+      ],
+    },
+  ] as JdRequirement[],
+
+  minimumQualifications: [
+    {
+      requirement: '15+ years in experience design, product design, or related field',
+      alignment: 'strong' as const,
+      evidence: ['2008–present: 17+ years across Copp, Kera, Autodesk, TWG, Strategyzer, fforward, Tilt'],
+    },
+    {
+      requirement: 'Proven track record designing and delivering AI-powered experiences at scale',
+      alignment: 'moderate' as const,
+      evidence: [
+        'Tilt: Agentic workflows and conversational UI for finance professionals — shipping now',
+        'fforward: Prototyped conversational workflows with LLM agents, shipped multiple AI products',
+      ],
+      notes: 'AI work is recent (2023+) and startup-scale. Strong depth, but not yet at Autodesk-level scale. The trajectory is clear and accelerating.',
+    },
+    {
+      requirement: 'Deep experience with platforms like ChatGPT, Claude, Figma, or similar tools',
+      alignment: 'strong' as const,
+      evidence: [
+        'Active daily user and builder with Claude, ChatGPT, and AI coding tools',
+        '1500+ production commits at Tilt — hands-on with LLM integration, prompt engineering, agentic patterns',
+        'Deep Figma expertise across all roles',
+      ],
+    },
+    {
+      requirement: 'Expert in human-centered design and designing AI-powered experiences',
+      alignment: 'strong' as const,
+      evidence: [
+        'Core of career: Conversational UI, AI workflow design, UX prototyping & experimentation',
+        'Regular discovery with enterprise customers (Airbus, Arcadis, Ikea, Bayer)',
+        'Resume headline: "I design conversational interfaces where people and AI create together"',
+      ],
+    },
+    {
+      requirement: "Bachelor's degree in UX Design, HCI, Computer Science, or related field",
+      alignment: 'strong' as const,
+      evidence: ['Ryerson University — New Media, Image Arts (2010)'],
+    },
+  ] as JdRequirement[],
+
+  preferredQualifications: [
+    {
+      requirement: "Master's degree in UX Design, HCI, Linguistics, or related field",
+      alignment: 'gap' as const,
+      evidence: ['No master\'s degree'],
+      notes: 'Preferred, not required. 17+ years of progressive experience and founding roles offset this.',
+    },
+    {
+      requirement: 'Experience working on platform teams',
+      alignment: 'strong' as const,
+      evidence: [
+        'Strategyzer: Head of Platform (5 years)',
+        'Autodesk: Project Orion — inter-product group design system',
+      ],
+    },
+    {
+      requirement: 'Current knowledge of AI, conversation design, and UX trends',
+      alignment: 'strong' as const,
+      evidence: [
+        'Actively building AI products daily — Tilt is an agentic AI platform',
+        'Hands-on with LLM integration, prompt engineering, agentic patterns',
+        'Portfolio work demonstrating current conversational UI and AI workflow design',
+      ],
+    },
+  ] as JdRequirement[],
+
+  differentiators: [
+    'Autodesk alumni — joined via Kera acquisition, built Project Orion. Understands the culture, scale, and product ecosystem from the inside.',
+    'Rare designer-engineer hybrid — 1500+ production commits. Can prototype, ship, and speak engineering\'s language fluently.',
+    'Startup founder perspective — has built 0-to-1 AI products, understands the full stack from business model to production code.',
+    'Platform architecture depth — 5 years as Head of Platform at Strategyzer, architecting the same kind of cross-product experience layer this role demands.',
+    'Currently shipping agentic AI — not theoretical knowledge, actively designing and building conversational AI workflows right now at Tilt.',
+  ],
+
+  watchPoints: [
+    'Scale gap: Recent AI work is startup-scale. Need to articulate how platform thinking at Strategyzer and cross-product work at Autodesk bridge to Autodesk-scale AI architecture.',
+    'Recency of AI depth: 15+ years of design, but AI-specific work is 2023+. Frame the full career as building toward this moment — each role added a layer.',
+    'No master\'s degree: Lean into the depth of experience, founding roles, and hands-on technical capability as the equivalent.',
+    'Time away from Autodesk: Left in 2016. Acknowledge the gap, but position it as bringing fresh perspective and startup velocity back to an org you already understand.',
+  ],
+}
+
 // --- Autodesk Context ---
 
 const autodeskContext = {
@@ -170,6 +314,140 @@ export default function AdskPrep() {
           <h1 className="text-4xl font-semibold tracking-tight mb-2">Autodesk Panel</h1>
           <p className="text-muted-foreground">Research, panelist profiles, and strategic context</p>
         </div>
+
+        {/* JD Assessment */}
+        <section className="mb-16">
+          <h2 className="text-2xl font-semibold tracking-tight mb-6">Role Assessment</h2>
+          <div className="p-6 rounded-lg border border-border bg-muted/5 mb-6">
+            <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1 mb-1">
+              <h3 className="text-lg font-semibold">{jdAssessment.title}</h3>
+              <span className="text-sm text-muted-foreground">{jdAssessment.location}</span>
+            </div>
+            <p className="text-sm text-muted-foreground">{jdAssessment.salary}</p>
+          </div>
+
+          {/* Differentiators */}
+          <div className="mb-8">
+            <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground/70 mb-3">Key Differentiators</p>
+            <div className="space-y-2">
+              {jdAssessment.differentiators.map((item, i) => (
+                <div key={i} className="text-sm text-muted-foreground flex gap-2">
+                  <span className="text-emerald-500/70 shrink-0">+</span>
+                  <span>{item}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Watch Points */}
+          <div className="mb-8">
+            <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground/70 mb-3">Watch Points</p>
+            <div className="space-y-2">
+              {jdAssessment.watchPoints.map((item, i) => (
+                <div key={i} className="text-sm text-muted-foreground flex gap-2">
+                  <span className="text-amber-500/70 shrink-0">!</span>
+                  <span>{item}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Responsibilities */}
+          <div className="mb-8">
+            <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground/70 mb-3">Responsibilities</p>
+            <div className="space-y-4">
+              {jdAssessment.responsibilities.map((req, i) => (
+                <div key={i} className="p-4 rounded-lg border border-border bg-muted/5">
+                  <div className="flex items-start gap-2 mb-2">
+                    <span className={`text-xs font-medium px-1.5 py-0.5 rounded shrink-0 ${
+                      req.alignment === 'strong' ? 'bg-emerald-500/10 text-emerald-600' :
+                      req.alignment === 'moderate' ? 'bg-amber-500/10 text-amber-600' :
+                      'bg-red-500/10 text-red-600'
+                    }`}>
+                      {req.alignment}
+                    </span>
+                    <p className="text-sm font-medium">{req.requirement}</p>
+                  </div>
+                  <ul className="space-y-1 ml-0.5">
+                    {req.evidence.map((e, j) => (
+                      <li key={j} className="text-xs text-muted-foreground/70 flex gap-2">
+                        <span className="text-muted-foreground/30 shrink-0">•</span>
+                        <span>{e}</span>
+                      </li>
+                    ))}
+                  </ul>
+                  {req.notes && (
+                    <p className="text-xs text-muted-foreground/50 italic mt-2">{req.notes}</p>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Minimum Qualifications */}
+          <div className="mb-8">
+            <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground/70 mb-3">Minimum Qualifications</p>
+            <div className="space-y-4">
+              {jdAssessment.minimumQualifications.map((req, i) => (
+                <div key={i} className="p-4 rounded-lg border border-border bg-muted/5">
+                  <div className="flex items-start gap-2 mb-2">
+                    <span className={`text-xs font-medium px-1.5 py-0.5 rounded shrink-0 ${
+                      req.alignment === 'strong' ? 'bg-emerald-500/10 text-emerald-600' :
+                      req.alignment === 'moderate' ? 'bg-amber-500/10 text-amber-600' :
+                      'bg-red-500/10 text-red-600'
+                    }`}>
+                      {req.alignment}
+                    </span>
+                    <p className="text-sm font-medium">{req.requirement}</p>
+                  </div>
+                  <ul className="space-y-1 ml-0.5">
+                    {req.evidence.map((e, j) => (
+                      <li key={j} className="text-xs text-muted-foreground/70 flex gap-2">
+                        <span className="text-muted-foreground/30 shrink-0">•</span>
+                        <span>{e}</span>
+                      </li>
+                    ))}
+                  </ul>
+                  {req.notes && (
+                    <p className="text-xs text-muted-foreground/50 italic mt-2">{req.notes}</p>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Preferred Qualifications */}
+          <div>
+            <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground/70 mb-3">Preferred Qualifications</p>
+            <div className="space-y-4">
+              {jdAssessment.preferredQualifications.map((req, i) => (
+                <div key={i} className="p-4 rounded-lg border border-border bg-muted/5">
+                  <div className="flex items-start gap-2 mb-2">
+                    <span className={`text-xs font-medium px-1.5 py-0.5 rounded shrink-0 ${
+                      req.alignment === 'strong' ? 'bg-emerald-500/10 text-emerald-600' :
+                      req.alignment === 'moderate' ? 'bg-amber-500/10 text-amber-600' :
+                      'bg-red-500/10 text-red-600'
+                    }`}>
+                      {req.alignment}
+                    </span>
+                    <p className="text-sm font-medium">{req.requirement}</p>
+                  </div>
+                  <ul className="space-y-1 ml-0.5">
+                    {req.evidence.map((e, j) => (
+                      <li key={j} className="text-xs text-muted-foreground/70 flex gap-2">
+                        <span className="text-muted-foreground/30 shrink-0">•</span>
+                        <span>{e}</span>
+                      </li>
+                    ))}
+                  </ul>
+                  {req.notes && (
+                    <p className="text-xs text-muted-foreground/50 italic mt-2">{req.notes}</p>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
 
         {/* Panelist Profiles */}
         <section className="mb-16">
