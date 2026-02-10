@@ -394,6 +394,7 @@ export interface StudioProject extends BaseRecord {
   scope_out?: string
   has_pending_survey?: boolean
   survey_generated_at?: string
+  is_private?: boolean
 }
 
 export type StudioProjectInsert = Omit<StudioProject, keyof BaseRecord>

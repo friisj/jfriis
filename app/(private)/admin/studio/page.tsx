@@ -17,6 +17,7 @@ export default async function AdminStudioPage() {
       status,
       temperature,
       current_focus,
+      is_private,
       created_at,
       updated_at
     `)

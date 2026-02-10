@@ -11,6 +11,7 @@ import {
 import { StudioProjectCard } from '@/components/admin/cards'
 import { formatDate } from '@/lib/utils'
 import { updateStudioProjectStatus } from '@/app/actions/studio'
+import { usePrivacyMode, filterPrivateRecords } from '@/lib/privacy-mode'
 
 
 interface StudioProject {
@@ -21,6 +22,7 @@ interface StudioProject {
   status: string
   temperature: string | null
   current_focus: string | null
+  is_private?: boolean | null
   created_at: string
   updated_at: string
 }
@@ -36,6 +38,11 @@ const temperatureEmoji: Record<string, string> = {
 }
 
 export function StudioListView({ projects }: StudioListViewProps) {
+  const { isPrivacyMode } = usePrivacyMode()
+
+  // Filter projects based on privacy mode
+  const visibleProjects = filterPrivateRecords(projects, isPrivacyMode)
+
   const kanbanGroups: KanbanGroup[] = [
     { id: 'draft', label: 'Draft', color: 'bg-gray-500' },
     { id: 'active', label: 'Active', color: 'bg-blue-500' },
@@ -119,7 +126,7 @@ export function StudioListView({ projects }: StudioListViewProps) {
 
   return (
     <AdminDataView
-      data={projects}
+      data={visibleProjects}
       views={{
         table: {
           columns,

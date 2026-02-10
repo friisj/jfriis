@@ -1,9 +1,46 @@
-import { getSeriesServer } from '@/lib/cog-server';
-import Link from 'next/link';
-import { Button } from '@/components/ui/button';
+'use client'
 
-export default async function CogPage() {
-  const series = await getSeriesServer();
+import { useState, useEffect } from 'react'
+import { supabase } from '@/lib/supabase'
+import Link from 'next/link'
+import { Button } from '@/components/ui/button'
+import { usePrivacyMode, filterPrivateRecords } from '@/lib/privacy-mode'
+import type { CogSeries } from '@/lib/types/cog'
+
+export default function CogPage() {
+  const [allSeries, setAllSeries] = useState<CogSeries[]>([])
+  const [loading, setLoading] = useState(true)
+  const { isPrivacyMode } = usePrivacyMode()
+
+  // Load series
+  useEffect(() => {
+    async function loadSeries() {
+      const { data, error } = await supabase
+        .from('cog_series')
+        .select('*')
+        .is('parent_id', null)
+        .order('title', { ascending: true })
+
+      if (!error && data) {
+        setAllSeries(data as CogSeries[])
+      }
+      setLoading(false)
+    }
+    loadSeries()
+  }, [])
+
+  // Filter based on privacy mode
+  const series = filterPrivateRecords(allSeries, isPrivacyMode)
+
+  if (loading) {
+    return (
+      <div className="container py-8">
+        <div className="flex items-center justify-center py-12">
+          <p className="text-muted-foreground">Loading...</p>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="container py-8">

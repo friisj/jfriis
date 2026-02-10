@@ -38,6 +38,7 @@ export function StudioProjectForm({ project, mode, existingProjectNames = [] }: 
     problem_statement: project?.problem_statement || '',
     success_criteria: project?.success_criteria || '',
     scope_out: project?.scope_out || '',
+    is_private: project?.is_private || false,
   })
 
   // Get current user on mount
@@ -305,6 +306,21 @@ export function StudioProjectForm({ project, mode, existingProjectNames = [] }: 
                   <option value="cold">❄️ Cold</option>
                 </select>
               </div>
+            </div>
+
+            <div>
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={formData.is_private}
+                  onChange={(e) => setFormData({ ...formData, is_private: e.target.checked })}
+                  className="w-4 h-4 rounded border-gray-300"
+                />
+                <span>Private (hidden in privacy mode)</span>
+              </label>
+              <p className="text-xs text-muted-foreground mt-1">
+                When privacy mode is enabled, this project will be hidden from view
+              </p>
             </div>
 
             <FormFieldWithAI

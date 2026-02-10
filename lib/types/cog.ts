@@ -24,6 +24,7 @@ export interface CogSeries {
   description: string | null;
   tags: string[];
   primary_image_id: string | null;
+  is_private?: boolean;
   created_at: string;
   updated_at: string;
 }
