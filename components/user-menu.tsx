@@ -6,11 +6,13 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { useState } from 'react'
 import { ModeToggle } from '@/components/theme-switcher'
+import { usePrivacyMode } from '@/lib/privacy-mode'
 
 export function UserMenu() {
   const { user, isAdmin } = useAuth()
   const router = useRouter()
   const [isOpen, setIsOpen] = useState(false)
+  const { isPrivacyMode, togglePrivacyMode } = usePrivacyMode()
 
   const handleSignOut = async () => {
     await signOut()
@@ -87,6 +89,25 @@ export function UserMenu() {
                   <span className="text-muted-foreground">Theme</span>
                   <ModeToggle />
                 </div>
+
+                {isAdmin && (
+                  <div className="border-t px-3 py-2 flex items-center justify-between gap-2 text-sm">
+                    <span className="text-muted-foreground">Privacy Mode</span>
+                    <button
+                      onClick={togglePrivacyMode}
+                      className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 ${
+                        isPrivacyMode ? 'bg-primary' : 'bg-muted'
+                      }`}
+                      aria-label="Toggle privacy mode"
+                    >
+                      <span
+                        className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform ${
+                          isPrivacyMode ? 'translate-x-5' : 'translate-x-1'
+                        }`}
+                      />
+                    </button>
+                  </div>
+                )}
               </>
             ) : (
               <>

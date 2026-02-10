@@ -4,6 +4,7 @@ import { ProtectedRoute } from '@/components/auth/protected-route'
 import { ModeToggle } from '@/components/theme-switcher'
 import { UserMenu } from '@/components/user-menu'
 import { PrivateHeaderProvider, usePrivateHeader } from '@/components/layout/private-header-context'
+import { PrivacyModeProvider } from '@/lib/privacy-mode'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 
@@ -68,14 +69,16 @@ function PrivateHeader() {
 export default function PrivateLayout({ children }: { children: React.ReactNode }) {
   return (
     <ProtectedRoute>
-      <PrivateHeaderProvider>
-        <div className="min-h-screen flex flex-col">
-          <PrivateHeader />
-          <main className="flex-1 flex flex-col">
-            {children}
-          </main>
-        </div>
-      </PrivateHeaderProvider>
+      <PrivacyModeProvider>
+        <PrivateHeaderProvider>
+          <div className="min-h-screen flex flex-col">
+            <PrivateHeader />
+            <main className="flex-1 flex flex-col">
+              {children}
+            </main>
+          </div>
+        </PrivateHeaderProvider>
+      </PrivacyModeProvider>
     </ProtectedRoute>
   )
 }
