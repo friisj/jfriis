@@ -796,120 +796,14 @@ export default function AdskDemo() {
 
       {/* Tilt Outcomes — deliverables, distribution, maintenance, design thinking */}
       <Section id="tilt-outcomes">
-        <div className="max-w-3xl">
-          <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground mb-2">Outcomes</p>
-          <h2 className="text-2xl font-semibold tracking-tight">What Shipped, What Changed</h2>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
-            <div className="p-4 rounded-lg border border-border bg-muted/5">
-              <p className="text-[10px] uppercase tracking-widest text-muted-foreground/50 mb-2">Shipped &amp; validated</p>
-              <p className="text-sm font-medium">5 attachment types</p>
-              <p className="text-xs text-muted-foreground mt-1">Tickers, Themes, Experts, Indices, and Deep Research — each with consistent Preparing &rarr; Ready lifecycle, shared components, and feature flag gating. Validated via user testing with early cohort.</p>
-            </div>
-            <div className="p-4 rounded-lg border border-border bg-muted/5">
-              <p className="text-[10px] uppercase tracking-widest text-muted-foreground/50 mb-2">Established</p>
-              <p className="text-sm font-medium">Extensible platform</p>
-              <p className="text-xs text-muted-foreground mt-1">Extension protocol, shared shell and chip components, starter text system, and message part contract — new types integrate without coordination overhead.</p>
-            </div>
-            <div className="p-4 rounded-lg border border-border bg-muted/5">
-              <p className="text-[10px] uppercase tracking-widest text-muted-foreground/50 mb-2">Authored</p>
-              <p className="text-sm font-medium">Agent skill</p>
-              <p className="text-xs text-muted-foreground mt-1">Coding agents consume the skill spec when building new types. Encodes principles, anti-patterns, validation checklists. The spec IS the governance.</p>
-            </div>
-          </div>
-
-          <div className="mt-8">
-            <p className="text-[10px] uppercase tracking-widest text-muted-foreground/50 mb-3">Deliverables</p>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-2">
-              <div className="flex items-center gap-2 py-1.5 border-b border-border/50">
-                <span className="text-xs text-muted-foreground/30">01</span>
-                <span className="text-sm">Chat attachments feature (shipped, user-tested)</span>
-              </div>
-              <div className="flex items-center gap-2 py-1.5 border-b border-border/50">
-                <span className="text-xs text-muted-foreground/30">02</span>
-                <span className="text-sm">UX principles (10 non-negotiable rules)</span>
-              </div>
-              <div className="flex items-center gap-2 py-1.5 border-b border-border/50">
-                <span className="text-xs text-muted-foreground/30">03</span>
-                <span className="text-sm">PRD with requirements &amp; acceptance criteria</span>
-              </div>
-              <div className="flex items-center gap-2 py-1.5 border-b border-border/50">
-                <span className="text-xs text-muted-foreground/30">04</span>
-                <span className="text-sm">Target design spec (component architecture)</span>
-              </div>
-              <div className="flex items-center gap-2 py-1.5 border-b border-border/50">
-                <span className="text-xs text-muted-foreground/30">05</span>
-                <span className="text-sm">Functional prototype (all 5 types)</span>
-              </div>
-              <div className="flex items-center gap-2 py-1.5 border-b border-border/50">
-                <span className="text-xs text-muted-foreground/30">06</span>
-                <span className="text-sm">UX critique &amp; user feedback synthesis</span>
-              </div>
-              <div className="flex items-center gap-2 py-1.5 border-b border-border/50">
-                <span className="text-xs text-muted-foreground/30">07</span>
-                <span className="text-sm">Extension protocol &amp; registration spec</span>
-              </div>
-              <div className="flex items-center gap-2 py-1.5 border-b border-border/50">
-                <span className="text-xs text-muted-foreground/30">08</span>
-                <span className="text-sm">Agent skill (coding agent governance spec)</span>
-              </div>
-            </div>
-          </div>
-
-          <div className="mt-8">
-            <p className="text-[10px] uppercase tracking-widest text-muted-foreground/50 mb-3">Impact</p>
-            <div className="space-y-3">
-              <div className="flex items-start gap-3">
-                <span className="text-[10px] text-muted-foreground/30 mt-1 select-none">&rarr;</span>
-                <div>
-                  <p className="text-sm font-medium">Turned implicit prompting into explicit intent</p>
-                  <p className="text-xs text-muted-foreground">Users stopped writing verbose paragraphs to coerce tool use. Attachments gave them a structured, reliable mechanism — reducing friction and increasing the rate of correct tool invocation.</p>
-                </div>
-              </div>
-              <div className="flex items-start gap-3">
-                <span className="text-[10px] text-muted-foreground/30 mt-1 select-none">&rarr;</span>
-                <div>
-                  <p className="text-sm font-medium">Normalized the interaction pattern</p>
-                  <p className="text-xs text-muted-foreground">The critique identified 5 types with 5 different mental models. The redesign established consistent lifecycle (Preparing &rarr; Ready), shared components (PreparingShell, AttachmentChip), and standardized controls — reducing cognitive load across the board.</p>
-                </div>
-              </div>
-              <div className="flex items-start gap-3">
-                <span className="text-[10px] text-muted-foreground/30 mt-1 select-none">&rarr;</span>
-                <div>
-                  <p className="text-sm font-medium">Enabled distributed extension</p>
-                  <p className="text-xs text-muted-foreground">Teams building new tools ship with an attachment type that integrates via schema — file structure, Zod validation, data part conversion — without centralized review or coordination overhead.</p>
-                </div>
-              </div>
-              <div className="flex items-start gap-3">
-                <span className="text-[10px] text-muted-foreground/30 mt-1 select-none">&rarr;</span>
-                <div>
-                  <p className="text-sm font-medium">Changed how the org builds</p>
-                  <p className="text-xs text-muted-foreground">The agent skill established a precedent: experience architecture as a spec that machines enforce, not just humans review. Design outputs that scale through AI, not meetings.</p>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="mt-8 p-4 rounded-lg border border-foreground/10 bg-muted/5">
-            <p className="text-[10px] uppercase tracking-widest text-muted-foreground/50 mb-2">Design thinking breadth</p>
-            <div className="flex flex-wrap gap-2 mt-2">
-              {['Customer research', 'User profiling', 'UX critique & feedback synthesis', 'Interaction design', 'Prototyping in code', 'Component architecture', 'Pattern specification', 'Agent skill authoring', 'Extension protocol design', 'Cross-team enablement'].map((method) => (
-                <span key={method} className="px-2 py-1 text-xs rounded-md border border-border text-muted-foreground">
-                  {method}
-                </span>
-              ))}
-            </div>
-          </div>
-
-          {/* Postscript */}
-          <div className="mt-8 pt-6 border-t border-border/30">
-            <p className="text-[10px] uppercase tracking-widest text-muted-foreground/50 mb-2">Continuing work</p>
-            <p className="text-sm text-muted-foreground leading-relaxed">
-              Attachment adoption is monitored continuously. Cross-cutting feedback identified that discoverability
-              remains the primary growth lever — users who find attachments use them, but many don&apos;t find them organically.
-              Current efforts focus on contextual hints in empty chat states, attachment type descriptions in the menu,
-              and integration into new-user onboarding flows. The principle remains: discoverable, not interruptive.
-            </p>
+        <div className="max-w-4xl">
+          <h2 className="text-5xl font-semibold tracking-tight mb-32"><span className="text-muted-foreground/50">Outcomes: </span><br />What Shipped, What Changed</h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-12">
+            <p className="text-xl text-muted-foreground/75">Unified attachment architecture is implemented.</p>
+            <p className="text-xl text-muted-foreground/75">Successful usability testing with early user cohorts.</p>
+            <p className="text-xl text-muted-foreground/75">Engineering team has created new attachment types without design team oversight.</p>
+            <p className="text-xl text-muted-foreground/75">Work continues on attachment discoverability and coverage in new user onboarding.</p>
+            
           </div>
         </div>
       </Section>
