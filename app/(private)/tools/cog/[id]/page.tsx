@@ -7,6 +7,7 @@ import {
   getGlobalTagsServer,
   getSeriesStyleGuidesServer,
 } from '@/lib/cog-server';
+import { createClient } from '@/lib/supabase-server';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import type { CogSeries, CogJob, CogTag, CogTagWithGroup, CogImageWithGroupInfo, CogStyleGuide } from '@/lib/types/cog';
@@ -66,9 +67,14 @@ async function getSeriesData(id: string): Promise<{
 
 export default async function SeriesDetailPage({ params }: Props) {
   const { id } = await params;
-  const data = await getSeriesData(id);
+  const supabase = await createClient();
 
-  if (!data) {
+  const [data, { data: { user } }] = await Promise.all([
+    getSeriesData(id),
+    supabase.auth.getUser(),
+  ]);
+
+  if (!data || !user) {
     notFound();
   }
 
@@ -85,6 +91,7 @@ export default async function SeriesDetailPage({ params }: Props) {
         enabledTags={enabledTags}
         globalTags={globalTags}
         styleGuides={styleGuides}
+        userId={user.id}
       />
     </div>
   );

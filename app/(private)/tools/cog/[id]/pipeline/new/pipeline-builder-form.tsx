@@ -209,13 +209,25 @@ export function PipelineBuilderForm({ seriesId, images, styleGuides }: PipelineB
 
           {styleGuides.length > 0 && (
             <div className="space-y-2">
-              <Label htmlFor="style-guide">Style Guide (optional)</Label>
-              <Select value={styleGuideId} onValueChange={setStyleGuideId}>
+              <div className="flex items-center justify-between">
+                <Label htmlFor="style-guide">Style Guide (optional)</Label>
+                {styleGuideId && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setStyleGuideId('')}
+                    className="h-auto py-0 px-2 text-xs"
+                  >
+                    Clear
+                  </Button>
+                )}
+              </div>
+              <Select value={styleGuideId || undefined} onValueChange={setStyleGuideId}>
                 <SelectTrigger>
                   <SelectValue placeholder="Select a style guide" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">None</SelectItem>
                   {styleGuides.map((guide) => (
                     <SelectItem key={guide.id} value={guide.id}>
                       {guide.name}

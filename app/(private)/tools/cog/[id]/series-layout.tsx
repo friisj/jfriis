@@ -43,6 +43,7 @@ interface SeriesLayoutProps {
   enabledTags: CogTagWithGroup[];
   globalTags: CogTag[];
   styleGuides: CogStyleGuide[];
+  userId: string;
 }
 
 function TagsSection({
@@ -301,9 +302,11 @@ function TagsSection({
 function StyleGuidesSection({
   seriesId,
   styleGuides,
+  userId,
 }: {
   seriesId: string;
   styleGuides: CogStyleGuide[];
+  userId: string;
 }) {
   const router = useRouter();
   const [localGuides, setLocalGuides] = useState<CogStyleGuide[]>(styleGuides);
@@ -324,6 +327,7 @@ function StyleGuidesSection({
     try {
       const created = await createStyleGuide({
         series_id: seriesId,
+        user_id: userId,
         name: formData.name.trim(),
         description: formData.description.trim() || null,
         system_prompt: formData.system_prompt.trim(),
@@ -552,6 +556,7 @@ function ConfigPanel({
   enabledTags,
   globalTags,
   styleGuides,
+  userId,
 }: {
   series: CogSeries;
   childSeries: CogSeries[];
@@ -561,6 +566,7 @@ function ConfigPanel({
   enabledTags: CogTagWithGroup[];
   globalTags: CogTag[];
   styleGuides: CogStyleGuide[];
+  userId: string;
 }) {
   const router = useRouter();
   const [isEditing, setIsEditing] = useState(false);
@@ -836,6 +842,7 @@ function ConfigPanel({
         <StyleGuidesSection
           seriesId={seriesId}
           styleGuides={styleGuides}
+          userId={userId}
         />
       </div>
 
@@ -1081,6 +1088,7 @@ export function SeriesLayout({
   enabledTags,
   globalTags,
   styleGuides,
+  userId,
 }: SeriesLayoutProps) {
   const [showUploadModal, setShowUploadModal] = useState(false);
 
@@ -1108,6 +1116,7 @@ export function SeriesLayout({
                   enabledTags={enabledTags}
                   globalTags={globalTags}
                   styleGuides={styleGuides}
+                  userId={userId}
                 />
               </div>
             </div>
@@ -1173,6 +1182,7 @@ export function SeriesLayout({
               enabledTags={enabledTags}
               globalTags={globalTags}
               styleGuides={styleGuides}
+              userId={userId}
             />
           </TabsContent>
           <TabsContent value="jobs" className="mt-4">
