@@ -701,15 +701,14 @@ export async function getPhotographerConfigByIdServer(id: string): Promise<CogPh
 }
 
 /**
- * Get all photographer configs for a series - server-side
+ * Get all photographer configs (global library) - server-side
  */
-export async function getSeriesPhotographerConfigsServer(seriesId: string): Promise<CogPhotographerConfig[]> {
+export async function getAllPhotographerConfigsServer(): Promise<CogPhotographerConfig[]> {
   const client = await createClient();
   const { data, error } = await (client as any)
     .from('cog_photographer_configs')
     .select('*')
-    .eq('series_id', seriesId)
-    .order('created_at', { ascending: false });
+    .order('name', { ascending: true });
 
   if (error) throw error;
   return data as CogPhotographerConfig[];
@@ -735,15 +734,14 @@ export async function getDirectorConfigByIdServer(id: string): Promise<CogDirect
 }
 
 /**
- * Get all director configs for a series - server-side
+ * Get all director configs (global library) - server-side
  */
-export async function getSeriesDirectorConfigsServer(seriesId: string): Promise<CogDirectorConfig[]> {
+export async function getAllDirectorConfigsServer(): Promise<CogDirectorConfig[]> {
   const client = await createClient();
   const { data, error } = await (client as any)
     .from('cog_director_configs')
     .select('*')
-    .eq('series_id', seriesId)
-    .order('created_at', { ascending: false });
+    .order('name', { ascending: true });
 
   if (error) throw error;
   return data as CogDirectorConfig[];
@@ -769,15 +767,14 @@ export async function getProductionConfigByIdServer(id: string): Promise<CogProd
 }
 
 /**
- * Get all production configs for a series - server-side
+ * Get all production configs (global library) - server-side
  */
-export async function getSeriesProductionConfigsServer(seriesId: string): Promise<CogProductionConfig[]> {
+export async function getAllProductionConfigsServer(): Promise<CogProductionConfig[]> {
   const client = await createClient();
   const { data, error } = await (client as any)
     .from('cog_production_configs')
     .select('*')
-    .eq('series_id', seriesId)
-    .order('created_at', { ascending: false });
+    .order('name', { ascending: true });
 
   if (error) throw error;
   return data as CogProductionConfig[];

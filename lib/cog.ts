@@ -1348,7 +1348,6 @@ export async function createPhotographerConfig(input: CogPhotographerConfigInser
   const { data, error } = await (supabase as any)
     .from('cog_photographer_configs')
     .insert({
-      series_id: input.series_id,
       user_id: input.user_id,
       name: input.name,
       description: input.description || null,
@@ -1402,7 +1401,6 @@ export async function createDirectorConfig(input: CogDirectorConfigInsert): Prom
   const { data, error } = await (supabase as any)
     .from('cog_director_configs')
     .insert({
-      series_id: input.series_id,
       user_id: input.user_id,
       name: input.name,
       description: input.description || null,
@@ -1455,7 +1453,6 @@ export async function createProductionConfig(input: CogProductionConfigInsert): 
   const { data, error } = await (supabase as any)
     .from('cog_production_configs')
     .insert({
-      series_id: input.series_id,
       user_id: input.user_id,
       name: input.name,
       description: input.description || null,

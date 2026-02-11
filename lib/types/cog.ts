@@ -155,7 +155,6 @@ export type CogSequenceStatus = 'pending' | 'running' | 'completed' | 'failed';
 
 export interface CogPhotographerConfig {
   id: string;
-  series_id: string;
   user_id: string;
   name: string;
   description: string | null;
@@ -169,7 +168,6 @@ export interface CogPhotographerConfig {
 
 export interface CogDirectorConfig {
   id: string;
-  series_id: string;
   user_id: string;
   name: string;
   description: string | null;
@@ -182,7 +180,6 @@ export interface CogDirectorConfig {
 
 export interface CogProductionConfig {
   id: string;
-  series_id: string;
   user_id: string;
   name: string;
   description: string | null;

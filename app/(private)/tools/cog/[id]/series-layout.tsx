@@ -26,15 +26,6 @@ import {
   createTag,
   deleteTag,
   createImage,
-  createPhotographerConfig,
-  updatePhotographerConfig,
-  deletePhotographerConfig,
-  createDirectorConfig,
-  updateDirectorConfig,
-  deleteDirectorConfig,
-  createProductionConfig,
-  updateProductionConfig,
-  deleteProductionConfig,
 } from '@/lib/cog';
 import { supabase } from '@/lib/supabase';
 import { generateSeriesDescription } from '@/lib/ai/actions/generate-series-description';
@@ -44,9 +35,6 @@ import type {
   CogTag,
   CogTagWithGroup,
   CogImageWithGroupInfo,
-  CogPhotographerConfig,
-  CogDirectorConfig,
-  CogProductionConfig,
 } from '@/lib/types/cog';
 
 interface SeriesLayoutProps {
@@ -57,10 +45,6 @@ interface SeriesLayoutProps {
   seriesId: string;
   enabledTags: CogTagWithGroup[];
   globalTags: CogTag[];
-  photographerConfigs: CogPhotographerConfig[];
-  directorConfigs: CogDirectorConfig[];
-  productionConfigs: CogProductionConfig[];
-  userId: string;
 }
 
 function TagsSection({
@@ -316,709 +300,18 @@ function TagsSection({
   );
 }
 
-function PhotographerConfigList({
-  configs,
-  seriesId,
-  userId,
-}: {
-  configs: CogPhotographerConfig[];
-  seriesId: string;
-  userId: string;
-}) {
-  const router = useRouter();
-  const [localConfigs, setLocalConfigs] = useState<CogPhotographerConfig[]>(configs);
-  const [showNewForm, setShowNewForm] = useState(false);
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [formData, setFormData] = useState({
-    name: '', description: '', style_description: '', style_references: '', techniques: '', testbed_notes: ''
-  });
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  async function handleCreate() {
-    if (!formData.name.trim() || !formData.style_description.trim()) {
-      setError('Name and Style Description are required');
-      return;
-    }
-    setSaving(true);
-    setError(null);
-    try {
-      const created = await createPhotographerConfig({
-        series_id: seriesId,
-        user_id: userId,
-        name: formData.name.trim(),
-        description: formData.description.trim() || null,
-        style_description: formData.style_description.trim(),
-        style_references: formData.style_references.split(',').map(r => r.trim()).filter(Boolean),
-        techniques: formData.techniques.trim(),
-        testbed_notes: formData.testbed_notes.trim(),
-      });
-      setLocalConfigs((prev) => [...prev, created]);
-      setFormData({ name: '', description: '', style_description: '', style_references: '', techniques: '', testbed_notes: '' });
-      setShowNewForm(false);
-      router.refresh();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to create config');
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  async function handleUpdate(id: string) {
-    if (!formData.name.trim() || !formData.style_description.trim()) {
-      setError('Name and Style Description are required');
-      return;
-    }
-    setSaving(true);
-    setError(null);
-    try {
-      const updated = await updatePhotographerConfig(id, {
-        name: formData.name.trim(),
-        description: formData.description.trim() || null,
-        style_description: formData.style_description.trim(),
-        style_references: formData.style_references.split(',').map(r => r.trim()).filter(Boolean),
-        techniques: formData.techniques.trim(),
-        testbed_notes: formData.testbed_notes.trim(),
-      });
-      setLocalConfigs((prev) => prev.map((c) => (c.id === id ? updated : c)));
-      setFormData({ name: '', description: '', style_description: '', style_references: '', techniques: '', testbed_notes: '' });
-      setEditingId(null);
-      router.refresh();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to update config');
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  async function handleDelete(id: string) {
-    if (!confirm('Delete this photographer config?')) return;
-    setSaving(true);
-    setError(null);
-    try {
-      await deletePhotographerConfig(id);
-      setLocalConfigs((prev) => prev.filter((c) => c.id !== id));
-      router.refresh();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to delete config');
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  function startEdit(config: CogPhotographerConfig) {
-    setFormData({
-      name: config.name,
-      description: config.description || '',
-      style_description: config.style_description,
-      style_references: config.style_references.join(', '),
-      techniques: config.techniques,
-      testbed_notes: config.testbed_notes,
-    });
-    setEditingId(config.id);
-    setShowNewForm(false);
-  }
-
-  function cancelEdit() {
-    setFormData({ name: '', description: '', style_description: '', style_references: '', techniques: '', testbed_notes: '' });
-    setEditingId(null);
-    setShowNewForm(false);
-    setError(null);
-  }
-
-  const formFields = (
-    <>
-      <Input
-        value={formData.name}
-        onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-        placeholder="Name"
-        className="text-sm h-8"
-        autoFocus={showNewForm}
-      />
-      <Input
-        value={formData.description}
-        onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-        placeholder="Description (optional)"
-        className="text-sm h-8"
-      />
-      <div className="space-y-1">
-        <Label className="text-xs">Style Description</Label>
-        <Textarea
-          value={formData.style_description}
-          onChange={(e) => setFormData({ ...formData, style_description: e.target.value })}
-          placeholder="Style description"
-          className="text-sm"
-          rows={3}
-        />
-      </div>
-      <div className="space-y-1">
-        <Label className="text-xs">References (comma separated)</Label>
-        <Input
-          value={formData.style_references}
-          onChange={(e) => setFormData({ ...formData, style_references: e.target.value })}
-          placeholder="ref1, ref2, ref3"
-          className="text-sm h-8"
-        />
-      </div>
-      <div className="space-y-1">
-        <Label className="text-xs">Techniques</Label>
-        <Textarea
-          value={formData.techniques}
-          onChange={(e) => setFormData({ ...formData, techniques: e.target.value })}
-          placeholder="Techniques"
-          className="text-sm"
-          rows={2}
-        />
-      </div>
-      <div className="space-y-1">
-        <Label className="text-xs">Testbed Notes</Label>
-        <Textarea
-          value={formData.testbed_notes}
-          onChange={(e) => setFormData({ ...formData, testbed_notes: e.target.value })}
-          placeholder="Testbed notes"
-          className="text-sm"
-          rows={2}
-        />
-      </div>
-    </>
-  );
-
+function ConfigSection() {
   return (
     <div>
-      {error && (
-        <div className="p-2 text-xs text-destructive bg-destructive/10 rounded mb-3">{error}</div>
-      )}
-
-      {localConfigs.length > 0 && (
-        <div className="space-y-2 mb-3">
-          {localConfigs.map((config) =>
-            editingId === config.id ? (
-              <div key={config.id} className="space-y-2 p-2 bg-muted/50 rounded-lg">
-                {formFields}
-                <div className="flex gap-2">
-                  <Button size="sm" onClick={() => handleUpdate(config.id)} disabled={saving} className="h-7 text-xs">
-                    {saving ? '...' : 'Save'}
-                  </Button>
-                  <Button size="sm" variant="ghost" onClick={cancelEdit} disabled={saving} className="h-7 text-xs">
-                    Cancel
-                  </Button>
-                </div>
-              </div>
-            ) : (
-              <div key={config.id} className="flex items-center justify-between p-2 border rounded-lg hover:bg-muted/30">
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium">{config.name}</p>
-                  {config.description && (
-                    <p className="text-xs text-muted-foreground truncate">{config.description}</p>
-                  )}
-                </div>
-                <div className="flex gap-1">
-                  <Button size="sm" variant="ghost" onClick={() => startEdit(config)} className="h-7 text-xs">
-                    Edit
-                  </Button>
-                  <Button size="sm" variant="ghost" onClick={() => handleDelete(config.id)} className="h-7 text-xs text-destructive hover:text-destructive">
-                    Delete
-                  </Button>
-                </div>
-              </div>
-            )
-          )}
-        </div>
-      )}
-
-      {showNewForm ? (
-        <div className="space-y-2 p-2 bg-muted/50 rounded-lg">
-          {formFields}
-          <div className="flex gap-2">
-            <Button size="sm" onClick={handleCreate} disabled={saving || !formData.name.trim()} className="h-7 text-xs">
-              {saving ? '...' : 'Create'}
-            </Button>
-            <Button size="sm" variant="ghost" onClick={cancelEdit} disabled={saving} className="h-7 text-xs">
-              Cancel
-            </Button>
-          </div>
-        </div>
-      ) : (
-        <Button size="sm" variant="ghost" onClick={() => setShowNewForm(true)} className="h-7 text-xs">
-          + Add photographer config
+      <div className="flex items-center justify-between mb-2">
+        <h2 className="text-lg font-semibold">Pipeline Configs</h2>
+        <Button size="sm" variant="outline" asChild>
+          <Link href="/tools/cog?tab=library">Manage Library</Link>
         </Button>
-      )}
-    </div>
-  );
-}
-
-function DirectorConfigList({
-  configs,
-  seriesId,
-  userId,
-}: {
-  configs: CogDirectorConfig[];
-  seriesId: string;
-  userId: string;
-}) {
-  const router = useRouter();
-  const [localConfigs, setLocalConfigs] = useState<CogDirectorConfig[]>(configs);
-  const [showNewForm, setShowNewForm] = useState(false);
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [formData, setFormData] = useState({
-    name: '', description: '', approach_description: '', methods: ''
-  });
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  async function handleCreate() {
-    if (!formData.name.trim() || !formData.approach_description.trim()) {
-      setError('Name and Approach Description are required');
-      return;
-    }
-    setSaving(true);
-    setError(null);
-    try {
-      const created = await createDirectorConfig({
-        series_id: seriesId,
-        user_id: userId,
-        name: formData.name.trim(),
-        description: formData.description.trim() || null,
-        approach_description: formData.approach_description.trim(),
-        methods: formData.methods.trim(),
-        interview_mapping: null,
-      });
-      setLocalConfigs((prev) => [...prev, created]);
-      setFormData({ name: '', description: '', approach_description: '', methods: '' });
-      setShowNewForm(false);
-      router.refresh();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to create config');
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  async function handleUpdate(id: string) {
-    if (!formData.name.trim() || !formData.approach_description.trim()) {
-      setError('Name and Approach Description are required');
-      return;
-    }
-    setSaving(true);
-    setError(null);
-    try {
-      const updated = await updateDirectorConfig(id, {
-        name: formData.name.trim(),
-        description: formData.description.trim() || null,
-        approach_description: formData.approach_description.trim(),
-        methods: formData.methods.trim(),
-      });
-      setLocalConfigs((prev) => prev.map((c) => (c.id === id ? updated : c)));
-      setFormData({ name: '', description: '', approach_description: '', methods: '' });
-      setEditingId(null);
-      router.refresh();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to update config');
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  async function handleDelete(id: string) {
-    if (!confirm('Delete this director config?')) return;
-    setSaving(true);
-    setError(null);
-    try {
-      await deleteDirectorConfig(id);
-      setLocalConfigs((prev) => prev.filter((c) => c.id !== id));
-      router.refresh();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to delete config');
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  function startEdit(config: CogDirectorConfig) {
-    setFormData({
-      name: config.name,
-      description: config.description || '',
-      approach_description: config.approach_description,
-      methods: config.methods,
-    });
-    setEditingId(config.id);
-    setShowNewForm(false);
-  }
-
-  function cancelEdit() {
-    setFormData({ name: '', description: '', approach_description: '', methods: '' });
-    setEditingId(null);
-    setShowNewForm(false);
-    setError(null);
-  }
-
-  const formFields = (
-    <>
-      <Input
-        value={formData.name}
-        onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-        placeholder="Name"
-        className="text-sm h-8"
-        autoFocus={showNewForm}
-      />
-      <Input
-        value={formData.description}
-        onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-        placeholder="Description (optional)"
-        className="text-sm h-8"
-      />
-      <div className="space-y-1">
-        <Label className="text-xs">Approach Description</Label>
-        <Textarea
-          value={formData.approach_description}
-          onChange={(e) => setFormData({ ...formData, approach_description: e.target.value })}
-          placeholder="Approach description"
-          className="text-sm"
-          rows={3}
-        />
       </div>
-      <div className="space-y-1">
-        <Label className="text-xs">Methods</Label>
-        <Textarea
-          value={formData.methods}
-          onChange={(e) => setFormData({ ...formData, methods: e.target.value })}
-          placeholder="Methods"
-          className="text-sm"
-          rows={3}
-        />
-      </div>
-    </>
-  );
-
-  return (
-    <div>
-      {error && (
-        <div className="p-2 text-xs text-destructive bg-destructive/10 rounded mb-3">{error}</div>
-      )}
-
-      {localConfigs.length > 0 && (
-        <div className="space-y-2 mb-3">
-          {localConfigs.map((config) =>
-            editingId === config.id ? (
-              <div key={config.id} className="space-y-2 p-2 bg-muted/50 rounded-lg">
-                {formFields}
-                <div className="flex gap-2">
-                  <Button size="sm" onClick={() => handleUpdate(config.id)} disabled={saving} className="h-7 text-xs">
-                    {saving ? '...' : 'Save'}
-                  </Button>
-                  <Button size="sm" variant="ghost" onClick={cancelEdit} disabled={saving} className="h-7 text-xs">
-                    Cancel
-                  </Button>
-                </div>
-              </div>
-            ) : (
-              <div key={config.id} className="flex items-center justify-between p-2 border rounded-lg hover:bg-muted/30">
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium">{config.name}</p>
-                  {config.description && (
-                    <p className="text-xs text-muted-foreground truncate">{config.description}</p>
-                  )}
-                </div>
-                <div className="flex gap-1">
-                  <Button size="sm" variant="ghost" onClick={() => startEdit(config)} className="h-7 text-xs">
-                    Edit
-                  </Button>
-                  <Button size="sm" variant="ghost" onClick={() => handleDelete(config.id)} className="h-7 text-xs text-destructive hover:text-destructive">
-                    Delete
-                  </Button>
-                </div>
-              </div>
-            )
-          )}
-        </div>
-      )}
-
-      {showNewForm ? (
-        <div className="space-y-2 p-2 bg-muted/50 rounded-lg">
-          {formFields}
-          <div className="flex gap-2">
-            <Button size="sm" onClick={handleCreate} disabled={saving || !formData.name.trim()} className="h-7 text-xs">
-              {saving ? '...' : 'Create'}
-            </Button>
-            <Button size="sm" variant="ghost" onClick={cancelEdit} disabled={saving} className="h-7 text-xs">
-              Cancel
-            </Button>
-          </div>
-        </div>
-      ) : (
-        <Button size="sm" variant="ghost" onClick={() => setShowNewForm(true)} className="h-7 text-xs">
-          + Add director config
-        </Button>
-      )}
-    </div>
-  );
-}
-
-function ProductionConfigList({
-  configs,
-  seriesId,
-  userId,
-}: {
-  configs: CogProductionConfig[];
-  seriesId: string;
-  userId: string;
-}) {
-  const router = useRouter();
-  const [localConfigs, setLocalConfigs] = useState<CogProductionConfig[]>(configs);
-  const [showNewForm, setShowNewForm] = useState(false);
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [formData, setFormData] = useState({
-    name: '', description: '', shoot_details: '', editorial_notes: '', costume_notes: '', conceptual_notes: ''
-  });
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  async function handleCreate() {
-    if (!formData.name.trim()) {
-      setError('Name is required');
-      return;
-    }
-    setSaving(true);
-    setError(null);
-    try {
-      const created = await createProductionConfig({
-        series_id: seriesId,
-        user_id: userId,
-        name: formData.name.trim(),
-        description: formData.description.trim() || null,
-        shoot_details: formData.shoot_details.trim(),
-        editorial_notes: formData.editorial_notes.trim(),
-        costume_notes: formData.costume_notes.trim(),
-        conceptual_notes: formData.conceptual_notes.trim(),
-      });
-      setLocalConfigs((prev) => [...prev, created]);
-      setFormData({ name: '', description: '', shoot_details: '', editorial_notes: '', costume_notes: '', conceptual_notes: '' });
-      setShowNewForm(false);
-      router.refresh();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to create config');
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  async function handleUpdate(id: string) {
-    if (!formData.name.trim()) {
-      setError('Name is required');
-      return;
-    }
-    setSaving(true);
-    setError(null);
-    try {
-      const updated = await updateProductionConfig(id, {
-        name: formData.name.trim(),
-        description: formData.description.trim() || null,
-        shoot_details: formData.shoot_details.trim(),
-        editorial_notes: formData.editorial_notes.trim(),
-        costume_notes: formData.costume_notes.trim(),
-        conceptual_notes: formData.conceptual_notes.trim(),
-      });
-      setLocalConfigs((prev) => prev.map((c) => (c.id === id ? updated : c)));
-      setFormData({ name: '', description: '', shoot_details: '', editorial_notes: '', costume_notes: '', conceptual_notes: '' });
-      setEditingId(null);
-      router.refresh();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to update config');
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  async function handleDelete(id: string) {
-    if (!confirm('Delete this production config?')) return;
-    setSaving(true);
-    setError(null);
-    try {
-      await deleteProductionConfig(id);
-      setLocalConfigs((prev) => prev.filter((c) => c.id !== id));
-      router.refresh();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to delete config');
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  function startEdit(config: CogProductionConfig) {
-    setFormData({
-      name: config.name,
-      description: config.description || '',
-      shoot_details: config.shoot_details,
-      editorial_notes: config.editorial_notes,
-      costume_notes: config.costume_notes,
-      conceptual_notes: config.conceptual_notes,
-    });
-    setEditingId(config.id);
-    setShowNewForm(false);
-  }
-
-  function cancelEdit() {
-    setFormData({ name: '', description: '', shoot_details: '', editorial_notes: '', costume_notes: '', conceptual_notes: '' });
-    setEditingId(null);
-    setShowNewForm(false);
-    setError(null);
-  }
-
-  const formFields = (
-    <>
-      <Input
-        value={formData.name}
-        onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-        placeholder="Name"
-        className="text-sm h-8"
-        autoFocus={showNewForm}
-      />
-      <Input
-        value={formData.description}
-        onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-        placeholder="Description (optional)"
-        className="text-sm h-8"
-      />
-      <div className="space-y-1">
-        <Label className="text-xs">Shoot Details</Label>
-        <Textarea
-          value={formData.shoot_details}
-          onChange={(e) => setFormData({ ...formData, shoot_details: e.target.value })}
-          placeholder="Shoot details"
-          className="text-sm"
-          rows={2}
-        />
-      </div>
-      <div className="space-y-1">
-        <Label className="text-xs">Editorial Notes</Label>
-        <Textarea
-          value={formData.editorial_notes}
-          onChange={(e) => setFormData({ ...formData, editorial_notes: e.target.value })}
-          placeholder="Editorial notes"
-          className="text-sm"
-          rows={2}
-        />
-      </div>
-      <div className="space-y-1">
-        <Label className="text-xs">Costume Notes</Label>
-        <Textarea
-          value={formData.costume_notes}
-          onChange={(e) => setFormData({ ...formData, costume_notes: e.target.value })}
-          placeholder="Costume notes"
-          className="text-sm"
-          rows={2}
-        />
-      </div>
-      <div className="space-y-1">
-        <Label className="text-xs">Conceptual Notes</Label>
-        <Textarea
-          value={formData.conceptual_notes}
-          onChange={(e) => setFormData({ ...formData, conceptual_notes: e.target.value })}
-          placeholder="Conceptual notes"
-          className="text-sm"
-          rows={2}
-        />
-      </div>
-    </>
-  );
-
-  return (
-    <div>
-      {error && (
-        <div className="p-2 text-xs text-destructive bg-destructive/10 rounded mb-3">{error}</div>
-      )}
-
-      {localConfigs.length > 0 && (
-        <div className="space-y-2 mb-3">
-          {localConfigs.map((config) =>
-            editingId === config.id ? (
-              <div key={config.id} className="space-y-2 p-2 bg-muted/50 rounded-lg">
-                {formFields}
-                <div className="flex gap-2">
-                  <Button size="sm" onClick={() => handleUpdate(config.id)} disabled={saving} className="h-7 text-xs">
-                    {saving ? '...' : 'Save'}
-                  </Button>
-                  <Button size="sm" variant="ghost" onClick={cancelEdit} disabled={saving} className="h-7 text-xs">
-                    Cancel
-                  </Button>
-                </div>
-              </div>
-            ) : (
-              <div key={config.id} className="flex items-center justify-between p-2 border rounded-lg hover:bg-muted/30">
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium">{config.name}</p>
-                  {config.description && (
-                    <p className="text-xs text-muted-foreground truncate">{config.description}</p>
-                  )}
-                </div>
-                <div className="flex gap-1">
-                  <Button size="sm" variant="ghost" onClick={() => startEdit(config)} className="h-7 text-xs">
-                    Edit
-                  </Button>
-                  <Button size="sm" variant="ghost" onClick={() => handleDelete(config.id)} className="h-7 text-xs text-destructive hover:text-destructive">
-                    Delete
-                  </Button>
-                </div>
-              </div>
-            )
-          )}
-        </div>
-      )}
-
-      {showNewForm ? (
-        <div className="space-y-2 p-2 bg-muted/50 rounded-lg">
-          {formFields}
-          <div className="flex gap-2">
-            <Button size="sm" onClick={handleCreate} disabled={saving || !formData.name.trim()} className="h-7 text-xs">
-              {saving ? '...' : 'Create'}
-            </Button>
-            <Button size="sm" variant="ghost" onClick={cancelEdit} disabled={saving} className="h-7 text-xs">
-              Cancel
-            </Button>
-          </div>
-        </div>
-      ) : (
-        <Button size="sm" variant="ghost" onClick={() => setShowNewForm(true)} className="h-7 text-xs">
-          + Add production config
-        </Button>
-      )}
-    </div>
-  );
-}
-
-function ConfigSection({
-  seriesId,
-  photographerConfigs,
-  directorConfigs,
-  productionConfigs,
-  userId,
-}: {
-  seriesId: string;
-  photographerConfigs: CogPhotographerConfig[];
-  directorConfigs: CogDirectorConfig[];
-  productionConfigs: CogProductionConfig[];
-  userId: string;
-}) {
-  return (
-    <div>
-      <h2 className="text-lg font-semibold mb-3">Pipeline Configuration</h2>
-      <Tabs defaultValue="photographer">
-        <TabsList className="grid grid-cols-3 mb-3">
-          <TabsTrigger value="photographer" className="text-xs">Photo</TabsTrigger>
-          <TabsTrigger value="director" className="text-xs">Director</TabsTrigger>
-          <TabsTrigger value="production" className="text-xs">Production</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="photographer">
-          <PhotographerConfigList configs={photographerConfigs} seriesId={seriesId} userId={userId} />
-        </TabsContent>
-        <TabsContent value="director">
-          <DirectorConfigList configs={directorConfigs} seriesId={seriesId} userId={userId} />
-        </TabsContent>
-        <TabsContent value="production">
-          <ProductionConfigList configs={productionConfigs} seriesId={seriesId} userId={userId} />
-        </TabsContent>
-      </Tabs>
+      <p className="text-xs text-muted-foreground">
+        Creative personas (Photographer, Director, Production) are managed in the global Config Library and can be selected when building pipelines.
+      </p>
     </div>
   );
 }
@@ -1031,10 +324,6 @@ function ConfigPanel({
   jobCount,
   enabledTags,
   globalTags,
-  photographerConfigs,
-  directorConfigs,
-  productionConfigs,
-  userId,
 }: {
   series: CogSeries;
   childSeries: CogSeries[];
@@ -1043,10 +332,6 @@ function ConfigPanel({
   jobCount: number;
   enabledTags: CogTagWithGroup[];
   globalTags: CogTag[];
-  photographerConfigs: CogPhotographerConfig[];
-  directorConfigs: CogDirectorConfig[];
-  productionConfigs: CogProductionConfig[];
-  userId: string;
 }) {
   const router = useRouter();
   const [isEditing, setIsEditing] = useState(false);
@@ -1319,13 +604,7 @@ function ConfigPanel({
 
       {/* Pipeline Configs */}
       <div className="pt-4 border-t">
-        <ConfigSection
-          seriesId={seriesId}
-          photographerConfigs={photographerConfigs}
-          directorConfigs={directorConfigs}
-          productionConfigs={productionConfigs}
-          userId={userId}
-        />
+        <ConfigSection />
       </div>
 
       {/* Delete Series */}
@@ -1569,10 +848,6 @@ export function SeriesLayout({
   seriesId,
   enabledTags,
   globalTags,
-  photographerConfigs,
-  directorConfigs,
-  productionConfigs,
-  userId,
 }: SeriesLayoutProps) {
   const [showUploadModal, setShowUploadModal] = useState(false);
 
@@ -1599,10 +874,6 @@ export function SeriesLayout({
                   jobCount={jobs.length}
                   enabledTags={enabledTags}
                   globalTags={globalTags}
-                  photographerConfigs={photographerConfigs}
-                  directorConfigs={directorConfigs}
-                  productionConfigs={productionConfigs}
-                  userId={userId}
                 />
               </div>
             </div>
@@ -1667,10 +938,6 @@ export function SeriesLayout({
               jobCount={jobs.length}
               enabledTags={enabledTags}
               globalTags={globalTags}
-              photographerConfigs={photographerConfigs}
-              directorConfigs={directorConfigs}
-              productionConfigs={productionConfigs}
-              userId={userId}
             />
           </TabsContent>
           <TabsContent value="jobs" className="mt-4">

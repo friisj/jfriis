@@ -1,8 +1,8 @@
 import {
   getSeriesWithImagesServer,
-  getSeriesPhotographerConfigsServer,
-  getSeriesDirectorConfigsServer,
-  getSeriesProductionConfigsServer,
+  getAllPhotographerConfigsServer,
+  getAllDirectorConfigsServer,
+  getAllProductionConfigsServer,
 } from '@/lib/cog-server';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
@@ -19,9 +19,9 @@ export default async function NewPipelinePage({ params }: Props) {
   try {
     [seriesWithImages, photographerConfigs, directorConfigs, productionConfigs] = await Promise.all([
       getSeriesWithImagesServer(seriesId),
-      getSeriesPhotographerConfigsServer(seriesId),
-      getSeriesDirectorConfigsServer(seriesId),
-      getSeriesProductionConfigsServer(seriesId),
+      getAllPhotographerConfigsServer(),
+      getAllDirectorConfigsServer(),
+      getAllProductionConfigsServer(),
     ]);
   } catch {
     notFound();

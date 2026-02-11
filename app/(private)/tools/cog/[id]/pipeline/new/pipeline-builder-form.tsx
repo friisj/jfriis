@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -246,6 +247,12 @@ export function PipelineBuilderForm({ seriesId, images, photographerConfigs, dir
           </div>
 
           {/* Config Selectors */}
+          <div className="flex items-center justify-between">
+            <Label className="text-sm font-medium">Pipeline Configs</Label>
+            <Link href="/tools/cog?tab=library" className="text-xs text-muted-foreground hover:text-foreground">
+              Manage config library
+            </Link>
+          </div>
           {photographerConfigs.length > 0 && (
             <div className="space-y-2">
               <div className="flex items-center justify-between">
