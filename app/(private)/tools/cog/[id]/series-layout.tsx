@@ -26,10 +26,13 @@ import {
   createTag,
   deleteTag,
   createImage,
+  createStyleGuide,
+  updateStyleGuide,
+  deleteStyleGuide,
 } from '@/lib/cog';
 import { supabase } from '@/lib/supabase';
 import { generateSeriesDescription } from '@/lib/ai/actions/generate-series-description';
-import type { CogSeries, CogJob, CogTag, CogTagWithGroup, CogImageWithGroupInfo } from '@/lib/types/cog';
+import type { CogSeries, CogJob, CogTag, CogTagWithGroup, CogImageWithGroupInfo, CogStyleGuide } from '@/lib/types/cog';
 
 interface SeriesLayoutProps {
   series: CogSeries;
@@ -39,6 +42,7 @@ interface SeriesLayoutProps {
   seriesId: string;
   enabledTags: CogTagWithGroup[];
   globalTags: CogTag[];
+  styleGuides: CogStyleGuide[];
 }
 
 function TagsSection({
@@ -294,6 +298,251 @@ function TagsSection({
   );
 }
 
+function StyleGuidesSection({
+  seriesId,
+  styleGuides,
+}: {
+  seriesId: string;
+  styleGuides: CogStyleGuide[];
+}) {
+  const router = useRouter();
+  const [localGuides, setLocalGuides] = useState<CogStyleGuide[]>(styleGuides);
+  const [showNewForm, setShowNewForm] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [formData, setFormData] = useState({ name: '', description: '', system_prompt: '' });
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function handleCreate() {
+    if (!formData.name.trim()) {
+      setError('Name is required');
+      return;
+    }
+
+    setSaving(true);
+    setError(null);
+    try {
+      const created = await createStyleGuide({
+        series_id: seriesId,
+        name: formData.name.trim(),
+        description: formData.description.trim() || null,
+        system_prompt: formData.system_prompt.trim(),
+      });
+      setLocalGuides((prev) => [...prev, created]);
+      setFormData({ name: '', description: '', system_prompt: '' });
+      setShowNewForm(false);
+      router.refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to create style guide');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleUpdate(id: string) {
+    if (!formData.name.trim()) {
+      setError('Name is required');
+      return;
+    }
+
+    setSaving(true);
+    setError(null);
+    try {
+      const updated = await updateStyleGuide(id, {
+        name: formData.name.trim(),
+        description: formData.description.trim() || null,
+        system_prompt: formData.system_prompt.trim(),
+      });
+      setLocalGuides((prev) => prev.map((g) => (g.id === id ? updated : g)));
+      setFormData({ name: '', description: '', system_prompt: '' });
+      setEditingId(null);
+      router.refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to update style guide');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleDelete(id: string) {
+    if (!confirm('Delete this style guide?')) return;
+
+    setSaving(true);
+    setError(null);
+    try {
+      await deleteStyleGuide(id);
+      setLocalGuides((prev) => prev.filter((g) => g.id !== id));
+      router.refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to delete style guide');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  function startEdit(guide: CogStyleGuide) {
+    setFormData({
+      name: guide.name,
+      description: guide.description || '',
+      system_prompt: guide.system_prompt,
+    });
+    setEditingId(guide.id);
+    setShowNewForm(false);
+  }
+
+  function cancelEdit() {
+    setFormData({ name: '', description: '', system_prompt: '' });
+    setEditingId(null);
+    setShowNewForm(false);
+    setError(null);
+  }
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-3">
+        <h2 className="text-lg font-semibold">Style Guides</h2>
+      </div>
+
+      {error && (
+        <div className="p-2 text-xs text-destructive bg-destructive/10 rounded mb-3">
+          {error}
+        </div>
+      )}
+
+      {/* Existing guides */}
+      {localGuides.length > 0 && (
+        <div className="space-y-2 mb-3">
+          {localGuides.map((guide) => (
+            editingId === guide.id ? (
+              <div key={guide.id} className="space-y-2 p-2 bg-muted/50 rounded-lg">
+                <Input
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  placeholder="Style guide name"
+                  className="text-sm h-8"
+                />
+                <Input
+                  value={formData.description}
+                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                  placeholder="Description (optional)"
+                  className="text-sm h-8"
+                />
+                <Textarea
+                  value={formData.system_prompt}
+                  onChange={(e) => setFormData({ ...formData, system_prompt: e.target.value })}
+                  placeholder="System prompt"
+                  className="text-sm font-mono"
+                  rows={4}
+                />
+                <div className="flex gap-2">
+                  <Button
+                    size="sm"
+                    onClick={() => handleUpdate(guide.id)}
+                    disabled={saving}
+                    className="h-7 text-xs"
+                  >
+                    {saving ? '...' : 'Save'}
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={cancelEdit}
+                    disabled={saving}
+                    className="h-7 text-xs"
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <div key={guide.id} className="flex items-center justify-between p-2 border rounded-lg hover:bg-muted/30">
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium">{guide.name}</p>
+                  {guide.description && (
+                    <p className="text-xs text-muted-foreground truncate">{guide.description}</p>
+                  )}
+                </div>
+                <div className="flex gap-1">
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => startEdit(guide)}
+                    className="h-7 text-xs"
+                  >
+                    Edit
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => handleDelete(guide.id)}
+                    className="h-7 text-xs text-destructive hover:text-destructive"
+                  >
+                    Delete
+                  </Button>
+                </div>
+              </div>
+            )
+          ))}
+        </div>
+      )}
+
+      {/* Create new form */}
+      {showNewForm ? (
+        <div className="space-y-2 p-2 bg-muted/50 rounded-lg">
+          <Input
+            value={formData.name}
+            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+            placeholder="Style guide name"
+            className="text-sm h-8"
+            autoFocus
+          />
+          <Input
+            value={formData.description}
+            onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+            placeholder="Description (optional)"
+            className="text-sm h-8"
+          />
+          <Textarea
+            value={formData.system_prompt}
+            onChange={(e) => setFormData({ ...formData, system_prompt: e.target.value })}
+            placeholder="System prompt"
+            className="text-sm font-mono"
+            rows={4}
+          />
+          <div className="flex gap-2">
+            <Button
+              size="sm"
+              onClick={handleCreate}
+              disabled={saving || !formData.name.trim()}
+              className="h-7 text-xs"
+            >
+              {saving ? '...' : 'Create'}
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={cancelEdit}
+              disabled={saving}
+              className="h-7 text-xs"
+            >
+              Cancel
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <Button
+          size="sm"
+          variant="ghost"
+          onClick={() => setShowNewForm(true)}
+          className="h-7 text-xs"
+        >
+          + Create style guide
+        </Button>
+      )}
+    </div>
+  );
+}
+
 function ConfigPanel({
   series,
   childSeries,
@@ -302,6 +551,7 @@ function ConfigPanel({
   jobCount,
   enabledTags,
   globalTags,
+  styleGuides,
 }: {
   series: CogSeries;
   childSeries: CogSeries[];
@@ -310,6 +560,7 @@ function ConfigPanel({
   jobCount: number;
   enabledTags: CogTagWithGroup[];
   globalTags: CogTag[];
+  styleGuides: CogStyleGuide[];
 }) {
   const router = useRouter();
   const [isEditing, setIsEditing] = useState(false);
@@ -580,6 +831,14 @@ function ConfigPanel({
         />
       </div>
 
+      {/* Style Guides */}
+      <div className="pt-4 border-t">
+        <StyleGuidesSection
+          seriesId={seriesId}
+          styleGuides={styleGuides}
+        />
+      </div>
+
       {/* Delete Series */}
       <div className="pt-6 border-t">
         {showDeleteConfirm ? (
@@ -821,6 +1080,7 @@ export function SeriesLayout({
   seriesId,
   enabledTags,
   globalTags,
+  styleGuides,
 }: SeriesLayoutProps) {
   const [showUploadModal, setShowUploadModal] = useState(false);
 
@@ -847,6 +1107,7 @@ export function SeriesLayout({
                   jobCount={jobs.length}
                   enabledTags={enabledTags}
                   globalTags={globalTags}
+                  styleGuides={styleGuides}
                 />
               </div>
             </div>
@@ -911,6 +1172,7 @@ export function SeriesLayout({
               jobCount={jobs.length}
               enabledTags={enabledTags}
               globalTags={globalTags}
+              styleGuides={styleGuides}
             />
           </TabsContent>
           <TabsContent value="jobs" className="mt-4">

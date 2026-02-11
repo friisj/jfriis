@@ -50,6 +50,11 @@ export function PipelineBuilderForm({ seriesId, images, styleGuides }: PipelineB
     setStage('review');
   };
 
+  const handleImagesUploaded = () => {
+    // Refresh the page to get updated images list
+    router.refresh();
+  };
+
   const handleSave = async (runImmediately: boolean) => {
     setError(null);
     setIsSaving(true);
@@ -235,6 +240,8 @@ export function PipelineBuilderForm({ seriesId, images, styleGuides }: PipelineB
             selectedImages={selectedImages}
             onSelectedImagesChange={setSelectedImages}
             availableImages={images}
+            seriesId={seriesId}
+            onImagesUploaded={handleImagesUploaded}
           />
         </CardContent>
       </Card>

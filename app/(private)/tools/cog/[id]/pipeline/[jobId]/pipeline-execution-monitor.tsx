@@ -7,7 +7,6 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { PipelineStepCard } from './pipeline-step-card';
 import { updateJob } from '@/lib/cog';
-import { getPipelineJobWithStepsServer } from '@/lib/cog-server';
 import type { CogPipelineJobWithSteps } from '@/lib/types/cog';
 
 interface PipelineExecutionMonitorProps {
@@ -30,7 +29,9 @@ export function PipelineExecutionMonitor({ job: initialJob, seriesId }: Pipeline
 
     const interval = setInterval(async () => {
       try {
-        const updated = await getPipelineJobWithStepsServer(job.id);
+        const response = await fetch(`/api/cog/pipeline/${job.id}`);
+        if (!response.ok) throw new Error('Failed to fetch job');
+        const updated: CogPipelineJobWithSteps = await response.json();
         setJob(updated);
 
         // Stop polling if job reaches terminal state

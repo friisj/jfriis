@@ -34,11 +34,32 @@ export function JobsList({ jobs: initialJobs, seriesId }: JobsListProps) {
 
   if (jobs.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center py-12 border rounded-lg bg-muted/50">
-        <p className="text-muted-foreground mb-4">No jobs yet</p>
-        <Button asChild variant="outline">
-          <Link href={`/tools/cog/${seriesId}/job/new`}>Create Job</Link>
-        </Button>
+      <div className="space-y-4">
+        <div className="flex flex-col items-center justify-center py-8 border rounded-lg bg-muted/50">
+          <p className="text-muted-foreground mb-4">No jobs yet. Create your first job to get started.</p>
+        </div>
+        <div className="grid grid-cols-2 gap-2">
+          <Link
+            href={`/tools/cog/${seriesId}/job/new`}
+            className="border rounded-lg p-6 hover:bg-muted/50 transition-colors flex flex-col items-center justify-center gap-2"
+          >
+            <div className="text-2xl">📦</div>
+            <div className="font-medium">New Batch Job</div>
+            <div className="text-xs text-muted-foreground text-center">
+              Generate multiple images from a single prompt
+            </div>
+          </Link>
+          <Link
+            href={`/tools/cog/${seriesId}/pipeline/new`}
+            className="border rounded-lg p-6 hover:bg-muted/50 transition-colors flex flex-col items-center justify-center gap-2"
+          >
+            <div className="text-2xl">⚡</div>
+            <div className="font-medium">New Pipeline</div>
+            <div className="text-xs text-muted-foreground text-center">
+              Sequential multi-step image generation
+            </div>
+          </Link>
+        </div>
       </div>
     );
   }
@@ -46,17 +67,18 @@ export function JobsList({ jobs: initialJobs, seriesId }: JobsListProps) {
   return (
     <div className="space-y-2">
       <div className="grid grid-cols-2 gap-2">
-        <button className="border rounded-lg p-4 hover:bg-muted/50 transition-colors">
-          <Link href={`/tools/cog/${seriesId}/job/new`}>New Batch Job</Link>
-        </button>
-        <button className="border rounded-lg p-4 hover:bg-muted/50 transition-colors">
-          <Link href={`/tools/cog/${seriesId}/pipeline/new`}>New Pipeline</Link>
-        </button>
-      </div>
-      <div className="grid grid-cols-1">
-        <button className="border rounded-lg p-3 hover:bg-muted/50 transition-colors text-sm">
-          <Link href={`/tools/cog/${seriesId}/style-guides`}>Manage Style Guides</Link>
-        </button>
+        <Link
+          href={`/tools/cog/${seriesId}/job/new`}
+          className="border rounded-lg p-4 hover:bg-muted/50 transition-colors text-center"
+        >
+          New Batch Job
+        </Link>
+        <Link
+          href={`/tools/cog/${seriesId}/pipeline/new`}
+          className="border rounded-lg p-4 hover:bg-muted/50 transition-colors text-center"
+        >
+          New Pipeline
+        </Link>
       </div>
       {jobs.map((job) => (
         <div
