@@ -103,6 +103,7 @@ export interface CogJob {
   // Two-phase execution controls
   num_base_images: number;
   selected_base_image_id: string | null;
+  synthesized_prompt: string | null;
   foundation_status: CogFoundationStatus;
   sequence_status: CogSequenceStatus;
   // Inference input arrays

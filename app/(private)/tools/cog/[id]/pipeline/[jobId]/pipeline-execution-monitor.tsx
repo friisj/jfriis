@@ -319,6 +319,20 @@ export function PipelineExecutionMonitor({
         </Card>
       )}
 
+      {/* Generated Prompt (synthesized by the inference pipeline) */}
+      {job.synthesized_prompt && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Generated Prompt</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-muted-foreground whitespace-pre-wrap">
+              {job.synthesized_prompt}
+            </p>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Base Candidate Selection */}
       {isTwoPhase && foundationStatus === 'completed' && baseCandidates.length > 0 && (
         <Card>

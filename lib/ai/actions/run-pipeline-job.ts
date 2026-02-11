@@ -105,6 +105,9 @@ export async function runFoundation(input: { jobId: string; seriesId: string }):
     const finalPrompt = await generateBaseImagePrompt(context, job, seriesId);
     console.log(`[Foundation] Final synthesized prompt (${finalPrompt.length} chars)`);
 
+    // Store the synthesized prompt so users can see what the pipeline generated
+    await updateJob(jobId, { synthesized_prompt: finalPrompt });
+
     // Generate N candidate base images using I2I (prompt + reference images)
     const numCandidates = job.num_base_images || 3;
     const supabase = await createClient();

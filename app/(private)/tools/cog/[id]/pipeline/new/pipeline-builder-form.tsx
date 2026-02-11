@@ -10,7 +10,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { StepBuilder } from './step-builder';
-import { InitialInputSelector } from './initial-input-selector';
+import { StoryInput, ReferenceImageSelector } from './initial-input-selector';
 import { createPipelineJob } from '@/lib/cog';
 import { runFoundation } from '@/lib/ai/actions/run-pipeline-job';
 import type { CogImage, CogPhotographerConfig, CogDirectorConfig, CogProductionConfig, CogPipelineStepInsert } from '@/lib/types/cog';
@@ -53,7 +53,7 @@ export function PipelineBuilderForm({ seriesId, images, photographerConfigs, dir
   const handleConfigureDone = () => {
     // Validation
     if (!basePrompt.trim()) {
-      setError('Initial prompt is required');
+      setError('Story is required');
       return;
     }
     if (steps.length === 0) {
@@ -160,7 +160,7 @@ export function PipelineBuilderForm({ seriesId, images, photographerConfigs, dir
             )}
 
             <div>
-              <Label className="text-sm font-medium">Initial Prompt</Label>
+              <Label className="text-sm font-medium">Story</Label>
               <p className="text-sm text-muted-foreground whitespace-pre-wrap">
                 {basePrompt}
               </p>
@@ -168,7 +168,7 @@ export function PipelineBuilderForm({ seriesId, images, photographerConfigs, dir
 
             {selectedImages.length > 0 && (
               <div>
-                <Label className="text-sm font-medium">Initial Images</Label>
+                <Label className="text-sm font-medium">Reference Images</Label>
                 <p className="text-sm text-muted-foreground">
                   {selectedImages.length} image(s) selected
                 </p>
@@ -346,15 +346,32 @@ export function PipelineBuilderForm({ seriesId, images, photographerConfigs, dir
         </CardContent>
       </Card>
 
-      {/* Initial Input */}
+      {/* Story */}
       <Card>
         <CardHeader>
-          <CardTitle>Initial Input</CardTitle>
+          <CardTitle>Story</CardTitle>
+          <p className="text-sm text-muted-foreground">
+            Describe your creative vision. When pipeline configs are selected, this story drives the multi-step inference process that generates the image prompt.
+          </p>
         </CardHeader>
         <CardContent>
-          <InitialInputSelector
+          <StoryInput
             basePrompt={basePrompt}
             onBasePromptChange={setBasePrompt}
+          />
+        </CardContent>
+      </Card>
+
+      {/* Reference Images */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Reference Images</CardTitle>
+          <p className="text-sm text-muted-foreground">
+            Optional images for style reference. These are analyzed during inference to inform the visual direction.
+          </p>
+        </CardHeader>
+        <CardContent>
+          <ReferenceImageSelector
             selectedImages={selectedImages}
             onSelectedImagesChange={setSelectedImages}
             availableImages={images}
