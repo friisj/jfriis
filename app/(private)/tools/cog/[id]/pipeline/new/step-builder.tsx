@@ -19,7 +19,7 @@ export function StepBuilder({ steps, onStepsChange }: StepBuilderProps) {
     const newStep: PipelineStepConfig = {
       step_order: steps.length,
       step_type: type,
-      model: 'gemini-2.0-flash-exp',
+      model: 'auto',
       config: {},
       status: 'pending',
     };

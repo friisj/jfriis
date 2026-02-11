@@ -1,0 +1,84 @@
+'use client';
+
+import type { CogPipelineStepWithOutput } from '@/lib/types/cog';
+
+interface PipelineStepCardProps {
+  step: CogPipelineStepWithOutput;
+  stepNumber: number;
+  isActive: boolean;
+  seriesId: string;
+}
+
+export function PipelineStepCard({ step, stepNumber, isActive }: PipelineStepCardProps) {
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'completed':
+        return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200';
+      case 'running':
+        return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200 animate-pulse';
+      case 'failed':
+        return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200';
+      case 'cancelled':
+        return 'bg-muted';
+      default:
+        return 'bg-muted';
+    }
+  };
+
+  const getStepTypeLabel = (type: string) => {
+    return type.charAt(0).toUpperCase() + type.slice(1);
+  };
+
+  return (
+    <div
+      className={`border rounded-lg p-4 transition-all ${
+        isActive ? 'border-primary shadow-md' : 'border-border'
+      }`}
+    >
+      <div className="flex items-start justify-between">
+        <div className="flex-1">
+          <div className="flex items-center gap-2 mb-2">
+            <span className="text-xs font-mono bg-background px-2 py-1 rounded">
+              Step {stepNumber}
+            </span>
+            <span className="text-sm font-medium">{getStepTypeLabel(step.step_type)}</span>
+            <span className="text-xs text-muted-foreground">({step.model})</span>
+            <span className={`text-xs px-2 py-1 rounded-full ${getStatusColor(step.status)}`}>
+              {step.status}
+            </span>
+          </div>
+
+          {/* Step configuration preview */}
+          <div className="space-y-1 text-xs text-muted-foreground">
+            {step.config.prompt && (
+              <p className="line-clamp-1">Prompt: {step.config.prompt as string}</p>
+            )}
+            {step.config.refinementPrompt && (
+              <p className="line-clamp-1">Refinement: {step.config.refinementPrompt as string}</p>
+            )}
+            {step.config.evalCriteria && (
+              <p className="line-clamp-1">Criteria: {step.config.evalCriteria as string}</p>
+            )}
+            {step.config.imageSize && (
+              <p>Size: {step.config.imageSize as string}</p>
+            )}
+          </div>
+
+          {/* Error message */}
+          {step.error_message && (
+            <div className="mt-2 p-2 bg-destructive/10 border border-destructive rounded text-xs text-destructive">
+              {step.error_message}
+            </div>
+          )}
+
+          {/* Output indicator */}
+          {step.output && (
+            <div className="mt-2 text-xs text-muted-foreground">
+              ✓ Output generated
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}

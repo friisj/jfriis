@@ -13,9 +13,12 @@ interface StepConfigPanelProps {
 }
 
 const IMAGE_MODELS: CogImageModel[] = [
-  'gemini-2.0-flash-exp',
+  'auto',
+  'imagen-4',
   'imagen-3-capability',
+  'gemini-3-pro-image',
   'flux-2-pro',
+  'flux-2-dev',
 ];
 
 const IMAGE_SIZES: CogImageSize[] = ['1K', '2K', '4K'];

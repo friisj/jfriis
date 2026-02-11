@@ -206,7 +206,7 @@ async function executeGenerateStep(
   // Determine which image generation service to use
   const resolvedModel = selectImageModel(model, false, 0);
 
-  let imageUrl: string;
+  let imageBase64: string;
   let generationMetadata: any = {
     model: resolvedModel,
     prompt: fullPrompt,
@@ -219,9 +219,9 @@ async function executeGenerateStep(
     const result = await generateImageWithGemini3Pro({
       prompt: fullPrompt,
       aspectRatio,
-      personGeneration: 'ALLOW_ADULT',
+      imageSize,
     });
-    imageUrl = result.url;
+    imageBase64 = result.base64;
     generationMetadata.provider = 'gemini-3-pro';
   } else if (
     (resolvedModel === 'flux-2-pro' || resolvedModel === 'flux-2-dev') &&
@@ -233,19 +233,16 @@ async function executeGenerateStep(
       prompt: fullPrompt,
       model: resolvedModel,
       aspectRatio: fluxAspectRatio,
-      outputFormat: 'png',
-      outputQuality: 100,
       resolution: fluxResolution,
     });
-    imageUrl = result.url;
+    imageBase64 = result.buffer.toString('base64');
     generationMetadata.provider = 'replicate-flux';
   } else if (resolvedModel === 'imagen-3-capability' && isVertexConfigured()) {
     const result = await generateImageWithVertex({
       prompt: fullPrompt,
       aspectRatio,
-      personGeneration: 'allow_adult',
     });
-    imageUrl = result.url;
+    imageBase64 = result.base64;
     generationMetadata.provider = 'vertex-imagen';
   } else {
     // Default to Imagen 4
@@ -255,12 +252,12 @@ async function executeGenerateStep(
       prompt: fullPrompt,
       aspectRatio,
     });
-    imageUrl = image.base64;
+    imageBase64 = image.base64;
     generationMetadata.provider = 'google-imagen';
   }
 
-  // Download and store image
-  const imageData = await fetchImageData(imageUrl);
+  // Convert base64 to buffer
+  const imageData = Buffer.from(imageBase64, 'base64');
   const filename = `pipeline-${jobId}-step-${step.step_order}-${Date.now()}.png`;
   const storagePath = `${seriesId}/${filename}`;
 
@@ -289,25 +286,6 @@ async function executeGenerateStep(
     imageId: image.id,
     metadata: generationMetadata,
   };
-}
-
-/**
- * Fetch image data from URL
- */
-async function fetchImageData(url: string): Promise<Buffer> {
-  // If it's a base64 URL, decode it
-  if (url.startsWith('data:')) {
-    const base64Data = url.split(',')[1];
-    return Buffer.from(base64Data, 'base64');
-  }
-
-  // Otherwise fetch from URL
-  const response = await fetch(url);
-  if (!response.ok) {
-    throw new Error(`Failed to fetch image: ${response.statusText}`);
-  }
-  const arrayBuffer = await response.arrayBuffer();
-  return Buffer.from(arrayBuffer);
 }
 
 /**
