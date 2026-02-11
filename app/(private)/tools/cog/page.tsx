@@ -29,7 +29,7 @@ export default function CogPage() {
   useEffect(() => {
     async function loadSeries() {
       // Fetch series
-      const { data: seriesData, error: seriesError } = await supabase
+      const { data: seriesData, error: seriesError } = await (supabase as any)
         .from('cog_series')
         .select('*')
         .is('parent_id', null)
@@ -42,9 +42,9 @@ export default function CogPage() {
 
       // For each series, fetch its primary image and count
       const seriesWithImages = await Promise.all(
-        seriesData.map(async (s) => {
+        (seriesData as CogSeries[]).map(async (s) => {
           // Get image count
-          const { count } = await supabase
+          const { count } = await (supabase as any)
             .from('cog_images')
             .select('*', { count: 'exact', head: true })
             .eq('series_id', s.id)
@@ -52,14 +52,14 @@ export default function CogPage() {
           // Get primary image if set, otherwise get the newest image
           let primaryImage = null
           if (s.primary_image_id) {
-            const { data: img } = await supabase
+            const { data: img } = await (supabase as any)
               .from('cog_images')
               .select('*')
               .eq('id', s.primary_image_id)
               .single()
             primaryImage = img
           } else {
-            const { data: img } = await supabase
+            const { data: img } = await (supabase as any)
               .from('cog_images')
               .select('*')
               .eq('series_id', s.id)

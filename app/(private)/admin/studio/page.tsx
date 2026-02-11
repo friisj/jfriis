@@ -7,7 +7,7 @@ import { StudioListView } from '@/components/admin/views/studio-list-view'
 export default async function AdminStudioPage() {
   const supabase = await createClient()
 
-  const { data: projects, error } = await supabase
+  const { data: projects, error } = await (supabase as any)
     .from('studio_projects')
     .select(`
       id,

@@ -7,7 +7,7 @@ import { LogListView } from '@/components/admin/views/log-list-view'
 export default async function AdminLogPage() {
   const supabase = await createClient()
 
-  const { data: logEntries, error } = await supabase
+  const { data: logEntries, error } = await (supabase as any)
     .from('log_entries')
     .select(`
       id,
@@ -23,7 +23,7 @@ export default async function AdminLogPage() {
     .order('entry_date', { ascending: false })
 
   // Fetch link counts from entity_links
-  const entryIds = logEntries?.map(e => e.id) || []
+  const entryIds = logEntries?.map((e: any) => e.id) || []
   const linkCounts: Record<string, { specimens: number; projects: number }> = {}
 
   if (entryIds.length > 0) {
@@ -50,7 +50,7 @@ export default async function AdminLogPage() {
   }
 
   // Add link counts to entries for the view component
-  const entriesWithCounts = logEntries?.map(entry => ({
+  const entriesWithCounts = logEntries?.map((entry: any) => ({
     ...entry,
     specimenCount: linkCounts[entry.id]?.specimens || 0,
     projectCount: linkCounts[entry.id]?.projects || 0,
