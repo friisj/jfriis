@@ -90,8 +90,25 @@ export interface CogJob {
   status: CogJobStatus;
   // Pipeline job fields
   job_type: CogJobType;
-  style_guide_id: string | null;
   initial_images: string[] | null; // array of image URLs/IDs
+  // Pipeline config references
+  photographer_config_id: string | null;
+  director_config_id: string | null;
+  production_config_id: string | null;
+  // Inference execution controls
+  inference_model: string | null;
+  use_thinking_infer4: boolean;
+  use_thinking_infer6: boolean;
+  max_reference_images: number;
+  // Two-phase execution controls
+  num_base_images: number;
+  selected_base_image_id: string | null;
+  foundation_status: CogFoundationStatus;
+  sequence_status: CogSequenceStatus;
+  // Inference input arrays
+  colors: string[] | null;
+  themes: string[] | null;
+  // Timestamps
   created_at: string;
   updated_at: string;
   started_at: string | null;
@@ -129,16 +146,71 @@ export interface CogJobStep {
 // Pipeline Job Types
 // ============================================================================
 
-export interface CogStyleGuide {
+// ============================================================================
+// Pipeline Config Types
+// ============================================================================
+
+export type CogFoundationStatus = 'pending' | 'running' | 'completed' | 'failed';
+export type CogSequenceStatus = 'pending' | 'running' | 'completed' | 'failed';
+
+export interface CogPhotographerConfig {
   id: string;
   series_id: string;
   user_id: string;
   name: string;
   description: string | null;
-  system_prompt: string;
+  style_description: string;
+  style_references: string[];
+  techniques: string;
+  testbed_notes: string;
   created_at: string;
   updated_at: string;
 }
+
+export interface CogDirectorConfig {
+  id: string;
+  series_id: string;
+  user_id: string;
+  name: string;
+  description: string | null;
+  approach_description: string;
+  methods: string;
+  interview_mapping: Record<string, unknown> | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CogProductionConfig {
+  id: string;
+  series_id: string;
+  user_id: string;
+  name: string;
+  description: string | null;
+  shoot_details: string;
+  editorial_notes: string;
+  costume_notes: string;
+  conceptual_notes: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CogPipelineBaseCandidate {
+  id: string;
+  job_id: string;
+  image_id: string;
+  candidate_index: number;
+  created_at: string;
+}
+
+// Insert types for configs
+export type CogPhotographerConfigInsert = Omit<CogPhotographerConfig, 'id' | 'created_at' | 'updated_at'>;
+export type CogDirectorConfigInsert = Omit<CogDirectorConfig, 'id' | 'created_at' | 'updated_at'>;
+export type CogProductionConfigInsert = Omit<CogProductionConfig, 'id' | 'created_at' | 'updated_at'>;
+
+// Update types for configs
+export type CogPhotographerConfigUpdate = Partial<Omit<CogPhotographerConfig, 'id' | 'created_at'>>;
+export type CogDirectorConfigUpdate = Partial<Omit<CogDirectorConfig, 'id' | 'created_at'>>;
+export type CogProductionConfigUpdate = Partial<Omit<CogProductionConfig, 'id' | 'created_at'>>;
 
 export interface CogPipelineStep {
   id: string;
@@ -207,8 +279,21 @@ export interface CogJobInsert {
   status?: CogJobStatus;
   // Pipeline job fields
   job_type?: CogJobType;
-  style_guide_id?: string | null;
   initial_images?: string[] | null;
+  // Pipeline config references
+  photographer_config_id?: string | null;
+  director_config_id?: string | null;
+  production_config_id?: string | null;
+  // Inference execution controls
+  inference_model?: string | null;
+  use_thinking_infer4?: boolean;
+  use_thinking_infer6?: boolean;
+  max_reference_images?: number;
+  // Two-phase execution controls
+  num_base_images?: number;
+  // Inference input arrays
+  colors?: string[] | null;
+  themes?: string[] | null;
 }
 
 export interface CogJobInputInsert {
@@ -227,14 +312,6 @@ export interface CogJobStepInsert {
   prompt: string;
   context?: Record<string, unknown>;
   status?: CogJobStepStatus;
-}
-
-export interface CogStyleGuideInsert {
-  series_id: string;
-  user_id: string;
-  name: string;
-  description?: string | null;
-  system_prompt: string;
 }
 
 export interface CogPipelineStepInsert {
@@ -258,7 +335,6 @@ export type CogImageUpdate = Partial<Omit<CogImage, 'id' | 'created_at'>>;
 export type CogJobUpdate = Partial<Omit<CogJob, 'id' | 'created_at'>>;
 export type CogJobStepUpdate = Partial<Omit<CogJobStep, 'id' | 'created_at'>>;
 export type CogJobInputUpdate = Partial<Omit<CogJobInput, 'id' | 'created_at'>>;
-export type CogStyleGuideUpdate = Partial<Omit<CogStyleGuide, 'id' | 'created_at'>>;
 export type CogPipelineStepUpdate = Partial<Omit<CogPipelineStep, 'id' | 'created_at'>>;
 export type CogPipelineStepOutputUpdate = Partial<Omit<CogPipelineStepOutput, 'id' | 'created_at'>>;
 
@@ -304,7 +380,9 @@ export interface CogPipelineStepWithOutput extends CogPipelineStep {
 
 export interface CogPipelineJobWithSteps extends CogJob {
   steps: CogPipelineStepWithOutput[];
-  style_guide: CogStyleGuide | null;
+  photographer_config: CogPhotographerConfig | null;
+  director_config: CogDirectorConfig | null;
+  production_config: CogProductionConfig | null;
 }
 
 // ============================================================================

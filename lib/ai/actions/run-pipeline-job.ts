@@ -7,76 +7,206 @@ import { generateImageWithVertex, isVertexConfigured } from '../vertex-imagen';
 import { generateImageWithGemini3Pro, isGemini3ProConfigured } from '../gemini-multimodal';
 import { generateWithFlux, isFluxConfigured, type FluxAspectRatio, type FluxResolution } from '../replicate-flux';
 import { createClient } from '@/lib/supabase-server';
-import { createImage, createPipelineStepOutput, updateJob } from '@/lib/cog';
+import { createImage, createPipelineStepOutput, updateJob, createBaseCandidate } from '@/lib/cog';
 import {
-  getPipelineStepsServer,
   getJobByIdServer,
-  getStyleGuideByIdServer,
+  getPipelineJobWithStepsServer,
+  getImageByIdServer,
+  getPhotographerConfigByIdServer,
+  getDirectorConfigByIdServer,
+  getProductionConfigByIdServer,
 } from '@/lib/cog-server';
+import {
+  buildInference1Prompt,
+  buildInference2Prompt,
+  buildInference3Prompt,
+  buildInference4Prompt,
+  buildVisionPrompt,
+  buildInference6Prompt,
+  type InferenceContext,
+} from '../prompts/pipeline-inference';
 import type {
   CogPipelineStep,
-  CogJob,
   CogImageModel,
   CogImageSize,
   CogAspectRatio,
-  CogStyleGuide,
+  CogPhotographerConfig,
+  CogDirectorConfig,
+  CogProductionConfig,
+  CogPipelineJobWithSteps,
 } from '@/lib/types/cog';
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// Pipeline Context
+// ═══════════════════════════════════════════════════════════════════════════════
+
 interface PipelineContext {
-  styleGuidePrompt: string | null;
-  initialText: string;
+  photographerConfig: CogPhotographerConfig | null;
+  directorConfig: CogDirectorConfig | null;
+  productionConfig: CogProductionConfig | null;
+  basePrompt: string;
   initialImages: string[];
+  colors: string[];
+  themes: string[];
   previousOutputs: string[];
 }
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// FOUNDATION PHASE: 6-step inference pipeline + generate N candidate base images
+// ═══════════════════════════════════════════════════════════════════════════════
+
 /**
- * Execute a pipeline job - runs all steps sequentially with auto-advance delay
+ * Run the foundation phase of a pipeline job.
+ *
+ * 1. Loads photographer, director, and production configs
+ * 2. Runs the 6-step inference pipeline via generateBaseImagePrompt()
+ * 3. Generates N candidate base images using I2I (prompt + reference images)
+ * 4. Stores each candidate via createBaseCandidate()
+ * 5. Updates foundation_status on the job ('running' -> 'completed' or 'failed')
  */
-export async function runPipelineJob(input: { jobId: string; seriesId: string }): Promise<void> {
+export async function runFoundation(input: { jobId: string; seriesId: string }): Promise<void> {
   const { jobId, seriesId } = input;
-  const supabase = await createClient();
+
+  // Update foundation status to running
+  await updateJob(jobId, {
+    foundation_status: 'running',
+    status: 'running',
+    started_at: new Date().toISOString(),
+  });
 
   try {
-    // 1. Update job status to 'running'
-    await updateJob(jobId, {
-      status: 'running',
-      started_at: new Date().toISOString(),
-    });
+    const job = await getPipelineJobWithStepsServer(jobId);
 
-    // 2. Fetch job and pipeline steps
-    const [job, steps] = await Promise.all([
-      getJobByIdServer(jobId),
-      getPipelineStepsServer(jobId),
+    // Load configs
+    const [photographerConfig, directorConfig, productionConfig] = await Promise.all([
+      job.photographer_config_id
+        ? getPhotographerConfigByIdServer(job.photographer_config_id)
+        : Promise.resolve(null),
+      job.director_config_id
+        ? getDirectorConfigByIdServer(job.director_config_id)
+        : Promise.resolve(null),
+      job.production_config_id
+        ? getProductionConfigByIdServer(job.production_config_id)
+        : Promise.resolve(null),
     ]);
 
-    if (steps.length === 0) {
-      throw new Error('No pipeline steps found');
-    }
-
-    // 3. Fetch style guide if set
-    let styleGuide: CogStyleGuide | null = null;
-    if (job.style_guide_id) {
-      try {
-        styleGuide = await getStyleGuideByIdServer(job.style_guide_id);
-      } catch {
-        console.warn('Style guide not found, continuing without it');
-      }
-    }
-
-    // 4. Initialize context
     const context: PipelineContext = {
-      styleGuidePrompt: styleGuide?.system_prompt || null,
-      initialText: job.base_prompt,
+      photographerConfig,
+      directorConfig,
+      productionConfig,
+      basePrompt: job.base_prompt,
       initialImages: job.initial_images || [],
+      colors: job.colors || [],
+      themes: job.themes || [],
       previousOutputs: [],
     };
 
-    // 5. Execute steps sequentially
+    // Run 6-step inference pipeline to generate the final prompt
+    const finalPrompt = await generateBaseImagePrompt(context, job, seriesId);
+    console.log(`[Foundation] Final synthesized prompt (${finalPrompt.length} chars)`);
+
+    // Generate N candidate base images using I2I (prompt + reference images)
+    const numCandidates = job.num_base_images || 3;
+    const supabase = await createClient();
+
+    // Load reference images as base64 for I2I generation
+    const referenceImageData = await loadReferenceImagesAsBase64(
+      context.initialImages,
+      supabase
+    );
+
+    for (let i = 0; i < numCandidates; i++) {
+      console.log(`[Foundation] Generating base candidate ${i + 1}/${numCandidates}...`);
+
+      // Build a synthetic generate step for image generation
+      // Uses Gemini 3 Pro for I2I if reference images exist, otherwise default model
+      const hasReferences = referenceImageData.length > 0;
+      const generationModel: CogImageModel = hasReferences ? 'gemini-3-pro-image' : 'auto';
+
+      const imageResult = await executeFoundationGenerate({
+        prompt: finalPrompt,
+        referenceImages: referenceImageData,
+        model: generationModel,
+        seriesId,
+        jobId,
+        candidateIndex: i,
+        supabase,
+      });
+
+      // Store candidate in cog_pipeline_base_candidates
+      await createBaseCandidate({
+        job_id: jobId,
+        image_id: imageResult.imageId,
+        candidate_index: i,
+      });
+
+      console.log(`[Foundation] Candidate ${i + 1} stored: ${imageResult.imageId}`);
+    }
+
+    // Mark foundation phase complete
+    await updateJob(jobId, { foundation_status: 'completed' });
+    console.log(`[Foundation] Phase completed for job ${jobId}`);
+  } catch (error) {
+    console.error('[Foundation] Phase failed:', error);
+    await updateJob(jobId, {
+      foundation_status: 'failed',
+      error_message: error instanceof Error ? error.message : 'Foundation phase failed',
+    });
+    throw error;
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// SEQUENCE PHASE: Execute refinement pipeline steps on selected base image
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/**
+ * Run the sequence phase of a pipeline job.
+ *
+ * Requires that a base image has been selected (selected_base_image_id).
+ * Executes all pipeline steps on the selected base image in order.
+ * Updates sequence_status and overall job status.
+ */
+export async function runSequence(input: { jobId: string; seriesId: string }): Promise<void> {
+  const { jobId, seriesId } = input;
+  const supabase = await createClient();
+
+  const job = await getPipelineJobWithStepsServer(jobId);
+
+  if (!job.selected_base_image_id) {
+    throw new Error('No base image selected. Run foundation phase and select a base image first.');
+  }
+
+  // Update sequence status to running
+  await updateJob(jobId, {
+    sequence_status: 'running',
+    status: 'running',
+  });
+
+  try {
+    const context: PipelineContext = {
+      photographerConfig: null, // Not needed for sequence phase
+      directorConfig: null,
+      productionConfig: null,
+      basePrompt: job.base_prompt,
+      initialImages: job.initial_images || [],
+      colors: job.colors || [],
+      themes: job.themes || [],
+      previousOutputs: [job.selected_base_image_id], // Start from selected base
+    };
+
+    // Execute pipeline steps on the selected base image
+    const steps = job.steps.sort((a, b) => a.step_order - b.step_order);
+
+    if (steps.length === 0) {
+      console.log(`[Sequence] No pipeline steps to execute for job ${jobId}`);
+    }
+
     for (const step of steps) {
       // Check for cancellation
       const currentJob = await getJobByIdServer(jobId);
       if (currentJob.status === 'cancelled') {
-        console.log(`Job ${jobId} cancelled, stopping pipeline`);
+        console.log(`[Sequence] Job ${jobId} cancelled, stopping pipeline`);
         break;
       }
 
@@ -90,7 +220,6 @@ export async function runPipelineJob(input: { jobId: string; seriesId: string })
         .eq('id', step.id);
 
       try {
-        // Execute step based on type
         const output = await executeStep(step, context, seriesId, jobId, supabase);
 
         // Store output
@@ -129,24 +258,448 @@ export async function runPipelineJob(input: { jobId: string; seriesId: string })
       }
     }
 
-    // 6. Mark job complete
+    // Mark sequence phase and overall job complete
     await updateJob(jobId, {
+      sequence_status: 'completed',
       status: 'completed',
       completed_at: new Date().toISOString(),
     });
+    console.log(`[Sequence] Phase completed for job ${jobId}`);
   } catch (error) {
-    console.error('Pipeline job failed:', error);
+    console.error('[Sequence] Phase failed:', error);
     await updateJob(jobId, {
+      sequence_status: 'failed',
       status: 'failed',
-      error_message: error instanceof Error ? error.message : 'Unknown error',
+      error_message: error instanceof Error ? error.message : 'Sequence phase failed',
       completed_at: new Date().toISOString(),
     });
     throw error;
   }
 }
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// 6-STEP INFERENCE PIPELINE: Generate the final image prompt
+// ═══════════════════════════════════════════════════════════════════════════════
+
 /**
- * Execute a single pipeline step
+ * Run the 6-step inference pipeline to generate a synthesized image prompt.
+ *
+ * Steps:
+ *   1. Photographer concept generation
+ *   2. Director briefing synthesis
+ *   3. Production constraint integration
+ *   4. Core creative intent refinement (WITH THINKING)
+ *   5. Reference image vision analysis (skipped if no images)
+ *   6. Final director vision synthesis (WITH THINKING)
+ *
+ * Falls back to the plain basePrompt if configs are not available.
+ */
+async function generateBaseImagePrompt(
+  context: PipelineContext,
+  job: CogPipelineJobWithSteps,
+  seriesId: string
+): Promise<string> {
+  // If no configs, fall back to simple base prompt
+  if (!context.photographerConfig || !context.directorConfig || !context.productionConfig) {
+    console.log('[Inference] Missing configs, falling back to base prompt');
+    return context.basePrompt;
+  }
+
+  const inferenceCtx: InferenceContext = {
+    photographerConfig: context.photographerConfig,
+    directorConfig: context.directorConfig,
+    productionConfig: context.productionConfig,
+    basePrompt: context.basePrompt,
+    referenceImages: context.initialImages,
+    colors: context.colors,
+    themes: context.themes,
+  };
+
+  // Get job-level inference controls
+  const inferenceModel = job.inference_model || 'gemini-2.0-flash-thinking-exp';
+  const useThinkingInfer4 = job.use_thinking_infer4 !== false;
+  const useThinkingInfer6 = job.use_thinking_infer6 !== false;
+  const maxRefImages = job.max_reference_images || 3;
+
+  // Step 1: Photographer concept generation
+  console.log('[Inference] Step 1: Photographer concept generation...');
+  const inference1 = await callLLM(
+    buildInference1Prompt(inferenceCtx),
+    false,
+    inferenceModel
+  );
+  console.log(`[Inference] Step 1 complete (${inference1.length} chars)`);
+
+  // Step 2: Director briefing synthesis
+  console.log('[Inference] Step 2: Director briefing synthesis...');
+  const inference2 = await callLLM(
+    buildInference2Prompt(inferenceCtx, inference1),
+    false,
+    inferenceModel
+  );
+  console.log(`[Inference] Step 2 complete (${inference2.length} chars)`);
+
+  // Step 3: Production constraint integration
+  console.log('[Inference] Step 3: Production constraint integration...');
+  const inference3 = await callLLM(
+    buildInference3Prompt(inferenceCtx, inference1, inference2),
+    false,
+    inferenceModel
+  );
+  console.log(`[Inference] Step 3 complete (${inference3.length} chars)`);
+
+  // Step 4: Core creative intent refinement (WITH THINKING)
+  console.log(`[Inference] Step 4: Core intent refinement (thinking=${useThinkingInfer4})...`);
+  const inference4 = await callLLM(
+    buildInference4Prompt(inferenceCtx, inference3),
+    useThinkingInfer4,
+    inferenceModel
+  );
+  console.log(`[Inference] Step 4 complete (${inference4.length} chars)`);
+
+  // Step 5: Reference image vision analysis (skipped if no images)
+  const visionOutputs: string[] = [];
+  if (context.initialImages.length > 0) {
+    const imagesToAnalyze = context.initialImages.slice(0, maxRefImages);
+    console.log(`[Inference] Step 5: Vision analysis on ${imagesToAnalyze.length} reference images...`);
+    const supabase = await createClient();
+
+    for (const imageId of imagesToAnalyze) {
+      try {
+        const image = await getImageByIdServer(imageId);
+        const imageBase64 = await fetchImageAsBase64(image.storage_path, supabase);
+        const visionAnalysis = await callVisionLLM(
+          buildVisionPrompt(),
+          imageBase64,
+          inferenceModel
+        );
+        visionOutputs.push(visionAnalysis);
+        console.log(`[Inference] Step 5: Analyzed image ${imageId} (${visionAnalysis.length} chars)`);
+      } catch (error) {
+        console.warn(`[Inference] Step 5: Failed to analyze image ${imageId}:`, error);
+        visionOutputs.push(`[Image ${imageId}: Analysis failed]`);
+      }
+    }
+  } else {
+    console.log('[Inference] Step 5: Skipped (no reference images)');
+  }
+
+  // Step 6: Final director vision synthesis (WITH THINKING)
+  console.log(`[Inference] Step 6: Final synthesis (thinking=${useThinkingInfer6})...`);
+  const finalPrompt = await callLLM(
+    buildInference6Prompt(inferenceCtx, inference4, visionOutputs),
+    useThinkingInfer6,
+    inferenceModel
+  );
+  console.log(`[Inference] Step 6 complete (${finalPrompt.length} chars)`);
+
+  return finalPrompt;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// LLM HELPER FUNCTIONS: Gemini API calls
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/**
+ * Call a Gemini model for text generation.
+ *
+ * Uses the Google Generative AI REST API directly (same pattern as
+ * gemini-multimodal.ts) to support thinking-capable models.
+ *
+ * @param prompt - The prompt text
+ * @param useThinking - Whether to use a thinking-capable model variant
+ * @param inferenceModel - The model ID to use (e.g. 'gemini-2.0-flash-thinking-exp')
+ */
+async function callLLM(
+  prompt: string,
+  useThinking: boolean,
+  inferenceModel: string
+): Promise<string> {
+  const apiKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY;
+  if (!apiKey) {
+    throw new Error('GOOGLE_GENERATIVE_AI_API_KEY not configured for inference pipeline');
+  }
+
+  // Use the specified model. If thinking is requested and the model supports it,
+  // use higher temperature and let the model reason deeply.
+  const modelId = inferenceModel;
+
+  const requestBody: Record<string, unknown> = {
+    contents: [
+      {
+        parts: [{ text: prompt }],
+      },
+    ],
+    generationConfig: {
+      temperature: useThinking ? 0.8 : 0.7,
+      maxOutputTokens: useThinking ? 2000 : 1200,
+    },
+  };
+
+  const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${modelId}:generateContent`;
+
+  const response = await fetch(endpoint, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-goog-api-key': apiKey,
+    },
+    body: JSON.stringify(requestBody),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error(`[callLLM] API error (${response.status}):`, errorText.slice(0, 300));
+    throw new Error(`Gemini API error (${response.status}): ${errorText.slice(0, 200)}`);
+  }
+
+  const result = await response.json();
+  const text = result.candidates?.[0]?.content?.parts?.[0]?.text;
+
+  if (!text) {
+    throw new Error('No text response from Gemini inference model');
+  }
+
+  return text.trim();
+}
+
+/**
+ * Call a Gemini model for vision (image + text) analysis.
+ *
+ * @param prompt - The text prompt to accompany the image
+ * @param imageBase64 - Base64-encoded image data
+ * @param inferenceModel - The model ID to use
+ */
+async function callVisionLLM(
+  prompt: string,
+  imageBase64: string,
+  inferenceModel: string
+): Promise<string> {
+  const apiKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY;
+  if (!apiKey) {
+    throw new Error('GOOGLE_GENERATIVE_AI_API_KEY not configured for vision analysis');
+  }
+
+  // Vision analysis uses a non-thinking model (fast analysis)
+  // Default to gemini-2.0-flash for vision since it handles images well
+  const visionModel = 'gemini-2.0-flash';
+
+  const requestBody = {
+    contents: [
+      {
+        parts: [
+          {
+            inlineData: {
+              mimeType: 'image/png',
+              data: imageBase64,
+            },
+          },
+          { text: prompt },
+        ],
+      },
+    ],
+    generationConfig: {
+      temperature: 0.3,
+      maxOutputTokens: 800,
+    },
+  };
+
+  const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${visionModel}:generateContent`;
+
+  const response = await fetch(endpoint, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-goog-api-key': apiKey,
+    },
+    body: JSON.stringify(requestBody),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error(`[callVisionLLM] API error (${response.status}):`, errorText.slice(0, 300));
+    throw new Error(`Gemini Vision API error (${response.status}): ${errorText.slice(0, 200)}`);
+  }
+
+  const result = await response.json();
+  const text = result.candidates?.[0]?.content?.parts?.[0]?.text;
+
+  if (!text) {
+    throw new Error('No text response from Gemini vision model');
+  }
+
+  return text.trim();
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// IMAGE LOADING HELPERS
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/**
+ * Load reference images from storage as base64 strings.
+ *
+ * @param imageIds - Array of cog_images IDs to load
+ * @param supabase - Supabase server client instance
+ * @returns Array of base64-encoded image data
+ */
+async function loadReferenceImagesAsBase64(
+  imageIds: string[],
+  supabase: Awaited<ReturnType<typeof createClient>>
+): Promise<string[]> {
+  const imageData: string[] = [];
+  for (const imageId of imageIds) {
+    try {
+      const image = await getImageByIdServer(imageId);
+      const base64 = await fetchImageAsBase64(image.storage_path, supabase);
+      imageData.push(base64);
+    } catch (error) {
+      console.warn(`[loadReferenceImages] Failed to load image ${imageId}:`, error);
+      // Skip failed images rather than failing the whole pipeline
+    }
+  }
+  return imageData;
+}
+
+/**
+ * Fetch an image from Supabase storage and return as base64.
+ *
+ * @param storagePath - The storage path within the cog-images bucket
+ * @param supabase - Supabase server client instance
+ * @returns Base64-encoded image data
+ */
+async function fetchImageAsBase64(
+  storagePath: string,
+  supabase: Awaited<ReturnType<typeof createClient>>
+): Promise<string> {
+  const { data: imageBlob, error: downloadError } = await supabase.storage
+    .from('cog-images')
+    .download(storagePath);
+
+  if (downloadError) throw downloadError;
+  if (!imageBlob) throw new Error(`No data returned for image at ${storagePath}`);
+
+  const arrayBuffer = await imageBlob.arrayBuffer();
+  return Buffer.from(arrayBuffer).toString('base64');
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// FOUNDATION IMAGE GENERATION: Generate a single base candidate image
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/**
+ * Generate a single candidate base image for the foundation phase.
+ * Supports I2I: passes reference images to the generation model.
+ */
+async function executeFoundationGenerate(params: {
+  prompt: string;
+  referenceImages: string[]; // base64-encoded reference image data
+  model: CogImageModel;
+  seriesId: string;
+  jobId: string;
+  candidateIndex: number;
+  supabase: Awaited<ReturnType<typeof createClient>>;
+}): Promise<{ imageId: string; metadata: Record<string, unknown> }> {
+  const { prompt, referenceImages, model, seriesId, jobId, candidateIndex, supabase } = params;
+  const aspectRatio: CogAspectRatio = '1:1';
+  const imageSize: CogImageSize = '2K';
+
+  const resolvedModel = selectImageModel(model, referenceImages.length > 0, referenceImages.length);
+
+  let imageBase64: string;
+  const generationMetadata: Record<string, unknown> = {
+    model: resolvedModel,
+    prompt,
+    size: imageSize,
+    aspectRatio,
+    phase: 'foundation',
+    candidateIndex,
+  };
+
+  // Build reference image objects for models that support them
+  const refImageObjects = referenceImages.map((base64) => ({
+    base64,
+    mimeType: 'image/png',
+  }));
+
+  if (resolvedModel === 'gemini-3-pro-image' && isGemini3ProConfigured()) {
+    const result = await generateImageWithGemini3Pro({
+      prompt,
+      referenceImages: refImageObjects.length > 0 ? refImageObjects : undefined,
+      aspectRatio,
+      imageSize,
+    });
+    imageBase64 = result.base64;
+    generationMetadata.provider = 'gemini-3-pro';
+  } else if (
+    (resolvedModel === 'flux-2-pro' || resolvedModel === 'flux-2-dev') &&
+    isFluxConfigured()
+  ) {
+    const fluxAspectRatio = mapAspectRatioToFlux(aspectRatio);
+    const fluxResolution = mapSizeToFluxResolution(imageSize, resolvedModel);
+    const result = await generateWithFlux({
+      prompt,
+      referenceImages: refImageObjects.length > 0 ? refImageObjects : undefined,
+      model: resolvedModel,
+      aspectRatio: fluxAspectRatio,
+      resolution: fluxResolution,
+    });
+    imageBase64 = result.buffer.toString('base64');
+    generationMetadata.provider = 'replicate-flux';
+  } else if (resolvedModel === 'imagen-3-capability' && isVertexConfigured()) {
+    const result = await generateImageWithVertex({
+      prompt,
+      referenceImages: refImageObjects.length > 0 ? refImageObjects : undefined,
+      aspectRatio,
+    });
+    imageBase64 = result.base64;
+    generationMetadata.provider = 'vertex-imagen';
+  } else {
+    // Default to Imagen via Vercel AI SDK (no I2I support)
+    const google = getGoogle();
+    const { image } = await generateImage({
+      model: google.image('imagen-3.0-generate-002'),
+      prompt,
+      aspectRatio,
+    });
+    imageBase64 = image.base64;
+    generationMetadata.provider = 'google-imagen';
+  }
+
+  // Upload to storage
+  const imageData = Buffer.from(imageBase64, 'base64');
+  const filename = `pipeline-${jobId}-foundation-${candidateIndex}-${Date.now()}.png`;
+  const storagePath = `${seriesId}/${filename}`;
+
+  const { error: uploadError } = await supabase.storage
+    .from('cog-images')
+    .upload(storagePath, imageData, { contentType: 'image/png' });
+
+  if (uploadError) throw uploadError;
+
+  // Create image record
+  const image = await createImage({
+    series_id: seriesId,
+    job_id: jobId,
+    storage_path: storagePath,
+    filename,
+    mime_type: 'image/png',
+    source: 'generated',
+    prompt,
+    metadata: generationMetadata,
+  });
+
+  return {
+    imageId: image.id,
+    metadata: generationMetadata,
+  };
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// STEP EXECUTORS: Used by both sequence phase and legacy pipeline
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/**
+ * Execute a single pipeline step, dispatching by step type.
  */
 async function executeStep(
   step: CogPipelineStep,
@@ -154,7 +707,7 @@ async function executeStep(
   seriesId: string,
   jobId: string,
   supabase: Awaited<ReturnType<typeof createClient>>
-): Promise<{ imageId: string; metadata: any }> {
+): Promise<{ imageId: string; metadata: Record<string, unknown> }> {
   switch (step.step_type) {
     case 'generate':
       return executeGenerateStep(step, context, seriesId, jobId, supabase);
@@ -180,14 +733,9 @@ async function executeGenerateStep(
   seriesId: string,
   jobId: string,
   supabase: Awaited<ReturnType<typeof createClient>>
-): Promise<{ imageId: string; metadata: any }> {
+): Promise<{ imageId: string; metadata: Record<string, unknown> }> {
   // Build the full prompt
-  let fullPrompt = context.initialText;
-
-  // Add style guide if present
-  if (context.styleGuidePrompt) {
-    fullPrompt = `${context.styleGuidePrompt}\n\n${fullPrompt}`;
-  }
+  let fullPrompt = context.basePrompt;
 
   // Add step-specific prompt if present
   const stepPrompt = step.config.prompt as string | undefined;
@@ -204,7 +752,7 @@ async function executeGenerateStep(
   const resolvedModel = selectImageModel(model, false, 0);
 
   let imageBase64: string;
-  let generationMetadata: any = {
+  const generationMetadata: Record<string, unknown> = {
     model: resolvedModel,
     prompt: fullPrompt,
     size: imageSize,
@@ -294,7 +842,7 @@ async function executeRefineStep(
   seriesId: string,
   jobId: string,
   supabase: Awaited<ReturnType<typeof createClient>>
-): Promise<{ imageId: string; metadata: any }> {
+): Promise<{ imageId: string; metadata: Record<string, unknown> }> {
   // Get the most recent output image
   if (context.previousOutputs.length === 0) {
     throw new Error('Refine step requires a previous output image');
@@ -325,10 +873,7 @@ async function executeRefineStep(
   const imageBase64 = Buffer.from(arrayBuffer).toString('base64');
 
   // Build refinement prompt
-  let fullPrompt = context.initialText;
-  if (context.styleGuidePrompt) {
-    fullPrompt = `${context.styleGuidePrompt}\n\n${fullPrompt}`;
-  }
+  let fullPrompt = context.basePrompt;
 
   const refinementPrompt = step.config.refinementPrompt as string;
   if (refinementPrompt) {
@@ -343,7 +888,7 @@ async function executeRefineStep(
   // Generate refined image using reference
   const resolvedModel = selectImageModel(model, true, 1);
   let imageResult: string;
-  let generationMetadata: any = {
+  const generationMetadata: Record<string, unknown> = {
     model: resolvedModel,
     prompt: fullPrompt,
     size: imageSize,
@@ -426,9 +971,7 @@ async function executeEvalStep(
   seriesId: string,
   jobId: string,
   supabase: Awaited<ReturnType<typeof createClient>>
-): Promise<{ imageId: string; metadata: any }> {
-  // For now, assume we evaluate the last output
-  // In a more advanced implementation, this could evaluate multiple candidates
+): Promise<{ imageId: string; metadata: Record<string, unknown> }> {
   if (context.previousOutputs.length === 0) {
     throw new Error('Eval step requires at least one previous output');
   }
@@ -461,9 +1004,9 @@ async function executeEvalStep(
     const imageBase64 = Buffer.from(arrayBuffer).toString('base64');
 
     // Use LLM to evaluate
-    const model = getModel('gemini-flash');
+    const evalModel = getModel('gemini-flash');
     const result = await generateText({
-      model,
+      model: evalModel,
       messages: [
         {
           role: 'user',
@@ -517,16 +1060,11 @@ async function executeInpaintStep(
   seriesId: string,
   jobId: string,
   supabase: Awaited<ReturnType<typeof createClient>>
-): Promise<{ imageId: string; metadata: any }> {
-  // Get previous image
+): Promise<{ imageId: string; metadata: Record<string, unknown> }> {
   if (context.previousOutputs.length === 0) {
     throw new Error('Inpaint step requires a previous output image');
   }
 
-  const previousImageId = context.previousOutputs[context.previousOutputs.length - 1];
-
-  // Note: Inpainting requires specialized APIs that may not be available
-  // This is a stub implementation that explains the limitation
   throw new Error(
     'Inpaint step requires inpainting API integration (e.g., Vertex Imagen EditImage). ' +
     'This feature is not yet implemented. ' +
@@ -543,16 +1081,11 @@ async function executeUpscaleStep(
   seriesId: string,
   jobId: string,
   supabase: Awaited<ReturnType<typeof createClient>>
-): Promise<{ imageId: string; metadata: any }> {
-  // Get previous image
+): Promise<{ imageId: string; metadata: Record<string, unknown> }> {
   if (context.previousOutputs.length === 0) {
     throw new Error('Upscale step requires a previous output image');
   }
 
-  const previousImageId = context.previousOutputs[context.previousOutputs.length - 1];
-
-  // Note: Upscaling requires specialized APIs (e.g., Replicate Real-ESRGAN)
-  // This is a stub implementation that explains the limitation
   throw new Error(
     'Upscale step requires upscaling API integration (e.g., Replicate Real-ESRGAN). ' +
     'This feature is not yet implemented. ' +
@@ -560,8 +1093,12 @@ async function executeUpscaleStep(
   );
 }
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// MODEL SELECTION AND MAPPING UTILITIES
+// ═══════════════════════════════════════════════════════════════════════════════
+
 /**
- * Select image model (simplified for pipeline - no reference images in generate step)
+ * Select image model (simplified for pipeline)
  */
 function selectImageModel(
   jobModel: CogImageModel,

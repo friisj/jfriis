@@ -11,27 +11,40 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { StepBuilder } from './step-builder';
 import { InitialInputSelector } from './initial-input-selector';
 import { createPipelineJob } from '@/lib/cog';
-import { runPipelineJob } from '@/lib/ai/actions/run-pipeline-job';
-import type { CogImage, CogStyleGuide, CogPipelineStepInsert } from '@/lib/types/cog';
+import { runFoundation } from '@/lib/ai/actions/run-pipeline-job';
+import type { CogImage, CogPhotographerConfig, CogDirectorConfig, CogProductionConfig, CogPipelineStepInsert } from '@/lib/types/cog';
 
 interface PipelineBuilderFormProps {
   seriesId: string;
   images: CogImage[];
-  styleGuides: CogStyleGuide[];
+  photographerConfigs: CogPhotographerConfig[];
+  directorConfigs: CogDirectorConfig[];
+  productionConfigs: CogProductionConfig[];
 }
 
 export type PipelineStepConfig = Omit<CogPipelineStepInsert, 'job_id'>;
 
-export function PipelineBuilderForm({ seriesId, images, styleGuides }: PipelineBuilderFormProps) {
+export function PipelineBuilderForm({ seriesId, images, photographerConfigs, directorConfigs, productionConfigs }: PipelineBuilderFormProps) {
   const router = useRouter();
   const [stage, setStage] = useState<'configure' | 'review'>('configure');
 
   // Form state
   const [title, setTitle] = useState('');
-  const [styleGuideId, setStyleGuideId] = useState<string>('');
   const [basePrompt, setBasePrompt] = useState('');
   const [selectedImages, setSelectedImages] = useState<string[]>([]);
   const [steps, setSteps] = useState<PipelineStepConfig[]>([]);
+
+  // Config selection
+  const [photographerConfigId, setPhotographerConfigId] = useState<string>('');
+  const [directorConfigId, setDirectorConfigId] = useState<string>('');
+  const [productionConfigId, setProductionConfigId] = useState<string>('');
+
+  // Creative inputs
+  const [colors, setColors] = useState<string>('');  // comma-separated
+  const [themes, setThemes] = useState<string>('');  // comma-separated
+
+  // Inference controls
+  const [numBaseImages, setNumBaseImages] = useState(3);
 
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -63,9 +76,17 @@ export function PipelineBuilderForm({ seriesId, images, styleGuides }: PipelineB
       const { job } = await createPipelineJob({
         series_id: seriesId,
         title: title || null,
-        style_guide_id: styleGuideId || null,
         initial_images: selectedImages.length > 0 ? selectedImages : null,
         base_prompt: basePrompt,
+        // Pipeline config references
+        photographer_config_id: photographerConfigId || null,
+        director_config_id: directorConfigId || null,
+        production_config_id: productionConfigId || null,
+        // Creative inputs
+        colors: colors ? colors.split(',').map(c => c.trim()).filter(Boolean) : null,
+        themes: themes ? themes.split(',').map(t => t.trim()).filter(Boolean) : null,
+        // Execution controls
+        num_base_images: numBaseImages,
         steps: steps.map((step, idx) => ({
           ...step,
           job_id: '', // Will be set by the function
@@ -74,9 +95,10 @@ export function PipelineBuilderForm({ seriesId, images, styleGuides }: PipelineB
       });
 
       if (runImmediately) {
-        // Trigger job execution in background
-        runPipelineJob({ jobId: job.id, seriesId }).catch((err) => {
-          console.error('Failed to run pipeline:', err);
+        // Two-phase execution: run foundation first
+        // Sequence phase runs after user selects a base image
+        runFoundation({ jobId: job.id, seriesId }).catch((err) => {
+          console.error('Failed to run foundation:', err);
         });
         // Navigate to monitor page
         router.push(`/tools/cog/${seriesId}/pipeline/${job.id}`);
@@ -111,11 +133,27 @@ export function PipelineBuilderForm({ seriesId, images, styleGuides }: PipelineB
               </p>
             </div>
 
-            {styleGuideId && (
+            {photographerConfigId && (
               <div>
-                <Label className="text-sm font-medium">Style Guide</Label>
+                <Label className="text-sm font-medium">Photographer</Label>
                 <p className="text-sm text-muted-foreground">
-                  {styleGuides.find((g) => g.id === styleGuideId)?.name}
+                  {photographerConfigs.find((c) => c.id === photographerConfigId)?.name}
+                </p>
+              </div>
+            )}
+            {directorConfigId && (
+              <div>
+                <Label className="text-sm font-medium">Director</Label>
+                <p className="text-sm text-muted-foreground">
+                  {directorConfigs.find((c) => c.id === directorConfigId)?.name}
+                </p>
+              </div>
+            )}
+            {productionConfigId && (
+              <div>
+                <Label className="text-sm font-medium">Production</Label>
+                <p className="text-sm text-muted-foreground">
+                  {productionConfigs.find((c) => c.id === productionConfigId)?.name}
                 </p>
               </div>
             )}
@@ -207,36 +245,97 @@ export function PipelineBuilderForm({ seriesId, images, styleGuides }: PipelineB
             />
           </div>
 
-          {styleGuides.length > 0 && (
+          {/* Config Selectors */}
+          {photographerConfigs.length > 0 && (
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <Label htmlFor="style-guide">Style Guide (optional)</Label>
-                {styleGuideId && (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setStyleGuideId('')}
-                    className="h-auto py-0 px-2 text-xs"
-                  >
-                    Clear
-                  </Button>
+                <Label>Photographer Config</Label>
+                {photographerConfigId && (
+                  <Button type="button" variant="ghost" size="sm" onClick={() => setPhotographerConfigId('')} className="h-auto py-0 px-2 text-xs">Clear</Button>
                 )}
               </div>
-              <Select value={styleGuideId || undefined} onValueChange={setStyleGuideId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select a style guide" />
-                </SelectTrigger>
+              <Select value={photographerConfigId || undefined} onValueChange={setPhotographerConfigId}>
+                <SelectTrigger><SelectValue placeholder="Select photographer config" /></SelectTrigger>
                 <SelectContent>
-                  {styleGuides.map((guide) => (
-                    <SelectItem key={guide.id} value={guide.id}>
-                      {guide.name}
-                    </SelectItem>
+                  {photographerConfigs.map((c) => (
+                    <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
           )}
+
+          {directorConfigs.length > 0 && (
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label>Director Config</Label>
+                {directorConfigId && (
+                  <Button type="button" variant="ghost" size="sm" onClick={() => setDirectorConfigId('')} className="h-auto py-0 px-2 text-xs">Clear</Button>
+                )}
+              </div>
+              <Select value={directorConfigId || undefined} onValueChange={setDirectorConfigId}>
+                <SelectTrigger><SelectValue placeholder="Select director config" /></SelectTrigger>
+                <SelectContent>
+                  {directorConfigs.map((c) => (
+                    <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
+          {productionConfigs.length > 0 && (
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label>Production Config</Label>
+                {productionConfigId && (
+                  <Button type="button" variant="ghost" size="sm" onClick={() => setProductionConfigId('')} className="h-auto py-0 px-2 text-xs">Clear</Button>
+                )}
+              </div>
+              <Select value={productionConfigId || undefined} onValueChange={setProductionConfigId}>
+                <SelectTrigger><SelectValue placeholder="Select production config" /></SelectTrigger>
+                <SelectContent>
+                  {productionConfigs.map((c) => (
+                    <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
+          {/* Creative Inputs */}
+          <div className="space-y-2">
+            <Label htmlFor="colors">Colors (optional, comma-separated)</Label>
+            <Input
+              id="colors"
+              value={colors}
+              onChange={(e) => setColors(e.target.value)}
+              placeholder="e.g., deep blue, warm gold, crimson"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="themes">Themes/Topics (optional, comma-separated)</Label>
+            <Input
+              id="themes"
+              value={themes}
+              onChange={(e) => setThemes(e.target.value)}
+              placeholder="e.g., nostalgia, urban decay, golden hour"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="numBaseImages">Base Image Candidates</Label>
+            <Input
+              id="numBaseImages"
+              type="number"
+              min={1}
+              max={10}
+              value={numBaseImages}
+              onChange={(e) => setNumBaseImages(parseInt(e.target.value) || 3)}
+            />
+            <p className="text-xs text-muted-foreground">How many candidate base images to generate in the foundation phase</p>
+          </div>
         </CardContent>
       </Card>
 

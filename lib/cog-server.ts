@@ -22,9 +22,12 @@ import type {
   CogImageWithTags,
   CogSeriesWithImagesAndTags,
   CogImageWithGroupInfo,
-  CogStyleGuide,
   CogPipelineStep,
   CogPipelineJobWithSteps,
+  CogPhotographerConfig,
+  CogDirectorConfig,
+  CogProductionConfig,
+  CogPipelineBaseCandidate,
 } from './types/cog';
 
 // ============================================================================
@@ -612,40 +615,6 @@ export const getRootImagesWithVersionCountsServer = getGroupPrimaryImagesServer;
 export const getImageVersionChainServer = getImageGroupServer;
 
 // ============================================================================
-// Style Guide Operations (Server)
-// ============================================================================
-
-/**
- * Get all style guides for a series - server-side
- */
-export async function getSeriesStyleGuidesServer(seriesId: string): Promise<CogStyleGuide[]> {
-  const client = await createClient();
-  const { data, error } = await (client as any)
-    .from('cog_style_guides')
-    .select('*')
-    .eq('series_id', seriesId)
-    .order('created_at', { ascending: false });
-
-  if (error) throw error;
-  return data as CogStyleGuide[];
-}
-
-/**
- * Get a single style guide by ID - server-side
- */
-export async function getStyleGuideByIdServer(id: string): Promise<CogStyleGuide> {
-  const client = await createClient();
-  const { data, error } = await (client as any)
-    .from('cog_style_guides')
-    .select('*')
-    .eq('id', id)
-    .single();
-
-  if (error) throw error;
-  return data as CogStyleGuide;
-}
-
-// ============================================================================
 // Pipeline Job Operations (Server)
 // ============================================================================
 
@@ -665,7 +634,7 @@ export async function getPipelineStepsServer(jobId: string): Promise<CogPipeline
 }
 
 /**
- * Get pipeline job with steps and style guide - server-side
+ * Get pipeline job with steps and configs - server-side
  */
 export async function getPipelineJobWithStepsServer(jobId: string): Promise<CogPipelineJobWithSteps> {
   const client = await createClient();
@@ -684,15 +653,18 @@ export async function getPipelineJobWithStepsServer(jobId: string): Promise<CogP
 
   const job = jobResult.data as CogJob;
 
-  // Fetch style guide if present
-  let styleGuide: CogStyleGuide | null = null;
-  if (job.style_guide_id) {
-    try {
-      styleGuide = await getStyleGuideByIdServer(job.style_guide_id);
-    } catch {
-      // Style guide may have been deleted
-    }
-  }
+  // Fetch pipeline configs if present
+  const [photographerConfig, directorConfig, productionConfig] = await Promise.all([
+    job.photographer_config_id
+      ? getPhotographerConfigByIdServer(job.photographer_config_id).catch(() => null)
+      : null,
+    job.director_config_id
+      ? getDirectorConfigByIdServer(job.director_config_id).catch(() => null)
+      : null,
+    job.production_config_id
+      ? getProductionConfigByIdServer(job.production_config_id).catch(() => null)
+      : null,
+  ]);
 
   // Process steps with their outputs
   const steps = stepsResult.data.map((step: any) => ({
@@ -703,6 +675,129 @@ export async function getPipelineJobWithStepsServer(jobId: string): Promise<CogP
   return {
     ...job,
     steps,
-    style_guide: styleGuide,
+    photographer_config: photographerConfig,
+    director_config: directorConfig,
+    production_config: productionConfig,
   } as CogPipelineJobWithSteps;
+}
+
+// ============================================================================
+// Photographer Config Operations (Server)
+// ============================================================================
+
+/**
+ * Get a single photographer config by ID - server-side
+ */
+export async function getPhotographerConfigByIdServer(id: string): Promise<CogPhotographerConfig> {
+  const client = await createClient();
+  const { data, error } = await (client as any)
+    .from('cog_photographer_configs')
+    .select('*')
+    .eq('id', id)
+    .single();
+
+  if (error) throw error;
+  return data as CogPhotographerConfig;
+}
+
+/**
+ * Get all photographer configs for a series - server-side
+ */
+export async function getSeriesPhotographerConfigsServer(seriesId: string): Promise<CogPhotographerConfig[]> {
+  const client = await createClient();
+  const { data, error } = await (client as any)
+    .from('cog_photographer_configs')
+    .select('*')
+    .eq('series_id', seriesId)
+    .order('created_at', { ascending: false });
+
+  if (error) throw error;
+  return data as CogPhotographerConfig[];
+}
+
+// ============================================================================
+// Director Config Operations (Server)
+// ============================================================================
+
+/**
+ * Get a single director config by ID - server-side
+ */
+export async function getDirectorConfigByIdServer(id: string): Promise<CogDirectorConfig> {
+  const client = await createClient();
+  const { data, error } = await (client as any)
+    .from('cog_director_configs')
+    .select('*')
+    .eq('id', id)
+    .single();
+
+  if (error) throw error;
+  return data as CogDirectorConfig;
+}
+
+/**
+ * Get all director configs for a series - server-side
+ */
+export async function getSeriesDirectorConfigsServer(seriesId: string): Promise<CogDirectorConfig[]> {
+  const client = await createClient();
+  const { data, error } = await (client as any)
+    .from('cog_director_configs')
+    .select('*')
+    .eq('series_id', seriesId)
+    .order('created_at', { ascending: false });
+
+  if (error) throw error;
+  return data as CogDirectorConfig[];
+}
+
+// ============================================================================
+// Production Config Operations (Server)
+// ============================================================================
+
+/**
+ * Get a single production config by ID - server-side
+ */
+export async function getProductionConfigByIdServer(id: string): Promise<CogProductionConfig> {
+  const client = await createClient();
+  const { data, error } = await (client as any)
+    .from('cog_production_configs')
+    .select('*')
+    .eq('id', id)
+    .single();
+
+  if (error) throw error;
+  return data as CogProductionConfig;
+}
+
+/**
+ * Get all production configs for a series - server-side
+ */
+export async function getSeriesProductionConfigsServer(seriesId: string): Promise<CogProductionConfig[]> {
+  const client = await createClient();
+  const { data, error } = await (client as any)
+    .from('cog_production_configs')
+    .select('*')
+    .eq('series_id', seriesId)
+    .order('created_at', { ascending: false });
+
+  if (error) throw error;
+  return data as CogProductionConfig[];
+}
+
+// ============================================================================
+// Base Candidate Operations (Server)
+// ============================================================================
+
+/**
+ * Get base candidates for a pipeline job - server-side
+ */
+export async function getBaseCandidatesForJobServer(jobId: string): Promise<CogPipelineBaseCandidate[]> {
+  const client = await createClient();
+  const { data, error } = await (client as any)
+    .from('cog_pipeline_base_candidates')
+    .select('*')
+    .eq('job_id', jobId)
+    .order('candidate_index', { ascending: true });
+
+  if (error) throw error;
+  return data as CogPipelineBaseCandidate[];
 }

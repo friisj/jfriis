@@ -5,12 +5,23 @@ import {
   getChildSeriesServer,
   getEnabledTagsForSeriesServer,
   getGlobalTagsServer,
-  getSeriesStyleGuidesServer,
+  getSeriesPhotographerConfigsServer,
+  getSeriesDirectorConfigsServer,
+  getSeriesProductionConfigsServer,
 } from '@/lib/cog-server';
 import { createClient } from '@/lib/supabase-server';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import type { CogSeries, CogJob, CogTag, CogTagWithGroup, CogImageWithGroupInfo, CogStyleGuide } from '@/lib/types/cog';
+import type {
+  CogSeries,
+  CogJob,
+  CogTag,
+  CogTagWithGroup,
+  CogImageWithGroupInfo,
+  CogPhotographerConfig,
+  CogDirectorConfig,
+  CogProductionConfig,
+} from '@/lib/types/cog';
 import { SeriesLayout } from './series-layout';
 
 interface Props {
@@ -24,18 +35,22 @@ async function getSeriesData(id: string): Promise<{
   children: CogSeries[];
   enabledTags: CogTagWithGroup[];
   globalTags: CogTag[];
-  styleGuides: CogStyleGuide[];
+  photographerConfigs: CogPhotographerConfig[];
+  directorConfigs: CogDirectorConfig[];
+  productionConfigs: CogProductionConfig[];
 } | null> {
   try {
     // Fetch series first to get primary_image_id
     const series = await getSeriesByIdServer(id);
 
     // Then fetch remaining data in parallel, using primary_image_id for group covers
-    const [images, jobs, children, styleGuides] = await Promise.all([
+    const [images, jobs, children, photographerConfigs, directorConfigs, productionConfigs] = await Promise.all([
       getGroupPrimaryImagesServer(id, series.primary_image_id),
       getSeriesJobsServer(id),
       getChildSeriesServer(id),
-      getSeriesStyleGuidesServer(id),
+      getSeriesPhotographerConfigsServer(id),
+      getSeriesDirectorConfigsServer(id),
+      getSeriesProductionConfigsServer(id),
     ]);
 
     // Tag data (optional - tables may not exist yet)
@@ -58,7 +73,9 @@ async function getSeriesData(id: string): Promise<{
       children,
       enabledTags,
       globalTags,
-      styleGuides,
+      photographerConfigs,
+      directorConfigs,
+      productionConfigs,
     };
   } catch {
     return null;
@@ -78,7 +95,7 @@ export default async function SeriesDetailPage({ params }: Props) {
     notFound();
   }
 
-  const { series, images, jobs, children, enabledTags, globalTags, styleGuides } = data;
+  const { series, images, jobs, children, enabledTags, globalTags, photographerConfigs, directorConfigs, productionConfigs } = data;
 
   return (
     <div className="flex-1 border border-blue-500">
@@ -90,7 +107,9 @@ export default async function SeriesDetailPage({ params }: Props) {
         seriesId={id}
         enabledTags={enabledTags}
         globalTags={globalTags}
-        styleGuides={styleGuides}
+        photographerConfigs={photographerConfigs}
+        directorConfigs={directorConfigs}
+        productionConfigs={productionConfigs}
         userId={user.id}
       />
     </div>

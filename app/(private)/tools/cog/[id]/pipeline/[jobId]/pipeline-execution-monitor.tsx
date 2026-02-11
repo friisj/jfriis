@@ -1,27 +1,106 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { PipelineStepCard } from './pipeline-step-card';
-import { updateJob } from '@/lib/cog';
-import type { CogPipelineJobWithSteps } from '@/lib/types/cog';
+import { updateJob, selectBaseImage, getCogImageUrl, getBaseCandidatesForJob, getImageById } from '@/lib/cog';
+import { runFoundation, runSequence } from '@/lib/ai/actions/run-pipeline-job';
+import type { CogPipelineJobWithSteps, CogPipelineBaseCandidate, CogFoundationStatus, CogSequenceStatus } from '@/lib/types/cog';
+
+// ============================================================================
+// Types
+// ============================================================================
+
+export interface BaseCandidateWithImage extends CogPipelineBaseCandidate {
+  storage_path: string | null;
+}
+
+// ============================================================================
+// Phase Status Helpers
+// ============================================================================
+
+type PhaseStatus = 'pending' | 'running' | 'completed' | 'failed';
+
+function getPhaseStatusColor(status: PhaseStatus): string {
+  switch (status) {
+    case 'completed':
+      return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200';
+    case 'running':
+      return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200 animate-pulse';
+    case 'failed':
+      return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200';
+    default:
+      return 'bg-muted text-muted-foreground';
+  }
+}
+
+function getBaseSelectionStatus(job: CogPipelineJobWithSteps): PhaseStatus {
+  if (job.selected_base_image_id) return 'completed';
+  if (job.foundation_status === 'completed' && !job.selected_base_image_id) return 'running';
+  if (job.foundation_status === 'completed' || job.foundation_status === 'failed') return 'pending';
+  return 'pending';
+}
+
+// ============================================================================
+// Component
+// ============================================================================
 
 interface PipelineExecutionMonitorProps {
   job: CogPipelineJobWithSteps;
   seriesId: string;
+  initialBaseCandidates?: BaseCandidateWithImage[];
 }
 
-export function PipelineExecutionMonitor({ job: initialJob, seriesId }: PipelineExecutionMonitorProps) {
+export function PipelineExecutionMonitor({
+  job: initialJob,
+  seriesId,
+  initialBaseCandidates = [],
+}: PipelineExecutionMonitorProps) {
   const router = useRouter();
   const [job, setJob] = useState(initialJob);
+  const [baseCandidates, setBaseCandidates] = useState<BaseCandidateWithImage[]>(initialBaseCandidates);
   const [isPolling, setIsPolling] = useState(
     initialJob.status === 'running' || initialJob.status === 'ready'
   );
   const [isCancelling, setIsCancelling] = useState(false);
+  const [isSelectingBase, setIsSelectingBase] = useState(false);
+  const [isRunningAction, setIsRunningAction] = useState(false);
   const [countdown, setCountdown] = useState<number | null>(null);
+
+  // Determine if this is a two-phase job
+  const isTwoPhase = !!(
+    job.photographer_config_id ||
+    job.director_config_id ||
+    job.production_config_id
+  );
+
+  const foundationStatus = (job.foundation_status || 'pending') as CogFoundationStatus;
+  const selectionStatus = getBaseSelectionStatus(job);
+  const sequenceStatus = (job.sequence_status || 'pending') as CogSequenceStatus;
+
+  // Fetch base candidates when foundation completes
+  const fetchCandidates = useCallback(async () => {
+    try {
+      const candidates = await getBaseCandidatesForJob(job.id);
+      // Enrich with storage paths for display
+      const enriched: BaseCandidateWithImage[] = await Promise.all(
+        candidates.map(async (candidate) => {
+          try {
+            const image = await getImageById(candidate.image_id);
+            return { ...candidate, storage_path: image.storage_path };
+          } catch {
+            return { ...candidate, storage_path: null };
+          }
+        })
+      );
+      setBaseCandidates(enriched);
+    } catch (error) {
+      console.error('Failed to fetch base candidates:', error);
+    }
+  }, [job.id]);
 
   // Polling logic
   useEffect(() => {
@@ -34,8 +113,17 @@ export function PipelineExecutionMonitor({ job: initialJob, seriesId }: Pipeline
         const updated: CogPipelineJobWithSteps = await response.json();
         setJob(updated);
 
-        // Stop polling if job reaches terminal state
+        // Fetch base candidates when foundation completes
+        if (updated.foundation_status === 'completed' && baseCandidates.length === 0) {
+          fetchCandidates();
+        }
+
+        // Stop polling if job reaches terminal state or is waiting for base selection
         if (updated.status === 'completed' || updated.status === 'failed' || updated.status === 'cancelled') {
+          setIsPolling(false);
+        }
+        // Also stop polling when foundation completes and we're waiting for selection
+        if (updated.foundation_status === 'completed' && !updated.selected_base_image_id && updated.sequence_status === 'pending') {
           setIsPolling(false);
         }
       } catch (error) {
@@ -44,7 +132,7 @@ export function PipelineExecutionMonitor({ job: initialJob, seriesId }: Pipeline
     }, 2000);
 
     return () => clearInterval(interval);
-  }, [isPolling, job.id]);
+  }, [isPolling, job.id, baseCandidates.length, fetchCandidates]);
 
   // Countdown timer for auto-advance preview
   useEffect(() => {
@@ -74,11 +162,59 @@ export function PipelineExecutionMonitor({ job: initialJob, seriesId }: Pipeline
     setIsCancelling(true);
     try {
       await updateJob(job.id, { status: 'cancelled' });
-      // Polling will detect the cancellation
     } catch (error) {
       console.error('Failed to cancel job:', error);
     } finally {
       setIsCancelling(false);
+    }
+  };
+
+  const handleSelectBase = async (imageId: string) => {
+    setIsSelectingBase(true);
+    try {
+      await selectBaseImage(job.id, imageId);
+      setJob((prev) => ({ ...prev, selected_base_image_id: imageId }));
+    } catch (error) {
+      console.error('Failed to select base image:', error);
+    } finally {
+      setIsSelectingBase(false);
+    }
+  };
+
+  const handleRerunFoundation = async () => {
+    setIsRunningAction(true);
+    try {
+      // Reset foundation status and clear previous selection
+      await updateJob(job.id, {
+        foundation_status: 'pending',
+        selected_base_image_id: null,
+        sequence_status: 'pending',
+        error_message: null,
+      });
+      runFoundation({ jobId: job.id, seriesId }).catch((err) => {
+        console.error('Failed to re-run foundation:', err);
+      });
+      setIsPolling(true);
+      router.refresh();
+    } catch (error) {
+      console.error('Failed to re-run foundation:', error);
+    } finally {
+      setIsRunningAction(false);
+    }
+  };
+
+  const handleStartSequence = async () => {
+    setIsRunningAction(true);
+    try {
+      runSequence({ jobId: job.id, seriesId }).catch((err) => {
+        console.error('Failed to start sequence:', err);
+      });
+      setIsPolling(true);
+      router.refresh();
+    } catch (error) {
+      console.error('Failed to start sequence:', error);
+    } finally {
+      setIsRunningAction(false);
     }
   };
 
@@ -91,7 +227,165 @@ export function PipelineExecutionMonitor({ job: initialJob, seriesId }: Pipeline
 
   return (
     <div className="space-y-6">
-      {/* Status Banner */}
+      {/* Two-Phase Status Banner */}
+      {isTwoPhase && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Pipeline Phases</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center gap-2">
+              {/* Foundation Phase */}
+              <div className="flex-1">
+                <div className="flex items-center gap-2 mb-1">
+                  <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${getPhaseStatusColor(foundationStatus)}`}>
+                    {foundationStatus}
+                  </span>
+                  <span className="text-sm font-medium">Foundation</span>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Generate base image candidates
+                </p>
+              </div>
+
+              {/* Arrow */}
+              <div className="text-muted-foreground shrink-0 px-1">
+                &rarr;
+              </div>
+
+              {/* Base Selection Phase */}
+              <div className="flex-1">
+                <div className="flex items-center gap-2 mb-1">
+                  <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${getPhaseStatusColor(selectionStatus)}`}>
+                    {selectionStatus === 'running' ? 'awaiting' : selectionStatus}
+                  </span>
+                  <span className="text-sm font-medium">Selection</span>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Choose a base image
+                </p>
+              </div>
+
+              {/* Arrow */}
+              <div className="text-muted-foreground shrink-0 px-1">
+                &rarr;
+              </div>
+
+              {/* Sequence Phase */}
+              <div className="flex-1">
+                <div className="flex items-center gap-2 mb-1">
+                  <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${getPhaseStatusColor(sequenceStatus)}`}>
+                    {sequenceStatus}
+                  </span>
+                  <span className="text-sm font-medium">Sequence</span>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Refine with pipeline steps
+                </p>
+              </div>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex items-center gap-2 mt-4 pt-4 border-t">
+              {/* Re-run Foundation: available when foundation completed or failed */}
+              {(foundationStatus === 'completed' || foundationStatus === 'failed') && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleRerunFoundation}
+                  disabled={isRunningAction}
+                >
+                  {isRunningAction ? 'Starting...' : 'Re-run Foundation'}
+                </Button>
+              )}
+
+              {/* Start/Re-run Sequence: available when base is selected */}
+              {job.selected_base_image_id && sequenceStatus !== 'running' && (
+                <Button
+                  size="sm"
+                  onClick={handleStartSequence}
+                  disabled={isRunningAction}
+                >
+                  {isRunningAction
+                    ? 'Starting...'
+                    : sequenceStatus === 'completed' || sequenceStatus === 'failed'
+                      ? 'Re-run Sequence'
+                      : 'Start Sequence'
+                  }
+                </Button>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Base Candidate Selection */}
+      {isTwoPhase && foundationStatus === 'completed' && baseCandidates.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">
+              {job.selected_base_image_id ? 'Selected Base Image' : 'Select a Base Image'}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+              {baseCandidates.map((candidate) => {
+                const isSelected = job.selected_base_image_id === candidate.image_id;
+                return (
+                  <div
+                    key={candidate.id}
+                    className={`relative rounded-lg overflow-hidden border-2 transition-all ${
+                      isSelected
+                        ? 'border-primary ring-2 ring-primary/20'
+                        : 'border-transparent hover:border-muted-foreground/30'
+                    }`}
+                  >
+                    {candidate.storage_path ? (
+                      /* eslint-disable-next-line @next/next/no-img-element */
+                      <img
+                        src={getCogImageUrl(candidate.storage_path)}
+                        alt={`Base candidate ${candidate.candidate_index + 1}`}
+                        className="aspect-square object-cover w-full bg-muted"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).style.display = 'none';
+                        }}
+                      />
+                    ) : (
+                      <div className="aspect-square bg-muted flex items-center justify-center">
+                        <span className="text-xs text-muted-foreground">Image unavailable</span>
+                      </div>
+                    )}
+                    <div className="absolute inset-0 flex items-end justify-center pb-2">
+                      {isSelected ? (
+                        <span className="text-xs font-medium bg-primary text-primary-foreground px-3 py-1 rounded-full">
+                          Selected
+                        </span>
+                      ) : (
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          className="text-xs h-7"
+                          onClick={() => handleSelectBase(candidate.image_id)}
+                          disabled={isSelectingBase}
+                        >
+                          {isSelectingBase ? 'Selecting...' : `Select #${candidate.candidate_index + 1}`}
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            {!job.selected_base_image_id && (
+              <p className="text-sm text-muted-foreground mt-3">
+                Choose a base image to proceed to the sequence phase.
+              </p>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Overall Status Banner */}
       <Card>
         <CardContent className="pt-6">
           <div className="flex items-center justify-between">
@@ -120,7 +414,7 @@ export function PipelineExecutionMonitor({ job: initialJob, seriesId }: Pipeline
               </div>
               <p className="text-sm text-muted-foreground">
                 {completedSteps.length} of {job.steps.length} steps completed
-                {failedSteps.length > 0 && ` • ${failedSteps.length} failed`}
+                {failedSteps.length > 0 && ` -- ${failedSteps.length} failed`}
               </p>
             </div>
             {(job.status === 'running' || job.status === 'ready') && (
@@ -137,24 +431,26 @@ export function PipelineExecutionMonitor({ job: initialJob, seriesId }: Pipeline
       </Card>
 
       {/* Progress Stepper */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Pipeline Steps</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-3">
-            {job.steps.map((step, idx) => (
-              <PipelineStepCard
-                key={step.id}
-                step={step}
-                stepNumber={idx + 1}
-                isActive={idx === currentStepIndex}
-                seriesId={seriesId}
-              />
-            ))}
-          </div>
-        </CardContent>
-      </Card>
+      {job.steps.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Pipeline Steps</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {job.steps.map((step, idx) => (
+                <PipelineStepCard
+                  key={step.id}
+                  step={step}
+                  stepNumber={idx + 1}
+                  isActive={idx === currentStepIndex}
+                  seriesId={seriesId}
+                />
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Intermediate Outputs */}
       {completedSteps.length > 0 && (

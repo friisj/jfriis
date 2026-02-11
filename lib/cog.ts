@@ -29,13 +29,20 @@ import type {
   CogSeriesTagInsert,
   CogImageTag,
   CogImageTagInsert,
-  CogStyleGuide,
-  CogStyleGuideInsert,
-  CogStyleGuideUpdate,
   CogPipelineStep,
   CogPipelineStepInsert,
   CogPipelineStepOutput,
   CogPipelineStepOutputInsert,
+  CogPhotographerConfig,
+  CogPhotographerConfigInsert,
+  CogPhotographerConfigUpdate,
+  CogDirectorConfig,
+  CogDirectorConfigInsert,
+  CogDirectorConfigUpdate,
+  CogProductionConfig,
+  CogProductionConfigInsert,
+  CogProductionConfigUpdate,
+  CogPipelineBaseCandidate,
 } from './types/cog';
 
 // ============================================================================
@@ -977,9 +984,22 @@ export async function getImageTagsBatch(imageIds: string[]): Promise<Map<string,
 export async function createPipelineJob(input: {
   series_id: string;
   title: string | null;
-  style_guide_id: string | null;
   initial_images: string[] | null;
   base_prompt: string;
+  // Pipeline config references
+  photographer_config_id?: string | null;
+  director_config_id?: string | null;
+  production_config_id?: string | null;
+  // Inference execution controls
+  inference_model?: string | null;
+  use_thinking_infer4?: boolean;
+  use_thinking_infer6?: boolean;
+  max_reference_images?: number;
+  // Two-phase execution controls
+  num_base_images?: number;
+  // Inference input arrays
+  colors?: string[] | null;
+  themes?: string[] | null;
   steps: CogPipelineStepInsert[];
 }): Promise<{ job: CogJob; steps: CogPipelineStep[] }> {
   // Create the job first
@@ -990,13 +1010,26 @@ export async function createPipelineJob(input: {
       title: input.title,
       base_prompt: input.base_prompt,
       job_type: 'pipeline',
-      style_guide_id: input.style_guide_id,
       initial_images: input.initial_images,
       status: 'draft',
       image_model: 'auto', // Default values for required fields
       image_size: '2K',
       aspect_ratio: '1:1',
       use_thinking: false,
+      // Pipeline config references
+      photographer_config_id: input.photographer_config_id || null,
+      director_config_id: input.director_config_id || null,
+      production_config_id: input.production_config_id || null,
+      // Inference execution controls
+      inference_model: input.inference_model || null,
+      use_thinking_infer4: input.use_thinking_infer4 ?? true,
+      use_thinking_infer6: input.use_thinking_infer6 ?? true,
+      max_reference_images: input.max_reference_images ?? 3,
+      // Two-phase execution controls
+      num_base_images: input.num_base_images ?? 3,
+      // Inference input arrays
+      colors: input.colors || null,
+      themes: input.themes || null,
     })
     .select()
     .single();
@@ -1039,57 +1072,6 @@ export async function createPipelineStepOutput(input: CogPipelineStepOutputInser
 
   if (error) throw error;
   return data as CogPipelineStepOutput;
-}
-
-// ============================================================================
-// Style Guide Operations (Client)
-// ============================================================================
-
-/**
- * Create a style guide - client-side
- */
-export async function createStyleGuide(input: CogStyleGuideInsert): Promise<CogStyleGuide> {
-  const { data, error } = await (supabase as any)
-    .from('cog_style_guides')
-    .insert({
-      series_id: input.series_id,
-      user_id: input.user_id,
-      name: input.name,
-      description: input.description || null,
-      system_prompt: input.system_prompt,
-    })
-    .select()
-    .single();
-
-  if (error) throw error;
-  return data as CogStyleGuide;
-}
-
-/**
- * Update a style guide - client-side
- */
-export async function updateStyleGuide(id: string, updates: CogStyleGuideUpdate): Promise<CogStyleGuide> {
-  const { data, error } = await (supabase as any)
-    .from('cog_style_guides')
-    .update(updates)
-    .eq('id', id)
-    .select()
-    .single();
-
-  if (error) throw error;
-  return data as CogStyleGuide;
-}
-
-/**
- * Delete a style guide - client-side
- */
-export async function deleteStyleGuide(id: string): Promise<void> {
-  const { error } = await (supabase as any)
-    .from('cog_style_guides')
-    .delete()
-    .eq('id', id);
-
-  if (error) throw error;
 }
 
 // ============================================================================
@@ -1353,4 +1335,214 @@ export async function getImageById(id: string): Promise<CogImage> {
 
   if (error) throw error;
   return data as CogImage;
+}
+
+// ============================================================================
+// Photographer Config Operations (Client)
+// ============================================================================
+
+/**
+ * Create a photographer config - client-side
+ */
+export async function createPhotographerConfig(input: CogPhotographerConfigInsert): Promise<CogPhotographerConfig> {
+  const { data, error } = await (supabase as any)
+    .from('cog_photographer_configs')
+    .insert({
+      series_id: input.series_id,
+      user_id: input.user_id,
+      name: input.name,
+      description: input.description || null,
+      style_description: input.style_description,
+      style_references: input.style_references,
+      techniques: input.techniques,
+      testbed_notes: input.testbed_notes,
+    })
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data as CogPhotographerConfig;
+}
+
+/**
+ * Update a photographer config - client-side
+ */
+export async function updatePhotographerConfig(id: string, updates: CogPhotographerConfigUpdate): Promise<CogPhotographerConfig> {
+  const { data, error } = await (supabase as any)
+    .from('cog_photographer_configs')
+    .update(updates)
+    .eq('id', id)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data as CogPhotographerConfig;
+}
+
+/**
+ * Delete a photographer config - client-side
+ */
+export async function deletePhotographerConfig(id: string): Promise<void> {
+  const { error } = await (supabase as any)
+    .from('cog_photographer_configs')
+    .delete()
+    .eq('id', id);
+
+  if (error) throw error;
+}
+
+// ============================================================================
+// Director Config Operations (Client)
+// ============================================================================
+
+/**
+ * Create a director config - client-side
+ */
+export async function createDirectorConfig(input: CogDirectorConfigInsert): Promise<CogDirectorConfig> {
+  const { data, error } = await (supabase as any)
+    .from('cog_director_configs')
+    .insert({
+      series_id: input.series_id,
+      user_id: input.user_id,
+      name: input.name,
+      description: input.description || null,
+      approach_description: input.approach_description,
+      methods: input.methods,
+      interview_mapping: input.interview_mapping || null,
+    })
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data as CogDirectorConfig;
+}
+
+/**
+ * Update a director config - client-side
+ */
+export async function updateDirectorConfig(id: string, updates: CogDirectorConfigUpdate): Promise<CogDirectorConfig> {
+  const { data, error } = await (supabase as any)
+    .from('cog_director_configs')
+    .update(updates)
+    .eq('id', id)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data as CogDirectorConfig;
+}
+
+/**
+ * Delete a director config - client-side
+ */
+export async function deleteDirectorConfig(id: string): Promise<void> {
+  const { error } = await (supabase as any)
+    .from('cog_director_configs')
+    .delete()
+    .eq('id', id);
+
+  if (error) throw error;
+}
+
+// ============================================================================
+// Production Config Operations (Client)
+// ============================================================================
+
+/**
+ * Create a production config - client-side
+ */
+export async function createProductionConfig(input: CogProductionConfigInsert): Promise<CogProductionConfig> {
+  const { data, error } = await (supabase as any)
+    .from('cog_production_configs')
+    .insert({
+      series_id: input.series_id,
+      user_id: input.user_id,
+      name: input.name,
+      description: input.description || null,
+      shoot_details: input.shoot_details,
+      editorial_notes: input.editorial_notes,
+      costume_notes: input.costume_notes,
+      conceptual_notes: input.conceptual_notes,
+    })
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data as CogProductionConfig;
+}
+
+/**
+ * Update a production config - client-side
+ */
+export async function updateProductionConfig(id: string, updates: CogProductionConfigUpdate): Promise<CogProductionConfig> {
+  const { data, error } = await (supabase as any)
+    .from('cog_production_configs')
+    .update(updates)
+    .eq('id', id)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data as CogProductionConfig;
+}
+
+/**
+ * Delete a production config - client-side
+ */
+export async function deleteProductionConfig(id: string): Promise<void> {
+  const { error } = await (supabase as any)
+    .from('cog_production_configs')
+    .delete()
+    .eq('id', id);
+
+  if (error) throw error;
+}
+
+// ============================================================================
+// Base Candidate Operations (Client)
+// ============================================================================
+
+/**
+ * Create a base candidate record - client-side
+ */
+export async function createBaseCandidate(input: {
+  job_id: string;
+  image_id: string;
+  candidate_index: number;
+}): Promise<CogPipelineBaseCandidate> {
+  const { data, error } = await (supabase as any)
+    .from('cog_pipeline_base_candidates')
+    .insert(input)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data as CogPipelineBaseCandidate;
+}
+
+/**
+ * Get base candidates for a pipeline job - client-side
+ */
+export async function getBaseCandidatesForJob(jobId: string): Promise<CogPipelineBaseCandidate[]> {
+  const { data, error } = await (supabase as any)
+    .from('cog_pipeline_base_candidates')
+    .select('*')
+    .eq('job_id', jobId)
+    .order('candidate_index', { ascending: true });
+
+  if (error) throw error;
+  return data as CogPipelineBaseCandidate[];
+}
+
+/**
+ * Select a base image for a pipeline job - client-side
+ * Stores the user's choice in cog_jobs.selected_base_image_id
+ */
+export async function selectBaseImage(jobId: string, imageId: string): Promise<void> {
+  const { error } = await (supabase as any)
+    .from('cog_jobs')
+    .update({ selected_base_image_id: imageId })
+    .eq('id', jobId);
+
+  if (error) throw error;
 }

@@ -1,4 +1,9 @@
-import { getSeriesWithImagesServer, getSeriesStyleGuidesServer } from '@/lib/cog-server';
+import {
+  getSeriesWithImagesServer,
+  getSeriesPhotographerConfigsServer,
+  getSeriesDirectorConfigsServer,
+  getSeriesProductionConfigsServer,
+} from '@/lib/cog-server';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { PipelineBuilderForm } from './pipeline-builder-form';
@@ -10,11 +15,13 @@ interface Props {
 export default async function NewPipelinePage({ params }: Props) {
   const { id: seriesId } = await params;
 
-  let seriesWithImages, styleGuides;
+  let seriesWithImages, photographerConfigs, directorConfigs, productionConfigs;
   try {
-    [seriesWithImages, styleGuides] = await Promise.all([
+    [seriesWithImages, photographerConfigs, directorConfigs, productionConfigs] = await Promise.all([
       getSeriesWithImagesServer(seriesId),
-      getSeriesStyleGuidesServer(seriesId),
+      getSeriesPhotographerConfigsServer(seriesId),
+      getSeriesDirectorConfigsServer(seriesId),
+      getSeriesProductionConfigsServer(seriesId),
     ]);
   } catch {
     notFound();
@@ -44,7 +51,9 @@ export default async function NewPipelinePage({ params }: Props) {
       <PipelineBuilderForm
         seriesId={seriesId}
         images={seriesWithImages.images}
-        styleGuides={styleGuides}
+        photographerConfigs={photographerConfigs}
+        directorConfigs={directorConfigs}
+        productionConfigs={productionConfigs}
       />
     </div>
   );
