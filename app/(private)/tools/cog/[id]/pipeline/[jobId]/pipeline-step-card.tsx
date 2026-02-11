@@ -50,17 +50,17 @@ export function PipelineStepCard({ step, stepNumber, isActive }: PipelineStepCar
 
           {/* Step configuration preview */}
           <div className="space-y-1 text-xs text-muted-foreground">
-            {step.config.prompt && (
-              <p className="line-clamp-1">Prompt: {step.config.prompt as string}</p>
+            {step.config.prompt && typeof step.config.prompt === 'string' && (
+              <p className="line-clamp-1">Prompt: {step.config.prompt}</p>
             )}
-            {step.config.refinementPrompt && (
-              <p className="line-clamp-1">Refinement: {step.config.refinementPrompt as string}</p>
+            {step.config.refinementPrompt && typeof step.config.refinementPrompt === 'string' && (
+              <p className="line-clamp-1">Refinement: {step.config.refinementPrompt}</p>
             )}
-            {step.config.evalCriteria && (
-              <p className="line-clamp-1">Criteria: {step.config.evalCriteria as string}</p>
+            {step.config.evalCriteria && typeof step.config.evalCriteria === 'string' && (
+              <p className="line-clamp-1">Criteria: {step.config.evalCriteria}</p>
             )}
-            {step.config.imageSize && (
-              <p>Size: {step.config.imageSize as string}</p>
+            {step.config.imageSize && typeof step.config.imageSize === 'string' && (
+              <p>Size: {step.config.imageSize}</p>
             )}
           </div>
 

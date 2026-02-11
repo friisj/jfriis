@@ -1,7 +1,8 @@
 'use server';
 
-import { experimental_generateImage as generateImage } from 'ai';
+import { experimental_generateImage as generateImage, generateText } from 'ai';
 import { getGoogle } from '../providers';
+import { getModel } from '../models';
 import { generateImageWithVertex, isVertexConfigured } from '../vertex-imagen';
 import { generateImageWithGemini3Pro, isGemini3ProConfigured } from '../gemini-multimodal';
 import { generateWithFlux, isFluxConfigured, type FluxAspectRatio, type FluxResolution } from '../replicate-flux';
@@ -158,17 +159,13 @@ async function executeStep(
     case 'generate':
       return executeGenerateStep(step, context, seriesId, jobId, supabase);
     case 'refine':
-      // TODO: Phase 5
-      throw new Error('Refine step not yet implemented');
-    case 'inpaint':
-      // TODO: Phase 5
-      throw new Error('Inpaint step not yet implemented');
+      return executeRefineStep(step, context, seriesId, jobId, supabase);
     case 'eval':
-      // TODO: Phase 5
-      throw new Error('Eval step not yet implemented');
+      return executeEvalStep(step, context, seriesId, jobId, supabase);
+    case 'inpaint':
+      return executeInpaintStep(step, context, seriesId, jobId, supabase);
     case 'upscale':
-      // TODO: Phase 5
-      throw new Error('Upscale step not yet implemented');
+      return executeUpscaleStep(step, context, seriesId, jobId, supabase);
     default:
       throw new Error(`Unknown step type: ${step.step_type}`);
   }
@@ -286,6 +283,281 @@ async function executeGenerateStep(
     imageId: image.id,
     metadata: generationMetadata,
   };
+}
+
+/**
+ * Execute a refine step - modifies previous output using it as reference
+ */
+async function executeRefineStep(
+  step: CogPipelineStep,
+  context: PipelineContext,
+  seriesId: string,
+  jobId: string,
+  supabase: Awaited<ReturnType<typeof createClient>>
+): Promise<{ imageId: string; metadata: any }> {
+  // Get the most recent output image
+  if (context.previousOutputs.length === 0) {
+    throw new Error('Refine step requires a previous output image');
+  }
+
+  const previousImageId = context.previousOutputs[context.previousOutputs.length - 1];
+
+  // Fetch the previous image from storage
+  const { data: previousImage } = await (supabase as any)
+    .from('cog_images')
+    .select('*')
+    .eq('id', previousImageId)
+    .single();
+
+  if (!previousImage) {
+    throw new Error(`Previous image ${previousImageId} not found`);
+  }
+
+  // Download image from storage
+  const { data: imageBlob, error: downloadError } = await supabase.storage
+    .from('cog-images')
+    .download(previousImage.storage_path);
+
+  if (downloadError) throw downloadError;
+
+  // Convert to base64
+  const arrayBuffer = await imageBlob.arrayBuffer();
+  const imageBase64 = Buffer.from(arrayBuffer).toString('base64');
+
+  // Build refinement prompt
+  let fullPrompt = context.initialText;
+  if (context.styleGuidePrompt) {
+    fullPrompt = `${context.styleGuidePrompt}\n\n${fullPrompt}`;
+  }
+
+  const refinementPrompt = step.config.refinementPrompt as string;
+  if (refinementPrompt) {
+    fullPrompt = `${fullPrompt}\n\nRefinement instructions: ${refinementPrompt}`;
+  }
+
+  // Get settings
+  const model = step.model as CogImageModel;
+  const imageSize = (step.config.imageSize as CogImageSize) || '2K';
+  const aspectRatio = (step.config.aspectRatio as CogAspectRatio) || '1:1';
+
+  // Generate refined image using reference
+  const resolvedModel = selectImageModel(model, true, 1);
+  let imageResult: string;
+  let generationMetadata: any = {
+    model: resolvedModel,
+    prompt: fullPrompt,
+    size: imageSize,
+    aspectRatio,
+    refinedFrom: previousImageId,
+  };
+
+  // Use models that support reference images
+  if (resolvedModel === 'gemini-3-pro-image' && isGemini3ProConfigured()) {
+    const result = await generateImageWithGemini3Pro({
+      prompt: fullPrompt,
+      referenceImages: [{ base64: imageBase64, mimeType: 'image/png' }],
+      aspectRatio,
+      imageSize,
+    });
+    imageResult = result.base64;
+    generationMetadata.provider = 'gemini-3-pro';
+  } else if (
+    (resolvedModel === 'flux-2-pro' || resolvedModel === 'flux-2-dev') &&
+    isFluxConfigured()
+  ) {
+    const fluxAspectRatio = mapAspectRatioToFlux(aspectRatio);
+    const fluxResolution = mapSizeToFluxResolution(imageSize, resolvedModel);
+    const result = await generateWithFlux({
+      prompt: fullPrompt,
+      referenceImages: [{ base64: imageBase64, mimeType: 'image/png' }],
+      model: resolvedModel,
+      aspectRatio: fluxAspectRatio,
+      resolution: fluxResolution,
+    });
+    imageResult = result.buffer.toString('base64');
+    generationMetadata.provider = 'replicate-flux';
+  } else if (resolvedModel === 'imagen-3-capability' && isVertexConfigured()) {
+    const result = await generateImageWithVertex({
+      prompt: fullPrompt,
+      referenceImages: [{ base64: imageBase64, mimeType: 'image/png' }],
+      aspectRatio,
+    });
+    imageResult = result.base64;
+    generationMetadata.provider = 'vertex-imagen';
+  } else {
+    throw new Error('Refine step requires a model that supports reference images (Gemini 3 Pro, Flux, or Imagen 3)');
+  }
+
+  // Store refined image
+  const imageData = Buffer.from(imageResult, 'base64');
+  const filename = `pipeline-${jobId}-step-${step.step_order}-${Date.now()}.png`;
+  const storagePath = `${seriesId}/${filename}`;
+
+  const { error: uploadError } = await supabase.storage
+    .from('cog-images')
+    .upload(storagePath, imageData, { contentType: 'image/png' });
+
+  if (uploadError) throw uploadError;
+
+  const image = await createImage({
+    series_id: seriesId,
+    job_id: jobId,
+    parent_image_id: previousImageId,
+    storage_path: storagePath,
+    filename,
+    mime_type: 'image/png',
+    source: 'generated',
+    prompt: fullPrompt,
+    metadata: generationMetadata,
+  });
+
+  return {
+    imageId: image.id,
+    metadata: generationMetadata,
+  };
+}
+
+/**
+ * Execute an eval step - evaluates previous outputs and selects winner
+ */
+async function executeEvalStep(
+  step: CogPipelineStep,
+  context: PipelineContext,
+  seriesId: string,
+  jobId: string,
+  supabase: Awaited<ReturnType<typeof createClient>>
+): Promise<{ imageId: string; metadata: any }> {
+  // For now, assume we evaluate the last output
+  // In a more advanced implementation, this could evaluate multiple candidates
+  if (context.previousOutputs.length === 0) {
+    throw new Error('Eval step requires at least one previous output');
+  }
+
+  const candidateIds = context.previousOutputs.slice(-3); // Evaluate last 3 outputs
+  const evalCriteria = (step.config.evalCriteria as string) || 'overall quality and adherence to prompt';
+
+  // Fetch candidate images
+  const { data: candidates } = await (supabase as any)
+    .from('cog_images')
+    .select('*')
+    .in('id', candidateIds);
+
+  if (!candidates || candidates.length === 0) {
+    throw new Error('No candidate images found for evaluation');
+  }
+
+  // Download and score each candidate
+  const scores: { imageId: string; score: number; reasoning: string }[] = [];
+
+  for (const candidate of candidates) {
+    // Download image
+    const { data: imageBlob } = await supabase.storage
+      .from('cog-images')
+      .download(candidate.storage_path);
+
+    if (!imageBlob) continue;
+
+    const arrayBuffer = await imageBlob.arrayBuffer();
+    const imageBase64 = Buffer.from(arrayBuffer).toString('base64');
+
+    // Use LLM to evaluate
+    const model = getModel('gemini-flash');
+    const result = await generateText({
+      model,
+      messages: [
+        {
+          role: 'user',
+          content: [
+            {
+              type: 'image',
+              image: `data:image/png;base64,${imageBase64}`,
+            },
+            {
+              type: 'text',
+              text: `Evaluate this image based on the following criteria: ${evalCriteria}\n\nProvide a score from 1-10 and brief reasoning. Format: SCORE: X\nREASONING: ...`,
+            },
+          ],
+        },
+      ],
+    });
+
+    // Parse score
+    const scoreMatch = result.text.match(/SCORE:\s*(\d+)/i);
+    const score = scoreMatch ? parseInt(scoreMatch[1]) : 5;
+    const reasoning = result.text.replace(/SCORE:\s*\d+/i, '').trim();
+
+    scores.push({
+      imageId: candidate.id,
+      score,
+      reasoning,
+    });
+  }
+
+  // Select winner (highest score)
+  const winner = scores.reduce((best, current) =>
+    current.score > best.score ? current : best
+  );
+
+  return {
+    imageId: winner.imageId,
+    metadata: {
+      evalCriteria,
+      scores,
+      winner: winner.imageId,
+    },
+  };
+}
+
+/**
+ * Execute an inpaint step - applies mask and fills region
+ */
+async function executeInpaintStep(
+  step: CogPipelineStep,
+  context: PipelineContext,
+  seriesId: string,
+  jobId: string,
+  supabase: Awaited<ReturnType<typeof createClient>>
+): Promise<{ imageId: string; metadata: any }> {
+  // Get previous image
+  if (context.previousOutputs.length === 0) {
+    throw new Error('Inpaint step requires a previous output image');
+  }
+
+  const previousImageId = context.previousOutputs[context.previousOutputs.length - 1];
+
+  // Note: Inpainting requires specialized APIs that may not be available
+  // This is a stub implementation that explains the limitation
+  throw new Error(
+    'Inpaint step requires inpainting API integration (e.g., Vertex Imagen EditImage). ' +
+    'This feature is not yet implemented. ' +
+    'As a workaround, use the Refine step with detailed instructions about what to change.'
+  );
+}
+
+/**
+ * Execute an upscale step - increases image resolution
+ */
+async function executeUpscaleStep(
+  step: CogPipelineStep,
+  context: PipelineContext,
+  seriesId: string,
+  jobId: string,
+  supabase: Awaited<ReturnType<typeof createClient>>
+): Promise<{ imageId: string; metadata: any }> {
+  // Get previous image
+  if (context.previousOutputs.length === 0) {
+    throw new Error('Upscale step requires a previous output image');
+  }
+
+  const previousImageId = context.previousOutputs[context.previousOutputs.length - 1];
+
+  // Note: Upscaling requires specialized APIs (e.g., Replicate Real-ESRGAN)
+  // This is a stub implementation that explains the limitation
+  throw new Error(
+    'Upscale step requires upscaling API integration (e.g., Replicate Real-ESRGAN). ' +
+    'This feature is not yet implemented. ' +
+    'As a workaround, use image size settings in Generate or Refine steps to control resolution.'
+  );
 }
 
 /**
