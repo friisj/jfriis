@@ -45,10 +45,19 @@ export function JobsList({ jobs: initialJobs, seriesId }: JobsListProps) {
 
   return (
     <div className="space-y-2">
-      
-      <button className="border rounded-lg p-4 hover:bg-muted/50 transition-colors w-full">
-        <Link href={`/tools/cog/${seriesId}/job/new`}>New Job</Link>
-      </button>
+      <div className="grid grid-cols-2 gap-2">
+        <button className="border rounded-lg p-4 hover:bg-muted/50 transition-colors">
+          <Link href={`/tools/cog/${seriesId}/job/new`}>New Batch Job</Link>
+        </button>
+        <button className="border rounded-lg p-4 hover:bg-muted/50 transition-colors">
+          <Link href={`/tools/cog/${seriesId}/pipeline/new`}>New Pipeline</Link>
+        </button>
+      </div>
+      <div className="grid grid-cols-1">
+        <button className="border rounded-lg p-3 hover:bg-muted/50 transition-colors text-sm">
+          <Link href={`/tools/cog/${seriesId}/style-guides`}>Manage Style Guides</Link>
+        </button>
+      </div>
       {jobs.map((job) => (
         <div
           key={job.id}

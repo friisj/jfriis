@@ -29,6 +29,13 @@ import type {
   CogSeriesTagInsert,
   CogImageTag,
   CogImageTagInsert,
+  CogStyleGuide,
+  CogStyleGuideInsert,
+  CogStyleGuideUpdate,
+  CogPipelineStep,
+  CogPipelineStepInsert,
+  CogPipelineStepOutput,
+  CogPipelineStepOutputInsert,
 } from './types/cog';
 
 // ============================================================================
@@ -958,6 +965,131 @@ export async function getImageTagsBatch(imageIds: string[]): Promise<Map<string,
   }
 
   return tagsByImage;
+}
+
+// ============================================================================
+// Pipeline Job Operations (Client)
+// ============================================================================
+
+/**
+ * Create a pipeline job with steps - client-side
+ */
+export async function createPipelineJob(input: {
+  series_id: string;
+  title: string | null;
+  style_guide_id: string | null;
+  initial_images: string[] | null;
+  base_prompt: string;
+  steps: CogPipelineStepInsert[];
+}): Promise<{ job: CogJob; steps: CogPipelineStep[] }> {
+  // Create the job first
+  const { data: job, error: jobError } = await (supabase as any)
+    .from('cog_jobs')
+    .insert({
+      series_id: input.series_id,
+      title: input.title,
+      base_prompt: input.base_prompt,
+      job_type: 'pipeline',
+      style_guide_id: input.style_guide_id,
+      initial_images: input.initial_images,
+      status: 'draft',
+      image_model: 'auto', // Default values for required fields
+      image_size: '2K',
+      aspect_ratio: '1:1',
+      use_thinking: false,
+    })
+    .select()
+    .single();
+
+  if (jobError) throw jobError;
+
+  // Create the steps
+  const stepsToInsert = input.steps.map((step) => ({
+    job_id: job.id,
+    step_order: step.step_order,
+    step_type: step.step_type,
+    model: step.model,
+    config: step.config,
+    status: step.status || 'pending',
+  }));
+
+  const { data: steps, error: stepsError } = await (supabase as any)
+    .from('cog_pipeline_steps')
+    .insert(stepsToInsert)
+    .select();
+
+  if (stepsError) throw stepsError;
+
+  return { job: job as CogJob, steps: steps as CogPipelineStep[] };
+}
+
+/**
+ * Create a pipeline step output - client-side
+ */
+export async function createPipelineStepOutput(input: CogPipelineStepOutputInsert): Promise<CogPipelineStepOutput> {
+  const { data, error } = await (supabase as any)
+    .from('cog_pipeline_step_outputs')
+    .insert({
+      step_id: input.step_id,
+      image_id: input.image_id,
+      metadata: input.metadata || null,
+    })
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data as CogPipelineStepOutput;
+}
+
+// ============================================================================
+// Style Guide Operations (Client)
+// ============================================================================
+
+/**
+ * Create a style guide - client-side
+ */
+export async function createStyleGuide(input: CogStyleGuideInsert): Promise<CogStyleGuide> {
+  const { data, error } = await (supabase as any)
+    .from('cog_style_guides')
+    .insert({
+      series_id: input.series_id,
+      user_id: input.user_id,
+      name: input.name,
+      description: input.description || null,
+      system_prompt: input.system_prompt,
+    })
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data as CogStyleGuide;
+}
+
+/**
+ * Update a style guide - client-side
+ */
+export async function updateStyleGuide(id: string, updates: CogStyleGuideUpdate): Promise<CogStyleGuide> {
+  const { data, error } = await (supabase as any)
+    .from('cog_style_guides')
+    .update(updates)
+    .eq('id', id)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data as CogStyleGuide;
+}
+
+/**
+ * Delete a style guide - client-side
+ */
+export async function deleteStyleGuide(id: string): Promise<void> {
+  const { error } = await (supabase as any)
+    .from('cog_style_guides')
+    .delete()
+    .eq('id', id);
+
+  if (error) throw error;
 }
 
 // ============================================================================

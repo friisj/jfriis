@@ -22,6 +22,9 @@ import type {
   CogImageWithTags,
   CogSeriesWithImagesAndTags,
   CogImageWithGroupInfo,
+  CogStyleGuide,
+  CogPipelineStep,
+  CogPipelineJobWithSteps,
 } from './types/cog';
 
 // ============================================================================
@@ -607,3 +610,99 @@ async function getImageVersionChainServerLegacy(imageId: string, image: CogImage
 // Legacy aliases for backwards compatibility
 export const getRootImagesWithVersionCountsServer = getGroupPrimaryImagesServer;
 export const getImageVersionChainServer = getImageGroupServer;
+
+// ============================================================================
+// Style Guide Operations (Server)
+// ============================================================================
+
+/**
+ * Get all style guides for a series - server-side
+ */
+export async function getSeriesStyleGuidesServer(seriesId: string): Promise<CogStyleGuide[]> {
+  const client = await createClient();
+  const { data, error } = await (client as any)
+    .from('cog_style_guides')
+    .select('*')
+    .eq('series_id', seriesId)
+    .order('created_at', { ascending: false });
+
+  if (error) throw error;
+  return data as CogStyleGuide[];
+}
+
+/**
+ * Get a single style guide by ID - server-side
+ */
+export async function getStyleGuideByIdServer(id: string): Promise<CogStyleGuide> {
+  const client = await createClient();
+  const { data, error } = await (client as any)
+    .from('cog_style_guides')
+    .select('*')
+    .eq('id', id)
+    .single();
+
+  if (error) throw error;
+  return data as CogStyleGuide;
+}
+
+// ============================================================================
+// Pipeline Job Operations (Server)
+// ============================================================================
+
+/**
+ * Get pipeline steps for a job - server-side
+ */
+export async function getPipelineStepsServer(jobId: string): Promise<CogPipelineStep[]> {
+  const client = await createClient();
+  const { data, error } = await (client as any)
+    .from('cog_pipeline_steps')
+    .select('*')
+    .eq('job_id', jobId)
+    .order('step_order', { ascending: true });
+
+  if (error) throw error;
+  return data as CogPipelineStep[];
+}
+
+/**
+ * Get pipeline job with steps and style guide - server-side
+ */
+export async function getPipelineJobWithStepsServer(jobId: string): Promise<CogPipelineJobWithSteps> {
+  const client = await createClient();
+
+  const [jobResult, stepsResult] = await Promise.all([
+    (client as any).from('cog_jobs').select('*').eq('id', jobId).single(),
+    (client as any)
+      .from('cog_pipeline_steps')
+      .select('*, outputs:cog_pipeline_step_outputs(*)')
+      .eq('job_id', jobId)
+      .order('step_order', { ascending: true }),
+  ]);
+
+  if (jobResult.error) throw jobResult.error;
+  if (stepsResult.error) throw stepsResult.error;
+
+  const job = jobResult.data as CogJob;
+
+  // Fetch style guide if present
+  let styleGuide: CogStyleGuide | null = null;
+  if (job.style_guide_id) {
+    try {
+      styleGuide = await getStyleGuideByIdServer(job.style_guide_id);
+    } catch {
+      // Style guide may have been deleted
+    }
+  }
+
+  // Process steps with their outputs
+  const steps = stepsResult.data.map((step: any) => ({
+    ...step,
+    output: step.outputs && step.outputs.length > 0 ? step.outputs[0] : null,
+  }));
+
+  return {
+    ...job,
+    steps,
+    style_guide: styleGuide,
+  } as CogPipelineJobWithSteps;
+}
