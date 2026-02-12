@@ -300,22 +300,6 @@ function TagsSection({
   );
 }
 
-function ConfigSection() {
-  return (
-    <div>
-      <div className="flex items-center justify-between mb-2">
-        <h2 className="text-lg font-semibold">Pipeline Configs</h2>
-        <Button size="sm" variant="outline" asChild>
-          <Link href="/tools/cog?tab=library">Manage Library</Link>
-        </Button>
-      </div>
-      <p className="text-xs text-muted-foreground">
-        Creative personas (Photographer, Director, Production) are managed in the global Config Library and can be selected when building pipelines.
-      </p>
-    </div>
-  );
-}
-
 function ConfigPanel({
   series,
   childSeries,
@@ -600,11 +584,6 @@ function ConfigPanel({
           enabledTags={enabledTags}
           globalTags={globalTags}
         />
-      </div>
-
-      {/* Pipeline Configs */}
-      <div className="pt-4 border-t">
-        <ConfigSection />
       </div>
 
       {/* Delete Series */}

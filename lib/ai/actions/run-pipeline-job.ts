@@ -157,8 +157,9 @@ export async function runFoundation(input: { jobId: string; seriesId: string }):
       }
     }
 
-    // Mark foundation phase complete
-    await updateJobServer(jobId, { foundation_status: 'completed' });
+    // Mark foundation phase complete — reset job status to draft so user
+    // can review candidates, edit, or delete before starting sequence
+    await updateJobServer(jobId, { foundation_status: 'completed', status: 'draft' });
     console.log(`[Foundation] Phase completed for job ${jobId}`);
   } catch (error) {
     console.error('[Foundation] Phase failed:', error);

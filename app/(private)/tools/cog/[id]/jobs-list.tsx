@@ -166,7 +166,7 @@ export function JobsList({ jobs: initialJobs, seriesId }: JobsListProps) {
                     variant="ghost"
                     size="sm"
                     onClick={() => setConfirmId(job.id)}
-                    disabled={job.status === 'running'}
+                    disabled={job.foundation_status === 'running' || job.sequence_status === 'running'}
                     className="text-destructive hover:text-destructive hover:bg-destructive/10"
                   >
                     Delete
