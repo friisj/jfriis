@@ -7,7 +7,6 @@ import { generateImageWithVertex, isVertexConfigured } from '../vertex-imagen';
 import { generateImageWithGemini3Pro, isGemini3ProConfigured } from '../gemini-multimodal';
 import { generateWithFlux, isFluxConfigured, type FluxAspectRatio, type FluxResolution } from '../replicate-flux';
 import { createClient } from '@/lib/supabase-server';
-import { createImage, createPipelineStepOutput, updateJob, createBaseCandidate } from '@/lib/cog';
 import {
   getJobByIdServer,
   getPipelineJobWithStepsServer,
@@ -15,6 +14,10 @@ import {
   getPhotographerConfigByIdServer,
   getDirectorConfigByIdServer,
   getProductionConfigByIdServer,
+  updateJobServer,
+  createImageServer,
+  createPipelineStepOutputServer,
+  createBaseCandidateServer,
 } from '@/lib/cog-server';
 import {
   buildInference1Prompt,
@@ -61,14 +64,14 @@ interface PipelineContext {
  * 1. Loads photographer, director, and production configs
  * 2. Runs the 6-step inference pipeline via generateBaseImagePrompt()
  * 3. Generates N candidate base images using I2I (prompt + reference images)
- * 4. Stores each candidate via createBaseCandidate()
+ * 4. Stores each candidate via createBaseCandidateServer()
  * 5. Updates foundation_status on the job ('running' -> 'completed' or 'failed')
  */
 export async function runFoundation(input: { jobId: string; seriesId: string }): Promise<void> {
   const { jobId, seriesId } = input;
 
   // Update foundation status to running
-  await updateJob(jobId, {
+  await updateJobServer(jobId, {
     foundation_status: 'running',
     status: 'running',
     started_at: new Date().toISOString(),
@@ -106,7 +109,7 @@ export async function runFoundation(input: { jobId: string; seriesId: string }):
     console.log(`[Foundation] Final synthesized prompt (${finalPrompt.length} chars)`);
 
     // Store the synthesized prompt so users can see what the pipeline generated
-    await updateJob(jobId, { synthesized_prompt: finalPrompt });
+    await updateJobServer(jobId, { synthesized_prompt: finalPrompt });
 
     // Generate N candidate base images using I2I (prompt + reference images)
     const numCandidates = job.num_base_images || 3;
@@ -137,7 +140,7 @@ export async function runFoundation(input: { jobId: string; seriesId: string }):
       });
 
       // Store candidate in cog_pipeline_base_candidates
-      await createBaseCandidate({
+      await createBaseCandidateServer({
         job_id: jobId,
         image_id: imageResult.imageId,
         candidate_index: i,
@@ -147,11 +150,11 @@ export async function runFoundation(input: { jobId: string; seriesId: string }):
     }
 
     // Mark foundation phase complete
-    await updateJob(jobId, { foundation_status: 'completed' });
+    await updateJobServer(jobId, { foundation_status: 'completed' });
     console.log(`[Foundation] Phase completed for job ${jobId}`);
   } catch (error) {
     console.error('[Foundation] Phase failed:', error);
-    await updateJob(jobId, {
+    await updateJobServer(jobId, {
       foundation_status: 'failed',
       error_message: error instanceof Error ? error.message : 'Foundation phase failed',
     });
@@ -181,7 +184,7 @@ export async function runSequence(input: { jobId: string; seriesId: string }): P
   }
 
   // Update sequence status to running
-  await updateJob(jobId, {
+  await updateJobServer(jobId, {
     sequence_status: 'running',
     status: 'running',
   });
@@ -226,7 +229,7 @@ export async function runSequence(input: { jobId: string; seriesId: string }): P
         const output = await executeStep(step, context, seriesId, jobId, supabase);
 
         // Store output
-        await createPipelineStepOutput({
+        await createPipelineStepOutputServer({
           step_id: step.id,
           image_id: output.imageId,
           metadata: output.metadata,
@@ -262,7 +265,7 @@ export async function runSequence(input: { jobId: string; seriesId: string }): P
     }
 
     // Mark sequence phase and overall job complete
-    await updateJob(jobId, {
+    await updateJobServer(jobId, {
       sequence_status: 'completed',
       status: 'completed',
       completed_at: new Date().toISOString(),
@@ -270,7 +273,7 @@ export async function runSequence(input: { jobId: string; seriesId: string }): P
     console.log(`[Sequence] Phase completed for job ${jobId}`);
   } catch (error) {
     console.error('[Sequence] Phase failed:', error);
-    await updateJob(jobId, {
+    await updateJobServer(jobId, {
       sequence_status: 'failed',
       status: 'failed',
       error_message: error instanceof Error ? error.message : 'Sequence phase failed',
@@ -680,7 +683,7 @@ async function executeFoundationGenerate(params: {
   if (uploadError) throw uploadError;
 
   // Create image record
-  const image = await createImage({
+  const image = await createImageServer({
     series_id: seriesId,
     job_id: jobId,
     storage_path: storagePath,
@@ -819,7 +822,7 @@ async function executeGenerateStep(
   if (uploadError) throw uploadError;
 
   // Create image record
-  const image = await createImage({
+  const image = await createImageServer({
     series_id: seriesId,
     job_id: jobId,
     storage_path: storagePath,
@@ -947,7 +950,7 @@ async function executeRefineStep(
 
   if (uploadError) throw uploadError;
 
-  const image = await createImage({
+  const image = await createImageServer({
     series_id: seriesId,
     job_id: jobId,
     parent_image_id: previousImageId,
