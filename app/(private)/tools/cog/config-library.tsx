@@ -6,6 +6,13 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { supabase } from '@/lib/supabase';
 import {
   createPhotographerConfig, updatePhotographerConfig, deletePhotographerConfig,
@@ -15,8 +22,10 @@ import {
 import {
   generatePhotographerSeed, generateDirectorSeed, generateProductionSeed,
 } from '@/lib/ai/actions/generate-config-seed';
+import { CalibrationPanel } from './calibration-panel';
 import type {
   CogPhotographerConfig, CogDirectorConfig, CogProductionConfig,
+  CogPhotographerType,
 } from '@/lib/types/cog';
 
 // ============================================================================
@@ -38,6 +47,16 @@ interface EditingState {
   type: ConfigType;
   config?: AnyConfig;
 }
+
+const PHOTOGRAPHER_TYPES: { value: CogPhotographerType; label: string }[] = [
+  { value: 'portrait', label: 'Portrait' },
+  { value: 'fashion', label: 'Fashion' },
+  { value: 'editorial', label: 'Editorial' },
+  { value: 'street', label: 'Street' },
+  { value: 'landscape', label: 'Landscape' },
+  { value: 'fine_art', label: 'Fine Art' },
+  { value: 'commercial', label: 'Commercial' },
+];
 
 const TYPE_DEFS: Record<ConfigType, {
   title: string;
@@ -90,7 +109,7 @@ function configToForm(type: ConfigType, config: AnyConfig): Record<string, strin
   const base: Record<string, string> = { name: config.name, description: config.description || '' };
   if (type === 'photographer') {
     const c = config as CogPhotographerConfig;
-    return { ...base, style_description: c.style_description, style_references: c.style_references.join(', '), techniques: c.techniques, testbed_notes: c.testbed_notes };
+    return { ...base, type: c.type || '', distilled_prompt: c.distilled_prompt || '', style_description: c.style_description, style_references: c.style_references.join(', '), techniques: c.techniques, testbed_notes: c.testbed_notes };
   }
   if (type === 'director') {
     const c = config as CogDirectorConfig;
@@ -102,6 +121,10 @@ function configToForm(type: ConfigType, config: AnyConfig): Record<string, strin
 
 function emptyForm(type: ConfigType): Record<string, string> {
   const form: Record<string, string> = { name: '', description: '' };
+  if (type === 'photographer') {
+    form.type = '';
+    form.distilled_prompt = '';
+  }
   for (const f of TYPE_DEFS[type].fields) form[f.key] = '';
   return form;
 }
@@ -123,7 +146,15 @@ async function saveConfig(type: ConfigType, form: Record<string, string>, userId
   const base = { name: form.name.trim(), description: form.description.trim() || null };
 
   if (type === 'photographer') {
-    const fields = { ...base, style_description: form.style_description.trim(), style_references: form.style_references.split(',').map(r => r.trim()).filter(Boolean), techniques: form.techniques.trim(), testbed_notes: form.testbed_notes.trim() };
+    const fields = {
+      ...base,
+      type: (form.type as CogPhotographerType) || null,
+      distilled_prompt: form.distilled_prompt?.trim() || null,
+      style_description: form.style_description.trim(),
+      style_references: form.style_references.split(',').map(r => r.trim()).filter(Boolean),
+      techniques: form.techniques.trim(),
+      testbed_notes: form.testbed_notes.trim(),
+    };
     return editingId ? updatePhotographerConfig(editingId, fields) : createPhotographerConfig({ ...fields, user_id: userId });
   }
   if (type === 'director') {
@@ -218,7 +249,8 @@ function ConfigFormView({ type, config, userId, onDone }: {
     setGenerating(true);
     setError(null);
     try {
-      setForm(await runSeedGeneration(type, seedInput.trim()));
+      const generated = await runSeedGeneration(type, seedInput.trim());
+      setForm(prev => ({ ...prev, ...generated }));
       setShowSeedInput(false);
       setSeedInput('');
     } catch (err) {
@@ -252,7 +284,7 @@ function ConfigFormView({ type, config, userId, onDone }: {
   }
 
   return (
-    <div className="max-w-lg space-y-4">
+    <div className="max-w-6xl mx-auto space-y-4">
       <div className="flex items-center gap-2">
         <Button size="sm" variant="ghost" onClick={onDone} className="h-7 px-2 text-xs">
           <ArrowLeft className="h-3.5 w-3.5 mr-1" /> Back
@@ -265,7 +297,7 @@ function ConfigFormView({ type, config, userId, onDone }: {
       {error && <div className="p-2 text-xs text-destructive bg-destructive/10 rounded">{error}</div>}
 
       <div className="space-y-3">
-        {!editingId && (
+        {(
           showSeedInput ? (
             <div className="flex gap-2">
               <Input value={seedInput} onChange={e => setSeedInput(e.target.value)} placeholder={def.seedPlaceholder} className="text-sm h-8" onKeyDown={e => { if (e.key === 'Enter') handleSeed(); }} disabled={generating} />
@@ -285,6 +317,22 @@ function ConfigFormView({ type, config, userId, onDone }: {
 
         <Input value={form.name} onChange={e => set('name', e.target.value)} placeholder="Name" className="text-sm h-8" />
         <Input value={form.description} onChange={e => set('description', e.target.value)} placeholder="Description (optional)" className="text-sm h-8" />
+
+        {type === 'photographer' && (
+          <div className="space-y-1">
+            <Label className="text-xs">Type</Label>
+            <Select value={form.type || ''} onValueChange={v => set('type', v)}>
+              <SelectTrigger className="h-8 text-sm">
+                <SelectValue placeholder="Select type..." />
+              </SelectTrigger>
+              <SelectContent>
+                {PHOTOGRAPHER_TYPES.map(t => (
+                  <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
 
         {def.fields.map(f => (
           <div key={f.key} className="space-y-1">
@@ -307,6 +355,15 @@ function ConfigFormView({ type, config, userId, onDone }: {
           )}
         </div>
       </div>
+
+      {type === 'photographer' && editingId && (
+        <CalibrationPanel
+          configId={editingId}
+          photographerType={(form.type as CogPhotographerType) || null}
+          currentDistilledPrompt={form.distilled_prompt || null}
+          onDistilledPromptUpdated={(prompt: string) => set('distilled_prompt', prompt)}
+        />
+      )}
     </div>
   );
 }

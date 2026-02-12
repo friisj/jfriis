@@ -190,11 +190,15 @@ export interface CogJobStep {
 export type CogFoundationStatus = 'pending' | 'running' | 'completed' | 'failed';
 export type CogSequenceStatus = 'pending' | 'running' | 'completed' | 'failed';
 
+export type CogPhotographerType = 'portrait' | 'fashion' | 'editorial' | 'street' | 'landscape' | 'fine_art' | 'commercial';
+
 export interface CogPhotographerConfig {
   id: string;
   user_id: string;
   name: string;
   description: string | null;
+  type: CogPhotographerType | null;
+  distilled_prompt: string | null;
   style_description: string;
   style_references: string[];
   techniques: string;
@@ -234,6 +238,41 @@ export interface CogPipelineBaseCandidate {
   image_id: string;
   candidate_index: number;
   created_at: string;
+}
+
+// ============================================================================
+// Benchmark / Calibration Types
+// ============================================================================
+
+export type CogBenchmarkConfigType = 'photographer' | 'director' | 'production';
+
+export type CogBenchmarkRoundStatus = 'active' | 'approved' | 'superseded';
+
+export type CogBenchmarkImageRating = 'approved' | 'rejected';
+
+export interface CogBenchmarkRound {
+  id: string;
+  config_type: CogBenchmarkConfigType;
+  config_id: string;
+  round_number: number;
+  distilled_prompt: string;
+  feedback: string | null;
+  status: CogBenchmarkRoundStatus;
+  created_at: string;
+}
+
+export interface CogBenchmarkImage {
+  id: string;
+  round_id: string;
+  image_index: number;
+  storage_path: string;
+  rating: CogBenchmarkImageRating | null;
+  feedback: string | null;
+  created_at: string;
+}
+
+export interface CogBenchmarkRoundWithImages extends CogBenchmarkRound {
+  images: CogBenchmarkImage[];
 }
 
 // Insert types for configs
