@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -13,8 +13,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { createRemixJob } from '@/lib/cog';
+import { createRemixJob, getAllEvalProfiles } from '@/lib/cog';
 import { runRemixSource } from '@/lib/ai/actions/run-remix-job';
+import type { CogEvalProfile } from '@/lib/types/cog';
 
 interface RemixBuilderFormProps {
   seriesId: string;
@@ -27,9 +28,15 @@ export function RemixBuilderForm({ seriesId }: RemixBuilderFormProps) {
   const [topicsInput, setTopicsInput] = useState('');
   const [colorsInput, setColorsInput] = useState('');
   const [aspectRatio, setAspectRatio] = useState<string>('');
+  const [evalProfileId, setEvalProfileId] = useState<string>('');
+  const [evalProfiles, setEvalProfiles] = useState<CogEvalProfile[]>([]);
   const [saving, setSaving] = useState(false);
   const [running, setRunning] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    getAllEvalProfiles().then(setEvalProfiles).catch(() => {});
+  }, []);
 
   const isValid = story.trim().length > 0;
 
@@ -56,8 +63,9 @@ export function RemixBuilderForm({ seriesId }: RemixBuilderFormProps) {
         story: story.trim(),
         topics,
         colors,
-        status: andRun ? 'draft' : 'draft',
+        status: 'draft',
         target_aspect_ratio: aspectRatio || null,
+        eval_profile_id: evalProfileId || null,
       });
 
       if (andRun) {
@@ -68,7 +76,8 @@ export function RemixBuilderForm({ seriesId }: RemixBuilderFormProps) {
           story.trim(),
           topics,
           colors,
-          aspectRatio || null
+          aspectRatio || null,
+          evalProfileId || null,
         ).catch((err) => {
           console.error('Remix job execution error:', err);
         });
@@ -143,19 +152,41 @@ export function RemixBuilderForm({ seriesId }: RemixBuilderFormProps) {
         </div>
       </div>
 
-      <div className="space-y-2">
-        <Label htmlFor="aspect-ratio">Target Aspect Ratio (optional)</Label>
-        <Select value={aspectRatio} onValueChange={setAspectRatio} disabled={saving || running}>
-          <SelectTrigger id="aspect-ratio">
-            <SelectValue placeholder="Any" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="any">Any</SelectItem>
-            <SelectItem value="landscape">Landscape</SelectItem>
-            <SelectItem value="portrait">Portrait</SelectItem>
-            <SelectItem value="squarish">Square</SelectItem>
-          </SelectContent>
-        </Select>
+      <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <Label htmlFor="aspect-ratio">Target Aspect Ratio (optional)</Label>
+          <Select value={aspectRatio} onValueChange={setAspectRatio} disabled={saving || running}>
+            <SelectTrigger id="aspect-ratio">
+              <SelectValue placeholder="Any" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="any">Any</SelectItem>
+              <SelectItem value="landscape">Landscape</SelectItem>
+              <SelectItem value="portrait">Portrait</SelectItem>
+              <SelectItem value="squarish">Square</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="eval-profile">Eval Profile (optional)</Label>
+          <Select value={evalProfileId} onValueChange={setEvalProfileId} disabled={saving || running}>
+            <SelectTrigger id="eval-profile">
+              <SelectValue placeholder="Default (built-in)" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="default">Default (built-in)</SelectItem>
+              {evalProfiles.map((p) => (
+                <SelectItem key={p.id} value={p.id}>
+                  {p.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <p className="text-xs text-muted-foreground">
+            Art director perspective for evaluating candidates
+          </p>
+        </div>
       </div>
 
       <div className="flex gap-3 pt-4 border-t">

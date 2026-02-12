@@ -46,6 +46,10 @@ import type {
   CogRemixCandidate,
   CogRemixAugmentStep,
   CogRemixTraceEntry,
+  CogEvalProfile,
+  CogRemixEvalRun,
+  CogRemixEvalResult,
+  CogRemixEvalRunFull,
 } from './types/cog';
 
 // ============================================================================
@@ -1064,6 +1068,163 @@ export async function getCalibrationSeedByTypeServer(typeKey: string): Promise<C
 }
 
 // ============================================================================
+// Eval Profile Operations (Server)
+// ============================================================================
+
+/**
+ * Get all eval profiles ordered by name - server-side
+ */
+export async function getAllEvalProfilesServer(): Promise<CogEvalProfile[]> {
+  const client = await createClient();
+  const { data, error } = await (client as any)
+    .from('cog_eval_profiles')
+    .select('*')
+    .order('name', { ascending: true });
+
+  if (error) throw error;
+  return data as CogEvalProfile[];
+}
+
+/**
+ * Get a single eval profile by ID - server-side
+ */
+export async function getEvalProfileByIdServer(id: string): Promise<CogEvalProfile> {
+  const client = await createClient();
+  const { data, error } = await (client as any)
+    .from('cog_eval_profiles')
+    .select('*')
+    .eq('id', id)
+    .single();
+
+  if (error) throw error;
+  return data as CogEvalProfile;
+}
+
+/**
+ * Get all eval runs for a job, with profile and results - server-side
+ */
+export async function getRemixEvalRunsForJobServer(jobId: string): Promise<CogRemixEvalRunFull[]> {
+  const client = await createClient();
+
+  const { data: runs, error: runsError } = await (client as any)
+    .from('cog_remix_eval_runs')
+    .select('*')
+    .eq('job_id', jobId)
+    .order('created_at', { ascending: true });
+
+  if (runsError) throw runsError;
+  if (!runs || runs.length === 0) return [];
+
+  // Fetch profiles and results for all runs
+  const profileIds = [...new Set((runs as CogRemixEvalRun[]).map(r => r.eval_profile_id))];
+  const runIds = (runs as CogRemixEvalRun[]).map(r => r.id);
+
+  const [profilesResult, resultsResult] = await Promise.all([
+    (client as any).from('cog_eval_profiles').select('*').in('id', profileIds),
+    (client as any).from('cog_remix_eval_results').select('*').in('run_id', runIds).order('created_at', { ascending: true }),
+  ]);
+
+  if (profilesResult.error) throw profilesResult.error;
+  if (resultsResult.error) throw resultsResult.error;
+
+  const profileMap = new Map<string, CogEvalProfile>();
+  for (const p of (profilesResult.data || []) as CogEvalProfile[]) {
+    profileMap.set(p.id, p);
+  }
+
+  const resultsByRun = new Map<string, CogRemixEvalResult[]>();
+  for (const r of (resultsResult.data || []) as CogRemixEvalResult[]) {
+    const existing = resultsByRun.get(r.run_id) || [];
+    existing.push(r);
+    resultsByRun.set(r.run_id, existing);
+  }
+
+  return (runs as CogRemixEvalRun[]).map(run => ({
+    ...run,
+    profile: profileMap.get(run.eval_profile_id)!,
+    results: resultsByRun.get(run.id) || [],
+  }));
+}
+
+/**
+ * Create an eval run record - server-side
+ */
+export async function createRemixEvalRunServer(input: {
+  job_id: string;
+  eval_profile_id: string;
+  status?: string;
+}): Promise<CogRemixEvalRun> {
+  const client = await createClient();
+  const { data, error } = await (client as any)
+    .from('cog_remix_eval_runs')
+    .insert({
+      job_id: input.job_id,
+      eval_profile_id: input.eval_profile_id,
+      status: input.status || 'pending',
+    })
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data as CogRemixEvalRun;
+}
+
+/**
+ * Update an eval run status - server-side
+ */
+export async function updateRemixEvalRunServer(
+  id: string,
+  updates: Partial<CogRemixEvalRun>
+): Promise<CogRemixEvalRun> {
+  const client = await createClient();
+  const { data, error } = await (client as any)
+    .from('cog_remix_eval_runs')
+    .update(updates)
+    .eq('id', id)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data as CogRemixEvalRun;
+}
+
+/**
+ * Create an eval result record - server-side
+ */
+export async function createRemixEvalResultServer(input: {
+  run_id: string;
+  candidate_id: string;
+  score: number | null;
+  reasoning: string | null;
+  criterion_scores: Record<string, number> | null;
+}): Promise<CogRemixEvalResult> {
+  const client = await createClient();
+  const { data, error } = await (client as any)
+    .from('cog_remix_eval_results')
+    .insert(input)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data as CogRemixEvalResult;
+}
+
+/**
+ * Get all candidates for a remix job (across all iterations) - server-side
+ */
+export async function getAllCandidatesForJobServer(jobId: string): Promise<CogRemixCandidate[]> {
+  const client = await createClient();
+  const { data, error } = await (client as any)
+    .from('cog_remix_candidates')
+    .select('*')
+    .eq('job_id', jobId)
+    .order('created_at', { ascending: true });
+
+  if (error) throw error;
+  return data as CogRemixCandidate[];
+}
+
+// ============================================================================
 // Remix Job Operations (Server)
 // ============================================================================
 
@@ -1083,7 +1244,7 @@ export async function getRemixJobByIdServer(id: string): Promise<CogRemixJob> {
 }
 
 /**
- * Get a full remix job with iterations, candidates, and augment steps - server-side
+ * Get a full remix job with iterations, candidates, augment steps, eval profile, and eval runs - server-side
  */
 export async function getRemixJobFullServer(id: string): Promise<CogRemixJobFull> {
   const client = await createClient();
@@ -1100,15 +1261,27 @@ export async function getRemixJobFullServer(id: string): Promise<CogRemixJobFull
   if (candidatesResult.error) throw candidatesResult.error;
   if (augmentResult.error) throw augmentResult.error;
 
+  const job = jobResult.data as CogRemixJob;
+
+  // Fetch eval profile and eval runs
+  const [evalProfile, evalRuns] = await Promise.all([
+    job.eval_profile_id
+      ? getEvalProfileByIdServer(job.eval_profile_id).catch(() => null)
+      : null,
+    getRemixEvalRunsForJobServer(id).catch(() => [] as CogRemixEvalRunFull[]),
+  ]);
+
   const iterations = (iterationsResult.data as CogRemixSearchIteration[]).map((iter) => ({
     ...iter,
     candidates: (candidatesResult.data as CogRemixCandidate[]).filter((c) => c.iteration_id === iter.id),
   }));
 
   return {
-    ...jobResult.data,
+    ...job,
     iterations,
     augment_steps: augmentResult.data as CogRemixAugmentStep[],
+    eval_profile: evalProfile,
+    eval_runs: evalRuns,
   } as CogRemixJobFull;
 }
 

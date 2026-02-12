@@ -64,3 +64,30 @@ export async function generateProductionSeed(seed: string) {
   });
   return result.object;
 }
+
+// --- Eval Profile ---
+
+const EvalCriterionSchema = z.object({
+  key: z.string().describe('Snake_case key for this criterion, e.g. "brand_alignment"'),
+  label: z.string().describe('Human-readable label, e.g. "Brand Alignment"'),
+  description: z.string().describe('What to evaluate: a clear instruction for the vision model'),
+  weight: z.number().min(0).max(1).describe('Weight from 0.0 to 1.0, all criteria should sum to 1.0'),
+});
+
+const EvalSeedSchema = z.object({
+  name: z.string().describe('Descriptive name, e.g. "Brand-First Art Director"'),
+  description: z.string().describe('One-line description of this eval perspective'),
+  system_prompt: z.string().describe('The art director persona: voice, priorities, what they care about most when evaluating images. Written in second person ("You are...")'),
+  criteria: z.array(EvalCriterionSchema).min(2).max(8).describe('3-6 evaluation criteria with weights summing to 1.0'),
+  selection_threshold: z.number().min(1).max(10).describe('Minimum overall score to accept an image (typically 6-8)'),
+});
+
+export async function generateEvalSeed(seed: string) {
+  const result = await generateObject({
+    model: getModel('gemini-flash'),
+    schema: EvalSeedSchema,
+    system: `You are an expert in creative direction and image evaluation. Generate a comprehensive eval profile that represents a specific art director's perspective on what makes a good photograph for a given brief. The criteria should be specific and actionable for AI vision evaluation. Ensure criteria weights sum to 1.0.`,
+    prompt: `Generate an eval profile from this seed: "${seed}"`,
+  });
+  return result.object;
+}

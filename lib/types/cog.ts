@@ -612,6 +612,55 @@ export interface CogImageWithGroupInfo extends CogImage {
 export type CogImageWithVersions = CogImageWithGroupInfo;
 
 // ============================================================================
+// Eval Profile Types
+// ============================================================================
+
+export interface CogEvalCriterion {
+  key: string;
+  label: string;
+  description: string;
+  weight: number; // 0.0-1.0, should sum to 1.0
+}
+
+export interface CogEvalProfile {
+  id: string;
+  user_id: string;
+  name: string;
+  description: string | null;
+  system_prompt: string;
+  criteria: CogEvalCriterion[];
+  selection_threshold: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export type CogEvalProfileInsert = Omit<CogEvalProfile, 'id' | 'created_at' | 'updated_at'>;
+export type CogEvalProfileUpdate = Partial<Omit<CogEvalProfile, 'id' | 'created_at'>>;
+
+export interface CogRemixEvalRun {
+  id: string;
+  job_id: string;
+  eval_profile_id: string;
+  status: string;
+  created_at: string;
+}
+
+export interface CogRemixEvalResult {
+  id: string;
+  run_id: string;
+  candidate_id: string;
+  score: number | null;
+  reasoning: string | null;
+  criterion_scores: Record<string, number> | null;
+  created_at: string;
+}
+
+export interface CogRemixEvalRunFull extends CogRemixEvalRun {
+  profile: CogEvalProfile;
+  results: CogRemixEvalResult[];
+}
+
+// ============================================================================
 // Remix Job Types
 // ============================================================================
 
@@ -651,6 +700,7 @@ export interface CogRemixJob {
   selected_image_id: string | null;
   target_aspect_ratio: string | null;
   target_colors: string[];
+  eval_profile_id: string | null;
   trace: CogRemixTraceEntry[];
   error_message: string | null;
   created_at: string;
@@ -711,6 +761,7 @@ export interface CogRemixJobInsert {
   status?: CogRemixJobStatus;
   target_aspect_ratio?: string | null;
   target_colors?: string[];
+  eval_profile_id?: string | null;
 }
 
 export type CogRemixJobUpdate = Partial<Omit<CogRemixJob, 'id' | 'created_at'>>;
@@ -719,4 +770,6 @@ export type CogRemixJobUpdate = Partial<Omit<CogRemixJob, 'id' | 'created_at'>>;
 export interface CogRemixJobFull extends CogRemixJob {
   iterations: (CogRemixSearchIteration & { candidates: CogRemixCandidate[] })[];
   augment_steps: CogRemixAugmentStep[];
+  eval_profile: CogEvalProfile | null;
+  eval_runs: CogRemixEvalRunFull[];
 }

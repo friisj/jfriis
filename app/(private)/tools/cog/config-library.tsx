@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { ArrowLeft, Plus, Settings } from 'lucide-react';
+import { ArrowLeft, Plus, Settings, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -18,10 +18,12 @@ import {
   createPhotographerConfig, updatePhotographerConfig, deletePhotographerConfig,
   createDirectorConfig, updateDirectorConfig, deleteDirectorConfig,
   createProductionConfig, updateProductionConfig, deleteProductionConfig,
+  createEvalProfile, updateEvalProfile, deleteEvalProfile,
   getCalibrationSeeds,
 } from '@/lib/cog';
 import {
   generatePhotographerSeed, generateDirectorSeed, generateProductionSeed,
+  generateEvalSeed,
 } from '@/lib/ai/actions/generate-config-seed';
 import { CalibrationPanel } from './calibration-panel';
 import { SeedManager } from './seed-manager';
@@ -29,14 +31,16 @@ import type {
   CogPhotographerConfig, CogDirectorConfig, CogProductionConfig,
   CogPhotographerType,
   CogCalibrationSeed,
+  CogEvalProfile,
+  CogEvalCriterion,
 } from '@/lib/types/cog';
 
 // ============================================================================
 // Types & config definitions
 // ============================================================================
 
-type ConfigType = 'photographer' | 'director' | 'production';
-type AnyConfig = CogPhotographerConfig | CogDirectorConfig | CogProductionConfig;
+type ConfigType = 'photographer' | 'director' | 'production' | 'eval';
+type AnyConfig = CogPhotographerConfig | CogDirectorConfig | CogProductionConfig | CogEvalProfile;
 
 interface FieldDef {
   key: string;
@@ -92,7 +96,24 @@ const TYPE_DEFS: Record<ConfigType, {
       { key: 'conceptual_notes', label: 'Conceptual Notes', kind: 'textarea', placeholder: 'Themes, symbolism, mood, narrative', rows: 2 },
     ],
   },
+  eval: {
+    title: 'Eval Profiles',
+    singular: 'eval profile',
+    table: 'cog_eval_profiles',
+    seedPlaceholder: 'e.g. "minimalist brand photography"',
+    fields: [
+      { key: 'system_prompt', label: 'System Prompt (Art Director Voice)', kind: 'textarea', placeholder: 'You are a brand-focused art director who prioritizes...', rows: 4 },
+      { key: 'selection_threshold', label: 'Selection Threshold (0-10)', kind: 'input', placeholder: '7' },
+    ],
+  },
 };
+
+const DEFAULT_CRITERIA: CogEvalCriterion[] = [
+  { key: 'subject_relevance', label: 'Subject Relevance', description: 'How well does the subject matter match the story/topics?', weight: 0.4 },
+  { key: 'mood_alignment', label: 'Mood Alignment', description: 'Does the mood/atmosphere match the narrative tone?', weight: 0.25 },
+  { key: 'color_match', label: 'Color Match', description: 'Do the colors align with the requested palette?', weight: 0.15 },
+  { key: 'composition_quality', label: 'Composition Quality', description: 'Is it well-composed, high quality, usable as editorial imagery?', weight: 0.2 },
+];
 
 // ============================================================================
 // Per-type helpers
@@ -108,6 +129,10 @@ function configToForm(type: ConfigType, config: AnyConfig): Record<string, strin
     const c = config as CogDirectorConfig;
     return { ...base, approach_description: c.approach_description, methods: c.methods };
   }
+  if (type === 'eval') {
+    const c = config as CogEvalProfile;
+    return { ...base, system_prompt: c.system_prompt, selection_threshold: String(c.selection_threshold) };
+  }
   const c = config as CogProductionConfig;
   return { ...base, shoot_details: c.shoot_details, editorial_notes: c.editorial_notes, costume_notes: c.costume_notes, conceptual_notes: c.conceptual_notes };
 }
@@ -118,7 +143,12 @@ function emptyForm(type: ConfigType): Record<string, string> {
     form.type = '';
     form.distilled_prompt = '';
   }
-  for (const f of TYPE_DEFS[type].fields) form[f.key] = '';
+  if (type === 'eval') {
+    form.selection_threshold = '7';
+  }
+  for (const f of TYPE_DEFS[type].fields) {
+    if (!(f.key in form)) form[f.key] = '';
+  }
   return form;
 }
 
@@ -131,11 +161,15 @@ async function runSeedGeneration(type: ConfigType, input: string): Promise<Recor
     const r = await generateDirectorSeed(input);
     return { name: r.name, description: r.description, approach_description: r.approach_description, methods: r.methods };
   }
+  if (type === 'eval') {
+    const r = await generateEvalSeed(input);
+    return { name: r.name, description: r.description, system_prompt: r.system_prompt, selection_threshold: String(r.selection_threshold) };
+  }
   const r = await generateProductionSeed(input);
   return { name: r.name, description: r.description, shoot_details: r.shoot_details, editorial_notes: r.editorial_notes, costume_notes: r.costume_notes, conceptual_notes: r.conceptual_notes };
 }
 
-async function saveConfig(type: ConfigType, form: Record<string, string>, userId: string, editingId: string | null) {
+async function saveConfig(type: ConfigType, form: Record<string, string>, userId: string, editingId: string | null, criteria?: CogEvalCriterion[]) {
   const base = { name: form.name.trim(), description: form.description.trim() || null };
 
   if (type === 'photographer') {
@@ -154,6 +188,15 @@ async function saveConfig(type: ConfigType, form: Record<string, string>, userId
     const fields = { ...base, approach_description: form.approach_description.trim(), methods: form.methods.trim(), interview_mapping: null };
     return editingId ? updateDirectorConfig(editingId, fields) : createDirectorConfig({ ...fields, user_id: userId });
   }
+  if (type === 'eval') {
+    const fields = {
+      ...base,
+      system_prompt: form.system_prompt?.trim() || '',
+      criteria: criteria || DEFAULT_CRITERIA,
+      selection_threshold: parseFloat(form.selection_threshold) || 7,
+    };
+    return editingId ? updateEvalProfile(editingId, fields) : createEvalProfile({ ...fields, user_id: userId });
+  }
   const fields = { ...base, shoot_details: form.shoot_details.trim(), editorial_notes: form.editorial_notes.trim(), costume_notes: form.costume_notes.trim(), conceptual_notes: form.conceptual_notes.trim() };
   return editingId ? updateProductionConfig(editingId, fields) : createProductionConfig({ ...fields, user_id: userId });
 }
@@ -161,7 +204,100 @@ async function saveConfig(type: ConfigType, form: Record<string, string>, userId
 async function removeConfig(type: ConfigType, id: string) {
   if (type === 'photographer') return deletePhotographerConfig(id);
   if (type === 'director') return deleteDirectorConfig(id);
+  if (type === 'eval') return deleteEvalProfile(id);
   return deleteProductionConfig(id);
+}
+
+// ============================================================================
+// Criteria editor (for eval profiles)
+// ============================================================================
+
+function CriteriaEditor({ criteria, onChange }: {
+  criteria: CogEvalCriterion[];
+  onChange: (criteria: CogEvalCriterion[]) => void;
+}) {
+  const totalWeight = criteria.reduce((sum, c) => sum + c.weight, 0);
+  const isValidWeight = Math.abs(totalWeight - 1.0) < 0.01;
+
+  function updateCriterion(index: number, updates: Partial<CogEvalCriterion>) {
+    const next = [...criteria];
+    next[index] = { ...next[index], ...updates };
+    // Auto-generate key from label if key was auto-generated or empty
+    if (updates.label !== undefined) {
+      next[index].key = updates.label.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
+    }
+    onChange(next);
+  }
+
+  function addCriterion() {
+    onChange([...criteria, { key: '', label: '', description: '', weight: 0 }]);
+  }
+
+  function removeCriterion(index: number) {
+    onChange(criteria.filter((_, i) => i !== index));
+  }
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        <Label className="text-xs font-semibold">Evaluation Criteria</Label>
+        <div className="flex items-center gap-2">
+          <span className={`text-xs ${isValidWeight ? 'text-green-600' : 'text-amber-600'}`}>
+            Total: {(totalWeight * 100).toFixed(0)}%
+            {!isValidWeight && ' (should be 100%)'}
+          </span>
+          <Button size="sm" variant="outline" onClick={addCriterion} className="h-6 text-xs px-2">
+            <Plus className="h-3 w-3 mr-1" /> Add
+          </Button>
+        </div>
+      </div>
+      {criteria.map((c, i) => (
+        <div key={i} className="border rounded-md p-2 space-y-2">
+          <div className="flex gap-2 items-start">
+            <div className="flex-1 space-y-1.5">
+              <div className="flex gap-2">
+                <Input
+                  value={c.label}
+                  onChange={e => updateCriterion(i, { label: e.target.value })}
+                  placeholder="Label (e.g. Subject Relevance)"
+                  className="text-sm h-7 flex-1"
+                />
+                <Input
+                  value={String(Math.round(c.weight * 100))}
+                  onChange={e => updateCriterion(i, { weight: (parseInt(e.target.value) || 0) / 100 })}
+                  placeholder="%"
+                  className="text-sm h-7 w-16 text-center"
+                  type="number"
+                  min={0}
+                  max={100}
+                />
+              </div>
+              <Input
+                value={c.description}
+                onChange={e => updateCriterion(i, { description: e.target.value })}
+                placeholder="Description of what to evaluate"
+                className="text-sm h-7"
+              />
+            </div>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => removeCriterion(i)}
+              className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive shrink-0"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+            </Button>
+          </div>
+          <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+            <div
+              className="h-full bg-blue-500 rounded-full transition-all"
+              style={{ width: `${Math.min(c.weight * 100, 100)}%` }}
+            />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
 }
 
 // ============================================================================
@@ -192,9 +328,11 @@ function ConfigColumn({ type, onEdit, onNew, onManageTypes }: {
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-semibold">{def.title}</h3>
         <div className="flex items-center gap-0.5">
-          <Button size="sm" variant="ghost" onClick={onManageTypes} className="h-6 w-6 p-0" title="Manage types">
-            <Settings className="h-3.5 w-3.5" />
-          </Button>
+          {type !== 'eval' && (
+            <Button size="sm" variant="ghost" onClick={onManageTypes} className="h-6 w-6 p-0" title="Manage types">
+              <Settings className="h-3.5 w-3.5" />
+            </Button>
+          )}
           <Button size="sm" variant="ghost" onClick={onNew} className="h-6 w-6 p-0">
             <Plus className="h-4 w-4" />
           </Button>
@@ -234,6 +372,11 @@ function ConfigFormView({ type, config, userId, onDone, seeds }: {
   const [form, setForm] = useState<Record<string, string>>(
     config ? configToForm(type, config) : emptyForm(type)
   );
+  const [criteria, setCriteria] = useState<CogEvalCriterion[]>(
+    type === 'eval' && config
+      ? (config as CogEvalProfile).criteria
+      : DEFAULT_CRITERIA
+  );
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [seedInput, setSeedInput] = useState('');
@@ -265,7 +408,7 @@ function ConfigFormView({ type, config, userId, onDone, seeds }: {
     setSaving(true);
     setError(null);
     try {
-      await saveConfig(type, form, userId, editingId);
+      await saveConfig(type, form, userId, editingId, type === 'eval' ? criteria : undefined);
       onDone();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to save');
@@ -345,6 +488,10 @@ function ConfigFormView({ type, config, userId, onDone, seeds }: {
           </div>
         ))}
 
+        {type === 'eval' && (
+          <CriteriaEditor criteria={criteria} onChange={setCriteria} />
+        )}
+
         <div className="flex gap-2 pt-1">
           <Button size="sm" onClick={handleSave} disabled={saving || !form.name.trim()} className="h-7 text-xs">
             {saving ? '...' : editingId ? 'Save' : 'Create'}
@@ -421,10 +568,11 @@ export function ConfigLibrary() {
   }
 
   return (
-    <div className="grid grid-cols-3 gap-6" key={refreshKey}>
+    <div className="grid grid-cols-4 gap-6" key={refreshKey}>
       <ConfigColumn type="photographer" onEdit={c => setView({ kind: 'edit', state: { type: 'photographer', config: c } })} onNew={() => setView({ kind: 'edit', state: { type: 'photographer' } })} onManageTypes={() => setView({ kind: 'manage-types' })} />
       <ConfigColumn type="director" onEdit={c => setView({ kind: 'edit', state: { type: 'director', config: c } })} onNew={() => setView({ kind: 'edit', state: { type: 'director' } })} onManageTypes={() => setView({ kind: 'manage-types' })} />
       <ConfigColumn type="production" onEdit={c => setView({ kind: 'edit', state: { type: 'production', config: c } })} onNew={() => setView({ kind: 'edit', state: { type: 'production' } })} onManageTypes={() => setView({ kind: 'manage-types' })} />
+      <ConfigColumn type="eval" onEdit={c => setView({ kind: 'edit', state: { type: 'eval', config: c } })} onNew={() => setView({ kind: 'edit', state: { type: 'eval' } })} onManageTypes={() => setView({ kind: 'manage-types' })} />
     </div>
   );
 }

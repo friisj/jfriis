@@ -3,13 +3,22 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
-import { getCogImageUrl } from '@/lib/cog';
-import { runRemixSource } from '@/lib/ai/actions/run-remix-job';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { getAllEvalProfiles } from '@/lib/cog';
+import { runRemixSource, runRemixReeval } from '@/lib/ai/actions/run-remix-job';
 import { deleteRemixJob } from '@/lib/cog';
 import type {
   CogRemixJobFull,
   CogRemixCandidate,
   CogRemixTraceEntry,
+  CogEvalProfile,
+  CogRemixEvalRunFull,
 } from '@/lib/types/cog';
 
 interface RemixExecutionMonitorProps {
@@ -32,7 +41,12 @@ function PhaseStatusPill({ label, status }: { label: string; status: string }) {
   );
 }
 
-function CandidateCard({ candidate }: { candidate: CogRemixCandidate }) {
+function CandidateCard({ candidate, evalRunResults }: {
+  candidate: CogRemixCandidate;
+  evalRunResults?: Map<string, { score: number | null; reasoning: string | null; criterion_scores: Record<string, number> | null }>;
+}) {
+  const [showDetails, setShowDetails] = useState(false);
+
   return (
     <div
       className={`relative rounded-lg overflow-hidden border ${
@@ -41,7 +55,7 @@ function CandidateCard({ candidate }: { candidate: CogRemixCandidate }) {
           : 'border-border'
       }`}
     >
-      <div className="aspect-[4/3] relative bg-muted">
+      <div className="aspect-[4/3] relative bg-muted cursor-pointer" onClick={() => setShowDetails(!showDetails)}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={candidate.thumbnail_url}
@@ -73,6 +87,21 @@ function CandidateCard({ candidate }: { candidate: CogRemixCandidate }) {
         </div>
         {candidate.eval_reasoning && (
           <p className="text-xs mt-1 line-clamp-2">{candidate.eval_reasoning}</p>
+        )}
+        {/* Show eval run comparisons */}
+        {showDetails && evalRunResults && evalRunResults.size > 0 && (
+          <div className="mt-2 space-y-1 border-t pt-2">
+            {Array.from(evalRunResults.entries()).map(([profileName, result]) => (
+              <div key={profileName} className="flex items-center justify-between text-xs">
+                <span className="text-muted-foreground truncate mr-2">{profileName}</span>
+                <span className={`font-bold ${
+                  (result.score ?? 0) >= 7 ? 'text-green-600' : (result.score ?? 0) >= 5 ? 'text-yellow-600' : 'text-red-600'
+                }`}>
+                  {result.score?.toFixed(1) ?? '-'}
+                </span>
+              </div>
+            ))}
+          </div>
         )}
       </div>
     </div>
@@ -117,6 +146,90 @@ function TraceViewer({ trace }: { trace: CogRemixTraceEntry[] }) {
   );
 }
 
+function EvalRunsSection({ evalRuns, allCandidates }: {
+  evalRuns: CogRemixEvalRunFull[];
+  allCandidates: CogRemixCandidate[];
+}) {
+  const [expandedRun, setExpandedRun] = useState<string | null>(null);
+
+  if (evalRuns.length === 0) return null;
+
+  return (
+    <div className="space-y-3">
+      <h3 className="font-medium text-sm">Eval Runs</h3>
+      {evalRuns.map((run) => (
+        <div key={run.id} className="border rounded-lg overflow-hidden">
+          <button
+            onClick={() => setExpandedRun(expandedRun === run.id ? null : run.id)}
+            className="w-full flex items-center justify-between p-3 hover:bg-muted/30"
+          >
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-medium">{run.profile?.name || 'Unknown Profile'}</span>
+              <PhaseStatusPill label="" status={run.status} />
+              <span className="text-xs text-muted-foreground">
+                {new Date(run.created_at).toLocaleString()}
+              </span>
+            </div>
+            <span className="text-xs">{expandedRun === run.id ? '\u25B2' : '\u25BC'}</span>
+          </button>
+          {expandedRun === run.id && run.results.length > 0 && (
+            <div className="border-t p-3">
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
+                {run.results
+                  .sort((a, b) => (b.score ?? 0) - (a.score ?? 0))
+                  .map((result) => {
+                    const candidate = allCandidates.find(c => c.id === result.candidate_id);
+                    if (!candidate) return null;
+                    return (
+                      <div key={result.id} className="border rounded-lg overflow-hidden">
+                        <div className="aspect-[4/3] relative bg-muted">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={candidate.thumbnail_url}
+                            alt="Candidate"
+                            className="w-full h-full object-cover"
+                          />
+                          {result.score != null && (
+                            <div className={`absolute top-1 right-1 text-xs font-bold px-1.5 py-0.5 rounded ${
+                              result.score >= 7 ? 'bg-green-600 text-white' : result.score >= 5 ? 'bg-yellow-600 text-white' : 'bg-red-600 text-white'
+                            }`}>
+                              {result.score.toFixed(1)}
+                            </div>
+                          )}
+                          {/* Show original score for comparison */}
+                          {candidate.eval_score != null && (
+                            <div className="absolute top-1 left-1 text-xs px-1.5 py-0.5 rounded bg-black/50 text-white">
+                              orig: {candidate.eval_score.toFixed(1)}
+                            </div>
+                          )}
+                        </div>
+                        <div className="p-2">
+                          {result.reasoning && (
+                            <p className="text-xs line-clamp-2">{result.reasoning}</p>
+                          )}
+                          {result.criterion_scores && (
+                            <div className="mt-1 space-y-0.5">
+                              {Object.entries(result.criterion_scores).map(([key, score]) => (
+                                <div key={key} className="flex items-center justify-between text-xs">
+                                  <span className="text-muted-foreground truncate mr-1">{key.replace(/_/g, ' ')}</span>
+                                  <span className="font-mono">{score}</span>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+              </div>
+            </div>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export function RemixExecutionMonitor({ initialJob, seriesId }: RemixExecutionMonitorProps) {
   const router = useRouter();
   const [job, setJob] = useState<CogRemixJobFull>(initialJob);
@@ -126,8 +239,15 @@ export function RemixExecutionMonitor({ initialJob, seriesId }: RemixExecutionMo
   const [deleting, setDeleting] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
 
+  // Re-eval state
+  const [showReeval, setShowReeval] = useState(false);
+  const [evalProfiles, setEvalProfiles] = useState<CogEvalProfile[]>([]);
+  const [selectedRevalProfile, setSelectedRevalProfile] = useState<string>('');
+  const [reevalRunning, setReevalRunning] = useState(false);
+
   const isRunning = job.status === 'running';
   const isDraft = job.status === 'draft';
+  const isCompleted = job.status === 'completed';
 
   const fetchJob = useCallback(async () => {
     try {
@@ -136,7 +256,11 @@ export function RemixExecutionMonitor({ initialJob, seriesId }: RemixExecutionMo
         const data = await res.json();
         setJob(data);
         if (data.status !== 'running') {
-          setPolling(false);
+          // Check if any eval runs are still running
+          const hasRunningEval = (data.eval_runs || []).some((r: CogRemixEvalRunFull) => r.status === 'running');
+          if (!hasRunningEval) {
+            setPolling(false);
+          }
         }
       }
     } catch (err) {
@@ -150,6 +274,13 @@ export function RemixExecutionMonitor({ initialJob, seriesId }: RemixExecutionMo
     return () => clearInterval(interval);
   }, [polling, fetchJob]);
 
+  // Load eval profiles when showing re-eval
+  useEffect(() => {
+    if (showReeval && evalProfiles.length === 0) {
+      getAllEvalProfiles().then(setEvalProfiles).catch(() => {});
+    }
+  }, [showReeval, evalProfiles.length]);
+
   async function handleRun() {
     setPolling(true);
     runRemixSource(
@@ -158,12 +289,27 @@ export function RemixExecutionMonitor({ initialJob, seriesId }: RemixExecutionMo
       job.story,
       job.topics,
       job.colors,
-      job.target_aspect_ratio
+      job.target_aspect_ratio,
+      job.eval_profile_id,
     ).catch((err) => {
       console.error('Remix execution error:', err);
     });
-    // Start polling immediately
     setTimeout(fetchJob, 1000);
+  }
+
+  async function handleReeval() {
+    if (!selectedRevalProfile) return;
+    setReevalRunning(true);
+    setPolling(true);
+    try {
+      await runRemixReeval(job.id, selectedRevalProfile);
+    } catch (err) {
+      console.error('Re-eval error:', err);
+    }
+    setReevalRunning(false);
+    setShowReeval(false);
+    setSelectedRevalProfile('');
+    fetchJob();
   }
 
   async function handleDelete() {
@@ -176,15 +322,29 @@ export function RemixExecutionMonitor({ initialJob, seriesId }: RemixExecutionMo
     }
   }
 
+  // Build eval run result maps per candidate
+  const allCandidates = job.iterations.flatMap((iter) => iter.candidates);
+  const evalRunResultsPerCandidate = new Map<string, Map<string, { score: number | null; reasoning: string | null; criterion_scores: Record<string, number> | null }>>();
+  for (const run of (job.eval_runs || [])) {
+    if (run.status !== 'completed') continue;
+    for (const result of run.results) {
+      if (!evalRunResultsPerCandidate.has(result.candidate_id)) {
+        evalRunResultsPerCandidate.set(result.candidate_id, new Map());
+      }
+      evalRunResultsPerCandidate.get(result.candidate_id)!.set(
+        run.profile?.name || 'Unknown',
+        { score: result.score, reasoning: result.reasoning, criterion_scores: result.criterion_scores }
+      );
+    }
+  }
+
   // Find the selected image
-  const selectedCandidate = job.iterations
-    .flatMap((iter) => iter.candidates)
-    .find((c) => c.selected);
+  const selectedCandidate = allCandidates.find((c) => c.selected);
 
   return (
     <div className="space-y-6">
       {/* Phase Status */}
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-3 flex-wrap">
         <PhaseStatusPill label="Source" status={job.source_status} />
         <PhaseStatusPill label="Augment" status={job.augment_status} />
         <span
@@ -200,6 +360,11 @@ export function RemixExecutionMonitor({ initialJob, seriesId }: RemixExecutionMo
         >
           {job.status}
         </span>
+        {job.eval_profile && (
+          <span className="text-xs px-2.5 py-1 rounded-full font-medium bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200">
+            Eval: {job.eval_profile.name}
+          </span>
+        )}
       </div>
 
       {/* Error message */}
@@ -324,7 +489,11 @@ export function RemixExecutionMonitor({ initialJob, seriesId }: RemixExecutionMo
             {iteration.candidates.length > 0 && (
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
                 {iteration.candidates.map((candidate) => (
-                  <CandidateCard key={candidate.id} candidate={candidate} />
+                  <CandidateCard
+                    key={candidate.id}
+                    candidate={candidate}
+                    evalRunResults={evalRunResultsPerCandidate.get(candidate.id)}
+                  />
                 ))}
               </div>
             )}
@@ -350,14 +519,60 @@ export function RemixExecutionMonitor({ initialJob, seriesId }: RemixExecutionMo
         </div>
       )}
 
+      {/* Eval Runs Section */}
+      {(job.eval_runs || []).length > 0 && (
+        <EvalRunsSection evalRuns={job.eval_runs} allCandidates={allCandidates} />
+      )}
+
       {/* Trace viewer */}
       <TraceViewer trace={job.trace || []} />
+
+      {/* Re-evaluate panel */}
+      {showReeval && (
+        <div className="border rounded-lg p-4 space-y-3 bg-purple-50 dark:bg-purple-950/30">
+          <h3 className="font-medium text-sm">Re-evaluate with Different Profile</h3>
+          <div className="flex gap-2 items-end">
+            <div className="flex-1">
+              <Select value={selectedRevalProfile} onValueChange={setSelectedRevalProfile}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select eval profile..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {evalProfiles.map((p) => (
+                    <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <Button
+              onClick={handleReeval}
+              disabled={!selectedRevalProfile || reevalRunning}
+              size="sm"
+            >
+              {reevalRunning ? 'Running...' : 'Run Re-evaluation'}
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => { setShowReeval(false); setSelectedRevalProfile(''); }}
+              disabled={reevalRunning}
+            >
+              Cancel
+            </Button>
+          </div>
+        </div>
+      )}
 
       {/* Actions */}
       <div className="flex gap-3 pt-4 border-t">
         {isDraft && (
           <Button onClick={handleRun}>
             Run Source Phase
+          </Button>
+        )}
+        {isCompleted && !showReeval && (
+          <Button variant="outline" onClick={() => setShowReeval(true)}>
+            Re-evaluate
           </Button>
         )}
         {confirmDelete ? (

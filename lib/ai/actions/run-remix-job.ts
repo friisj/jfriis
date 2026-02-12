@@ -8,6 +8,7 @@ import {
   buildSearchTranslationPrompt,
   buildVisionEvalPrompt,
   buildSelectionDecisionPrompt,
+  extractCriterionScores,
 } from '../prompts/remix';
 import {
   updateRemixJobServer,
@@ -16,11 +17,17 @@ import {
   createRemixCandidateServer,
   updateRemixCandidateServer,
   appendRemixTraceServer,
+  getEvalProfileByIdServer,
+  getAllCandidatesForJobServer,
+  createRemixEvalRunServer,
+  updateRemixEvalRunServer,
+  createRemixEvalResultServer,
 } from '@/lib/cog-server';
 import type {
   CogRemixTraceEntry,
   CogRemixSearchParams,
   CogRemixCandidate,
+  CogEvalProfile,
 } from '@/lib/types/cog';
 
 const MAX_ITERATIONS = 3;
@@ -55,9 +62,16 @@ export async function runRemixSource(
   story: string,
   topics: string[],
   colors: string[],
-  targetAspectRatio?: string | null
+  targetAspectRatio?: string | null,
+  evalProfileId?: string | null,
 ): Promise<void> {
   try {
+    // Fetch eval profile if provided
+    let evalProfile: CogEvalProfile | null = null;
+    if (evalProfileId) {
+      evalProfile = await getEvalProfileByIdServer(evalProfileId).catch(() => null);
+    }
+
     // Set status to running
     await updateRemixJobServer(jobId, {
       status: 'running',
@@ -197,7 +211,7 @@ export async function runRemixSource(
       // ================================================================
       // Step E: Vision-eval each candidate
       // ================================================================
-      const evalPrompt = buildVisionEvalPrompt({ story, topics, colors });
+      const evalPrompt = buildVisionEvalPrompt({ story, topics, colors, evalProfile });
       const evalStart = Date.now();
       let totalEvalTokensIn = 0;
       let totalEvalTokensOut = 0;
@@ -293,6 +307,7 @@ export async function runRemixSource(
         iterationNumber: iterNum,
         maxIterations: MAX_ITERATIONS,
         story,
+        selectionThreshold: evalProfile?.selection_threshold,
       });
 
       const selectionStart = Date.now();
@@ -382,6 +397,134 @@ export async function runRemixSource(
       source_status: 'failed',
       error_message: error instanceof Error ? error.message : 'Unknown error',
     });
+  }
+}
+
+/**
+ * Run a post-hoc re-evaluation of all candidates in a completed remix job
+ * using a different eval profile. Results are stored in cog_remix_eval_runs/results.
+ */
+export async function runRemixReeval(
+  jobId: string,
+  evalProfileId: string,
+): Promise<void> {
+  const run = await createRemixEvalRunServer({
+    job_id: jobId,
+    eval_profile_id: evalProfileId,
+    status: 'running',
+  });
+
+  try {
+    const [candidates, evalProfile] = await Promise.all([
+      getAllCandidatesForJobServer(jobId),
+      getEvalProfileByIdServer(evalProfileId),
+    ]);
+
+    if (candidates.length === 0) {
+      await updateRemixEvalRunServer(run.id, { status: 'completed' });
+      return;
+    }
+
+    // Fetch job data for the brief
+    const { getRemixJobByIdServer } = await import('@/lib/cog-server');
+    const job = await getRemixJobByIdServer(jobId);
+
+    const fullEvalPrompt = buildVisionEvalPrompt({
+      story: job.story,
+      topics: job.topics,
+      colors: job.colors,
+      evalProfile,
+    });
+
+    const startTime = Date.now();
+    let totalTokensIn = 0;
+    let totalTokensOut = 0;
+
+    // Process in batches of 4
+    const BATCH_SIZE = 4;
+    for (let i = 0; i < candidates.length; i += BATCH_SIZE) {
+      const batch = candidates.slice(i, i + BATCH_SIZE);
+      await Promise.all(
+        batch.map(async (candidate) => {
+          try {
+            const thumbRes = await fetch(candidate.thumbnail_url);
+            if (!thumbRes.ok) {
+              await createRemixEvalResultServer({
+                run_id: run.id,
+                candidate_id: candidate.id,
+                score: 0,
+                reasoning: 'Failed to fetch thumbnail for re-evaluation',
+                criterion_scores: null,
+              });
+              return;
+            }
+            const thumbBuffer = await thumbRes.arrayBuffer();
+            const thumbBase64 = Buffer.from(thumbBuffer).toString('base64');
+            const contentType = thumbRes.headers.get('content-type') || 'image/jpeg';
+
+            const evalResult = await generateText({
+              model: getModel('gemini-flash') as Parameters<typeof generateText>[0]['model'],
+              messages: [
+                {
+                  role: 'user',
+                  content: [
+                    { type: 'image', image: thumbBase64, mediaType: contentType },
+                    { type: 'text', text: fullEvalPrompt },
+                  ],
+                },
+              ],
+            });
+
+            totalTokensIn += evalResult.usage?.inputTokens || 0;
+            totalTokensOut += evalResult.usage?.outputTokens || 0;
+
+            let score = 0;
+            let reasoning = '';
+            let criterionScores: Record<string, number> | null = null;
+            try {
+              const cleaned = evalResult.text.replace(/```json\n?|\n?```/g, '').trim();
+              const parsed = JSON.parse(cleaned);
+              score = parsed.score || 0;
+              reasoning = parsed.reasoning || '';
+              criterionScores = extractCriterionScores(parsed, evalProfile);
+            } catch {
+              reasoning = 'Failed to parse evaluation result';
+            }
+
+            await createRemixEvalResultServer({
+              run_id: run.id,
+              candidate_id: candidate.id,
+              score,
+              reasoning,
+              criterion_scores: criterionScores,
+            });
+          } catch (err) {
+            console.error(`[Reeval ${run.id}] Eval failed for candidate ${candidate.id}:`, err);
+            await createRemixEvalResultServer({
+              run_id: run.id,
+              candidate_id: candidate.id,
+              score: 0,
+              reasoning: `Error: ${err instanceof Error ? err.message : 'unknown'}`,
+              criterion_scores: null,
+            });
+          }
+        })
+      );
+    }
+
+    const duration = Date.now() - startTime;
+    await updateRemixEvalRunServer(run.id, { status: 'completed' });
+
+    await appendRemixTraceServer(
+      jobId,
+      traceEntry('reeval', 'vision_eval', `Re-evaluated ${candidates.length} candidates with profile "${evalProfile.name}"`, duration, {
+        tokensIn: totalTokensIn,
+        tokensOut: totalTokensOut,
+      })
+    );
+  } catch (error) {
+    console.error(`[Reeval ${run.id}] Failed:`, error);
+    await updateRemixEvalRunServer(run.id, { status: 'failed' });
   }
 }
 
