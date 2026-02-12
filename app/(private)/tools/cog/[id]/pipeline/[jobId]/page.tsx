@@ -67,20 +67,9 @@ export default async function PipelineMonitorPage({ params }: Props) {
   }
 
   return (
-    <div className="container py-8 max-w-5xl">
+    <div className="container py-8 max-w-5xl mx-auto">
       {/* Header */}
       <div className="mb-8">
-        <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
-          <Link href="/tools/cog" className="hover:text-foreground">
-            Series
-          </Link>
-          <span>/</span>
-          <Link href={`/tools/cog/${seriesId}`} className="hover:text-foreground">
-            {series.title}
-          </Link>
-          <span>/</span>
-          <span className="text-foreground">Pipeline Monitor</span>
-        </div>
         <h1 className="text-3xl font-bold">
           {pipelineJob.title || 'Pipeline Job'}
         </h1>

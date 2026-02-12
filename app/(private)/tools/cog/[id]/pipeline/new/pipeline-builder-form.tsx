@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { StoryInput, ReferenceImageSelector } from './initial-input-selector';
@@ -46,6 +47,7 @@ export function PipelineBuilderForm({ seriesId, images, photographerConfigs, dir
 
   // Per-step inference overrides
   const [inferenceStepConfigs, setInferenceStepConfigs] = useState<InferenceStepConfigs | null>(existingJob?.inference_step_configs ?? null);
+  const [includeNegativePrompt, setIncludeNegativePrompt] = useState(existingJob?.include_negative_prompt ?? true);
 
   // Inference controls
   const [numBaseImages, setNumBaseImages] = useState(existingJob?.num_base_images ?? 3);
@@ -89,6 +91,7 @@ export function PipelineBuilderForm({ seriesId, images, photographerConfigs, dir
         foundation_model: foundationModel,
         aspect_ratio: aspectRatio,
         inference_step_configs: inferenceStepConfigs,
+        include_negative_prompt: includeNegativePrompt,
       };
 
       let jobId: string;
@@ -185,8 +188,10 @@ export function PipelineBuilderForm({ seriesId, images, photographerConfigs, dir
 
             {negativePrompt && (
               <div>
-                <Label className="text-sm font-medium">Negative Prompt</Label>
-                <p className="text-sm text-muted-foreground whitespace-pre-wrap">
+                <Label className="text-sm font-medium">
+                  Negative Prompt{!includeNegativePrompt && ' (disabled)'}
+                </Label>
+                <p className={`text-sm whitespace-pre-wrap ${includeNegativePrompt ? 'text-muted-foreground' : 'text-muted-foreground/50 line-through'}`}>
                   {negativePrompt}
                 </p>
               </div>
@@ -447,16 +452,29 @@ export function PipelineBuilderForm({ seriesId, images, photographerConfigs, dir
             onBasePromptChange={setBasePrompt}
           />
           <div className="space-y-2">
-            <Label htmlFor="negativePrompt">Negative Prompt (optional)</Label>
+            <div className="flex items-center justify-between">
+              <Label htmlFor="negativePrompt">Negative Prompt (optional)</Label>
+              <div className="flex items-center gap-2">
+                <Label htmlFor="includeNegativePrompt" className="text-xs text-muted-foreground">
+                  Include in prompt
+                </Label>
+                <Switch
+                  id="includeNegativePrompt"
+                  checked={includeNegativePrompt}
+                  onCheckedChange={setIncludeNegativePrompt}
+                />
+              </div>
+            </div>
             <Textarea
               id="negativePrompt"
               value={negativePrompt}
               onChange={(e) => setNegativePrompt(e.target.value)}
               placeholder="e.g., no text, no logos, no watermarks, no people"
               rows={2}
+              className={!includeNegativePrompt ? 'opacity-50' : ''}
             />
             <p className="text-xs text-muted-foreground">
-              Elements to exclude from the generated image. Folded into the final synthesized prompt.
+              Elements to exclude from the generated image. {!includeNegativePrompt && 'Currently disabled — text is preserved but won\'t be used.'}
             </p>
           </div>
         </CardContent>

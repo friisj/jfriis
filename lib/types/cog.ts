@@ -120,6 +120,8 @@ export interface CogJob {
   // Inference input arrays
   colors: string[] | null;
   themes: string[] | null;
+  // Negative prompt toggle
+  include_negative_prompt: boolean;
   // Per-step inference pipeline overrides
   inference_step_configs: InferenceStepConfigs | null;
   // Inference log (populated during foundation phase)
@@ -308,6 +310,8 @@ export interface CogJobInsert {
   // Inference input arrays
   colors?: string[] | null;
   themes?: string[] | null;
+  // Negative prompt toggle
+  include_negative_prompt?: boolean;
   // Per-step inference pipeline overrides
   inference_step_configs?: InferenceStepConfigs | null;
 }

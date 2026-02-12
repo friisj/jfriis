@@ -475,7 +475,7 @@ async function generateBaseImagePrompt(
     directorConfig: context.directorConfig,
     productionConfig: context.productionConfig,
     basePrompt: context.basePrompt,
-    negativePrompt: job.negative_prompt || undefined,
+    negativePrompt: (job.include_negative_prompt !== false && job.negative_prompt) ? job.negative_prompt : undefined,
     referenceImages: context.initialImages,
     colors: context.colors,
     themes: context.themes,
@@ -547,7 +547,11 @@ async function generateBaseImagePrompt(
     await persistLog();
     console.log(`[Inference] Step 1 complete (${resultCT.text.length} chars, ${resultCT.duration_ms}ms)`);
   }
-  inferenceCtx.contextBriefing = resultCTText;
+  // Only set contextBriefing if step 1 actually ran — otherwise step 2
+  // should work from the raw story + themes directly
+  if (cfg1.enabled) {
+    inferenceCtx.contextBriefing = resultCTText;
+  }
 
   // Step 2: Photographer concept generation
   const cfg2 = resolveStepConfig(2);
