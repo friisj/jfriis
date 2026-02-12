@@ -12,7 +12,7 @@ import {
 } from '@/components/ui/select';
 import { getAllEvalProfiles } from '@/lib/cog';
 import { runRemixSource, runRemixReeval } from '@/lib/ai/actions/run-remix-job';
-import { deleteRemixJob } from '@/lib/cog';
+import { deleteRemixJob, duplicateRemixJob } from '@/lib/cog';
 import type {
   CogRemixJobFull,
   CogRemixCandidate,
@@ -238,6 +238,7 @@ export function RemixExecutionMonitor({ initialJob, seriesId }: RemixExecutionMo
   );
   const [deleting, setDeleting] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [duplicating, setDuplicating] = useState(false);
 
   // Re-eval state
   const [showReeval, setShowReeval] = useState(false);
@@ -319,6 +320,16 @@ export function RemixExecutionMonitor({ initialJob, seriesId }: RemixExecutionMo
       router.push(`/tools/cog/${seriesId}`);
     } catch {
       setDeleting(false);
+    }
+  }
+
+  async function handleDuplicate() {
+    setDuplicating(true);
+    try {
+      const newJob = await duplicateRemixJob(job.id);
+      router.push(`/tools/cog/${seriesId}/remix/${newJob.id}`);
+    } catch {
+      setDuplicating(false);
     }
   }
 
@@ -575,6 +586,13 @@ export function RemixExecutionMonitor({ initialJob, seriesId }: RemixExecutionMo
             Re-evaluate
           </Button>
         )}
+        <Button
+          variant="outline"
+          onClick={handleDuplicate}
+          disabled={duplicating || isRunning}
+        >
+          {duplicating ? 'Duplicating...' : 'Duplicate'}
+        </Button>
         {confirmDelete ? (
           <div className="flex items-center gap-1">
             <Button

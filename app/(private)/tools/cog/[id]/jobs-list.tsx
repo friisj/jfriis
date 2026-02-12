@@ -4,7 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
-import { deleteJob, duplicatePipelineJob, deleteRemixJob } from '@/lib/cog';
+import { deleteJob, duplicatePipelineJob, deleteRemixJob, duplicateRemixJob } from '@/lib/cog';
 import type { CogJob, CogRemixJob } from '@/lib/types/cog';
 
 interface JobsListProps {
@@ -43,6 +43,18 @@ export function JobsList({ jobs: initialJobs, remixJobs: initialRemixJobs, serie
       router.push(`/tools/cog/${seriesId}/pipeline/${newJob.id}`);
     } catch (error) {
       console.error('Failed to duplicate job:', error);
+    } finally {
+      setDuplicatingId(null);
+    }
+  }
+
+  async function handleDuplicateRemix(rj: CogRemixJob) {
+    setDuplicatingId(rj.id);
+    try {
+      const newJob = await duplicateRemixJob(rj.id);
+      router.push(`/tools/cog/${seriesId}/remix/${newJob.id}`);
+    } catch (error) {
+      console.error('Failed to duplicate remix job:', error);
     } finally {
       setDuplicatingId(null);
     }
@@ -163,6 +175,14 @@ export function JobsList({ jobs: initialJobs, remixJobs: initialRemixJobs, serie
               >
                 {rj.status}
               </span>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => handleDuplicateRemix(rj)}
+                disabled={duplicatingId === rj.id}
+              >
+                {duplicatingId === rj.id ? '...' : 'Duplicate'}
+              </Button>
               {confirmId === rj.id ? (
                 <div className="flex items-center gap-1">
                   <Button
