@@ -2,7 +2,7 @@
 
 import { generateText } from 'ai';
 import { getModel } from '../models';
-import { generateImageWithGemini3Pro } from '../gemini-multimodal';
+import { generateImageWithGemini3Pro, analyzeReferenceImages } from '../gemini-multimodal';
 import { createClient } from '@/lib/supabase-server';
 import {
   getPhotographerConfigByIdServer,
@@ -51,7 +51,20 @@ export async function runBenchmarkRound(input: {
   if (!seed) {
     throw new Error(`No calibration seed found for type "${config.type}"`);
   }
-  const fullPrompt = `${input.distilledPrompt}\n\nSubject: ${seed.seed_subject}`;
+
+  // The distilled prompt IS the photographer's style directive — it should
+  // dominate the generation. The subject is just what to point the camera at.
+  // The reference image (if any) is for subject identity only.
+  const fullPrompt = `${input.distilledPrompt}
+
+Subject: ${seed.seed_subject}
+${seed.seed_image_path ? '\nThe reference image shows the subject. Use it only for subject identity — all lighting, color, composition, texture, and mood must come from the style directive above.' : ''}`;
+
+  // Map photographer config fields to shoot params for the thinking step
+  const shootParams = {
+    art_direction: config.style_description || null,
+    lighting: config.techniques || null,
+  };
 
   // Create round record
   const round = await createBenchmarkRoundServer({
@@ -78,7 +91,16 @@ export async function runBenchmarkRound(input: {
     }
   }
 
-  // Generate 3 benchmark images (I2I if seed image exists, text-only fallback)
+  // Pre-compute vision analysis once so all 3 generations reuse it
+  let preComputedReferenceAnalysis;
+  if (referenceImages?.length) {
+    const apiKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY;
+    if (apiKey) {
+      preComputedReferenceAnalysis = await analyzeReferenceImages(referenceImages, apiKey);
+    }
+  }
+
+  // Generate 3 benchmark images with thinking mode
   const images: Array<{ id: string; storagePath: string }> = [];
 
   for (let i = 0; i < 3; i++) {
@@ -87,6 +109,9 @@ export async function runBenchmarkRound(input: {
       referenceImages,
       aspectRatio: '1:1',
       imageSize: '1K',
+      thinking: true,
+      shootParams,
+      preComputedReferenceAnalysis,
     });
 
     const filename = `benchmark-${input.configId}-${input.roundNumber}-${i}-${Date.now()}.png`;
