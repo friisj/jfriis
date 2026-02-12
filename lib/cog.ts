@@ -998,6 +998,7 @@ export async function createPipelineJob(input: {
   // Two-phase execution controls
   num_base_images?: number;
   foundation_model?: string;
+  aspect_ratio?: string;
   // Inference input arrays
   colors?: string[] | null;
   themes?: string[] | null;
@@ -1015,7 +1016,7 @@ export async function createPipelineJob(input: {
       status: 'draft',
       image_model: 'auto', // Default values for required fields
       image_size: '2K',
-      aspect_ratio: '1:1',
+      aspect_ratio: input.aspect_ratio || '1:1',
       use_thinking: false,
       // Pipeline config references
       photographer_config_id: input.photographer_config_id || null,
@@ -1109,6 +1110,34 @@ export async function savePipelineSteps(
 
   if (error) throw error;
   return newSteps as CogPipelineStep[];
+}
+
+/**
+ * Update pipeline job configuration fields. Only works on draft jobs.
+ */
+export async function updatePipelineJob(jobId: string, input: {
+  title?: string | null;
+  base_prompt?: string;
+  initial_images?: string[] | null;
+  photographer_config_id?: string | null;
+  director_config_id?: string | null;
+  production_config_id?: string | null;
+  colors?: string[] | null;
+  themes?: string[] | null;
+  num_base_images?: number;
+  foundation_model?: string;
+  aspect_ratio?: string;
+}): Promise<CogJob> {
+  const { data: job, error } = await (supabase as any)
+    .from('cog_jobs')
+    .update(input)
+    .eq('id', jobId)
+    .eq('status', 'draft')
+    .select()
+    .single();
+
+  if (error) throw error;
+  return job as CogJob;
 }
 
 /**
@@ -1736,7 +1765,7 @@ export async function duplicatePipelineJob(jobId: string): Promise<CogJob> {
       themes: originalJob.themes,
       image_model: 'auto',
       image_size: '2K',
-      aspect_ratio: '1:1',
+      aspect_ratio: originalJob.aspect_ratio || '1:1',
       use_thinking: false,
       status: 'draft',
     })

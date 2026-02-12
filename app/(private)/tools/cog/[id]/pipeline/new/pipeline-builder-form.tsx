@@ -9,9 +9,9 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { StoryInput, ReferenceImageSelector } from './initial-input-selector';
-import { createPipelineJob } from '@/lib/cog';
+import { createPipelineJob, updatePipelineJob } from '@/lib/cog';
 import { runFoundation } from '@/lib/ai/actions/run-pipeline-job';
-import type { CogImage, CogPhotographerConfig, CogDirectorConfig, CogProductionConfig, CogImageModel } from '@/lib/types/cog';
+import type { CogImage, CogJob, CogPhotographerConfig, CogDirectorConfig, CogProductionConfig, CogImageModel, CogAspectRatio } from '@/lib/types/cog';
 
 interface PipelineBuilderFormProps {
   seriesId: string;
@@ -19,29 +19,31 @@ interface PipelineBuilderFormProps {
   photographerConfigs: CogPhotographerConfig[];
   directorConfigs: CogDirectorConfig[];
   productionConfigs: CogProductionConfig[];
+  existingJob?: CogJob;
 }
 
-export function PipelineBuilderForm({ seriesId, images, photographerConfigs, directorConfigs, productionConfigs }: PipelineBuilderFormProps) {
+export function PipelineBuilderForm({ seriesId, images, photographerConfigs, directorConfigs, productionConfigs, existingJob }: PipelineBuilderFormProps) {
   const router = useRouter();
   const [stage, setStage] = useState<'configure' | 'review'>('configure');
 
-  // Form state
-  const [title, setTitle] = useState('');
-  const [basePrompt, setBasePrompt] = useState('');
-  const [selectedImages, setSelectedImages] = useState<string[]>([]);
+  // Form state — pre-fill from existingJob when editing
+  const [title, setTitle] = useState(existingJob?.title || '');
+  const [basePrompt, setBasePrompt] = useState(existingJob?.base_prompt || '');
+  const [selectedImages, setSelectedImages] = useState<string[]>(existingJob?.initial_images || []);
 
   // Config selection
-  const [photographerConfigId, setPhotographerConfigId] = useState<string>('');
-  const [directorConfigId, setDirectorConfigId] = useState<string>('');
-  const [productionConfigId, setProductionConfigId] = useState<string>('');
+  const [photographerConfigId, setPhotographerConfigId] = useState<string>(existingJob?.photographer_config_id || '');
+  const [directorConfigId, setDirectorConfigId] = useState<string>(existingJob?.director_config_id || '');
+  const [productionConfigId, setProductionConfigId] = useState<string>(existingJob?.production_config_id || '');
 
   // Creative inputs
-  const [colors, setColors] = useState<string>('');  // comma-separated
-  const [themes, setThemes] = useState<string>('');  // comma-separated
+  const [colors, setColors] = useState<string>(existingJob?.colors?.join(', ') || '');
+  const [themes, setThemes] = useState<string>(existingJob?.themes?.join(', ') || '');
 
   // Inference controls
-  const [numBaseImages, setNumBaseImages] = useState(3);
-  const [foundationModel, setFoundationModel] = useState<CogImageModel>('gemini-3-pro-image');
+  const [numBaseImages, setNumBaseImages] = useState(existingJob?.num_base_images ?? 3);
+  const [foundationModel, setFoundationModel] = useState<CogImageModel>(existingJob?.foundation_model || 'gemini-3-pro-image');
+  const [aspectRatio, setAspectRatio] = useState<CogAspectRatio>(existingJob?.aspect_ratio || '1:1');
 
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -66,37 +68,44 @@ export function PipelineBuilderForm({ seriesId, images, photographerConfigs, dir
     setIsSaving(true);
 
     try {
-      const { job } = await createPipelineJob({
-        series_id: seriesId,
+      const jobFields = {
         title: title || null,
         initial_images: selectedImages.length > 0 ? selectedImages : null,
         base_prompt: basePrompt,
-        // Pipeline config references
         photographer_config_id: photographerConfigId || null,
         director_config_id: directorConfigId || null,
         production_config_id: productionConfigId || null,
-        // Creative inputs
         colors: colors ? colors.split(',').map(c => c.trim()).filter(Boolean) : null,
         themes: themes ? themes.split(',').map(t => t.trim()).filter(Boolean) : null,
-        // Execution controls
         num_base_images: numBaseImages,
         foundation_model: foundationModel,
-      });
+        aspect_ratio: aspectRatio,
+      };
+
+      let jobId: string;
+
+      if (existingJob) {
+        const updated = await updatePipelineJob(existingJob.id, jobFields);
+        jobId = updated.id;
+      } else {
+        const { job } = await createPipelineJob({
+          series_id: seriesId,
+          ...jobFields,
+        });
+        jobId = job.id;
+      }
 
       if (runImmediately) {
-        // Two-phase execution: run foundation first
-        // Sequence phase runs after user selects a base image
-        runFoundation({ jobId: job.id, seriesId }).catch((err) => {
+        runFoundation({ jobId, seriesId }).catch((err) => {
           console.error('Failed to run foundation:', err);
         });
-        // Navigate to monitor page
-        router.push(`/tools/cog/${seriesId}/pipeline/${job.id}`);
+        router.push(`/tools/cog/${seriesId}/pipeline/${jobId}`);
       } else {
         router.push(`/tools/cog/${seriesId}`);
       }
     } catch (err) {
-      console.error('Failed to create pipeline job:', err);
-      setError(err instanceof Error ? err.message : 'Failed to create pipeline job');
+      console.error('Failed to save pipeline job:', err);
+      setError(err instanceof Error ? err.message : 'Failed to save pipeline job');
       setIsSaving(false);
     }
   };
@@ -147,9 +156,15 @@ export function PipelineBuilderForm({ seriesId, images, photographerConfigs, dir
               </div>
             )}
 
-            <div>
-              <Label className="text-sm font-medium">Foundation Model</Label>
-              <p className="text-sm text-muted-foreground">{foundationModel}</p>
+            <div className="flex gap-8">
+              <div>
+                <Label className="text-sm font-medium">Foundation Model</Label>
+                <p className="text-sm text-muted-foreground">{foundationModel}</p>
+              </div>
+              <div>
+                <Label className="text-sm font-medium">Aspect Ratio</Label>
+                <p className="text-sm text-muted-foreground">{aspectRatio}</p>
+              </div>
             </div>
 
             <div>
@@ -183,10 +198,10 @@ export function PipelineBuilderForm({ seriesId, images, photographerConfigs, dir
             onClick={() => handleSave(false)}
             disabled={isSaving}
           >
-            {isSaving ? 'Saving...' : 'Save as Draft'}
+            {isSaving ? 'Saving...' : existingJob ? 'Update Draft' : 'Save as Draft'}
           </Button>
           <Button onClick={() => handleSave(true)} disabled={isSaving}>
-            {isSaving ? 'Saving...' : 'Save & Run'}
+            {isSaving ? 'Saving...' : existingJob ? 'Update & Run' : 'Save & Run'}
           </Button>
         </div>
       </div>
@@ -330,6 +345,26 @@ export function PipelineBuilderForm({ seriesId, images, photographerConfigs, dir
               </SelectContent>
             </Select>
             <p className="text-xs text-muted-foreground">Which image model to use for generating base candidates</p>
+          </div>
+
+          <div className="space-y-2">
+            <Label>Aspect Ratio</Label>
+            <Select value={aspectRatio} onValueChange={(v) => setAspectRatio(v as CogAspectRatio)}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="1:1">1:1 (Square)</SelectItem>
+                <SelectItem value="3:2">3:2 (Landscape)</SelectItem>
+                <SelectItem value="2:3">2:3 (Portrait)</SelectItem>
+                <SelectItem value="4:3">4:3</SelectItem>
+                <SelectItem value="3:4">3:4</SelectItem>
+                <SelectItem value="16:9">16:9 (Widescreen)</SelectItem>
+                <SelectItem value="9:16">9:16 (Vertical)</SelectItem>
+                <SelectItem value="4:5">4:5</SelectItem>
+                <SelectItem value="5:4">5:4</SelectItem>
+                <SelectItem value="21:9">21:9 (Ultrawide)</SelectItem>
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">Aspect ratio for generated base candidates</p>
           </div>
         </CardContent>
       </Card>

@@ -133,6 +133,7 @@ export async function runFoundation(input: { jobId: string; seriesId: string }):
         prompt: finalPrompt,
         referenceImages: referenceImageData,
         model: generationModel,
+        aspectRatio: (job.aspect_ratio as CogAspectRatio) || '1:1',
         seriesId,
         jobId,
         candidateIndex: i,
@@ -864,13 +865,13 @@ async function executeFoundationGenerate(params: {
   prompt: string;
   referenceImages: string[]; // base64-encoded reference image data
   model: CogImageModel;
+  aspectRatio: CogAspectRatio;
   seriesId: string;
   jobId: string;
   candidateIndex: number;
   supabase: Awaited<ReturnType<typeof createClient>>;
 }): Promise<{ imageId: string; metadata: Record<string, unknown> }> {
-  const { prompt, referenceImages, model, seriesId, jobId, candidateIndex, supabase } = params;
-  const aspectRatio: CogAspectRatio = '1:1';
+  const { prompt, referenceImages, model, aspectRatio, seriesId, jobId, candidateIndex, supabase } = params;
   const imageSize: CogImageSize = '2K';
 
   const resolvedModel = selectImageModel(model, referenceImages.length > 0, referenceImages.length);

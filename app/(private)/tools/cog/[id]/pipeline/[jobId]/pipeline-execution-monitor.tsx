@@ -358,7 +358,7 @@ export function PipelineExecutionMonitor({
     setIsRunningAction(true);
     try {
       const newJob = await duplicatePipelineJob(job.id);
-      router.push(`/tools/cog/${seriesId}/pipeline/${newJob.id}`);
+      router.push(`/tools/cog/${seriesId}/pipeline/${newJob.id}/edit`);
     } catch (error) {
       console.error('Failed to duplicate job:', error);
     } finally {
@@ -710,6 +710,15 @@ export function PipelineExecutionMonitor({
               </p>
             </div>
             <div className="flex items-center gap-2">
+              {job.status === 'draft' && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => router.push(`/tools/cog/${seriesId}/pipeline/${job.id}/edit`)}
+                >
+                  Edit
+                </Button>
+              )}
               {(job.status === 'running' || job.status === 'ready') && (
                 <>
                   <Button
