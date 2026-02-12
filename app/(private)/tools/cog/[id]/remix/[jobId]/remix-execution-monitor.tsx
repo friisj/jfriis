@@ -3,6 +3,9 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
 import {
   Select,
   SelectContent,
@@ -10,7 +13,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { getAllEvalProfiles } from '@/lib/cog';
+import { getAllEvalProfiles, updateRemixJob } from '@/lib/cog';
 import { runRemixSource, runRemixReeval } from '@/lib/ai/actions/run-remix-job';
 import { deleteRemixJob, duplicateRemixJob } from '@/lib/cog';
 import type {
@@ -239,6 +242,15 @@ export function RemixExecutionMonitor({ initialJob, seriesId }: RemixExecutionMo
   const [deleting, setDeleting] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [duplicating, setDuplicating] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  // Draft editing state
+  const [editTitle, setEditTitle] = useState(initialJob.title || '');
+  const [editStory, setEditStory] = useState(initialJob.story);
+  const [editTopics, setEditTopics] = useState(initialJob.topics.join(', '));
+  const [editColors, setEditColors] = useState(initialJob.colors.join(', '));
+  const [editAspectRatio, setEditAspectRatio] = useState(initialJob.target_aspect_ratio || '');
+  const [editEvalProfileId, setEditEvalProfileId] = useState(initialJob.eval_profile_id || '');
 
   // Re-eval state
   const [showReeval, setShowReeval] = useState(false);
@@ -282,16 +294,58 @@ export function RemixExecutionMonitor({ initialJob, seriesId }: RemixExecutionMo
     }
   }, [showReeval, evalProfiles.length]);
 
+  function parseCsv(input: string): string[] {
+    return input.split(',').map((s) => s.trim()).filter(Boolean);
+  }
+
+  function resolveEvalProfileId(value: string): string | null {
+    return value && value !== 'default' ? value : null;
+  }
+
+  async function handleSaveDraft() {
+    setSaving(true);
+    try {
+      const updates = {
+        title: editTitle.trim() || null,
+        story: editStory.trim(),
+        topics: parseCsv(editTopics),
+        colors: parseCsv(editColors),
+        target_aspect_ratio: editAspectRatio || null,
+        eval_profile_id: resolveEvalProfileId(editEvalProfileId),
+      };
+      await updateRemixJob(job.id, updates);
+      setJob({ ...job, ...updates });
+    } finally {
+      setSaving(false);
+    }
+  }
+
   async function handleRun() {
+    // Save draft edits before running
+    const topics = parseCsv(editTopics);
+    const colors = parseCsv(editColors);
+    const story = editStory.trim();
+    const evalProfileId = resolveEvalProfileId(editEvalProfileId);
+    const aspectRatio = editAspectRatio || null;
+
+    await updateRemixJob(job.id, {
+      title: editTitle.trim() || null,
+      story,
+      topics,
+      colors,
+      target_aspect_ratio: aspectRatio,
+      eval_profile_id: evalProfileId,
+    });
+
     setPolling(true);
     runRemixSource(
       job.id,
       seriesId,
-      job.story,
-      job.topics,
-      job.colors,
-      job.target_aspect_ratio,
-      job.eval_profile_id,
+      story,
+      topics,
+      colors,
+      aspectRatio,
+      evalProfileId,
     ).catch((err) => {
       console.error('Remix execution error:', err);
     });
@@ -385,25 +439,111 @@ export function RemixExecutionMonitor({ initialJob, seriesId }: RemixExecutionMo
         </div>
       )}
 
-      {/* Brief summary */}
-      <div className="border rounded-lg p-4 space-y-2">
-        <h3 className="font-medium text-sm">Creative Brief</h3>
-        <p className="text-sm">{job.story}</p>
-        {job.topics.length > 0 && (
-          <div className="flex gap-1 flex-wrap">
-            {job.topics.map((t) => (
-              <span key={t} className="text-xs px-2 py-0.5 rounded-full bg-muted">{t}</span>
-            ))}
+      {/* Brief — editable when draft, read-only otherwise */}
+      {isDraft ? (
+        <div className="border rounded-lg p-4 space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="font-medium text-sm">Creative Brief</h3>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleSaveDraft}
+              disabled={saving || !editStory.trim()}
+            >
+              {saving ? 'Saving...' : 'Save'}
+            </Button>
           </div>
-        )}
-        {job.colors.length > 0 && (
-          <div className="flex gap-1 flex-wrap">
-            {job.colors.map((c) => (
-              <span key={c} className="text-xs px-2 py-0.5 rounded-full bg-muted">{c}</span>
-            ))}
+          <div className="space-y-2">
+            <Label htmlFor="edit-title">Title</Label>
+            <Input
+              id="edit-title"
+              placeholder="e.g., Urban solitude at dusk"
+              value={editTitle}
+              onChange={(e) => setEditTitle(e.target.value)}
+            />
           </div>
-        )}
-      </div>
+          <div className="space-y-2">
+            <Label htmlFor="edit-story">Story <span className="text-red-500">*</span></Label>
+            <Textarea
+              id="edit-story"
+              value={editStory}
+              onChange={(e) => setEditStory(e.target.value)}
+              rows={3}
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="edit-topics">Topics</Label>
+              <Input
+                id="edit-topics"
+                placeholder="e.g., solitude, urban, night"
+                value={editTopics}
+                onChange={(e) => setEditTopics(e.target.value)}
+              />
+              <p className="text-xs text-muted-foreground">Comma-separated</p>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-colors">Colors</Label>
+              <Input
+                id="edit-colors"
+                placeholder="e.g., deep blue, amber"
+                value={editColors}
+                onChange={(e) => setEditColors(e.target.value)}
+              />
+              <p className="text-xs text-muted-foreground">Comma-separated</p>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>Aspect Ratio</Label>
+              <Select value={editAspectRatio} onValueChange={setEditAspectRatio}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Any" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="any">Any</SelectItem>
+                  <SelectItem value="landscape">Landscape</SelectItem>
+                  <SelectItem value="portrait">Portrait</SelectItem>
+                  <SelectItem value="squarish">Square</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Eval Profile</Label>
+              <Select value={editEvalProfileId} onValueChange={setEditEvalProfileId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Default (built-in)" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="default">Default (built-in)</SelectItem>
+                  {evalProfiles.map((p) => (
+                    <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div className="border rounded-lg p-4 space-y-2">
+          <h3 className="font-medium text-sm">Creative Brief</h3>
+          <p className="text-sm">{job.story}</p>
+          {job.topics.length > 0 && (
+            <div className="flex gap-1 flex-wrap">
+              {job.topics.map((t) => (
+                <span key={t} className="text-xs px-2 py-0.5 rounded-full bg-muted">{t}</span>
+              ))}
+            </div>
+          )}
+          {job.colors.length > 0 && (
+            <div className="flex gap-1 flex-wrap">
+              {job.colors.map((c) => (
+                <span key={c} className="text-xs px-2 py-0.5 rounded-full bg-muted">{c}</span>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Selected image preview */}
       {selectedCandidate && selectedCandidate.image_id && (
