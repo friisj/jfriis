@@ -331,6 +331,9 @@ export interface CogPipelineStepOutputInsert {
   metadata?: Record<string, unknown> | null;
 }
 
+// Shared type for step configuration in builder/monitor UI (step without job_id)
+export type PipelineStepConfig = Omit<CogPipelineStepInsert, 'job_id'>;
+
 // Update types (all fields optional)
 export type CogSeriesUpdate = Partial<Omit<CogSeries, 'id' | 'created_at'>>;
 export type CogImageUpdate = Partial<Omit<CogImage, 'id' | 'created_at'>>;

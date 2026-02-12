@@ -20,6 +20,7 @@ import {
   createBaseCandidateServer,
 } from '@/lib/cog-server';
 import {
+  buildContextTranslationPrompt,
   buildInference1Prompt,
   buildInference2Prompt,
   buildInference3Prompt,
@@ -56,14 +57,14 @@ interface PipelineContext {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// FOUNDATION PHASE: 6-step inference pipeline + generate N candidate base images
+// FOUNDATION PHASE: 7-step inference pipeline + generate N candidate base images
 // ═══════════════════════════════════════════════════════════════════════════════
 
 /**
  * Run the foundation phase of a pipeline job.
  *
  * 1. Loads photographer, director, and production configs
- * 2. Runs the 6-step inference pipeline via generateBaseImagePrompt()
+ * 2. Runs the 7-step inference pipeline via generateBaseImagePrompt()
  * 3. Generates N candidate base images using I2I (prompt + reference images)
  * 4. Stores each candidate via createBaseCandidateServer()
  * 5. Updates foundation_status on the job ('running' -> 'completed' or 'failed')
@@ -439,19 +440,20 @@ export async function retryFromStep(input: {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// 6-STEP INFERENCE PIPELINE: Generate the final image prompt
+// 7-STEP INFERENCE PIPELINE: Generate the final image prompt
 // ═══════════════════════════════════════════════════════════════════════════════
 
 /**
- * Run the 6-step inference pipeline to generate a synthesized image prompt.
+ * Run the 7-step inference pipeline to generate a synthesized image prompt.
  *
  * Steps:
- *   1. Photographer concept generation
- *   2. Director briefing synthesis
- *   3. Production constraint integration
- *   4. Core creative intent refinement (WITH THINKING)
- *   5. Reference image vision analysis (skipped if no images)
- *   6. Final director vision synthesis (WITH THINKING)
+ *   1. Context translation (story + themes → accessible event-oriented briefing)
+ *   2. Photographer concept generation
+ *   3. Director briefing synthesis
+ *   4. Production constraint integration
+ *   5. Core creative intent refinement (WITH THINKING)
+ *   6. Reference image vision analysis (skipped if no images)
+ *   7. Final director vision synthesis (WITH THINKING)
  *
  * Falls back to the plain basePrompt if configs are not available.
  */
@@ -489,12 +491,32 @@ async function generateBaseImagePrompt(
     await updateJobServer(job.id, { inference_log: inferenceLog });
   }
 
-  // Step 1: Photographer concept generation
-  console.log('[Inference] Step 1: Photographer concept generation...');
+  // Step 1: Context translation (story + themes → accessible event-oriented briefing)
+  console.log('[Inference] Step 1: Context translation...');
+  const promptCT = buildContextTranslationPrompt(inferenceCtx);
+  const resultCT = await callLLM(promptCT, false, inferenceModel);
+  inferenceLog.push({
+    step: 1,
+    label: 'Context Translation',
+    prompt: promptCT,
+    response: resultCT.text,
+    tokens_in: resultCT.tokens_in,
+    tokens_out: resultCT.tokens_out,
+    duration_ms: resultCT.duration_ms,
+    thinking: false,
+  });
+  await persistLog();
+  console.log(`[Inference] Step 1 complete (${resultCT.text.length} chars, ${resultCT.duration_ms}ms)`);
+
+  // Feed translation into context for downstream steps
+  inferenceCtx.contextBriefing = resultCT.text;
+
+  // Step 2: Photographer concept generation
+  console.log('[Inference] Step 2: Photographer concept generation...');
   const prompt1 = buildInference1Prompt(inferenceCtx);
   const result1 = await callLLM(prompt1, false, inferenceModel);
   inferenceLog.push({
-    step: 1,
+    step: 2,
     label: 'Photographer Concept',
     prompt: prompt1,
     response: result1.text,
@@ -504,14 +526,14 @@ async function generateBaseImagePrompt(
     thinking: false,
   });
   await persistLog();
-  console.log(`[Inference] Step 1 complete (${result1.text.length} chars, ${result1.duration_ms}ms)`);
+  console.log(`[Inference] Step 2 complete (${result1.text.length} chars, ${result1.duration_ms}ms)`);
 
-  // Step 2: Director briefing synthesis
-  console.log('[Inference] Step 2: Director briefing synthesis...');
+  // Step 3: Director briefing synthesis
+  console.log('[Inference] Step 3: Director briefing synthesis...');
   const prompt2 = buildInference2Prompt(inferenceCtx, result1.text);
   const result2 = await callLLM(prompt2, false, inferenceModel);
   inferenceLog.push({
-    step: 2,
+    step: 3,
     label: 'Director Briefing',
     prompt: prompt2,
     response: result2.text,
@@ -521,14 +543,14 @@ async function generateBaseImagePrompt(
     thinking: false,
   });
   await persistLog();
-  console.log(`[Inference] Step 2 complete (${result2.text.length} chars, ${result2.duration_ms}ms)`);
+  console.log(`[Inference] Step 3 complete (${result2.text.length} chars, ${result2.duration_ms}ms)`);
 
-  // Step 3: Production constraint integration
-  console.log('[Inference] Step 3: Production constraint integration...');
+  // Step 4: Production constraint integration
+  console.log('[Inference] Step 4: Production constraint integration...');
   const prompt3 = buildInference3Prompt(inferenceCtx, result1.text, result2.text);
   const result3 = await callLLM(prompt3, false, inferenceModel);
   inferenceLog.push({
-    step: 3,
+    step: 4,
     label: 'Production Constraints',
     prompt: prompt3,
     response: result3.text,
@@ -538,14 +560,14 @@ async function generateBaseImagePrompt(
     thinking: false,
   });
   await persistLog();
-  console.log(`[Inference] Step 3 complete (${result3.text.length} chars, ${result3.duration_ms}ms)`);
+  console.log(`[Inference] Step 4 complete (${result3.text.length} chars, ${result3.duration_ms}ms)`);
 
-  // Step 4: Core creative intent refinement (WITH THINKING)
-  console.log(`[Inference] Step 4: Core intent refinement (thinking=${useThinkingInfer4})...`);
+  // Step 5: Core creative intent refinement (WITH THINKING)
+  console.log(`[Inference] Step 5: Core intent refinement (thinking=${useThinkingInfer4})...`);
   const prompt4 = buildInference4Prompt(inferenceCtx, result3.text);
   const result4 = await callLLM(prompt4, useThinkingInfer4, inferenceModel);
   inferenceLog.push({
-    step: 4,
+    step: 5,
     label: 'Creative Synthesis',
     prompt: prompt4,
     response: result4.text,
@@ -555,13 +577,13 @@ async function generateBaseImagePrompt(
     thinking: useThinkingInfer4,
   });
   await persistLog();
-  console.log(`[Inference] Step 4 complete (${result4.text.length} chars, ${result4.duration_ms}ms)`);
+  console.log(`[Inference] Step 5 complete (${result4.text.length} chars, ${result4.duration_ms}ms)`);
 
-  // Step 5: Reference image vision analysis (skipped if no images)
+  // Step 6: Reference image vision analysis (skipped if no images)
   const visionOutputs: string[] = [];
   if (context.initialImages.length > 0) {
     const imagesToAnalyze = context.initialImages.slice(0, maxRefImages);
-    console.log(`[Inference] Step 5: Vision analysis on ${imagesToAnalyze.length} reference images...`);
+    console.log(`[Inference] Step 6: Vision analysis on ${imagesToAnalyze.length} reference images...`);
     const supabase = await createClient();
     const visionPrompt = buildVisionPrompt();
 
@@ -573,7 +595,7 @@ async function generateBaseImagePrompt(
         const visionResult = await callVisionLLM(visionPrompt, imageBase64, inferenceModel);
         visionOutputs.push(visionResult.text);
         inferenceLog.push({
-          step: 5,
+          step: 6,
           label: `Vision Analysis (image ${i + 1}/${imagesToAnalyze.length})`,
           prompt: visionPrompt,
           response: visionResult.text,
@@ -583,16 +605,16 @@ async function generateBaseImagePrompt(
           thinking: false,
         });
         await persistLog();
-        console.log(`[Inference] Step 5: Analyzed image ${imageId} (${visionResult.text.length} chars, ${visionResult.duration_ms}ms)`);
+        console.log(`[Inference] Step 6: Analyzed image ${imageId} (${visionResult.text.length} chars, ${visionResult.duration_ms}ms)`);
       } catch (error) {
-        console.warn(`[Inference] Step 5: Failed to analyze image ${imageId}:`, error);
+        console.warn(`[Inference] Step 6: Failed to analyze image ${imageId}:`, error);
         visionOutputs.push(`[Image ${imageId}: Analysis failed]`);
       }
     }
   } else {
-    console.log('[Inference] Step 5: Skipped (no reference images)');
+    console.log('[Inference] Step 6: Skipped (no reference images)');
     inferenceLog.push({
-      step: 5,
+      step: 6,
       label: 'Vision Analysis',
       prompt: '',
       response: 'Skipped (no reference images)',
@@ -604,12 +626,12 @@ async function generateBaseImagePrompt(
     await persistLog();
   }
 
-  // Step 6: Final director vision synthesis (WITH THINKING)
-  console.log(`[Inference] Step 6: Final synthesis (thinking=${useThinkingInfer6})...`);
+  // Step 7: Final director vision synthesis (WITH THINKING)
+  console.log(`[Inference] Step 7: Final synthesis (thinking=${useThinkingInfer6})...`);
   const prompt6 = buildInference6Prompt(inferenceCtx, result4.text, visionOutputs);
   const result6 = await callLLM(prompt6, useThinkingInfer6, inferenceModel);
   inferenceLog.push({
-    step: 6,
+    step: 7,
     label: 'Final Prompt Synthesis',
     prompt: prompt6,
     response: result6.text,
@@ -619,7 +641,7 @@ async function generateBaseImagePrompt(
     thinking: useThinkingInfer6,
   });
   await persistLog();
-  console.log(`[Inference] Step 6 complete (${result6.text.length} chars, ${result6.duration_ms}ms)`);
+  console.log(`[Inference] Step 7 complete (${result6.text.length} chars, ${result6.duration_ms}ms)`);
 
   return result6.text;
 }

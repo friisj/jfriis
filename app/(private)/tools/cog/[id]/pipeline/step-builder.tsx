@@ -2,10 +2,8 @@
 
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { StepConfigPanel } from './step-config-panel';
-import type { PipelineStepConfig } from './pipeline-builder-form';
-import type { CogPipelineStepType } from '@/lib/types/cog';
+import type { PipelineStepConfig, CogPipelineStepType } from '@/lib/types/cog';
 
 interface StepBuilderProps {
   steps: PipelineStepConfig[];

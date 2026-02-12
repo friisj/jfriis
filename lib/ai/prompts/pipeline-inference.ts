@@ -1,17 +1,18 @@
 /**
  * Multi-Stage Inference Pipeline Prompt Builders
  *
- * These 6 inference steps progressively refine a creative brief into a final
+ * These 7 inference steps progressively refine a creative brief into a final
  * image generation prompt by combining perspectives from three config roles:
  *
- *   1. Photographer concept generation
- *   2. Director briefing synthesis
- *   3. Production constraint integration
- *   4. Core creative intent refinement (WITH THINKING)
- *   5. Reference image vision analysis
- *   6. Final director vision synthesis (WITH THINKING)
+ *   1. Context translation (story + themes → accessible event-oriented briefing)
+ *   2. Photographer concept generation
+ *   3. Director briefing synthesis
+ *   4. Production constraint integration
+ *   5. Core creative intent refinement (WITH THINKING)
+ *   6. Reference image vision analysis
+ *   7. Final director vision synthesis (WITH THINKING)
  *
- * Steps 4 and 6 are designed to run with thinking mode enabled for deeper reasoning.
+ * Steps 5 and 7 are designed to run with thinking mode enabled for deeper reasoning.
  */
 
 import type {
@@ -32,24 +33,78 @@ export interface InferenceContext {
   referenceImages: string[]; // Image IDs
   colors?: string[];
   themes?: string[];
+  /** Output of the context translation step — accessible, event-oriented briefing */
   contextBriefing?: string;
 }
 
 // ============================================================================
-// Inference Step 1: Photographer Concept Generation
+// Inference Step 1: Context Translation
+// ============================================================================
+
+/**
+ * Translate the raw story and themes into an accessible, event-oriented briefing.
+ *
+ * The persona is a subject matter expert — someone deeply competent at
+ * communicating complexity in plain language. They take whatever the user
+ * wrote (which may be abstract, jargon-heavy, full of quantitative updates
+ * or company-specific context) and translate it into a practical narrative:
+ * what actually happened, what changed, what's interesting about it.
+ *
+ * The output feeds directly into the photographer concept step so the
+ * photographer can understand the dynamics of the story without having to
+ * decode domain-specific language.
+ */
+export function buildContextTranslationPrompt(ctx: InferenceContext): string {
+  const themesSection =
+    ctx.themes && ctx.themes.length > 0
+      ? `\nThemes/topics to interpret: ${ctx.themes.join(', ')}`
+      : '';
+
+  const colorsSection =
+    ctx.colors && ctx.colors.length > 0
+      ? `\nColor associations: ${ctx.colors.join(', ')}`
+      : '';
+
+  return `You are a subject matter expert who is exceptionally good at making complex ideas accessible. You communicate with clarity and precision — no jargon, no filler, no hand-waving. When someone gives you a dense briefing full of abstractions, industry language, or quantitative updates, you translate it into plain English that anyone could understand.
+
+Your job: Take the following creative brief and any themes, and translate them into a practical, event-oriented narrative. Focus on:
+
+- **What actually happened** — turn abstractions into concrete events and situations
+- **What changed** — identify the dynamics, the shifts, the tensions
+- **What's interesting** — surface the human element, the stakes, the story worth telling
+- Turn quantitative updates or company-specific details into simple, practical language
+- Strip esoteric jargon and replace it with vivid, accessible descriptions
+- Write as if you're briefing a talented photographer who needs to *see* the story, not analyze a spreadsheet
+
+The briefing:
+"${ctx.basePrompt}"
+${themesSection}
+${colorsSection}
+
+Write a concise, plain-English translation of this story. Emphasize what happened, who was affected, and why it matters. Be specific and concrete — give the photographer something they can visualize.`;
+}
+
+// ============================================================================
+// Inference Step 2: Photographer Concept Generation
 // ============================================================================
 
 /**
  * "What concept would [photographer] construct given [statement]?"
  *
  * Takes the photographer's style, techniques, and references and asks them
- * to envision a visual concept based on the creative brief.
+ * to envision a visual concept based on the creative brief. When a context
+ * briefing is available (from the translation step), it's included as an
+ * accessible interpretation of the story.
  */
 export function buildInference1Prompt(ctx: InferenceContext): string {
   const referencesText =
     ctx.photographerConfig.style_references.length > 0
       ? ctx.photographerConfig.style_references.join(', ')
       : 'None specified';
+
+  const contextSection = ctx.contextBriefing
+    ? `\nContext briefing (what this story is really about):\n${ctx.contextBriefing}\n`
+    : '';
 
   return `You are ${ctx.photographerConfig.name}, a photographer with this style:
 ${ctx.photographerConfig.style_description}
@@ -59,14 +114,14 @@ References: ${referencesText}
 ${ctx.photographerConfig.testbed_notes ? `\nExperimental notes: ${ctx.photographerConfig.testbed_notes}` : ''}
 
 Given this creative brief: "${ctx.basePrompt}"
-${ctx.themes && ctx.themes.length > 0 ? `\nThemes to explore: ${ctx.themes.join(', ')}` : ''}
+${contextSection}${ctx.themes && ctx.themes.length > 0 ? `\nThemes to explore: ${ctx.themes.join(', ')}` : ''}
 ${ctx.colors && ctx.colors.length > 0 ? `\nColor palette: ${ctx.colors.join(', ')}` : ''}
 
 What visual concept would you construct? Describe the scene, composition, mood, and key visual elements you would capture. Think about your signature approach and how it applies to this brief.`;
 }
 
 // ============================================================================
-// Inference Step 2: Director Briefing Synthesis
+// Inference Step 3: Director Briefing Synthesis
 // ============================================================================
 
 /**
@@ -97,7 +152,7 @@ How would you brief the photographer to align with the creative vision? What gui
 }
 
 // ============================================================================
-// Inference Step 3: Production Constraint Integration
+// Inference Step 4: Production Constraint Integration
 // ============================================================================
 
 /**
@@ -128,7 +183,7 @@ How would you adapt this concept to work within these production constraints whi
 }
 
 // ============================================================================
-// Inference Step 4: Creative Synthesis & Refinement (WITH THINKING)
+// Inference Step 5: Creative Synthesis & Refinement (WITH THINKING)
 // ============================================================================
 
 /**
@@ -184,7 +239,7 @@ Provide a refined creative direction that:
 }
 
 // ============================================================================
-// Inference Step 5: Reference Image Vision Analysis
+// Inference Step 6: Reference Image Vision Analysis
 // ============================================================================
 
 /**
@@ -211,7 +266,7 @@ Provide a comprehensive description that could inform a new image generation, fo
 }
 
 // ============================================================================
-// Inference Step 6: Final Technical Prompt Synthesis (WITH THINKING)
+// Inference Step 7: Final Technical Prompt Synthesis (WITH THINKING)
 // ============================================================================
 
 /**

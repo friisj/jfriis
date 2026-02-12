@@ -6,9 +6,10 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { PipelineStepCard } from './pipeline-step-card';
-import { updateJob, selectBaseImage, getCogImageUrl, getBaseCandidatesForJob, getImageById, resetPipelineJobToDraft, resetPipelineSteps, duplicatePipelineJob } from '@/lib/cog';
+import { StepBuilder } from '../step-builder';
+import { updateJob, selectBaseImage, getCogImageUrl, getBaseCandidatesForJob, getImageById, resetPipelineJobToDraft, resetPipelineSteps, duplicatePipelineJob, savePipelineSteps } from '@/lib/cog';
 import { runFoundation, runSequence, retryFromStep } from '@/lib/ai/actions/run-pipeline-job';
-import type { CogPipelineJobWithSteps, CogPipelineBaseCandidate, CogFoundationStatus, CogSequenceStatus, CogInferenceLogEntry } from '@/lib/types/cog';
+import type { CogPipelineJobWithSteps, CogPipelineBaseCandidate, CogFoundationStatus, CogSequenceStatus, CogInferenceLogEntry, PipelineStepConfig } from '@/lib/types/cog';
 
 // ============================================================================
 // Types
@@ -136,6 +137,18 @@ export function PipelineExecutionMonitor({
   const [isSelectingBase, setIsSelectingBase] = useState(false);
   const [isRunningAction, setIsRunningAction] = useState(false);
   const [countdown, setCountdown] = useState<number | null>(null);
+  const [isSavingSteps, setIsSavingSteps] = useState(false);
+
+  // Step editing state: initialize from existing job steps
+  const [editingSteps, setEditingSteps] = useState<PipelineStepConfig[]>(
+    initialJob.steps.map((s) => ({
+      step_order: s.step_order,
+      step_type: s.step_type,
+      model: s.model,
+      config: s.config,
+      status: 'pending' as const,
+    }))
+  );
 
   // Determine if this is a two-phase job
   const isTwoPhase = !!(
@@ -368,6 +381,38 @@ export function PipelineExecutionMonitor({
     }
   };
 
+  const handleSaveSteps = async () => {
+    setIsSavingSteps(true);
+    try {
+      await savePipelineSteps(job.id, editingSteps);
+      router.refresh();
+    } catch (error) {
+      console.error('Failed to save steps:', error);
+    } finally {
+      setIsSavingSteps(false);
+    }
+  };
+
+  const handleSaveAndRunSequence = async () => {
+    setIsSavingSteps(true);
+    try {
+      await savePipelineSteps(job.id, editingSteps);
+      runSequence({ jobId: job.id, seriesId }).catch((err) => {
+        console.error('Failed to start sequence:', err);
+      });
+      setIsPolling(true);
+      router.refresh();
+    } catch (error) {
+      console.error('Failed to save steps and run sequence:', error);
+    } finally {
+      setIsSavingSteps(false);
+    }
+  };
+
+  // Determine if we're in step editing mode
+  const isStepEditMode = !!job.selected_base_image_id && sequenceStatus === 'pending';
+  const isStepExecutionMode = sequenceStatus === 'running' || sequenceStatus === 'completed' || sequenceStatus === 'failed';
+
   const currentStepIndex = job.steps.findIndex(
     (s) => s.status === 'running' || (s.status === 'completed' && job.steps.every((step, idx) => idx > job.steps.indexOf(s) ? step.status === 'pending' : true))
   );
@@ -449,20 +494,27 @@ export function PipelineExecutionMonitor({
                 </Button>
               )}
 
-              {/* Start/Re-run Sequence: available when base is selected */}
+              {/* Start/Re-run Sequence: available when base is selected and steps exist */}
               {job.selected_base_image_id && sequenceStatus !== 'running' && (
-                <Button
-                  size="sm"
-                  onClick={handleStartSequence}
-                  disabled={isRunningAction}
-                >
-                  {isRunningAction
-                    ? 'Starting...'
-                    : sequenceStatus === 'completed' || sequenceStatus === 'failed'
-                      ? 'Re-run Sequence'
-                      : 'Start Sequence'
-                  }
-                </Button>
+                <>
+                  <Button
+                    size="sm"
+                    onClick={handleStartSequence}
+                    disabled={isRunningAction || job.steps.length === 0}
+                  >
+                    {isRunningAction
+                      ? 'Starting...'
+                      : sequenceStatus === 'completed' || sequenceStatus === 'failed'
+                        ? 'Re-run Sequence'
+                        : 'Start Sequence'
+                    }
+                  </Button>
+                  {job.steps.length === 0 && sequenceStatus === 'pending' && (
+                    <span className="text-xs text-muted-foreground">
+                      Add steps below to start the sequence
+                    </span>
+                  )}
+                </>
               )}
             </div>
           </CardContent>
@@ -480,9 +532,9 @@ export function PipelineExecutionMonitor({
             <CardHeader>
               <CardTitle className="text-base flex items-center gap-2">
                 <span>Inference Pipeline</span>
-                {foundationStatus === 'running' && log.length < 7 && (
+                {foundationStatus === 'running' && log.length < 8 && (
                   <span className="text-xs font-normal text-muted-foreground animate-pulse">
-                    Running step {log.length + 1}/6...
+                    Running step {log.length + 1}/7...
                   </span>
                 )}
               </CardTitle>
@@ -595,22 +647,30 @@ export function PipelineExecutionMonitor({
                 Choose a base image to proceed to the sequence phase.
               </p>
             )}
-            {job.selected_base_image_id && sequenceStatus !== 'running' && job.steps.length > 0 && (
+            {job.selected_base_image_id && sequenceStatus !== 'running' && (
               <div className="mt-4 pt-4 border-t flex items-center gap-3">
-                <Button
-                  onClick={handleStartSequence}
-                  disabled={isRunningAction}
-                >
-                  {isRunningAction
-                    ? 'Starting...'
-                    : sequenceStatus === 'completed' || sequenceStatus === 'failed'
-                      ? 'Re-run Sequence'
-                      : 'Start Sequence'
-                  }
-                </Button>
-                <p className="text-sm text-muted-foreground">
-                  Run {job.steps.length} pipeline step{job.steps.length !== 1 ? 's' : ''} on the selected base image
-                </p>
+                {job.steps.length > 0 ? (
+                  <>
+                    <Button
+                      onClick={handleStartSequence}
+                      disabled={isRunningAction}
+                    >
+                      {isRunningAction
+                        ? 'Starting...'
+                        : sequenceStatus === 'completed' || sequenceStatus === 'failed'
+                          ? 'Re-run Sequence'
+                          : 'Start Sequence'
+                      }
+                    </Button>
+                    <p className="text-sm text-muted-foreground">
+                      Run {job.steps.length} pipeline step{job.steps.length !== 1 ? 's' : ''} on the selected base image
+                    </p>
+                  </>
+                ) : (
+                  <p className="text-sm text-muted-foreground">
+                    Add pipeline steps below to start the sequence phase.
+                  </p>
+                )}
               </div>
             )}
           </CardContent>
@@ -704,8 +764,43 @@ export function PipelineExecutionMonitor({
         </CardContent>
       </Card>
 
-      {/* Progress Stepper */}
-      {job.steps.length > 0 && (
+      {/* Pipeline Steps: Edit mode (base selected, sequence pending) */}
+      {isStepEditMode && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Pipeline Steps</CardTitle>
+            <p className="text-sm text-muted-foreground">
+              Configure the refinement steps to run on your selected base image.
+            </p>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <StepBuilder steps={editingSteps} onStepsChange={setEditingSteps} />
+            <div className="flex items-center gap-3 pt-4 border-t">
+              <Button
+                onClick={handleSaveAndRunSequence}
+                disabled={isSavingSteps || editingSteps.length === 0}
+              >
+                {isSavingSteps ? 'Saving...' : 'Save & Run Sequence'}
+              </Button>
+              <Button
+                variant="outline"
+                onClick={handleSaveSteps}
+                disabled={isSavingSteps}
+              >
+                {isSavingSteps ? 'Saving...' : 'Save Steps'}
+              </Button>
+              {editingSteps.length === 0 && (
+                <p className="text-sm text-muted-foreground">
+                  Add at least one step to run the sequence.
+                </p>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Pipeline Steps: Execution mode (sequence running/completed/failed) */}
+      {isStepExecutionMode && job.steps.length > 0 && (
         <Card>
           <CardHeader>
             <CardTitle>Pipeline Steps</CardTitle>

@@ -1001,7 +1001,7 @@ export async function createPipelineJob(input: {
   // Inference input arrays
   colors?: string[] | null;
   themes?: string[] | null;
-  steps: CogPipelineStepInsert[];
+  steps?: CogPipelineStepInsert[];
 }): Promise<{ job: CogJob; steps: CogPipelineStep[] }> {
   // Create the job first
   const { data: job, error: jobError } = await (supabase as any)
@@ -1038,24 +1038,77 @@ export async function createPipelineJob(input: {
 
   if (jobError) throw jobError;
 
-  // Create the steps
-  const stepsToInsert = input.steps.map((step) => ({
-    job_id: job.id,
-    step_order: step.step_order,
+  // Create the steps (if provided)
+  if (input.steps && input.steps.length > 0) {
+    const stepsToInsert = input.steps.map((step) => ({
+      job_id: job.id,
+      step_order: step.step_order,
+      step_type: step.step_type,
+      model: step.model,
+      config: step.config,
+      status: step.status || 'pending',
+    }));
+
+    const { data: steps, error: stepsError } = await (supabase as any)
+      .from('cog_pipeline_steps')
+      .insert(stepsToInsert)
+      .select();
+
+    if (stepsError) throw stepsError;
+
+    return { job: job as CogJob, steps: steps as CogPipelineStep[] };
+  }
+
+  return { job: job as CogJob, steps: [] };
+}
+
+/**
+ * Replace all pipeline steps on a job (delete existing + outputs, insert new).
+ * Only allowed when the sequence is not currently running.
+ */
+export async function savePipelineSteps(
+  jobId: string,
+  steps: Array<Omit<CogPipelineStepInsert, 'job_id'>>
+): Promise<CogPipelineStep[]> {
+  // Delete existing step outputs first
+  const { data: existingSteps } = await (supabase as any)
+    .from('cog_pipeline_steps')
+    .select('id')
+    .eq('job_id', jobId);
+
+  if (existingSteps && existingSteps.length > 0) {
+    const stepIds = existingSteps.map((s: { id: string }) => s.id);
+    await (supabase as any)
+      .from('cog_pipeline_step_outputs')
+      .delete()
+      .in('step_id', stepIds);
+  }
+
+  // Delete existing steps
+  await (supabase as any)
+    .from('cog_pipeline_steps')
+    .delete()
+    .eq('job_id', jobId);
+
+  // Insert new steps
+  if (steps.length === 0) return [];
+
+  const stepsToInsert = steps.map((step, idx) => ({
+    job_id: jobId,
+    step_order: idx,
     step_type: step.step_type,
     model: step.model,
     config: step.config,
-    status: step.status || 'pending',
+    status: 'pending',
   }));
 
-  const { data: steps, error: stepsError } = await (supabase as any)
+  const { data: newSteps, error } = await (supabase as any)
     .from('cog_pipeline_steps')
     .insert(stepsToInsert)
     .select();
 
-  if (stepsError) throw stepsError;
-
-  return { job: job as CogJob, steps: steps as CogPipelineStep[] };
+  if (error) throw error;
+  return newSteps as CogPipelineStep[];
 }
 
 /**

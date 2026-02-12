@@ -6,14 +6,12 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { StepBuilder } from './step-builder';
 import { StoryInput, ReferenceImageSelector } from './initial-input-selector';
 import { createPipelineJob } from '@/lib/cog';
 import { runFoundation } from '@/lib/ai/actions/run-pipeline-job';
-import type { CogImage, CogPhotographerConfig, CogDirectorConfig, CogProductionConfig, CogPipelineStepInsert, CogImageModel } from '@/lib/types/cog';
+import type { CogImage, CogPhotographerConfig, CogDirectorConfig, CogProductionConfig, CogImageModel } from '@/lib/types/cog';
 
 interface PipelineBuilderFormProps {
   seriesId: string;
@@ -23,8 +21,6 @@ interface PipelineBuilderFormProps {
   productionConfigs: CogProductionConfig[];
 }
 
-export type PipelineStepConfig = Omit<CogPipelineStepInsert, 'job_id'>;
-
 export function PipelineBuilderForm({ seriesId, images, photographerConfigs, directorConfigs, productionConfigs }: PipelineBuilderFormProps) {
   const router = useRouter();
   const [stage, setStage] = useState<'configure' | 'review'>('configure');
@@ -33,7 +29,6 @@ export function PipelineBuilderForm({ seriesId, images, photographerConfigs, dir
   const [title, setTitle] = useState('');
   const [basePrompt, setBasePrompt] = useState('');
   const [selectedImages, setSelectedImages] = useState<string[]>([]);
-  const [steps, setSteps] = useState<PipelineStepConfig[]>([]);
 
   // Config selection
   const [photographerConfigId, setPhotographerConfigId] = useState<string>('');
@@ -55,10 +50,6 @@ export function PipelineBuilderForm({ seriesId, images, photographerConfigs, dir
     // Validation
     if (!basePrompt.trim()) {
       setError('Story is required');
-      return;
-    }
-    if (steps.length === 0) {
-      setError('At least one step is required');
       return;
     }
     setError(null);
@@ -90,11 +81,6 @@ export function PipelineBuilderForm({ seriesId, images, photographerConfigs, dir
         // Execution controls
         num_base_images: numBaseImages,
         foundation_model: foundationModel,
-        steps: steps.map((step, idx) => ({
-          ...step,
-          job_id: '', // Will be set by the function
-          step_order: idx,
-        })),
       });
 
       if (runImmediately) {
@@ -181,27 +167,6 @@ export function PipelineBuilderForm({ seriesId, images, photographerConfigs, dir
                 </p>
               </div>
             )}
-
-            <div>
-              <Label className="text-sm font-medium">Pipeline Steps</Label>
-              <div className="space-y-2 mt-2">
-                {steps.map((step, idx) => (
-                  <div key={idx} className="border rounded-lg p-3 bg-muted/30">
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs font-mono bg-muted px-2 py-1 rounded">
-                        {idx + 1}
-                      </span>
-                      <span className="text-sm font-medium capitalize">
-                        {step.step_type}
-                      </span>
-                      <span className="text-xs text-muted-foreground">
-                        ({step.model})
-                      </span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
           </CardContent>
         </Card>
 
@@ -401,16 +366,6 @@ export function PipelineBuilderForm({ seriesId, images, photographerConfigs, dir
             seriesId={seriesId}
             onImagesUploaded={handleImagesUploaded}
           />
-        </CardContent>
-      </Card>
-
-      {/* Steps */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Pipeline Steps</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <StepBuilder steps={steps} onStepsChange={setSteps} />
         </CardContent>
       </Card>
 
