@@ -491,6 +491,24 @@ export function PipelineExecutionMonitor({
                 Choose a base image to proceed to the sequence phase.
               </p>
             )}
+            {job.selected_base_image_id && sequenceStatus !== 'running' && job.steps.length > 0 && (
+              <div className="mt-4 pt-4 border-t flex items-center gap-3">
+                <Button
+                  onClick={handleStartSequence}
+                  disabled={isRunningAction}
+                >
+                  {isRunningAction
+                    ? 'Starting...'
+                    : sequenceStatus === 'completed' || sequenceStatus === 'failed'
+                      ? 'Re-run Sequence'
+                      : 'Start Sequence'
+                  }
+                </Button>
+                <p className="text-sm text-muted-foreground">
+                  Run {job.steps.length} pipeline step{job.steps.length !== 1 ? 's' : ''} on the selected base image
+                </p>
+              </div>
+            )}
           </CardContent>
         </Card>
       )}
