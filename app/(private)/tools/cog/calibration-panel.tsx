@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { getCogImageUrl, getBenchmarkRoundsForConfig, updateBenchmarkImageRating } from '@/lib/cog';
+import { getCogImageUrl, getBenchmarkRoundsForConfig, updateBenchmarkImageRating, getCalibrationSeeds } from '@/lib/cog';
 import {
   distillPhotographer,
   runBenchmarkRound,
@@ -17,6 +17,7 @@ import type {
   CogPhotographerType,
   CogBenchmarkRoundWithImages,
   CogBenchmarkImage,
+  CogCalibrationSeed,
 } from '@/lib/types/cog';
 
 interface CalibrationPanelProps {
@@ -34,6 +35,7 @@ export function CalibrationPanel({
 }: CalibrationPanelProps) {
   const [prompt, setPrompt] = useState(currentDistilledPrompt || '');
   const [rounds, setRounds] = useState<CogBenchmarkRoundWithImages[]>([]);
+  const [seed, setSeed] = useState<CogCalibrationSeed | null>(null);
   const [loading, setLoading] = useState(false);
   const [distilling, setDistilling] = useState(false);
   const [generating, setGenerating] = useState(false);
@@ -53,6 +55,13 @@ export function CalibrationPanel({
   useEffect(() => {
     loadRounds();
   }, [loadRounds]);
+
+  useEffect(() => {
+    if (!photographerType) { setSeed(null); return; }
+    getCalibrationSeeds().then(seeds => {
+      setSeed(seeds.find(s => s.type_key === photographerType) ?? null);
+    }).catch(() => setSeed(null));
+  }, [photographerType]);
 
   useEffect(() => {
     setPrompt(currentDistilledPrompt || '');
@@ -190,6 +199,8 @@ export function CalibrationPanel({
       {activeRound && (
         <ActiveRoundView
           round={activeRound}
+          seedImageUrl={seed?.seed_image_path ? getCogImageUrl(seed.seed_image_path) : null}
+          seedLabel={seed?.label ?? null}
           onRate={handleRateImage}
           onFeedback={handleImageFeedback}
           onRefine={handleRefine}
@@ -219,6 +230,8 @@ export function CalibrationPanel({
 
 function ActiveRoundView({
   round,
+  seedImageUrl,
+  seedLabel,
   onRate,
   onFeedback,
   onRefine,
@@ -228,6 +241,8 @@ function ActiveRoundView({
   busy,
 }: {
   round: CogBenchmarkRoundWithImages;
+  seedImageUrl: string | null;
+  seedLabel: string | null;
   onRate: (imageId: string, rating: 'approved' | 'rejected') => void;
   onFeedback: (imageId: string, feedback: string) => void;
   onRefine: () => void;
@@ -243,8 +258,30 @@ function ActiveRoundView({
         <span className="text-xs px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-600">active</span>
       </div>
 
-      {/* Benchmark images */}
-      <div className="grid grid-cols-3 gap-3">
+      {/* Seed reference + Benchmark images */}
+      <div className="grid grid-cols-4 gap-3">
+        {/* Seed reference image */}
+        <div className="space-y-1.5">
+          {seedImageUrl ? (
+            <div className="relative aspect-square rounded overflow-hidden bg-muted border-2 border-dashed border-muted-foreground/20">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={seedImageUrl}
+                alt={seedLabel || 'Seed reference'}
+                className="w-full h-full object-cover"
+              />
+            </div>
+          ) : (
+            <div className="aspect-square rounded bg-muted/50 border-2 border-dashed border-muted-foreground/20 flex items-center justify-center">
+              <span className="text-xs text-muted-foreground/40">No seed</span>
+            </div>
+          )}
+          <p className="text-xs text-muted-foreground text-center">
+            {seedLabel ? `${seedLabel} ref` : 'Reference'}
+          </p>
+        </div>
+
+        {/* Benchmark images */}
         {round.images.map(img => (
           <BenchmarkImageCard
             key={img.id}

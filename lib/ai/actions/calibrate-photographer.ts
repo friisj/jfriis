@@ -130,9 +130,62 @@ export async function refineDistilledPrompt(input: {
   // Mark current round as superseded
   await updateBenchmarkRoundStatusServer(input.roundId, 'superseded');
 
+  // Build text portion of the prompt
+  const textPrompt = buildRefinementPrompt(config, round.distilled_prompt, round.images);
+
+  // Download benchmark images + seed image for vision
+  const supabase = await createClient();
+  const contentParts: Array<{ type: 'image'; image: string } | { type: 'text'; text: string }> = [];
+
+  // Add seed reference image if available
+  if (config.type) {
+    const seed = await getCalibrationSeedByTypeServer(config.type);
+    if (seed?.seed_image_path) {
+      const { data: seedBlob } = await supabase.storage
+        .from('cog-images')
+        .download(seed.seed_image_path);
+      if (seedBlob) {
+        const buf = Buffer.from(await seedBlob.arrayBuffer());
+        const mime = seedBlob.type || 'image/jpeg';
+        contentParts.push({
+          type: 'image',
+          image: `data:${mime};base64,${buf.toString('base64')}`,
+        });
+        contentParts.push({
+          type: 'text',
+          text: `[Above: seed reference image for "${seed.label}"]`,
+        });
+      }
+    }
+  }
+
+  // Add benchmark images in order
+  for (const img of round.images) {
+    const { data: imgBlob } = await supabase.storage
+      .from('cog-images')
+      .download(img.storage_path);
+    if (imgBlob) {
+      const buf = Buffer.from(await imgBlob.arrayBuffer());
+      const mime = imgBlob.type || 'image/png';
+      contentParts.push({
+        type: 'image',
+        image: `data:${mime};base64,${buf.toString('base64')}`,
+      });
+      const ratingLabel = img.rating ?? 'unrated';
+      const fb = img.feedback ? ` — "${img.feedback}"` : '';
+      contentParts.push({
+        type: 'text',
+        text: `[Above: Benchmark image ${img.image_index + 1} — ${ratingLabel}${fb}]`,
+      });
+    }
+  }
+
+  // Add the full text prompt at the end
+  contentParts.push({ type: 'text', text: textPrompt });
+
   const result = await generateText({
     model: getModel('gemini-flash'),
-    prompt: buildRefinementPrompt(config, round.distilled_prompt, round.images),
+    messages: [{ role: 'user', content: contentParts }],
   });
 
   return { refinedPrompt: result.text.trim() };
