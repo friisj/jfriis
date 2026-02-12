@@ -1,524 +1,216 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { ArrowLeft, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { supabase } from '@/lib/supabase';
 import {
-  createPhotographerConfig,
-  updatePhotographerConfig,
-  deletePhotographerConfig,
-  createDirectorConfig,
-  updateDirectorConfig,
-  deleteDirectorConfig,
-  createProductionConfig,
-  updateProductionConfig,
-  deleteProductionConfig,
+  createPhotographerConfig, updatePhotographerConfig, deletePhotographerConfig,
+  createDirectorConfig, updateDirectorConfig, deleteDirectorConfig,
+  createProductionConfig, updateProductionConfig, deleteProductionConfig,
 } from '@/lib/cog';
 import {
-  generatePhotographerSeed,
-  generateDirectorSeed,
-  generateProductionSeed,
+  generatePhotographerSeed, generateDirectorSeed, generateProductionSeed,
 } from '@/lib/ai/actions/generate-config-seed';
 import type {
-  CogPhotographerConfig,
-  CogDirectorConfig,
-  CogProductionConfig,
+  CogPhotographerConfig, CogDirectorConfig, CogProductionConfig,
 } from '@/lib/types/cog';
 
 // ============================================================================
-// Photographer Config Panel
+// Types & config definitions
 // ============================================================================
 
-function PhotographerPanel({ userId }: { userId: string }) {
-  const [configs, setConfigs] = useState<CogPhotographerConfig[]>([]);
+type ConfigType = 'photographer' | 'director' | 'production';
+type AnyConfig = CogPhotographerConfig | CogDirectorConfig | CogProductionConfig;
+
+interface FieldDef {
+  key: string;
+  label: string;
+  kind: 'input' | 'textarea';
+  placeholder: string;
+  rows?: number;
+}
+
+interface EditingState {
+  type: ConfigType;
+  config?: AnyConfig;
+}
+
+const TYPE_DEFS: Record<ConfigType, {
+  title: string;
+  singular: string;
+  table: string;
+  seedPlaceholder: string;
+  fields: FieldDef[];
+}> = {
+  photographer: {
+    title: 'Photographers',
+    singular: 'photographer',
+    table: 'cog_photographer_configs',
+    seedPlaceholder: 'e.g. "Annie Leibovitz intimate portrait style"',
+    fields: [
+      { key: 'style_description', label: 'Style Description', kind: 'textarea', placeholder: 'Visual style, aesthetic, signature look', rows: 3 },
+      { key: 'style_references', label: 'References (comma separated)', kind: 'input', placeholder: 'ref1, ref2, ref3' },
+      { key: 'techniques', label: 'Techniques', kind: 'textarea', placeholder: 'Lighting, lens, post-processing', rows: 2 },
+      { key: 'testbed_notes', label: 'Testbed Notes', kind: 'textarea', placeholder: 'Prompt engineering notes', rows: 2 },
+    ],
+  },
+  director: {
+    title: 'Directors',
+    singular: 'director',
+    table: 'cog_director_configs',
+    seedPlaceholder: 'e.g. "Wes Anderson symmetrical whimsy"',
+    fields: [
+      { key: 'approach_description', label: 'Approach Description', kind: 'textarea', placeholder: 'Editorial vision, narrative style', rows: 3 },
+      { key: 'methods', label: 'Methods', kind: 'textarea', placeholder: 'How they brief, select talent, build mood boards', rows: 3 },
+    ],
+  },
+  production: {
+    title: 'Production',
+    singular: 'production',
+    table: 'cog_production_configs',
+    seedPlaceholder: 'e.g. "luxury fashion editorial for Vogue"',
+    fields: [
+      { key: 'shoot_details', label: 'Shoot Details', kind: 'textarea', placeholder: 'Studio vs location, set design, equipment', rows: 2 },
+      { key: 'editorial_notes', label: 'Editorial Notes', kind: 'textarea', placeholder: 'Retouching, color grading, compositing', rows: 2 },
+      { key: 'costume_notes', label: 'Costume Notes', kind: 'textarea', placeholder: 'Wardrobe, makeup, hair, accessories', rows: 2 },
+      { key: 'conceptual_notes', label: 'Conceptual Notes', kind: 'textarea', placeholder: 'Themes, symbolism, mood, narrative', rows: 2 },
+    ],
+  },
+};
+
+// ============================================================================
+// Per-type helpers
+// ============================================================================
+
+function configToForm(type: ConfigType, config: AnyConfig): Record<string, string> {
+  const base: Record<string, string> = { name: config.name, description: config.description || '' };
+  if (type === 'photographer') {
+    const c = config as CogPhotographerConfig;
+    return { ...base, style_description: c.style_description, style_references: c.style_references.join(', '), techniques: c.techniques, testbed_notes: c.testbed_notes };
+  }
+  if (type === 'director') {
+    const c = config as CogDirectorConfig;
+    return { ...base, approach_description: c.approach_description, methods: c.methods };
+  }
+  const c = config as CogProductionConfig;
+  return { ...base, shoot_details: c.shoot_details, editorial_notes: c.editorial_notes, costume_notes: c.costume_notes, conceptual_notes: c.conceptual_notes };
+}
+
+function emptyForm(type: ConfigType): Record<string, string> {
+  const form: Record<string, string> = { name: '', description: '' };
+  for (const f of TYPE_DEFS[type].fields) form[f.key] = '';
+  return form;
+}
+
+async function runSeedGeneration(type: ConfigType, input: string): Promise<Record<string, string>> {
+  if (type === 'photographer') {
+    const r = await generatePhotographerSeed(input);
+    return { name: r.name, description: r.description, style_description: r.style_description, style_references: r.style_references.join(', '), techniques: r.techniques, testbed_notes: r.testbed_notes };
+  }
+  if (type === 'director') {
+    const r = await generateDirectorSeed(input);
+    return { name: r.name, description: r.description, approach_description: r.approach_description, methods: r.methods };
+  }
+  const r = await generateProductionSeed(input);
+  return { name: r.name, description: r.description, shoot_details: r.shoot_details, editorial_notes: r.editorial_notes, costume_notes: r.costume_notes, conceptual_notes: r.conceptual_notes };
+}
+
+async function saveConfig(type: ConfigType, form: Record<string, string>, userId: string, editingId: string | null) {
+  const base = { name: form.name.trim(), description: form.description.trim() || null };
+
+  if (type === 'photographer') {
+    const fields = { ...base, style_description: form.style_description.trim(), style_references: form.style_references.split(',').map(r => r.trim()).filter(Boolean), techniques: form.techniques.trim(), testbed_notes: form.testbed_notes.trim() };
+    return editingId ? updatePhotographerConfig(editingId, fields) : createPhotographerConfig({ ...fields, user_id: userId });
+  }
+  if (type === 'director') {
+    const fields = { ...base, approach_description: form.approach_description.trim(), methods: form.methods.trim(), interview_mapping: null };
+    return editingId ? updateDirectorConfig(editingId, fields) : createDirectorConfig({ ...fields, user_id: userId });
+  }
+  const fields = { ...base, shoot_details: form.shoot_details.trim(), editorial_notes: form.editorial_notes.trim(), costume_notes: form.costume_notes.trim(), conceptual_notes: form.conceptual_notes.trim() };
+  return editingId ? updateProductionConfig(editingId, fields) : createProductionConfig({ ...fields, user_id: userId });
+}
+
+async function removeConfig(type: ConfigType, id: string) {
+  if (type === 'photographer') return deletePhotographerConfig(id);
+  if (type === 'director') return deleteDirectorConfig(id);
+  return deleteProductionConfig(id);
+}
+
+// ============================================================================
+// List column (generic for all types)
+// ============================================================================
+
+function ConfigColumn({ type, onEdit, onNew }: {
+  type: ConfigType;
+  onEdit: (config: AnyConfig) => void;
+  onNew: () => void;
+}) {
+  const [configs, setConfigs] = useState<AnyConfig[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showForm, setShowForm] = useState(false);
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  // Seed generation
-  const [seedInput, setSeedInput] = useState('');
-  const [generating, setGenerating] = useState(false);
-  const [showSeedInput, setShowSeedInput] = useState(false);
-
-  const [form, setForm] = useState({
-    name: '', description: '', style_description: '', style_references: '', techniques: '', testbed_notes: '',
-  });
+  const def = TYPE_DEFS[type];
 
   useEffect(() => {
-    loadConfigs();
-  }, []);
-
-  async function loadConfigs() {
-    const { data, error: err } = await (supabase as any)
-      .from('cog_photographer_configs')
-      .select('*')
-      .order('name', { ascending: true });
-    if (!err && data) setConfigs(data as CogPhotographerConfig[]);
-    setLoading(false);
-  }
-
-  function resetForm() {
-    setForm({ name: '', description: '', style_description: '', style_references: '', techniques: '', testbed_notes: '' });
-    setEditingId(null);
-    setShowForm(false);
-    setShowSeedInput(false);
-    setSeedInput('');
-    setError(null);
-  }
-
-  function startEdit(c: CogPhotographerConfig) {
-    setForm({
-      name: c.name,
-      description: c.description || '',
-      style_description: c.style_description,
-      style_references: c.style_references.join(', '),
-      techniques: c.techniques,
-      testbed_notes: c.testbed_notes,
-    });
-    setEditingId(c.id);
-    setShowForm(true);
-    setShowSeedInput(false);
-  }
-
-  function startNew() {
-    resetForm();
-    setShowForm(true);
-  }
-
-  async function handleSeed() {
-    if (!seedInput.trim()) return;
-    setGenerating(true);
-    setError(null);
-    try {
-      const result = await generatePhotographerSeed(seedInput.trim());
-      setForm({
-        name: result.name,
-        description: result.description,
-        style_description: result.style_description,
-        style_references: result.style_references.join(', '),
-        techniques: result.techniques,
-        testbed_notes: result.testbed_notes,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (supabase as any).from(def.table).select('*').order('name', { ascending: true })
+      .then(({ data, error }: { data: AnyConfig[] | null; error: unknown }) => {
+        if (!error && data) setConfigs(data);
+        setLoading(false);
       });
-      setShowSeedInput(false);
-      setSeedInput('');
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Seed generation failed');
-    } finally {
-      setGenerating(false);
-    }
-  }
-
-  async function handleSave() {
-    if (!form.name.trim() || !form.style_description.trim()) {
-      setError('Name and Style Description are required');
-      return;
-    }
-    setSaving(true);
-    setError(null);
-    const payload = {
-      user_id: userId,
-      name: form.name.trim(),
-      description: form.description.trim() || null,
-      style_description: form.style_description.trim(),
-      style_references: form.style_references.split(',').map(r => r.trim()).filter(Boolean),
-      techniques: form.techniques.trim(),
-      testbed_notes: form.testbed_notes.trim(),
-    };
-    try {
-      if (editingId) {
-        const { user_id: _, ...updates } = payload;
-        const updated = await updatePhotographerConfig(editingId, updates);
-        setConfigs(prev => prev.map(c => c.id === editingId ? updated : c));
-      } else {
-        const created = await createPhotographerConfig(payload);
-        setConfigs(prev => [...prev, created].sort((a, b) => a.name.localeCompare(b.name)));
-      }
-      resetForm();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to save');
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  async function handleDelete(id: string) {
-    if (!confirm('Delete this photographer config?')) return;
-    try {
-      await deletePhotographerConfig(id);
-      setConfigs(prev => prev.filter(c => c.id !== id));
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to delete');
-    }
-  }
-
-  if (loading) return <p className="text-sm text-muted-foreground py-4">Loading...</p>;
+  }, [def.table]);
 
   return (
-    <div className="space-y-4">
-      {error && (
-        <div className="p-2 text-xs text-destructive bg-destructive/10 rounded">{error}</div>
-      )}
-
-      {/* Config list */}
-      {configs.length > 0 && (
-        <div className="space-y-2">
+    <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        <h3 className="text-sm font-semibold">{def.title}</h3>
+        <Button size="sm" variant="ghost" onClick={onNew} className="h-6 w-6 p-0">
+          <Plus className="h-4 w-4" />
+        </Button>
+      </div>
+      {loading ? (
+        <p className="text-sm text-muted-foreground py-4">Loading...</p>
+      ) : configs.length > 0 ? (
+        <div className="space-y-1.5">
           {configs.map(c => (
-            <div key={c.id} className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/30">
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium">{c.name}</p>
-                {c.description && <p className="text-xs text-muted-foreground truncate">{c.description}</p>}
-              </div>
-              <div className="flex gap-1 shrink-0">
-                <Button size="sm" variant="ghost" onClick={() => startEdit(c)} className="h-7 text-xs">Edit</Button>
-                <Button size="sm" variant="ghost" onClick={() => handleDelete(c.id)} className="h-7 text-xs text-destructive hover:text-destructive">Delete</Button>
-              </div>
-            </div>
+            <button key={c.id} type="button" onClick={() => onEdit(c)} className="w-full text-left p-2 border rounded-md hover:bg-muted/30 cursor-pointer">
+              <p className="text-sm font-medium">{c.name}</p>
+              {c.description && <p className="text-xs text-muted-foreground truncate">{c.description}</p>}
+            </button>
           ))}
         </div>
-      )}
-
-      {configs.length === 0 && !showForm && (
-        <p className="text-sm text-muted-foreground py-2">No photographer configs yet.</p>
-      )}
-
-      {/* Form */}
-      {showForm && (
-        <div className="space-y-3 p-3 bg-muted/50 rounded-lg border">
-          {/* Seed generation */}
-          {!editingId && (
-            <div>
-              {showSeedInput ? (
-                <div className="flex gap-2 mb-3">
-                  <Input
-                    value={seedInput}
-                    onChange={e => setSeedInput(e.target.value)}
-                    placeholder='e.g. "Annie Leibovitz intimate portrait style"'
-                    className="text-sm h-8"
-                    onKeyDown={e => { if (e.key === 'Enter') handleSeed(); }}
-                    disabled={generating}
-                  />
-                  <Button size="sm" onClick={handleSeed} disabled={generating || !seedInput.trim()} className="h-8 text-xs shrink-0">
-                    {generating ? 'Generating...' : 'Generate'}
-                  </Button>
-                  <Button size="sm" variant="ghost" onClick={() => { setShowSeedInput(false); setSeedInput(''); }} disabled={generating} className="h-8 text-xs shrink-0">
-                    Cancel
-                  </Button>
-                </div>
-              ) : (
-                <Button size="sm" variant="outline" onClick={() => setShowSeedInput(true)} className="h-7 text-xs mb-3">
-                  Generate from Seed
-                </Button>
-              )}
-            </div>
-          )}
-
-          <Input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} placeholder="Name" className="text-sm h-8" />
-          <Input value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} placeholder="Description (optional)" className="text-sm h-8" />
-          <div className="space-y-1">
-            <Label className="text-xs">Style Description</Label>
-            <Textarea value={form.style_description} onChange={e => setForm({ ...form, style_description: e.target.value })} placeholder="Visual style, aesthetic, signature look" className="text-sm" rows={3} />
-          </div>
-          <div className="space-y-1">
-            <Label className="text-xs">References (comma separated)</Label>
-            <Input value={form.style_references} onChange={e => setForm({ ...form, style_references: e.target.value })} placeholder="ref1, ref2, ref3" className="text-sm h-8" />
-          </div>
-          <div className="space-y-1">
-            <Label className="text-xs">Techniques</Label>
-            <Textarea value={form.techniques} onChange={e => setForm({ ...form, techniques: e.target.value })} placeholder="Lighting, lens, post-processing" className="text-sm" rows={2} />
-          </div>
-          <div className="space-y-1">
-            <Label className="text-xs">Testbed Notes</Label>
-            <Textarea value={form.testbed_notes} onChange={e => setForm({ ...form, testbed_notes: e.target.value })} placeholder="Prompt engineering notes" className="text-sm" rows={2} />
-          </div>
-          <div className="flex gap-2 pt-1">
-            <Button size="sm" onClick={handleSave} disabled={saving || !form.name.trim()} className="h-7 text-xs">
-              {saving ? '...' : editingId ? 'Save' : 'Create'}
-            </Button>
-            <Button size="sm" variant="ghost" onClick={resetForm} disabled={saving} className="h-7 text-xs">Cancel</Button>
-          </div>
-        </div>
-      )}
-
-      {!showForm && (
-        <Button size="sm" variant="outline" onClick={startNew} className="h-8 text-xs">
-          + New Photographer Config
-        </Button>
+      ) : (
+        <p className="text-xs text-muted-foreground py-2">No configs yet.</p>
       )}
     </div>
   );
 }
 
 // ============================================================================
-// Director Config Panel
+// Form view (handles create/edit for all types)
 // ============================================================================
 
-function DirectorPanel({ userId }: { userId: string }) {
-  const [configs, setConfigs] = useState<CogDirectorConfig[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [showForm, setShowForm] = useState(false);
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [seedInput, setSeedInput] = useState('');
-  const [generating, setGenerating] = useState(false);
-  const [showSeedInput, setShowSeedInput] = useState(false);
-
-  const [form, setForm] = useState({
-    name: '', description: '', approach_description: '', methods: '',
-  });
-
-  useEffect(() => {
-    loadConfigs();
-  }, []);
-
-  async function loadConfigs() {
-    const { data, error: err } = await (supabase as any)
-      .from('cog_director_configs')
-      .select('*')
-      .order('name', { ascending: true });
-    if (!err && data) setConfigs(data as CogDirectorConfig[]);
-    setLoading(false);
-  }
-
-  function resetForm() {
-    setForm({ name: '', description: '', approach_description: '', methods: '' });
-    setEditingId(null);
-    setShowForm(false);
-    setShowSeedInput(false);
-    setSeedInput('');
-    setError(null);
-  }
-
-  function startEdit(c: CogDirectorConfig) {
-    setForm({
-      name: c.name,
-      description: c.description || '',
-      approach_description: c.approach_description,
-      methods: c.methods,
-    });
-    setEditingId(c.id);
-    setShowForm(true);
-    setShowSeedInput(false);
-  }
-
-  function startNew() {
-    resetForm();
-    setShowForm(true);
-  }
-
-  async function handleSeed() {
-    if (!seedInput.trim()) return;
-    setGenerating(true);
-    setError(null);
-    try {
-      const result = await generateDirectorSeed(seedInput.trim());
-      setForm({
-        name: result.name,
-        description: result.description,
-        approach_description: result.approach_description,
-        methods: result.methods,
-      });
-      setShowSeedInput(false);
-      setSeedInput('');
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Seed generation failed');
-    } finally {
-      setGenerating(false);
-    }
-  }
-
-  async function handleSave() {
-    if (!form.name.trim() || !form.approach_description.trim()) {
-      setError('Name and Approach Description are required');
-      return;
-    }
-    setSaving(true);
-    setError(null);
-    const payload = {
-      user_id: userId,
-      name: form.name.trim(),
-      description: form.description.trim() || null,
-      approach_description: form.approach_description.trim(),
-      methods: form.methods.trim(),
-      interview_mapping: null,
-    };
-    try {
-      if (editingId) {
-        const { user_id: _, ...updates } = payload;
-        const updated = await updateDirectorConfig(editingId, updates);
-        setConfigs(prev => prev.map(c => c.id === editingId ? updated : c));
-      } else {
-        const created = await createDirectorConfig(payload);
-        setConfigs(prev => [...prev, created].sort((a, b) => a.name.localeCompare(b.name)));
-      }
-      resetForm();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to save');
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  async function handleDelete(id: string) {
-    if (!confirm('Delete this director config?')) return;
-    try {
-      await deleteDirectorConfig(id);
-      setConfigs(prev => prev.filter(c => c.id !== id));
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to delete');
-    }
-  }
-
-  if (loading) return <p className="text-sm text-muted-foreground py-4">Loading...</p>;
-
-  return (
-    <div className="space-y-4">
-      {error && (
-        <div className="p-2 text-xs text-destructive bg-destructive/10 rounded">{error}</div>
-      )}
-
-      {configs.length > 0 && (
-        <div className="space-y-2">
-          {configs.map(c => (
-            <div key={c.id} className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/30">
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium">{c.name}</p>
-                {c.description && <p className="text-xs text-muted-foreground truncate">{c.description}</p>}
-              </div>
-              <div className="flex gap-1 shrink-0">
-                <Button size="sm" variant="ghost" onClick={() => startEdit(c)} className="h-7 text-xs">Edit</Button>
-                <Button size="sm" variant="ghost" onClick={() => handleDelete(c.id)} className="h-7 text-xs text-destructive hover:text-destructive">Delete</Button>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {configs.length === 0 && !showForm && (
-        <p className="text-sm text-muted-foreground py-2">No director configs yet.</p>
-      )}
-
-      {showForm && (
-        <div className="space-y-3 p-3 bg-muted/50 rounded-lg border">
-          {!editingId && (
-            <div>
-              {showSeedInput ? (
-                <div className="flex gap-2 mb-3">
-                  <Input
-                    value={seedInput}
-                    onChange={e => setSeedInput(e.target.value)}
-                    placeholder='e.g. "Wes Anderson symmetrical whimsy"'
-                    className="text-sm h-8"
-                    onKeyDown={e => { if (e.key === 'Enter') handleSeed(); }}
-                    disabled={generating}
-                  />
-                  <Button size="sm" onClick={handleSeed} disabled={generating || !seedInput.trim()} className="h-8 text-xs shrink-0">
-                    {generating ? 'Generating...' : 'Generate'}
-                  </Button>
-                  <Button size="sm" variant="ghost" onClick={() => { setShowSeedInput(false); setSeedInput(''); }} disabled={generating} className="h-8 text-xs shrink-0">
-                    Cancel
-                  </Button>
-                </div>
-              ) : (
-                <Button size="sm" variant="outline" onClick={() => setShowSeedInput(true)} className="h-7 text-xs mb-3">
-                  Generate from Seed
-                </Button>
-              )}
-            </div>
-          )}
-
-          <Input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} placeholder="Name" className="text-sm h-8" />
-          <Input value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} placeholder="Description (optional)" className="text-sm h-8" />
-          <div className="space-y-1">
-            <Label className="text-xs">Approach Description</Label>
-            <Textarea value={form.approach_description} onChange={e => setForm({ ...form, approach_description: e.target.value })} placeholder="Editorial vision, narrative style" className="text-sm" rows={3} />
-          </div>
-          <div className="space-y-1">
-            <Label className="text-xs">Methods</Label>
-            <Textarea value={form.methods} onChange={e => setForm({ ...form, methods: e.target.value })} placeholder="How they brief, select talent, build mood boards" className="text-sm" rows={3} />
-          </div>
-          <div className="flex gap-2 pt-1">
-            <Button size="sm" onClick={handleSave} disabled={saving || !form.name.trim()} className="h-7 text-xs">
-              {saving ? '...' : editingId ? 'Save' : 'Create'}
-            </Button>
-            <Button size="sm" variant="ghost" onClick={resetForm} disabled={saving} className="h-7 text-xs">Cancel</Button>
-          </div>
-        </div>
-      )}
-
-      {!showForm && (
-        <Button size="sm" variant="outline" onClick={startNew} className="h-8 text-xs">
-          + New Director Config
-        </Button>
-      )}
-    </div>
+function ConfigFormView({ type, config, userId, onDone }: {
+  type: ConfigType;
+  config?: AnyConfig;
+  userId: string;
+  onDone: () => void;
+}) {
+  const def = TYPE_DEFS[type];
+  const editingId = config?.id ?? null;
+  const [form, setForm] = useState<Record<string, string>>(
+    config ? configToForm(type, config) : emptyForm(type)
   );
-}
-
-// ============================================================================
-// Production Config Panel
-// ============================================================================
-
-function ProductionPanel({ userId }: { userId: string }) {
-  const [configs, setConfigs] = useState<CogProductionConfig[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [showForm, setShowForm] = useState(false);
-  const [editingId, setEditingId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [seedInput, setSeedInput] = useState('');
   const [generating, setGenerating] = useState(false);
   const [showSeedInput, setShowSeedInput] = useState(false);
 
-  const [form, setForm] = useState({
-    name: '', description: '', shoot_details: '', editorial_notes: '', costume_notes: '', conceptual_notes: '',
-  });
-
-  useEffect(() => {
-    loadConfigs();
-  }, []);
-
-  async function loadConfigs() {
-    const { data, error: err } = await (supabase as any)
-      .from('cog_production_configs')
-      .select('*')
-      .order('name', { ascending: true });
-    if (!err && data) setConfigs(data as CogProductionConfig[]);
-    setLoading(false);
-  }
-
-  function resetForm() {
-    setForm({ name: '', description: '', shoot_details: '', editorial_notes: '', costume_notes: '', conceptual_notes: '' });
-    setEditingId(null);
-    setShowForm(false);
-    setShowSeedInput(false);
-    setSeedInput('');
-    setError(null);
-  }
-
-  function startEdit(c: CogProductionConfig) {
-    setForm({
-      name: c.name,
-      description: c.description || '',
-      shoot_details: c.shoot_details,
-      editorial_notes: c.editorial_notes,
-      costume_notes: c.costume_notes,
-      conceptual_notes: c.conceptual_notes,
-    });
-    setEditingId(c.id);
-    setShowForm(true);
-    setShowSeedInput(false);
-  }
-
-  function startNew() {
-    resetForm();
-    setShowForm(true);
+  function set(key: string, value: string) {
+    setForm(prev => ({ ...prev, [key]: value }));
   }
 
   async function handleSeed() {
@@ -526,15 +218,7 @@ function ProductionPanel({ userId }: { userId: string }) {
     setGenerating(true);
     setError(null);
     try {
-      const result = await generateProductionSeed(seedInput.trim());
-      setForm({
-        name: result.name,
-        description: result.description,
-        shoot_details: result.shoot_details,
-        editorial_notes: result.editorial_notes,
-        costume_notes: result.costume_notes,
-        conceptual_notes: result.conceptual_notes,
-      });
+      setForm(await runSeedGeneration(type, seedInput.trim()));
       setShowSeedInput(false);
       setSeedInput('');
     } catch (err) {
@@ -545,138 +229,84 @@ function ProductionPanel({ userId }: { userId: string }) {
   }
 
   async function handleSave() {
-    if (!form.name.trim()) {
-      setError('Name is required');
-      return;
-    }
+    if (!form.name.trim()) { setError('Name is required'); return; }
     setSaving(true);
     setError(null);
-    const payload = {
-      user_id: userId,
-      name: form.name.trim(),
-      description: form.description.trim() || null,
-      shoot_details: form.shoot_details.trim(),
-      editorial_notes: form.editorial_notes.trim(),
-      costume_notes: form.costume_notes.trim(),
-      conceptual_notes: form.conceptual_notes.trim(),
-    };
     try {
-      if (editingId) {
-        const { user_id: _, ...updates } = payload;
-        const updated = await updateProductionConfig(editingId, updates);
-        setConfigs(prev => prev.map(c => c.id === editingId ? updated : c));
-      } else {
-        const created = await createProductionConfig(payload);
-        setConfigs(prev => [...prev, created].sort((a, b) => a.name.localeCompare(b.name)));
-      }
-      resetForm();
+      await saveConfig(type, form, userId, editingId);
+      onDone();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to save');
-    } finally {
       setSaving(false);
     }
   }
 
-  async function handleDelete(id: string) {
-    if (!confirm('Delete this production config?')) return;
+  async function handleDelete() {
+    if (!editingId || !confirm(`Delete this ${def.singular} config?`)) return;
     try {
-      await deleteProductionConfig(id);
-      setConfigs(prev => prev.filter(c => c.id !== id));
+      await removeConfig(type, editingId);
+      onDone();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to delete');
     }
   }
 
-  if (loading) return <p className="text-sm text-muted-foreground py-4">Loading...</p>;
-
   return (
-    <div className="space-y-4">
-      {error && (
-        <div className="p-2 text-xs text-destructive bg-destructive/10 rounded">{error}</div>
-      )}
-
-      {configs.length > 0 && (
-        <div className="space-y-2">
-          {configs.map(c => (
-            <div key={c.id} className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/30">
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium">{c.name}</p>
-                {c.description && <p className="text-xs text-muted-foreground truncate">{c.description}</p>}
-              </div>
-              <div className="flex gap-1 shrink-0">
-                <Button size="sm" variant="ghost" onClick={() => startEdit(c)} className="h-7 text-xs">Edit</Button>
-                <Button size="sm" variant="ghost" onClick={() => handleDelete(c.id)} className="h-7 text-xs text-destructive hover:text-destructive">Delete</Button>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {configs.length === 0 && !showForm && (
-        <p className="text-sm text-muted-foreground py-2">No production configs yet.</p>
-      )}
-
-      {showForm && (
-        <div className="space-y-3 p-3 bg-muted/50 rounded-lg border">
-          {!editingId && (
-            <div>
-              {showSeedInput ? (
-                <div className="flex gap-2 mb-3">
-                  <Input
-                    value={seedInput}
-                    onChange={e => setSeedInput(e.target.value)}
-                    placeholder='e.g. "luxury fashion editorial for Vogue"'
-                    className="text-sm h-8"
-                    onKeyDown={e => { if (e.key === 'Enter') handleSeed(); }}
-                    disabled={generating}
-                  />
-                  <Button size="sm" onClick={handleSeed} disabled={generating || !seedInput.trim()} className="h-8 text-xs shrink-0">
-                    {generating ? 'Generating...' : 'Generate'}
-                  </Button>
-                  <Button size="sm" variant="ghost" onClick={() => { setShowSeedInput(false); setSeedInput(''); }} disabled={generating} className="h-8 text-xs shrink-0">
-                    Cancel
-                  </Button>
-                </div>
-              ) : (
-                <Button size="sm" variant="outline" onClick={() => setShowSeedInput(true)} className="h-7 text-xs mb-3">
-                  Generate from Seed
-                </Button>
-              )}
-            </div>
-          )}
-
-          <Input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} placeholder="Name" className="text-sm h-8" />
-          <Input value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} placeholder="Description (optional)" className="text-sm h-8" />
-          <div className="space-y-1">
-            <Label className="text-xs">Shoot Details</Label>
-            <Textarea value={form.shoot_details} onChange={e => setForm({ ...form, shoot_details: e.target.value })} placeholder="Studio vs location, set design, equipment" className="text-sm" rows={2} />
-          </div>
-          <div className="space-y-1">
-            <Label className="text-xs">Editorial Notes</Label>
-            <Textarea value={form.editorial_notes} onChange={e => setForm({ ...form, editorial_notes: e.target.value })} placeholder="Retouching, color grading, compositing" className="text-sm" rows={2} />
-          </div>
-          <div className="space-y-1">
-            <Label className="text-xs">Costume Notes</Label>
-            <Textarea value={form.costume_notes} onChange={e => setForm({ ...form, costume_notes: e.target.value })} placeholder="Wardrobe, makeup, hair, accessories" className="text-sm" rows={2} />
-          </div>
-          <div className="space-y-1">
-            <Label className="text-xs">Conceptual Notes</Label>
-            <Textarea value={form.conceptual_notes} onChange={e => setForm({ ...form, conceptual_notes: e.target.value })} placeholder="Themes, symbolism, mood, narrative" className="text-sm" rows={2} />
-          </div>
-          <div className="flex gap-2 pt-1">
-            <Button size="sm" onClick={handleSave} disabled={saving || !form.name.trim()} className="h-7 text-xs">
-              {saving ? '...' : editingId ? 'Save' : 'Create'}
-            </Button>
-            <Button size="sm" variant="ghost" onClick={resetForm} disabled={saving} className="h-7 text-xs">Cancel</Button>
-          </div>
-        </div>
-      )}
-
-      {!showForm && (
-        <Button size="sm" variant="outline" onClick={startNew} className="h-8 text-xs">
-          + New Production Config
+    <div className="max-w-lg space-y-4">
+      <div className="flex items-center gap-2">
+        <Button size="sm" variant="ghost" onClick={onDone} className="h-7 px-2 text-xs">
+          <ArrowLeft className="h-3.5 w-3.5 mr-1" /> Back
         </Button>
-      )}
+        <h3 className="text-sm font-semibold">
+          {editingId ? `Edit ${def.singular}` : `New ${def.singular}`}
+        </h3>
+      </div>
+
+      {error && <div className="p-2 text-xs text-destructive bg-destructive/10 rounded">{error}</div>}
+
+      <div className="space-y-3">
+        {!editingId && (
+          showSeedInput ? (
+            <div className="flex gap-2">
+              <Input value={seedInput} onChange={e => setSeedInput(e.target.value)} placeholder={def.seedPlaceholder} className="text-sm h-8" onKeyDown={e => { if (e.key === 'Enter') handleSeed(); }} disabled={generating} />
+              <Button size="sm" onClick={handleSeed} disabled={generating || !seedInput.trim()} className="h-8 text-xs shrink-0">
+                {generating ? '...' : 'Generate'}
+              </Button>
+              <Button size="sm" variant="ghost" onClick={() => { setShowSeedInput(false); setSeedInput(''); }} disabled={generating} className="h-8 text-xs shrink-0">
+                Cancel
+              </Button>
+            </div>
+          ) : (
+            <Button size="sm" variant="outline" onClick={() => setShowSeedInput(true)} className="h-7 text-xs">
+              Generate from Seed
+            </Button>
+          )
+        )}
+
+        <Input value={form.name} onChange={e => set('name', e.target.value)} placeholder="Name" className="text-sm h-8" />
+        <Input value={form.description} onChange={e => set('description', e.target.value)} placeholder="Description (optional)" className="text-sm h-8" />
+
+        {def.fields.map(f => (
+          <div key={f.key} className="space-y-1">
+            <Label className="text-xs">{f.label}</Label>
+            {f.kind === 'textarea' ? (
+              <Textarea value={form[f.key] || ''} onChange={e => set(f.key, e.target.value)} placeholder={f.placeholder} className="text-sm" rows={f.rows ?? 2} />
+            ) : (
+              <Input value={form[f.key] || ''} onChange={e => set(f.key, e.target.value)} placeholder={f.placeholder} className="text-sm h-8" />
+            )}
+          </div>
+        ))}
+
+        <div className="flex gap-2 pt-1">
+          <Button size="sm" onClick={handleSave} disabled={saving || !form.name.trim()} className="h-7 text-xs">
+            {saving ? '...' : editingId ? 'Save' : 'Create'}
+          </Button>
+          <Button size="sm" variant="ghost" onClick={onDone} disabled={saving} className="h-7 text-xs">Cancel</Button>
+          {editingId && (
+            <Button size="sm" variant="ghost" onClick={handleDelete} disabled={saving} className="h-7 text-xs text-destructive hover:text-destructive ml-auto">Delete</Button>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
@@ -687,6 +317,8 @@ function ProductionPanel({ userId }: { userId: string }) {
 
 export function ConfigLibrary() {
   const [userId, setUserId] = useState<string | null>(null);
+  const [editing, setEditing] = useState<EditingState | null>(null);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => {
@@ -694,36 +326,26 @@ export function ConfigLibrary() {
     });
   }, []);
 
+  function done() {
+    setEditing(null);
+    setRefreshKey(k => k + 1);
+  }
+
   if (!userId) {
     return <p className="text-sm text-muted-foreground py-4">Loading...</p>;
   }
 
+  if (editing) {
+    return (
+      <ConfigFormView type={editing.type} config={editing.config} userId={userId} onDone={done} />
+    );
+  }
+
   return (
-    <div className="space-y-6">
-      <div>
-        <h2 className="text-xl font-bold">Config Library</h2>
-        <p className="text-sm text-muted-foreground">
-          Global creative personas reusable across any series or pipeline job.
-        </p>
-      </div>
-
-      <Tabs defaultValue="photographer">
-        <TabsList>
-          <TabsTrigger value="photographer">Photographers</TabsTrigger>
-          <TabsTrigger value="director">Directors</TabsTrigger>
-          <TabsTrigger value="production">Production</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="photographer" className="mt-4">
-          <PhotographerPanel userId={userId} />
-        </TabsContent>
-        <TabsContent value="director" className="mt-4">
-          <DirectorPanel userId={userId} />
-        </TabsContent>
-        <TabsContent value="production" className="mt-4">
-          <ProductionPanel userId={userId} />
-        </TabsContent>
-      </Tabs>
+    <div className="grid grid-cols-3 gap-6" key={refreshKey}>
+      <ConfigColumn type="photographer" onEdit={c => setEditing({ type: 'photographer', config: c })} onNew={() => setEditing({ type: 'photographer' })} />
+      <ConfigColumn type="director" onEdit={c => setEditing({ type: 'director', config: c })} onNew={() => setEditing({ type: 'director' })} />
+      <ConfigColumn type="production" onEdit={c => setEditing({ type: 'production', config: c })} onNew={() => setEditing({ type: 'production' })} />
     </div>
   );
 }
