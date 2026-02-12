@@ -20,14 +20,34 @@ interface PexelsPhoto {
   photographer_url: string;
 }
 
-export async function searchUnsplash(query: string, perPage = 8): Promise<StockPhotoResult[]> {
+export interface UnsplashSearchOptions {
+  query: string;
+  perPage?: number;
+  color?: 'black_and_white' | 'black' | 'white' | 'yellow' | 'orange' | 'red' | 'purple' | 'magenta' | 'green' | 'teal' | 'blue';
+  orientation?: 'landscape' | 'portrait' | 'squarish';
+  orderBy?: 'latest' | 'relevant';
+}
+
+export async function searchUnsplash(queryOrOptions: string | UnsplashSearchOptions, perPage = 8): Promise<StockPhotoResult[]> {
   const apiKey = process.env.UNSPLASH_ACCESS_KEY;
   if (!apiKey) {
     console.warn('[StockSearch] UNSPLASH_ACCESS_KEY not set, skipping Unsplash');
     return [];
   }
 
-  const params = new URLSearchParams({ query, per_page: String(perPage) });
+  // Support both string and options object for backwards compatibility
+  const opts: UnsplashSearchOptions = typeof queryOrOptions === 'string'
+    ? { query: queryOrOptions, perPage }
+    : queryOrOptions;
+
+  const params = new URLSearchParams({
+    query: opts.query,
+    per_page: String(opts.perPage ?? perPage),
+  });
+  if (opts.color) params.set('color', opts.color);
+  if (opts.orientation) params.set('orientation', opts.orientation);
+  if (opts.orderBy) params.set('order_by', opts.orderBy);
+
   const res = await fetch(`https://api.unsplash.com/search/photos?${params}`, {
     headers: { Authorization: `Client-ID ${apiKey}` },
   });

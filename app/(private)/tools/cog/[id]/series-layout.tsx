@@ -32,6 +32,7 @@ import { generateSeriesDescription } from '@/lib/ai/actions/generate-series-desc
 import type {
   CogSeries,
   CogJob,
+  CogRemixJob,
   CogTag,
   CogTagWithGroup,
   CogImageWithGroupInfo,
@@ -41,6 +42,7 @@ interface SeriesLayoutProps {
   series: CogSeries;
   images: CogImageWithGroupInfo[];
   jobs: CogJob[];
+  remixJobs?: CogRemixJob[];
   childSeries: CogSeries[];
   seriesId: string;
   enabledTags: CogTagWithGroup[];
@@ -639,9 +641,9 @@ function ConfigPanel({
   );
 }
 
-function JobsPanel({ jobs, seriesId }: { jobs: CogJob[]; seriesId: string }) {
+function JobsPanel({ jobs, remixJobs, seriesId }: { jobs: CogJob[]; remixJobs?: CogRemixJob[]; seriesId: string }) {
   return (
-    <JobsList jobs={jobs} seriesId={seriesId} />
+    <JobsList jobs={jobs} remixJobs={remixJobs} seriesId={seriesId} />
   );
 }
 
@@ -823,6 +825,7 @@ export function SeriesLayout({
   series,
   images,
   jobs,
+  remixJobs,
   childSeries,
   seriesId,
   enabledTags,
@@ -879,7 +882,7 @@ export function SeriesLayout({
                   {/* Scrollable content */}
                   <TabsContent value="jobs" className="mt-0">
                     <div className="h-[calc(100vh-12rem)] overflow-y-auto pt-4">
-                      <JobsPanel jobs={jobs} seriesId={seriesId} />
+                      <JobsPanel jobs={jobs} remixJobs={remixJobs} seriesId={seriesId} />
                     </div>
                   </TabsContent>
                   <TabsContent value="images" className="mt-0">
@@ -920,7 +923,7 @@ export function SeriesLayout({
             />
           </TabsContent>
           <TabsContent value="jobs" className="mt-4">
-            <JobsPanel jobs={jobs} seriesId={seriesId} />
+            <JobsPanel jobs={jobs} remixJobs={remixJobs} seriesId={seriesId} />
           </TabsContent>
           <TabsContent value="images" className="mt-4">
             <div className="space-y-4">

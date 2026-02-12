@@ -610,3 +610,113 @@ export interface CogImageWithGroupInfo extends CogImage {
 
 // Legacy alias for backwards compatibility during migration
 export type CogImageWithVersions = CogImageWithGroupInfo;
+
+// ============================================================================
+// Remix Job Types
+// ============================================================================
+
+export type CogRemixJobStatus = 'draft' | 'running' | 'completed' | 'failed' | 'cancelled';
+
+export type CogRemixPhaseStatus = 'pending' | 'running' | 'completed' | 'failed';
+
+export type CogRemixAugmentStepType = 'color_grade' | 'crop' | 'reframe' | 'upscale' | 'creative';
+
+export interface CogRemixSearchParams {
+  queries: string[];
+  color?: 'black_and_white' | 'black' | 'white' | 'yellow' | 'orange' | 'red' | 'purple' | 'magenta' | 'green' | 'teal' | 'blue';
+  orientation?: 'landscape' | 'portrait' | 'squarish';
+}
+
+export interface CogRemixTraceEntry {
+  phase: string;
+  step: string;
+  iteration?: number;
+  timestamp: string;
+  duration_ms: number;
+  tokens_in?: number;
+  tokens_out?: number;
+  detail: string;
+}
+
+export interface CogRemixJob {
+  id: string;
+  series_id: string;
+  title: string | null;
+  story: string;
+  topics: string[];
+  colors: string[];
+  status: CogRemixJobStatus;
+  source_status: CogRemixPhaseStatus;
+  augment_status: CogRemixPhaseStatus;
+  selected_image_id: string | null;
+  target_aspect_ratio: string | null;
+  target_colors: string[];
+  trace: CogRemixTraceEntry[];
+  error_message: string | null;
+  created_at: string;
+  updated_at: string;
+  started_at: string | null;
+  completed_at: string | null;
+}
+
+export interface CogRemixSearchIteration {
+  id: string;
+  job_id: string;
+  iteration_number: number;
+  search_params: CogRemixSearchParams;
+  llm_reasoning: string | null;
+  feedback: string | null;
+  status: CogRemixPhaseStatus;
+  created_at: string;
+}
+
+export interface CogRemixCandidate {
+  id: string;
+  job_id: string;
+  iteration_id: string;
+  source: 'unsplash' | 'pexels';
+  source_id: string;
+  source_url: string;
+  thumbnail_url: string;
+  photographer: string | null;
+  photographer_url: string | null;
+  width: number | null;
+  height: number | null;
+  eval_score: number | null;
+  eval_reasoning: string | null;
+  selected: boolean;
+  image_id: string | null;
+  created_at: string;
+}
+
+export interface CogRemixAugmentStep {
+  id: string;
+  job_id: string;
+  step_order: number;
+  step_type: CogRemixAugmentStepType;
+  config: Record<string, unknown>;
+  status: CogRemixPhaseStatus;
+  input_image_id: string | null;
+  output_image_id: string | null;
+  created_at: string;
+}
+
+// Insert / Update types for remix
+export interface CogRemixJobInsert {
+  series_id: string;
+  title?: string | null;
+  story: string;
+  topics?: string[];
+  colors?: string[];
+  status?: CogRemixJobStatus;
+  target_aspect_ratio?: string | null;
+  target_colors?: string[];
+}
+
+export type CogRemixJobUpdate = Partial<Omit<CogRemixJob, 'id' | 'created_at'>>;
+
+// Full remix job with nested relations
+export interface CogRemixJobFull extends CogRemixJob {
+  iterations: (CogRemixSearchIteration & { candidates: CogRemixCandidate[] })[];
+  augment_steps: CogRemixAugmentStep[];
+}

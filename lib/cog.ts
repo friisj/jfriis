@@ -53,6 +53,9 @@ import type {
   CogCalibrationSeed,
   CogCalibrationSeedInsert,
   CogCalibrationSeedUpdate,
+  CogRemixJob,
+  CogRemixJobInsert,
+  CogRemixJobUpdate,
 } from './types/cog';
 
 // ============================================================================
@@ -1945,6 +1948,60 @@ export async function updateCalibrationSeed(id: string, updates: CogCalibrationS
 export async function deleteCalibrationSeed(id: string): Promise<void> {
   const { error } = await (supabase as any)
     .from('cog_calibration_seeds')
+    .delete()
+    .eq('id', id);
+
+  if (error) throw error;
+}
+
+// ============================================================================
+// Remix Job Operations (Client)
+// ============================================================================
+
+/**
+ * Create a remix job - client-side
+ */
+export async function createRemixJob(input: CogRemixJobInsert): Promise<CogRemixJob> {
+  const { data, error } = await (supabase as any)
+    .from('cog_remix_jobs')
+    .insert({
+      series_id: input.series_id,
+      title: input.title || null,
+      story: input.story,
+      topics: input.topics || [],
+      colors: input.colors || [],
+      status: input.status || 'draft',
+      target_aspect_ratio: input.target_aspect_ratio || null,
+      target_colors: input.target_colors || [],
+    })
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data as CogRemixJob;
+}
+
+/**
+ * Update a remix job - client-side
+ */
+export async function updateRemixJob(id: string, updates: CogRemixJobUpdate): Promise<CogRemixJob> {
+  const { data, error } = await (supabase as any)
+    .from('cog_remix_jobs')
+    .update(updates)
+    .eq('id', id)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data as CogRemixJob;
+}
+
+/**
+ * Delete a remix job - client-side
+ */
+export async function deleteRemixJob(id: string): Promise<void> {
+  const { error } = await (supabase as any)
+    .from('cog_remix_jobs')
     .delete()
     .eq('id', id);
 

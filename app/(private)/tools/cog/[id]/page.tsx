@@ -5,6 +5,7 @@ import {
   getChildSeriesServer,
   getEnabledTagsForSeriesServer,
   getGlobalTagsServer,
+  getRemixJobsForSeriesServer,
 } from '@/lib/cog-server';
 import { notFound } from 'next/navigation';
 import type {
@@ -13,6 +14,7 @@ import type {
   CogTag,
   CogTagWithGroup,
   CogImageWithGroupInfo,
+  CogRemixJob,
 } from '@/lib/types/cog';
 import { SeriesLayout } from './series-layout';
 
@@ -24,6 +26,7 @@ async function getSeriesData(id: string): Promise<{
   series: CogSeries;
   images: CogImageWithGroupInfo[];
   jobs: CogJob[];
+  remixJobs: CogRemixJob[];
   children: CogSeries[];
   enabledTags: CogTagWithGroup[];
   globalTags: CogTag[];
@@ -33,10 +36,11 @@ async function getSeriesData(id: string): Promise<{
     const series = await getSeriesByIdServer(id);
 
     // Then fetch remaining data in parallel, using primary_image_id for group covers
-    const [images, jobs, children] = await Promise.all([
+    const [images, jobs, children, remixJobs] = await Promise.all([
       getGroupPrimaryImagesServer(id, series.primary_image_id),
       getSeriesJobsServer(id),
       getChildSeriesServer(id),
+      getRemixJobsForSeriesServer(id).catch(() => [] as CogRemixJob[]),
     ]);
 
     // Tag data (optional - tables may not exist yet)
@@ -56,6 +60,7 @@ async function getSeriesData(id: string): Promise<{
       series,
       images,
       jobs,
+      remixJobs,
       children,
       enabledTags,
       globalTags,
@@ -74,7 +79,7 @@ export default async function SeriesDetailPage({ params }: Props) {
     notFound();
   }
 
-  const { series, images, jobs, children, enabledTags, globalTags } = data;
+  const { series, images, jobs, remixJobs, children, enabledTags, globalTags } = data;
 
   return (
     <div className="flex-1">
@@ -82,6 +87,7 @@ export default async function SeriesDetailPage({ params }: Props) {
         series={series}
         images={images}
         jobs={jobs}
+        remixJobs={remixJobs}
         childSeries={children}
         seriesId={id}
         enabledTags={enabledTags}
