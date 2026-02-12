@@ -42,22 +42,17 @@ export interface InferenceContext {
 // ============================================================================
 
 /**
- * Translate the raw story and themes into an accessible, event-oriented briefing.
+ * Translate the raw story into a brief, visual-ready summary for the photographer.
  *
- * The persona is a subject matter expert — someone deeply competent at
- * communicating complexity in plain language. They take whatever the user
- * wrote (which may be abstract, jargon-heavy, full of quantitative updates
- * or company-specific context) and translate it into a practical narrative:
- * what actually happened, what changed, what's interesting about it.
- *
- * The output feeds directly into the photographer concept step so the
- * photographer can understand the dynamics of the story without having to
- * decode domain-specific language.
+ * The input is typically business/market news — company earnings, competitive
+ * shifts, regulatory actions, trend impacts. The photographer doesn't need
+ * financial detail; they need to see the *drama*: who's rising, who's falling,
+ * what force is acting on whom.
  */
 export function buildContextTranslationPrompt(ctx: InferenceContext): string {
   const themesSection =
     ctx.themes && ctx.themes.length > 0
-      ? `\nThemes/topics to interpret: ${ctx.themes.join(', ')}`
+      ? `\nThemes: ${ctx.themes.join(', ')}`
       : '';
 
   const colorsSection =
@@ -65,23 +60,18 @@ export function buildContextTranslationPrompt(ctx: InferenceContext): string {
       ? `\nColor associations: ${ctx.colors.join(', ')}`
       : '';
 
-  return `You are a subject matter expert who is exceptionally good at making complex ideas accessible. You communicate with clarity and precision — no jargon, no filler, no hand-waving. When someone gives you a dense briefing full of abstractions, industry language, or quantitative updates, you translate it into plain English that anyone could understand.
+  return `Translate this briefing into a short, concrete summary for a photographer. The subject matter is modern companies — how their value, power, and influence shift due to market forces, competition, regulation, technology, and global events.
 
-Your job: Take the following creative brief and any themes, and translate them into a practical, event-oriented narrative. Focus on:
+Strip all financial jargon and quantitative detail. Instead, surface:
+- Who is gaining or losing power, and why
+- What force is acting on them (a competitor, a trend, a regulation, a cultural shift)
+- The emotional register: dominance, vulnerability, momentum, stagnation, disruption
 
-- **What actually happened** — turn abstractions into concrete events and situations
-- **What changed** — identify the dynamics, the shifts, the tensions
-- **What's interesting** — surface the human element, the stakes, the story worth telling
-- Turn quantitative updates or company-specific details into simple, practical language
-- Strip esoteric jargon and replace it with vivid, accessible descriptions
-- Write as if you're briefing a talented photographer who needs to *see* the story, not analyze a spreadsheet
+Be brief. A few sharp sentences, not paragraphs. The photographer needs to *see* a dynamic, not read a report.
 
-The briefing:
 "${ctx.basePrompt}"
 ${themesSection}
-${colorsSection}
-
-Write a concise, plain-English translation of this story. Emphasize what happened, who was affected, and why it matters. Be specific and concrete — give the photographer something they can visualize.`;
+${colorsSection}`;
 }
 
 // ============================================================================
