@@ -147,6 +147,12 @@ export async function runFoundation(input: { jobId: string; seriesId: string }):
       });
 
       console.log(`[Foundation] Candidate ${i + 1} stored: ${imageResult.imageId}`);
+
+      // Delay between candidates to avoid rate limits (especially Replicate/Flux)
+      if (i < numCandidates - 1) {
+        console.log(`[Foundation] Waiting 5s before next candidate...`);
+        await new Promise((resolve) => setTimeout(resolve, 5000));
+      }
     }
 
     // Mark foundation phase complete
@@ -284,6 +290,156 @@ export async function runSequence(input: { jobId: string; seriesId: string }): P
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
+// RETRY FROM STEP: Re-run pipeline from a specific step
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/**
+ * Retry the pipeline from a specific step.
+ *
+ * Resets the target step and all subsequent steps to pending,
+ * deletes their outputs, then re-runs the sequence from that point.
+ */
+export async function retryFromStep(input: {
+  jobId: string;
+  seriesId: string;
+  stepId: string;
+}): Promise<void> {
+  const { jobId, seriesId, stepId } = input;
+  const supabase = await createClient();
+
+  const job = await getPipelineJobWithStepsServer(jobId);
+  const steps = job.steps.sort((a, b) => a.step_order - b.step_order);
+
+  // Find the target step index
+  const targetIndex = steps.findIndex((s) => s.id === stepId);
+  if (targetIndex === -1) {
+    throw new Error(`Step ${stepId} not found in job ${jobId}`);
+  }
+
+  // Reset target step and all subsequent steps to pending
+  const stepsToReset = steps.slice(targetIndex);
+  for (const step of stepsToReset) {
+    await (supabase as any)
+      .from('cog_pipeline_steps')
+      .update({
+        status: 'pending',
+        error_message: null,
+        started_at: null,
+        completed_at: null,
+      })
+      .eq('id', step.id);
+
+    // Delete step outputs
+    await (supabase as any)
+      .from('cog_pipeline_step_outputs')
+      .delete()
+      .eq('step_id', step.id);
+  }
+
+  // Update job status to running / sequence running
+  await updateJobServer(jobId, {
+    status: 'running',
+    sequence_status: 'running',
+    error_message: null,
+    completed_at: null,
+  });
+
+  // Now run the sequence - it will skip completed steps and pick up from the reset point
+  try {
+    if (!job.selected_base_image_id) {
+      throw new Error('No base image selected.');
+    }
+
+    const context: PipelineContext = {
+      photographerConfig: null,
+      directorConfig: null,
+      productionConfig: null,
+      basePrompt: job.base_prompt,
+      initialImages: job.initial_images || [],
+      colors: job.colors || [],
+      themes: job.themes || [],
+      previousOutputs: [job.selected_base_image_id],
+    };
+
+    // Re-fetch steps to get current state (some are completed, some are pending)
+    const freshJob = await getPipelineJobWithStepsServer(jobId);
+    const freshSteps = freshJob.steps.sort((a, b) => a.step_order - b.step_order);
+
+    // Build context from completed steps
+    for (const step of freshSteps) {
+      if (step.status === 'completed' && step.output?.image_id) {
+        context.previousOutputs.push(step.output.image_id);
+      }
+    }
+
+    // Execute only pending steps
+    for (const step of freshSteps) {
+      if (step.status !== 'pending') continue;
+
+      // Check for cancellation
+      const currentJob = await getJobByIdServer(jobId);
+      if (currentJob.status === 'cancelled') break;
+
+      await (supabase as any)
+        .from('cog_pipeline_steps')
+        .update({
+          status: 'running',
+          started_at: new Date().toISOString(),
+        })
+        .eq('id', step.id);
+
+      try {
+        const output = await executeStep(step, context, seriesId, jobId, supabase);
+
+        await createPipelineStepOutputServer({
+          step_id: step.id,
+          image_id: output.imageId,
+          metadata: output.metadata,
+        });
+
+        context.previousOutputs.push(output.imageId);
+
+        await (supabase as any)
+          .from('cog_pipeline_steps')
+          .update({
+            status: 'completed',
+            completed_at: new Date().toISOString(),
+          })
+          .eq('id', step.id);
+
+        await new Promise((resolve) => setTimeout(resolve, 4000));
+      } catch (error) {
+        await (supabase as any)
+          .from('cog_pipeline_steps')
+          .update({
+            status: 'failed',
+            error_message: error instanceof Error ? error.message : 'Unknown error',
+            completed_at: new Date().toISOString(),
+          })
+          .eq('id', step.id);
+
+        throw error;
+      }
+    }
+
+    await updateJobServer(jobId, {
+      sequence_status: 'completed',
+      status: 'completed',
+      completed_at: new Date().toISOString(),
+    });
+  } catch (error) {
+    console.error('[retryFromStep] Failed:', error);
+    await updateJobServer(jobId, {
+      sequence_status: 'failed',
+      status: 'failed',
+      error_message: error instanceof Error ? error.message : 'Retry failed',
+      completed_at: new Date().toISOString(),
+    });
+    throw error;
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
 // 6-STEP INFERENCE PIPELINE: Generate the final image prompt
 // ═══════════════════════════════════════════════════════════════════════════════
 
@@ -322,7 +478,7 @@ async function generateBaseImagePrompt(
   };
 
   // Get job-level inference controls
-  const inferenceModel = job.inference_model || 'gemini-2.0-flash-thinking-exp';
+  const inferenceModel = job.inference_model || 'gemini-2.0-flash';
   const useThinkingInfer4 = job.use_thinking_infer4 !== false;
   const useThinkingInfer6 = job.use_thinking_infer6 !== false;
   const maxRefImages = job.max_reference_images || 3;

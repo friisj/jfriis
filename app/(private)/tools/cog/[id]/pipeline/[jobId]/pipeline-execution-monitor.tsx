@@ -6,8 +6,8 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { PipelineStepCard } from './pipeline-step-card';
-import { updateJob, selectBaseImage, getCogImageUrl, getBaseCandidatesForJob, getImageById } from '@/lib/cog';
-import { runFoundation, runSequence } from '@/lib/ai/actions/run-pipeline-job';
+import { updateJob, selectBaseImage, getCogImageUrl, getBaseCandidatesForJob, getImageById, resetPipelineJobToDraft, resetPipelineSteps, duplicatePipelineJob } from '@/lib/cog';
+import { runFoundation, runSequence, retryFromStep } from '@/lib/ai/actions/run-pipeline-job';
 import type { CogPipelineJobWithSteps, CogPipelineBaseCandidate, CogFoundationStatus, CogSequenceStatus } from '@/lib/types/cog';
 
 // ============================================================================
@@ -218,6 +218,89 @@ export function PipelineExecutionMonitor({
     }
   };
 
+  const handleResetToDraft = async () => {
+    setIsRunningAction(true);
+    try {
+      await resetPipelineJobToDraft(job.id);
+      router.push(`/tools/cog/${seriesId}/pipeline/new`);
+      router.refresh();
+    } catch (error) {
+      console.error('Failed to reset job:', error);
+    } finally {
+      setIsRunningAction(false);
+    }
+  };
+
+  const handleChangeBaseSelection = async () => {
+    setIsRunningAction(true);
+    try {
+      await updateJob(job.id, {
+        selected_base_image_id: null,
+        sequence_status: 'pending',
+      });
+      await resetPipelineSteps(job.id);
+      setJob((prev) => ({
+        ...prev,
+        selected_base_image_id: null,
+        sequence_status: 'pending' as const,
+      }));
+    } catch (error) {
+      console.error('Failed to change base selection:', error);
+    } finally {
+      setIsRunningAction(false);
+    }
+  };
+
+  const handleForceCancel = async () => {
+    setIsRunningAction(true);
+    try {
+      await updateJob(job.id, {
+        status: 'cancelled',
+        foundation_status: job.foundation_status === 'running' ? 'failed' : job.foundation_status,
+        sequence_status: job.sequence_status === 'running' ? 'failed' : job.sequence_status,
+        error_message: 'Force cancelled by user',
+        completed_at: new Date().toISOString(),
+      });
+      setJob((prev) => ({
+        ...prev,
+        status: 'cancelled' as const,
+        error_message: 'Force cancelled by user',
+      }));
+      setIsPolling(false);
+    } catch (error) {
+      console.error('Failed to force cancel:', error);
+    } finally {
+      setIsRunningAction(false);
+    }
+  };
+
+  const handleDuplicate = async () => {
+    setIsRunningAction(true);
+    try {
+      const newJob = await duplicatePipelineJob(job.id);
+      router.push(`/tools/cog/${seriesId}/pipeline/${newJob.id}`);
+    } catch (error) {
+      console.error('Failed to duplicate job:', error);
+    } finally {
+      setIsRunningAction(false);
+    }
+  };
+
+  const handleRetryFromStep = async (stepId: string) => {
+    setIsRunningAction(true);
+    try {
+      retryFromStep({ jobId: job.id, seriesId, stepId }).catch((err) => {
+        console.error('Failed to retry from step:', err);
+      });
+      setIsPolling(true);
+      router.refresh();
+    } catch (error) {
+      console.error('Failed to retry from step:', error);
+    } finally {
+      setIsRunningAction(false);
+    }
+  };
+
   const currentStepIndex = job.steps.findIndex(
     (s) => s.status === 'running' || (s.status === 'completed' && job.steps.every((step, idx) => idx > job.steps.indexOf(s) ? step.status === 'pending' : true))
   );
@@ -334,7 +417,7 @@ export function PipelineExecutionMonitor({
       )}
 
       {/* Base Candidate Selection */}
-      {isTwoPhase && foundationStatus === 'completed' && baseCandidates.length > 0 && (
+      {foundationStatus === 'completed' && baseCandidates.length > 0 && (
         <Card>
           <CardHeader>
             <CardTitle className="text-base">
@@ -371,9 +454,22 @@ export function PipelineExecutionMonitor({
                     )}
                     <div className="absolute inset-0 flex items-end justify-center pb-2">
                       {isSelected ? (
-                        <span className="text-xs font-medium bg-primary text-primary-foreground px-3 py-1 rounded-full">
-                          Selected
-                        </span>
+                        <div className="flex items-center gap-1">
+                          <span className="text-xs font-medium bg-primary text-primary-foreground px-3 py-1 rounded-full">
+                            Selected
+                          </span>
+                          {sequenceStatus !== 'running' && (
+                            <Button
+                              size="sm"
+                              variant="secondary"
+                              className="text-xs h-6 px-2"
+                              onClick={handleChangeBaseSelection}
+                              disabled={isRunningAction}
+                            >
+                              Change
+                            </Button>
+                          )}
+                        </div>
                       ) : (
                         <Button
                           size="sm"
@@ -431,15 +527,57 @@ export function PipelineExecutionMonitor({
                 {failedSteps.length > 0 && ` -- ${failedSteps.length} failed`}
               </p>
             </div>
-            {(job.status === 'running' || job.status === 'ready') && (
-              <Button
-                variant="destructive"
-                onClick={handleCancel}
-                disabled={isCancelling}
-              >
-                {isCancelling ? 'Cancelling...' : 'Cancel Pipeline'}
-              </Button>
-            )}
+            <div className="flex items-center gap-2">
+              {(job.status === 'running' || job.status === 'ready') && (
+                <>
+                  <Button
+                    variant="destructive"
+                    onClick={handleCancel}
+                    disabled={isCancelling}
+                  >
+                    {isCancelling ? 'Cancelling...' : 'Cancel Pipeline'}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleForceCancel}
+                    disabled={isRunningAction}
+                  >
+                    Force Cancel
+                  </Button>
+                </>
+              )}
+              {(job.status === 'failed' || job.status === 'cancelled' || job.status === 'completed') && (
+                <>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleResetToDraft}
+                    disabled={isRunningAction}
+                  >
+                    Reset to Draft
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleDuplicate}
+                    disabled={isRunningAction}
+                  >
+                    Duplicate
+                  </Button>
+                </>
+              )}
+              {job.selected_base_image_id && sequenceStatus !== 'running' && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleChangeBaseSelection}
+                  disabled={isRunningAction}
+                >
+                  Change Base Image
+                </Button>
+              )}
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -459,6 +597,7 @@ export function PipelineExecutionMonitor({
                   stepNumber={idx + 1}
                   isActive={idx === currentStepIndex}
                   seriesId={seriesId}
+                  onRetryFromStep={handleRetryFromStep}
                 />
               ))}
             </div>
@@ -487,10 +626,18 @@ export function PipelineExecutionMonitor({
                         <p className="text-xs font-medium text-muted-foreground">
                           Step {step.step_order + 1}: {step.step_type}
                         </p>
-                        {/* TODO: Display image thumbnail when we have the image URL */}
-                        <div className="aspect-square bg-muted rounded-lg flex items-center justify-center">
-                          <span className="text-xs text-muted-foreground">Image #{step.output.image_id}</span>
-                        </div>
+                        {step.output.storage_path ? (
+                          /* eslint-disable-next-line @next/next/no-img-element */
+                          <img
+                            src={getCogImageUrl(step.output.storage_path)}
+                            alt={`Step ${step.step_order + 1} output`}
+                            className="aspect-square object-cover w-full rounded-lg bg-muted"
+                          />
+                        ) : (
+                          <div className="aspect-square bg-muted rounded-lg flex items-center justify-center">
+                            <span className="text-xs text-muted-foreground">Image unavailable</span>
+                          </div>
+                        )}
                       </div>
                     )
                   ))}
@@ -502,18 +649,31 @@ export function PipelineExecutionMonitor({
       )}
 
       {/* Final Result */}
-      {job.status === 'completed' && completedSteps.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Final Result</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="aspect-video bg-muted rounded-lg flex items-center justify-center">
-              <span className="text-muted-foreground">Final image display (TODO)</span>
-            </div>
-          </CardContent>
-        </Card>
-      )}
+      {job.status === 'completed' && completedSteps.length > 0 && (() => {
+        const lastStep = completedSteps[completedSteps.length - 1];
+        const storagePath = lastStep.output?.storage_path;
+        return (
+          <Card>
+            <CardHeader>
+              <CardTitle>Final Result</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {storagePath ? (
+                /* eslint-disable-next-line @next/next/no-img-element */
+                <img
+                  src={getCogImageUrl(storagePath)}
+                  alt="Final result"
+                  className="max-w-full rounded-lg bg-muted"
+                />
+              ) : (
+                <div className="aspect-video bg-muted rounded-lg flex items-center justify-center">
+                  <span className="text-muted-foreground">No output image</span>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        );
+      })()}
     </div>
   );
 }

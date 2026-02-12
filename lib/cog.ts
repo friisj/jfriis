@@ -1543,3 +1543,169 @@ export async function selectBaseImage(jobId: string, imageId: string): Promise<v
 
   if (error) throw error;
 }
+
+/**
+ * Reset a pipeline job back to draft state - client-side
+ * Clears all progress: resets statuses, deletes outputs, candidates
+ */
+export async function resetPipelineJobToDraft(jobId: string): Promise<CogJob> {
+  // Reset job statuses
+  const { data: job, error: jobError } = await (supabase as any)
+    .from('cog_jobs')
+    .update({
+      status: 'draft',
+      foundation_status: 'pending',
+      sequence_status: 'pending',
+      selected_base_image_id: null,
+      synthesized_prompt: null,
+      error_message: null,
+      started_at: null,
+      completed_at: null,
+    })
+    .eq('id', jobId)
+    .select()
+    .single();
+
+  if (jobError) throw jobError;
+
+  // Reset all pipeline steps
+  const { error: stepsError } = await (supabase as any)
+    .from('cog_pipeline_steps')
+    .update({
+      status: 'pending',
+      error_message: null,
+      started_at: null,
+      completed_at: null,
+    })
+    .eq('job_id', jobId);
+
+  if (stepsError) throw stepsError;
+
+  // Delete step outputs
+  const { data: steps } = await (supabase as any)
+    .from('cog_pipeline_steps')
+    .select('id')
+    .eq('job_id', jobId);
+
+  if (steps && steps.length > 0) {
+    const stepIds = steps.map((s: { id: string }) => s.id);
+    await (supabase as any)
+      .from('cog_pipeline_step_outputs')
+      .delete()
+      .in('step_id', stepIds);
+  }
+
+  // Delete base candidates
+  await (supabase as any)
+    .from('cog_pipeline_base_candidates')
+    .delete()
+    .eq('job_id', jobId);
+
+  return job as CogJob;
+}
+
+/**
+ * Reset pipeline steps to pending state - client-side
+ * Used when changing base selection to re-run sequence
+ */
+export async function resetPipelineSteps(jobId: string): Promise<void> {
+  // Reset step statuses
+  const { error: stepsError } = await (supabase as any)
+    .from('cog_pipeline_steps')
+    .update({
+      status: 'pending',
+      error_message: null,
+      started_at: null,
+      completed_at: null,
+    })
+    .eq('job_id', jobId);
+
+  if (stepsError) throw stepsError;
+
+  // Delete step outputs
+  const { data: steps } = await (supabase as any)
+    .from('cog_pipeline_steps')
+    .select('id')
+    .eq('job_id', jobId);
+
+  if (steps && steps.length > 0) {
+    const stepIds = steps.map((s: { id: string }) => s.id);
+    await (supabase as any)
+      .from('cog_pipeline_step_outputs')
+      .delete()
+      .in('step_id', stepIds);
+  }
+}
+
+/**
+ * Duplicate a pipeline job - creates a copy with same config but fresh state
+ */
+export async function duplicatePipelineJob(jobId: string): Promise<CogJob> {
+  // Fetch original job
+  const { data: originalJob, error: jobError } = await (supabase as any)
+    .from('cog_jobs')
+    .select('*')
+    .eq('id', jobId)
+    .single();
+
+  if (jobError) throw jobError;
+
+  // Fetch original pipeline steps
+  const { data: originalSteps, error: stepsError } = await (supabase as any)
+    .from('cog_pipeline_steps')
+    .select('*')
+    .eq('job_id', jobId)
+    .order('step_order', { ascending: true });
+
+  if (stepsError) throw stepsError;
+
+  // Create new job (copy pipeline-specific fields, reset status)
+  const { data: newJob, error: createError } = await (supabase as any)
+    .from('cog_jobs')
+    .insert({
+      series_id: originalJob.series_id,
+      title: originalJob.title ? `${originalJob.title} (copy)` : null,
+      base_prompt: originalJob.base_prompt,
+      job_type: 'pipeline',
+      initial_images: originalJob.initial_images,
+      photographer_config_id: originalJob.photographer_config_id,
+      director_config_id: originalJob.director_config_id,
+      production_config_id: originalJob.production_config_id,
+      inference_model: originalJob.inference_model,
+      use_thinking_infer4: originalJob.use_thinking_infer4,
+      use_thinking_infer6: originalJob.use_thinking_infer6,
+      max_reference_images: originalJob.max_reference_images,
+      num_base_images: originalJob.num_base_images,
+      colors: originalJob.colors,
+      themes: originalJob.themes,
+      image_model: 'auto',
+      image_size: '2K',
+      aspect_ratio: '1:1',
+      use_thinking: false,
+      status: 'draft',
+    })
+    .select()
+    .single();
+
+  if (createError) throw createError;
+
+  // Copy steps (reset statuses)
+  if (originalSteps && originalSteps.length > 0) {
+    const newSteps = originalSteps.map((step: CogPipelineStep) => ({
+      job_id: newJob.id,
+      step_order: step.step_order,
+      step_type: step.step_type,
+      model: step.model,
+      config: step.config,
+      status: 'pending',
+    }));
+
+    const { error: createStepsError } = await (supabase as any)
+      .from('cog_pipeline_steps')
+      .insert(newSteps);
+
+    if (createStepsError) throw createStepsError;
+  }
+
+  return newJob as CogJob;
+}

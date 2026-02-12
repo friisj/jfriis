@@ -372,8 +372,12 @@ export interface CogSeriesFull extends CogSeries {
   jobs: CogJobWithSteps[];
 }
 
+export interface CogPipelineStepOutputEnriched extends CogPipelineStepOutput {
+  storage_path?: string | null;
+}
+
 export interface CogPipelineStepWithOutput extends CogPipelineStep {
-  output: CogPipelineStepOutput | null;
+  output: CogPipelineStepOutputEnriched | null;
 }
 
 export interface CogPipelineJobWithSteps extends CogJob {

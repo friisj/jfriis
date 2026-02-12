@@ -21,6 +21,23 @@ export default async function PipelineMonitorPage({ params }: Props) {
     notFound();
   }
 
+  // Enrich step outputs with storage_path for image display
+  const enrichedSteps = await Promise.all(
+    pipelineJob.steps.map(async (step) => {
+      if (!step.output?.image_id) return step;
+      try {
+        const image = await getImageByIdServer(step.output.image_id);
+        return {
+          ...step,
+          output: { ...step.output, storage_path: image.storage_path },
+        };
+      } catch {
+        return step;
+      }
+    })
+  );
+  pipelineJob.steps = enrichedSteps;
+
   // Fetch base candidates with their images if foundation is completed
   let baseCandidatesWithImages: BaseCandidateWithImage[] = [];
   if (pipelineJob.foundation_status === 'completed') {

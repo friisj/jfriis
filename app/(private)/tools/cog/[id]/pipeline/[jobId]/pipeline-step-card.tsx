@@ -1,5 +1,7 @@
 'use client';
 
+import { Button } from '@/components/ui/button';
+import { getCogImageUrl } from '@/lib/cog';
 import type { CogPipelineStepWithOutput } from '@/lib/types/cog';
 
 interface PipelineStepCardProps {
@@ -7,9 +9,10 @@ interface PipelineStepCardProps {
   stepNumber: number;
   isActive: boolean;
   seriesId: string;
+  onRetryFromStep?: (stepId: string) => void;
 }
 
-export function PipelineStepCard({ step, stepNumber, isActive }: PipelineStepCardProps) {
+export function PipelineStepCard({ step, stepNumber, isActive, onRetryFromStep }: PipelineStepCardProps) {
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'completed':
@@ -67,14 +70,33 @@ export function PipelineStepCard({ step, stepNumber, isActive }: PipelineStepCar
           {/* Error message */}
           {step.error_message && (
             <div className="mt-2 p-2 bg-destructive/10 border border-destructive rounded text-xs text-destructive">
-              {step.error_message}
+              <p>{step.error_message}</p>
+              {step.status === 'failed' && onRetryFromStep && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="mt-2 h-6 text-xs"
+                  onClick={() => onRetryFromStep(step.id)}
+                >
+                  Retry from here
+                </Button>
+              )}
             </div>
           )}
 
-          {/* Output indicator */}
+          {/* Output indicator with thumbnail */}
           {step.output && (
-            <div className="mt-2 text-xs text-muted-foreground">
-              ✓ Output generated
+            <div className="mt-2 flex items-center gap-2">
+              {step.output.storage_path ? (
+                /* eslint-disable-next-line @next/next/no-img-element */
+                <img
+                  src={getCogImageUrl(step.output.storage_path)}
+                  alt={`Step ${stepNumber} output`}
+                  className="w-20 h-20 object-cover rounded border"
+                />
+              ) : (
+                <span className="text-xs text-muted-foreground">✓ Output generated</span>
+              )}
             </div>
           )}
         </div>
