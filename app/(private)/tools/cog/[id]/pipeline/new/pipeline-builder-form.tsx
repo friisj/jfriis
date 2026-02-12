@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { StoryInput, ReferenceImageSelector } from './initial-input-selector';
@@ -31,6 +32,7 @@ export function PipelineBuilderForm({ seriesId, images, photographerConfigs, dir
   // Form state — pre-fill from existingJob when editing
   const [title, setTitle] = useState(existingJob?.title || '');
   const [basePrompt, setBasePrompt] = useState(existingJob?.base_prompt || '');
+  const [negativePrompt, setNegativePrompt] = useState(existingJob?.negative_prompt || '');
   const [selectedImages, setSelectedImages] = useState<string[]>(existingJob?.initial_images || []);
 
   // Config selection
@@ -77,6 +79,7 @@ export function PipelineBuilderForm({ seriesId, images, photographerConfigs, dir
         title: title || null,
         initial_images: selectedImages.length > 0 ? selectedImages : null,
         base_prompt: basePrompt,
+        negative_prompt: negativePrompt || null,
         photographer_config_id: photographerConfigId || null,
         director_config_id: directorConfigId || null,
         production_config_id: productionConfigId || null,
@@ -179,6 +182,15 @@ export function PipelineBuilderForm({ seriesId, images, photographerConfigs, dir
                 {basePrompt}
               </p>
             </div>
+
+            {negativePrompt && (
+              <div>
+                <Label className="text-sm font-medium">Negative Prompt</Label>
+                <p className="text-sm text-muted-foreground whitespace-pre-wrap">
+                  {negativePrompt}
+                </p>
+              </div>
+            )}
 
             {selectedImages.length > 0 && (
               <div>
@@ -429,11 +441,24 @@ export function PipelineBuilderForm({ seriesId, images, photographerConfigs, dir
             Describe your creative vision. When pipeline configs are selected, this story drives the multi-step inference process that generates the image prompt.
           </p>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-4">
           <StoryInput
             basePrompt={basePrompt}
             onBasePromptChange={setBasePrompt}
           />
+          <div className="space-y-2">
+            <Label htmlFor="negativePrompt">Negative Prompt (optional)</Label>
+            <Textarea
+              id="negativePrompt"
+              value={negativePrompt}
+              onChange={(e) => setNegativePrompt(e.target.value)}
+              placeholder="e.g., no text, no logos, no watermarks, no people"
+              rows={2}
+            />
+            <p className="text-xs text-muted-foreground">
+              Elements to exclude from the generated image. Folded into the final synthesized prompt.
+            </p>
+          </div>
         </CardContent>
       </Card>
 

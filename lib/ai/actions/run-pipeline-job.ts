@@ -475,6 +475,7 @@ async function generateBaseImagePrompt(
     directorConfig: context.directorConfig,
     productionConfig: context.productionConfig,
     basePrompt: context.basePrompt,
+    negativePrompt: job.negative_prompt || undefined,
     referenceImages: context.initialImages,
     colors: context.colors,
     themes: context.themes,

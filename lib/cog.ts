@@ -987,6 +987,7 @@ export async function createPipelineJob(input: {
   title: string | null;
   initial_images: string[] | null;
   base_prompt: string;
+  negative_prompt?: string | null;
   // Pipeline config references
   photographer_config_id?: string | null;
   director_config_id?: string | null;
@@ -1014,6 +1015,7 @@ export async function createPipelineJob(input: {
       series_id: input.series_id,
       title: input.title,
       base_prompt: input.base_prompt,
+      negative_prompt: input.negative_prompt || null,
       job_type: 'pipeline',
       initial_images: input.initial_images,
       status: 'draft',
@@ -1123,6 +1125,7 @@ export async function savePipelineSteps(
 export async function updatePipelineJob(jobId: string, input: {
   title?: string | null;
   base_prompt?: string;
+  negative_prompt?: string | null;
   initial_images?: string[] | null;
   photographer_config_id?: string | null;
   director_config_id?: string | null;
@@ -1756,6 +1759,7 @@ export async function duplicatePipelineJob(jobId: string): Promise<CogJob> {
       series_id: originalJob.series_id,
       title: originalJob.title ? `${originalJob.title} (copy)` : null,
       base_prompt: originalJob.base_prompt,
+      negative_prompt: originalJob.negative_prompt || null,
       job_type: 'pipeline',
       initial_images: originalJob.initial_images,
       photographer_config_id: originalJob.photographer_config_id,

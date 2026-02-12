@@ -30,6 +30,7 @@ export interface InferenceContext {
   directorConfig: CogDirectorConfig;
   productionConfig: CogProductionConfig;
   basePrompt: string;
+  negativePrompt?: string;
   referenceImages: string[]; // Image IDs
   colors?: string[];
   themes?: string[];
@@ -293,6 +294,11 @@ export function buildInference6Prompt(
       ? `\nTHEMES: ${ctx.themes.join(', ')}`
       : '';
 
+  const negativeSection =
+    ctx.negativePrompt
+      ? `\n=== NEGATIVE CONSTRAINTS (must NOT appear in the image) ===\n${ctx.negativePrompt}`
+      : '';
+
   return `Write a detailed image generation prompt. You have all the context below — your job is to turn it into a single, dense, technical prompt that an image generation model (like Gemini or Flux) will use to create the image.
 
 === PHOTOGRAPHER: ${ctx.photographerConfig.name} ===
@@ -319,6 +325,7 @@ ${themesSection}
 
 === ORIGINAL BRIEF ===
 "${ctx.basePrompt}"
+${negativeSection}
 
 === YOUR TASK ===
 Write the final image generation prompt. It should read like a photographer's detailed shot notes — not a creative brief, not a mood board description. Be concrete and technical:
@@ -332,7 +339,7 @@ Write the final image generation prompt. It should read like a photographer's de
 - TECHNIQUE: The photographer's specific techniques that should be visible (${ctx.photographerConfig.techniques || 'their signature approach'})
 - STYLE REFERENCE: Visual language drawn from ${referencesText}
 
-The prompt must be a single continuous paragraph of descriptive text — no bullet points, no headers, no labels. Just the image description as you would speak it to an image model. Be specific, not generic. Every adjective should earn its place.
+The prompt must be a single continuous paragraph of descriptive text — no bullet points, no headers, no labels. Just the image description as you would speak it to an image model. Be specific, not generic. Every adjective should earn its place.${ctx.negativePrompt ? '\n\nIMPORTANT: The negative constraints listed above are elements that must NOT appear in the generated image. Actively steer the description away from those elements — do not mention them even to negate them. Instead, describe what IS there.' : ''}
 
 Provide ONLY the prompt text, nothing else.`;
 }
