@@ -39,6 +39,7 @@ import type {
   CogProductionConfig,
   CogPipelineJobWithSteps,
   CogInferenceLogEntry,
+  ReferenceImageConfigs,
 } from '@/lib/types/cog';
 import { getStepConfig } from '../inference-defaults';
 
@@ -55,6 +56,18 @@ interface PipelineContext {
   colors: string[];
   themes: string[];
   previousOutputs: string[];
+}
+
+function filterImagesByUsage(
+  imageIds: string[],
+  configs: ReferenceImageConfigs | null,
+  usage: 'vision' | 'generation'
+): string[] {
+  if (!configs) return imageIds;
+  return imageIds.filter((id) => {
+    const cfg = configs[id] || 'both';
+    return cfg === usage || cfg === 'both';
+  });
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -118,9 +131,10 @@ export async function runFoundation(input: { jobId: string; seriesId: string }):
     const numCandidates = job.num_base_images || 3;
     const supabase = await createClient();
 
-    // Load reference images as base64 for I2I generation
+    // Load reference images as base64 for I2I generation (filter by routing)
+    const generationImageIds = filterImagesByUsage(context.initialImages, job.reference_image_configs, 'generation');
     const referenceImageData = await loadReferenceImagesAsBase64(
-      context.initialImages,
+      generationImageIds,
       supabase
     );
 
@@ -658,7 +672,8 @@ async function generateBaseImagePrompt(
     logSkipped(6, 'Vision Analysis');
     await persistLog();
   } else if (context.initialImages.length > 0) {
-    const imagesToAnalyze = context.initialImages.slice(0, maxRefImages);
+    const visionImageIds = filterImagesByUsage(context.initialImages, job.reference_image_configs, 'vision');
+    const imagesToAnalyze = visionImageIds.slice(0, maxRefImages);
     console.log(`[Inference] Step 6: Vision analysis on ${imagesToAnalyze.length} reference images...`);
     const supabase = await createClient();
     const visionPrompt = buildVisionPrompt();

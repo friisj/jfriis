@@ -11,11 +11,13 @@ import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { StoryInput, ReferenceImageSelector } from './initial-input-selector';
+import { ReferenceImageSearch } from './reference-image-search';
+import { ReferenceImageRouting } from './reference-image-routing';
 import { InferenceStepControls } from './inference-step-controls';
 import { createPipelineJob, updatePipelineJob } from '@/lib/cog';
 import { runFoundation } from '@/lib/ai/actions/run-pipeline-job';
 import { INFERENCE_STEP_DEFAULTS } from '@/lib/ai/inference-defaults';
-import type { CogImage, CogJob, CogPhotographerConfig, CogDirectorConfig, CogProductionConfig, CogImageModel, CogAspectRatio, InferenceStepConfigs } from '@/lib/types/cog';
+import type { CogImage, CogJob, CogPhotographerConfig, CogDirectorConfig, CogProductionConfig, CogImageModel, CogAspectRatio, InferenceStepConfigs, ReferenceImageConfigs } from '@/lib/types/cog';
 
 interface PipelineBuilderFormProps {
   seriesId: string;
@@ -47,6 +49,8 @@ export function PipelineBuilderForm({ seriesId, images, photographerConfigs, dir
 
   // Per-step inference overrides
   const [inferenceStepConfigs, setInferenceStepConfigs] = useState<InferenceStepConfigs | null>(existingJob?.inference_step_configs ?? null);
+  // Per-image routing
+  const [referenceImageConfigs, setReferenceImageConfigs] = useState<ReferenceImageConfigs | null>(existingJob?.reference_image_configs ?? null);
   const [includeNegativePrompt, setIncludeNegativePrompt] = useState(existingJob?.include_negative_prompt ?? true);
 
   // Inference controls
@@ -72,6 +76,25 @@ export function PipelineBuilderForm({ seriesId, images, photographerConfigs, dir
     router.refresh();
   };
 
+  const handleSelectedImagesChange = (imageIds: string[]) => {
+    setSelectedImages(imageIds);
+    // Clean up routing configs for deselected images
+    if (referenceImageConfigs) {
+      const cleaned: ReferenceImageConfigs = {};
+      for (const id of imageIds) {
+        if (referenceImageConfigs[id]) {
+          cleaned[id] = referenceImageConfigs[id];
+        }
+      }
+      setReferenceImageConfigs(Object.keys(cleaned).length > 0 ? cleaned : null);
+    }
+  };
+
+  const handleStockImagesAdded = (imageIds: string[]) => {
+    setSelectedImages((prev) => [...prev, ...imageIds]);
+    router.refresh();
+  };
+
   const handleSave = async (runImmediately: boolean) => {
     setError(null);
     setIsSaving(true);
@@ -92,6 +115,7 @@ export function PipelineBuilderForm({ seriesId, images, photographerConfigs, dir
         aspect_ratio: aspectRatio,
         inference_step_configs: inferenceStepConfigs,
         include_negative_prompt: includeNegativePrompt,
+        reference_image_configs: referenceImageConfigs,
       };
 
       let jobId: string;
@@ -202,6 +226,13 @@ export function PipelineBuilderForm({ seriesId, images, photographerConfigs, dir
                 <Label className="text-sm font-medium">Reference Images</Label>
                 <p className="text-sm text-muted-foreground">
                   {selectedImages.length} image(s) selected
+                  {referenceImageConfigs && (
+                    <span className="ml-1">
+                      — {Object.values(referenceImageConfigs).filter((v) => v === 'vision').length} vision only,{' '}
+                      {Object.values(referenceImageConfigs).filter((v) => v === 'generation').length} generation only,{' '}
+                      {selectedImages.length - Object.keys(referenceImageConfigs).length} both
+                    </span>
+                  )}
                 </p>
               </div>
             )}
@@ -488,14 +519,28 @@ export function PipelineBuilderForm({ seriesId, images, photographerConfigs, dir
             Optional images for style reference. These are analyzed during inference to inform the visual direction.
           </p>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-4">
           <ReferenceImageSelector
             selectedImages={selectedImages}
-            onSelectedImagesChange={setSelectedImages}
+            onSelectedImagesChange={handleSelectedImagesChange}
             availableImages={images}
             seriesId={seriesId}
             onImagesUploaded={handleImagesUploaded}
           />
+          <ReferenceImageSearch
+            story={basePrompt}
+            themes={themes}
+            seriesId={seriesId}
+            onImagesAdded={handleStockImagesAdded}
+          />
+          {selectedImages.length > 0 && (
+            <ReferenceImageRouting
+              selectedImageIds={selectedImages}
+              availableImages={images}
+              configs={referenceImageConfigs}
+              onConfigsChange={setReferenceImageConfigs}
+            />
+          )}
         </CardContent>
       </Card>
 

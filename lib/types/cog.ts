@@ -14,7 +14,24 @@ export type CogPipelineStepType = 'generate' | 'refine' | 'inpaint' | 'eval' | '
 
 export type CogPipelineStepStatus = 'pending' | 'running' | 'completed' | 'failed' | 'cancelled';
 
-export type CogImageSource = 'upload' | 'generated';
+export type CogImageSource = 'upload' | 'generated' | 'unsplash' | 'pexels';
+
+// Per-image routing for reference images in the pipeline
+export type ReferenceImageUsage = 'vision' | 'generation' | 'both';
+export type ReferenceImageConfigs = Record<string, ReferenceImageUsage>;
+
+// Stock photo search result
+export interface StockPhotoResult {
+  id: string;
+  url: string;
+  thumbnailUrl: string;
+  source: 'unsplash' | 'pexels';
+  title: string;
+  photographer: string;
+  photographerUrl: string;
+  width: number;
+  height: number;
+}
 
 export type CogImageModel = 'auto' | 'imagen-4' | 'imagen-3-capability' | 'gemini-3-pro-image' | 'flux-2-pro' | 'flux-2-dev';
 
@@ -124,6 +141,8 @@ export interface CogJob {
   include_negative_prompt: boolean;
   // Per-step inference pipeline overrides
   inference_step_configs: InferenceStepConfigs | null;
+  // Per-image routing for reference images
+  reference_image_configs: ReferenceImageConfigs | null;
   // Inference log (populated during foundation phase)
   inference_log: CogInferenceLogEntry[] | null;
   // Timestamps
@@ -314,6 +333,8 @@ export interface CogJobInsert {
   include_negative_prompt?: boolean;
   // Per-step inference pipeline overrides
   inference_step_configs?: InferenceStepConfigs | null;
+  // Per-image routing for reference images
+  reference_image_configs?: ReferenceImageConfigs | null;
 }
 
 export interface CogJobInputInsert {
