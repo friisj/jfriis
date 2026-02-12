@@ -321,7 +321,7 @@ export function PipelineBuilderForm({ seriesId, images, photographerConfigs, dir
           <div className="flex items-center justify-between">
             <Label className="text-sm font-medium">Pipeline Configs</Label>
             <Link href="/tools/cog?tab=library" className="text-xs text-muted-foreground hover:text-foreground">
-              Manage config library
+              Manage prompt library
             </Link>
           </div>
           {photographerConfigs.length > 0 && (

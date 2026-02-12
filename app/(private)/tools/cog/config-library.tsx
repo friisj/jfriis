@@ -516,12 +516,12 @@ function ConfigFormView({ type, config, userId, onDone, seeds }: {
 }
 
 // ============================================================================
-// Config Library (main export)
+// Prompt Library (main export)
 // ============================================================================
 
 type View = { kind: 'list' } | { kind: 'edit'; state: EditingState } | { kind: 'manage-types' };
 
-export function ConfigLibrary() {
+export function PromptLibrary() {
   const [userId, setUserId] = useState<string | null>(null);
   const [view, setView] = useState<View>({ kind: 'list' });
   const [refreshKey, setRefreshKey] = useState(0);

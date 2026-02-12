@@ -9,7 +9,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { usePrivacyMode, filterPrivateRecords } from '@/lib/privacy-mode'
 import { getCogThumbnailUrl } from '@/lib/cog'
-import { ConfigLibrary } from './config-library'
+import { PromptLibrary } from './config-library'
 import type { CogSeries } from '@/lib/types/cog'
 import type { CogImage } from '@/lib/types/cog'
 
@@ -102,7 +102,7 @@ export default function CogPage() {
         <div className="flex items-center justify-between">
           <TabsList>
             <TabsTrigger value="series">Series</TabsTrigger>
-            <TabsTrigger value="library">Config Library</TabsTrigger>
+            <TabsTrigger value="library">Prompt Library</TabsTrigger>
           </TabsList>
           <Button asChild>
             <Link href="/tools/cog/new">New Series</Link>
@@ -170,7 +170,7 @@ export default function CogPage() {
         </TabsContent>
 
         <TabsContent value="library" className="mt-6">
-          <ConfigLibrary />
+          <PromptLibrary />
         </TabsContent>
       </Tabs>
     </div>
