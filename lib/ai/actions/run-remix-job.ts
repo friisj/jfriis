@@ -18,6 +18,7 @@ import {
   updateRemixCandidateServer,
   appendRemixTraceServer,
   getEvalProfileByIdServer,
+  getEvalProfilesByIdsServer,
   getAllCandidatesForJobServer,
   createRemixEvalRunServer,
   updateRemixEvalRunServer,
@@ -28,6 +29,7 @@ import type {
   CogRemixSearchParams,
   CogRemixCandidate,
   CogEvalProfile,
+  CogRemixEvalRun,
 } from '@/lib/types/cog';
 
 const MAX_ITERATIONS = 3;
@@ -55,6 +57,7 @@ function traceEntry(
 /**
  * Run Phase 1 (Source) of a remix job.
  * Translates brief → search params → fetch stock photos → vision eval → select or retry.
+ * Supports multiple eval profiles: primary (index 0) drives iteration, all score in parallel.
  */
 export async function runRemixSource(
   jobId: string,
@@ -63,13 +66,25 @@ export async function runRemixSource(
   topics: string[],
   colors: string[],
   targetAspectRatio?: string | null,
-  evalProfileId?: string | null,
+  evalProfileIds?: string[],
 ): Promise<void> {
   try {
-    // Fetch eval profile if provided
-    let evalProfile: CogEvalProfile | null = null;
-    if (evalProfileId) {
-      evalProfile = await getEvalProfileByIdServer(evalProfileId).catch(() => null);
+    // Fetch all eval profiles
+    const allProfiles: CogEvalProfile[] = (evalProfileIds && evalProfileIds.length > 0)
+      ? await getEvalProfilesByIdsServer(evalProfileIds).catch(() => [])
+      : [];
+    const primaryProfile = allProfiles.length > 0 ? allProfiles[0] : null;
+
+    // Create initial eval runs (one per profile)
+    const evalRuns: { run: CogRemixEvalRun; profile: CogEvalProfile }[] = [];
+    for (const profile of allProfiles) {
+      const run = await createRemixEvalRunServer({
+        job_id: jobId,
+        eval_profile_id: profile.id,
+        status: 'running',
+        is_initial: true,
+      });
+      evalRuns.push({ run, profile });
     }
 
     // Set status to running
@@ -209,9 +224,13 @@ export async function runRemixSource(
       }
 
       // ================================================================
-      // Step E: Vision-eval each candidate
+      // Step E: Vision-eval each candidate with ALL profiles in parallel
       // ================================================================
-      const evalPrompt = buildVisionEvalPrompt({ story, topics, colors, evalProfile });
+      // Build eval prompts per profile (or default)
+      const profileEvalPrompts = allProfiles.length > 0
+        ? allProfiles.map(p => ({ profile: p, prompt: buildVisionEvalPrompt({ story, topics, colors, evalProfile: p }) }))
+        : [{ profile: null, prompt: buildVisionEvalPrompt({ story, topics, colors }) }];
+
       const evalStart = Date.now();
       let totalEvalTokensIn = 0;
       let totalEvalTokensOut = 0;
@@ -224,7 +243,7 @@ export async function runRemixSource(
           batch.map(async (candidate, batchIdx) => {
             const idx = i + batchIdx;
             try {
-              // Fetch thumbnail as base64 for vision
+              // Fetch thumbnail once per candidate
               const thumbRes = await fetch(uniqueResults[idx].thumbnailUrl);
               if (!thumbRes.ok) {
                 await updateRemixCandidateServer(candidate.id, {
@@ -237,38 +256,69 @@ export async function runRemixSource(
               const thumbBase64 = Buffer.from(thumbBuffer).toString('base64');
               const contentType = thumbRes.headers.get('content-type') || 'image/jpeg';
 
-              const evalResult = await generateText({
-                model: getModel('gemini-flash') as Parameters<typeof generateText>[0]['model'],
-                messages: [
-                  {
-                    role: 'user',
-                    content: [
-                      { type: 'image', image: thumbBase64, mediaType: contentType },
-                      { type: 'text', text: evalPrompt },
+              // Score with ALL profiles in parallel
+              const evalResults = await Promise.all(
+                profileEvalPrompts.map(async ({ profile, prompt }) => {
+                  const evalResult = await generateText({
+                    model: getModel('gemini-flash') as Parameters<typeof generateText>[0]['model'],
+                    messages: [
+                      {
+                        role: 'user',
+                        content: [
+                          { type: 'image', image: thumbBase64, mediaType: contentType },
+                          { type: 'text', text: prompt },
+                        ],
+                      },
                     ],
-                  },
-                ],
-              });
+                  });
 
-              totalEvalTokensIn += evalResult.usage?.inputTokens || 0;
-              totalEvalTokensOut += evalResult.usage?.outputTokens || 0;
+                  totalEvalTokensIn += evalResult.usage?.inputTokens || 0;
+                  totalEvalTokensOut += evalResult.usage?.outputTokens || 0;
 
-              let score = 0;
-              let evalReasoning = '';
-              try {
-                const cleaned = evalResult.text.replace(/```json\n?|\n?```/g, '').trim();
-                const parsed = JSON.parse(cleaned);
-                score = parsed.score || 0;
-                evalReasoning = parsed.reasoning || '';
-              } catch {
-                evalReasoning = 'Failed to parse evaluation result';
-              }
+                  let score = 0;
+                  let evalReasoning = '';
+                  let criterionScores: Record<string, number> | null = null;
+                  try {
+                    const cleaned = evalResult.text.replace(/```json\n?|\n?```/g, '').trim();
+                    const parsed = JSON.parse(cleaned);
+                    score = parsed.score || 0;
+                    evalReasoning = parsed.reasoning || '';
+                    criterionScores = extractCriterionScores(parsed, profile);
+                  } catch {
+                    evalReasoning = 'Failed to parse evaluation result';
+                  }
 
+                  return { profile, score, reasoning: evalReasoning, criterionScores };
+                })
+              );
+
+              // Write primary profile's score to candidate (backwards compat)
+              const primaryResult = evalResults[0];
               await updateRemixCandidateServer(candidate.id, {
-                eval_score: score,
-                eval_reasoning: evalReasoning,
+                eval_score: primaryResult.score,
+                eval_reasoning: primaryResult.reasoning,
               });
-              candidateRecords[idx] = { ...candidateRecords[idx], eval_score: score, eval_reasoning: evalReasoning };
+              candidateRecords[idx] = {
+                ...candidateRecords[idx],
+                eval_score: primaryResult.score,
+                eval_reasoning: primaryResult.reasoning,
+              };
+
+              // Store results in eval runs for each profile
+              for (const result of evalResults) {
+                if (result.profile) {
+                  const evalRunEntry = evalRuns.find(er => er.profile.id === result.profile!.id);
+                  if (evalRunEntry) {
+                    await createRemixEvalResultServer({
+                      run_id: evalRunEntry.run.id,
+                      candidate_id: candidate.id,
+                      score: result.score,
+                      reasoning: result.reasoning,
+                      criterion_scores: result.criterionScores,
+                    });
+                  }
+                }
+              }
             } catch (err) {
               console.error(`[Remix ${jobId}] Eval failed for candidate ${candidate.id}:`, err);
               await updateRemixCandidateServer(candidate.id, {
@@ -281,9 +331,10 @@ export async function runRemixSource(
       }
       const evalDuration = Date.now() - evalStart;
 
+      const profileNames = allProfiles.map(p => p.name).join(', ') || 'default';
       await appendRemixTraceServer(
         jobId,
-        traceEntry('source', 'vision_eval', `Evaluated ${candidateRecords.length} candidates`, evalDuration, {
+        traceEntry('source', 'vision_eval', `Evaluated ${candidateRecords.length} candidates with ${profileEvalPrompts.length} profile(s): ${profileNames}`, evalDuration, {
           iteration: iterNum,
           tokensIn: totalEvalTokensIn,
           tokensOut: totalEvalTokensOut,
@@ -291,7 +342,7 @@ export async function runRemixSource(
       );
 
       // ================================================================
-      // Step F: LLM selection decision
+      // Step F: LLM selection decision (uses primary profile only)
       // ================================================================
       const evaluatedCandidates = candidateRecords
         .map((c, idx) => ({
@@ -307,7 +358,7 @@ export async function runRemixSource(
         iterationNumber: iterNum,
         maxIterations: MAX_ITERATIONS,
         story,
-        selectionThreshold: evalProfile?.selection_threshold,
+        selectionThreshold: primaryProfile?.selection_threshold,
       });
 
       const selectionStart = Date.now();
@@ -342,18 +393,11 @@ export async function runRemixSource(
       // Step G: Handle selection or iteration
       // ================================================================
       if (decision.decision === 'select' && decision.selected_index != null) {
-        const selectedCandidate = candidateRecords[decision.selected_index];
-        if (!selectedCandidate) {
-          // Fallback: select the highest-scoring candidate
-          const sorted = [...candidateRecords].sort((a, b) => (b.eval_score ?? 0) - (a.eval_score ?? 0));
-          if (sorted.length > 0) {
-            await performSelection(jobId, seriesId, sorted[0], iteration.id);
-          }
-        } else {
-          await performSelection(jobId, seriesId, selectedCandidate, iteration.id);
-        }
-
         await updateRemixSearchIterationServer(iteration.id, { status: 'completed' });
+
+        // Multi-profile selection phase
+        await performMultiProfileSelection(jobId, seriesId, evalRuns, allProfiles);
+
         await updateRemixJobServer(jobId, {
           status: 'completed',
           source_status: 'completed',
@@ -382,13 +426,14 @@ export async function runRemixSource(
       });
     }
 
-    // All iterations exhausted without selection — force-select best overall
-    console.warn(`[Remix ${jobId}] All ${MAX_ITERATIONS} iterations exhausted, force-selecting best`);
+    // All iterations exhausted — enter multi-profile selection phase
+    console.warn(`[Remix ${jobId}] All ${MAX_ITERATIONS} iterations exhausted, performing multi-profile selection`);
+    await performMultiProfileSelection(jobId, seriesId, evalRuns, allProfiles);
+
     await updateRemixJobServer(jobId, {
       status: 'completed',
       source_status: 'completed',
       completed_at: new Date().toISOString(),
-      error_message: 'Completed but no strong match found within iteration limit',
     });
   } catch (error) {
     console.error(`[Remix ${jobId}] Source phase failed:`, error);
@@ -398,6 +443,88 @@ export async function runRemixSource(
       error_message: error instanceof Error ? error.message : 'Unknown error',
     });
   }
+}
+
+/**
+ * Multi-profile selection phase: each profile independently picks its best candidate
+ * above its threshold. Downloads unique selections and records per-profile picks.
+ */
+async function performMultiProfileSelection(
+  jobId: string,
+  seriesId: string,
+  evalRuns: { run: CogRemixEvalRun; profile: CogEvalProfile }[],
+  allProfiles: CogEvalProfile[],
+): Promise<void> {
+  // If no profiles, use legacy default: select highest-scoring candidate
+  if (evalRuns.length === 0) {
+    const allCandidates = await getAllCandidatesForJobServer(jobId);
+    const sorted = [...allCandidates].sort((a, b) => (b.eval_score ?? 0) - (a.eval_score ?? 0));
+    if (sorted.length > 0 && (sorted[0].eval_score ?? 0) > 0) {
+      await performSelection(jobId, seriesId, sorted[0]);
+    }
+    return;
+  }
+
+  // For each profile, find its best-scoring candidate above threshold
+  const allCandidates = await getAllCandidatesForJobServer(jobId);
+  const selectedCandidateIds = new Set<string>();
+  let primarySelection: CogRemixCandidate | null = null;
+
+  for (const { run, profile } of evalRuns) {
+    // Get this profile's eval results
+    const { getRemixEvalRunsForJobServer } = await import('@/lib/cog-server');
+    const allRuns = await getRemixEvalRunsForJobServer(jobId);
+    const thisRun = allRuns.find(r => r.id === run.id);
+    if (!thisRun || thisRun.results.length === 0) {
+      await updateRemixEvalRunServer(run.id, { status: 'completed' });
+      continue;
+    }
+
+    // Find best candidate above threshold
+    const bestResult = thisRun.results
+      .filter(r => (r.score ?? 0) >= profile.selection_threshold)
+      .sort((a, b) => (b.score ?? 0) - (a.score ?? 0))[0];
+
+    if (bestResult) {
+      const bestCandidate = allCandidates.find(c => c.id === bestResult.candidate_id);
+      if (bestCandidate) {
+        // Download if not already downloaded by another profile
+        if (!selectedCandidateIds.has(bestCandidate.id)) {
+          await performSelection(jobId, seriesId, bestCandidate);
+          selectedCandidateIds.add(bestCandidate.id);
+        }
+        // Record which candidate this profile selected
+        await updateRemixEvalRunServer(run.id, {
+          status: 'completed',
+          selected_candidate_id: bestCandidate.id,
+        });
+        // Track primary profile's selection for backwards compat
+        if (profile.id === allProfiles[0]?.id) {
+          primarySelection = bestCandidate;
+        }
+        continue;
+      }
+    }
+
+    // No candidate above threshold — mark run completed with no selection
+    await updateRemixEvalRunServer(run.id, { status: 'completed' });
+  }
+
+  // Set job.selected_image_id to primary profile's pick (backwards compat)
+  if (primarySelection && primarySelection.image_id) {
+    await updateRemixJobServer(jobId, { selected_image_id: primarySelection.image_id });
+  } else if (selectedCandidateIds.size === 0) {
+    // No profile selected anything — force-select best overall from primary
+    const allCandidatesSorted = [...allCandidates].sort((a, b) => (b.eval_score ?? 0) - (a.eval_score ?? 0));
+    if (allCandidatesSorted.length > 0 && (allCandidatesSorted[0].eval_score ?? 0) > 0) {
+      await performSelection(jobId, seriesId, allCandidatesSorted[0]);
+    }
+  }
+
+  await appendRemixTraceServer(
+    jobId,
+    traceEntry('source', 'multi_profile_selection', `${selectedCandidateIds.size} unique candidates selected across ${evalRuns.length} profiles`, 0)
+  );
 }
 
 /**
@@ -535,7 +662,6 @@ async function performSelection(
   jobId: string,
   seriesId: string,
   candidate: CogRemixCandidate,
-  iterationId: string
 ): Promise<void> {
   const downloadStart = Date.now();
 

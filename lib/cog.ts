@@ -1978,6 +1978,7 @@ export async function createRemixJob(input: CogRemixJobInsert): Promise<CogRemix
       target_aspect_ratio: input.target_aspect_ratio || null,
       target_colors: input.target_colors || [],
       eval_profile_id: input.eval_profile_id || null,
+      eval_profile_ids: input.eval_profile_ids || [],
     })
     .select()
     .single();
@@ -2024,6 +2025,7 @@ export async function duplicateRemixJob(jobId: string): Promise<CogRemixJob> {
       target_aspect_ratio: original.target_aspect_ratio || null,
       target_colors: original.target_colors || [],
       eval_profile_id: original.eval_profile_id || null,
+      eval_profile_ids: original.eval_profile_ids || [],
       status: 'draft',
     })
     .select()

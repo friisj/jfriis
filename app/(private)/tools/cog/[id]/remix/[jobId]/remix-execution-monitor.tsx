@@ -44,18 +44,24 @@ function PhaseStatusPill({ label, status }: { label: string; status: string }) {
   );
 }
 
-function CandidateCard({ candidate, evalRunResults }: {
+function CandidateCard({ candidate, evalRunResults, profileSelections }: {
   candidate: CogRemixCandidate;
   evalRunResults?: Map<string, { score: number | null; reasoning: string | null; criterion_scores: Record<string, number> | null }>;
+  profileSelections?: string[];
 }) {
   const [showDetails, setShowDetails] = useState(false);
+
+  const selectionCount = profileSelections?.length ?? 0;
+  const isConsensus = selectionCount > 1;
 
   return (
     <div
       className={`relative rounded-lg overflow-hidden border ${
         candidate.selected
           ? 'ring-2 ring-green-500 border-green-500'
-          : 'border-border'
+          : selectionCount > 0
+            ? 'ring-2 ring-purple-500 border-purple-500'
+            : 'border-border'
       }`}
     >
       <div className="aspect-[4/3] relative bg-muted cursor-pointer" onClick={() => setShowDetails(!showDetails)}>
@@ -83,6 +89,14 @@ function CandidateCard({ candidate, evalRunResults }: {
             Selected
           </div>
         )}
+        {/* Per-profile selection badges */}
+        {selectionCount > 0 && !candidate.selected && (
+          <div className={`absolute top-1 left-1 text-xs font-bold px-1.5 py-0.5 rounded ${
+            isConsensus ? 'bg-purple-600 text-white' : 'bg-purple-500 text-white'
+          }`}>
+            {isConsensus ? `${selectionCount} profiles` : profileSelections![0]}
+          </div>
+        )}
       </div>
       <div className="p-2">
         <div className="text-xs text-muted-foreground truncate">
@@ -90,6 +104,16 @@ function CandidateCard({ candidate, evalRunResults }: {
         </div>
         {candidate.eval_reasoning && (
           <p className="text-xs mt-1 line-clamp-2">{candidate.eval_reasoning}</p>
+        )}
+        {/* Per-profile selection indicators */}
+        {profileSelections && profileSelections.length > 0 && (
+          <div className="flex gap-1 flex-wrap mt-1">
+            {profileSelections.map((name) => (
+              <span key={name} className="text-[10px] px-1.5 py-0.5 rounded-full bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300">
+                {name}
+              </span>
+            ))}
+          </div>
         )}
         {/* Show eval run comparisons */}
         {showDetails && evalRunResults && evalRunResults.size > 0 && (
@@ -155,12 +179,14 @@ function EvalRunsSection({ evalRuns, allCandidates }: {
 }) {
   const [expandedRun, setExpandedRun] = useState<string | null>(null);
 
-  if (evalRuns.length === 0) return null;
+  // Only show post-hoc runs (not initial inline runs)
+  const postHocRuns = evalRuns.filter(r => !r.is_initial);
+  if (postHocRuns.length === 0) return null;
 
   return (
     <div className="space-y-3">
-      <h3 className="font-medium text-sm">Eval Runs</h3>
-      {evalRuns.map((run) => (
+      <h3 className="font-medium text-sm">Post-hoc Eval Runs</h3>
+      {postHocRuns.map((run) => (
         <div key={run.id} className="border rounded-lg overflow-hidden">
           <button
             onClick={() => setExpandedRun(expandedRun === run.id ? null : run.id)}
@@ -250,7 +276,7 @@ export function RemixExecutionMonitor({ initialJob, seriesId }: RemixExecutionMo
   const [editTopics, setEditTopics] = useState(initialJob.topics.join(', '));
   const [editColors, setEditColors] = useState(initialJob.colors.join(', '));
   const [editAspectRatio, setEditAspectRatio] = useState(initialJob.target_aspect_ratio || '');
-  const [editEvalProfileId, setEditEvalProfileId] = useState(initialJob.eval_profile_id || '');
+  const [editProfileIds, setEditProfileIds] = useState<string[]>(initialJob.eval_profile_ids || []);
 
   // Re-eval state
   const [showReeval, setShowReeval] = useState(false);
@@ -287,19 +313,21 @@ export function RemixExecutionMonitor({ initialJob, seriesId }: RemixExecutionMo
     return () => clearInterval(interval);
   }, [polling, fetchJob]);
 
-  // Load eval profiles when showing re-eval
+  // Load eval profiles when in draft mode or showing re-eval
   useEffect(() => {
-    if (showReeval && evalProfiles.length === 0) {
+    if ((isDraft || showReeval) && evalProfiles.length === 0) {
       getAllEvalProfiles().then(setEvalProfiles).catch(() => {});
     }
-  }, [showReeval, evalProfiles.length]);
+  }, [isDraft, showReeval, evalProfiles.length]);
 
   function parseCsv(input: string): string[] {
     return input.split(',').map((s) => s.trim()).filter(Boolean);
   }
 
-  function resolveEvalProfileId(value: string): string | null {
-    return value && value !== 'default' ? value : null;
+  function toggleEditProfile(id: string) {
+    setEditProfileIds((prev) =>
+      prev.includes(id) ? prev.filter((p) => p !== id) : [...prev, id]
+    );
   }
 
   async function handleSaveDraft() {
@@ -311,7 +339,7 @@ export function RemixExecutionMonitor({ initialJob, seriesId }: RemixExecutionMo
         topics: parseCsv(editTopics),
         colors: parseCsv(editColors),
         target_aspect_ratio: editAspectRatio || null,
-        eval_profile_id: resolveEvalProfileId(editEvalProfileId),
+        eval_profile_ids: editProfileIds,
       };
       await updateRemixJob(job.id, updates);
       setJob({ ...job, ...updates });
@@ -325,7 +353,6 @@ export function RemixExecutionMonitor({ initialJob, seriesId }: RemixExecutionMo
     const topics = parseCsv(editTopics);
     const colors = parseCsv(editColors);
     const story = editStory.trim();
-    const evalProfileId = resolveEvalProfileId(editEvalProfileId);
     const aspectRatio = editAspectRatio || null;
 
     await updateRemixJob(job.id, {
@@ -334,7 +361,7 @@ export function RemixExecutionMonitor({ initialJob, seriesId }: RemixExecutionMo
       topics,
       colors,
       target_aspect_ratio: aspectRatio,
-      eval_profile_id: evalProfileId,
+      eval_profile_ids: editProfileIds,
     });
 
     setPolling(true);
@@ -345,7 +372,7 @@ export function RemixExecutionMonitor({ initialJob, seriesId }: RemixExecutionMo
       topics,
       colors,
       aspectRatio,
-      evalProfileId,
+      editProfileIds.length > 0 ? editProfileIds : undefined,
     ).catch((err) => {
       console.error('Remix execution error:', err);
     });
@@ -387,10 +414,21 @@ export function RemixExecutionMonitor({ initialJob, seriesId }: RemixExecutionMo
     }
   }
 
-  // Build eval run result maps per candidate
+  // Build eval run result maps per candidate (for all runs, both initial and post-hoc)
   const allCandidates = job.iterations.flatMap((iter) => iter.candidates);
   const evalRunResultsPerCandidate = new Map<string, Map<string, { score: number | null; reasoning: string | null; criterion_scores: Record<string, number> | null }>>();
+
+  // Build per-profile selection map: candidateId -> profileNames[]
+  const profileSelectionsPerCandidate = new Map<string, string[]>();
+
   for (const run of (job.eval_runs || [])) {
+    // Track per-profile selections
+    if (run.selected_candidate_id) {
+      const existing = profileSelectionsPerCandidate.get(run.selected_candidate_id) || [];
+      existing.push(run.profile?.name || 'Unknown');
+      profileSelectionsPerCandidate.set(run.selected_candidate_id, existing);
+    }
+
     if (run.status !== 'completed') continue;
     for (const result of run.results) {
       if (!evalRunResultsPerCandidate.has(result.candidate_id)) {
@@ -405,6 +443,10 @@ export function RemixExecutionMonitor({ initialJob, seriesId }: RemixExecutionMo
 
   // Find the selected image
   const selectedCandidate = allCandidates.find((c) => c.selected);
+
+  // Get all attached profiles (initial eval runs)
+  const initialEvalRuns = (job.eval_runs || []).filter(r => r.is_initial);
+  const attachedProfiles = job.eval_profiles || [];
 
   return (
     <div className="space-y-6">
@@ -425,11 +467,22 @@ export function RemixExecutionMonitor({ initialJob, seriesId }: RemixExecutionMo
         >
           {job.status}
         </span>
-        {job.eval_profile && (
+        {/* Show all attached profiles */}
+        {attachedProfiles.length > 0 ? (
+          attachedProfiles.map((p, i) => (
+            <span key={p.id} className={`text-xs px-2.5 py-1 rounded-full font-medium ${
+              i === 0
+                ? 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200'
+                : 'bg-purple-50 text-purple-700 dark:bg-purple-950 dark:text-purple-300'
+            }`}>
+              {i === 0 && attachedProfiles.length > 1 ? `${p.name} (primary)` : p.name}
+            </span>
+          ))
+        ) : job.eval_profile ? (
           <span className="text-xs px-2.5 py-1 rounded-full font-medium bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200">
             Eval: {job.eval_profile.name}
           </span>
-        )}
+        ) : null}
       </div>
 
       {/* Error message */}
@@ -509,18 +562,53 @@ export function RemixExecutionMonitor({ initialJob, seriesId }: RemixExecutionMo
               </Select>
             </div>
             <div className="space-y-2">
-              <Label>Eval Profile</Label>
-              <Select value={editEvalProfileId} onValueChange={setEditEvalProfileId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Default (built-in)" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="default">Default (built-in)</SelectItem>
+              <Label>Eval Profiles</Label>
+              {evalProfiles.length === 0 ? (
+                <p className="text-xs text-muted-foreground py-2">Loading profiles...</p>
+              ) : (
+                <div className="space-y-1.5 max-h-40 overflow-y-auto border rounded-md p-2">
                   {evalProfiles.map((p) => (
-                    <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                    <label
+                      key={p.id}
+                      className="flex items-center gap-2 text-sm cursor-pointer rounded px-1.5 py-1 hover:bg-muted/50"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={editProfileIds.includes(p.id)}
+                        onChange={() => toggleEditProfile(p.id)}
+                        className="rounded border-border"
+                      />
+                      <span>{p.name}</span>
+                      {editProfileIds.indexOf(p.id) === 0 && editProfileIds.length > 1 && (
+                        <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300">
+                          primary
+                        </span>
+                      )}
+                    </label>
                   ))}
-                </SelectContent>
-              </Select>
+                </div>
+              )}
+              {editProfileIds.length > 0 && (
+                <div className="flex gap-1 flex-wrap mt-1">
+                  {editProfileIds.map((id) => {
+                    const p = evalProfiles.find((ep) => ep.id === id);
+                    return (
+                      <span
+                        key={id}
+                        className="text-xs px-2 py-0.5 rounded-full bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200 flex items-center gap-1"
+                      >
+                        {p?.name || 'Unknown'}
+                        <button onClick={() => toggleEditProfile(id)} className="hover:text-purple-600 dark:hover:text-purple-400">x</button>
+                      </span>
+                    );
+                  })}
+                </div>
+              )}
+              <p className="text-xs text-muted-foreground">
+                {editProfileIds.length === 0
+                  ? 'Default built-in eval'
+                  : `${editProfileIds.length} profile(s). First = primary.`}
+              </p>
             </div>
           </div>
         </div>
@@ -542,6 +630,52 @@ export function RemixExecutionMonitor({ initialJob, seriesId }: RemixExecutionMo
               ))}
             </div>
           )}
+        </div>
+      )}
+
+      {/* Multi-profile selection results */}
+      {isCompleted && profileSelectionsPerCandidate.size > 0 && (
+        <div className="border rounded-lg p-4 space-y-3">
+          <h3 className="font-medium text-sm">Profile Selections</h3>
+          {initialEvalRuns.map((run) => {
+            const selectedCand = run.selected_candidate_id
+              ? allCandidates.find(c => c.id === run.selected_candidate_id)
+              : null;
+            return (
+              <div key={run.id} className="flex items-center gap-3 text-sm">
+                <span className="px-2 py-0.5 rounded-full bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200 text-xs">
+                  {run.profile?.name || 'Unknown'}
+                </span>
+                {selectedCand ? (
+                  <span className="text-green-600">
+                    Selected candidate (score: {selectedCand.eval_score?.toFixed(1)})
+                  </span>
+                ) : (
+                  <span className="text-muted-foreground">No candidate met threshold</span>
+                )}
+              </div>
+            );
+          })}
+          {/* Consensus summary */}
+          {(() => {
+            const candidatesSelectedByMultiple = Array.from(profileSelectionsPerCandidate.entries())
+              .filter(([, profiles]) => profiles.length > 1);
+            if (candidatesSelectedByMultiple.length > 0) {
+              return (
+                <div className="text-xs text-green-700 dark:text-green-400 bg-green-50 dark:bg-green-950/30 rounded p-2 mt-2">
+                  Consensus: {candidatesSelectedByMultiple.length} candidate(s) selected by multiple profiles
+                </div>
+              );
+            }
+            if (profileSelectionsPerCandidate.size > 1) {
+              return (
+                <div className="text-xs text-yellow-700 dark:text-yellow-400 bg-yellow-50 dark:bg-yellow-950/30 rounded p-2 mt-2">
+                  Profiles disagreed on selection - different candidates chosen
+                </div>
+              );
+            }
+            return null;
+          })()}
         </div>
       )}
 
@@ -644,6 +778,7 @@ export function RemixExecutionMonitor({ initialJob, seriesId }: RemixExecutionMo
                     key={candidate.id}
                     candidate={candidate}
                     evalRunResults={evalRunResultsPerCandidate.get(candidate.id)}
+                    profileSelections={profileSelectionsPerCandidate.get(candidate.id)}
                   />
                 ))}
               </div>
@@ -670,7 +805,7 @@ export function RemixExecutionMonitor({ initialJob, seriesId }: RemixExecutionMo
         </div>
       )}
 
-      {/* Eval Runs Section */}
+      {/* Eval Runs Section (post-hoc only) */}
       {(job.eval_runs || []).length > 0 && (
         <EvalRunsSection evalRuns={job.eval_runs} allCandidates={allCandidates} />
       )}

@@ -1101,6 +1101,25 @@ export async function getEvalProfileByIdServer(id: string): Promise<CogEvalProfi
 }
 
 /**
+ * Batch-fetch eval profiles by ID array, preserving order - server-side
+ */
+export async function getEvalProfilesByIdsServer(ids: string[]): Promise<CogEvalProfile[]> {
+  if (ids.length === 0) return [];
+  const client = await createClient();
+  const { data, error } = await (client as any)
+    .from('cog_eval_profiles')
+    .select('*')
+    .in('id', ids);
+
+  if (error) throw error;
+  const profileMap = new Map<string, CogEvalProfile>();
+  for (const p of (data || []) as CogEvalProfile[]) {
+    profileMap.set(p.id, p);
+  }
+  return ids.map(id => profileMap.get(id)).filter((p): p is CogEvalProfile => !!p);
+}
+
+/**
  * Get all eval runs for a job, with profile and results - server-side
  */
 export async function getRemixEvalRunsForJobServer(jobId: string): Promise<CogRemixEvalRunFull[]> {
@@ -1153,6 +1172,7 @@ export async function createRemixEvalRunServer(input: {
   job_id: string;
   eval_profile_id: string;
   status?: string;
+  is_initial?: boolean;
 }): Promise<CogRemixEvalRun> {
   const client = await createClient();
   const { data, error } = await (client as any)
@@ -1161,6 +1181,7 @@ export async function createRemixEvalRunServer(input: {
       job_id: input.job_id,
       eval_profile_id: input.eval_profile_id,
       status: input.status || 'pending',
+      is_initial: input.is_initial || false,
     })
     .select()
     .single();
@@ -1263,8 +1284,11 @@ export async function getRemixJobFullServer(id: string): Promise<CogRemixJobFull
 
   const job = jobResult.data as CogRemixJob;
 
-  // Fetch eval profile and eval runs
-  const [evalProfile, evalRuns] = await Promise.all([
+  // Fetch eval profiles (array), legacy single profile, and eval runs
+  const [evalProfiles, evalProfile, evalRuns] = await Promise.all([
+    (job.eval_profile_ids && job.eval_profile_ids.length > 0)
+      ? getEvalProfilesByIdsServer(job.eval_profile_ids).catch(() => [] as CogEvalProfile[])
+      : Promise.resolve([] as CogEvalProfile[]),
     job.eval_profile_id
       ? getEvalProfileByIdServer(job.eval_profile_id).catch(() => null)
       : null,
@@ -1280,7 +1304,8 @@ export async function getRemixJobFullServer(id: string): Promise<CogRemixJobFull
     ...job,
     iterations,
     augment_steps: augmentResult.data as CogRemixAugmentStep[],
-    eval_profile: evalProfile,
+    eval_profile: evalProfiles.length > 0 ? evalProfiles[0] : evalProfile,
+    eval_profiles: evalProfiles,
     eval_runs: evalRuns,
   } as CogRemixJobFull;
 }

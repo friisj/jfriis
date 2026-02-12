@@ -28,7 +28,7 @@ export function RemixBuilderForm({ seriesId }: RemixBuilderFormProps) {
   const [topicsInput, setTopicsInput] = useState('');
   const [colorsInput, setColorsInput] = useState('');
   const [aspectRatio, setAspectRatio] = useState<string>('');
-  const [evalProfileId, setEvalProfileId] = useState<string>('');
+  const [selectedProfileIds, setSelectedProfileIds] = useState<string[]>([]);
   const [evalProfiles, setEvalProfiles] = useState<CogEvalProfile[]>([]);
   const [saving, setSaving] = useState(false);
   const [running, setRunning] = useState(false);
@@ -39,6 +39,12 @@ export function RemixBuilderForm({ seriesId }: RemixBuilderFormProps) {
   }, []);
 
   const isValid = story.trim().length > 0;
+
+  function toggleProfile(id: string) {
+    setSelectedProfileIds((prev) =>
+      prev.includes(id) ? prev.filter((p) => p !== id) : [...prev, id]
+    );
+  }
 
   async function handleSave(andRun: boolean) {
     if (!isValid) return;
@@ -65,7 +71,7 @@ export function RemixBuilderForm({ seriesId }: RemixBuilderFormProps) {
         colors,
         status: 'draft',
         target_aspect_ratio: aspectRatio || null,
-        eval_profile_id: evalProfileId || null,
+        eval_profile_ids: selectedProfileIds,
       });
 
       if (andRun) {
@@ -77,7 +83,7 @@ export function RemixBuilderForm({ seriesId }: RemixBuilderFormProps) {
           topics,
           colors,
           aspectRatio || null,
-          evalProfileId || null,
+          selectedProfileIds.length > 0 ? selectedProfileIds : undefined,
         ).catch((err) => {
           console.error('Remix job execution error:', err);
         });
@@ -169,22 +175,61 @@ export function RemixBuilderForm({ seriesId }: RemixBuilderFormProps) {
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="eval-profile">Eval Profile (optional)</Label>
-          <Select value={evalProfileId} onValueChange={setEvalProfileId} disabled={saving || running}>
-            <SelectTrigger id="eval-profile">
-              <SelectValue placeholder="Default (built-in)" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="default">Default (built-in)</SelectItem>
+          <Label>Eval Profiles</Label>
+          {evalProfiles.length === 0 ? (
+            <p className="text-xs text-muted-foreground py-2">No profiles available. Using default eval.</p>
+          ) : (
+            <div className="space-y-1.5 max-h-40 overflow-y-auto border rounded-md p-2">
               {evalProfiles.map((p) => (
-                <SelectItem key={p.id} value={p.id}>
-                  {p.name}
-                </SelectItem>
+                <label
+                  key={p.id}
+                  className={`flex items-center gap-2 text-sm cursor-pointer rounded px-1.5 py-1 hover:bg-muted/50 ${
+                    saving || running ? 'opacity-50 pointer-events-none' : ''
+                  }`}
+                >
+                  <input
+                    type="checkbox"
+                    checked={selectedProfileIds.includes(p.id)}
+                    onChange={() => toggleProfile(p.id)}
+                    disabled={saving || running}
+                    className="rounded border-border"
+                  />
+                  <span>{p.name}</span>
+                  {selectedProfileIds.indexOf(p.id) === 0 && selectedProfileIds.length > 1 && (
+                    <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300">
+                      primary
+                    </span>
+                  )}
+                </label>
               ))}
-            </SelectContent>
-          </Select>
+            </div>
+          )}
+          {selectedProfileIds.length > 0 && (
+            <div className="flex gap-1 flex-wrap mt-1">
+              {selectedProfileIds.map((id) => {
+                const p = evalProfiles.find((ep) => ep.id === id);
+                return (
+                  <span
+                    key={id}
+                    className="text-xs px-2 py-0.5 rounded-full bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200 flex items-center gap-1"
+                  >
+                    {p?.name || 'Unknown'}
+                    <button
+                      onClick={() => toggleProfile(id)}
+                      className="hover:text-purple-600 dark:hover:text-purple-400"
+                      disabled={saving || running}
+                    >
+                      x
+                    </button>
+                  </span>
+                );
+              })}
+            </div>
+          )}
           <p className="text-xs text-muted-foreground">
-            Art director perspective for evaluating candidates
+            {selectedProfileIds.length === 0
+              ? 'Default built-in evaluation will be used'
+              : `${selectedProfileIds.length} profile(s) selected. First = primary (drives search iteration).`}
           </p>
         </div>
       </div>
