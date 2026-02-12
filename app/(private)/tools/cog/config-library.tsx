@@ -152,21 +152,32 @@ function emptyForm(type: ConfigType): Record<string, string> {
   return form;
 }
 
-async function runSeedGeneration(type: ConfigType, input: string): Promise<Record<string, string>> {
+function isFormPopulated(type: ConfigType, form: Record<string, string>): boolean {
+  const fieldKeys = TYPE_DEFS[type].fields.map(f => f.key);
+  return fieldKeys.some(k => (form[k] || '').trim().length > 0);
+}
+
+interface SeedGenerationResult {
+  fields: Record<string, string>;
+  criteria?: CogEvalCriterion[];
+}
+
+async function runSeedGeneration(type: ConfigType, input: string, form?: Record<string, string>): Promise<SeedGenerationResult> {
+  const existing = form && isFormPopulated(type, form) ? form : undefined;
   if (type === 'photographer') {
-    const r = await generatePhotographerSeed(input);
-    return { name: r.name, description: r.description, style_description: r.style_description, style_references: r.style_references.join(', '), techniques: r.techniques, testbed_notes: r.testbed_notes };
+    const r = await generatePhotographerSeed(input, existing);
+    return { fields: { name: r.name, description: r.description, style_description: r.style_description, style_references: r.style_references.join(', '), techniques: r.techniques, testbed_notes: r.testbed_notes } };
   }
   if (type === 'director') {
-    const r = await generateDirectorSeed(input);
-    return { name: r.name, description: r.description, approach_description: r.approach_description, methods: r.methods };
+    const r = await generateDirectorSeed(input, existing);
+    return { fields: { name: r.name, description: r.description, approach_description: r.approach_description, methods: r.methods } };
   }
   if (type === 'eval') {
-    const r = await generateEvalSeed(input);
-    return { name: r.name, description: r.description, system_prompt: r.system_prompt, selection_threshold: String(r.selection_threshold) };
+    const r = await generateEvalSeed(input, existing);
+    return { fields: { name: r.name, description: r.description, system_prompt: r.system_prompt, selection_threshold: String(r.selection_threshold) }, criteria: r.criteria };
   }
-  const r = await generateProductionSeed(input);
-  return { name: r.name, description: r.description, shoot_details: r.shoot_details, editorial_notes: r.editorial_notes, costume_notes: r.costume_notes, conceptual_notes: r.conceptual_notes };
+  const r = await generateProductionSeed(input, existing);
+  return { fields: { name: r.name, description: r.description, shoot_details: r.shoot_details, editorial_notes: r.editorial_notes, costume_notes: r.costume_notes, conceptual_notes: r.conceptual_notes } };
 }
 
 async function saveConfig(type: ConfigType, form: Record<string, string>, userId: string, editingId: string | null, criteria?: CogEvalCriterion[]) {
@@ -387,13 +398,16 @@ function ConfigFormView({ type, config, userId, onDone, seeds }: {
     setForm(prev => ({ ...prev, [key]: value }));
   }
 
+  const populated = isFormPopulated(type, form);
+
   async function handleSeed() {
     if (!seedInput.trim()) return;
     setGenerating(true);
     setError(null);
     try {
-      const generated = await runSeedGeneration(type, seedInput.trim());
-      setForm(prev => ({ ...prev, ...generated }));
+      const result = await runSeedGeneration(type, seedInput.trim(), form);
+      setForm(prev => ({ ...prev, ...result.fields }));
+      if (result.criteria) setCriteria(result.criteria);
       setShowSeedInput(false);
       setSeedInput('');
     } catch (err) {
@@ -443,9 +457,16 @@ function ConfigFormView({ type, config, userId, onDone, seeds }: {
         {(
           showSeedInput ? (
             <div className="flex gap-2">
-              <Input value={seedInput} onChange={e => setSeedInput(e.target.value)} placeholder={def.seedPlaceholder} className="text-sm h-8" onKeyDown={e => { if (e.key === 'Enter') handleSeed(); }} disabled={generating} />
+              <Input
+                value={seedInput}
+                onChange={e => setSeedInput(e.target.value)}
+                placeholder={populated ? `e.g. "make it more editorial" or "add warmer tones"` : def.seedPlaceholder}
+                className="text-sm h-8"
+                onKeyDown={e => { if (e.key === 'Enter') handleSeed(); }}
+                disabled={generating}
+              />
               <Button size="sm" onClick={handleSeed} disabled={generating || !seedInput.trim()} className="h-8 text-xs shrink-0">
-                {generating ? '...' : 'Generate'}
+                {generating ? '...' : populated ? 'Edit' : 'Generate'}
               </Button>
               <Button size="sm" variant="ghost" onClick={() => { setShowSeedInput(false); setSeedInput(''); }} disabled={generating} className="h-8 text-xs shrink-0">
                 Cancel
@@ -453,7 +474,7 @@ function ConfigFormView({ type, config, userId, onDone, seeds }: {
             </div>
           ) : (
             <Button size="sm" variant="outline" onClick={() => setShowSeedInput(true)} className="h-7 text-xs">
-              Generate from Seed
+              {populated ? 'Edit with AI' : 'Generate from Seed'}
             </Button>
           )
         )}

@@ -4,6 +4,19 @@ import { generateObject } from 'ai';
 import { z } from 'zod';
 import { getModel } from '../models';
 
+// --- Helpers ---
+
+function formatExisting(existing: Record<string, string>): string {
+  return Object.entries(existing)
+    .filter(([, v]) => v.trim().length > 0)
+    .map(([k, v]) => `${k}: ${v}`)
+    .join('\n');
+}
+
+function editPrompt(type: string, instruction: string, existing: Record<string, string>): string {
+  return `Here is the current ${type} config:\n\n${formatExisting(existing)}\n\nEdit it based on this instruction: "${instruction}"`;
+}
+
 // --- Photographer ---
 
 const PhotographerSeedSchema = z.object({
@@ -15,12 +28,18 @@ const PhotographerSeedSchema = z.object({
   testbed_notes: z.string().describe('Prompt engineering notes: what works well with this style, common pitfalls, key phrases'),
 });
 
-export async function generatePhotographerSeed(seed: string) {
+const PHOTOGRAPHER_SYSTEM = `You are an expert photography historian and creative director. Generate a comprehensive photographer config that captures the essence of a photographic style for AI image generation. Be specific and actionable — every field should contain information useful for crafting image generation prompts.`;
+
+export async function generatePhotographerSeed(seed: string, existing?: Record<string, string>) {
   const result = await generateObject({
     model: getModel('gemini-flash'),
     schema: PhotographerSeedSchema,
-    system: `You are an expert photography historian and creative director. Generate a comprehensive photographer config that captures the essence of a photographic style for AI image generation. Be specific and actionable — every field should contain information useful for crafting image generation prompts.`,
-    prompt: `Generate a photographer config from this seed: "${seed}"`,
+    system: existing
+      ? `${PHOTOGRAPHER_SYSTEM} You are editing an existing config. Preserve what works, modify based on the instruction, and keep the same level of detail.`
+      : PHOTOGRAPHER_SYSTEM,
+    prompt: existing
+      ? editPrompt('photographer', seed, existing)
+      : `Generate a photographer config from this seed: "${seed}"`,
   });
   return result.object;
 }
@@ -34,12 +53,18 @@ const DirectorSeedSchema = z.object({
   methods: z.string().describe('How they brief photographers, select talent, build mood boards, manage creative flow'),
 });
 
-export async function generateDirectorSeed(seed: string) {
+const DIRECTOR_SYSTEM = `You are an expert in creative direction and editorial photography. Generate a comprehensive creative director config that captures a distinct editorial vision and working methodology. Be specific about how this director approaches image creation — their methods should be actionable for AI image generation workflows.`;
+
+export async function generateDirectorSeed(seed: string, existing?: Record<string, string>) {
   const result = await generateObject({
     model: getModel('gemini-flash'),
     schema: DirectorSeedSchema,
-    system: `You are an expert in creative direction and editorial photography. Generate a comprehensive creative director config that captures a distinct editorial vision and working methodology. Be specific about how this director approaches image creation — their methods should be actionable for AI image generation workflows.`,
-    prompt: `Generate a creative director config from this seed: "${seed}"`,
+    system: existing
+      ? `${DIRECTOR_SYSTEM} You are editing an existing config. Preserve what works, modify based on the instruction, and keep the same level of detail.`
+      : DIRECTOR_SYSTEM,
+    prompt: existing
+      ? editPrompt('director', seed, existing)
+      : `Generate a creative director config from this seed: "${seed}"`,
   });
   return result.object;
 }
@@ -55,12 +80,18 @@ const ProductionSeedSchema = z.object({
   conceptual_notes: z.string().describe('Themes, symbolism, mood, narrative arc, emotional tone'),
 });
 
-export async function generateProductionSeed(seed: string) {
+const PRODUCTION_SYSTEM = `You are an expert production designer and fashion stylist. Generate a comprehensive production config that defines the practical and conceptual aspects of a photo production. Be specific — every field should contain information useful for crafting detailed image generation prompts.`;
+
+export async function generateProductionSeed(seed: string, existing?: Record<string, string>) {
   const result = await generateObject({
     model: getModel('gemini-flash'),
     schema: ProductionSeedSchema,
-    system: `You are an expert production designer and fashion stylist. Generate a comprehensive production config that defines the practical and conceptual aspects of a photo production. Be specific — every field should contain information useful for crafting detailed image generation prompts.`,
-    prompt: `Generate a production config from this seed: "${seed}"`,
+    system: existing
+      ? `${PRODUCTION_SYSTEM} You are editing an existing config. Preserve what works, modify based on the instruction, and keep the same level of detail.`
+      : PRODUCTION_SYSTEM,
+    prompt: existing
+      ? editPrompt('production', seed, existing)
+      : `Generate a production config from this seed: "${seed}"`,
   });
   return result.object;
 }
@@ -82,12 +113,18 @@ const EvalSeedSchema = z.object({
   selection_threshold: z.number().min(1).max(10).describe('Minimum overall score to accept an image (typically 6-8)'),
 });
 
-export async function generateEvalSeed(seed: string) {
+const EVAL_SYSTEM = `You are an expert in creative direction and image evaluation. Generate a comprehensive eval profile that represents a specific art director's perspective on what makes a good photograph for a given brief. The criteria should be specific and actionable for AI vision evaluation. Ensure criteria weights sum to 1.0.`;
+
+export async function generateEvalSeed(seed: string, existing?: Record<string, string>) {
   const result = await generateObject({
     model: getModel('gemini-flash'),
     schema: EvalSeedSchema,
-    system: `You are an expert in creative direction and image evaluation. Generate a comprehensive eval profile that represents a specific art director's perspective on what makes a good photograph for a given brief. The criteria should be specific and actionable for AI vision evaluation. Ensure criteria weights sum to 1.0.`,
-    prompt: `Generate an eval profile from this seed: "${seed}"`,
+    system: existing
+      ? `${EVAL_SYSTEM} You are editing an existing eval profile. Preserve what works, modify based on the instruction, and keep the same level of detail.`
+      : EVAL_SYSTEM,
+    prompt: existing
+      ? editPrompt('eval profile', seed, existing)
+      : `Generate an eval profile from this seed: "${seed}"`,
   });
   return result.object;
 }
