@@ -997,6 +997,7 @@ export async function createPipelineJob(input: {
   max_reference_images?: number;
   // Two-phase execution controls
   num_base_images?: number;
+  foundation_model?: string;
   // Inference input arrays
   colors?: string[] | null;
   themes?: string[] | null;
@@ -1027,6 +1028,7 @@ export async function createPipelineJob(input: {
       max_reference_images: input.max_reference_images ?? 3,
       // Two-phase execution controls
       num_base_images: input.num_base_images ?? 3,
+      foundation_model: input.foundation_model || 'gemini-3-pro-image',
       // Inference input arrays
       colors: input.colors || null,
       themes: input.themes || null,
@@ -1676,6 +1678,7 @@ export async function duplicatePipelineJob(jobId: string): Promise<CogJob> {
       use_thinking_infer6: originalJob.use_thinking_infer6,
       max_reference_images: originalJob.max_reference_images,
       num_base_images: originalJob.num_base_images,
+      foundation_model: originalJob.foundation_model || 'gemini-3-pro-image',
       colors: originalJob.colors,
       themes: originalJob.themes,
       image_model: 'auto',

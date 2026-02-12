@@ -128,39 +128,59 @@ How would you adapt this concept to work within these production constraints whi
 }
 
 // ============================================================================
-// Inference Step 4: Core Creative Intent Refinement (WITH THINKING)
+// Inference Step 4: Creative Synthesis & Refinement (WITH THINKING)
 // ============================================================================
 
 /**
- * "What is the essential creative intent, stripped of constraints?"
+ * "Synthesize the strongest vision, preserving technical and directorial specifics."
  *
- * This step uses thinking mode (extended reasoning) to deeply consider
- * the core character, mood, and story of the image. It distills the
- * production-constrained concept back to its essential creative intent,
- * then provides refinement feedback.
+ * This step uses thinking mode (extended reasoning) to identify the most
+ * powerful creative elements and sharpen the concept while retaining the
+ * concrete photographic techniques, directorial methods, and production
+ * details that make the image specific and executable.
  */
 export function buildInference4Prompt(
   ctx: InferenceContext,
   inference3Output: string
 ): string {
-  return `Review the production-constrained concept below:
+  const referencesText =
+    ctx.photographerConfig.style_references.length > 0
+      ? ctx.photographerConfig.style_references.join(', ')
+      : 'None specified';
 
+  return `You are refining a creative concept into a sharp, executable vision.
+
+PHOTOGRAPHER PROFILE — ${ctx.photographerConfig.name}:
+- Style: ${ctx.photographerConfig.style_description}
+- Techniques: ${ctx.photographerConfig.techniques || 'Not specified'}
+- References: ${referencesText}
+${ctx.photographerConfig.testbed_notes ? `- Experimental notes: ${ctx.photographerConfig.testbed_notes}` : ''}
+
+DIRECTOR PROFILE:
+- Approach: ${ctx.directorConfig.approach_description}
+- Methods: ${ctx.directorConfig.methods || 'Not specified'}
+
+PRODUCTION CONTEXT:
+- Shoot: ${ctx.productionConfig.shoot_details || 'Not specified'}
+- Editorial: ${ctx.productionConfig.editorial_notes || 'Not specified'}
+- Costume: ${ctx.productionConfig.costume_notes || 'Not specified'}
+- Conceptual: ${ctx.productionConfig.conceptual_notes || 'Not specified'}
+
+CURRENT CONCEPT (from collaboration so far):
 ${inference3Output}
 
-Step back and consider: what is the essential character, mood, and story at the core of this image?
+Your task: Identify the single most powerful visual idea in this concept and sharpen it. Consider:
 
-Strip away specific production constraints and refocus on the fundamental creative intent. Consider:
-
-1. What is the single most powerful visual idea here?
-2. What emotion or reaction should the viewer have?
-3. What makes this image unique and compelling?
-4. Are there elements that dilute the core vision?
+1. What is the core emotional and visual impact?
+2. Which specific photographer techniques and directorial methods should be front and center?
+3. Are there production details (costume, setting, editorial tone) that strengthen the image?
+4. What is generic or vague that should be made more specific?
 
 Provide a refined creative direction that:
-- Preserves the strongest elements from the photographer's concept and director's guidance
-- Removes anything that weakens the central idea
-- Sharpens the visual and emotional focus
-- Offers specific feedback on what to amplify and what to let go`;
+- PRESERVES specific techniques, methods, and production details — these are not constraints to strip, they are the substance of the image
+- Removes only elements that genuinely dilute the central idea
+- Sharpens any vague descriptions into concrete visual specifics (lighting direction, composition type, color temperature, texture, material)
+- Names the photographer's techniques that should be visible in the final image`;
 }
 
 // ============================================================================
@@ -191,57 +211,83 @@ Provide a comprehensive description that could inform a new image generation, fo
 }
 
 // ============================================================================
-// Inference Step 6: Final Director Vision Synthesis (WITH THINKING)
+// Inference Step 6: Final Technical Prompt Synthesis (WITH THINKING)
 // ============================================================================
 
 /**
- * "As [photographer], what is the finalized director vision with all inputs?"
+ * "Write the final image generation prompt as shot notes."
  *
- * This step uses thinking mode (extended reasoning) to synthesize everything:
- * the refined creative intent from step 4, vision analysis from step 5,
- * plus color and theme inputs. The output is the final image generation prompt.
+ * This step uses thinking mode to synthesize all prior inference into a
+ * concrete, technical image generation prompt. It receives the full config
+ * data so nothing is lost in the chain of summarization. The output should
+ * read like a photographer's shot notes — specific enough for an image
+ * model to produce a distinctive result.
  */
 export function buildInference6Prompt(
   ctx: InferenceContext,
   inference4Output: string,
   visionOutputs: string[]
 ): string {
+  const referencesText =
+    ctx.photographerConfig.style_references.length > 0
+      ? ctx.photographerConfig.style_references.join(', ')
+      : 'None';
+
   const visionSection =
     visionOutputs.length > 0
-      ? `\nReference image analysis:\n${visionOutputs.map((output, i) => `--- Reference ${i + 1} ---\n${output}`).join('\n\n')}`
-      : '\nNo reference images provided.';
+      ? `\nREFERENCE IMAGE ANALYSIS:\n${visionOutputs.map((output, i) => `--- Reference ${i + 1} ---\n${output}`).join('\n\n')}`
+      : '';
 
   const colorsSection =
     ctx.colors && ctx.colors.length > 0
-      ? `Colors to incorporate: ${ctx.colors.join(', ')}`
-      : 'Colors: No specific palette specified';
+      ? `\nCOLOR PALETTE: ${ctx.colors.join(', ')}`
+      : '';
 
   const themesSection =
     ctx.themes && ctx.themes.length > 0
-      ? `Themes: ${ctx.themes.join(', ')}`
-      : 'Themes: No specific themes specified';
+      ? `\nTHEMES: ${ctx.themes.join(', ')}`
+      : '';
 
-  return `You are ${ctx.photographerConfig.name}, synthesizing the final creative vision.
+  return `Write a detailed image generation prompt. You have all the context below — your job is to turn it into a single, dense, technical prompt that an image generation model (like Gemini or Flux) will use to create the image.
 
-Your photographic style:
-${ctx.photographerConfig.style_description}
+=== PHOTOGRAPHER: ${ctx.photographerConfig.name} ===
+Style: ${ctx.photographerConfig.style_description}
+Techniques: ${ctx.photographerConfig.techniques || 'Not specified'}
+References: ${referencesText}
+${ctx.photographerConfig.testbed_notes ? `Experimental notes: ${ctx.photographerConfig.testbed_notes}` : ''}
 
-Core creative intent (refined):
+=== DIRECTOR ===
+Approach: ${ctx.directorConfig.approach_description}
+Methods: ${ctx.directorConfig.methods || 'Not specified'}
+
+=== PRODUCTION ===
+Shoot details: ${ctx.productionConfig.shoot_details || 'Not specified'}
+Editorial direction: ${ctx.productionConfig.editorial_notes || 'Not specified'}
+Costume/styling: ${ctx.productionConfig.costume_notes || 'Not specified'}
+Conceptual framework: ${ctx.productionConfig.conceptual_notes || 'Not specified'}
+
+=== REFINED CREATIVE DIRECTION (from prior synthesis) ===
 ${inference4Output}
 ${visionSection}
-
 ${colorsSection}
 ${themesSection}
 
-Original brief: "${ctx.basePrompt}"
+=== ORIGINAL BRIEF ===
+"${ctx.basePrompt}"
 
-Synthesize all of the above into a final, detailed image generation prompt. This prompt should:
-- Capture the refined creative vision from the intent refinement process
-- Incorporate relevant insights from reference image analysis (if available)
-- Reflect your photographic style and signature techniques
-- Integrate the specified colors and themes naturally
-- Be specific and actionable for image generation
-- Describe the scene, subject, composition, lighting, mood, colors, and style concisely
+=== YOUR TASK ===
+Write the final image generation prompt. It should read like a photographer's detailed shot notes — not a creative brief, not a mood board description. Be concrete and technical:
 
-Provide ONLY the final prompt text, no additional commentary or explanation.`;
+- SUBJECT: Who/what is in frame, their pose, expression, placement
+- COMPOSITION: Framing (close-up, medium, wide), rule of thirds, leading lines, depth
+- LIGHTING: Direction, quality (hard/soft), color temperature, key/fill/rim setup, time of day
+- COLOR: Specific color palette, grading style, saturation, contrast
+- TEXTURE & MATERIAL: Surface qualities, fabric, skin, environment materials
+- MOOD & ATMOSPHERE: Emotional register, energy level, tension/calm
+- TECHNIQUE: The photographer's specific techniques that should be visible (${ctx.photographerConfig.techniques || 'their signature approach'})
+- STYLE REFERENCE: Visual language drawn from ${referencesText}
+
+The prompt must be a single continuous paragraph of descriptive text — no bullet points, no headers, no labels. Just the image description as you would speak it to an image model. Be specific, not generic. Every adjective should earn its place.
+
+Provide ONLY the prompt text, nothing else.`;
 }

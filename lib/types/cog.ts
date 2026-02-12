@@ -102,6 +102,7 @@ export interface CogJob {
   max_reference_images: number;
   // Two-phase execution controls
   num_base_images: number;
+  foundation_model: CogImageModel;
   selected_base_image_id: string | null;
   synthesized_prompt: string | null;
   foundation_status: CogFoundationStatus;
@@ -289,6 +290,7 @@ export interface CogJobInsert {
   max_reference_images?: number;
   // Two-phase execution controls
   num_base_images?: number;
+  foundation_model?: CogImageModel;
   // Inference input arrays
   colors?: string[] | null;
   themes?: string[] | null;

@@ -124,10 +124,8 @@ export async function runFoundation(input: { jobId: string; seriesId: string }):
     for (let i = 0; i < numCandidates; i++) {
       console.log(`[Foundation] Generating base candidate ${i + 1}/${numCandidates}...`);
 
-      // Build a synthetic generate step for image generation
-      // Uses Gemini 3 Pro for I2I if reference images exist, otherwise default model
-      const hasReferences = referenceImageData.length > 0;
-      const generationModel: CogImageModel = hasReferences ? 'gemini-3-pro-image' : 'auto';
+      // Use the job's foundation_model setting (defaults to gemini-3-pro-image)
+      const generationModel: CogImageModel = (job.foundation_model as CogImageModel) || 'gemini-3-pro-image';
 
       const imageResult = await executeFoundationGenerate({
         prompt: finalPrompt,

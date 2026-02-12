@@ -13,7 +13,7 @@ import { StepBuilder } from './step-builder';
 import { StoryInput, ReferenceImageSelector } from './initial-input-selector';
 import { createPipelineJob } from '@/lib/cog';
 import { runFoundation } from '@/lib/ai/actions/run-pipeline-job';
-import type { CogImage, CogPhotographerConfig, CogDirectorConfig, CogProductionConfig, CogPipelineStepInsert } from '@/lib/types/cog';
+import type { CogImage, CogPhotographerConfig, CogDirectorConfig, CogProductionConfig, CogPipelineStepInsert, CogImageModel } from '@/lib/types/cog';
 
 interface PipelineBuilderFormProps {
   seriesId: string;
@@ -46,6 +46,7 @@ export function PipelineBuilderForm({ seriesId, images, photographerConfigs, dir
 
   // Inference controls
   const [numBaseImages, setNumBaseImages] = useState(3);
+  const [foundationModel, setFoundationModel] = useState<CogImageModel>('gemini-3-pro-image');
 
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -88,6 +89,7 @@ export function PipelineBuilderForm({ seriesId, images, photographerConfigs, dir
         themes: themes ? themes.split(',').map(t => t.trim()).filter(Boolean) : null,
         // Execution controls
         num_base_images: numBaseImages,
+        foundation_model: foundationModel,
         steps: steps.map((step, idx) => ({
           ...step,
           job_id: '', // Will be set by the function
@@ -158,6 +160,11 @@ export function PipelineBuilderForm({ seriesId, images, photographerConfigs, dir
                 </p>
               </div>
             )}
+
+            <div>
+              <Label className="text-sm font-medium">Foundation Model</Label>
+              <p className="text-sm text-muted-foreground">{foundationModel}</p>
+            </div>
 
             <div>
               <Label className="text-sm font-medium">Story</Label>
@@ -342,6 +349,22 @@ export function PipelineBuilderForm({ seriesId, images, photographerConfigs, dir
               onChange={(e) => setNumBaseImages(parseInt(e.target.value) || 3)}
             />
             <p className="text-xs text-muted-foreground">How many candidate base images to generate in the foundation phase</p>
+          </div>
+
+          <div className="space-y-2">
+            <Label>Foundation Image Model</Label>
+            <Select value={foundationModel} onValueChange={(v) => setFoundationModel(v as CogImageModel)}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="gemini-3-pro-image">Gemini 3 Pro (recommended)</SelectItem>
+                <SelectItem value="flux-2-dev">Flux 2 Dev</SelectItem>
+                <SelectItem value="flux-2-pro">Flux 2 Pro</SelectItem>
+                <SelectItem value="imagen-3-capability">Imagen 3</SelectItem>
+                <SelectItem value="imagen-4">Imagen 4</SelectItem>
+                <SelectItem value="auto">Auto</SelectItem>
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">Which image model to use for generating base candidates</p>
           </div>
         </CardContent>
       </Card>
