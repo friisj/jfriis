@@ -37,6 +37,7 @@ import type {
   CogDirectorConfig,
   CogProductionConfig,
   CogPipelineJobWithSteps,
+  CogInferenceLogEntry,
 } from '@/lib/types/cog';
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -481,41 +482,80 @@ async function generateBaseImagePrompt(
   const useThinkingInfer6 = job.use_thinking_infer6 !== false;
   const maxRefImages = job.max_reference_images || 3;
 
+  // Inference log: accumulate entries and persist after each step
+  const inferenceLog: CogInferenceLogEntry[] = [];
+
+  async function persistLog() {
+    await updateJobServer(job.id, { inference_log: inferenceLog });
+  }
+
   // Step 1: Photographer concept generation
   console.log('[Inference] Step 1: Photographer concept generation...');
-  const inference1 = await callLLM(
-    buildInference1Prompt(inferenceCtx),
-    false,
-    inferenceModel
-  );
-  console.log(`[Inference] Step 1 complete (${inference1.length} chars)`);
+  const prompt1 = buildInference1Prompt(inferenceCtx);
+  const result1 = await callLLM(prompt1, false, inferenceModel);
+  inferenceLog.push({
+    step: 1,
+    label: 'Photographer Concept',
+    prompt: prompt1,
+    response: result1.text,
+    tokens_in: result1.tokens_in,
+    tokens_out: result1.tokens_out,
+    duration_ms: result1.duration_ms,
+    thinking: false,
+  });
+  await persistLog();
+  console.log(`[Inference] Step 1 complete (${result1.text.length} chars, ${result1.duration_ms}ms)`);
 
   // Step 2: Director briefing synthesis
   console.log('[Inference] Step 2: Director briefing synthesis...');
-  const inference2 = await callLLM(
-    buildInference2Prompt(inferenceCtx, inference1),
-    false,
-    inferenceModel
-  );
-  console.log(`[Inference] Step 2 complete (${inference2.length} chars)`);
+  const prompt2 = buildInference2Prompt(inferenceCtx, result1.text);
+  const result2 = await callLLM(prompt2, false, inferenceModel);
+  inferenceLog.push({
+    step: 2,
+    label: 'Director Briefing',
+    prompt: prompt2,
+    response: result2.text,
+    tokens_in: result2.tokens_in,
+    tokens_out: result2.tokens_out,
+    duration_ms: result2.duration_ms,
+    thinking: false,
+  });
+  await persistLog();
+  console.log(`[Inference] Step 2 complete (${result2.text.length} chars, ${result2.duration_ms}ms)`);
 
   // Step 3: Production constraint integration
   console.log('[Inference] Step 3: Production constraint integration...');
-  const inference3 = await callLLM(
-    buildInference3Prompt(inferenceCtx, inference1, inference2),
-    false,
-    inferenceModel
-  );
-  console.log(`[Inference] Step 3 complete (${inference3.length} chars)`);
+  const prompt3 = buildInference3Prompt(inferenceCtx, result1.text, result2.text);
+  const result3 = await callLLM(prompt3, false, inferenceModel);
+  inferenceLog.push({
+    step: 3,
+    label: 'Production Constraints',
+    prompt: prompt3,
+    response: result3.text,
+    tokens_in: result3.tokens_in,
+    tokens_out: result3.tokens_out,
+    duration_ms: result3.duration_ms,
+    thinking: false,
+  });
+  await persistLog();
+  console.log(`[Inference] Step 3 complete (${result3.text.length} chars, ${result3.duration_ms}ms)`);
 
   // Step 4: Core creative intent refinement (WITH THINKING)
   console.log(`[Inference] Step 4: Core intent refinement (thinking=${useThinkingInfer4})...`);
-  const inference4 = await callLLM(
-    buildInference4Prompt(inferenceCtx, inference3),
-    useThinkingInfer4,
-    inferenceModel
-  );
-  console.log(`[Inference] Step 4 complete (${inference4.length} chars)`);
+  const prompt4 = buildInference4Prompt(inferenceCtx, result3.text);
+  const result4 = await callLLM(prompt4, useThinkingInfer4, inferenceModel);
+  inferenceLog.push({
+    step: 4,
+    label: 'Creative Synthesis',
+    prompt: prompt4,
+    response: result4.text,
+    tokens_in: result4.tokens_in,
+    tokens_out: result4.tokens_out,
+    duration_ms: result4.duration_ms,
+    thinking: useThinkingInfer4,
+  });
+  await persistLog();
+  console.log(`[Inference] Step 4 complete (${result4.text.length} chars, ${result4.duration_ms}ms)`);
 
   // Step 5: Reference image vision analysis (skipped if no images)
   const visionOutputs: string[] = [];
@@ -523,18 +563,27 @@ async function generateBaseImagePrompt(
     const imagesToAnalyze = context.initialImages.slice(0, maxRefImages);
     console.log(`[Inference] Step 5: Vision analysis on ${imagesToAnalyze.length} reference images...`);
     const supabase = await createClient();
+    const visionPrompt = buildVisionPrompt();
 
-    for (const imageId of imagesToAnalyze) {
+    for (let i = 0; i < imagesToAnalyze.length; i++) {
+      const imageId = imagesToAnalyze[i];
       try {
         const image = await getImageByIdServer(imageId);
         const imageBase64 = await fetchImageAsBase64(image.storage_path, supabase);
-        const visionAnalysis = await callVisionLLM(
-          buildVisionPrompt(),
-          imageBase64,
-          inferenceModel
-        );
-        visionOutputs.push(visionAnalysis);
-        console.log(`[Inference] Step 5: Analyzed image ${imageId} (${visionAnalysis.length} chars)`);
+        const visionResult = await callVisionLLM(visionPrompt, imageBase64, inferenceModel);
+        visionOutputs.push(visionResult.text);
+        inferenceLog.push({
+          step: 5,
+          label: `Vision Analysis (image ${i + 1}/${imagesToAnalyze.length})`,
+          prompt: visionPrompt,
+          response: visionResult.text,
+          tokens_in: visionResult.tokens_in,
+          tokens_out: visionResult.tokens_out,
+          duration_ms: visionResult.duration_ms,
+          thinking: false,
+        });
+        await persistLog();
+        console.log(`[Inference] Step 5: Analyzed image ${imageId} (${visionResult.text.length} chars, ${visionResult.duration_ms}ms)`);
       } catch (error) {
         console.warn(`[Inference] Step 5: Failed to analyze image ${imageId}:`, error);
         visionOutputs.push(`[Image ${imageId}: Analysis failed]`);
@@ -542,23 +591,49 @@ async function generateBaseImagePrompt(
     }
   } else {
     console.log('[Inference] Step 5: Skipped (no reference images)');
+    inferenceLog.push({
+      step: 5,
+      label: 'Vision Analysis',
+      prompt: '',
+      response: 'Skipped (no reference images)',
+      tokens_in: null,
+      tokens_out: null,
+      duration_ms: 0,
+      thinking: false,
+    });
+    await persistLog();
   }
 
   // Step 6: Final director vision synthesis (WITH THINKING)
   console.log(`[Inference] Step 6: Final synthesis (thinking=${useThinkingInfer6})...`);
-  const finalPrompt = await callLLM(
-    buildInference6Prompt(inferenceCtx, inference4, visionOutputs),
-    useThinkingInfer6,
-    inferenceModel
-  );
-  console.log(`[Inference] Step 6 complete (${finalPrompt.length} chars)`);
+  const prompt6 = buildInference6Prompt(inferenceCtx, result4.text, visionOutputs);
+  const result6 = await callLLM(prompt6, useThinkingInfer6, inferenceModel);
+  inferenceLog.push({
+    step: 6,
+    label: 'Final Prompt Synthesis',
+    prompt: prompt6,
+    response: result6.text,
+    tokens_in: result6.tokens_in,
+    tokens_out: result6.tokens_out,
+    duration_ms: result6.duration_ms,
+    thinking: useThinkingInfer6,
+  });
+  await persistLog();
+  console.log(`[Inference] Step 6 complete (${result6.text.length} chars, ${result6.duration_ms}ms)`);
 
-  return finalPrompt;
+  return result6.text;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // LLM HELPER FUNCTIONS: Gemini API calls
 // ═══════════════════════════════════════════════════════════════════════════════
+
+interface LLMResult {
+  text: string;
+  tokens_in: number | null;
+  tokens_out: number | null;
+  duration_ms: number;
+}
 
 /**
  * Call a Gemini model for text generation.
@@ -568,20 +643,19 @@ async function generateBaseImagePrompt(
  *
  * @param prompt - The prompt text
  * @param useThinking - Whether to use a thinking-capable model variant
- * @param inferenceModel - The model ID to use (e.g. 'gemini-2.0-flash-thinking-exp')
+ * @param inferenceModel - The model ID to use (e.g. 'gemini-2.0-flash')
  */
 async function callLLM(
   prompt: string,
   useThinking: boolean,
   inferenceModel: string
-): Promise<string> {
+): Promise<LLMResult> {
+  const startTime = Date.now();
   const apiKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY;
   if (!apiKey) {
     throw new Error('GOOGLE_GENERATIVE_AI_API_KEY not configured for inference pipeline');
   }
 
-  // Use the specified model. If thinking is requested and the model supports it,
-  // use higher temperature and let the model reason deeply.
   const modelId = inferenceModel;
 
   const requestBody: Record<string, unknown> = {
@@ -620,7 +694,14 @@ async function callLLM(
     throw new Error('No text response from Gemini inference model');
   }
 
-  return text.trim();
+  const usageMetadata = result.usageMetadata;
+
+  return {
+    text: text.trim(),
+    tokens_in: usageMetadata?.promptTokenCount ?? null,
+    tokens_out: usageMetadata?.candidatesTokenCount ?? null,
+    duration_ms: Date.now() - startTime,
+  };
 }
 
 /**
@@ -634,14 +715,14 @@ async function callVisionLLM(
   prompt: string,
   imageBase64: string,
   inferenceModel: string
-): Promise<string> {
+): Promise<LLMResult> {
+  const startTime = Date.now();
   const apiKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY;
   if (!apiKey) {
     throw new Error('GOOGLE_GENERATIVE_AI_API_KEY not configured for vision analysis');
   }
 
   // Vision analysis uses a non-thinking model (fast analysis)
-  // Default to gemini-2.0-flash for vision since it handles images well
   const visionModel = 'gemini-2.0-flash';
 
   const requestBody = {
@@ -688,7 +769,14 @@ async function callVisionLLM(
     throw new Error('No text response from Gemini vision model');
   }
 
-  return text.trim();
+  const usageMetadata = result.usageMetadata;
+
+  return {
+    text: text.trim(),
+    tokens_in: usageMetadata?.promptTokenCount ?? null,
+    tokens_out: usageMetadata?.candidatesTokenCount ?? null,
+    duration_ms: Date.now() - startTime,
+  };
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -787,9 +875,13 @@ async function executeFoundationGenerate(params: {
       referenceImages: refImageObjects.length > 0 ? refImageObjects : undefined,
       aspectRatio,
       imageSize,
+      thinking: true,
     });
     imageBase64 = result.base64;
     generationMetadata.provider = 'gemini-3-pro';
+    if (result.thinkingChain) {
+      generationMetadata.thinkingChain = result.thinkingChain;
+    }
   } else if (
     (resolvedModel === 'flux-2-pro' || resolvedModel === 'flux-2-dev') &&
     isFluxConfigured()

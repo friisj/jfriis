@@ -8,7 +8,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { PipelineStepCard } from './pipeline-step-card';
 import { updateJob, selectBaseImage, getCogImageUrl, getBaseCandidatesForJob, getImageById, resetPipelineJobToDraft, resetPipelineSteps, duplicatePipelineJob } from '@/lib/cog';
 import { runFoundation, runSequence, retryFromStep } from '@/lib/ai/actions/run-pipeline-job';
-import type { CogPipelineJobWithSteps, CogPipelineBaseCandidate, CogFoundationStatus, CogSequenceStatus } from '@/lib/types/cog';
+import type { CogPipelineJobWithSteps, CogPipelineBaseCandidate, CogFoundationStatus, CogSequenceStatus, CogInferenceLogEntry } from '@/lib/types/cog';
 
 // ============================================================================
 // Types
@@ -42,6 +42,73 @@ function getBaseSelectionStatus(job: CogPipelineJobWithSteps): PhaseStatus {
   if (job.foundation_status === 'completed' && !job.selected_base_image_id) return 'running';
   if (job.foundation_status === 'completed' || job.foundation_status === 'failed') return 'pending';
   return 'pending';
+}
+
+// ============================================================================
+// Inference Step Disclosure
+// ============================================================================
+
+function InferenceStepDisclosure({ entry }: { entry: CogInferenceLogEntry }) {
+  const [isOpen, setIsOpen] = useState(false);
+
+  const durationLabel = entry.duration_ms > 0
+    ? entry.duration_ms < 1000
+      ? `${entry.duration_ms}ms`
+      : `${(entry.duration_ms / 1000).toFixed(1)}s`
+    : null;
+
+  const tokenLabel = entry.tokens_in !== null || entry.tokens_out !== null
+    ? `${entry.tokens_in ?? '?'} in / ${entry.tokens_out ?? '?'} out`
+    : null;
+
+  return (
+    <Collapsible open={isOpen} onOpenChange={setIsOpen}>
+      <CollapsibleTrigger className="w-full">
+        <div className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-muted/50 transition-colors text-left">
+          <span className="text-xs font-mono bg-muted px-1.5 py-0.5 rounded shrink-0">
+            {entry.step}
+          </span>
+          <span className="text-sm font-medium flex-1">
+            {entry.label}
+          </span>
+          {entry.thinking && (
+            <span className="text-[10px] font-medium bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200 px-1.5 py-0.5 rounded-full shrink-0">
+              thinking
+            </span>
+          )}
+          {tokenLabel && (
+            <span className="text-xs text-muted-foreground shrink-0">
+              {tokenLabel}
+            </span>
+          )}
+          {durationLabel && (
+            <span className="text-xs text-muted-foreground shrink-0">
+              {durationLabel}
+            </span>
+          )}
+          <span className="text-xs text-muted-foreground shrink-0">
+            {isOpen ? '\u25B2' : '\u25BC'}
+          </span>
+        </div>
+      </CollapsibleTrigger>
+      <CollapsibleContent>
+        <div className="px-3 pb-3 space-y-3">
+          <div>
+            <p className="text-xs font-medium text-muted-foreground mb-1">Response</p>
+            <div className="text-sm whitespace-pre-wrap bg-muted/30 rounded-lg p-3 max-h-64 overflow-y-auto">
+              {entry.response}
+            </div>
+          </div>
+          <div>
+            <p className="text-xs font-medium text-muted-foreground mb-1">Prompt</p>
+            <div className="text-xs whitespace-pre-wrap bg-muted/30 rounded-lg p-3 max-h-48 overflow-y-auto text-muted-foreground">
+              {entry.prompt || '(empty)'}
+            </div>
+          </div>
+        </div>
+      </CollapsibleContent>
+    </Collapsible>
+  );
 }
 
 // ============================================================================
@@ -402,7 +469,44 @@ export function PipelineExecutionMonitor({
         </Card>
       )}
 
-      {/* Generated Prompt (synthesized by the inference pipeline) */}
+      {/* Inference Pipeline Log */}
+      {(job.inference_log && job.inference_log.length > 0) && (() => {
+        const log = job.inference_log as CogInferenceLogEntry[];
+        const totalDuration = log.reduce((sum, e) => sum + e.duration_ms, 0);
+        const totalTokensIn = log.reduce((sum, e) => sum + (e.tokens_in ?? 0), 0);
+        const totalTokensOut = log.reduce((sum, e) => sum + (e.tokens_out ?? 0), 0);
+        return (
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base flex items-center gap-2">
+                <span>Inference Pipeline</span>
+                {foundationStatus === 'running' && log.length < 7 && (
+                  <span className="text-xs font-normal text-muted-foreground animate-pulse">
+                    Running step {log.length + 1}/6...
+                  </span>
+                )}
+              </CardTitle>
+              <p className="text-xs text-muted-foreground">
+                {log.length} step{log.length !== 1 ? 's' : ''}
+                {' \u00B7 '}
+                {totalDuration < 1000
+                  ? `${totalDuration}ms`
+                  : `${(totalDuration / 1000).toFixed(1)}s`}
+                {totalTokensIn > 0 && (
+                  <> {'\u00B7'} {totalTokensIn.toLocaleString()} tokens in / {totalTokensOut.toLocaleString()} out</>
+                )}
+              </p>
+            </CardHeader>
+            <CardContent className="space-y-1">
+              {log.map((entry, idx) => (
+                <InferenceStepDisclosure key={`${entry.step}-${idx}`} entry={entry} />
+              ))}
+            </CardContent>
+          </Card>
+        );
+      })()}
+
+      {/* Generated Prompt (final output of the inference pipeline) */}
       {job.synthesized_prompt && (
         <Card>
           <CardHeader>

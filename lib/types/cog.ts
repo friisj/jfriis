@@ -110,6 +110,8 @@ export interface CogJob {
   // Inference input arrays
   colors: string[] | null;
   themes: string[] | null;
+  // Inference log (populated during foundation phase)
+  inference_log: CogInferenceLogEntry[] | null;
   // Timestamps
   created_at: string;
   updated_at: string;
@@ -372,6 +374,21 @@ export interface CogSeriesFull extends CogSeries {
   children: CogSeries[];
   images: CogImage[];
   jobs: CogJobWithSteps[];
+}
+
+// ============================================================================
+// Inference Log Types
+// ============================================================================
+
+export interface CogInferenceLogEntry {
+  step: number;
+  label: string;
+  prompt: string;
+  response: string;
+  tokens_in: number | null;
+  tokens_out: number | null;
+  duration_ms: number;
+  thinking: boolean;
 }
 
 export interface CogPipelineStepOutputEnriched extends CogPipelineStepOutput {
