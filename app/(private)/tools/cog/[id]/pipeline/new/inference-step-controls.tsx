@@ -6,7 +6,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
-import { Slider } from '@/components/ui/slider';
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/components/ui/collapsible';
 import { INFERENCE_STEP_DEFAULTS, type InferenceStepDefault } from '@/lib/ai/inference-defaults';
 import type { InferenceStepConfigs, InferenceStepOverride } from '@/lib/types/cog';
@@ -69,79 +68,87 @@ export function InferenceStepControls({ value, onChange }: InferenceStepControls
           <ChevronDown className={`h-4 w-4 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
         </Button>
       </CollapsibleTrigger>
-      <CollapsibleContent className="space-y-3 pt-2">
-        {STEP_NUMBERS.map(step => {
-          const effective = getEffective(step, value);
-          return (
-            <div
-              key={step}
-              className={`rounded-md border p-3 space-y-2 ${!effective.enabled ? 'opacity-50' : ''}`}
-            >
-              <div className="flex items-center gap-3">
+      <CollapsibleContent className="pt-2">
+        <p className="text-xs text-muted-foreground mb-3">
+          Temperature: lower (0.1-0.3) = precise and focused, higher (0.7-1.0) = creative and varied. Max 2.0.
+        </p>
+        <div className="space-y-1">
+          {STEP_NUMBERS.map(step => {
+            const effective = getEffective(step, value);
+            return (
+              <div
+                key={step}
+                className={`flex items-center gap-3 rounded-md border px-3 py-1.5 ${!effective.enabled ? 'opacity-40' : ''}`}
+              >
                 <Switch
                   checked={effective.enabled}
                   onCheckedChange={(checked) => updateStep(step, { enabled: checked })}
+                  className="scale-75"
                 />
-                <span className="text-xs text-muted-foreground font-mono">#{step}</span>
-                <span className="text-sm font-medium flex-1">{effective.label}</span>
-                {effective.hasOverride && (
-                  <span className="text-[10px] text-muted-foreground uppercase tracking-wider">custom</span>
-                )}
-              </div>
+                <span className="text-xs text-muted-foreground font-mono w-4">#{step}</span>
+                <span className="text-xs font-medium flex-1 min-w-0 truncate">{effective.label}</span>
 
-              {effective.enabled && (
-                <div className="flex items-center gap-4 pl-12">
-                  {/* Temperature */}
-                  <div className="flex items-center gap-2 flex-1 min-w-0">
-                    <Label className="text-xs text-muted-foreground whitespace-nowrap">Temp</Label>
-                    <Slider
-                      min={0}
-                      max={2}
-                      step={0.1}
-                      value={[effective.temperature]}
-                      onValueChange={([v]) => updateStep(step, { temperature: Math.round(v * 10) / 10 })}
-                      className="flex-1"
-                    />
-                    <span className="text-xs font-mono w-8 text-right">{effective.temperature.toFixed(1)}</span>
-                  </div>
-
-                  {/* Max Tokens */}
-                  <div className="flex items-center gap-2">
-                    <Label className="text-xs text-muted-foreground whitespace-nowrap">Tokens</Label>
-                    <Input
-                      type="number"
-                      min={100}
-                      max={8000}
-                      step={100}
-                      value={effective.max_tokens}
-                      onChange={(e) => {
-                        const v = parseInt(e.target.value);
-                        if (!isNaN(v) && v >= 100 && v <= 8000) {
-                          updateStep(step, { max_tokens: v });
-                        }
-                      }}
-                      className="w-20 h-7 text-xs"
-                    />
-                  </div>
-
-                  {/* Thinking toggle (steps 5, 7 only) */}
-                  {THINKING_STEPS.has(step) && (
-                    <div className="flex items-center gap-2">
-                      <Label className="text-xs text-muted-foreground">Think</Label>
-                      <Switch
-                        checked={effective.thinking}
-                        onCheckedChange={(checked) => updateStep(step, { thinking: checked })}
+                {effective.enabled && (
+                  <>
+                    <div className="flex items-center gap-1">
+                      <Label className="text-[10px] text-muted-foreground">temp</Label>
+                      <Input
+                        type="number"
+                        min={0}
+                        max={2}
+                        step={0.1}
+                        value={effective.temperature}
+                        onChange={(e) => {
+                          const v = parseFloat(e.target.value);
+                          if (!isNaN(v) && v >= 0 && v <= 2) {
+                            updateStep(step, { temperature: Math.round(v * 10) / 10 });
+                          }
+                        }}
+                        className="w-16 h-6 text-xs px-1.5"
                       />
                     </div>
-                  )}
-                </div>
-              )}
-            </div>
-          );
-        })}
+
+                    <div className="flex items-center gap-1">
+                      <Label className="text-[10px] text-muted-foreground">tokens</Label>
+                      <Input
+                        type="number"
+                        min={100}
+                        max={8000}
+                        step={100}
+                        value={effective.max_tokens}
+                        onChange={(e) => {
+                          const v = parseInt(e.target.value);
+                          if (!isNaN(v) && v >= 100 && v <= 8000) {
+                            updateStep(step, { max_tokens: v });
+                          }
+                        }}
+                        className="w-[72px] h-6 text-xs px-1.5"
+                      />
+                    </div>
+
+                    {THINKING_STEPS.has(step) && (
+                      <div className="flex items-center gap-1">
+                        <Label className="text-[10px] text-muted-foreground">think</Label>
+                        <Switch
+                          checked={effective.thinking}
+                          onCheckedChange={(checked) => updateStep(step, { thinking: checked })}
+                          className="scale-75"
+                        />
+                      </div>
+                    )}
+                  </>
+                )}
+
+                {effective.hasOverride && (
+                  <span className="text-[9px] text-muted-foreground/60 uppercase tracking-wider">*</span>
+                )}
+              </div>
+            );
+          })}
+        </div>
 
         {hasOverrides && (
-          <Button variant="ghost" size="sm" onClick={handleReset} className="text-xs">
+          <Button variant="ghost" size="sm" onClick={handleReset} className="text-xs mt-2">
             Reset to Defaults
           </Button>
         )}
