@@ -9,50 +9,8 @@
 
 import type {
   CogPhotographerConfig,
-  CogPhotographerType,
   CogBenchmarkImage,
 } from '@/lib/types/cog';
-
-// ============================================================================
-// Seed Configs — subject description + reference image per photographer type
-// ============================================================================
-
-export interface SeedConfig {
-  subject: string;
-  /** Storage path in cog-images bucket. Upload seed images to calibration-seeds/{type}.jpg */
-  imagePath: string;
-}
-
-export const SEED_CONFIGS: Record<CogPhotographerType, SeedConfig> = {
-  portrait: {
-    subject: 'Close-up portrait of a woman with auburn hair, neutral expression, soft directional light, clean background',
-    imagePath: 'calibration-seeds/portrait.jpg',
-  },
-  fashion: {
-    subject: 'Full-body fashion photograph of a model in a tailored black coat, editorial pose, studio setting',
-    imagePath: 'calibration-seeds/fashion.jpg',
-  },
-  editorial: {
-    subject: 'Editorial photograph of a CEO standing in a glass-walled corner office, city skyline behind, late afternoon light',
-    imagePath: 'calibration-seeds/editorial.jpg',
-  },
-  street: {
-    subject: 'Street photograph of a musician playing saxophone on a rain-wet sidewalk at dusk, neon reflections',
-    imagePath: 'calibration-seeds/street.jpg',
-  },
-  landscape: {
-    subject: 'Dramatic landscape of coastal cliffs at golden hour, waves crashing below, clouds streaked with light',
-    imagePath: 'calibration-seeds/landscape.jpg',
-  },
-  fine_art: {
-    subject: 'Fine art photograph of a dancer mid-leap in an empty white gallery, motion blur on extremities, sharp torso',
-    imagePath: 'calibration-seeds/fine_art.jpg',
-  },
-  commercial: {
-    subject: 'Commercial product photograph of a luxury watch on a dark slate surface, single hard light source, precise reflections',
-    imagePath: 'calibration-seeds/commercial.jpg',
-  },
-};
 
 // ============================================================================
 // Distillation Prompt

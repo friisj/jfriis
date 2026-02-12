@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { ArrowLeft, Plus } from 'lucide-react';
+import { ArrowLeft, Plus, Settings } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -18,14 +18,17 @@ import {
   createPhotographerConfig, updatePhotographerConfig, deletePhotographerConfig,
   createDirectorConfig, updateDirectorConfig, deleteDirectorConfig,
   createProductionConfig, updateProductionConfig, deleteProductionConfig,
+  getCalibrationSeeds,
 } from '@/lib/cog';
 import {
   generatePhotographerSeed, generateDirectorSeed, generateProductionSeed,
 } from '@/lib/ai/actions/generate-config-seed';
 import { CalibrationPanel } from './calibration-panel';
+import { SeedManager } from './seed-manager';
 import type {
   CogPhotographerConfig, CogDirectorConfig, CogProductionConfig,
   CogPhotographerType,
+  CogCalibrationSeed,
 } from '@/lib/types/cog';
 
 // ============================================================================
@@ -47,16 +50,6 @@ interface EditingState {
   type: ConfigType;
   config?: AnyConfig;
 }
-
-const PHOTOGRAPHER_TYPES: { value: CogPhotographerType; label: string }[] = [
-  { value: 'portrait', label: 'Portrait' },
-  { value: 'fashion', label: 'Fashion' },
-  { value: 'editorial', label: 'Editorial' },
-  { value: 'street', label: 'Street' },
-  { value: 'landscape', label: 'Landscape' },
-  { value: 'fine_art', label: 'Fine Art' },
-  { value: 'commercial', label: 'Commercial' },
-];
 
 const TYPE_DEFS: Record<ConfigType, {
   title: string;
@@ -175,10 +168,11 @@ async function removeConfig(type: ConfigType, id: string) {
 // List column (generic for all types)
 // ============================================================================
 
-function ConfigColumn({ type, onEdit, onNew }: {
+function ConfigColumn({ type, onEdit, onNew, onManageTypes }: {
   type: ConfigType;
   onEdit: (config: AnyConfig) => void;
   onNew: () => void;
+  onManageTypes: () => void;
 }) {
   const [configs, setConfigs] = useState<AnyConfig[]>([]);
   const [loading, setLoading] = useState(true);
@@ -197,9 +191,14 @@ function ConfigColumn({ type, onEdit, onNew }: {
     <div className="space-y-3">
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-semibold">{def.title}</h3>
-        <Button size="sm" variant="ghost" onClick={onNew} className="h-6 w-6 p-0">
-          <Plus className="h-4 w-4" />
-        </Button>
+        <div className="flex items-center gap-0.5">
+          <Button size="sm" variant="ghost" onClick={onManageTypes} className="h-6 w-6 p-0" title="Manage types">
+            <Settings className="h-3.5 w-3.5" />
+          </Button>
+          <Button size="sm" variant="ghost" onClick={onNew} className="h-6 w-6 p-0">
+            <Plus className="h-4 w-4" />
+          </Button>
+        </div>
       </div>
       {loading ? (
         <p className="text-sm text-muted-foreground py-4">Loading...</p>
@@ -223,11 +222,12 @@ function ConfigColumn({ type, onEdit, onNew }: {
 // Form view (handles create/edit for all types)
 // ============================================================================
 
-function ConfigFormView({ type, config, userId, onDone }: {
+function ConfigFormView({ type, config, userId, onDone, seeds }: {
   type: ConfigType;
   config?: AnyConfig;
   userId: string;
   onDone: () => void;
+  seeds: CogCalibrationSeed[];
 }) {
   const def = TYPE_DEFS[type];
   const editingId = config?.id ?? null;
@@ -326,8 +326,8 @@ function ConfigFormView({ type, config, userId, onDone }: {
                 <SelectValue placeholder="Select type..." />
               </SelectTrigger>
               <SelectContent>
-                {PHOTOGRAPHER_TYPES.map(t => (
-                  <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
+                {seeds.map(s => (
+                  <SelectItem key={s.type_key} value={s.type_key}>{s.label}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -372,19 +372,27 @@ function ConfigFormView({ type, config, userId, onDone }: {
 // Config Library (main export)
 // ============================================================================
 
+type View = { kind: 'list' } | { kind: 'edit'; state: EditingState } | { kind: 'manage-types' };
+
 export function ConfigLibrary() {
   const [userId, setUserId] = useState<string | null>(null);
-  const [editing, setEditing] = useState<EditingState | null>(null);
+  const [view, setView] = useState<View>({ kind: 'list' });
   const [refreshKey, setRefreshKey] = useState(0);
+  const [seeds, setSeeds] = useState<CogCalibrationSeed[]>([]);
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => {
       if (user) setUserId(user.id);
     });
+    getCalibrationSeeds().then(setSeeds).catch(() => {});
   }, []);
 
+  useEffect(() => {
+    getCalibrationSeeds().then(setSeeds).catch(() => {});
+  }, [refreshKey]);
+
   function done() {
-    setEditing(null);
+    setView({ kind: 'list' });
     setRefreshKey(k => k + 1);
   }
 
@@ -392,17 +400,31 @@ export function ConfigLibrary() {
     return <p className="text-sm text-muted-foreground py-4">Loading...</p>;
   }
 
-  if (editing) {
+  if (view.kind === 'edit') {
     return (
-      <ConfigFormView type={editing.type} config={editing.config} userId={userId} onDone={done} />
+      <ConfigFormView type={view.state.type} config={view.state.config} userId={userId} onDone={done} seeds={seeds} />
+    );
+  }
+
+  if (view.kind === 'manage-types') {
+    return (
+      <div className="max-w-6xl mx-auto space-y-4">
+        <div className="flex items-center gap-2">
+          <Button size="sm" variant="ghost" onClick={done} className="h-7 px-2 text-xs">
+            <ArrowLeft className="h-3.5 w-3.5 mr-1" /> Back
+          </Button>
+          <h3 className="text-sm font-semibold">Manage Types</h3>
+        </div>
+        <SeedManager />
+      </div>
     );
   }
 
   return (
     <div className="grid grid-cols-3 gap-6" key={refreshKey}>
-      <ConfigColumn type="photographer" onEdit={c => setEditing({ type: 'photographer', config: c })} onNew={() => setEditing({ type: 'photographer' })} />
-      <ConfigColumn type="director" onEdit={c => setEditing({ type: 'director', config: c })} onNew={() => setEditing({ type: 'director' })} />
-      <ConfigColumn type="production" onEdit={c => setEditing({ type: 'production', config: c })} onNew={() => setEditing({ type: 'production' })} />
+      <ConfigColumn type="photographer" onEdit={c => setView({ kind: 'edit', state: { type: 'photographer', config: c } })} onNew={() => setView({ kind: 'edit', state: { type: 'photographer' } })} onManageTypes={() => setView({ kind: 'manage-types' })} />
+      <ConfigColumn type="director" onEdit={c => setView({ kind: 'edit', state: { type: 'director', config: c } })} onNew={() => setView({ kind: 'edit', state: { type: 'director' } })} onManageTypes={() => setView({ kind: 'manage-types' })} />
+      <ConfigColumn type="production" onEdit={c => setView({ kind: 'edit', state: { type: 'production', config: c } })} onNew={() => setView({ kind: 'edit', state: { type: 'production' } })} onManageTypes={() => setView({ kind: 'manage-types' })} />
     </div>
   );
 }

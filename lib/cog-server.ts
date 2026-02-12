@@ -38,6 +38,7 @@ import type {
   CogBenchmarkConfigType,
   CogBenchmarkRoundStatus,
   CogBenchmarkImageRating,
+  CogCalibrationSeed,
 } from './types/cog';
 
 // ============================================================================
@@ -1031,4 +1032,26 @@ export async function updateBenchmarkImageRatingServer(
 
   if (error) throw error;
   return data as CogBenchmarkImage;
+}
+
+// ============================================================================
+// Calibration Seed Operations (Server)
+// ============================================================================
+
+/**
+ * Get a calibration seed by type_key - server-side
+ */
+export async function getCalibrationSeedByTypeServer(typeKey: string): Promise<CogCalibrationSeed | null> {
+  const client = await createClient();
+  const { data, error } = await (client as any)
+    .from('cog_calibration_seeds')
+    .select('*')
+    .eq('type_key', typeKey)
+    .single();
+
+  if (error) {
+    if (error.code === 'PGRST116') return null; // Not found
+    throw error;
+  }
+  return data as CogCalibrationSeed;
 }

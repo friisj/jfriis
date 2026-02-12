@@ -50,6 +50,9 @@ import type {
   CogBenchmarkRoundWithImages,
   CogBenchmarkConfigType,
   CogBenchmarkImageRating,
+  CogCalibrationSeed,
+  CogCalibrationSeedInsert,
+  CogCalibrationSeedUpdate,
 } from './types/cog';
 
 // ============================================================================
@@ -1882,4 +1885,68 @@ export async function updateBenchmarkImageRating(
 
   if (error) throw error;
   return data as CogBenchmarkImage;
+}
+
+// ============================================================================
+// Calibration Seed Operations (Client)
+// ============================================================================
+
+/**
+ * Get all calibration seeds ordered by position - client-side
+ */
+export async function getCalibrationSeeds(): Promise<CogCalibrationSeed[]> {
+  const { data, error } = await (supabase as any)
+    .from('cog_calibration_seeds')
+    .select('*')
+    .order('position', { ascending: true });
+
+  if (error) throw error;
+  return data as CogCalibrationSeed[];
+}
+
+/**
+ * Create a new calibration seed - client-side
+ */
+export async function createCalibrationSeed(input: CogCalibrationSeedInsert): Promise<CogCalibrationSeed> {
+  const { data, error } = await (supabase as any)
+    .from('cog_calibration_seeds')
+    .insert({
+      type_key: input.type_key,
+      label: input.label,
+      seed_subject: input.seed_subject,
+      seed_image_path: input.seed_image_path || null,
+      position: input.position,
+    })
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data as CogCalibrationSeed;
+}
+
+/**
+ * Update a calibration seed - client-side
+ */
+export async function updateCalibrationSeed(id: string, updates: CogCalibrationSeedUpdate): Promise<CogCalibrationSeed> {
+  const { data, error } = await (supabase as any)
+    .from('cog_calibration_seeds')
+    .update(updates)
+    .eq('id', id)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data as CogCalibrationSeed;
+}
+
+/**
+ * Delete a calibration seed - client-side
+ */
+export async function deleteCalibrationSeed(id: string): Promise<void> {
+  const { error } = await (supabase as any)
+    .from('cog_calibration_seeds')
+    .delete()
+    .eq('id', id);
+
+  if (error) throw error;
 }

@@ -10,13 +10,12 @@ import {
   createBenchmarkRoundServer,
   createBenchmarkImageServer,
   updateBenchmarkRoundStatusServer,
+  getCalibrationSeedByTypeServer,
 } from '@/lib/cog-server';
 import {
-  SEED_CONFIGS,
   buildDistillationPrompt,
   buildRefinementPrompt,
 } from '../prompts/calibration';
-import type { CogPhotographerType } from '@/lib/types/cog';
 
 // ============================================================================
 // distillPhotographer
@@ -48,8 +47,11 @@ export async function runBenchmarkRound(input: {
     throw new Error('Photographer config must have a type set to run benchmarks');
   }
 
-  const seed = SEED_CONFIGS[config.type as CogPhotographerType];
-  const fullPrompt = `${input.distilledPrompt}\n\nSubject: ${seed.subject}`;
+  const seed = await getCalibrationSeedByTypeServer(config.type);
+  if (!seed) {
+    throw new Error(`No calibration seed found for type "${config.type}"`);
+  }
+  const fullPrompt = `${input.distilledPrompt}\n\nSubject: ${seed.seed_subject}`;
 
   // Create round record
   const round = await createBenchmarkRoundServer({
@@ -63,15 +65,17 @@ export async function runBenchmarkRound(input: {
 
   // Try to download the seed image for I2I reference
   let referenceImages: Array<{ base64: string; mimeType: string; subjectDescription?: string }> | undefined;
-  const { data: seedImageData } = await supabase.storage
-    .from('cog-images')
-    .download(seed.imagePath);
+  if (seed.seed_image_path) {
+    const { data: seedImageData } = await supabase.storage
+      .from('cog-images')
+      .download(seed.seed_image_path);
 
-  if (seedImageData) {
-    const arrayBuffer = await seedImageData.arrayBuffer();
-    const base64 = Buffer.from(arrayBuffer).toString('base64');
-    const mimeType = seedImageData.type || 'image/jpeg';
-    referenceImages = [{ base64, mimeType, subjectDescription: seed.subject }];
+    if (seedImageData) {
+      const arrayBuffer = await seedImageData.arrayBuffer();
+      const base64 = Buffer.from(arrayBuffer).toString('base64');
+      const mimeType = seedImageData.type || 'image/jpeg';
+      referenceImages = [{ base64, mimeType, subjectDescription: seed.seed_subject }];
+    }
   }
 
   // Generate 3 benchmark images (I2I if seed image exists, text-only fallback)

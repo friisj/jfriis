@@ -190,7 +190,25 @@ export interface CogJobStep {
 export type CogFoundationStatus = 'pending' | 'running' | 'completed' | 'failed';
 export type CogSequenceStatus = 'pending' | 'running' | 'completed' | 'failed';
 
-export type CogPhotographerType = 'portrait' | 'fashion' | 'editorial' | 'street' | 'landscape' | 'fine_art' | 'commercial';
+// Note: CogPhotographerType is no longer exhaustive — the DB (cog_calibration_seeds) is the source of truth
+export type CogPhotographerType = 'portrait' | 'fashion' | 'editorial' | 'street' | 'landscape' | 'fine_art' | 'commercial' | (string & {});
+
+// ============================================================================
+// Calibration Seed Types
+// ============================================================================
+
+export interface CogCalibrationSeed {
+  id: string;
+  type_key: string;
+  label: string;
+  seed_subject: string;
+  seed_image_path: string | null;
+  position: number;
+  created_at: string;
+}
+
+export type CogCalibrationSeedInsert = Omit<CogCalibrationSeed, 'id' | 'created_at'>;
+export type CogCalibrationSeedUpdate = Partial<Omit<CogCalibrationSeed, 'id' | 'created_at'>>;
 
 export interface CogPhotographerConfig {
   id: string;
