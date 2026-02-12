@@ -77,7 +77,7 @@ export default async function SeriesDetailPage({ params }: Props) {
   const { series, images, jobs, children, enabledTags, globalTags } = data;
 
   return (
-    <div className="flex-1 border border-blue-500">
+    <div className="flex-1">
       <SeriesLayout
         series={series}
         images={images}

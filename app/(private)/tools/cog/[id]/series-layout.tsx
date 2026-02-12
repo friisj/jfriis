@@ -831,7 +831,7 @@ export function SeriesLayout({
   const [showUploadModal, setShowUploadModal] = useState(false);
 
   return (
-    <div className="h-[calc(100vh-4rem)]">
+    <div className="h-[calc(100vh-3rem)]">
       {/* Wide layout: 2 resizable columns */}
       <div className="hidden lg:block h-full">
         <ResizablePanelGroup direction="horizontal" className="h-full">

@@ -133,10 +133,8 @@ export function PipelineExecutionMonitor({
   const [isPolling, setIsPolling] = useState(
     initialJob.status === 'running' || initialJob.status === 'ready'
   );
-  const [isCancelling, setIsCancelling] = useState(false);
   const [isSelectingBase, setIsSelectingBase] = useState(false);
   const [isRunningAction, setIsRunningAction] = useState(false);
-  const [countdown, setCountdown] = useState<number | null>(null);
   const [isSavingSteps, setIsSavingSteps] = useState(false);
 
   // Step editing state: initialize from existing job steps
@@ -213,41 +211,6 @@ export function PipelineExecutionMonitor({
 
     return () => clearInterval(interval);
   }, [isPolling, job.id, baseCandidates.length, fetchCandidates]);
-
-  // Countdown timer for auto-advance preview
-  useEffect(() => {
-    const currentStepIndex = job.steps.findIndex((s) => s.status === 'running');
-    const currentStep = currentStepIndex >= 0 ? job.steps[currentStepIndex] : null;
-    const nextStep = currentStepIndex >= 0 && currentStepIndex < job.steps.length - 1 ? job.steps[currentStepIndex + 1] : null;
-
-    // Show countdown when current step completes and there's a next step
-    if (currentStep?.status === 'completed' && nextStep?.status === 'pending') {
-      setCountdown(4);
-      const timer = setInterval(() => {
-        setCountdown((c) => {
-          if (c === null || c <= 0) {
-            clearInterval(timer);
-            return null;
-          }
-          return c - 1;
-        });
-      }, 1000);
-      return () => clearInterval(timer);
-    } else {
-      setCountdown(null);
-    }
-  }, [job.steps]);
-
-  const handleCancel = async () => {
-    setIsCancelling(true);
-    try {
-      await updateJob(job.id, { status: 'cancelled' });
-    } catch (error) {
-      console.error('Failed to cancel job:', error);
-    } finally {
-      setIsCancelling(false);
-    }
-  };
 
   const handleSelectBase = async (imageId: string) => {
     setIsSelectingBase(true);
@@ -418,17 +381,13 @@ export function PipelineExecutionMonitor({
   );
 
   const completedSteps = job.steps.filter((s) => s.status === 'completed');
-  const failedSteps = job.steps.filter((s) => s.status === 'failed');
 
   return (
     <div className="space-y-6">
-      {/* Two-Phase Status Banner */}
+      {/* Pipeline Phases */}
       {isTwoPhase && (
         <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Pipeline Phases</CardTitle>
-          </CardHeader>
-          <CardContent>
+          <CardContent className="pt-6">
             <div className="flex items-center gap-2">
               {/* Foundation Phase */}
               <div className="flex-1">
@@ -443,10 +402,7 @@ export function PipelineExecutionMonitor({
                 </p>
               </div>
 
-              {/* Arrow */}
-              <div className="text-muted-foreground shrink-0 px-1">
-                &rarr;
-              </div>
+              <div className="text-muted-foreground shrink-0 px-1">&rarr;</div>
 
               {/* Base Selection Phase */}
               <div className="flex-1">
@@ -461,10 +417,7 @@ export function PipelineExecutionMonitor({
                 </p>
               </div>
 
-              {/* Arrow */}
-              <div className="text-muted-foreground shrink-0 px-1">
-                &rarr;
-              </div>
+              <div className="text-muted-foreground shrink-0 px-1">&rarr;</div>
 
               {/* Sequence Phase */}
               <div className="flex-1">
@@ -473,6 +426,11 @@ export function PipelineExecutionMonitor({
                     {sequenceStatus}
                   </span>
                   <span className="text-sm font-medium">Sequence</span>
+                  {sequenceStatus !== 'pending' && job.steps.length > 0 && (
+                    <span className="text-xs text-muted-foreground">
+                      {completedSteps.length}/{job.steps.length}
+                    </span>
+                  )}
                 </div>
                 <p className="text-xs text-muted-foreground">
                   Refine with pipeline steps
@@ -480,41 +438,72 @@ export function PipelineExecutionMonitor({
               </div>
             </div>
 
-            {/* Action Buttons */}
+            {/* Actions — contextual to current pipeline state */}
             <div className="flex items-center gap-2 mt-4 pt-4 border-t">
-              {/* Re-run Foundation: available when foundation completed or failed */}
-              {(foundationStatus === 'completed' || foundationStatus === 'failed') && (
+              {/* Edit: when job is in draft and nothing is running */}
+              {job.status === 'draft' && foundationStatus === 'pending' && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => router.push(`/tools/cog/${seriesId}/pipeline/${job.id}/edit`)}
+                >
+                  Edit
+                </Button>
+              )}
+
+              {/* Re-run Foundation: when foundation completed or failed, sequence not running */}
+              {(foundationStatus === 'completed' || foundationStatus === 'failed') && sequenceStatus !== 'running' && (
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={handleRerunFoundation}
                   disabled={isRunningAction}
                 >
-                  {isRunningAction ? 'Starting...' : 'Re-run Foundation'}
+                  Re-run Foundation
                 </Button>
               )}
 
-              {/* Start/Re-run Sequence: available when base is selected and steps exist */}
-              {job.selected_base_image_id && sequenceStatus !== 'running' && (
+              {/* Cancel: when either phase is actively running */}
+              {(foundationStatus === 'running' || sequenceStatus === 'running') && (
                 <>
                   <Button
+                    variant="destructive"
                     size="sm"
-                    onClick={handleStartSequence}
-                    disabled={isRunningAction || job.steps.length === 0}
+                    onClick={handleForceCancel}
+                    disabled={isRunningAction}
                   >
-                    {isRunningAction
-                      ? 'Starting...'
-                      : sequenceStatus === 'completed' || sequenceStatus === 'failed'
-                        ? 'Re-run Sequence'
-                        : 'Start Sequence'
-                    }
+                    {isRunningAction ? 'Cancelling...' : 'Cancel'}
                   </Button>
-                  {job.steps.length === 0 && sequenceStatus === 'pending' && (
-                    <span className="text-xs text-muted-foreground">
-                      Add steps below to start the sequence
-                    </span>
-                  )}
                 </>
+              )}
+
+              {/* Terminal actions: when sequence finished or job cancelled */}
+              {(sequenceStatus === 'completed' || sequenceStatus === 'failed' || job.status === 'cancelled') && (
+                <>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleDuplicate}
+                    disabled={isRunningAction}
+                  >
+                    Duplicate
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleResetToDraft}
+                    disabled={isRunningAction}
+                  >
+                    Reset to Draft
+                  </Button>
+                </>
+              )}
+
+              {/* Error message */}
+              {job.error_message && (
+                <span className="text-xs text-destructive ml-auto">
+                  {job.error_message}
+                </span>
               )}
             </div>
           </CardContent>
@@ -677,101 +666,6 @@ export function PipelineExecutionMonitor({
         </Card>
       )}
 
-      {/* Overall Status Banner */}
-      <Card>
-        <CardContent className="pt-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="flex items-center gap-3 mb-2">
-                <span
-                  className={`text-lg font-semibold px-3 py-1 rounded-full ${
-                    job.status === 'completed'
-                      ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-                      : job.status === 'running'
-                        ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
-                        : job.status === 'failed'
-                          ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
-                          : job.status === 'cancelled'
-                            ? 'bg-muted'
-                            : 'bg-muted'
-                  }`}
-                >
-                  {job.status}
-                </span>
-                {countdown !== null && (
-                  <span className="text-sm text-muted-foreground">
-                    Next step in {countdown}s...
-                  </span>
-                )}
-              </div>
-              <p className="text-sm text-muted-foreground">
-                {completedSteps.length} of {job.steps.length} steps completed
-                {failedSteps.length > 0 && ` -- ${failedSteps.length} failed`}
-              </p>
-            </div>
-            <div className="flex items-center gap-2">
-              {job.status === 'draft' && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => router.push(`/tools/cog/${seriesId}/pipeline/${job.id}/edit`)}
-                >
-                  Edit
-                </Button>
-              )}
-              {(job.status === 'running' || job.status === 'ready') && (
-                <>
-                  <Button
-                    variant="destructive"
-                    onClick={handleCancel}
-                    disabled={isCancelling}
-                  >
-                    {isCancelling ? 'Cancelling...' : 'Cancel Pipeline'}
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={handleForceCancel}
-                    disabled={isRunningAction}
-                  >
-                    Force Cancel
-                  </Button>
-                </>
-              )}
-              {(job.status === 'failed' || job.status === 'cancelled' || job.status === 'completed') && (
-                <>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={handleResetToDraft}
-                    disabled={isRunningAction}
-                  >
-                    Reset to Draft
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={handleDuplicate}
-                    disabled={isRunningAction}
-                  >
-                    Duplicate
-                  </Button>
-                </>
-              )}
-              {job.selected_base_image_id && sequenceStatus !== 'running' && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleChangeBaseSelection}
-                  disabled={isRunningAction}
-                >
-                  Change Base Image
-                </Button>
-              )}
-            </div>
-          </div>
-        </CardContent>
-      </Card>
 
       {/* Pipeline Steps: Edit mode (base selected, sequence pending) */}
       {isStepEditMode && (
