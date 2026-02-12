@@ -12,7 +12,7 @@ import {
   updateBenchmarkRoundStatusServer,
 } from '@/lib/cog-server';
 import {
-  SEED_SUBJECTS,
+  SEED_CONFIGS,
   buildDistillationPrompt,
   buildRefinementPrompt,
 } from '../prompts/calibration';
@@ -48,8 +48,8 @@ export async function runBenchmarkRound(input: {
     throw new Error('Photographer config must have a type set to run benchmarks');
   }
 
-  const seedSubject = SEED_SUBJECTS[config.type as CogPhotographerType];
-  const fullPrompt = `${input.distilledPrompt}\n\nSubject: ${seedSubject}`;
+  const seed = SEED_CONFIGS[config.type as CogPhotographerType];
+  const fullPrompt = `${input.distilledPrompt}\n\nSubject: ${seed.subject}`;
 
   // Create round record
   const round = await createBenchmarkRoundServer({
@@ -59,13 +59,28 @@ export async function runBenchmarkRound(input: {
     distilled_prompt: input.distilledPrompt,
   });
 
-  // Generate 3 benchmark images
   const supabase = await createClient();
+
+  // Try to download the seed image for I2I reference
+  let referenceImages: Array<{ base64: string; mimeType: string; subjectDescription?: string }> | undefined;
+  const { data: seedImageData } = await supabase.storage
+    .from('cog-images')
+    .download(seed.imagePath);
+
+  if (seedImageData) {
+    const arrayBuffer = await seedImageData.arrayBuffer();
+    const base64 = Buffer.from(arrayBuffer).toString('base64');
+    const mimeType = seedImageData.type || 'image/jpeg';
+    referenceImages = [{ base64, mimeType, subjectDescription: seed.subject }];
+  }
+
+  // Generate 3 benchmark images (I2I if seed image exists, text-only fallback)
   const images: Array<{ id: string; storagePath: string }> = [];
 
   for (let i = 0; i < 3; i++) {
     const generated = await generateImageWithGemini3Pro({
       prompt: fullPrompt,
+      referenceImages,
       aspectRatio: '1:1',
       imageSize: '1K',
     });
