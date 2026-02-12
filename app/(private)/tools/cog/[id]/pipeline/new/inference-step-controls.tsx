@@ -1,12 +1,10 @@
 'use client';
 
-import { useState } from 'react';
-import { ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
-import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/components/ui/collapsible';
 import { INFERENCE_STEP_DEFAULTS, type InferenceStepDefault } from '@/lib/ai/inference-defaults';
 import type { InferenceStepConfigs, InferenceStepOverride } from '@/lib/types/cog';
 
@@ -24,10 +22,11 @@ function getEffective(step: number, overrides: InferenceStepConfigs | null): Inf
   return { ...defaults, ...overrides[step], hasOverride: true };
 }
 
-export function InferenceStepControls({ value, onChange }: InferenceStepControlsProps) {
-  const [isOpen, setIsOpen] = useState(false);
+export function getEnabledStepCount(value: InferenceStepConfigs | null): number {
+  return STEP_NUMBERS.filter(s => getEffective(s, value).enabled).length;
+}
 
-  const enabledCount = STEP_NUMBERS.filter(s => getEffective(s, value).enabled).length;
+export function InferenceStepControls({ value, onChange }: InferenceStepControlsProps) {
   const hasOverrides = value !== null && Object.keys(value).length > 0;
 
   function updateStep(step: number, patch: Partial<InferenceStepOverride>) {
@@ -35,7 +34,6 @@ export function InferenceStepControls({ value, onChange }: InferenceStepControls
     const existing = current[step] || { enabled: INFERENCE_STEP_DEFAULTS[step].enabled };
     const updated = { ...existing, ...patch };
 
-    // Check if this step is now identical to defaults — if so, remove override
     const defaults = INFERENCE_STEP_DEFAULTS[step];
     const isDefault =
       updated.enabled === defaults.enabled &&
@@ -50,48 +48,45 @@ export function InferenceStepControls({ value, onChange }: InferenceStepControls
       newConfigs[step] = updated;
     }
 
-    // If no overrides remain, set to null
     onChange(Object.keys(newConfigs).length === 0 ? null : newConfigs);
   }
 
-  function handleReset() {
-    onChange(null);
-  }
-
   return (
-    <Collapsible open={isOpen} onOpenChange={setIsOpen}>
-      <CollapsibleTrigger asChild>
-        <Button variant="ghost" className="w-full justify-between px-0 hover:bg-transparent">
-          <span className="text-sm font-medium">
-            Inference Steps ({enabledCount}/7 enabled{hasOverrides ? ', custom' : ''})
-          </span>
-          <ChevronDown className={`h-4 w-4 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
-        </Button>
-      </CollapsibleTrigger>
-      <CollapsibleContent className="pt-2">
-        <p className="text-xs text-muted-foreground mb-3">
-          Temperature: lower (0.1-0.3) = precise and focused, higher (0.7-1.0) = creative and varied. Max 2.0.
-        </p>
-        <div className="space-y-1">
-          {STEP_NUMBERS.map(step => {
-            const effective = getEffective(step, value);
-            return (
-              <div
-                key={step}
-                className={`flex items-center gap-3 rounded-md border px-3 py-1.5 ${!effective.enabled ? 'opacity-40' : ''}`}
-              >
-                <Switch
-                  checked={effective.enabled}
-                  onCheckedChange={(checked) => updateStep(step, { enabled: checked })}
-                  className="scale-75"
-                />
-                <span className="text-xs text-muted-foreground font-mono w-4">#{step}</span>
-                <span className="text-xs font-medium flex-1 min-w-0 truncate">{effective.label}</span>
+    <div>
+      <div className="space-y-1">
+        {STEP_NUMBERS.map(step => {
+          const effective = getEffective(step, value);
+          return (
+            <div
+              key={step}
+              className={`flex items-center gap-2 rounded-md border pl-2 pr-1.5 py-1.5 ${!effective.enabled ? 'opacity-40' : ''}`}
+            >
+              <Switch
+                checked={effective.enabled}
+                onCheckedChange={(checked) => updateStep(step, { enabled: checked })}
+                className="scale-75"
+              />
+              <span className="text-xs font-medium min-w-0 truncate">{effective.label}</span>
 
+              <div className="flex items-center flex-1 justify-end gap-8">
                 {effective.enabled && (
                   <>
-                    <div className="flex items-center gap-1">
-                      <Label className="text-[10px] text-muted-foreground">temp</Label>
+                    {THINKING_STEPS.has(step) ? (
+                      <div className="flex items-center gap-2">
+                        <Label htmlFor={`think-${step}`} className="text-[10px] font-mono text-muted-foreground cursor-pointer">Thinking</Label>
+                        <Checkbox
+                          id={`think-${step}`}
+                          checked={effective.thinking}
+                          onCheckedChange={(checked) => updateStep(step, { thinking: checked === true })}
+                          className="h-3.5 w-3.5"
+                        />
+                      </div>
+                    ) : (
+                      <div className="w-[46px]" />
+                    )}
+
+                    <div className="flex items-center gap-2">
+                      <Label className="text-[10px] font-mono text-muted-foreground">Temperature</Label>
                       <Input
                         type="number"
                         min={0}
@@ -104,12 +99,12 @@ export function InferenceStepControls({ value, onChange }: InferenceStepControls
                             updateStep(step, { temperature: Math.round(v * 10) / 10 });
                           }
                         }}
-                        className="w-16 h-6 text-xs px-1.5"
+                        className="w-16 h-6 md:text-xs px-1.5 md:text-mono md:tabular-nums"
                       />
                     </div>
 
-                    <div className="flex items-center gap-1">
-                      <Label className="text-[10px] text-muted-foreground">tokens</Label>
+                    <div className="flex items-center gap-2">
+                      <Label className="text-[10px] font-mono text-muted-foreground">Tokens</Label>
                       <Input
                         type="number"
                         min={100}
@@ -122,37 +117,27 @@ export function InferenceStepControls({ value, onChange }: InferenceStepControls
                             updateStep(step, { max_tokens: v });
                           }
                         }}
-                        className="w-[72px] h-6 text-xs px-1.5"
+                        className="w-[72px] h-6 md:text-xs px-1.5 md:text-mono md:tabular-nums"
                       />
                     </div>
-
-                    {THINKING_STEPS.has(step) && (
-                      <div className="flex items-center gap-1">
-                        <Label className="text-[10px] text-muted-foreground">think</Label>
-                        <Switch
-                          checked={effective.thinking}
-                          onCheckedChange={(checked) => updateStep(step, { thinking: checked })}
-                          className="scale-75"
-                        />
-                      </div>
-                    )}
                   </>
                 )}
-
-                {effective.hasOverride && (
-                  <span className="text-[9px] text-muted-foreground/60 uppercase tracking-wider">*</span>
-                )}
               </div>
-            );
-          })}
-        </div>
+            </div>
+          );
+        })}
+      </div>
 
+      <div className="flex items-center pt-1">
         {hasOverrides && (
-          <Button variant="ghost" size="sm" onClick={handleReset} className="text-xs mt-2">
+          <Button variant="ghost" size="sm" onClick={() => onChange(null)} className="text-xs">
             Reset to Defaults
           </Button>
         )}
-      </CollapsibleContent>
-    </Collapsible>
+        <p className="text-xs text-muted-foreground ml-auto px-2">
+          Lower temperature = precise, higher = creative (0–2)
+        </p>
+      </div>
+    </div>
   );
 }

@@ -13,7 +13,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { StoryInput, ReferenceImageSelector } from './initial-input-selector';
 import { ReferenceImageSearch } from './reference-image-search';
 import { ReferenceImageRouting } from './reference-image-routing';
-import { InferenceStepControls } from './inference-step-controls';
+import { InferenceStepControls, getEnabledStepCount } from './inference-step-controls';
 import { createPipelineJob, updatePipelineJob } from '@/lib/cog';
 import { runFoundation } from '@/lib/ai/actions/run-pipeline-job';
 import { INFERENCE_STEP_DEFAULTS } from '@/lib/ai/inference-defaults';
@@ -456,10 +456,7 @@ export function PipelineBuilderForm({ seriesId, images, photographerConfigs, dir
       {/* Inference Step Controls */}
       <Card>
         <CardHeader>
-          <CardTitle>Inference Pipeline</CardTitle>
-          <p className="text-sm text-muted-foreground">
-            Fine-tune the 7-step LLM inference chain. Toggle steps on/off and adjust temperature, token limits, and thinking mode per step.
-          </p>
+          <CardTitle>Inference Pipeline ({getEnabledStepCount(inferenceStepConfigs)}/7)</CardTitle>
         </CardHeader>
         <CardContent>
           <InferenceStepControls
