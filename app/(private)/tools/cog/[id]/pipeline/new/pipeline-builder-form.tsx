@@ -9,9 +9,11 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { StoryInput, ReferenceImageSelector } from './initial-input-selector';
+import { InferenceStepControls } from './inference-step-controls';
 import { createPipelineJob, updatePipelineJob } from '@/lib/cog';
 import { runFoundation } from '@/lib/ai/actions/run-pipeline-job';
-import type { CogImage, CogJob, CogPhotographerConfig, CogDirectorConfig, CogProductionConfig, CogImageModel, CogAspectRatio } from '@/lib/types/cog';
+import { INFERENCE_STEP_DEFAULTS } from '@/lib/ai/inference-defaults';
+import type { CogImage, CogJob, CogPhotographerConfig, CogDirectorConfig, CogProductionConfig, CogImageModel, CogAspectRatio, InferenceStepConfigs } from '@/lib/types/cog';
 
 interface PipelineBuilderFormProps {
   seriesId: string;
@@ -39,6 +41,9 @@ export function PipelineBuilderForm({ seriesId, images, photographerConfigs, dir
   // Creative inputs
   const [colors, setColors] = useState<string>(existingJob?.colors?.join(', ') || '');
   const [themes, setThemes] = useState<string>(existingJob?.themes?.join(', ') || '');
+
+  // Per-step inference overrides
+  const [inferenceStepConfigs, setInferenceStepConfigs] = useState<InferenceStepConfigs | null>(existingJob?.inference_step_configs ?? null);
 
   // Inference controls
   const [numBaseImages, setNumBaseImages] = useState(existingJob?.num_base_images ?? 3);
@@ -80,6 +85,7 @@ export function PipelineBuilderForm({ seriesId, images, photographerConfigs, dir
         num_base_images: numBaseImages,
         foundation_model: foundationModel,
         aspect_ratio: aspectRatio,
+        inference_step_configs: inferenceStepConfigs,
       };
 
       let jobId: string;
@@ -180,6 +186,36 @@ export function PipelineBuilderForm({ seriesId, images, photographerConfigs, dir
                 <p className="text-sm text-muted-foreground">
                   {selectedImages.length} image(s) selected
                 </p>
+              </div>
+            )}
+
+            {inferenceStepConfigs && Object.keys(inferenceStepConfigs).length > 0 && (
+              <div>
+                <Label className="text-sm font-medium">Inference Step Overrides</Label>
+                <ul className="text-sm text-muted-foreground space-y-0.5 mt-1">
+                  {Object.entries(inferenceStepConfigs).map(([stepStr, override]) => {
+                    const step = Number(stepStr);
+                    const defaults = INFERENCE_STEP_DEFAULTS[step];
+                    if (!defaults) return null;
+                    const parts: string[] = [];
+                    if (!override.enabled) {
+                      parts.push('disabled');
+                    } else {
+                      if (override.temperature !== undefined && override.temperature !== defaults.temperature)
+                        parts.push(`temp ${override.temperature}`);
+                      if (override.max_tokens !== undefined && override.max_tokens !== defaults.max_tokens)
+                        parts.push(`${override.max_tokens} tokens`);
+                      if (override.thinking !== undefined && override.thinking !== defaults.thinking)
+                        parts.push(override.thinking ? 'thinking on' : 'thinking off');
+                    }
+                    if (parts.length === 0) return null;
+                    return (
+                      <li key={step}>
+                        <span className="font-mono text-xs">#{step}</span> {defaults.label}: {parts.join(', ')}
+                      </li>
+                    );
+                  })}
+                </ul>
               </div>
             )}
           </CardContent>
@@ -366,6 +402,22 @@ export function PipelineBuilderForm({ seriesId, images, photographerConfigs, dir
             </Select>
             <p className="text-xs text-muted-foreground">Aspect ratio for generated base candidates</p>
           </div>
+        </CardContent>
+      </Card>
+
+      {/* Inference Step Controls */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Inference Pipeline</CardTitle>
+          <p className="text-sm text-muted-foreground">
+            Fine-tune the 7-step LLM inference chain. Toggle steps on/off and adjust temperature, token limits, and thinking mode per step.
+          </p>
+        </CardHeader>
+        <CardContent>
+          <InferenceStepControls
+            value={inferenceStepConfigs}
+            onChange={setInferenceStepConfigs}
+          />
         </CardContent>
       </Card>
 

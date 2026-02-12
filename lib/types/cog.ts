@@ -18,6 +18,16 @@ export type CogImageSource = 'upload' | 'generated';
 
 export type CogImageModel = 'auto' | 'imagen-4' | 'imagen-3-capability' | 'gemini-3-pro-image' | 'flux-2-pro' | 'flux-2-dev';
 
+// Per-step inference pipeline overrides
+export interface InferenceStepOverride {
+  enabled: boolean;
+  temperature?: number;  // 0.0–2.0
+  max_tokens?: number;   // 100–8000
+  thinking?: boolean;    // meaningful for steps 5, 7
+}
+
+export type InferenceStepConfigs = Record<number, InferenceStepOverride>;
+
 export type CogImageSize = '1K' | '2K' | '4K';
 
 export type CogAspectRatio = '1:1' | '2:3' | '3:2' | '3:4' | '4:3' | '4:5' | '5:4' | '9:16' | '16:9' | '21:9';
@@ -110,6 +120,8 @@ export interface CogJob {
   // Inference input arrays
   colors: string[] | null;
   themes: string[] | null;
+  // Per-step inference pipeline overrides
+  inference_step_configs: InferenceStepConfigs | null;
   // Inference log (populated during foundation phase)
   inference_log: CogInferenceLogEntry[] | null;
   // Timestamps
@@ -296,6 +308,8 @@ export interface CogJobInsert {
   // Inference input arrays
   colors?: string[] | null;
   themes?: string[] | null;
+  // Per-step inference pipeline overrides
+  inference_step_configs?: InferenceStepConfigs | null;
 }
 
 export interface CogJobInputInsert {
@@ -392,6 +406,9 @@ export interface CogInferenceLogEntry {
   tokens_out: number | null;
   duration_ms: number;
   thinking: boolean;
+  temperature?: number;
+  max_tokens?: number;
+  skipped?: boolean;
 }
 
 export interface CogPipelineStepOutputEnriched extends CogPipelineStepOutput {

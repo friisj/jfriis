@@ -40,6 +40,7 @@ import type {
   CogPipelineJobWithSteps,
   CogInferenceLogEntry,
 } from '@/lib/types/cog';
+import { getStepConfig } from '../inference-defaults';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // Pipeline Context
@@ -481,108 +482,176 @@ async function generateBaseImagePrompt(
 
   // Get job-level inference controls
   const inferenceModel = job.inference_model || 'gemini-2.0-flash';
-  const useThinkingInfer4 = job.use_thinking_infer4 !== false;
-  const useThinkingInfer6 = job.use_thinking_infer6 !== false;
   const maxRefImages = job.max_reference_images || 3;
+  const stepConfigs = job.inference_step_configs;
+
+  // Legacy fallback: use_thinking_infer4/infer6 fields when no step configs
+  const legacyThinking4 = job.use_thinking_infer4 !== false;
+  const legacyThinking6 = job.use_thinking_infer6 !== false;
 
   // Inference log: accumulate entries and persist after each step
   const inferenceLog: CogInferenceLogEntry[] = [];
+  // Track latest substantive output for downstream steps when a step is skipped
+  let latestOutput = context.basePrompt;
 
   async function persistLog() {
     await updateJobServer(job.id, { inference_log: inferenceLog });
   }
 
-  // Step 1: Context translation (story + themes → accessible event-oriented briefing)
-  console.log('[Inference] Step 1: Context translation...');
-  const promptCT = buildContextTranslationPrompt(inferenceCtx);
-  const resultCT = await callLLM(promptCT, false, inferenceModel);
-  inferenceLog.push({
-    step: 1,
-    label: 'Context Translation',
-    prompt: promptCT,
-    response: resultCT.text,
-    tokens_in: resultCT.tokens_in,
-    tokens_out: resultCT.tokens_out,
-    duration_ms: resultCT.duration_ms,
-    thinking: false,
-  });
-  await persistLog();
-  console.log(`[Inference] Step 1 complete (${resultCT.text.length} chars, ${resultCT.duration_ms}ms)`);
+  function logSkipped(step: number, label: string) {
+    inferenceLog.push({
+      step,
+      label,
+      prompt: '',
+      response: 'Skipped (disabled)',
+      tokens_in: null,
+      tokens_out: null,
+      duration_ms: 0,
+      thinking: false,
+      skipped: true,
+    });
+  }
 
-  // Feed translation into context for downstream steps
-  inferenceCtx.contextBriefing = resultCT.text;
+  // Resolve step config, with legacy fallback for thinking on steps 5 and 7
+  function resolveStepConfig(step: number) {
+    const config = getStepConfig(step, stepConfigs);
+    // When no step overrides present, fall back to legacy thinking fields
+    if (!stepConfigs) {
+      if (step === 5) return { ...config, thinking: legacyThinking4 };
+      if (step === 7) return { ...config, thinking: legacyThinking6 };
+    }
+    return config;
+  }
+
+  // Step 1: Context translation
+  const cfg1 = resolveStepConfig(1);
+  let resultCTText: string;
+  if (!cfg1.enabled) {
+    console.log('[Inference] Step 1: Skipped (disabled)');
+    logSkipped(1, 'Context Translation');
+    await persistLog();
+    resultCTText = latestOutput;
+  } else {
+    console.log('[Inference] Step 1: Context translation...');
+    const promptCT = buildContextTranslationPrompt(inferenceCtx);
+    const resultCT = await callLLM(promptCT, { temperature: cfg1.temperature, maxTokens: cfg1.max_tokens, inferenceModel });
+    resultCTText = resultCT.text;
+    latestOutput = resultCTText;
+    inferenceLog.push({
+      step: 1, label: 'Context Translation', prompt: promptCT, response: resultCT.text,
+      tokens_in: resultCT.tokens_in, tokens_out: resultCT.tokens_out,
+      duration_ms: resultCT.duration_ms, thinking: false,
+      temperature: cfg1.temperature, max_tokens: cfg1.max_tokens,
+    });
+    await persistLog();
+    console.log(`[Inference] Step 1 complete (${resultCT.text.length} chars, ${resultCT.duration_ms}ms)`);
+  }
+  inferenceCtx.contextBriefing = resultCTText;
 
   // Step 2: Photographer concept generation
-  console.log('[Inference] Step 2: Photographer concept generation...');
-  const prompt1 = buildInference1Prompt(inferenceCtx);
-  const result1 = await callLLM(prompt1, false, inferenceModel);
-  inferenceLog.push({
-    step: 2,
-    label: 'Photographer Concept',
-    prompt: prompt1,
-    response: result1.text,
-    tokens_in: result1.tokens_in,
-    tokens_out: result1.tokens_out,
-    duration_ms: result1.duration_ms,
-    thinking: false,
-  });
-  await persistLog();
-  console.log(`[Inference] Step 2 complete (${result1.text.length} chars, ${result1.duration_ms}ms)`);
+  const cfg2 = resolveStepConfig(2);
+  let result1Text: string;
+  if (!cfg2.enabled) {
+    console.log('[Inference] Step 2: Skipped (disabled)');
+    logSkipped(2, 'Photographer Concept');
+    await persistLog();
+    result1Text = latestOutput;
+  } else {
+    console.log('[Inference] Step 2: Photographer concept generation...');
+    const prompt1 = buildInference1Prompt(inferenceCtx);
+    const result1 = await callLLM(prompt1, { temperature: cfg2.temperature, maxTokens: cfg2.max_tokens, inferenceModel });
+    result1Text = result1.text;
+    latestOutput = result1Text;
+    inferenceLog.push({
+      step: 2, label: 'Photographer Concept', prompt: prompt1, response: result1.text,
+      tokens_in: result1.tokens_in, tokens_out: result1.tokens_out,
+      duration_ms: result1.duration_ms, thinking: false,
+      temperature: cfg2.temperature, max_tokens: cfg2.max_tokens,
+    });
+    await persistLog();
+    console.log(`[Inference] Step 2 complete (${result1.text.length} chars, ${result1.duration_ms}ms)`);
+  }
 
   // Step 3: Director briefing synthesis
-  console.log('[Inference] Step 3: Director briefing synthesis...');
-  const prompt2 = buildInference2Prompt(inferenceCtx, result1.text);
-  const result2 = await callLLM(prompt2, false, inferenceModel);
-  inferenceLog.push({
-    step: 3,
-    label: 'Director Briefing',
-    prompt: prompt2,
-    response: result2.text,
-    tokens_in: result2.tokens_in,
-    tokens_out: result2.tokens_out,
-    duration_ms: result2.duration_ms,
-    thinking: false,
-  });
-  await persistLog();
-  console.log(`[Inference] Step 3 complete (${result2.text.length} chars, ${result2.duration_ms}ms)`);
+  const cfg3 = resolveStepConfig(3);
+  let result2Text: string;
+  if (!cfg3.enabled) {
+    console.log('[Inference] Step 3: Skipped (disabled)');
+    logSkipped(3, 'Director Briefing');
+    await persistLog();
+    result2Text = latestOutput;
+  } else {
+    console.log('[Inference] Step 3: Director briefing synthesis...');
+    const prompt2 = buildInference2Prompt(inferenceCtx, result1Text);
+    const result2 = await callLLM(prompt2, { temperature: cfg3.temperature, maxTokens: cfg3.max_tokens, inferenceModel });
+    result2Text = result2.text;
+    latestOutput = result2Text;
+    inferenceLog.push({
+      step: 3, label: 'Director Briefing', prompt: prompt2, response: result2.text,
+      tokens_in: result2.tokens_in, tokens_out: result2.tokens_out,
+      duration_ms: result2.duration_ms, thinking: false,
+      temperature: cfg3.temperature, max_tokens: cfg3.max_tokens,
+    });
+    await persistLog();
+    console.log(`[Inference] Step 3 complete (${result2.text.length} chars, ${result2.duration_ms}ms)`);
+  }
 
   // Step 4: Production constraint integration
-  console.log('[Inference] Step 4: Production constraint integration...');
-  const prompt3 = buildInference3Prompt(inferenceCtx, result1.text, result2.text);
-  const result3 = await callLLM(prompt3, false, inferenceModel);
-  inferenceLog.push({
-    step: 4,
-    label: 'Production Constraints',
-    prompt: prompt3,
-    response: result3.text,
-    tokens_in: result3.tokens_in,
-    tokens_out: result3.tokens_out,
-    duration_ms: result3.duration_ms,
-    thinking: false,
-  });
-  await persistLog();
-  console.log(`[Inference] Step 4 complete (${result3.text.length} chars, ${result3.duration_ms}ms)`);
+  const cfg4 = resolveStepConfig(4);
+  let result3Text: string;
+  if (!cfg4.enabled) {
+    console.log('[Inference] Step 4: Skipped (disabled)');
+    logSkipped(4, 'Production Constraints');
+    await persistLog();
+    result3Text = latestOutput;
+  } else {
+    console.log('[Inference] Step 4: Production constraint integration...');
+    const prompt3 = buildInference3Prompt(inferenceCtx, result1Text, result2Text);
+    const result3 = await callLLM(prompt3, { temperature: cfg4.temperature, maxTokens: cfg4.max_tokens, inferenceModel });
+    result3Text = result3.text;
+    latestOutput = result3Text;
+    inferenceLog.push({
+      step: 4, label: 'Production Constraints', prompt: prompt3, response: result3.text,
+      tokens_in: result3.tokens_in, tokens_out: result3.tokens_out,
+      duration_ms: result3.duration_ms, thinking: false,
+      temperature: cfg4.temperature, max_tokens: cfg4.max_tokens,
+    });
+    await persistLog();
+    console.log(`[Inference] Step 4 complete (${result3.text.length} chars, ${result3.duration_ms}ms)`);
+  }
 
-  // Step 5: Core creative intent refinement (WITH THINKING)
-  console.log(`[Inference] Step 5: Core intent refinement (thinking=${useThinkingInfer4})...`);
-  const prompt4 = buildInference4Prompt(inferenceCtx, result3.text);
-  const result4 = await callLLM(prompt4, useThinkingInfer4, inferenceModel);
-  inferenceLog.push({
-    step: 5,
-    label: 'Creative Synthesis',
-    prompt: prompt4,
-    response: result4.text,
-    tokens_in: result4.tokens_in,
-    tokens_out: result4.tokens_out,
-    duration_ms: result4.duration_ms,
-    thinking: useThinkingInfer4,
-  });
-  await persistLog();
-  console.log(`[Inference] Step 5 complete (${result4.text.length} chars, ${result4.duration_ms}ms)`);
+  // Step 5: Core creative intent refinement
+  const cfg5 = resolveStepConfig(5);
+  let result4Text: string;
+  if (!cfg5.enabled) {
+    console.log('[Inference] Step 5: Skipped (disabled)');
+    logSkipped(5, 'Creative Synthesis');
+    await persistLog();
+    result4Text = latestOutput;
+  } else {
+    console.log(`[Inference] Step 5: Core intent refinement (thinking=${cfg5.thinking})...`);
+    const prompt4 = buildInference4Prompt(inferenceCtx, result3Text);
+    const result4 = await callLLM(prompt4, { temperature: cfg5.temperature, maxTokens: cfg5.max_tokens, inferenceModel });
+    result4Text = result4.text;
+    latestOutput = result4Text;
+    inferenceLog.push({
+      step: 5, label: 'Creative Synthesis', prompt: prompt4, response: result4.text,
+      tokens_in: result4.tokens_in, tokens_out: result4.tokens_out,
+      duration_ms: result4.duration_ms, thinking: cfg5.thinking,
+      temperature: cfg5.temperature, max_tokens: cfg5.max_tokens,
+    });
+    await persistLog();
+    console.log(`[Inference] Step 5 complete (${result4.text.length} chars, ${result4.duration_ms}ms)`);
+  }
 
-  // Step 6: Reference image vision analysis (skipped if no images)
+  // Step 6: Reference image vision analysis
+  const cfg6 = resolveStepConfig(6);
   const visionOutputs: string[] = [];
-  if (context.initialImages.length > 0) {
+  if (!cfg6.enabled) {
+    console.log('[Inference] Step 6: Skipped (disabled)');
+    logSkipped(6, 'Vision Analysis');
+    await persistLog();
+  } else if (context.initialImages.length > 0) {
     const imagesToAnalyze = context.initialImages.slice(0, maxRefImages);
     console.log(`[Inference] Step 6: Vision analysis on ${imagesToAnalyze.length} reference images...`);
     const supabase = await createClient();
@@ -593,17 +662,14 @@ async function generateBaseImagePrompt(
       try {
         const image = await getImageByIdServer(imageId);
         const imageBase64 = await fetchImageAsBase64(image.storage_path, supabase);
-        const visionResult = await callVisionLLM(visionPrompt, imageBase64, inferenceModel);
+        const visionResult = await callVisionLLM(visionPrompt, imageBase64, { temperature: cfg6.temperature, maxTokens: cfg6.max_tokens, inferenceModel });
         visionOutputs.push(visionResult.text);
         inferenceLog.push({
-          step: 6,
-          label: `Vision Analysis (image ${i + 1}/${imagesToAnalyze.length})`,
-          prompt: visionPrompt,
-          response: visionResult.text,
-          tokens_in: visionResult.tokens_in,
-          tokens_out: visionResult.tokens_out,
-          duration_ms: visionResult.duration_ms,
-          thinking: false,
+          step: 6, label: `Vision Analysis (image ${i + 1}/${imagesToAnalyze.length})`,
+          prompt: visionPrompt, response: visionResult.text,
+          tokens_in: visionResult.tokens_in, tokens_out: visionResult.tokens_out,
+          duration_ms: visionResult.duration_ms, thinking: false,
+          temperature: cfg6.temperature, max_tokens: cfg6.max_tokens,
         });
         await persistLog();
         console.log(`[Inference] Step 6: Analyzed image ${imageId} (${visionResult.text.length} chars, ${visionResult.duration_ms}ms)`);
@@ -615,31 +681,29 @@ async function generateBaseImagePrompt(
   } else {
     console.log('[Inference] Step 6: Skipped (no reference images)');
     inferenceLog.push({
-      step: 6,
-      label: 'Vision Analysis',
-      prompt: '',
-      response: 'Skipped (no reference images)',
-      tokens_in: null,
-      tokens_out: null,
-      duration_ms: 0,
-      thinking: false,
+      step: 6, label: 'Vision Analysis', prompt: '', response: 'Skipped (no reference images)',
+      tokens_in: null, tokens_out: null, duration_ms: 0, thinking: false,
     });
     await persistLog();
   }
 
-  // Step 7: Final director vision synthesis (WITH THINKING)
-  console.log(`[Inference] Step 7: Final synthesis (thinking=${useThinkingInfer6})...`);
-  const prompt6 = buildInference6Prompt(inferenceCtx, result4.text, visionOutputs);
-  const result6 = await callLLM(prompt6, useThinkingInfer6, inferenceModel);
+  // Step 7: Final director vision synthesis
+  const cfg7 = resolveStepConfig(7);
+  if (!cfg7.enabled) {
+    console.log('[Inference] Step 7: Skipped (disabled) — using latest output as final prompt');
+    logSkipped(7, 'Final Prompt Synthesis');
+    await persistLog();
+    return latestOutput;
+  }
+
+  console.log(`[Inference] Step 7: Final synthesis (thinking=${cfg7.thinking})...`);
+  const prompt6 = buildInference6Prompt(inferenceCtx, result4Text, visionOutputs);
+  const result6 = await callLLM(prompt6, { temperature: cfg7.temperature, maxTokens: cfg7.max_tokens, inferenceModel });
   inferenceLog.push({
-    step: 7,
-    label: 'Final Prompt Synthesis',
-    prompt: prompt6,
-    response: result6.text,
-    tokens_in: result6.tokens_in,
-    tokens_out: result6.tokens_out,
-    duration_ms: result6.duration_ms,
-    thinking: useThinkingInfer6,
+    step: 7, label: 'Final Prompt Synthesis', prompt: prompt6, response: result6.text,
+    tokens_in: result6.tokens_in, tokens_out: result6.tokens_out,
+    duration_ms: result6.duration_ms, thinking: cfg7.thinking,
+    temperature: cfg7.temperature, max_tokens: cfg7.max_tokens,
   });
   await persistLog();
   console.log(`[Inference] Step 7 complete (${result6.text.length} chars, ${result6.duration_ms}ms)`);
@@ -665,21 +729,17 @@ interface LLMResult {
  * gemini-multimodal.ts) to support thinking-capable models.
  *
  * @param prompt - The prompt text
- * @param useThinking - Whether to use a thinking-capable model variant
- * @param inferenceModel - The model ID to use (e.g. 'gemini-2.0-flash')
+ * @param options - Temperature, maxTokens, and model configuration
  */
 async function callLLM(
   prompt: string,
-  useThinking: boolean,
-  inferenceModel: string
+  options: { temperature: number; maxTokens: number; inferenceModel: string }
 ): Promise<LLMResult> {
   const startTime = Date.now();
   const apiKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY;
   if (!apiKey) {
     throw new Error('GOOGLE_GENERATIVE_AI_API_KEY not configured for inference pipeline');
   }
-
-  const modelId = inferenceModel;
 
   const requestBody: Record<string, unknown> = {
     contents: [
@@ -688,12 +748,12 @@ async function callLLM(
       },
     ],
     generationConfig: {
-      temperature: useThinking ? 0.8 : 0.7,
-      maxOutputTokens: useThinking ? 2000 : 1200,
+      temperature: options.temperature,
+      maxOutputTokens: options.maxTokens,
     },
   };
 
-  const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${modelId}:generateContent`;
+  const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${options.inferenceModel}:generateContent`;
 
   const response = await fetch(endpoint, {
     method: 'POST',
@@ -732,12 +792,12 @@ async function callLLM(
  *
  * @param prompt - The text prompt to accompany the image
  * @param imageBase64 - Base64-encoded image data
- * @param inferenceModel - The model ID to use
+ * @param options - Temperature, maxTokens, and model configuration
  */
 async function callVisionLLM(
   prompt: string,
   imageBase64: string,
-  inferenceModel: string
+  options: { temperature: number; maxTokens: number; inferenceModel: string }
 ): Promise<LLMResult> {
   const startTime = Date.now();
   const apiKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY;
@@ -763,8 +823,8 @@ async function callVisionLLM(
       },
     ],
     generationConfig: {
-      temperature: 0.3,
-      maxOutputTokens: 800,
+      temperature: options.temperature,
+      maxOutputTokens: options.maxTokens,
     },
   };
 

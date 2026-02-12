@@ -43,6 +43,7 @@ import type {
   CogProductionConfigInsert,
   CogProductionConfigUpdate,
   CogPipelineBaseCandidate,
+  InferenceStepConfigs,
 } from './types/cog';
 
 // ============================================================================
@@ -1002,6 +1003,8 @@ export async function createPipelineJob(input: {
   // Inference input arrays
   colors?: string[] | null;
   themes?: string[] | null;
+  // Per-step inference overrides
+  inference_step_configs?: InferenceStepConfigs | null;
   steps?: CogPipelineStepInsert[];
 }): Promise<{ job: CogJob; steps: CogPipelineStep[] }> {
   // Create the job first
@@ -1033,6 +1036,8 @@ export async function createPipelineJob(input: {
       // Inference input arrays
       colors: input.colors || null,
       themes: input.themes || null,
+      // Per-step inference overrides
+      inference_step_configs: input.inference_step_configs || null,
     })
     .select()
     .single();
@@ -1127,6 +1132,7 @@ export async function updatePipelineJob(jobId: string, input: {
   num_base_images?: number;
   foundation_model?: string;
   aspect_ratio?: string;
+  inference_step_configs?: InferenceStepConfigs | null;
 }): Promise<CogJob> {
   const { data: job, error } = await (supabase as any)
     .from('cog_jobs')
@@ -1763,6 +1769,7 @@ export async function duplicatePipelineJob(jobId: string): Promise<CogJob> {
       foundation_model: originalJob.foundation_model || 'gemini-3-pro-image',
       colors: originalJob.colors,
       themes: originalJob.themes,
+      inference_step_configs: originalJob.inference_step_configs || null,
       image_model: 'auto',
       image_size: '2K',
       aspect_ratio: originalJob.aspect_ratio || '1:1',
