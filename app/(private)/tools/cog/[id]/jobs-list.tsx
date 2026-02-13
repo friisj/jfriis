@@ -104,318 +104,157 @@ export function JobsList({ jobs: initialJobs, remixJobs: initialRemixJobs, think
 
   const hasNoJobs = jobs.length === 0 && remixJobs.length === 0 && thinkingJobs.length === 0;
 
+  // Merge all job types into a single sorted list (newest first)
+  type UnifiedJob =
+    | { type: 'job'; data: CogJob; created_at: string }
+    | { type: 'remix'; data: CogRemixJob; created_at: string }
+    | { type: 'thinking'; data: CogThinkingJob; created_at: string };
+
+  const allJobs: UnifiedJob[] = [
+    ...jobs.map((j) => ({ type: 'job' as const, data: j, created_at: j.created_at })),
+    ...remixJobs.map((j) => ({ type: 'remix' as const, data: j, created_at: j.created_at })),
+    ...thinkingJobs.map((j) => ({ type: 'thinking' as const, data: j, created_at: j.created_at })),
+  ].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+
+  const newJobLinks = (
+    <div className={`grid ${hasNoJobs ? 'grid-cols-2 sm:grid-cols-4' : 'grid-cols-4'} gap-2`}>
+      <Link
+        href={`/tools/cog/${seriesId}/job/new`}
+        className={`border rounded-lg ${hasNoJobs ? 'p-6' : 'p-4'} hover:bg-muted/50 transition-colors ${hasNoJobs ? 'flex flex-col items-center justify-center gap-2' : 'text-center'}`}
+      >
+        {hasNoJobs && <div className="text-2xl">📦</div>}
+        <div className="font-medium">New Batch Job</div>
+        {hasNoJobs && <div className="text-xs text-muted-foreground text-center">Generate multiple images from a single prompt</div>}
+      </Link>
+      <Link
+        href={`/tools/cog/${seriesId}/pipeline/new`}
+        className={`border rounded-lg ${hasNoJobs ? 'p-6' : 'p-4'} hover:bg-muted/50 transition-colors ${hasNoJobs ? 'flex flex-col items-center justify-center gap-2' : 'text-center'}`}
+      >
+        {hasNoJobs && <div className="text-2xl">⚡</div>}
+        <div className="font-medium">New Pipeline</div>
+        {hasNoJobs && <div className="text-xs text-muted-foreground text-center">Sequential multi-step image generation</div>}
+      </Link>
+      <Link
+        href={`/tools/cog/${seriesId}/remix/new`}
+        className={`border rounded-lg ${hasNoJobs ? 'p-6' : 'p-4'} hover:bg-muted/50 transition-colors ${hasNoJobs ? 'flex flex-col items-center justify-center gap-2' : 'text-center'}`}
+      >
+        {hasNoJobs && <div className="text-2xl">🔄</div>}
+        <div className="font-medium">New Remix</div>
+        {hasNoJobs && <div className="text-xs text-muted-foreground text-center">Source stock photos with AI evaluation</div>}
+      </Link>
+      <Link
+        href={`/tools/cog/${seriesId}/thinking/new`}
+        className={`border rounded-lg ${hasNoJobs ? 'p-6' : 'p-4'} hover:bg-muted/50 transition-colors ${hasNoJobs ? 'flex flex-col items-center justify-center gap-2' : 'text-center'}`}
+      >
+        {hasNoJobs && <div className="text-2xl">💭</div>}
+        <div className="font-medium">New Thinking</div>
+        {hasNoJobs && <div className="text-xs text-muted-foreground text-center">Story to image via thinking chain</div>}
+      </Link>
+    </div>
+  );
+
   if (hasNoJobs) {
     return (
       <div className="space-y-4">
         <div className="flex flex-col items-center justify-center py-8 border rounded-lg bg-muted/50">
           <p className="text-muted-foreground mb-4">No jobs yet. Create your first job to get started.</p>
         </div>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-          <Link
-            href={`/tools/cog/${seriesId}/job/new`}
-            className="border rounded-lg p-6 hover:bg-muted/50 transition-colors flex flex-col items-center justify-center gap-2"
-          >
-            <div className="text-2xl">📦</div>
-            <div className="font-medium">New Batch Job</div>
-            <div className="text-xs text-muted-foreground text-center">
-              Generate multiple images from a single prompt
-            </div>
-          </Link>
-          <Link
-            href={`/tools/cog/${seriesId}/pipeline/new`}
-            className="border rounded-lg p-6 hover:bg-muted/50 transition-colors flex flex-col items-center justify-center gap-2"
-          >
-            <div className="text-2xl">⚡</div>
-            <div className="font-medium">New Pipeline</div>
-            <div className="text-xs text-muted-foreground text-center">
-              Sequential multi-step image generation
-            </div>
-          </Link>
-          <Link
-            href={`/tools/cog/${seriesId}/remix/new`}
-            className="border rounded-lg p-6 hover:bg-muted/50 transition-colors flex flex-col items-center justify-center gap-2"
-          >
-            <div className="text-2xl">🔄</div>
-            <div className="font-medium">New Remix</div>
-            <div className="text-xs text-muted-foreground text-center">
-              Source stock photos with AI evaluation
-            </div>
-          </Link>
-          <Link
-            href={`/tools/cog/${seriesId}/thinking/new`}
-            className="border rounded-lg p-6 hover:bg-muted/50 transition-colors flex flex-col items-center justify-center gap-2"
-          >
-            <div className="text-2xl">💭</div>
-            <div className="font-medium">New Thinking</div>
-            <div className="text-xs text-muted-foreground text-center">
-              Story to image via thinking chain
-            </div>
-          </Link>
-        </div>
+        {newJobLinks}
       </div>
     );
   }
 
   return (
     <div className="space-y-2">
-      <div className="grid grid-cols-4 gap-2">
-        <Link
-          href={`/tools/cog/${seriesId}/job/new`}
-          className="border rounded-lg p-4 hover:bg-muted/50 transition-colors text-center"
-        >
-          New Batch Job
-        </Link>
-        <Link
-          href={`/tools/cog/${seriesId}/pipeline/new`}
-          className="border rounded-lg p-4 hover:bg-muted/50 transition-colors text-center"
-        >
-          New Pipeline
-        </Link>
-        <Link
-          href={`/tools/cog/${seriesId}/remix/new`}
-          className="border rounded-lg p-4 hover:bg-muted/50 transition-colors text-center"
-        >
-          New Remix
-        </Link>
-        <Link
-          href={`/tools/cog/${seriesId}/thinking/new`}
-          className="border rounded-lg p-4 hover:bg-muted/50 transition-colors text-center"
-        >
-          New Thinking
-        </Link>
-      </div>
-      {/* Remix jobs */}
-      {remixJobs.map((rj) => (
-        <div
-          key={rj.id}
-          className="border rounded-lg p-4 hover:bg-muted/50 transition-colors"
-        >
-          <div className="flex items-center justify-between">
-            <Link
-              href={`/tools/cog/${seriesId}/remix/${rj.id}`}
-              className="flex-1 min-w-0"
-            >
-              <div className="flex items-center gap-2">
-                <h3 className="font-medium">{rj.title || 'Untitled Remix'}</h3>
-                <span className="text-xs px-1.5 py-0.5 rounded bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200">
-                  remix
-                </span>
-              </div>
-              <p className="text-sm text-muted-foreground line-clamp-1">
-                {rj.story}
-              </p>
-            </Link>
-            <div className="flex items-center gap-2 ml-4">
-              <span
-                className={`text-xs px-2 py-1 rounded-full ${
-                  rj.status === 'completed'
-                    ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-                    : rj.status === 'running'
-                      ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
-                      : rj.status === 'failed'
-                        ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
-                        : 'bg-muted'
-                }`}
-              >
-                {rj.status}
-              </span>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => handleDuplicateRemix(rj)}
-                disabled={duplicatingId === rj.id}
-              >
-                {duplicatingId === rj.id ? '...' : 'Duplicate'}
-              </Button>
-              {confirmId === rj.id ? (
-                <div className="flex items-center gap-1">
-                  <Button
-                    variant="destructive"
-                    size="sm"
-                    onClick={() => handleDeleteRemix(rj.id)}
-                    disabled={deletingId === rj.id}
-                  >
-                    {deletingId === rj.id ? '...' : 'Yes'}
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setConfirmId(null)}
-                    disabled={deletingId === rj.id}
-                  >
-                    No
-                  </Button>
+      {newJobLinks}
+      {allJobs.map((unified) => {
+        if (unified.type === 'remix') {
+          const rj = unified.data;
+          return (
+            <div key={rj.id} className="border rounded-lg p-4 hover:bg-muted/50 transition-colors">
+              <div className="flex items-center justify-between">
+                <Link href={`/tools/cog/${seriesId}/remix/${rj.id}`} className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <h3 className="font-medium">{rj.title || 'Untitled Remix'}</h3>
+                    <span className="text-xs px-1.5 py-0.5 rounded bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200">remix</span>
+                  </div>
+                  <p className="text-sm text-muted-foreground line-clamp-1">{rj.story}</p>
+                </Link>
+                <div className="flex items-center gap-2 ml-4">
+                  <span className={`text-xs px-2 py-1 rounded-full ${rj.status === 'completed' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' : rj.status === 'running' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200' : rj.status === 'failed' ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200' : 'bg-muted'}`}>{rj.status}</span>
+                  <Button variant="ghost" size="sm" onClick={() => handleDuplicateRemix(rj)} disabled={duplicatingId === rj.id}>{duplicatingId === rj.id ? '...' : 'Duplicate'}</Button>
+                  {confirmId === rj.id ? (
+                    <div className="flex items-center gap-1">
+                      <Button variant="destructive" size="sm" onClick={() => handleDeleteRemix(rj.id)} disabled={deletingId === rj.id}>{deletingId === rj.id ? '...' : 'Yes'}</Button>
+                      <Button variant="ghost" size="sm" onClick={() => setConfirmId(null)} disabled={deletingId === rj.id}>No</Button>
+                    </div>
+                  ) : (
+                    <Button variant="ghost" size="sm" onClick={() => setConfirmId(rj.id)} disabled={rj.status === 'running'} className="text-destructive hover:text-destructive hover:bg-destructive/10">Delete</Button>
+                  )}
                 </div>
-              ) : (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setConfirmId(rj.id)}
-                  disabled={rj.status === 'running'}
-                  className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                >
-                  Delete
-                </Button>
-              )}
-            </div>
-          </div>
-        </div>
-      ))}
-      {/* Thinking jobs */}
-      {thinkingJobs.map((tj) => (
-        <div
-          key={tj.id}
-          className="border rounded-lg p-4 hover:bg-muted/50 transition-colors"
-        >
-          <div className="flex items-center justify-between">
-            <Link
-              href={`/tools/cog/${seriesId}/thinking/${tj.id}`}
-              className="flex-1 min-w-0"
-            >
-              <div className="flex items-center gap-2">
-                <h3 className="font-medium">{tj.title || 'Untitled Thinking'}</h3>
-                <span className="text-xs px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200">
-                  thinking
-                </span>
               </div>
-              <p className="text-sm text-muted-foreground line-clamp-1">
-                {tj.photographer} for {tj.publication} — {tj.story}
-              </p>
-            </Link>
-            <div className="flex items-center gap-2 ml-4">
-              <span
-                className={`text-xs px-2 py-1 rounded-full ${
-                  tj.status === 'completed'
-                    ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-                    : tj.status === 'running'
-                      ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
-                      : tj.status === 'failed'
-                        ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
-                        : 'bg-muted'
-                }`}
-              >
-                {tj.status}
-              </span>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => handleDuplicateThinking(tj)}
-                disabled={duplicatingId === tj.id}
-              >
-                {duplicatingId === tj.id ? '...' : 'Duplicate'}
-              </Button>
-              {confirmId === tj.id ? (
-                <div className="flex items-center gap-1">
-                  <Button
-                    variant="destructive"
-                    size="sm"
-                    onClick={() => handleDeleteThinking(tj.id)}
-                    disabled={deletingId === tj.id}
-                  >
-                    {deletingId === tj.id ? '...' : 'Yes'}
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setConfirmId(null)}
-                    disabled={deletingId === tj.id}
-                  >
-                    No
-                  </Button>
-                </div>
-              ) : (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setConfirmId(tj.id)}
-                  disabled={tj.status === 'running'}
-                  className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                >
-                  Delete
-                </Button>
-              )}
             </div>
-          </div>
-        </div>
-      ))}
-      {/* Regular jobs */}
-      {jobs.map((job) => {
+          );
+        }
+
+        if (unified.type === 'thinking') {
+          const tj = unified.data;
+          return (
+            <div key={tj.id} className="border rounded-lg p-4 hover:bg-muted/50 transition-colors">
+              <div className="flex items-center justify-between">
+                <Link href={`/tools/cog/${seriesId}/thinking/${tj.id}`} className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <h3 className="font-medium">{tj.title || 'Untitled Thinking'}</h3>
+                    <span className="text-xs px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200">thinking</span>
+                  </div>
+                  <p className="text-sm text-muted-foreground line-clamp-1">{tj.photographer} for {tj.publication} — {tj.story}</p>
+                </Link>
+                <div className="flex items-center gap-2 ml-4">
+                  <span className={`text-xs px-2 py-1 rounded-full ${tj.status === 'completed' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' : tj.status === 'running' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200' : tj.status === 'failed' ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200' : 'bg-muted'}`}>{tj.status}</span>
+                  <Button variant="ghost" size="sm" onClick={() => handleDuplicateThinking(tj)} disabled={duplicatingId === tj.id}>{duplicatingId === tj.id ? '...' : 'Duplicate'}</Button>
+                  {confirmId === tj.id ? (
+                    <div className="flex items-center gap-1">
+                      <Button variant="destructive" size="sm" onClick={() => handleDeleteThinking(tj.id)} disabled={deletingId === tj.id}>{deletingId === tj.id ? '...' : 'Yes'}</Button>
+                      <Button variant="ghost" size="sm" onClick={() => setConfirmId(null)} disabled={deletingId === tj.id}>No</Button>
+                    </div>
+                  ) : (
+                    <Button variant="ghost" size="sm" onClick={() => setConfirmId(tj.id)} disabled={tj.status === 'running'} className="text-destructive hover:text-destructive hover:bg-destructive/10">Delete</Button>
+                  )}
+                </div>
+              </div>
+            </div>
+          );
+        }
+
+        // Regular job (batch or pipeline)
+        const job = unified.data;
         const jobLink = job.job_type === 'pipeline'
           ? `/tools/cog/${seriesId}/pipeline/${job.id}`
           : `/tools/cog/${seriesId}/job/${job.id}`;
         return (
-          <div
-            key={job.id}
-            className="border rounded-lg p-4 hover:bg-muted/50 transition-colors"
-          >
+          <div key={job.id} className="border rounded-lg p-4 hover:bg-muted/50 transition-colors">
             <div className="flex items-center justify-between">
-              <Link
-                href={jobLink}
-                className="flex-1 min-w-0"
-              >
+              <Link href={jobLink} className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
                   <h3 className="font-medium">{job.title || 'Untitled Job'}</h3>
                   {job.job_type === 'pipeline' && (
                     <span className="text-xs px-1.5 py-0.5 rounded bg-muted text-muted-foreground">pipeline</span>
                   )}
                 </div>
-                <p className="text-sm text-muted-foreground line-clamp-1">
-                  {job.base_prompt}
-                </p>
+                <p className="text-sm text-muted-foreground line-clamp-1">{job.base_prompt}</p>
               </Link>
               <div className="flex items-center gap-2 ml-4">
-                <span
-                  className={`text-xs px-2 py-1 rounded-full ${
-                    job.status === 'completed'
-                      ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-                      : job.status === 'running'
-                        ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
-                        : job.status === 'failed'
-                          ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
-                          : 'bg-muted'
-                  }`}
-                >
-                  {job.status}
-                </span>
+                <span className={`text-xs px-2 py-1 rounded-full ${job.status === 'completed' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' : job.status === 'running' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200' : job.status === 'failed' ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200' : 'bg-muted'}`}>{job.status}</span>
                 {job.job_type === 'pipeline' && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => handleDuplicate(job)}
-                    disabled={duplicatingId === job.id}
-                  >
-                    {duplicatingId === job.id ? '...' : 'Duplicate'}
-                  </Button>
+                  <Button variant="ghost" size="sm" onClick={() => handleDuplicate(job)} disabled={duplicatingId === job.id}>{duplicatingId === job.id ? '...' : 'Duplicate'}</Button>
                 )}
                 {confirmId === job.id ? (
                   <div className="flex items-center gap-1">
-                    <Button
-                      variant="destructive"
-                      size="sm"
-                      onClick={() => handleDelete(job.id)}
-                      disabled={deletingId === job.id}
-                    >
-                      {deletingId === job.id ? '...' : 'Yes'}
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setConfirmId(null)}
-                      disabled={deletingId === job.id}
-                    >
-                      No
-                    </Button>
+                    <Button variant="destructive" size="sm" onClick={() => handleDelete(job.id)} disabled={deletingId === job.id}>{deletingId === job.id ? '...' : 'Yes'}</Button>
+                    <Button variant="ghost" size="sm" onClick={() => setConfirmId(null)} disabled={deletingId === job.id}>No</Button>
                   </div>
                 ) : (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setConfirmId(job.id)}
-                    disabled={job.foundation_status === 'running' || job.sequence_status === 'running'}
-                    className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                  >
-                    Delete
-                  </Button>
+                  <Button variant="ghost" size="sm" onClick={() => setConfirmId(job.id)} disabled={job.foundation_status === 'running' || job.sequence_status === 'running'} className="text-destructive hover:text-destructive hover:bg-destructive/10">Delete</Button>
                 )}
               </div>
             </div>
