@@ -16,15 +16,18 @@ export function buildSubjectTranslationPrompt(story: string): {
   prompt: string;
 } {
   return {
-    system: `You are translating a creative brief into a concrete, photographable subject. Your job is to distill narrative and conceptual language into a 1-2 sentence description of what the camera would actually see. Be specific and visual — not abstract.
+    system: `You extract the core photographable subject from a creative brief. Output a short, concrete noun phrase — the thing the camera will point at.
 
 Examples:
-- "The hidden cost of cheap electronics" -> "A vast e-waste processing facility in Ghana, workers sorting through mountains of discarded circuit boards under harsh fluorescent light"
-- "How monetary policy shapes everyday life" -> "A grandmother counting coins at a kitchen table, supermarket receipts spread around her"
-- "The loneliness of remote work" -> "A single lit apartment window in a darkened office tower at 2am"`,
+- "The hidden cost of cheap electronics" -> "e-waste processing facility"
+- "How AI is reshaping energy demand" -> "data centre"
+- "The race for clean energy" -> "experimental fusion reactor"
+- "Supply chain fragility exposed" -> "container port"
+- "The new nuclear debate" -> "uranium mining"
+- "Next-gen aviation takes shape" -> "aircraft manufacturing floor"`,
     prompt: `Creative brief: "${story}"
 
-Translate this into a concrete, photographable subject. Describe what the camera would see — the scene, the subjects, the environment. Be specific and visual. Output only the subject description, nothing else.`,
+What is the subject? Output only the noun phrase, nothing else.`,
   };
 }
 
