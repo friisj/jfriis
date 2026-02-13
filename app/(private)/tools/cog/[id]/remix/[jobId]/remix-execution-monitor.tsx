@@ -647,15 +647,15 @@ export function RemixExecutionMonitor({ initialJob, seriesId }: RemixExecutionMo
           <p className="text-sm">{job.story}</p>
           {job.topics.length > 0 && (
             <div className="flex gap-1 flex-wrap">
-              {job.topics.map((t) => (
-                <span key={t} className="text-xs px-2 py-0.5 rounded-full bg-muted">{t}</span>
+              {job.topics.map((t, i) => (
+                <span key={`${t}-${i}`} className="text-xs px-2 py-0.5 rounded-full bg-muted">{t}</span>
               ))}
             </div>
           )}
           {job.colors.length > 0 && (
             <div className="flex gap-1 flex-wrap">
-              {job.colors.map((c) => (
-                <span key={c} className="text-xs px-2 py-0.5 rounded-full bg-muted">{c}</span>
+              {job.colors.map((c, i) => (
+                <span key={`${c}-${i}`} className="text-xs px-2 py-0.5 rounded-full bg-muted">{c}</span>
               ))}
             </div>
           )}

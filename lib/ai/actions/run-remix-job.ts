@@ -117,6 +117,7 @@ export async function runRemixSource(
       bestReasoning: string | null;
       feedback: string | null;
     }[] = [];
+    let consecutiveEmptyResults = 0;
 
     for (let iterNum = 1; iterNum <= MAX_ITERATIONS; iterNum++) {
       console.log(`[Remix ${jobId}] Starting iteration ${iterNum}/${MAX_ITERATIONS}`);
@@ -207,10 +208,30 @@ export async function runRemixSource(
       );
 
       if (uniqueResults.length === 0) {
+        consecutiveEmptyResults++;
         await updateRemixSearchIterationServer(iteration.id, {
           status: 'completed',
           feedback: 'No results found for search queries',
         });
+
+        // If we get 2+ consecutive empty results, likely rate limited — fail fast
+        if (consecutiveEmptyResults >= 2) {
+          const errorMsg = 'Search API returned no results for multiple iterations — likely rate limited (Unsplash 403). Try again later.';
+          await appendRemixTraceServer(jobId,
+            traceEntry('source', 'rate_limit', errorMsg, 0, { iteration: iterNum })
+          );
+          await updateRemixJobServer(jobId, {
+            status: 'failed',
+            source_status: 'failed',
+            error_message: errorMsg,
+            completed_at: new Date().toISOString(),
+          });
+          for (const er of evalRuns) {
+            await updateRemixEvalRunServer(er.run.id, { status: 'completed' });
+          }
+          return;
+        }
+
         previousIterations.push({
           searchParams,
           bestScore: null,
@@ -219,6 +240,7 @@ export async function runRemixSource(
         });
         continue;
       }
+      consecutiveEmptyResults = 0;
 
       // ================================================================
       // Step D: Create candidate records
