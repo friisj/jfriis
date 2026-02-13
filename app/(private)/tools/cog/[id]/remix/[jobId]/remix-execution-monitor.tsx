@@ -709,51 +709,76 @@ export function RemixExecutionMonitor({ initialJob, seriesId }: RemixExecutionMo
       )}
 
       {/* Selected image preview */}
-      {selectedCandidate && selectedCandidate.image_id && (
-        <div className="border rounded-lg p-4 space-y-3">
-          <h3 className="font-medium text-sm">Selected Image</h3>
-          <div className="flex gap-4">
-            <div className="w-64 aspect-[4/3] rounded-lg overflow-hidden bg-muted">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={selectedCandidate.source_url}
-                alt="Selected"
-                className="w-full h-full object-cover"
-              />
-            </div>
-            <div className="flex-1 space-y-1 text-sm">
-              <p>
-                <span className="text-muted-foreground">Source:</span>{' '}
-                {selectedCandidate.source}
-              </p>
-              <p>
-                <span className="text-muted-foreground">Photographer:</span>{' '}
-                {selectedCandidate.photographer_url ? (
-                  <a
-                    href={selectedCandidate.photographer_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-blue-600 hover:underline"
-                  >
-                    {selectedCandidate.photographer}
-                  </a>
-                ) : (
-                  selectedCandidate.photographer || 'Unknown'
-                )}
-              </p>
-              <p>
-                <span className="text-muted-foreground">Score:</span>{' '}
-                {selectedCandidate.eval_score?.toFixed(1)}/10
-              </p>
-              {selectedCandidate.eval_reasoning && (
-                <p className="text-muted-foreground text-xs mt-2">
-                  {selectedCandidate.eval_reasoning}
+      {selectedCandidate && selectedCandidate.image_id && (() => {
+        const trace = job.trace || [];
+        const totalTokensIn = trace.reduce((sum, t) => sum + (t.tokens_in || 0), 0);
+        const totalTokensOut = trace.reduce((sum, t) => sum + (t.tokens_out || 0), 0);
+        const totalTokens = totalTokensIn + totalTokensOut;
+        const elapsedMs = job.started_at && job.completed_at
+          ? new Date(job.completed_at).getTime() - new Date(job.started_at).getTime()
+          : null;
+        const elapsedStr = elapsedMs !== null
+          ? elapsedMs < 60_000
+            ? `${(elapsedMs / 1000).toFixed(1)}s`
+            : `${Math.floor(elapsedMs / 60_000)}m ${Math.round((elapsedMs % 60_000) / 1000)}s`
+          : null;
+        const iterationCount = job.iterations?.length || 0;
+
+        return (
+          <div className="border rounded-lg p-4 space-y-3">
+            <h3 className="font-medium text-sm">Selected Image</h3>
+            <div className="flex gap-4">
+              <div className="w-64 aspect-[4/3] rounded-lg overflow-hidden bg-muted">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={selectedCandidate.source_url}
+                  alt="Selected"
+                  className="w-full h-full object-cover"
+                />
+              </div>
+              <div className="flex-1 space-y-1 text-sm">
+                <p>
+                  <span className="text-muted-foreground">Source:</span>{' '}
+                  {selectedCandidate.source}
                 </p>
-              )}
+                <p>
+                  <span className="text-muted-foreground">Photographer:</span>{' '}
+                  {selectedCandidate.photographer_url ? (
+                    <a
+                      href={selectedCandidate.photographer_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-blue-600 hover:underline"
+                    >
+                      {selectedCandidate.photographer}
+                    </a>
+                  ) : (
+                    selectedCandidate.photographer || 'Unknown'
+                  )}
+                </p>
+                <p>
+                  <span className="text-muted-foreground">Score:</span>{' '}
+                  {selectedCandidate.eval_score?.toFixed(1)}/10
+                </p>
+                {selectedCandidate.eval_reasoning && (
+                  <p className="text-muted-foreground text-xs mt-2">
+                    {selectedCandidate.eval_reasoning}
+                  </p>
+                )}
+                {(elapsedStr || totalTokens > 0) && (
+                  <div className="flex gap-3 pt-2 mt-2 border-t text-xs text-muted-foreground">
+                    {elapsedStr && <span>{elapsedStr} total</span>}
+                    {iterationCount > 0 && <span>{iterationCount} iteration{iterationCount !== 1 ? 's' : ''}</span>}
+                    {totalTokens > 0 && (
+                      <span>{totalTokens.toLocaleString()} tokens ({totalTokensIn.toLocaleString()} in / {totalTokensOut.toLocaleString()} out)</span>
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* Iteration cards */}
       {job.iterations.map((iteration) => (
