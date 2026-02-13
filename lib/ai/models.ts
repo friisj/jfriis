@@ -116,10 +116,10 @@ export const models: Record<string, ModelConfig> = {
     costTier: 'medium',
   },
   'gemini-thinking': {
-    id: 'gemini-2.5-pro-preview-06-05',
+    id: 'gemini-3-pro-image-preview',
     provider: 'google',
-    name: 'Gemini 2.5 Pro',
-    description: 'Thinking model with extended reasoning',
+    name: 'Gemini 3 Pro',
+    description: 'Multimodal model with text and image generation',
     capabilities: ['reasoning', 'creative', 'vision', 'long-context'],
     contextWindow: 1000000,
     costTier: 'medium',
