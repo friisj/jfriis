@@ -4,10 +4,11 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { TransformWrapper, TransformComponent } from 'react-zoom-pan-pinch'
 import { Button } from '@/components/ui/button'
-import { getCogImageUrl, getCogThumbnailUrl } from '@/lib/cog'
+import { getCogImageUrl, getCogThumbnailUrl, setImageStarRating } from '@/lib/cog'
 import { CogDrawerImage } from '@/components/cog/cog-image'
 import type { CogImageWithGroupInfo } from '@/lib/types/cog'
 import { setPrimaryImage, removeFromGroup, deleteImage } from '@/lib/ai/actions/manage-group'
+import { StarRating } from '../../star-rating'
 import { MorphCanvas, type MorphCanvasRef } from '../../morph-canvas'
 import { MaskCanvas, type MaskCanvasRef } from '../../mask-canvas'
 import { morphCogImage } from '@/lib/ai/actions/morph-cog-image'
@@ -78,6 +79,9 @@ export function ImageEditor({ seriesId, imageId }: ImageEditorProps) {
   const zoomIndicatorTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const transformInstanceRef = useRef<any>(null)
 
+  // Star rating state (optimistic override)
+  const [starRatingOverride, setStarRatingOverride] = useState<number | null>(null)
+
   // Sync showGroupMode with URL query params
   useEffect(() => {
     setShowGroupMode(searchParams.get('group') === 'true')
@@ -131,6 +135,25 @@ export function ImageEditor({ seriesId, imageId }: ImageEditorProps) {
   const displayedImage = showGroupMode && groupImages.length > 0
     ? groupImages[currentGroupIndex]
     : currentImage
+
+  // Star rating: computed value and handler
+  const currentStarRating = starRatingOverride ?? displayedImage?.star_rating ?? 0
+
+  const handleSetStarRating = useCallback((rating: number) => {
+    if (!displayedImage) return
+    const clamped = Math.max(0, Math.min(5, Math.round(rating)))
+    setStarRatingOverride(clamped)
+
+    setImageStarRating(displayedImage.id, clamped).catch((error) => {
+      console.error('Failed to set star rating:', error)
+      setStarRatingOverride(null)
+    })
+  }, [displayedImage])
+
+  // Reset star rating override when image changes
+  useEffect(() => {
+    setStarRatingOverride(null)
+  }, [displayedImage?.id])
 
   // Fetch group images when current image changes
   useEffect(() => {
@@ -507,6 +530,12 @@ export function ImageEditor({ seriesId, imageId }: ImageEditorProps) {
             setEditMode((prev) => (prev ? null : 'morph'))
           }
           break
+        case '1': case '2': case '3': case '4': case '5':
+          if (!showEditMode) {
+            e.preventDefault()
+            handleSetStarRating(parseInt(e.key, 10))
+          }
+          break
         case '0':
           if (!showEditMode && transformInstanceRef.current) {
             e.preventDefault()
@@ -532,7 +561,7 @@ export function ImageEditor({ seriesId, imageId }: ImageEditorProps) {
 
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [exitToGrid, goToPrevious, goToNext, hasGroup, showGroupMode, showEditMode])
+  }, [exitToGrid, goToPrevious, goToNext, hasGroup, showGroupMode, showEditMode, handleSetStarRating])
 
   // Preload adjacent images for faster navigation
   useEffect(() => {
@@ -633,6 +662,11 @@ export function ImageEditor({ seriesId, imageId }: ImageEditorProps) {
               {currentIndex + 1} / {images.length}
             </span>
           )}
+          <StarRating
+            rating={currentStarRating}
+            onChange={handleSetStarRating}
+            size="md"
+          />
         </div>
 
         {/* Center: Edit Mode Selector */}
@@ -1477,7 +1511,7 @@ export function ImageEditor({ seriesId, imageId }: ImageEditorProps) {
               'esc exit edit mode'
             ) : (
               <>
-                ←→ navigate · 0 fit · +/- zoom · double-click reset{hasGroup ? ' · g group' : ''} · e edit · esc close
+                ←→ navigate · 1-5 stars · 0 fit · +/- zoom · double-click reset{hasGroup ? ' · g group' : ''} · e edit · esc close
               </>
             )}
           </div>

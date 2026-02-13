@@ -84,6 +84,7 @@ export interface CogImage {
   thumbnail_256: string | null;
   thumbnail_128: string | null;
   thumbnail_64: string | null;
+  star_rating: number;
 }
 
 // Shoot parameters for "photo shoot" style job creation

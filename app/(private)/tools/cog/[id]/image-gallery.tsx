@@ -3,11 +3,12 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { TransformWrapper, TransformComponent } from 'react-zoom-pan-pinch';
-import { getCogImageUrl, deleteImageWithCleanup, toggleImageTag, getImageTagsBatch, getImageGroup, getImageById, addTagToImage, removeTagFromImage, mergeImagesIntoGroup, addImageToGroup, updateImage } from '@/lib/cog';
+import { getCogImageUrl, deleteImageWithCleanup, toggleImageTag, getImageTagsBatch, getImageGroup, getImageById, addTagToImage, removeTagFromImage, mergeImagesIntoGroup, addImageToGroup, updateImage, setImageStarRating } from '@/lib/cog';
 import { Button } from '@/components/ui/button';
 import { LightboxEditMode } from './lightbox-edit-mode';
 import { GroupPanel } from './group-panel';
 import { CogGridImage, CogTinyImage } from '@/components/cog/cog-image';
+import { StarRating } from './star-rating';
 import type { CogImage, CogTag, CogTagWithGroup, CogImageWithGroupInfo } from '@/lib/types/cog';
 
 // Represents a file being uploaded
@@ -444,6 +445,9 @@ export function ImageGallery({
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleInput, setTitleInput] = useState('');
   const [savingTitle, setSavingTitle] = useState(false);
+
+  // Star rating state: local overrides for optimistic updates
+  const [starRatingOverrides, setStarRatingOverrides] = useState<Map<string, number>>(new Map());
 
   // Delete confirmation modal state (for grid + batch deletes)
   const [deleteModalTarget, setDeleteModalTarget] = useState<{
@@ -1048,6 +1052,44 @@ export function ImageGallery({
     [selectedIndex, images]
   );
 
+  // Handle star rating change with optimistic update
+  const handleSetStarRating = useCallback(
+    (rating: number) => {
+      if (!currentImage) return;
+      const imageId = currentImage.id;
+      const clamped = Math.max(0, Math.min(5, Math.round(rating)));
+
+      // Optimistic update
+      setStarRatingOverrides((prev) => {
+        const next = new Map(prev);
+        next.set(imageId, clamped);
+        return next;
+      });
+
+      // Persist async
+      setImageStarRating(imageId, clamped).catch((error) => {
+        console.error('Failed to set star rating:', error);
+        // Revert on error
+        setStarRatingOverrides((prev) => {
+          const next = new Map(prev);
+          next.delete(imageId);
+          return next;
+        });
+      });
+    },
+    [currentImage]
+  );
+
+  // Get the current star rating for an image (override or from data)
+  const getStarRating = useCallback(
+    (image: CogImage | CogImageWithGroupInfo): number => {
+      const override = starRatingOverrides.get(image.id);
+      if (override !== undefined) return override;
+      return image.star_rating ?? 0;
+    },
+    [starRatingOverrides]
+  );
+
   // Grid-level keyboard handling (when lightbox is NOT open)
   useEffect(() => {
     if (isOpen) return; // Only active when lightbox is closed
@@ -1117,6 +1159,13 @@ export function ImageGallery({
         e.preventDefault();
         setShowTagPanel((prev) => !prev);
         setShowGroupPanel(false);
+        return;
+      }
+
+      // Star rating: 0-5 keys when tag panel is NOT open
+      if (!showTagPanel && /^[0-5]$/.test(e.key)) {
+        e.preventDefault();
+        handleSetStarRating(parseInt(e.key, 10));
         return;
       }
 
@@ -1193,7 +1242,7 @@ export function ImageGallery({
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, goToPrevious, goToNext, goToPreviousInGroup, goToNextInGroup, groupImages.length, showDeleteConfirm, showTagPanel, showGroupPanel, showEditMode, enabledTags, handleToggleTag]);
+  }, [isOpen, goToPrevious, goToNext, goToPreviousInGroup, goToNextInGroup, groupImages.length, showDeleteConfirm, showTagPanel, showGroupPanel, showEditMode, enabledTags, handleToggleTag, handleSetStarRating]);
 
   // Prevent body scroll when gallery is open
   useEffect(() => {
@@ -1478,6 +1527,12 @@ export function ImageGallery({
                       {tagCount} tag{tagCount !== 1 ? 's' : ''}
                     </div>
                   )}
+                  {/* Star rating overlay */}
+                  {getStarRating(image) > 0 && (
+                    <div className="absolute bottom-2 left-1/2 -translate-x-1/2 pointer-events-none">
+                      <StarRating rating={getStarRating(image)} size="sm" />
+                    </div>
+                  )}
                   {/* Group count badge */}
                   {groupCount > 1 && (
                     <div className="absolute bottom-2 right-2 px-1.5 py-0.5 bg-blue-600/80 rounded text-[10px] text-white flex items-center gap-0.5">
@@ -1605,6 +1660,11 @@ export function ImageGallery({
                       {groupIndex + 1}/{groupImages.length}
                     </span>
                   )}
+                  <StarRating
+                    rating={getStarRating(currentImage)}
+                    onChange={handleSetStarRating}
+                    size="md"
+                  />
                   {editingTitle ? (
                     <form
                       onSubmit={(e) => {
@@ -1686,7 +1746,7 @@ export function ImageGallery({
                     </div>
                   )}
                   <span className="text-xs text-white/40 hidden sm:block">
-                    ←→ nav, e edit, {groupImages.length > 1 ? 'g group, ' : ''}t tags, d delete
+                    ←→ nav, 1-5 stars, e edit, {groupImages.length > 1 ? 'g group, ' : ''}t tags, d delete
                   </span>
                   <Button
                     variant="ghost"

@@ -368,6 +368,23 @@ export async function deleteImageWithCleanup(id: string): Promise<void> {
 }
 
 // ============================================================================
+// Image Star Rating (Client)
+// ============================================================================
+
+/**
+ * Set the star rating for an image (0 = unrated, 1-5 = star rating)
+ */
+export async function setImageStarRating(imageId: string, rating: number): Promise<void> {
+  const clamped = Math.max(0, Math.min(5, Math.round(rating)));
+  const { error } = await (supabase as any)
+    .from('cog_images')
+    .update({ star_rating: clamped })
+    .eq('id', imageId);
+
+  if (error) throw error;
+}
+
+// ============================================================================
 // Job Operations (Client)
 // ============================================================================
 
