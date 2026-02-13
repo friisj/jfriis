@@ -84,6 +84,20 @@ interface VisionEvalInput {
   evalProfile?: CogEvalProfile | null;
 }
 
+const SCORING_RUBRIC = `
+SCORING RUBRIC — use the full range, be harsh and honest:
+  1-2: Completely irrelevant or unusable
+  3-4: Generic stock photo, obvious/cliché, or only superficially related
+  5:   Decent but unremarkable — an obvious literal interpretation of the brief
+  6:   Good match on some dimensions but falls short on others
+  7:   Strong candidate — genuinely captures the spirit of the brief
+  8:   Excellent — editorial quality, evocative, would stand out in a publication
+  9-10: Exceptional — transcends the brief, arresting image
+
+CRITICAL: Most stock photos are mediocre matches for any given brief. Expect to score most images 3-5. A score of 7+ should be rare and genuinely earned. Do NOT be generous.
+
+ANTI-LITERALISM: Penalize obvious, on-the-nose representations. If the brief mentions "monetary policy", a photo of dollar bills is lazy and cliché (score 3-4). Look for images that capture the *feeling*, *tension*, or *human dimension* of concepts, not their dictionary illustration. Metaphorical and atmospheric interpretations are almost always stronger than literal ones.`;
+
 export function buildVisionEvalPrompt(input: VisionEvalInput): string {
   const { story, topics, colors, evalProfile } = input;
 
@@ -107,12 +121,13 @@ Colors: ${colors.length > 0 ? colors.join(', ') : 'none specified'}`;
       .join(', ');
 
     const jsonFields = evalProfile.criteria
-      .map(c => `  "${c.key}": 8`)
+      .map(c => `  "${c.key}": 4`)
       .join(',\n');
 
     return `${persona}
 
 ${briefSection}
+${SCORING_RUBRIC}
 
 Evaluate the image on these criteria:
 ${criteriaList}
@@ -121,8 +136,8 @@ Calculate an overall score (weighted average: ${weightDesc}).
 
 Respond with ONLY a JSON object (no markdown, no explanation):
 {
-  "score": 7.5,
-  "reasoning": "Brief explanation of the evaluation",
+  "score": 4.5,
+  "reasoning": "Brief explanation — be specific about what works and what doesn't",
 ${jsonFields}
 }`;
   }
@@ -131,9 +146,10 @@ ${jsonFields}
   return `You are an expert photo editor evaluating a stock photograph against a creative brief.
 
 ${briefSection}
+${SCORING_RUBRIC}
 
 Evaluate the image on these criteria:
-1. **Subject relevance** (0-10): How well does the subject matter match the story/topics?
+1. **Subject relevance** (0-10): How well does the subject matter match the story/topics? Penalize literal/cliché representations.
 2. **Mood alignment** (0-10): Does the mood/atmosphere match the narrative tone?
 3. **Color match** (0-10): Do the colors align with the requested palette?
 4. **Composition quality** (0-10): Is it well-composed, high quality, usable as editorial imagery?
@@ -142,12 +158,12 @@ Calculate an overall score (weighted average: subject 40%, mood 25%, color 15%, 
 
 Respond with ONLY a JSON object (no markdown, no explanation):
 {
-  "score": 7.5,
-  "reasoning": "Brief explanation of the evaluation",
-  "subject_score": 8,
-  "mood_score": 7,
-  "color_score": 6,
-  "composition_score": 9
+  "score": 4.5,
+  "reasoning": "Brief explanation — be specific about what works and what doesn't",
+  "subject_score": 5,
+  "mood_score": 4,
+  "color_score": 3,
+  "composition_score": 6
 }`;
 }
 
@@ -222,6 +238,6 @@ Respond with ONLY a JSON object (no markdown, no explanation):
 {
   "decision": "select" or "iterate",
   "selected_index": <candidate index if selecting, null if iterating>,
-  "feedback": "if iterating, specific guidance for the next search attempt"
+  "feedback": "if iterating: what was wrong with these results? suggest different visual angles — atmospheric, metaphorical, human-centered approaches rather than literal representations"
 }`;
 }

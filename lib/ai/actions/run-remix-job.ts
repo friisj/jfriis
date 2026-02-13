@@ -10,6 +10,7 @@ import {
   buildSelectionDecisionPrompt,
   extractCriterionScores,
 } from '../prompts/remix';
+import { deriveTopicsFromStory } from './derive-remix-topics';
 import {
   updateRemixJobServer,
   createRemixSearchIterationServer,
@@ -87,6 +88,22 @@ export async function runRemixSource(
       evalRuns.push({ run, profile });
     }
 
+    // Derive topics from story if none provided
+    let effectiveTopics = topics;
+    if (effectiveTopics.length === 0) {
+      try {
+        const derivedTopics = await deriveTopicsFromStory(story);
+        effectiveTopics = derivedTopics;
+        await updateRemixJobServer(jobId, { topics: derivedTopics });
+        await appendRemixTraceServer(jobId,
+          traceEntry('setup', 'derive-topics', `Derived ${derivedTopics.length} topics: ${derivedTopics.join(', ')}`, 0)
+        );
+        console.log(`[Remix ${jobId}] Derived topics from story: ${derivedTopics.join(', ')}`);
+      } catch (err) {
+        console.error(`[Remix ${jobId}] Topic derivation failed, continuing without:`, err);
+      }
+    }
+
     // Set status to running
     await updateRemixJobServer(jobId, {
       status: 'running',
@@ -109,7 +126,7 @@ export async function runRemixSource(
       // ================================================================
       const searchPrompt = buildSearchTranslationPrompt({
         story,
-        topics,
+        topics: effectiveTopics,
         colors,
         targetAspectRatio,
         previousIterations,
@@ -228,8 +245,8 @@ export async function runRemixSource(
       // ================================================================
       // Build eval prompts per profile (or default)
       const profileEvalPrompts = allProfiles.length > 0
-        ? allProfiles.map(p => ({ profile: p, prompt: buildVisionEvalPrompt({ story, topics, colors, evalProfile: p }) }))
-        : [{ profile: null, prompt: buildVisionEvalPrompt({ story, topics, colors }) }];
+        ? allProfiles.map(p => ({ profile: p, prompt: buildVisionEvalPrompt({ story, topics: effectiveTopics, colors, evalProfile: p }) }))
+        : [{ profile: null, prompt: buildVisionEvalPrompt({ story, topics: effectiveTopics, colors }) }];
 
       const evalStart = Date.now();
       let totalEvalTokensIn = 0;

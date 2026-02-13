@@ -15,6 +15,7 @@ import {
 } from '@/components/ui/select';
 import { createRemixJob, getAllEvalProfiles } from '@/lib/cog';
 import { runRemixSource } from '@/lib/ai/actions/run-remix-job';
+import { deriveTopicsFromStory } from '@/lib/ai/actions/derive-remix-topics';
 import type { CogEvalProfile } from '@/lib/types/cog';
 
 interface RemixBuilderFormProps {
@@ -32,6 +33,7 @@ export function RemixBuilderForm({ seriesId }: RemixBuilderFormProps) {
   const [evalProfiles, setEvalProfiles] = useState<CogEvalProfile[]>([]);
   const [saving, setSaving] = useState(false);
   const [running, setRunning] = useState(false);
+  const [deriving, setDeriving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -39,6 +41,19 @@ export function RemixBuilderForm({ seriesId }: RemixBuilderFormProps) {
   }, []);
 
   const isValid = story.trim().length > 0;
+
+  async function handleDeriveTopics() {
+    if (!story.trim()) return;
+    setDeriving(true);
+    try {
+      const derived = await deriveTopicsFromStory(story.trim());
+      setTopicsInput(derived.join(', '));
+    } catch {
+      setError('Failed to derive topics from story');
+    } finally {
+      setDeriving(false);
+    }
+  }
 
   function toggleProfile(id: string) {
     setSelectedProfileIds((prev) =>
@@ -134,7 +149,19 @@ export function RemixBuilderForm({ seriesId }: RemixBuilderFormProps) {
 
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-2">
-          <Label htmlFor="topics">Topics</Label>
+          <div className="flex items-center justify-between">
+            <Label htmlFor="topics">Topics</Label>
+            <Button
+              type="button"
+              size="sm"
+              variant="ghost"
+              onClick={handleDeriveTopics}
+              disabled={!story.trim() || saving || running || deriving}
+              className="h-5 text-[10px] px-1.5 text-muted-foreground"
+            >
+              {deriving ? 'Deriving...' : 'Derive from story'}
+            </Button>
+          </div>
           <Input
             id="topics"
             placeholder="e.g., solitude, urban, night"
@@ -142,7 +169,9 @@ export function RemixBuilderForm({ seriesId }: RemixBuilderFormProps) {
             onChange={(e) => setTopicsInput(e.target.value)}
             disabled={saving || running}
           />
-          <p className="text-xs text-muted-foreground">Comma-separated</p>
+          <p className="text-xs text-muted-foreground">
+            Comma-separated. Leave empty to auto-derive at run time.
+          </p>
         </div>
 
         <div className="space-y-2">

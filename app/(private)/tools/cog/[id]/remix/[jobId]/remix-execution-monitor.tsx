@@ -15,6 +15,7 @@ import {
 } from '@/components/ui/select';
 import { getAllEvalProfiles, updateRemixJob } from '@/lib/cog';
 import { runRemixSource, runRemixReeval } from '@/lib/ai/actions/run-remix-job';
+import { deriveTopicsFromStory } from '@/lib/ai/actions/derive-remix-topics';
 import { deleteRemixJob, duplicateRemixJob } from '@/lib/cog';
 import type {
   CogRemixJobFull,
@@ -277,6 +278,7 @@ export function RemixExecutionMonitor({ initialJob, seriesId }: RemixExecutionMo
   const [editColors, setEditColors] = useState(initialJob.colors.join(', '));
   const [editAspectRatio, setEditAspectRatio] = useState(initialJob.target_aspect_ratio || '');
   const [editProfileIds, setEditProfileIds] = useState<string[]>(initialJob.eval_profile_ids || []);
+  const [derivingTopics, setDerivingTopics] = useState(false);
 
   // Re-eval state
   const [showReeval, setShowReeval] = useState(false);
@@ -328,6 +330,19 @@ export function RemixExecutionMonitor({ initialJob, seriesId }: RemixExecutionMo
     setEditProfileIds((prev) =>
       prev.includes(id) ? prev.filter((p) => p !== id) : [...prev, id]
     );
+  }
+
+  async function handleDeriveTopics() {
+    if (!editStory.trim()) return;
+    setDerivingTopics(true);
+    try {
+      const derived = await deriveTopicsFromStory(editStory.trim());
+      setEditTopics(derived.join(', '));
+    } catch {
+      // silent fail — user can still type manually
+    } finally {
+      setDerivingTopics(false);
+    }
   }
 
   async function handleSaveDraft() {
@@ -526,14 +541,28 @@ export function RemixExecutionMonitor({ initialJob, seriesId }: RemixExecutionMo
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="edit-topics">Topics</Label>
+              <div className="flex items-center justify-between">
+                <Label htmlFor="edit-topics">Topics</Label>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  onClick={handleDeriveTopics}
+                  disabled={!editStory.trim() || derivingTopics}
+                  className="h-5 text-[10px] px-1.5 text-muted-foreground"
+                >
+                  {derivingTopics ? 'Deriving...' : 'Derive from story'}
+                </Button>
+              </div>
               <Input
                 id="edit-topics"
                 placeholder="e.g., solitude, urban, night"
                 value={editTopics}
                 onChange={(e) => setEditTopics(e.target.value)}
               />
-              <p className="text-xs text-muted-foreground">Comma-separated</p>
+              <p className="text-xs text-muted-foreground">
+                Comma-separated. Leave empty to auto-derive at run time.
+              </p>
             </div>
             <div className="space-y-2">
               <Label htmlFor="edit-colors">Colors</Label>
