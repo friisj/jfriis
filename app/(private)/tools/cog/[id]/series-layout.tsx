@@ -33,6 +33,7 @@ import type {
   CogSeries,
   CogJob,
   CogRemixJob,
+  CogThinkingJob,
   CogTag,
   CogTagWithGroup,
   CogImageWithGroupInfo,
@@ -43,6 +44,7 @@ interface SeriesLayoutProps {
   images: CogImageWithGroupInfo[];
   jobs: CogJob[];
   remixJobs?: CogRemixJob[];
+  thinkingJobs?: CogThinkingJob[];
   childSeries: CogSeries[];
   seriesId: string;
   enabledTags: CogTagWithGroup[];
@@ -641,9 +643,9 @@ function ConfigPanel({
   );
 }
 
-function JobsPanel({ jobs, remixJobs, seriesId }: { jobs: CogJob[]; remixJobs?: CogRemixJob[]; seriesId: string }) {
+function JobsPanel({ jobs, remixJobs, thinkingJobs, seriesId }: { jobs: CogJob[]; remixJobs?: CogRemixJob[]; thinkingJobs?: CogThinkingJob[]; seriesId: string }) {
   return (
-    <JobsList jobs={jobs} remixJobs={remixJobs} seriesId={seriesId} />
+    <JobsList jobs={jobs} remixJobs={remixJobs} thinkingJobs={thinkingJobs} seriesId={seriesId} />
   );
 }
 
@@ -826,6 +828,7 @@ export function SeriesLayout({
   images,
   jobs,
   remixJobs,
+  thinkingJobs,
   childSeries,
   seriesId,
   enabledTags,
@@ -882,7 +885,7 @@ export function SeriesLayout({
                   {/* Scrollable content */}
                   <TabsContent value="jobs" className="mt-0">
                     <div className="h-[calc(100vh-12rem)] overflow-y-auto pt-4">
-                      <JobsPanel jobs={jobs} remixJobs={remixJobs} seriesId={seriesId} />
+                      <JobsPanel jobs={jobs} remixJobs={remixJobs} thinkingJobs={thinkingJobs} seriesId={seriesId} />
                     </div>
                   </TabsContent>
                   <TabsContent value="images" className="mt-0">
@@ -923,7 +926,7 @@ export function SeriesLayout({
             />
           </TabsContent>
           <TabsContent value="jobs" className="mt-4">
-            <JobsPanel jobs={jobs} remixJobs={remixJobs} seriesId={seriesId} />
+            <JobsPanel jobs={jobs} remixJobs={remixJobs} thinkingJobs={thinkingJobs} seriesId={seriesId} />
           </TabsContent>
           <TabsContent value="images" className="mt-4">
             <div className="space-y-4">

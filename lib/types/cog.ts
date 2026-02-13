@@ -778,3 +778,52 @@ export interface CogRemixJobFull extends CogRemixJob {
   eval_profiles: CogEvalProfile[];
   eval_runs: CogRemixEvalRunFull[];
 }
+
+// ============================================================================
+// Thinking Job Types
+// ============================================================================
+
+export type CogThinkingJobStatus = 'draft' | 'running' | 'completed' | 'failed' | 'cancelled';
+
+export interface CogThinkingJob {
+  id: string;
+  series_id: string;
+  title: string | null;
+  story: string;
+  photographer: string;
+  publication: string;
+  aspect_ratio: string | null;
+  image_size: string | null;
+  style_hints: string | null;
+  status: CogThinkingJobStatus;
+  derived_subject: string | null;
+  subject_thinking: string | null;
+  creative_direction: string | null;
+  direction_thinking: string | null;
+  generation_prompt: string | null;
+  generated_image_id: string | null;
+  trace: CogRemixTraceEntry[];
+  error_message: string | null;
+  started_at: string | null;
+  completed_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CogThinkingJobInsert {
+  series_id: string;
+  title?: string | null;
+  story: string;
+  photographer: string;
+  publication: string;
+  aspect_ratio?: string | null;
+  image_size?: string | null;
+  style_hints?: string | null;
+  status?: CogThinkingJobStatus;
+}
+
+export type CogThinkingJobUpdate = Partial<Omit<CogThinkingJob, 'id' | 'created_at'>>;
+
+export interface CogThinkingJobFull extends CogThinkingJob {
+  generated_image: CogImage | null;
+}

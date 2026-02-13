@@ -115,6 +115,15 @@ export const models: Record<string, ModelConfig> = {
     contextWindow: 2000000,
     costTier: 'medium',
   },
+  'gemini-thinking': {
+    id: 'gemini-2.5-pro-preview-06-05',
+    provider: 'google',
+    name: 'Gemini 2.5 Pro',
+    description: 'Thinking model with extended reasoning',
+    capabilities: ['reasoning', 'creative', 'vision', 'long-context'],
+    contextWindow: 1000000,
+    costTier: 'medium',
+  },
 }
 
 // Get model instance by key

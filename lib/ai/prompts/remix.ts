@@ -85,18 +85,32 @@ interface VisionEvalInput {
 }
 
 const SCORING_RUBRIC = `
-SCORING RUBRIC — use the full range, be harsh and honest:
-  1-2: Completely irrelevant or unusable
-  3-4: Generic stock photo, obvious/cliché, or only superficially related
-  5:   Decent but unremarkable — an obvious literal interpretation of the brief
-  6:   Good match on some dimensions but falls short on others
-  7:   Strong candidate — genuinely captures the spirit of the brief
-  8:   Excellent — editorial quality, evocative, would stand out in a publication
-  9-10: Exceptional — transcends the brief, arresting image
+SCORING RUBRIC — use the full 1-10 range. Be brutally honest. Most stock photos deserve 2-4.
+  1-2: Irrelevant, unusable, or has text/watermarks/graphic overlays
+  3:   Generic stock photo — the kind of image that appears for any vaguely related search
+  4:   Only superficially related, or an obvious cliché/literal interpretation
+  5:   Decent match but unremarkable — would not stop anyone from scrolling
+  6:   Good match on several dimensions — a real contender
+  7:   Strong — genuinely captures the spirit of the brief. This is a HIGH score.
+  8-9: Excellent/exceptional — editorial quality, evocative, would stand out in a publication
+  10:  Perfect — transcends the brief. Almost never awarded.
 
-CRITICAL: Most stock photos are mediocre matches for any given brief. Expect to score most images 3-5. A score of 7+ should be rare and genuinely earned. Do NOT be generous.
+EXPECTED DISTRIBUTION: Out of 10 random stock photos for a brief, expect roughly:
+  5-6 images scoring 1-3 (irrelevant or generic)
+  2-3 images scoring 3-5 (superficial or mediocre)
+  1-2 images scoring 5-7 (decent to good)
+  0 images scoring 8+ (exceptional is genuinely rare)
 
-ANTI-LITERALISM: Penalize obvious, on-the-nose representations. If the brief mentions "monetary policy", a photo of dollar bills is lazy and cliché (score 3-4). Look for images that capture the *feeling*, *tension*, or *human dimension* of concepts, not their dictionary illustration. Metaphorical and atmospheric interpretations are almost always stronger than literal ones.`;
+AUTOMATIC LOW SCORES (1-3):
+  - Images with text, logos, or graphic overlays baked in
+  - Generic stock clichés: handshakes, lightbulbs, puzzle pieces, gears, arrows
+  - Circuit boards, abstract tech graphics, or "digital" illustrations for any tech topic
+  - The first thing you'd find on a free stock site — if it feels "stock-y", it IS stock-y
+  - Literal dictionary illustrations of the topic (dollar bills for "finance", pills for "healthcare")
+
+ANTI-LITERALISM: A great editorial photo captures feeling, tension, or the human dimension — NOT the dictionary definition. "Monetary policy" → NOT dollar bills (score 2-3). "AI" → NOT circuit boards or robot hands (score 2-3). Reward metaphorical, atmospheric, and human-centered imagery.
+
+PROCESS: Before assigning scores, mentally list what is WRONG with the image first. Start from the assumption it deserves a 3, then justify moving the score UP only if the image earns it.`;
 
 export function buildVisionEvalPrompt(input: VisionEvalInput): string {
   const { story, topics, colors, evalProfile } = input;
@@ -121,7 +135,7 @@ Colors: ${colors.length > 0 ? colors.join(', ') : 'none specified'}`;
       .join(', ');
 
     const jsonFields = evalProfile.criteria
-      .map(c => `  "${c.key}": 4`)
+      .map(c => `  "${c.key}": 3`)
       .join(',\n');
 
     return `${persona}
@@ -136,9 +150,9 @@ Calculate an overall score (weighted average: ${weightDesc}).
 
 Respond with ONLY a JSON object (no markdown, no explanation):
 {
-  "score": 4.5,
-  "reasoning": "Brief explanation — be specific about what works and what doesn't",
-${jsonFields}
+  "reasoning": "list negatives first, then positives, then justify the scores",
+${jsonFields},
+  "score": 3.5
 }`;
   }
 
@@ -154,16 +168,16 @@ Evaluate the image on these criteria:
 3. **Color match** (0-10): Do the colors align with the requested palette?
 4. **Composition quality** (0-10): Is it well-composed, high quality, usable as editorial imagery?
 
-Calculate an overall score (weighted average: subject 40%, mood 25%, color 15%, composition 20%).
+Calculate an overall score (weighted average: subject 40%, mood 25%, color 15%, composition 20%). Start by listing what's wrong with the image.
 
 Respond with ONLY a JSON object (no markdown, no explanation):
 {
-  "score": 4.5,
-  "reasoning": "Brief explanation — be specific about what works and what doesn't",
-  "subject_score": 5,
+  "reasoning": "list negatives first, then positives, then justify the scores",
+  "subject_score": 3,
   "mood_score": 4,
   "color_score": 3,
-  "composition_score": 6
+  "composition_score": 5,
+  "score": 3.6
 }`;
 }
 

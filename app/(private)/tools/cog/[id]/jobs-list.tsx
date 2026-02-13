@@ -4,19 +4,21 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
-import { deleteJob, duplicatePipelineJob, deleteRemixJob, duplicateRemixJob } from '@/lib/cog';
-import type { CogJob, CogRemixJob } from '@/lib/types/cog';
+import { deleteJob, duplicatePipelineJob, deleteRemixJob, duplicateRemixJob, deleteThinkingJob, duplicateThinkingJob } from '@/lib/cog';
+import type { CogJob, CogRemixJob, CogThinkingJob } from '@/lib/types/cog';
 
 interface JobsListProps {
   jobs: CogJob[];
   remixJobs?: CogRemixJob[];
+  thinkingJobs?: CogThinkingJob[];
   seriesId: string;
 }
 
-export function JobsList({ jobs: initialJobs, remixJobs: initialRemixJobs, seriesId }: JobsListProps) {
+export function JobsList({ jobs: initialJobs, remixJobs: initialRemixJobs, thinkingJobs: initialThinkingJobs, seriesId }: JobsListProps) {
   const router = useRouter();
   const [jobs, setJobs] = useState(initialJobs);
   const [remixJobs, setRemixJobs] = useState(initialRemixJobs || []);
+  const [thinkingJobs, setThinkingJobs] = useState(initialThinkingJobs || []);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [confirmId, setConfirmId] = useState<string | null>(null);
   const [duplicatingId, setDuplicatingId] = useState<string | null>(null);
@@ -60,6 +62,32 @@ export function JobsList({ jobs: initialJobs, remixJobs: initialRemixJobs, serie
     }
   }
 
+  async function handleDeleteThinking(jobId: string) {
+    setDeletingId(jobId);
+    try {
+      await deleteThinkingJob(jobId);
+      setThinkingJobs(thinkingJobs.filter((j) => j.id !== jobId));
+      setConfirmId(null);
+      router.refresh();
+    } catch (error) {
+      console.error('Failed to delete thinking job:', error);
+    } finally {
+      setDeletingId(null);
+    }
+  }
+
+  async function handleDuplicateThinking(tj: CogThinkingJob) {
+    setDuplicatingId(tj.id);
+    try {
+      const newJob = await duplicateThinkingJob(tj.id);
+      router.push(`/tools/cog/${seriesId}/thinking/${newJob.id}`);
+    } catch (error) {
+      console.error('Failed to duplicate thinking job:', error);
+    } finally {
+      setDuplicatingId(null);
+    }
+  }
+
   async function handleDelete(jobId: string) {
     setDeletingId(jobId);
     try {
@@ -74,7 +102,7 @@ export function JobsList({ jobs: initialJobs, remixJobs: initialRemixJobs, serie
     }
   }
 
-  const hasNoJobs = jobs.length === 0 && remixJobs.length === 0;
+  const hasNoJobs = jobs.length === 0 && remixJobs.length === 0 && thinkingJobs.length === 0;
 
   if (hasNoJobs) {
     return (
@@ -82,7 +110,7 @@ export function JobsList({ jobs: initialJobs, remixJobs: initialRemixJobs, serie
         <div className="flex flex-col items-center justify-center py-8 border rounded-lg bg-muted/50">
           <p className="text-muted-foreground mb-4">No jobs yet. Create your first job to get started.</p>
         </div>
-        <div className="grid grid-cols-3 gap-2">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
           <Link
             href={`/tools/cog/${seriesId}/job/new`}
             className="border rounded-lg p-6 hover:bg-muted/50 transition-colors flex flex-col items-center justify-center gap-2"
@@ -113,6 +141,16 @@ export function JobsList({ jobs: initialJobs, remixJobs: initialRemixJobs, serie
               Source stock photos with AI evaluation
             </div>
           </Link>
+          <Link
+            href={`/tools/cog/${seriesId}/thinking/new`}
+            className="border rounded-lg p-6 hover:bg-muted/50 transition-colors flex flex-col items-center justify-center gap-2"
+          >
+            <div className="text-2xl">💭</div>
+            <div className="font-medium">New Thinking</div>
+            <div className="text-xs text-muted-foreground text-center">
+              Story to image via thinking chain
+            </div>
+          </Link>
         </div>
       </div>
     );
@@ -120,7 +158,7 @@ export function JobsList({ jobs: initialJobs, remixJobs: initialRemixJobs, serie
 
   return (
     <div className="space-y-2">
-      <div className="grid grid-cols-3 gap-2">
+      <div className="grid grid-cols-4 gap-2">
         <Link
           href={`/tools/cog/${seriesId}/job/new`}
           className="border rounded-lg p-4 hover:bg-muted/50 transition-colors text-center"
@@ -138,6 +176,12 @@ export function JobsList({ jobs: initialJobs, remixJobs: initialRemixJobs, serie
           className="border rounded-lg p-4 hover:bg-muted/50 transition-colors text-center"
         >
           New Remix
+        </Link>
+        <Link
+          href={`/tools/cog/${seriesId}/thinking/new`}
+          className="border rounded-lg p-4 hover:bg-muted/50 transition-colors text-center"
+        >
+          New Thinking
         </Link>
       </div>
       {/* Remix jobs */}
@@ -208,6 +252,83 @@ export function JobsList({ jobs: initialJobs, remixJobs: initialRemixJobs, serie
                   size="sm"
                   onClick={() => setConfirmId(rj.id)}
                   disabled={rj.status === 'running'}
+                  className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                >
+                  Delete
+                </Button>
+              )}
+            </div>
+          </div>
+        </div>
+      ))}
+      {/* Thinking jobs */}
+      {thinkingJobs.map((tj) => (
+        <div
+          key={tj.id}
+          className="border rounded-lg p-4 hover:bg-muted/50 transition-colors"
+        >
+          <div className="flex items-center justify-between">
+            <Link
+              href={`/tools/cog/${seriesId}/thinking/${tj.id}`}
+              className="flex-1 min-w-0"
+            >
+              <div className="flex items-center gap-2">
+                <h3 className="font-medium">{tj.title || 'Untitled Thinking'}</h3>
+                <span className="text-xs px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200">
+                  thinking
+                </span>
+              </div>
+              <p className="text-sm text-muted-foreground line-clamp-1">
+                {tj.photographer} for {tj.publication} — {tj.story}
+              </p>
+            </Link>
+            <div className="flex items-center gap-2 ml-4">
+              <span
+                className={`text-xs px-2 py-1 rounded-full ${
+                  tj.status === 'completed'
+                    ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+                    : tj.status === 'running'
+                      ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
+                      : tj.status === 'failed'
+                        ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
+                        : 'bg-muted'
+                }`}
+              >
+                {tj.status}
+              </span>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => handleDuplicateThinking(tj)}
+                disabled={duplicatingId === tj.id}
+              >
+                {duplicatingId === tj.id ? '...' : 'Duplicate'}
+              </Button>
+              {confirmId === tj.id ? (
+                <div className="flex items-center gap-1">
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    onClick={() => handleDeleteThinking(tj.id)}
+                    disabled={deletingId === tj.id}
+                  >
+                    {deletingId === tj.id ? '...' : 'Yes'}
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setConfirmId(null)}
+                    disabled={deletingId === tj.id}
+                  >
+                    No
+                  </Button>
+                </div>
+              ) : (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setConfirmId(tj.id)}
+                  disabled={tj.status === 'running'}
                   className="text-destructive hover:text-destructive hover:bg-destructive/10"
                 >
                   Delete
