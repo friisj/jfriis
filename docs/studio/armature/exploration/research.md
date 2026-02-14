@@ -237,24 +237,24 @@ Mode persistence: remember last mode globally (default). If multi-figure support
 
 ---
 
-## Decisions Required Before Prototyping
+## Decisions (Resolved 2026-02-14)
 
-| # | Decision | Options | Research Recommendation |
-|---|----------|---------|------------------------|
-| 1 | Shaping mode name | Body Shape / Shape / Body / Build | Body Shape or Shape |
-| 2 | Shaping implementation | Hybrid bones+morphs / Pure morphs / Bone scaling | Hybrid |
-| 3 | Pose input method | Hybrid IK/FK / IK only / Pose library / FK only | Hybrid IK/FK |
-| 4 | Default preservation invariant | Angle / Contact / Mode-gated | Angle (always-live stack) |
-| 5 | Base model for v0 | MakeHuman CC0 / Custom / Mixamo | MakeHuman for v0 |
-| 6 | Mode-switching UX | Tabs / Tool-based / Contextual / Momentary | Tabs + keyboard shortcut |
+| # | Decision | **Chosen** | Rationale |
+|---|----------|-----------|-----------|
+| 1 | Shaping mode name | **Shape** | Best brevity; pairs cleanly as "Shape & Pose". Ambiguity risk accepted — single-figure tool for now. |
+| 2 | Shaping implementation | **Hybrid bones+morphs** | Research recommendation. Validate control budget in prototype. |
+| 3 | Pose input method | **Both IK + FK from start** | IK for blocking, FK for refinement. More to build but matches artist workflow. |
+| 4 | Shape↔Pose behavior | **Reset-to-default on shape change; re-apply pose after** | Neither pure angle nor contact preservation. Shape edits revert to T/A-pose, user re-applies or reloads a pose. Cleanest mental model — avoids solver surprises. |
+| 5 | Base model for v0 | **MakeHuman CC0 export** | Fast start, clean licensing. Replace with custom model later. |
+| 6 | Mode-switching UX | **Two-tab segmented control** | Figma-like pattern. Always-live state + unified undo + keyboard shortcut. |
 
 ## Must-Prototype-to-Resolve
 
 These cannot be answered by research alone:
 
 1. **Shape control budget** — morph target count vs. performance on real devices under sub-3s load + 60fps constraints
-2. **Angle vs. contact preservation** — what users expect when limb lengths change under an existing pose
-3. **IK vs. FK preference** — whether illustrators prefer drag-the-wrist or rotate-joints as primary input
+2. **Reset-to-default UX feel** — does reverting pose on shape change feel natural, or do users expect shape edits to "just work" under an active pose?
+3. **IK + FK coexistence** — whether both input modes in v0 creates confusion or feels powerful
 4. **Minimum viable mesh fidelity** — the lowest detail level that's still "anatomically useful" for artist reference
 
 ---

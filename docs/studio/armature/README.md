@@ -4,7 +4,7 @@
 
 ## Status
 
-- **Phase:** Exploration — research complete, decisions pending
+- **Phase:** Exploration — decisions made, ready for prototype
 - **Temperature:** Hot
 - **Started:** 2026-02-14
 
@@ -27,22 +27,22 @@ Both systems stay live at all times. Switching modes changes which system accept
 
 Research completed 2026-02-14. Full findings in `/docs/studio/armature/exploration/research.md`.
 
-### Key Findings
+### Decisions Made
 
-| Area | Leading Option | Status |
-|------|---------------|--------|
-| Shaping mode name | "Body Shape" or "Shape" | **Decision needed** |
-| Shaping implementation | Hybrid (macro bone scaling + corrective morph targets) | **Decision needed** |
-| Pose input | Hybrid IK/FK (IK for blocking, FK for refinement) | **Decision needed** |
-| Shape+Pose coexistence | Always-live layered stack (angle preservation default) | **Decision needed** |
-| Base model for v0 | MakeHuman CC0 export | **Decision needed** |
-| Mode-switching UX | Two-tab segmented control + always-live state + unified undo | **Decision needed** |
+| Area | Decision |
+|------|----------|
+| Shaping mode name | **Shape** (pairs as "Shape & Pose") |
+| Shaping implementation | **Hybrid** (macro bone scaling + corrective morph targets) |
+| Pose input | **Both IK + FK from start** |
+| Shape↔Pose behavior | **Reset to default pose on shape change; re-apply pose after** |
+| Base model for v0 | **MakeHuman CC0 export** |
+| Mode-switching UX | **Two-tab segmented control** + always-live state + unified undo |
 
 ### Must Prototype to Resolve
 
 - Shape control budget (morph target count vs. perf on real devices)
-- Angle vs. contact preservation (what users expect when proportions change under a pose)
-- IK vs. FK preference (which input feels natural for illustrators)
+- Reset-to-default UX feel (does reverting pose on shape change feel natural?)
+- IK + FK coexistence (confusion vs. power in v0)
 - Minimum viable mesh fidelity (lowest detail that's still useful for artist reference)
 
 ## Hypotheses
@@ -62,13 +62,15 @@ Research completed 2026-02-14. Full findings in `/docs/studio/armature/explorati
 
 ## Next Steps
 
-1. **Make decisions** on the 6 pending areas (see research summary above)
-2. Source or build v0 base model (GLB with rig)
-3. Prototype the always-live layered stack (shape state + pose state composed at render)
-4. Prototype mode-switching UX with redundant visual indicators
-5. User test: rapid shape/pose cycling to validate hot-swap and check for mode slips
+1. ~~Make decisions on the 6 pending areas~~ Done
+2. Source v0 base model — export a MakeHuman CC0 figure as GLB with rig + morph targets
+3. Prototype: load GLB in Three.js, render SkinnedMesh, verify morph target + skinning pipeline
+4. Prototype: Shape mode — slider UI driving morph weights + bone scale params
+5. Prototype: Pose mode — FK gizmos (TransformControls on bones) + IK end-effectors (CCDIKSolver)
+6. Prototype: two-tab mode switch with reset-to-default-on-shape-change behavior
+7. User test: rapid shape/pose cycling to validate hot-swap, mode slips, and reset UX feel
 
 ---
 
 **Started:** 2026-02-14
-**Status:** Exploration — research complete, decisions pending
+**Status:** Exploration — decisions made, ready for prototype
