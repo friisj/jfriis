@@ -11,6 +11,7 @@ import { setPrimaryImage, removeFromGroup, deleteImage } from '@/lib/ai/actions/
 import { StarRating } from '../../star-rating'
 import { MorphCanvas, type MorphCanvasRef } from '../../morph-canvas'
 import { MaskCanvas, type MaskCanvasRef } from '../../mask-canvas'
+import { FloatingPalette } from '../../floating-palette'
 import { morphCogImage } from '@/lib/ai/actions/morph-cog-image'
 import { refineCogImageStandalone } from '@/lib/ai/actions/refine-cog-image-standalone'
 import { touchupCogImage } from '@/lib/ai/actions/touchup-cog-image'
@@ -990,7 +991,7 @@ export function ImageEditor({ seriesId, imageId }: ImageEditorProps) {
       {editMode === 'morph' && (
         <>
           {/* Tools Palette - Bottom Left */}
-          <div className="absolute bottom-8 left-8 z-20 bg-black/90 backdrop-blur-md border border-white/10 rounded-lg shadow-2xl p-4 min-w-[300px]">
+          <FloatingPalette id="morph-tools" title="Tools" anchor="bottom-left" className="min-w-[300px]">
             <div className="space-y-3">
               {/* Tool selector */}
               <div>
@@ -1051,10 +1052,10 @@ export function ImageEditor({ seriesId, imageId }: ImageEditorProps) {
                 />
               </div>
             </div>
-          </div>
+          </FloatingPalette>
 
           {/* Actions Palette - Bottom Right */}
-          <div className="absolute bottom-8 right-8 z-20 bg-black/90 backdrop-blur-md border border-white/10 rounded-lg shadow-2xl p-4">
+          <FloatingPalette id="morph-actions" title="Actions" anchor="bottom-right">
             <div className="space-y-2">
               <button
                 onClick={handleClearMorph}
@@ -1074,7 +1075,7 @@ export function ImageEditor({ seriesId, imageId }: ImageEditorProps) {
                 Click image to apply {morphTool}
               </div>
             </div>
-          </div>
+          </FloatingPalette>
         </>
       )}
 
@@ -1082,7 +1083,7 @@ export function ImageEditor({ seriesId, imageId }: ImageEditorProps) {
       {editMode === 'refine' && (
         <>
           {/* Prompt Palette - Bottom Center */}
-          <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-20 bg-black/90 backdrop-blur-md border border-white/10 rounded-lg shadow-2xl p-4 w-[600px] max-w-[90vw]">
+          <FloatingPalette id="refine-prompt" title="Refine" anchor="bottom-center" className="w-[600px] max-w-[90vw]">
             <div className="space-y-3">
               {/* Prompt */}
               <div>
@@ -1154,7 +1155,7 @@ export function ImageEditor({ seriesId, imageId }: ImageEditorProps) {
                 </button>
               </div>
             </div>
-          </div>
+          </FloatingPalette>
         </>
       )}
 
@@ -1162,7 +1163,7 @@ export function ImageEditor({ seriesId, imageId }: ImageEditorProps) {
       {editMode === 'spot_removal' && (
         <>
           {/* Brush Palette - Bottom Left */}
-          <div className="absolute bottom-8 left-8 z-20 bg-black/90 backdrop-blur-md border border-white/10 rounded-lg shadow-2xl p-4 min-w-[280px]">
+          <FloatingPalette id="spot-brush" title="Brush" anchor="bottom-left" className="min-w-[280px]">
             <div className="space-y-3">
               {/* Tool selector */}
               <div>
@@ -1231,10 +1232,10 @@ export function ImageEditor({ seriesId, imageId }: ImageEditorProps) {
                 <kbd className="px-1 py-0.5 bg-white/10 rounded">B</kbd> brush · <kbd className="px-1 py-0.5 bg-white/10 rounded">E</kbd> eraser · <kbd className="px-1 py-0.5 bg-white/10 rounded">[</kbd><kbd className="px-1 py-0.5 bg-white/10 rounded">]</kbd> size
               </div>
             </div>
-          </div>
+          </FloatingPalette>
 
           {/* Actions Palette - Bottom Right */}
-          <div className="absolute bottom-8 right-8 z-20 bg-black/90 backdrop-blur-md border border-white/10 rounded-lg shadow-2xl p-4">
+          <FloatingPalette id="spot-actions" title="Actions" anchor="bottom-right">
             <div className="space-y-2">
               <button
                 onClick={() => {
@@ -1257,7 +1258,7 @@ export function ImageEditor({ seriesId, imageId }: ImageEditorProps) {
                 Takes 15-30 seconds
               </div>
             </div>
-          </div>
+          </FloatingPalette>
         </>
       )}
 
@@ -1265,7 +1266,7 @@ export function ImageEditor({ seriesId, imageId }: ImageEditorProps) {
       {editMode === 'guided_edit' && (
         <>
           {/* Brush Palette - Bottom Left */}
-          <div className="absolute bottom-8 left-8 z-20 bg-black/90 backdrop-blur-md border border-white/10 rounded-lg shadow-2xl p-4 min-w-[280px]">
+          <FloatingPalette id="guided-brush" title="Brush" anchor="bottom-left" className="min-w-[280px]">
             <div className="space-y-3">
               {/* Tool selector */}
               <div>
@@ -1334,10 +1335,10 @@ export function ImageEditor({ seriesId, imageId }: ImageEditorProps) {
                 <kbd className="px-1 py-0.5 bg-white/10 rounded">B</kbd> brush · <kbd className="px-1 py-0.5 bg-white/10 rounded">E</kbd> eraser · <kbd className="px-1 py-0.5 bg-white/10 rounded">[</kbd><kbd className="px-1 py-0.5 bg-white/10 rounded">]</kbd> size
               </div>
             </div>
-          </div>
+          </FloatingPalette>
 
           {/* Prompt + Actions Palette - Bottom Right */}
-          <div className="absolute bottom-8 right-8 z-20 bg-black/90 backdrop-blur-md border border-white/10 rounded-lg shadow-2xl p-4 w-[400px]">
+          <FloatingPalette id="guided-prompt" title="Edit" anchor="bottom-right" className="w-[400px]">
             <div className="space-y-3">
               {/* Prompt */}
               <div>
@@ -1375,7 +1376,7 @@ export function ImageEditor({ seriesId, imageId }: ImageEditorProps) {
                 </button>
               </div>
             </div>
-          </div>
+          </FloatingPalette>
         </>
       )}
 
