@@ -15,7 +15,7 @@ export async function morphCogImage({ originalImageId, morphedImageDataURL }: Mo
     // 1. Get original image to find its series and group
     const { data: originalImage, error: fetchError } = await (supabase as any)
       .from('cog_images')
-      .select('series_id, group_id, prompt, resolution, aspect_ratio')
+      .select('series_id, job_id, group_id, prompt, resolution, aspect_ratio')
       .eq('id', originalImageId)
       .single()
 
@@ -23,7 +23,7 @@ export async function morphCogImage({ originalImageId, morphedImageDataURL }: Mo
       throw new Error('Original image not found')
     }
 
-    // 2. Convert data URL to blob
+    // 2. Convert data URL to buffer
     const base64Data = morphedImageDataURL.split(',')[1]
     const blob = Buffer.from(base64Data, 'base64')
 
@@ -40,23 +40,25 @@ export async function morphCogImage({ originalImageId, morphedImageDataURL }: Mo
       throw new Error(`Upload failed: ${uploadError.message}`)
     }
 
-    // 4. Get public URL
-    const {
-      data: { publicUrl },
-    } = supabase.storage.from('images').getPublicUrl(storagePath)
-
-    // 5. Create new image record
+    // 4. Create new image record
     const { data: newImage, error: insertError } = await (supabase as any)
       .from('cog_images')
       .insert({
         series_id: originalImage.series_id,
-        group_id: originalImage.group_id || null,
-        url: publicUrl,
+        job_id: originalImage.job_id,
+        parent_image_id: originalImageId,
+        group_id: originalImage.group_id || originalImageId,
+        storage_path: storagePath,
+        filename,
+        mime_type: 'image/png',
+        source: 'generated',
         prompt: `${originalImage.prompt} (morphed)`,
         resolution: originalImage.resolution,
         aspect_ratio: originalImage.aspect_ratio,
-        edit_type: 'morph',
-        source_image_id: originalImageId,
+        metadata: {
+          morph: true,
+          parentImageId: originalImageId,
+        },
       })
       .select()
       .single()
