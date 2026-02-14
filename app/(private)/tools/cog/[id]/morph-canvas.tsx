@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState, forwardRef, useImperativeHandle } from 'react'
+import { useEffect, useRef, useState, useCallback, forwardRef, useImperativeHandle } from 'react'
 
 type MorphTool = 'bloat' | 'pucker'
 
@@ -29,6 +29,30 @@ export const MorphCanvas = forwardRef<MorphCanvasRef, MorphCanvasProps>(
     const [isApplying, setIsApplying] = useState(false)
     const [cursorPos, setCursorPos] = useState<{ x: number; y: number } | null>(null)
 
+    // Actual image dimensions (detected from loaded image, not DB props which may be wrong)
+    const [actualWidth, setActualWidth] = useState<number>(imageWidth)
+    const [actualHeight, setActualHeight] = useState<number>(imageHeight)
+
+    // Display scale: fit image to viewport
+    const [displayScale, setDisplayScale] = useState(1)
+
+    const computeScale = useCallback((w: number, h: number) => {
+      const availableWidth = typeof window !== 'undefined' ? window.innerWidth - 40 : 800
+      const availableHeight = typeof window !== 'undefined' ? window.innerHeight - 140 : 600
+      const scaleX = availableWidth / w
+      const scaleY = availableHeight / h
+      return Math.min(scaleX, scaleY, 1)
+    }, [])
+
+    // Update scale on window resize
+    useEffect(() => {
+      if (!actualWidth || !actualHeight) return
+      const update = () => setDisplayScale(computeScale(actualWidth, actualHeight))
+      update()
+      window.addEventListener('resize', update)
+      return () => window.removeEventListener('resize', update)
+    }, [computeScale, actualWidth, actualHeight])
+
     // Initialize glfx canvas
     useEffect(() => {
       let mounted = true
@@ -53,6 +77,15 @@ export const MorphCanvas = forwardRef<MorphCanvasRef, MorphCanvasProps>(
 
           if (!mounted) return
 
+          // Use actual loaded image dimensions (DB values may be wrong/missing)
+          const w = img.naturalWidth
+          const h = img.naturalHeight
+          setActualWidth(w)
+          setActualHeight(h)
+
+          // Compute scale immediately to avoid flash at wrong size
+          setDisplayScale(computeScale(w, h))
+
           const texture = canvas.texture(img)
           glfxCanvasRef.current = canvas
           textureRef.current = texture
@@ -60,8 +93,10 @@ export const MorphCanvas = forwardRef<MorphCanvasRef, MorphCanvasProps>(
           // Draw initial image
           canvas.draw(texture).update()
 
-          // Copy to display canvas
+          // Set display canvas buffer to actual dimensions, then copy
           if (displayCanvasRef.current) {
+            displayCanvasRef.current.width = w
+            displayCanvasRef.current.height = h
             const ctx = displayCanvasRef.current.getContext('2d')
             if (ctx) {
               ctx.drawImage(canvas, 0, 0)
@@ -79,7 +114,7 @@ export const MorphCanvas = forwardRef<MorphCanvasRef, MorphCanvasProps>(
       return () => {
         mounted = false
       }
-    }, [imageUrl])
+    }, [imageUrl, computeScale])
 
     // Handle mouse move to show cursor
     const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
@@ -102,8 +137,8 @@ export const MorphCanvas = forwardRef<MorphCanvasRef, MorphCanvasProps>(
       setIsApplying(true)
 
       const rect = displayCanvasRef.current.getBoundingClientRect()
-      const scaleX = imageWidth / rect.width
-      const scaleY = imageHeight / rect.height
+      const scaleX = actualWidth / rect.width
+      const scaleY = actualHeight / rect.height
 
       const x = (e.clientX - rect.left) * scaleX
       const y = (e.clientY - rect.top) * scaleY
@@ -126,7 +161,7 @@ export const MorphCanvas = forwardRef<MorphCanvasRef, MorphCanvasProps>(
         // Copy to display canvas
         const ctx = displayCanvasRef.current.getContext('2d')
         if (ctx) {
-          ctx.clearRect(0, 0, imageWidth, imageHeight)
+          ctx.clearRect(0, 0, actualWidth, actualHeight)
           ctx.drawImage(canvas, 0, 0)
         }
 
@@ -161,7 +196,7 @@ export const MorphCanvas = forwardRef<MorphCanvasRef, MorphCanvasProps>(
               if (displayCanvasRef.current) {
                 const ctx = displayCanvasRef.current.getContext('2d')
                 if (ctx) {
-                  ctx.clearRect(0, 0, imageWidth, imageHeight)
+                  ctx.clearRect(0, 0, displayCanvasRef.current.width, displayCanvasRef.current.height)
                   ctx.drawImage(canvas, 0, 0)
                 }
               }
@@ -173,21 +208,24 @@ export const MorphCanvas = forwardRef<MorphCanvasRef, MorphCanvasProps>(
       },
     }))
 
+    // Display dimensions
+    const displayWidth = actualWidth * displayScale
+    const displayHeight = actualHeight * displayScale
+
     // Calculate cursor radius in screen space
-    const cursorRadius = displayCanvasRef.current
-      ? (radius * displayCanvasRef.current.getBoundingClientRect().width) / imageWidth
-      : radius
+    const cursorRadius = radius * displayScale
 
     return (
       <div ref={containerRef} className="relative w-full h-full flex items-center justify-center bg-black overflow-hidden">
         <canvas
           ref={displayCanvasRef}
-          width={imageWidth}
-          height={imageHeight}
+          width={actualWidth}
+          height={actualHeight}
           onClick={handleCanvasClick}
           onMouseMove={handleMouseMove}
           onMouseLeave={handleMouseLeave}
-          className="max-w-full max-h-full object-contain cursor-none"
+          className="cursor-none"
+          style={{ width: displayWidth, height: displayHeight }}
         />
 
         {/* Cursor overlay */}

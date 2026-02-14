@@ -52,7 +52,6 @@ export const MaskCanvas = forwardRef<MaskCanvasRef, MaskCanvasProps>(function Ma
   brushSize: controlledBrushSize,
   maskOpacity: controlledMaskOpacity,
 }, ref) {
-  const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const ctxRef = useRef<CanvasRenderingContext2D | null>(null);
   const [ctxReady, setCtxReady] = useState(false);
@@ -80,17 +79,8 @@ export const MaskCanvas = forwardRef<MaskCanvasRef, MaskCanvasProps>(function Ma
   // Track last point for smooth line drawing
   const lastPointRef = useRef<{ x: number; y: number } | null>(null);
 
-  // Load image to get actual dimensions
-  useEffect(() => {
-    setDimensionsLoaded(false);
-    const img = new Image();
-    img.onload = () => {
-      setActualWidth(img.naturalWidth);
-      setActualHeight(img.naturalHeight);
-      setDimensionsLoaded(true);
-    };
-    img.src = imageUrl;
-  }, [imageUrl]);
+  // Canvas scaling for display - default to 1 until dimensions are loaded
+  const [displayScale, setDisplayScale] = useState(1);
 
   // Parse maxHeight for scale calculation
   const parseMaxHeight = useCallback((mh: string | undefined): number => {
@@ -106,17 +96,27 @@ export const MaskCanvas = forwardRef<MaskCanvasRef, MaskCanvasProps>(function Ma
     return 600;
   }, []);
 
-  // Calculate scale based on actual dimensions and available space
-  const calculateScale = useCallback((w: number, h: number) => {
-    const availableHeight = parseMaxHeight(maxHeight);
-    const availableWidth = typeof window !== 'undefined' ? window.innerWidth - 100 : 800;
-    const scaleX = availableWidth / w;
-    const scaleY = availableHeight / h;
-    return Math.min(scaleX, scaleY, 1);
-  }, [maxHeight, parseMaxHeight]);
+  // Load image to get actual dimensions and compute initial scale immediately
+  useEffect(() => {
+    setDimensionsLoaded(false);
+    const img = new Image();
+    img.onload = () => {
+      const w = img.naturalWidth;
+      const h = img.naturalHeight;
+      setActualWidth(w);
+      setActualHeight(h);
 
-  // Canvas scaling for display - default to 1 until dimensions are loaded
-  const [displayScale, setDisplayScale] = useState(1);
+      // Calculate scale using viewport dimensions (not container, which may be content-sized)
+      const availableHeight = parseMaxHeight(maxHeight);
+      const availableWidth = typeof window !== 'undefined' ? window.innerWidth - 100 : 800;
+      const scaleX = availableWidth / w;
+      const scaleY = availableHeight / h;
+      setDisplayScale(Math.min(scaleX, scaleY, 1));
+
+      setDimensionsLoaded(true);
+    };
+    img.src = imageUrl;
+  }, [imageUrl, maxHeight, parseMaxHeight]);
 
   // Initialize canvas when actual dimensions are known
   useEffect(() => {
@@ -149,38 +149,20 @@ export const MaskCanvas = forwardRef<MaskCanvasRef, MaskCanvasProps>(function Ma
     setCtxReady(true);
   }, [actualWidth, actualHeight, initialMask]);
 
-  // Update display scale when container size or maxHeight changes
+  // Update display scale on window resize (use viewport dimensions, not container which may be content-sized)
   useEffect(() => {
-    const container = containerRef.current;
-    if (!container || !actualWidth || !actualHeight) return;
+    if (!actualWidth || !actualHeight) return;
 
     const updateScale = () => {
-      // Get available space
-      const containerWidth = container.clientWidth || container.parentElement?.clientWidth || window.innerWidth - 100;
       const availableHeight = parseMaxHeight(maxHeight);
-
-      // Calculate scale to fit within available space while maintaining aspect ratio
-      const scaleX = containerWidth / actualWidth;
+      const availableWidth = typeof window !== 'undefined' ? window.innerWidth - 100 : 800;
+      const scaleX = availableWidth / actualWidth;
       const scaleY = availableHeight / actualHeight;
-      const scale = Math.min(scaleX, scaleY, 1); // Don't scale up beyond original
-
-      setDisplayScale(scale);
+      setDisplayScale(Math.min(scaleX, scaleY, 1));
     };
 
-    // Initial calculation (may refine the initial value)
-    updateScale();
-
-    // Use ResizeObserver for responsiveness
-    const resizeObserver = new ResizeObserver(updateScale);
-    resizeObserver.observe(container);
-
-    // Also listen for window resize
     window.addEventListener('resize', updateScale);
-
-    return () => {
-      resizeObserver.disconnect();
-      window.removeEventListener('resize', updateScale);
-    };
+    return () => window.removeEventListener('resize', updateScale);
   }, [actualWidth, actualHeight, maxHeight, parseMaxHeight]);
 
   // Convert screen coordinates to canvas coordinates
@@ -346,7 +328,7 @@ export const MaskCanvas = forwardRef<MaskCanvasRef, MaskCanvasProps>(function Ma
   const displayHeight = dimensionsLoaded && actualHeight ? actualHeight * displayScale : 0;
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-4 overflow-hidden">
       {/* Toolbar - hidden when hideToolbar is true */}
       {!hideToolbar && (
         <div className="flex items-center gap-4 flex-wrap">
@@ -416,7 +398,6 @@ export const MaskCanvas = forwardRef<MaskCanvasRef, MaskCanvasProps>(function Ma
 
       {/* Canvas container */}
       <div
-        ref={containerRef}
         className="relative flex items-center justify-center overflow-hidden"
         style={{
           width: '100%',
