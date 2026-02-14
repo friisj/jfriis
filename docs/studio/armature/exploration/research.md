@@ -259,6 +259,65 @@ These cannot be answered by research alone:
 
 ---
 
+## Area 7: Multi-Model Support
+
+### Motivation
+
+Artists frequently need to compose scenes with multiple figures — two characters interacting, crowd blocking, or comparing proportions side-by-side. A single-figure tool covers solo pose reference but leaves multi-figure composition to full 3D suites.
+
+### Prior art
+
+| Tool | Multi-figure? | Implementation notes |
+|------|--------------|---------------------|
+| **JustSketchMe** | Yes — add multiple figures to a scene | Independent pose per figure; no inter-figure constraints |
+| **Magic Poser** | Yes — up to ~10 figures | Scene graph with per-figure transforms |
+| **DAZ Studio** | Yes — full scene composition | Heavy: full scene graph, lighting, cameras |
+| **Clip Studio Paint** | Yes — multiple 3D drawing figures on canvas | Each figure independently posable and shapeable |
+| **MakeHuman** | No — single figure at a time | Export multiple figures separately |
+
+### Architecture considerations
+
+| Approach | Strengths | Weaknesses | Risk | Verdict |
+|----------|-----------|------------|------|---------|
+| **Scene graph with per-figure state** | Clean separation; each figure owns its shape+pose state. Easy add/remove/duplicate. Aligns with existing always-live layered stack per figure | More GPU memory (each figure = separate SkinnedMesh + morph targets); selection UX needed | Medium: perf scaling | **Viable (strong)** |
+| **Instanced figures (shared geometry, unique state)** | Memory-efficient for identical base meshes; fast clone | Morph targets per-instance require separate buffers anyway; limited savings for differently-shaped figures | Medium: complexity for marginal gain | **Viable (guarded)** |
+| **Single viewport, multiple GLB loads** | Simplest implementation; each figure is an independent load | No shared skeleton optimization; selection/focus management needed | Low: straightforward | **Viable (baseline)** |
+
+### Key design questions
+
+1. **Selection model**: How does the user indicate which figure they're shaping/posing?
+   - Click-to-select (most intuitive)
+   - Figure list panel with active indicator
+   - Both (click + panel, like layer panels in Photoshop)
+
+2. **Mode scope**: Does Shape/Pose mode apply globally or per-figure?
+   - **Global mode, per-figure selection** (recommended): One mode active; clicking a figure selects it for editing in that mode. Simplest mental model.
+   - **Per-figure mode**: Each figure remembers its own mode. More flexible but higher cognitive load.
+
+3. **Inter-figure interaction**: Should figures be able to reference each other?
+   - v0: No — figures are independent objects in a shared viewport
+   - Future: Contact constraints ("this hand touches that shoulder"), relative positioning, parent-child grouping
+
+4. **Performance budget**: Each additional figure multiplies skinned mesh + morph target GPU cost.
+   - Target: 2–4 figures at 60fps on mid-range hardware
+   - Degrade gracefully: reduce morph target count or mesh detail for additional figures if needed
+
+5. **Per-figure persistence**: Mode state and undo history per figure vs. global.
+   - Recommendation: Global undo timeline (unified across all figures, labeled with figure identifier)
+   - Mode persistence: Global mode, per-figure selection state
+
+### Recommended phasing
+
+1. **v0 (prototype)**: Single figure only. Validates core shape+pose pipeline.
+2. **v1**: Add/remove/duplicate figures in a shared viewport. Click-to-select. Independent shape+pose state per figure. Global mode.
+3. **v2+**: Inter-figure constraints, grouping, scene presets (e.g., "two figures facing each other").
+
+**Critical unknown:** Performance ceiling — how many independently-shaped, independently-posed SkinnedMeshes can run at 60fps with morph targets active? Requires prototype benchmarking.
+
+**Decision needed (future):** Selection model UX and mode scope for multi-figure editing.
+
+---
+
 ## Sources
 
 1. glTF 2.0 Specification — https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html

@@ -21,6 +21,9 @@
 | Always-live layered stack | The architecture where shape params and pose params are always applied simultaneously at render time (morphs before skinning), with only the active input layer switching between modes. | Shape state (morph weights + bone scales) composed with pose state (joint rotations) every frame |
 | Angle preservation | The invariant where joint rotations stay fixed when shape changes — hand/foot world positions may drift if limb lengths change. | Lengthening an arm keeps the elbow angle but the hand moves outward |
 | Contact preservation | The invariant where selected end-effectors stay pinned in world space when shape changes — IK re-solves intermediate joints. | Lengthening an arm keeps the hand on the hip but the elbow adjusts |
+| Figure | A single instance of the base model in the viewport, with its own independent shape state and pose state. Multiple figures can coexist in a scene. | Two characters side-by-side with different body types and poses |
+| Scene | The shared 3D viewport containing one or more figures, a ground plane, camera, and lighting. | A viewport with three figures arranged in a composition |
+| Active figure | The currently selected figure that receives shape/pose input. Indicated visually (outline, highlight) and in the figure list panel. | Clicking a figure selects it; shape/pose controls apply to it |
 
 ---
 
