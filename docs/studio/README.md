@@ -161,6 +161,30 @@ Monochrome line-art browser game inspired by Excite Bike. Players tune a monster
 
 ---
 
+### Armature
+**Status**: Phase 1 (Exploration) - Initial research and interaction model design
+**Location**: `/components/studio/prototypes/armature/` + `/docs/studio/armature/`
+**Focus**: Browser-based Three.js tool for shaping and posing a human character model
+
+**Current State**:
+- ✅ Project scaffolding and initial research
+- ⏳ Surveying existing posable figure tools and Three.js rigging approaches
+- ⏳ Resolving core interaction models (anatomy modification + pose manipulation)
+
+**Concept**:
+A lightweight, browser-based posable figure inspired by traditional artist armatures. Users modify anatomy (proportions, body type) and manipulate poses via a rigged Three.js character model. Fills the gap between overly complex 3D suites and overly rigid static reference images.
+
+**Next Steps**:
+1. Complete landscape research (existing tools, Three.js rigging patterns)
+2. Define interaction model for anatomy modification vs. pose manipulation
+3. Select base model approach (blend shapes, procedural scaling, or hybrid)
+4. Build minimal rigged figure prototype
+5. Validate: can a user shape + pose a figure in under 60 seconds?
+
+**Documents**: `/docs/studio/armature/exploration/` (research.md, definitions.md)
+
+---
+
 ### Experience Systems
 **Status**: Phase 1 (Exploration) - Iteration 8 complete
 **Location**: `/docs/studio/experience-systems/exploration/`
