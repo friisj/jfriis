@@ -2,6 +2,7 @@
 
 import { UserMenu } from '@/components/user-menu'
 import { PageHeaderProvider, usePageHeader } from '@/components/layout/page-header-context'
+import { PrivacyModeProvider } from '@/lib/privacy-mode'
 
 function PublicHeader() {
   const { title } = usePageHeader()
@@ -23,12 +24,14 @@ function PublicHeader() {
 
 export default function PublicLayout({ children }: { children: React.ReactNode }) {
   return (
-    <PageHeaderProvider>
-      <div className="min-h-screen flex flex-col">
-        <PublicHeader />
-        <main className="flex-1">{children}</main>
-      </div>
-    </PageHeaderProvider>
+    <PrivacyModeProvider>
+      <PageHeaderProvider>
+        <div className="min-h-screen flex flex-col">
+          <PublicHeader />
+          <main className="flex-1">{children}</main>
+        </div>
+      </PageHeaderProvider>
+    </PrivacyModeProvider>
   )
 }
 
