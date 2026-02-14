@@ -219,8 +219,6 @@ export const MorphCanvas = forwardRef<MorphCanvasRef, MorphCanvasProps>(
       <div ref={containerRef} className="relative w-full h-full flex items-center justify-center bg-black overflow-hidden">
         <canvas
           ref={displayCanvasRef}
-          width={actualWidth}
-          height={actualHeight}
           onClick={handleCanvasClick}
           onMouseMove={handleMouseMove}
           onMouseLeave={handleMouseLeave}
