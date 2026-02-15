@@ -32,7 +32,7 @@ while IFS='=' read -r key value; do
   value="${value#\'}"
   # Only export known safe variables
   case "$key" in
-    NEXT_PUBLIC_SUPABASE_URL|NEXT_PUBLIC_SUPABASE_ANON_KEY|SUPABASE_SERVICE_ROLE_KEY)
+    NEXT_PUBLIC_SUPABASE_URL|NEXT_PUBLIC_SUPABASE_ANON_KEY)
       echo "export $key=\"$value\"" >> "$CLAUDE_ENV_FILE"
       ;;
     NEXT_PUBLIC_SHOW_SPLASH)

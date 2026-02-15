@@ -16,12 +16,12 @@ command=$(echo "$input" | jq -r '.tool_input.command // ""')
 current_branch=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "unknown")
 
 if [[ "$current_branch" == "main" || "$current_branch" == "master" ]]; then
-  # Block force push on main
-  if echo "$command" | grep -qE 'git\s+push\s+.*--force|git\s+push\s+-f'; then
+  # Block any push on main/master (all work goes through feature branches)
+  if echo "$command" | grep -qE 'git\s+push'; then
     cat <<EOF
 {
   "decision": "block",
-  "reason": "BLOCKED: Force push on '$current_branch' branch is not allowed. Switch to a feature branch first."
+  "reason": "BLOCKED: Pushing to '$current_branch' is not allowed. All work must go through feature branches."
 }
 EOF
     exit 0
@@ -47,6 +47,18 @@ if echo "$command" | grep -qiE 'DROP\s+TABLE|DROP\s+DATABASE|TRUNCATE\s+TABLE'; 
 {
   "decision": "block",
   "reason": "BLOCKED: Destructive database operations (DROP/TRUNCATE) must be done through migrations, not direct commands."
+}
+EOF
+  exit 0
+fi
+
+# Block supabase db reset (drops and recreates entire local database)
+# Only match when it looks like an actual command invocation, not a string in a commit message
+if echo "$command" | grep -qE '^\s*(npx\s+)?supabase\s+db\s+reset|&&\s*(npx\s+)?supabase\s+db\s+reset|\|\s*(npx\s+)?supabase\s+db\s+reset'; then
+  cat <<EOF
+{
+  "decision": "block",
+  "reason": "BLOCKED: 'supabase db reset' drops and recreates the entire local database. Run this manually if needed."
 }
 EOF
   exit 0
