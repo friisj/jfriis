@@ -135,14 +135,6 @@ The project has a custom MCP server providing Supabase database tools. Tools are
 
 Use these tools for database operations instead of raw SQL when possible.
 
-## Linear Integration
-
-- **Team**: Oji
-- **Issue prefix**: OJI-
-- **MCP**: Linear MCP tools available (`mcp__linear__*`)
-- Include `(OJI-XX)` in commit messages when working on tracked issues
-- See `.claude/rules/linear-tracking.md` for full protocol
-
 ## Pre-commit Hook
 
 Husky runs on every commit:

@@ -36,8 +36,7 @@
       "WebFetch",
       "WebSearch",
       "NotebookEdit",
-      "mcp__jfriis__*",
-      "mcp__linear__*"
+      "mcp__jfriis__*"
     ],
     "deny": [
       "Bash(rm -rf *)",
@@ -50,17 +49,6 @@
     ]
   },
   "hooks": {
-    "PostToolUse": [
-      {
-        "matcher": "Bash",
-        "hooks": [
-          {
-            "type": "command",
-            "command": ".claude/hooks/linear-commit-tracker.sh"
-          }
-        ]
-      }
-    ],
     "PreToolUse": [
       {
         "matcher": "Bash",
