@@ -25,6 +25,7 @@
       "Bash(git checkout *)",
       "Bash(git switch *)",
       "Bash(git pull *)",
+      "Bash(git push *)",
       "Bash(git stash*)",
       "Bash(git show *)",
       "Bash(gh *)",
