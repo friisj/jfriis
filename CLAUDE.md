@@ -12,7 +12,7 @@ The codebase serves four main purposes:
 
 2. **Admin CMS** (`/admin/*`) — Auth-protected content management for all site entities. CRUD interfaces for ventures, specimens, log entries, channels, canvases, assumptions, evidence, and more. Uses passkey (WebAuthn) authentication — single-user, no registration flow.
 
-3. **Cognitron** (`/tools/cog/*`) — AI image generation system built on Replicate. Manages series, jobs, pipelines, inference configs, and image evaluation. This is a substantial subsystem with 25+ database tables and its own server-side orchestration (`lib/cog.ts`, `lib/cog-server.ts`).
+3. **Tools** (`/tools/*`) — Private utility apps. The largest is **Cog** (`/tools/cog/*`), an AI image generation system built on Replicate that manages series, jobs, pipelines, inference configs, and image evaluation (25+ `cog_` database tables, orchestrated via `lib/cog.ts` and `lib/cog-server.ts`). Other tools include `repas`, `spend`, and `stable`.
 
 4. **Studio** (`/studio/*`) — R&D space for experimental projects. Prototype-grade code for testing ideas (design system tooling, experience systems, etc.). Studio projects have their own database tables (`studio_` prefix) and documentation in `docs/studio/`.
 
