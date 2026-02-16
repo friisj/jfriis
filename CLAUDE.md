@@ -1,6 +1,6 @@
 # CLAUDE.md — jonfriis.com
 
-Next.js monorepo powering jonfriis.com — a personal portfolio site with an integrated CMS, validation toolkit, internal tools, and an R&D studio. Single-user (Jon Friis), deployed on Vercel, backed by Supabase.
+Next.js monorepo powering jonfriis.com — a platform for validating ideas from early exploration through to commercial ventures, with a public-facing portfolio, R&D studio, structured validation toolkit, and internal tools. Single-user (Jon Friis), deployed on Vercel, backed by Supabase.
 
 ## Project Overview
 
@@ -18,7 +18,7 @@ Studio projects may mature into functioning apps with near-complete productizati
 
 1. **Portfolio & Public Site** (`/portfolio`, `/gallery`, `/explore`, `/profile`) — Public-facing showcase of ventures, specimens, and log entries. This is what visitors see.
 
-2. **Ventures** (`/admin/ventures`) — Commercial businesses or projects being exploited. The database table is currently `projects` (being renamed to `ventures` in a separate branch). Ventures may reference studio projects and share boundary objects with them.
+2. **Ventures** (`/admin/ventures`) — Commercial businesses or projects being exploited. Database table: `ventures`. Ventures may reference studio projects and share boundary objects with them.
 
 3. **Studio** (`/studio/*`, `/admin/studio`) — R&D workspace for experimental projects. Studio projects have their own database tables (`studio_` prefix), documentation in `docs/studio/`, and a validation chain: projects → hypotheses → experiments → assumptions → evidence. Some studio projects grow into complex integrated prototypes.
 
@@ -33,13 +33,13 @@ Studio projects may mature into functioning apps with near-complete productizati
 
 6. **Specimens** (`/gallery`, `/admin/specimens`) — Careful extractions from projects, or limited prototypes and sketches, designed for integration with log entries or embedding elsewhere on the site.
 
-7. **Tools** (`/tools/*`) — Internal utilities built for narrow functional needs. No attachment to studio projects, ventures, hypotheses, or other boundary objects. Current tools include Cog (AI image generation via Replicate), repas, spend, and stable. More will be added as needed.
+7. **Tools** (`/tools/*`) — Internal utilities built for narrow functional needs. No attachment to studio projects, ventures, hypotheses, or other boundary objects. See `/app/(private)/tools/` for the current tool inventory.
 
 8. **Distribution** (`/admin/channels`) — Early-stage system for multi-channel distribution of select log entries. Includes channels, distribution_posts, and a queue. Scope and direction are still being defined.
 
 ### Database
 
-Supabase (PostgreSQL) with 90+ migrations, Row Level Security, and a custom MCP server for AI-assisted CRUD operations. Table namespacing: no prefix for site entities, `studio_` for studio, `cog_` for Cognitron.
+Supabase (PostgreSQL) with Row Level Security and a custom MCP server for AI-assisted CRUD operations. Table namespacing: no prefix for site entities, `studio_` for studio, `cog_` for Cognitron.
 
 ## Tech Stack
 
@@ -79,7 +79,7 @@ lib/
   portfolio/         # Portfolio logic
   fonts/             # Font configuration
 supabase/
-  migrations/        # 90 SQL migrations (see conventions below)
+  migrations/        # SQL migrations (see conventions below)
   config.toml        # Local Supabase config (project_id: jfriis)
 mcp/                 # Standalone MCP server (Node.js, StdioTransport)
 docs/
@@ -117,7 +117,7 @@ cd mcp && npm run build  # Build MCP server (TypeScript → dist/)
 
 ### Supabase CLI
 
-Migrations live in `supabase/migrations/`. There are 90 migrations.
+Migrations live in `supabase/migrations/`.
 
 ```bash
 # Create a new migration
@@ -141,7 +141,7 @@ Two historical patterns exist:
 - **Current**: `20260215000000_descriptive_name.sql` (timestamp-based, use this format)
 
 Table namespacing:
-- Site tables: no prefix (e.g., `projects` [ventures], `assumptions`, `evidence`, `entity_links`)
+- Site tables: no prefix (e.g., `ventures`, `assumptions`, `evidence`, `entity_links`)
 - Studio tables: `studio_` prefix (e.g., `studio_projects`, `studio_hypotheses`, `studio_experiments`)
 - Cognitron tables: `cog_` prefix (e.g., `cog_jobs`, `cog_inference_step_configs`)
 
@@ -168,7 +168,7 @@ The project has a custom MCP server providing Supabase database tools. Tools are
 | `mcp__jfriis__db_update` | Update a record by ID |
 | `mcp__jfriis__db_delete` | Delete a record by ID |
 
-Use these tools for database operations instead of raw SQL when possible.
+Use these tools for database operations instead of raw SQL when possible. See `lib/mcp/tools-core.ts` for the authoritative tool definitions.
 
 ## Pre-commit Hook
 
@@ -214,6 +214,14 @@ Required env vars (set in `.env.local`, never committed):
 - `OPENAI_API_KEY` — For AI features
 - `GOOGLE_GENERATIVE_AI_API_KEY` — For AI features
 - `NEXT_PUBLIC_SHOW_SPLASH` — Feature flag for splash page
+
+## Claude Code Configuration
+
+Context-specific rules and skills live in `.claude/`:
+- `.claude/rules/` — Contextual rules that activate based on working directory (e.g., site development vs. studio research modes)
+- `.claude/skills/` — Reusable skills for common operations (validation, migrations, reviews, etc.)
+
+These extend this file with domain-specific guidance. Check them when working in a particular area of the codebase.
 
 ## What NOT To Do
 
