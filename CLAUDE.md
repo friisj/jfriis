@@ -130,8 +130,8 @@ supabase db push
 # Check migration status
 supabase migration list
 
-# Generate types from schema
-supabase gen types typescript --local > lib/database.types.ts
+# Generate types from linked remote schema
+supabase gen types --linked --lang=typescript > lib/types/supabase.ts
 ```
 
 ### Migration Naming Conventions
@@ -151,6 +151,7 @@ Table namespacing:
 - Always add comments explaining what the migration does
 - Test migrations locally with `supabase db push` before committing
 - Never modify existing migrations that have been applied to production
+- Don't wrap migrations in BEGIN/COMMIT — Supabase's `db push` handles transactions automatically
 - Create rollback migrations when appropriate
 
 ## MCP Server (jfriis-mcp)
