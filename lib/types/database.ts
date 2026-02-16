@@ -218,6 +218,9 @@ export type ProjectInsert = VentureInsert
 /** @deprecated Use VentureUpdate instead */
 export type ProjectUpdate = VentureUpdate
 
+// Idea Stages
+export type IdeaStage = 'captured' | 'exploring' | 'validated' | 'graduated' | 'parked'
+
 // Log Entries
 export interface LogEntry extends BaseRecord {
   title: string
@@ -236,6 +239,7 @@ export interface LogEntry extends BaseRecord {
   published_at?: string
   studio_project_id?: string
   studio_experiment_id?: string
+  idea_stage?: IdeaStage
 }
 
 export type LogEntryInsert = Omit<LogEntry, keyof BaseRecord | 'published_at'>

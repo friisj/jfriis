@@ -30,6 +30,7 @@ interface LogEntryFormData {
   published: boolean
   is_private: boolean
   tags: string
+  idea_stage: string
 }
 
 interface LogEntryFormProps {
@@ -63,6 +64,7 @@ export function LogEntryForm({ entryId, initialData }: LogEntryFormProps) {
     published: initialData?.published || false,
     is_private: initialData?.is_private || false,
     tags: initialData?.tags || '',
+    idea_stage: (initialData as any)?.idea_stage || '',
   })
 
   // Load drafts for existing entry
@@ -316,6 +318,7 @@ export function LogEntryForm({ entryId, initialData }: LogEntryFormProps) {
         published: formData.published,
         is_private: formData.is_private,
         tags: tagsArray.length > 0 ? tagsArray : null,
+        idea_stage: formData.type === 'idea' ? (formData.idea_stage || 'captured') : null,
         ...(formData.published && !initialData?.published ? { published_at: new Date().toISOString() } : {}),
       }
 
@@ -536,7 +539,14 @@ export function LogEntryForm({ entryId, initialData }: LogEntryFormProps) {
               <select
                 id="type"
                 value={formData.type}
-                onChange={(e) => setFormData({ ...formData, type: e.target.value })}
+                onChange={(e) => {
+                  const newType = e.target.value
+                  setFormData({
+                    ...formData,
+                    type: newType,
+                    idea_stage: newType === 'idea' && !formData.idea_stage ? 'captured' : formData.idea_stage,
+                  })
+                }}
                 className="w-full px-3 py-2 rounded-lg border bg-background"
               >
                 <option value="">Select type...</option>
@@ -546,6 +556,26 @@ export function LogEntryForm({ entryId, initialData }: LogEntryFormProps) {
                 <option value="update">Update</option>
               </select>
             </div>
+
+            {formData.type === 'idea' && (
+              <div>
+                <label htmlFor="idea_stage" className="block text-sm font-medium mb-2">
+                  Idea Stage
+                </label>
+                <select
+                  id="idea_stage"
+                  value={formData.idea_stage}
+                  onChange={(e) => setFormData({ ...formData, idea_stage: e.target.value })}
+                  className="w-full px-3 py-2 rounded-lg border bg-background"
+                >
+                  <option value="captured">Captured</option>
+                  <option value="exploring">Exploring</option>
+                  <option value="validated">Validated</option>
+                  <option value="graduated">Graduated</option>
+                  <option value="parked">Parked</option>
+                </select>
+              </div>
+            )}
 
             <div>
               <label className="flex items-center gap-2">

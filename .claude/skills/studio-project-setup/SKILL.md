@@ -26,11 +26,11 @@ If the input is ambiguous, ask clarifying questions before proceeding.
 
 ## Procedure
 
-### Step 1: Check for Existing Project
+### Step 1: Check for Existing Project and Ideas
 
-Before creating anything, check if this project already exists:
+Before creating anything, check for both existing projects and captured ideas:
 
-1. **Query the database** via MCP to search `studio_projects` for matching slug or similar name:
+1. **Query `studio_projects`** via MCP for matching slug or similar name:
    ```
    mcp__supabase__db_query({ table: "studio_projects" })
    ```
@@ -42,6 +42,21 @@ Before creating anything, check if this project already exists:
    - Show the user what was found (name, status, description)
    - Ask if they want to resume/update the existing project or create a new one
    - If resuming, skip to Step 4 (scaffold only what's missing)
+
+4. **Query `log_entries`** for matching ideas:
+   ```
+   mcp__supabase__db_query({
+     table: "log_entries",
+     filters: { type: "idea" }
+   })
+   ```
+   Search results for title/content similarity to the input. Consider ideas with `idea_stage` in ('captured', 'exploring', 'validated') — not already graduated or parked.
+
+5. If matching ideas are found:
+   - Show the user what was found (title, stage, date, tags)
+   - Ask: "Found idea '<title>' — graduate this into the new studio project?"
+   - **If yes**: Save the idea's `id` as `<source-idea-id>` for use in Step 2b. The idea becomes the lineage origin.
+   - **If no**: Proceed normally — a genesis idea will be created automatically in Step 2b.
 
 ### Step 2: Create Database Record
 
@@ -64,6 +79,71 @@ mcp__supabase__db_create({
 ```
 
 Save the returned project `id` for use in subsequent steps.
+
+### Step 2b: Establish Idea Lineage
+
+Every studio project should have traceable lineage back to an idea. There are two paths:
+
+**Path A — Graduating an existing idea** (if user chose to link in Step 1):
+
+1. Create an `evolved_from` entity link:
+   ```
+   mcp__supabase__db_create({
+     table: "entity_links",
+     data: {
+       source_type: "studio_project",
+       source_id: "<project-id>",
+       target_type: "log_entry",
+       target_id: "<source-idea-id>",
+       link_type: "evolved_from",
+       metadata: {}
+     }
+   })
+   ```
+
+2. Update the idea's stage to `graduated`:
+   ```
+   mcp__supabase__db_update({
+     table: "log_entries",
+     id: "<source-idea-id>",
+     data: { idea_stage: "graduated" }
+   })
+   ```
+
+**Path B — Creating a genesis idea** (no existing idea matched):
+
+1. Create a log entry as the origin record:
+   ```
+   mcp__supabase__db_create({
+     table: "log_entries",
+     data: {
+       title: "<name>",
+       slug: "<slug>-genesis",
+       content: { markdown: "Genesis idea for studio project: <name>.\n\n<problem_statement>" },
+       entry_date: "<today's date YYYY-MM-DD>",
+       type: "idea",
+       idea_stage: "graduated",
+       published: false,
+       is_private: true,
+       tags: ["studio", "genesis"]
+     }
+   })
+   ```
+
+2. Create an `evolved_from` entity link:
+   ```
+   mcp__supabase__db_create({
+     table: "entity_links",
+     data: {
+       source_type: "studio_project",
+       source_id: "<project-id>",
+       target_type: "log_entry",
+       target_id: "<genesis-idea-id>",
+       link_type: "evolved_from",
+       metadata: {}
+     }
+   })
+   ```
 
 ### Step 3: Create Initial Hypothesis
 
@@ -265,6 +345,7 @@ After completing all steps, present a summary:
 - Database record: studio_projects (id: <id>)
 - Hypothesis: H1 - <statement>
 - Experiment: <slug>-prototype (planned)
+- Lineage: <either "Graduated from idea '<title>'" or "Genesis idea created">
 
 ### Scaffolded:
 - docs/studio/<slug>/README.md
@@ -285,6 +366,8 @@ After completing all steps, present a summary:
 
 - **Database is source of truth** for project metadata. Docs supplement with detailed exploration artifacts.
 - **Don't skip the duplicate check** (Step 1). The user may be resuming an existing project.
+- **Don't skip the idea check** (Step 1). Matching a captured idea to a new project preserves valuable lineage and avoids duplicate entries.
+- **Every studio project must have lineage** (Step 2b). Either graduate an existing idea or create a genesis idea. This is not optional — it ensures the ideas pipeline in `/admin/ideas` always reflects where projects came from.
 - **Exploration before implementation.** The prototype scaffold is intentionally minimal - it's a placeholder until exploration validates the concept.
 - **Follow existing patterns.** Look at `docs/studio/trux/` and `docs/studio/design-system-tool/` for reference.
 - **Temperature defaults to "warm"** unless the user specifies otherwise.
