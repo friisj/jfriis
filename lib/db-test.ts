@@ -9,7 +9,7 @@ import { supabase } from './supabase'
 export async function testDatabaseConnection() {
   try {
     // Test basic connection
-    const { data, error } = await supabase.from('projects').select('count')
+    const { data, error } = await supabase.from('ventures').select('count')
 
     if (error) {
       console.error('Database connection error:', error)
@@ -26,7 +26,7 @@ export async function testDatabaseConnection() {
 
 export async function testTableAccess() {
   const tables = [
-    'projects',
+    'ventures',
     'log_entries',
     'specimens',
     'gallery_sequences',
@@ -60,7 +60,7 @@ export async function seedSampleData() {
   try {
     // Create a sample project
     const { data: project, error: projectError } = await supabase
-      .from('projects')
+      .from('ventures')
       .insert({
         title: 'Sample Project',
         slug: 'sample-project',

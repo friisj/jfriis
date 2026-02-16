@@ -8,7 +8,7 @@ export default async function PortfolioPage() {
   const supabase = await createClient()
 
   const { data: ventures } = await supabase
-    .from('projects')
+    .from('ventures')
     .select('id, title, slug, description, type, status, start_date, end_date, tags, published_at')
     .eq('published', true)
     .order('start_date', { ascending: false, nullsFirst: false })

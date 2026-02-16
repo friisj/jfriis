@@ -8,7 +8,7 @@ export default async function AdminIdeasPage() {
   const supabase = await createClient()
 
   // Fetch all idea-typed log entries
-  const { data: ideas, error } = await (supabase as any)
+  const { data: ideas, error } = await supabase
     .from('log_entries')
     .select(`
       id,
@@ -43,7 +43,7 @@ export default async function AdminIdeasPage() {
       .from('entity_links')
       .select('source_id, target_id, target_type, link_type')
       .eq('source_type', 'log_entry')
-      .in('target_type', ['studio_project', 'project'])
+      .in('target_type', ['studio_project', 'project', 'venture'])
       .in('source_id', ideaIds)
 
     studioProjectLinks = spLinks || []
@@ -53,7 +53,7 @@ export default async function AdminIdeasPage() {
       .from('entity_links')
       .select('source_id, target_id, source_type, link_type')
       .eq('target_type', 'log_entry')
-      .in('source_type', ['studio_project', 'project'])
+      .in('source_type', ['studio_project', 'project', 'venture'])
       .in('target_id', ideaIds)
 
     if (reverseSpLinks) {
@@ -69,7 +69,7 @@ export default async function AdminIdeasPage() {
           ventureLinks.push({
             source_id: link.target_id,
             target_id: link.source_id,
-            target_type: 'project',
+            target_type: 'venture',
             link_type: link.link_type,
           })
         }
@@ -83,13 +83,13 @@ export default async function AdminIdeasPage() {
   ]
   const linkedVentureIds = [
     ...new Set([
-      ...studioProjectLinks.filter(l => l.target_type === 'project').map(l => l.target_id),
+      ...studioProjectLinks.filter(l => l.target_type === 'project' || l.target_type === 'venture').map(l => l.target_id),
       ...ventureLinks.map(l => l.target_id),
     ]),
   ]
 
   let studioProjectNames: Record<string, string> = {}
-  const ventureNames: Record<string, string> = {}
+  let ventureNames: Record<string, string> = {}
 
   if (linkedStudioProjectIds.length > 0) {
     const { data: projects } = await supabase
@@ -101,8 +101,15 @@ export default async function AdminIdeasPage() {
     }
   }
 
-  // Note: ventures table was dropped; venture name resolution is a no-op.
-  // linkedVentureIds are still collected from entity_links for display purposes.
+  if (linkedVentureIds.length > 0) {
+    const { data: ventures } = await supabase
+      .from('ventures')
+      .select('id, title')
+      .in('id', linkedVentureIds)
+    if (ventures) {
+      ventureNames = Object.fromEntries(ventures.map(v => [v.id, v.title]))
+    }
+  }
 
   // Build enriched idea objects
   const ideasWithLinks = (ideas || []).map((idea: any) => {
@@ -112,7 +119,7 @@ export default async function AdminIdeasPage() {
 
     const linkedVentures = [
       ...studioProjectLinks
-        .filter(l => l.source_id === idea.id && l.target_type === 'project')
+        .filter(l => l.source_id === idea.id && (l.target_type === 'project' || l.target_type === 'venture'))
         .map(l => ({ id: l.target_id, name: ventureNames[l.target_id] || 'Unknown' })),
       ...ventureLinks
         .filter(l => l.source_id === idea.id)

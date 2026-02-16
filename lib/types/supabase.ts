@@ -12,6 +12,31 @@ export type Database = {
   __InternalSupabase: {
     PostgrestVersion: "13.0.5"
   }
+  graphql_public: {
+    Tables: {
+      [_ in never]: never
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      graphql: {
+        Args: {
+          extensions?: Json
+          operationName?: string
+          query?: string
+          variables?: Json
+        }
+        Returns: Json
+      }
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
+  }
   public: {
     Tables: {
       activities: {
@@ -2765,6 +2790,7 @@ export type Database = {
           entry_date: string
           featured_image: string | null
           id: string
+          idea_stage: string | null
           images: Json | null
           is_private: boolean | null
           metadata: Json | null
@@ -2786,6 +2812,7 @@ export type Database = {
           entry_date?: string
           featured_image?: string | null
           id?: string
+          idea_stage?: string | null
           images?: Json | null
           is_private?: boolean | null
           metadata?: Json | null
@@ -2807,6 +2834,7 @@ export type Database = {
           entry_date?: string
           featured_image?: string | null
           id?: string
+          idea_stage?: string | null
           images?: Json | null
           is_private?: boolean | null
           metadata?: Json | null
@@ -2931,72 +2959,6 @@ export type Database = {
           is_admin?: boolean
           metadata?: Json | null
           role?: string | null
-          updated_at?: string
-        }
-        Relationships: []
-      }
-      projects: {
-        Row: {
-          content: Json | null
-          created_at: string
-          description: string | null
-          end_date: string | null
-          featured_image: string | null
-          id: string
-          images: Json | null
-          metadata: Json | null
-          published: boolean
-          published_at: string | null
-          seo_description: string | null
-          seo_title: string | null
-          slug: string
-          start_date: string | null
-          status: string
-          tags: string[] | null
-          title: string
-          type: string | null
-          updated_at: string
-        }
-        Insert: {
-          content?: Json | null
-          created_at?: string
-          description?: string | null
-          end_date?: string | null
-          featured_image?: string | null
-          id?: string
-          images?: Json | null
-          metadata?: Json | null
-          published?: boolean
-          published_at?: string | null
-          seo_description?: string | null
-          seo_title?: string | null
-          slug: string
-          start_date?: string | null
-          status?: string
-          tags?: string[] | null
-          title: string
-          type?: string | null
-          updated_at?: string
-        }
-        Update: {
-          content?: Json | null
-          created_at?: string
-          description?: string | null
-          end_date?: string | null
-          featured_image?: string | null
-          id?: string
-          images?: Json | null
-          metadata?: Json | null
-          published?: boolean
-          published_at?: string | null
-          seo_description?: string | null
-          seo_title?: string | null
-          slug?: string
-          start_date?: string | null
-          status?: string
-          tags?: string[] | null
-          title?: string
-          type?: string | null
           updated_at?: string
         }
         Relationships: []
@@ -4245,6 +4207,72 @@ export type Database = {
           },
         ]
       }
+      ventures: {
+        Row: {
+          content: Json | null
+          created_at: string
+          description: string | null
+          end_date: string | null
+          featured_image: string | null
+          id: string
+          images: Json | null
+          metadata: Json | null
+          published: boolean
+          published_at: string | null
+          seo_description: string | null
+          seo_title: string | null
+          slug: string
+          start_date: string | null
+          status: string
+          tags: string[] | null
+          title: string
+          type: string | null
+          updated_at: string
+        }
+        Insert: {
+          content?: Json | null
+          created_at?: string
+          description?: string | null
+          end_date?: string | null
+          featured_image?: string | null
+          id?: string
+          images?: Json | null
+          metadata?: Json | null
+          published?: boolean
+          published_at?: string | null
+          seo_description?: string | null
+          seo_title?: string | null
+          slug: string
+          start_date?: string | null
+          status?: string
+          tags?: string[] | null
+          title: string
+          type?: string | null
+          updated_at?: string
+        }
+        Update: {
+          content?: Json | null
+          created_at?: string
+          description?: string | null
+          end_date?: string | null
+          featured_image?: string | null
+          id?: string
+          images?: Json | null
+          metadata?: Json | null
+          published?: boolean
+          published_at?: string | null
+          seo_description?: string | null
+          seo_title?: string | null
+          slug?: string
+          start_date?: string | null
+          status?: string
+          tags?: string[] | null
+          title?: string
+          type?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       webauthn_challenges: {
         Row: {
           challenge: string
@@ -4679,6 +4707,9 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
+  graphql_public: {
+    Enums: {},
+  },
   public: {
     Enums: {},
   },

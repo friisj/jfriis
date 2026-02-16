@@ -34,7 +34,7 @@ export async function DashboardStats() {
     { count: journeysCount },
     { count: storyMapsCount },
   ] = await Promise.all([
-    supabase.from('projects').select('*', { count: 'exact', head: true }),
+    supabase.from('ventures').select('*', { count: 'exact', head: true }),
     supabase.from('log_entries').select('*', { count: 'exact', head: true }),
     supabase.from('specimens').select('*', { count: 'exact', head: true }),
     supabase.from('service_blueprints').select('*', { count: 'exact', head: true }),

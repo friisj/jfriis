@@ -382,8 +382,8 @@ export const LINK_TYPES = {
  * Maps entity types to their Supabase table names
  */
 export const ENTITY_TYPE_TABLE_MAP: Record<LinkableEntityType, string> = {
-  project: 'projects',
-  venture: 'projects',  // Same table as project (ventures is the preferred name going forward)
+  project: 'ventures',  // Legacy alias — prefer 'venture' going forward
+  venture: 'ventures',
   log_entry: 'log_entries',
   specimen: 'specimens',
   studio_project: 'studio_projects',

@@ -11,7 +11,7 @@ export default async function AdminVenturesPage() {
   console.log('Ventures page - User:', user?.email)
 
   const { data: ventures, error } = await supabase
-    .from('projects')
+    .from('ventures')
     .select(`
       id,
       title,

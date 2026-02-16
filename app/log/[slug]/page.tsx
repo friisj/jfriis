@@ -77,7 +77,7 @@ export default async function LogEntryPage({ params }: LogEntryPageProps) {
 
   if (projectIds.length > 0) {
     const { data: projects } = await supabase
-      .from('projects')
+      .from('ventures')
       .select('id, title, slug, type, description, status')
       .in('id', projectIds)
     linkedProjects = (projects || []) as any

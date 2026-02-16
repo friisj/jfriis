@@ -231,7 +231,7 @@ export function VentureForm({ ventureId, initialData }: VentureFormProps) {
       if (ventureId) {
         // Update existing venture
         const { error: updateError } = await supabase
-          .from('projects')
+          .from('ventures')
           .update(ventureData)
           .eq('id', ventureId)
 
@@ -239,7 +239,7 @@ export function VentureForm({ ventureId, initialData }: VentureFormProps) {
       } else {
         // Create new venture
         const { data: newVenture, error: insertError } = await supabase
-          .from('projects')
+          .from('ventures')
           .insert([ventureData])
           .select('id')
           .single()
@@ -299,7 +299,7 @@ export function VentureForm({ ventureId, initialData }: VentureFormProps) {
 
     try {
       const { error: deleteError } = await supabase
-        .from('projects')
+        .from('ventures')
         .delete()
         .eq('id', ventureId)
 

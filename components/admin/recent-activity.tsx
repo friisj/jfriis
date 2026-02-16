@@ -42,7 +42,7 @@ export async function RecentActivity() {
     { data: specimens },
   ] = await Promise.all([
     supabase
-      .from('projects')
+      .from('ventures')
       .select('id, title, updated_at')
       .order('updated_at', { ascending: false })
       .limit(3),

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { linkEntities } from '@/lib/entity-links'
@@ -32,6 +32,13 @@ function slugify(text: string): string {
 export function GraduationModal({ idea, targetType, onClose }: GraduationModalProps) {
   const router = useRouter()
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [userId, setUserId] = useState<string | null>(null)
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (user) setUserId(user.id)
+    })
+  }, [])
 
   // Pre-fill form from idea
   const [name, setName] = useState(idea.title)
@@ -48,7 +55,7 @@ export function GraduationModal({ idea, targetType, onClose }: GraduationModalPr
     try {
       if (isStudioProject) {
         // Create studio project
-        const { data: project, error } = await (supabase as any)
+        const { data: project, error } = await supabase
           .from('studio_projects')
           .insert({
             name,
@@ -57,6 +64,7 @@ export function GraduationModal({ idea, targetType, onClose }: GraduationModalPr
             status: 'draft',
             temperature: 'warm',
             problem_statement: description,
+            user_id: userId!,
           })
           .select()
           .single()
@@ -71,7 +79,7 @@ export function GraduationModal({ idea, targetType, onClose }: GraduationModalPr
         )
 
         // Update idea stage to graduated
-        await (supabase as any)
+        await supabase
           .from('log_entries')
           .update({ idea_stage: 'graduated' })
           .eq('id', idea.id)
@@ -82,7 +90,7 @@ export function GraduationModal({ idea, targetType, onClose }: GraduationModalPr
         router.refresh()
       } else {
         // Create venture
-        const { data: venture, error } = await (supabase as any)
+        const { data: venture, error } = await supabase
           .from('ventures')
           .insert({
             title: name,
@@ -97,13 +105,13 @@ export function GraduationModal({ idea, targetType, onClose }: GraduationModalPr
 
         // Create entity link: venture evolved_from log_entry
         await linkEntities(
-          { type: ENTITY_TYPES.PROJECT, id: venture.id },
+          { type: ENTITY_TYPES.VENTURE, id: venture.id },
           { type: ENTITY_TYPES.LOG_ENTRY, id: idea.id },
           LINK_TYPES.EVOLVED_FROM,
         )
 
         // Update idea stage to graduated
-        await (supabase as any)
+        await supabase
           .from('log_entries')
           .update({ idea_stage: 'graduated' })
           .eq('id', idea.id)

@@ -17,7 +17,7 @@ export default async function VenturePage({ params }: VenturePageProps) {
   const { slug } = await params
 
   const { data: venture, error } = await supabase
-    .from('projects')
+    .from('ventures')
     .select('*')
     .eq('slug', slug)
     .eq('published', true)
