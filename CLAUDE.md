@@ -4,7 +4,7 @@ Next.js monorepo powering jonfriis.com — a personal portfolio site with an int
 
 ## Project Overview
 
-This is a single-user codebase. There is no registration flow, no multi-tenancy, no public sign-up. Authentication is passkey (WebAuthn) for one person.
+Jon Friis is the sole admin user. Authentication is passkey (WebAuthn) with no registration flow or multi-tenancy today. However, future development may introduce limited access for collaborators (studio projects, tools, prototypes) or external stakeholders (demos, shared views). No specific affordances exist yet, but the architecture should not foreclose multi-user scenarios.
 
 The codebase is organized around an **explore/exploit duality**:
 
