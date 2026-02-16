@@ -814,6 +814,1418 @@ export type Database = {
         }
         Relationships: []
       }
+      cog_benchmark_images: {
+        Row: {
+          created_at: string
+          feedback: string | null
+          id: string
+          image_index: number
+          rating: string | null
+          round_id: string
+          storage_path: string
+        }
+        Insert: {
+          created_at?: string
+          feedback?: string | null
+          id?: string
+          image_index: number
+          rating?: string | null
+          round_id: string
+          storage_path: string
+        }
+        Update: {
+          created_at?: string
+          feedback?: string | null
+          id?: string
+          image_index?: number
+          rating?: string | null
+          round_id?: string
+          storage_path?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cog_benchmark_images_round_id_fkey"
+            columns: ["round_id"]
+            isOneToOne: false
+            referencedRelation: "cog_benchmark_rounds"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cog_benchmark_rounds: {
+        Row: {
+          config_id: string
+          config_type: string
+          created_at: string
+          distilled_prompt: string
+          feedback: string | null
+          id: string
+          round_number: number
+          status: string
+        }
+        Insert: {
+          config_id: string
+          config_type: string
+          created_at?: string
+          distilled_prompt: string
+          feedback?: string | null
+          id?: string
+          round_number: number
+          status?: string
+        }
+        Update: {
+          config_id?: string
+          config_type?: string
+          created_at?: string
+          distilled_prompt?: string
+          feedback?: string | null
+          id?: string
+          round_number?: number
+          status?: string
+        }
+        Relationships: []
+      }
+      cog_calibration_seeds: {
+        Row: {
+          created_at: string
+          id: string
+          label: string
+          position: number
+          seed_image_path: string | null
+          seed_subject: string
+          type_key: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          label: string
+          position?: number
+          seed_image_path?: string | null
+          seed_subject: string
+          type_key: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          label?: string
+          position?: number
+          seed_image_path?: string | null
+          seed_subject?: string
+          type_key?: string
+        }
+        Relationships: []
+      }
+      cog_director_configs: {
+        Row: {
+          approach_description: string
+          created_at: string | null
+          description: string | null
+          id: string
+          interview_mapping: Json | null
+          methods: string
+          name: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          approach_description: string
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          interview_mapping?: Json | null
+          methods?: string
+          name: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          approach_description?: string
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          interview_mapping?: Json | null
+          methods?: string
+          name?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      cog_eval_profiles: {
+        Row: {
+          created_at: string | null
+          criteria: Json
+          description: string | null
+          id: string
+          name: string
+          selection_threshold: number
+          system_prompt: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          criteria?: Json
+          description?: string | null
+          id?: string
+          name: string
+          selection_threshold?: number
+          system_prompt?: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          criteria?: Json
+          description?: string | null
+          id?: string
+          name?: string
+          selection_threshold?: number
+          system_prompt?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      cog_image_tags: {
+        Row: {
+          created_at: string | null
+          id: string
+          image_id: string
+          tag_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          image_id: string
+          tag_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          image_id?: string
+          tag_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cog_image_tags_image_id_fkey"
+            columns: ["image_id"]
+            isOneToOne: false
+            referencedRelation: "cog_images"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cog_image_tags_tag_id_fkey"
+            columns: ["tag_id"]
+            isOneToOne: false
+            referencedRelation: "cog_tags"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cog_images: {
+        Row: {
+          created_at: string | null
+          file_size: number | null
+          filename: string
+          group_id: string | null
+          group_position: number | null
+          height: number | null
+          id: string
+          job_id: string | null
+          metadata: Json | null
+          mime_type: string
+          parent_image_id: string | null
+          prompt: string | null
+          series_id: string
+          source: string
+          star_rating: number | null
+          storage_path: string
+          thumbnail_128: string | null
+          thumbnail_256: string | null
+          thumbnail_64: string | null
+          title: string | null
+          width: number | null
+        }
+        Insert: {
+          created_at?: string | null
+          file_size?: number | null
+          filename: string
+          group_id?: string | null
+          group_position?: number | null
+          height?: number | null
+          id?: string
+          job_id?: string | null
+          metadata?: Json | null
+          mime_type?: string
+          parent_image_id?: string | null
+          prompt?: string | null
+          series_id: string
+          source: string
+          star_rating?: number | null
+          storage_path: string
+          thumbnail_128?: string | null
+          thumbnail_256?: string | null
+          thumbnail_64?: string | null
+          title?: string | null
+          width?: number | null
+        }
+        Update: {
+          created_at?: string | null
+          file_size?: number | null
+          filename?: string
+          group_id?: string | null
+          group_position?: number | null
+          height?: number | null
+          id?: string
+          job_id?: string | null
+          metadata?: Json | null
+          mime_type?: string
+          parent_image_id?: string | null
+          prompt?: string | null
+          series_id?: string
+          source?: string
+          star_rating?: number | null
+          storage_path?: string
+          thumbnail_128?: string | null
+          thumbnail_256?: string | null
+          thumbnail_64?: string | null
+          title?: string | null
+          width?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cog_images_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "cog_images"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cog_images_parent_image_id_fkey"
+            columns: ["parent_image_id"]
+            isOneToOne: false
+            referencedRelation: "cog_images"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cog_images_series_id_fkey"
+            columns: ["series_id"]
+            isOneToOne: false
+            referencedRelation: "cog_series"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_cog_images_job"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "cog_jobs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cog_job_inputs: {
+        Row: {
+          context: string | null
+          created_at: string | null
+          id: string
+          image_id: string
+          job_id: string
+          negative_prompt: string | null
+          reference_id: number
+        }
+        Insert: {
+          context?: string | null
+          created_at?: string | null
+          id?: string
+          image_id: string
+          job_id: string
+          negative_prompt?: string | null
+          reference_id: number
+        }
+        Update: {
+          context?: string | null
+          created_at?: string | null
+          id?: string
+          image_id?: string
+          job_id?: string
+          negative_prompt?: string | null
+          reference_id?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cog_job_inputs_image_id_fkey"
+            columns: ["image_id"]
+            isOneToOne: false
+            referencedRelation: "cog_images"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cog_job_inputs_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "cog_jobs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cog_job_steps: {
+        Row: {
+          completed_at: string | null
+          context: Json | null
+          created_at: string | null
+          error_message: string | null
+          id: string
+          job_id: string
+          model: string
+          output: Json | null
+          prompt: string
+          sequence: number
+          started_at: string | null
+          status: string
+          step_type: string
+        }
+        Insert: {
+          completed_at?: string | null
+          context?: Json | null
+          created_at?: string | null
+          error_message?: string | null
+          id?: string
+          job_id: string
+          model: string
+          output?: Json | null
+          prompt: string
+          sequence: number
+          started_at?: string | null
+          status?: string
+          step_type: string
+        }
+        Update: {
+          completed_at?: string | null
+          context?: Json | null
+          created_at?: string | null
+          error_message?: string | null
+          id?: string
+          job_id?: string
+          model?: string
+          output?: Json | null
+          prompt?: string
+          sequence?: number
+          started_at?: string | null
+          status?: string
+          step_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cog_job_steps_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "cog_jobs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cog_jobs: {
+        Row: {
+          art_direction: string | null
+          aspect_ratio: string | null
+          base_prompt: string
+          camera: string | null
+          colors: string[] | null
+          completed_at: string | null
+          created_at: string | null
+          director_config_id: string | null
+          error_message: string | null
+          foundation_model: string
+          foundation_status: string | null
+          framing: string | null
+          id: string
+          image_model: string | null
+          image_size: string | null
+          include_negative_prompt: boolean | null
+          inference_log: Json | null
+          inference_model: string | null
+          inference_step_configs: Json | null
+          initial_images: Json | null
+          job_type: string | null
+          lighting: string | null
+          max_reference_images: number | null
+          negative_prompt: string | null
+          num_base_images: number | null
+          photographer_config_id: string | null
+          production_config_id: string | null
+          reference_image_configs: Json | null
+          scene: string | null
+          selected_base_image_id: string | null
+          sequence_status: string | null
+          series_id: string
+          started_at: string | null
+          status: string
+          styling: string | null
+          synthesized_prompt: string | null
+          themes: string[] | null
+          title: string | null
+          updated_at: string | null
+          use_thinking: boolean | null
+          use_thinking_infer4: boolean | null
+          use_thinking_infer6: boolean | null
+        }
+        Insert: {
+          art_direction?: string | null
+          aspect_ratio?: string | null
+          base_prompt: string
+          camera?: string | null
+          colors?: string[] | null
+          completed_at?: string | null
+          created_at?: string | null
+          director_config_id?: string | null
+          error_message?: string | null
+          foundation_model?: string
+          foundation_status?: string | null
+          framing?: string | null
+          id?: string
+          image_model?: string | null
+          image_size?: string | null
+          include_negative_prompt?: boolean | null
+          inference_log?: Json | null
+          inference_model?: string | null
+          inference_step_configs?: Json | null
+          initial_images?: Json | null
+          job_type?: string | null
+          lighting?: string | null
+          max_reference_images?: number | null
+          negative_prompt?: string | null
+          num_base_images?: number | null
+          photographer_config_id?: string | null
+          production_config_id?: string | null
+          reference_image_configs?: Json | null
+          scene?: string | null
+          selected_base_image_id?: string | null
+          sequence_status?: string | null
+          series_id: string
+          started_at?: string | null
+          status?: string
+          styling?: string | null
+          synthesized_prompt?: string | null
+          themes?: string[] | null
+          title?: string | null
+          updated_at?: string | null
+          use_thinking?: boolean | null
+          use_thinking_infer4?: boolean | null
+          use_thinking_infer6?: boolean | null
+        }
+        Update: {
+          art_direction?: string | null
+          aspect_ratio?: string | null
+          base_prompt?: string
+          camera?: string | null
+          colors?: string[] | null
+          completed_at?: string | null
+          created_at?: string | null
+          director_config_id?: string | null
+          error_message?: string | null
+          foundation_model?: string
+          foundation_status?: string | null
+          framing?: string | null
+          id?: string
+          image_model?: string | null
+          image_size?: string | null
+          include_negative_prompt?: boolean | null
+          inference_log?: Json | null
+          inference_model?: string | null
+          inference_step_configs?: Json | null
+          initial_images?: Json | null
+          job_type?: string | null
+          lighting?: string | null
+          max_reference_images?: number | null
+          negative_prompt?: string | null
+          num_base_images?: number | null
+          photographer_config_id?: string | null
+          production_config_id?: string | null
+          reference_image_configs?: Json | null
+          scene?: string | null
+          selected_base_image_id?: string | null
+          sequence_status?: string | null
+          series_id?: string
+          started_at?: string | null
+          status?: string
+          styling?: string | null
+          synthesized_prompt?: string | null
+          themes?: string[] | null
+          title?: string | null
+          updated_at?: string | null
+          use_thinking?: boolean | null
+          use_thinking_infer4?: boolean | null
+          use_thinking_infer6?: boolean | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cog_jobs_director_config_id_fkey"
+            columns: ["director_config_id"]
+            isOneToOne: false
+            referencedRelation: "cog_director_configs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cog_jobs_photographer_config_id_fkey"
+            columns: ["photographer_config_id"]
+            isOneToOne: false
+            referencedRelation: "cog_photographer_configs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cog_jobs_production_config_id_fkey"
+            columns: ["production_config_id"]
+            isOneToOne: false
+            referencedRelation: "cog_production_configs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cog_jobs_selected_base_image_id_fkey"
+            columns: ["selected_base_image_id"]
+            isOneToOne: false
+            referencedRelation: "cog_images"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cog_jobs_series_id_fkey"
+            columns: ["series_id"]
+            isOneToOne: false
+            referencedRelation: "cog_series"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cog_photographer_configs: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          distilled_prompt: string | null
+          id: string
+          name: string
+          style_description: string
+          style_references: string[] | null
+          techniques: string
+          testbed_notes: string
+          type: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          distilled_prompt?: string | null
+          id?: string
+          name: string
+          style_description: string
+          style_references?: string[] | null
+          techniques?: string
+          testbed_notes?: string
+          type?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          distilled_prompt?: string | null
+          id?: string
+          name?: string
+          style_description?: string
+          style_references?: string[] | null
+          techniques?: string
+          testbed_notes?: string
+          type?: string | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      cog_pipeline_base_candidates: {
+        Row: {
+          candidate_index: number
+          created_at: string | null
+          id: string
+          image_id: string
+          job_id: string
+        }
+        Insert: {
+          candidate_index: number
+          created_at?: string | null
+          id?: string
+          image_id: string
+          job_id: string
+        }
+        Update: {
+          candidate_index?: number
+          created_at?: string | null
+          id?: string
+          image_id?: string
+          job_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cog_pipeline_base_candidates_image_id_fkey"
+            columns: ["image_id"]
+            isOneToOne: false
+            referencedRelation: "cog_images"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cog_pipeline_base_candidates_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "cog_jobs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cog_pipeline_step_outputs: {
+        Row: {
+          created_at: string
+          id: string
+          image_id: string
+          metadata: Json | null
+          step_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          image_id: string
+          metadata?: Json | null
+          step_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          image_id?: string
+          metadata?: Json | null
+          step_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cog_pipeline_step_outputs_image_id_fkey"
+            columns: ["image_id"]
+            isOneToOne: false
+            referencedRelation: "cog_images"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cog_pipeline_step_outputs_step_id_fkey"
+            columns: ["step_id"]
+            isOneToOne: true
+            referencedRelation: "cog_pipeline_steps"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cog_pipeline_steps: {
+        Row: {
+          completed_at: string | null
+          config: Json
+          created_at: string
+          error_message: string | null
+          id: string
+          job_id: string
+          model: string
+          started_at: string | null
+          status: string
+          step_order: number
+          step_type: string
+        }
+        Insert: {
+          completed_at?: string | null
+          config: Json
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          job_id: string
+          model: string
+          started_at?: string | null
+          status?: string
+          step_order: number
+          step_type: string
+        }
+        Update: {
+          completed_at?: string | null
+          config?: Json
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          job_id?: string
+          model?: string
+          started_at?: string | null
+          status?: string
+          step_order?: number
+          step_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cog_pipeline_steps_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "cog_jobs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cog_production_configs: {
+        Row: {
+          conceptual_notes: string
+          costume_notes: string
+          created_at: string | null
+          description: string | null
+          editorial_notes: string
+          id: string
+          name: string
+          shoot_details: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          conceptual_notes?: string
+          costume_notes?: string
+          created_at?: string | null
+          description?: string | null
+          editorial_notes?: string
+          id?: string
+          name: string
+          shoot_details?: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          conceptual_notes?: string
+          costume_notes?: string
+          created_at?: string | null
+          description?: string | null
+          editorial_notes?: string
+          id?: string
+          name?: string
+          shoot_details?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      cog_remix_augment_steps: {
+        Row: {
+          config: Json | null
+          created_at: string | null
+          id: string
+          input_image_id: string | null
+          job_id: string
+          output_image_id: string | null
+          status: string
+          step_order: number
+          step_type: string
+        }
+        Insert: {
+          config?: Json | null
+          created_at?: string | null
+          id?: string
+          input_image_id?: string | null
+          job_id: string
+          output_image_id?: string | null
+          status?: string
+          step_order: number
+          step_type: string
+        }
+        Update: {
+          config?: Json | null
+          created_at?: string | null
+          id?: string
+          input_image_id?: string | null
+          job_id?: string
+          output_image_id?: string | null
+          status?: string
+          step_order?: number
+          step_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cog_remix_augment_steps_input_image_id_fkey"
+            columns: ["input_image_id"]
+            isOneToOne: false
+            referencedRelation: "cog_images"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cog_remix_augment_steps_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "cog_remix_jobs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cog_remix_augment_steps_output_image_id_fkey"
+            columns: ["output_image_id"]
+            isOneToOne: false
+            referencedRelation: "cog_images"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cog_remix_candidates: {
+        Row: {
+          created_at: string | null
+          eval_reasoning: string | null
+          eval_score: number | null
+          height: number | null
+          id: string
+          image_id: string | null
+          iteration_id: string
+          job_id: string
+          photographer: string | null
+          photographer_url: string | null
+          selected: boolean | null
+          source: string
+          source_id: string
+          source_url: string
+          thumbnail_url: string
+          width: number | null
+        }
+        Insert: {
+          created_at?: string | null
+          eval_reasoning?: string | null
+          eval_score?: number | null
+          height?: number | null
+          id?: string
+          image_id?: string | null
+          iteration_id: string
+          job_id: string
+          photographer?: string | null
+          photographer_url?: string | null
+          selected?: boolean | null
+          source: string
+          source_id: string
+          source_url: string
+          thumbnail_url: string
+          width?: number | null
+        }
+        Update: {
+          created_at?: string | null
+          eval_reasoning?: string | null
+          eval_score?: number | null
+          height?: number | null
+          id?: string
+          image_id?: string | null
+          iteration_id?: string
+          job_id?: string
+          photographer?: string | null
+          photographer_url?: string | null
+          selected?: boolean | null
+          source?: string
+          source_id?: string
+          source_url?: string
+          thumbnail_url?: string
+          width?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cog_remix_candidates_image_id_fkey"
+            columns: ["image_id"]
+            isOneToOne: false
+            referencedRelation: "cog_images"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cog_remix_candidates_iteration_id_fkey"
+            columns: ["iteration_id"]
+            isOneToOne: false
+            referencedRelation: "cog_remix_search_iterations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cog_remix_candidates_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "cog_remix_jobs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cog_remix_eval_results: {
+        Row: {
+          candidate_id: string
+          created_at: string | null
+          criterion_scores: Json | null
+          id: string
+          reasoning: string | null
+          run_id: string
+          score: number | null
+        }
+        Insert: {
+          candidate_id: string
+          created_at?: string | null
+          criterion_scores?: Json | null
+          id?: string
+          reasoning?: string | null
+          run_id: string
+          score?: number | null
+        }
+        Update: {
+          candidate_id?: string
+          created_at?: string | null
+          criterion_scores?: Json | null
+          id?: string
+          reasoning?: string | null
+          run_id?: string
+          score?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cog_remix_eval_results_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "cog_remix_candidates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cog_remix_eval_results_run_id_fkey"
+            columns: ["run_id"]
+            isOneToOne: false
+            referencedRelation: "cog_remix_eval_runs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cog_remix_eval_runs: {
+        Row: {
+          created_at: string | null
+          eval_profile_id: string
+          id: string
+          is_initial: boolean
+          job_id: string
+          selected_candidate_id: string | null
+          status: string
+        }
+        Insert: {
+          created_at?: string | null
+          eval_profile_id: string
+          id?: string
+          is_initial?: boolean
+          job_id: string
+          selected_candidate_id?: string | null
+          status?: string
+        }
+        Update: {
+          created_at?: string | null
+          eval_profile_id?: string
+          id?: string
+          is_initial?: boolean
+          job_id?: string
+          selected_candidate_id?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cog_remix_eval_runs_eval_profile_id_fkey"
+            columns: ["eval_profile_id"]
+            isOneToOne: false
+            referencedRelation: "cog_eval_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cog_remix_eval_runs_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "cog_remix_jobs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cog_remix_eval_runs_selected_candidate_id_fkey"
+            columns: ["selected_candidate_id"]
+            isOneToOne: false
+            referencedRelation: "cog_remix_candidates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cog_remix_jobs: {
+        Row: {
+          augment_status: string
+          colors: string[] | null
+          completed_at: string | null
+          created_at: string | null
+          error_message: string | null
+          eval_profile_id: string | null
+          eval_profile_ids: string[] | null
+          id: string
+          selected_image_id: string | null
+          series_id: string
+          source_status: string
+          started_at: string | null
+          status: string
+          story: string
+          target_aspect_ratio: string | null
+          target_colors: string[] | null
+          title: string | null
+          topics: string[] | null
+          trace: Json | null
+          updated_at: string | null
+        }
+        Insert: {
+          augment_status?: string
+          colors?: string[] | null
+          completed_at?: string | null
+          created_at?: string | null
+          error_message?: string | null
+          eval_profile_id?: string | null
+          eval_profile_ids?: string[] | null
+          id?: string
+          selected_image_id?: string | null
+          series_id: string
+          source_status?: string
+          started_at?: string | null
+          status?: string
+          story: string
+          target_aspect_ratio?: string | null
+          target_colors?: string[] | null
+          title?: string | null
+          topics?: string[] | null
+          trace?: Json | null
+          updated_at?: string | null
+        }
+        Update: {
+          augment_status?: string
+          colors?: string[] | null
+          completed_at?: string | null
+          created_at?: string | null
+          error_message?: string | null
+          eval_profile_id?: string | null
+          eval_profile_ids?: string[] | null
+          id?: string
+          selected_image_id?: string | null
+          series_id?: string
+          source_status?: string
+          started_at?: string | null
+          status?: string
+          story?: string
+          target_aspect_ratio?: string | null
+          target_colors?: string[] | null
+          title?: string | null
+          topics?: string[] | null
+          trace?: Json | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cog_remix_jobs_eval_profile_id_fkey"
+            columns: ["eval_profile_id"]
+            isOneToOne: false
+            referencedRelation: "cog_eval_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cog_remix_jobs_selected_image_id_fkey"
+            columns: ["selected_image_id"]
+            isOneToOne: false
+            referencedRelation: "cog_images"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cog_remix_jobs_series_id_fkey"
+            columns: ["series_id"]
+            isOneToOne: false
+            referencedRelation: "cog_series"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cog_remix_search_iterations: {
+        Row: {
+          created_at: string | null
+          feedback: string | null
+          id: string
+          iteration_number: number
+          job_id: string
+          llm_reasoning: string | null
+          search_params: Json
+          status: string
+        }
+        Insert: {
+          created_at?: string | null
+          feedback?: string | null
+          id?: string
+          iteration_number: number
+          job_id: string
+          llm_reasoning?: string | null
+          search_params?: Json
+          status?: string
+        }
+        Update: {
+          created_at?: string | null
+          feedback?: string | null
+          id?: string
+          iteration_number?: number
+          job_id?: string
+          llm_reasoning?: string | null
+          search_params?: Json
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cog_remix_search_iterations_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "cog_remix_jobs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cog_series: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          id: string
+          is_private: boolean | null
+          parent_id: string | null
+          primary_image_id: string | null
+          tags: string[] | null
+          title: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_private?: boolean | null
+          parent_id?: string | null
+          primary_image_id?: string | null
+          tags?: string[] | null
+          title: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_private?: boolean | null
+          parent_id?: string | null
+          primary_image_id?: string | null
+          tags?: string[] | null
+          title?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cog_series_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "cog_series"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cog_series_primary_image_id_fkey"
+            columns: ["primary_image_id"]
+            isOneToOne: false
+            referencedRelation: "cog_images"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cog_series_tags: {
+        Row: {
+          created_at: string | null
+          id: string
+          position: number
+          series_id: string
+          tag_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          position?: number
+          series_id: string
+          tag_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          position?: number
+          series_id?: string
+          tag_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cog_series_tags_series_id_fkey"
+            columns: ["series_id"]
+            isOneToOne: false
+            referencedRelation: "cog_series"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cog_series_tags_tag_id_fkey"
+            columns: ["tag_id"]
+            isOneToOne: false
+            referencedRelation: "cog_tags"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cog_tag_groups: {
+        Row: {
+          color: string | null
+          created_at: string | null
+          id: string
+          name: string
+          position: number
+        }
+        Insert: {
+          color?: string | null
+          created_at?: string | null
+          id?: string
+          name: string
+          position?: number
+        }
+        Update: {
+          color?: string | null
+          created_at?: string | null
+          id?: string
+          name?: string
+          position?: number
+        }
+        Relationships: []
+      }
+      cog_tags: {
+        Row: {
+          color: string | null
+          created_at: string | null
+          group_id: string | null
+          id: string
+          name: string
+          position: number
+          series_id: string | null
+          shortcut: string | null
+        }
+        Insert: {
+          color?: string | null
+          created_at?: string | null
+          group_id?: string | null
+          id?: string
+          name: string
+          position?: number
+          series_id?: string | null
+          shortcut?: string | null
+        }
+        Update: {
+          color?: string | null
+          created_at?: string | null
+          group_id?: string | null
+          id?: string
+          name?: string
+          position?: number
+          series_id?: string | null
+          shortcut?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cog_tags_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "cog_tag_groups"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cog_tags_series_id_fkey"
+            columns: ["series_id"]
+            isOneToOne: false
+            referencedRelation: "cog_series"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cog_thinking_jobs: {
+        Row: {
+          aspect_ratio: string | null
+          completed_at: string | null
+          created_at: string
+          creative_direction: string | null
+          derived_subject: string | null
+          direction_thinking: string | null
+          error_message: string | null
+          generated_image_id: string | null
+          generation_prompt: string | null
+          id: string
+          image_size: string | null
+          photographer: string
+          publication: string
+          series_id: string
+          started_at: string | null
+          status: string
+          story: string
+          style_hints: string | null
+          subject_thinking: string | null
+          title: string | null
+          trace: Json[] | null
+          updated_at: string
+        }
+        Insert: {
+          aspect_ratio?: string | null
+          completed_at?: string | null
+          created_at?: string
+          creative_direction?: string | null
+          derived_subject?: string | null
+          direction_thinking?: string | null
+          error_message?: string | null
+          generated_image_id?: string | null
+          generation_prompt?: string | null
+          id?: string
+          image_size?: string | null
+          photographer: string
+          publication: string
+          series_id: string
+          started_at?: string | null
+          status?: string
+          story: string
+          style_hints?: string | null
+          subject_thinking?: string | null
+          title?: string | null
+          trace?: Json[] | null
+          updated_at?: string
+        }
+        Update: {
+          aspect_ratio?: string | null
+          completed_at?: string | null
+          created_at?: string
+          creative_direction?: string | null
+          derived_subject?: string | null
+          direction_thinking?: string | null
+          error_message?: string | null
+          generated_image_id?: string | null
+          generation_prompt?: string | null
+          id?: string
+          image_size?: string | null
+          photographer?: string
+          publication?: string
+          series_id?: string
+          started_at?: string | null
+          status?: string
+          story?: string
+          style_hints?: string | null
+          subject_thinking?: string | null
+          title?: string | null
+          trace?: Json[] | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cog_thinking_jobs_generated_image_id_fkey"
+            columns: ["generated_image_id"]
+            isOneToOne: false
+            referencedRelation: "cog_images"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cog_thinking_jobs_series_id_fkey"
+            columns: ["series_id"]
+            isOneToOne: false
+            referencedRelation: "cog_series"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       customer_profiles: {
         Row: {
           addressable_percentage: number | null
@@ -1354,6 +2766,7 @@ export type Database = {
           featured_image: string | null
           id: string
           images: Json | null
+          is_private: boolean | null
           metadata: Json | null
           published: boolean
           published_at: string | null
@@ -1374,6 +2787,7 @@ export type Database = {
           featured_image?: string | null
           id?: string
           images?: Json | null
+          is_private?: boolean | null
           metadata?: Json | null
           published?: boolean
           published_at?: string | null
@@ -1394,6 +2808,7 @@ export type Database = {
           featured_image?: string | null
           id?: string
           images?: Json | null
+          is_private?: boolean | null
           metadata?: Json | null
           published?: boolean
           published_at?: string | null
@@ -1739,6 +3154,134 @@ export type Database = {
           },
         ]
       }
+      stable_assets: {
+        Row: {
+          asset_type: string
+          character_id: string
+          created_at: string
+          created_by: string | null
+          data: Json | null
+          file_size: number | null
+          file_type: string | null
+          file_url: string | null
+          id: string
+          name: string | null
+          tags: string[] | null
+          updated_at: string
+        }
+        Insert: {
+          asset_type: string
+          character_id: string
+          created_at?: string
+          created_by?: string | null
+          data?: Json | null
+          file_size?: number | null
+          file_type?: string | null
+          file_url?: string | null
+          id?: string
+          name?: string | null
+          tags?: string[] | null
+          updated_at?: string
+        }
+        Update: {
+          asset_type?: string
+          character_id?: string
+          created_at?: string
+          created_by?: string | null
+          data?: Json | null
+          file_size?: number | null
+          file_type?: string | null
+          file_url?: string | null
+          id?: string
+          name?: string | null
+          tags?: string[] | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stable_assets_character_id_fkey"
+            columns: ["character_id"]
+            isOneToOne: false
+            referencedRelation: "stable_characters"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      stable_character_relationships: {
+        Row: {
+          character_a_id: string
+          character_b_id: string
+          created_at: string
+          id: string
+          notes: string | null
+          relationship_type: string
+          updated_at: string
+        }
+        Insert: {
+          character_a_id: string
+          character_b_id: string
+          created_at?: string
+          id?: string
+          notes?: string | null
+          relationship_type: string
+          updated_at?: string
+        }
+        Update: {
+          character_a_id?: string
+          character_b_id?: string
+          created_at?: string
+          id?: string
+          notes?: string | null
+          relationship_type?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stable_character_relationships_character_a_id_fkey"
+            columns: ["character_a_id"]
+            isOneToOne: false
+            referencedRelation: "stable_characters"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stable_character_relationships_character_b_id_fkey"
+            columns: ["character_b_id"]
+            isOneToOne: false
+            referencedRelation: "stable_characters"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      stable_characters: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          description: string | null
+          id: string
+          name: string
+          parametric_data: Json
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          name: string
+          parametric_data?: Json
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          name?: string
+          parametric_data?: Json
+          updated_at?: string
+        }
+        Relationships: []
+      }
       story_map_layers: {
         Row: {
           created_at: string
@@ -2027,6 +3570,7 @@ export type Database = {
           description: string | null
           has_pending_survey: boolean | null
           id: string
+          is_private: boolean | null
           name: string
           problem_statement: string | null
           scope_out: string | null
@@ -2044,6 +3588,7 @@ export type Database = {
           description?: string | null
           has_pending_survey?: boolean | null
           id?: string
+          is_private?: boolean | null
           name: string
           problem_statement?: string | null
           scope_out?: string | null
@@ -2061,6 +3606,7 @@ export type Database = {
           description?: string | null
           has_pending_survey?: boolean | null
           id?: string
+          is_private?: boolean | null
           name?: string
           problem_statement?: string | null
           scope_out?: string | null
@@ -2699,6 +4245,72 @@ export type Database = {
           },
         ]
       }
+      webauthn_challenges: {
+        Row: {
+          challenge: string
+          created_at: string
+          expires_at: string
+          id: string
+          type: string
+          user_id: string | null
+        }
+        Insert: {
+          challenge: string
+          created_at?: string
+          expires_at: string
+          id?: string
+          type: string
+          user_id?: string | null
+        }
+        Update: {
+          challenge?: string
+          created_at?: string
+          expires_at?: string
+          id?: string
+          type?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      webauthn_credentials: {
+        Row: {
+          backed_up: boolean
+          counter: number
+          created_at: string
+          device_type: string
+          id: string
+          last_used_at: string | null
+          name: string | null
+          public_key: string
+          transports: string[] | null
+          user_id: string
+        }
+        Insert: {
+          backed_up?: boolean
+          counter?: number
+          created_at?: string
+          device_type: string
+          id: string
+          last_used_at?: string | null
+          name?: string | null
+          public_key: string
+          transports?: string[] | null
+          user_id: string
+        }
+        Update: {
+          backed_up?: boolean
+          counter?: number
+          created_at?: string
+          device_type?: string
+          id?: string
+          last_used_at?: string | null
+          name?: string | null
+          public_key?: string
+          transports?: string[] | null
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       canvas_items_with_assumptions: {
@@ -2870,6 +4482,7 @@ export type Database = {
       }
     }
     Functions: {
+      cleanup_expired_webauthn_challenges: { Args: never; Returns: undefined }
       get_canvas_item_counts: {
         Args: { item_ids: string[] }
         Returns: {

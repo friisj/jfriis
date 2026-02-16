@@ -5,7 +5,7 @@ import { SeriesDashboard } from './series-dashboard';
 
 export default async function CogPage() {
   const supabase = await createClient();
-  const { data: seriesData, error: seriesError } = await (supabase as any)
+  const { data: seriesData, error: seriesError } = await supabase
     .from('cog_series')
     .select('*')
     .is('parent_id', null)
@@ -16,14 +16,20 @@ export default async function CogPage() {
     return <SeriesDashboard series={[]} />;
   }
 
-  const seriesList: CogSeries[] = Array.isArray(seriesData) ? seriesData : [];
+  const seriesList: CogSeries[] = (Array.isArray(seriesData) ? seriesData : []).map((row) => ({
+    ...row,
+    tags: row.tags ?? [],
+    is_private: row.is_private ?? undefined,
+    created_at: row.created_at ?? '',
+    updated_at: row.updated_at ?? '',
+  }));
 
   if (seriesList.length === 0) {
     return <SeriesDashboard series={[]} />;
   }
 
   const seriesIds = seriesList.map((series) => series.id);
-  const { data: imageRows, error: imageError } = await (supabase as any)
+  const { data: imageRows, error: imageError } = await supabase
     .from('cog_images')
     .select('id, series_id, storage_path, thumbnail_256, created_at')
     .in('series_id', seriesIds)
@@ -40,7 +46,7 @@ export default async function CogPage() {
       series_id: string;
       storage_path: string;
       thumbnail_256: string | null;
-      created_at: string;
+      created_at: string | null;
     }>
   >();
 
