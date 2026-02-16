@@ -99,11 +99,20 @@ export function ImageEditor({ seriesId, imageId, initialImages }: ImageEditorPro
   }, [initialImages, imageId])
 
   const refreshImages = useCallback(async () => {
-    const response = await fetch(`/api/cog/series/${seriesId}/images`)
-    const data = await response.json()
-    setImages(data)
-    return data as CogImageWithGroupInfo[]
-  }, [seriesId])
+    try {
+      const response = await fetch(`/api/cog/series/${seriesId}/images`)
+      if (!response.ok) {
+        console.error('[ImageEditor] Failed to refresh images:', response.statusText)
+        return images
+      }
+      const data = await response.json()
+      setImages(data)
+      return data as CogImageWithGroupInfo[]
+    } catch (error) {
+      console.error('[ImageEditor] Failed to refresh images:', error)
+      return images
+    }
+  }, [seriesId, images])
 
   // Handle browser back/forward navigation
   useEffect(() => {
