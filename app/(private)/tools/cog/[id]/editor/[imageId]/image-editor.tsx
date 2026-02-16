@@ -94,9 +94,13 @@ export function ImageEditor({ seriesId, imageId, initialImages }: ImageEditorPro
     const index = initialImages.findIndex((img) => img.id === imageId)
     if (index >= 0) {
       setCurrentIndex(index)
+    } else if (initialImages.length > 0) {
+      // imageId not in list (e.g. wrong group filter) — navigate to first image
+      router.replace(`/tools/cog/${seriesId}/editor/${initialImages[0].id}`)
+      return
     }
     setIsLoading(false)
-  }, [initialImages, imageId])
+  }, [initialImages, imageId, router, seriesId])
 
   const refreshImages = useCallback(async () => {
     try {
