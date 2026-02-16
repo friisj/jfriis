@@ -430,7 +430,11 @@ export async function runCogJob(input: RunJobInput): Promise<void> {
           const usedReferenceImages = actualModelUsed !== 'imagen-4' && usedReferenceCount > 0;
           const referenceNotes: string[] = [];
           if (referencesTruncated) {
-            referenceNotes.push(`Only first ${modelReferenceLimit} reference images used (model limit).`);
+            if (modelReferenceLimit === 0) {
+              referenceNotes.push(`Model ${actualModelUsed} does not support reference images. ${providedReferenceCount} reference(s) ignored.`);
+            } else {
+              referenceNotes.push(`Only first ${modelReferenceLimit} of ${providedReferenceCount} reference images used (model limit).`);
+            }
           }
 
           // Create a cog_images record
