@@ -1,22 +1,45 @@
 # CLAUDE.md — jonfriis.com
 
-This is the root configuration for Claude Code. It loads automatically every session.
+Next.js monorepo powering jonfriis.com — a personal portfolio site with an integrated CMS, validation toolkit, internal tools, and an R&D studio. Single-user (Jon Friis), deployed on Vercel, backed by Supabase.
 
 ## Project Overview
 
-This is the codebase for **jonfriis.com** — Jon Friis's personal website, portfolio, and creative studio. Deployed on Vercel.
+This is a single-user codebase. There is no registration flow, no multi-tenancy, no public sign-up. Authentication is passkey (WebAuthn) for one person.
 
-The codebase serves four main purposes:
+The codebase is organized around an **explore/exploit duality**:
 
-1. **Portfolio site** (`/portfolio`, `/gallery`, `/explore`) — Public-facing showcase of ventures, specimens (design artifacts), and log entries. Visitors browse work, view galleries, and explore curated sequences.
+- **Studio** is the explore side — R&D projects that test ideas, validate hypotheses, and build prototype-grade code.
+- **Ventures** are the exploit side — businesses or projects on a path to market, at any stage from early concept to scaled operation.
+- **Validation infrastructure** bridges the two — canvases, assumptions, evidence, hypotheses, experiments, journeys, blueprints, and story maps form the system of record that tracks an idea's movement from concept to scalable business.
 
-2. **Admin CMS** (`/admin/*`) — Auth-protected content management for all site entities. CRUD interfaces for ventures, specimens, log entries, channels, canvases, assumptions, evidence, and more. Uses passkey (WebAuthn) authentication — single-user, no registration flow.
+Studio projects may mature into functioning apps with near-complete productization, where incremental experiments systematically reduce tracked risk. When a venture is created, it can reference one or more studio projects and reuse their boundary objects. Studio projects remain explore-only; ventures are the exploit container.
 
-3. **Tools** (`/tools/*`) — Private utility apps. The largest is **Cog** (`/tools/cog/*`), an AI image generation system built on Replicate that manages series, jobs, pipelines, inference configs, and image evaluation (25+ `cog_` database tables, orchestrated via `lib/cog.ts` and `lib/cog-server.ts`). Other tools include `repas`, `spend`, and `stable`.
+### Domains
 
-4. **Studio** (`/studio/*`) — R&D space for experimental projects. Prototype-grade code for testing ideas (design system tooling, experience systems, etc.). Studio projects have their own database tables (`studio_` prefix) and documentation in `docs/studio/`.
+1. **Portfolio & Public Site** (`/portfolio`, `/gallery`, `/explore`, `/profile`) — Public-facing showcase of ventures, specimens, and log entries. This is what visitors see.
 
-The database layer is Supabase (PostgreSQL) with 90+ migrations, Row Level Security, and a custom MCP server for AI-assisted CRUD operations.
+2. **Ventures** (`/admin/ventures`) — Commercial businesses or projects being exploited. The database table is currently `projects` (being renamed to `ventures` in a separate branch). Ventures may reference studio projects and share boundary objects with them.
+
+3. **Studio** (`/studio/*`, `/admin/studio`) — R&D workspace for experimental projects. Studio projects have their own database tables (`studio_` prefix), documentation in `docs/studio/`, and a validation chain: projects → hypotheses → experiments → assumptions → evidence. Some studio projects grow into complex integrated prototypes.
+
+4. **Validation & Strategy Toolkit** (`/admin/canvases/*`, `/admin/assumptions`, `/admin/journeys`, `/admin/blueprints`, `/admin/story-maps`) — Structured thinking tools used by both ventures and studio projects:
+   - **Canvases**: Business Model Canvas, Value Proposition Canvas, Customer Profiles, Value Maps
+   - **Assumptions & Evidence**: Testable beliefs with validation status, linked to supporting evidence
+   - **Journeys & Blueprints**: User journeys with staged touchpoints; service blueprints with process steps
+   - **Story Maps**: Epic-to-story hierarchies with release tracking
+   - These entities are connected via `entity_links`, a universal many-to-many relationship table.
+
+5. **Log Entries** (`/log`, `/admin/log`) — Working research documentation on any aspect of project work, peripheral research, or opinion. Some are published on the public site to shape an edited feed of written research and thinking, strategically positioning expertise to build leverage for patronage, employment, or partnership.
+
+6. **Specimens** (`/gallery`, `/admin/specimens`) — Careful extractions from projects, or limited prototypes and sketches, designed for integration with log entries or embedding elsewhere on the site.
+
+7. **Tools** (`/tools/*`) — Internal utilities built for narrow functional needs. No attachment to studio projects, ventures, hypotheses, or other boundary objects. Current tools include Cog (AI image generation via Replicate), repas, spend, and stable. More will be added as needed.
+
+8. **Distribution** (`/admin/channels`) — Early-stage system for multi-channel distribution of select log entries. Includes channels, distribution_posts, and a queue. Scope and direction are still being defined.
+
+### Database
+
+Supabase (PostgreSQL) with 90+ migrations, Row Level Security, and a custom MCP server for AI-assisted CRUD operations. Table namespacing: no prefix for site entities, `studio_` for studio, `cog_` for Cognitron.
 
 ## Tech Stack
 
@@ -33,26 +56,26 @@ The database layer is Supabase (PostgreSQL) with 90+ migrations, Row Level Secur
 
 ```
 app/
-  (public)/          # Public-facing pages (no auth)
-  (private)/         # Auth-required pages
+  (public)/          # Public-facing pages (portfolio, gallery, explore, profile)
+  (private)/         # Auth-required pages (admin, tools, studio)
   (demo)/            # Demo/showcase pages
   api/               # API routes
   actions/           # Server actions
-  log/               # Activity log
+  log/               # Log entries (public + admin)
 components/
   admin/             # Admin UI (tables, forms, views)
   ai/                # AI chat components
   auth/              # Auth components (WebAuthn)
   cog/               # Cognitron (image generation) UI
   portfolio/         # Portfolio components
-  specimens/         # Design specimens/showcase
+  specimens/         # Specimen display components
   studio/            # Studio prototype components
   layout/            # Shared layout components
 lib/
   mcp/               # MCP tool definitions (shared with /mcp server)
   ai/                # AI provider configs
   hooks/             # React hooks
-  boundary-objects/  # Cross-layer data shapes
+  boundary-objects/  # Cross-layer entity shapes (ventures, canvases, journeys, etc.)
   portfolio/         # Portfolio logic
   fonts/             # Font configuration
 supabase/
@@ -118,8 +141,8 @@ Two historical patterns exist:
 - **Current**: `20260215000000_descriptive_name.sql` (timestamp-based, use this format)
 
 Table namespacing:
-- Site tables: no prefix (e.g., `projects`, `backlog_items`, `entity_links`)
-- Studio tables: `studio_` prefix (e.g., `studio_projects`, `studio_hypotheses`)
+- Site tables: no prefix (e.g., `projects` [ventures], `assumptions`, `evidence`, `entity_links`)
+- Studio tables: `studio_` prefix (e.g., `studio_projects`, `studio_hypotheses`, `studio_experiments`)
 - Cognitron tables: `cog_` prefix (e.g., `cog_jobs`, `cog_inference_step_configs`)
 
 ### Migration Rules
