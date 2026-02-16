@@ -36,7 +36,7 @@ export default async function AdminIdeasPage() {
 
   // Fetch entity links for these ideas (both as source and target)
   let studioProjectLinks: any[] = []
-  let ventureLinks: any[] = []
+  const ventureLinks: any[] = []
 
   if (ideaIds.length > 0) {
     const { data: spLinks } = await supabase
@@ -89,7 +89,7 @@ export default async function AdminIdeasPage() {
   ]
 
   let studioProjectNames: Record<string, string> = {}
-  let ventureNames: Record<string, string> = {}
+  const ventureNames: Record<string, string> = {}
 
   if (linkedStudioProjectIds.length > 0) {
     const { data: projects } = await supabase
@@ -101,15 +101,8 @@ export default async function AdminIdeasPage() {
     }
   }
 
-  if (linkedVentureIds.length > 0) {
-    const { data: ventures } = await supabase
-      .from('ventures')
-      .select('id, title')
-      .in('id', linkedVentureIds)
-    if (ventures) {
-      ventureNames = Object.fromEntries(ventures.map(v => [v.id, v.title]))
-    }
-  }
+  // Note: ventures table was dropped; venture name resolution is a no-op.
+  // linkedVentureIds are still collected from entity_links for display purposes.
 
   // Build enriched idea objects
   const ideasWithLinks = (ideas || []).map((idea: any) => {

@@ -162,7 +162,7 @@ export function IdeasListView({ ideas, stageCounts }: IdeasListViewProps) {
 
   const handleKanbanMove = async (item: IdeaEntry, _fromGroup: string, toGroup: string) => {
     const { supabase } = await import('@/lib/supabase')
-    const { error } = await supabase
+    const { error } = await (supabase as any)
       .from('log_entries')
       .update({ idea_stage: toGroup })
       .eq('id', item.id)

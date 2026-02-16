@@ -48,7 +48,7 @@ export function GraduationModal({ idea, targetType, onClose }: GraduationModalPr
     try {
       if (isStudioProject) {
         // Create studio project
-        const { data: project, error } = await supabase
+        const { data: project, error } = await (supabase as any)
           .from('studio_projects')
           .insert({
             name,
@@ -71,7 +71,7 @@ export function GraduationModal({ idea, targetType, onClose }: GraduationModalPr
         )
 
         // Update idea stage to graduated
-        await supabase
+        await (supabase as any)
           .from('log_entries')
           .update({ idea_stage: 'graduated' })
           .eq('id', idea.id)
@@ -82,7 +82,7 @@ export function GraduationModal({ idea, targetType, onClose }: GraduationModalPr
         router.refresh()
       } else {
         // Create venture
-        const { data: venture, error } = await supabase
+        const { data: venture, error } = await (supabase as any)
           .from('ventures')
           .insert({
             title: name,
@@ -103,7 +103,7 @@ export function GraduationModal({ idea, targetType, onClose }: GraduationModalPr
         )
 
         // Update idea stage to graduated
-        await supabase
+        await (supabase as any)
           .from('log_entries')
           .update({ idea_stage: 'graduated' })
           .eq('id', idea.id)
