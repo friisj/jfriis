@@ -8,8 +8,10 @@ import { generateImageWithGemini3Pro, isGemini3ProConfigured, analyzeReferenceIm
 import { generateWithFlux, isFluxConfigured, type FluxAspectRatio, type FluxResolution } from '../replicate-flux';
 import { createClient } from '@/lib/supabase-server';
 import type { CogJobStep, CogImageModel, CogImageSize, CogAspectRatio } from '@/lib/types/cog';
+import { generateThumbnails } from '@/lib/cog-thumbnails';
+import { clampReferencesForModel, type ReferenceCapModel } from '@/lib/reference-images';
 
-type ResolvedImageModel = 'imagen-4' | 'imagen-3-capability' | 'gemini-3-pro-image' | 'flux-2-pro' | 'flux-2-dev';
+type ResolvedImageModel = ReferenceCapModel;
 
 /**
  * Select the appropriate image generation model based on job settings and capabilities.
@@ -206,13 +208,25 @@ export async function runCogJob(input: RunJobInput): Promise<void> {
 
   // Fetch reference images
   const referenceImages = await fetchReferenceImages(jobId, supabase);
-  const referenceCount = referenceImages.length;
+  const providedReferenceCount = referenceImages.length;
 
-  console.log(`Job ${jobId}: Loaded ${referenceCount} reference images, model setting: ${jobImageModel}`);
+  console.log(`Job ${jobId}: Loaded ${providedReferenceCount} reference images, model setting: ${jobImageModel}`);
 
   // Select the appropriate model based on job settings and available APIs
-  const selectedModel = selectImageModel(jobImageModel, referenceCount > 0, referenceCount);
+  const selectedModel = selectImageModel(jobImageModel, providedReferenceCount > 0, providedReferenceCount);
   console.log(`Job ${jobId}: Selected model: ${selectedModel}`);
+
+  const {
+    references: effectiveReferenceImages,
+    truncated: referencesTruncated,
+    max: modelReferenceLimit,
+  } = clampReferencesForModel(selectedModel, referenceImages);
+  const usedReferenceCount = effectiveReferenceImages.length;
+  if (referencesTruncated) {
+    console.warn(
+      `Job ${jobId}: Model ${selectedModel} supports ${modelReferenceLimit} references, trimming from ${providedReferenceCount}`,
+    );
+  }
 
   // Get all steps for this job
   const { data: steps, error: stepsError } = await (supabase as any)
@@ -228,11 +242,11 @@ export async function runCogJob(input: RunJobInput): Promise<void> {
   // Pre-compute vision analysis once for the entire job (when thinking is enabled)
   // This avoids redundant vision API calls for each shot
   let cachedVisionAnalysis: VisionAnalysisResult | undefined;
-  if (useThinking && selectedModel === 'gemini-3-pro-image' && referenceCount > 0) {
+  if (useThinking && selectedModel === 'gemini-3-pro-image' && usedReferenceCount > 0) {
     const apiKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY;
     if (apiKey) {
-      console.log(`Job ${jobId}: Pre-computing vision analysis for ${referenceCount} reference images (once for all shots)`);
-      cachedVisionAnalysis = await analyzeReferenceImages(referenceImages, apiKey);
+      console.log(`Job ${jobId}: Pre-computing vision analysis for ${usedReferenceCount} reference images (once for all shots)`);
+      cachedVisionAnalysis = await analyzeReferenceImages(effectiveReferenceImages, apiKey);
       console.log(`Job ${jobId}: Vision analysis cached: ${cachedVisionAnalysis.metrics.durationMs}ms, ${cachedVisionAnalysis.metrics.tokensIn} in / ${cachedVisionAnalysis.metrics.tokensOut} out`);
     }
   }
@@ -312,7 +326,7 @@ export async function runCogJob(input: RunJobInput): Promise<void> {
                 modelId = selectedModel === 'flux-2-pro' ? 'black-forest-labs/flux-2-pro' : 'black-forest-labs/flux-2-dev';
                 const fluxResult = await generateWithFlux({
                   prompt: promptToUse,
-                  referenceImages: referenceImages.map(ref => ({
+                  referenceImages: effectiveReferenceImages.map(ref => ({
                     base64: ref.base64,
                     mimeType: ref.mimeType,
                   })),
@@ -332,7 +346,7 @@ export async function runCogJob(input: RunJobInput): Promise<void> {
                 modelId = 'gemini-3-pro-image-preview';
                 imageResult = await generateImageWithGemini3Pro({
                   prompt: promptToUse,
-                  referenceImages,
+                  referenceImages: effectiveReferenceImages,
                   aspectRatio: jobAspectRatio,
                   imageSize: jobImageSize,
                   thinking: useThinking,
@@ -346,7 +360,7 @@ export async function runCogJob(input: RunJobInput): Promise<void> {
                 modelId = 'imagen-3.0-capability-001';
                 imageResult = await generateImageWithVertex({
                   prompt: promptToUse,
-                  referenceImages,
+                  referenceImages: effectiveReferenceImages,
                   aspectRatio: jobAspectRatio,
                 });
                 break;
@@ -413,7 +427,11 @@ export async function runCogJob(input: RunJobInput): Promise<void> {
           const imageUrl = urlData.publicUrl;
 
           // Track which model was actually used for image generation
-          const usedReferenceImages = actualModelUsed !== 'imagen-4' && referenceCount > 0;
+          const usedReferenceImages = actualModelUsed !== 'imagen-4' && usedReferenceCount > 0;
+          const referenceNotes: string[] = [];
+          if (referencesTruncated) {
+            referenceNotes.push(`Only first ${modelReferenceLimit} reference images used (model limit).`);
+          }
 
           // Create a cog_images record
           const { data: imageRecord, error: imageError } = await (supabase as any)
@@ -431,12 +449,14 @@ export async function runCogJob(input: RunJobInput): Promise<void> {
                 actual_model_used: actualModelUsed,
                 step_id: step.id,
                 step_sequence: step.sequence,
-                reference_images_count: referenceCount,
-                reference_images_used: usedReferenceImages ? referenceCount : 0,
+                reference_images_count: providedReferenceCount,
+                reference_images_used: usedReferenceCount,
                 references_note:
-                  referenceCount > 0 && !usedReferenceImages
-                    ? 'Reference images could not be used with the selected model.'
-                    : undefined,
+                  referenceNotes.length > 0
+                    ? referenceNotes.join(' ')
+                    : providedReferenceCount > 0 && !usedReferenceImages
+                      ? 'Reference images could not be used with the selected model.'
+                      : undefined,
               },
             })
             .select()
@@ -465,6 +485,11 @@ export async function runCogJob(input: RunJobInput): Promise<void> {
               completed_at: new Date().toISOString(),
             })
             .eq('id', step.id);
+
+          // Kick off thumbnail generation (non-blocking so a failure doesn't break the job)
+          generateThumbnails(imageRecord.id, storagePath).catch((thumbError) => {
+            console.error('Failed to generate thumbnails for', imageRecord.id, thumbError);
+          });
 
           // Reset previous output for next image pair
           previousOutput = null;

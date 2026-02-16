@@ -183,6 +183,7 @@ export default async function JobDetailPage({ params }: Props) {
         inputs={job.inputs}
         seriesImages={seriesImages}
         canEdit={canEdit}
+        maxReferenceImages={job.max_reference_images}
       />
 
       {/* Shots */}

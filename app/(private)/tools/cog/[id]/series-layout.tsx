@@ -884,12 +884,12 @@ export function SeriesLayout({
 
                   {/* Scrollable content */}
                   <TabsContent value="jobs" className="mt-0">
-                    <div className="h-[calc(100vh-12rem)] overflow-y-auto pt-4">
+                    <div className="h-full overflow-y-auto pt-4">
                       <JobsPanel jobs={jobs} remixJobs={remixJobs} thinkingJobs={thinkingJobs} seriesId={seriesId} />
                     </div>
                   </TabsContent>
                   <TabsContent value="images" className="mt-0">
-                    <div className="h-[calc(100vh-12rem)] overflow-y-auto pt-4">
+                    <div className="h-full overflow-y-auto pt-4">
                       <ImagesPanel
                         images={images}
                         seriesId={seriesId}

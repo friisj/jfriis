@@ -1,19 +1,11 @@
-'use client'
+'use client';
 
-import { AdminRoute } from '@/components/auth/protected-route'
-import { usePathname } from 'next/navigation'
+import { AdminRoute } from '@/components/auth/protected-route';
 
 export default function CogLayout({
   children,
 }: {
-  children: React.ReactNode
+  children: React.ReactNode;
 }) {
-  const pathname = usePathname()
-
-  // Editor routes bypass this layout's chrome (they have their own auth check)
-  if (pathname?.includes('/editor/')) {
-    return children
-  }
-
-  return <AdminRoute>{children}</AdminRoute>
+  return <AdminRoute>{children}</AdminRoute>;
 }

@@ -12,14 +12,20 @@ interface JobInputsProps {
   inputs: CogJobInputWithImage[];
   seriesImages: CogImage[];
   canEdit: boolean;
+  maxReferenceImages?: number;
 }
 
-export function JobInputs({ jobId, inputs, seriesImages, canEdit }: JobInputsProps) {
+export function JobInputs({ jobId, inputs, seriesImages, canEdit, maxReferenceImages }: JobInputsProps) {
   const router = useRouter();
   const [isExpanded, setIsExpanded] = useState(false);
   const [isAdding, setIsAdding] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const referenceLimit =
+    typeof maxReferenceImages === 'number' && maxReferenceImages >= 0 ? maxReferenceImages : 4;
+  const referenceIdPool =
+    referenceLimit > 0 ? Array.from({ length: referenceLimit }, (_, index) => index + 1) : [];
 
   // Images available to add (not already inputs)
   const inputImageIds = new Set(inputs.map((i) => i.image_id));
@@ -29,9 +35,10 @@ export function JobInputs({ jobId, inputs, seriesImages, canEdit }: JobInputsPro
   const [selectedImageId, setSelectedImageId] = useState<string | null>(null);
   const [context, setContext] = useState('');
 
-  // Get next available reference ID (1-4)
+  // Get next available reference ID
   const usedReferenceIds = new Set(inputs.map((i) => i.reference_id));
-  const nextReferenceId = [1, 2, 3, 4].find((id) => !usedReferenceIds.has(id));
+  const nextReferenceId = referenceIdPool.find((id) => !usedReferenceIds.has(id));
+  const canAddMore = referenceLimit > 0 && inputs.length < referenceLimit;
 
   async function handleAddInput() {
     if (!selectedImageId || !nextReferenceId) return;
@@ -96,7 +103,9 @@ export function JobInputs({ jobId, inputs, seriesImages, canEdit }: JobInputsPro
             >
               <path d="m9 18 6-6-6-6" />
             </svg>
-            <span className="text-lg font-semibold">Reference Images ({inputs.length}/4)</span>
+            <span className="text-lg font-semibold">
+              Reference Images ({referenceLimit > 0 ? `${inputs.length}/${referenceLimit}` : inputs.length})
+            </span>
           </div>
           {/* Preview thumbnails when collapsed */}
           {!isExpanded && inputs.length > 0 && (
@@ -117,11 +126,16 @@ export function JobInputs({ jobId, inputs, seriesImages, canEdit }: JobInputsPro
         {/* Expanded Content */}
         {isExpanded && (
           <div className="px-4 pb-4">
-            {canEdit && inputs.length < 4 && availableImages.length > 0 && !isAdding && (
+            {canEdit && canAddMore && availableImages.length > 0 && !isAdding && (
               <div className="mb-4">
                 <Button size="sm" variant="outline" onClick={() => setIsAdding(true)}>
                   Add Reference
                 </Button>
+              </div>
+            )}
+            {canEdit && referenceLimit === 0 && (
+              <div className="mb-4 text-xs text-muted-foreground">
+                Reference images are disabled for the current model.
               </div>
             )}
 
@@ -179,7 +193,9 @@ export function JobInputs({ jobId, inputs, seriesImages, canEdit }: JobInputsPro
             {isAdding && (
               <div className="border rounded-lg p-4 bg-muted/50">
                 <p className="text-sm font-medium mb-3">
-                  Select an image to add as reference [{nextReferenceId}]
+                  {nextReferenceId
+                    ? `Select an image to add as reference [${nextReferenceId}]`
+                    : 'Select an image to add as reference'}
                 </p>
 
                 {availableImages.length === 0 ? (

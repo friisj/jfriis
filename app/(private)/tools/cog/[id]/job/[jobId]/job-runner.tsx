@@ -13,6 +13,7 @@ import {
 } from '@/components/ui/select';
 import { runCogJob } from '@/lib/ai/actions/run-cog-job';
 import { updateJob } from '@/lib/cog';
+import { getMaxReferenceImagesForModel } from '@/lib/reference-images';
 import type { CogImageModel, CogImageSize, CogAspectRatio } from '@/lib/types/cog';
 
 interface JobRunnerProps {
@@ -102,7 +103,10 @@ export function JobRunner({
 
     // Update the job immediately
     try {
-      await updateJob(jobId, { image_model: newModel });
+      await updateJob(jobId, {
+        image_model: newModel,
+        max_reference_images: getMaxReferenceImagesForModel(newModel),
+      });
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to update model');
@@ -191,7 +195,7 @@ export function JobRunner({
           </Select>
           <p className="text-xs text-muted-foreground mt-1">
             {modelDescriptions[imageModel]}
-            {hasReferenceImages && imageModel === 'imagen-4' && (
+            {hasReferenceImages && getMaxReferenceImagesForModel(imageModel) === 0 && (
               <span className="text-amber-600 dark:text-amber-400 block">
                 Refs ignored
               </span>

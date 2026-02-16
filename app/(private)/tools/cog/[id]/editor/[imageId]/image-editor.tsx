@@ -19,12 +19,13 @@ import { touchupCogImage } from '@/lib/ai/actions/touchup-cog-image'
 interface ImageEditorProps {
   seriesId: string
   imageId: string
+  initialImages: CogImageWithGroupInfo[]
 }
 
-export function ImageEditor({ seriesId, imageId }: ImageEditorProps) {
+export function ImageEditor({ seriesId, imageId, initialImages }: ImageEditorProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const [images, setImages] = useState<CogImageWithGroupInfo[]>([])
+  const [images, setImages] = useState<CogImageWithGroupInfo[]>(initialImages)
   const [currentIndex, setCurrentIndex] = useState(0)
   const [isLoading, setIsLoading] = useState(true)
   const [showGroupMode, setShowGroupMode] = useState(searchParams.get('group') === 'true')
@@ -88,28 +89,21 @@ export function ImageEditor({ seriesId, imageId }: ImageEditorProps) {
     setShowGroupMode(searchParams.get('group') === 'true')
   }, [searchParams])
 
-  // Fetch series images
   useEffect(() => {
-    async function loadImages() {
-      try {
-        const response = await fetch(`/api/cog/series/${seriesId}/images`)
-        const data = await response.json()
-        setImages(data)
-
-        // Find current image index
-        const index = data.findIndex((img: CogImageWithGroupInfo) => img.id === imageId)
-        if (index !== -1) {
-          setCurrentIndex(index)
-        }
-      } catch (error) {
-        console.error('Failed to load images:', error)
-      } finally {
-        setIsLoading(false)
-      }
+    setImages(initialImages)
+    const index = initialImages.findIndex((img) => img.id === imageId)
+    if (index >= 0) {
+      setCurrentIndex(index)
     }
+    setIsLoading(false)
+  }, [initialImages, imageId])
 
-    loadImages()
-  }, [seriesId, imageId])
+  const refreshImages = useCallback(async () => {
+    const response = await fetch(`/api/cog/series/${seriesId}/images`)
+    const data = await response.json()
+    setImages(data)
+    return data as CogImageWithGroupInfo[]
+  }, [seriesId])
 
   // Handle browser back/forward navigation
   useEffect(() => {
@@ -216,9 +210,7 @@ export function ImageEditor({ seriesId, imageId }: ImageEditorProps) {
         setEditMode(null)
         setHasMorphed(false)
         // Reload the series images to include the new morphed image
-        const response = await fetch(`/api/cog/series/${seriesId}/images`)
-        const data = await response.json()
-        setImages(data)
+        await refreshImages()
         alert('Morphed image saved!')
       } else {
         alert(`Failed to save: ${result.error}`)
@@ -229,7 +221,7 @@ export function ImageEditor({ seriesId, imageId }: ImageEditorProps) {
     } finally {
       setIsSavingMorph(false)
     }
-  }, [currentImage, seriesId])
+  }, [currentImage, refreshImages, seriesId])
 
   const handleClearMorph = useCallback(() => {
     if (morphCanvasRef.current) {
@@ -256,9 +248,7 @@ export function ImageEditor({ seriesId, imageId }: ImageEditorProps) {
         setEditMode(null)
         setRefinePrompt('')
 
-        const response = await fetch(`/api/cog/series/${seriesId}/images`)
-        const data = await response.json()
-        setImages(data)
+        await refreshImages()
 
         alert('Refined image generated successfully!')
       } else {
@@ -270,7 +260,7 @@ export function ImageEditor({ seriesId, imageId }: ImageEditorProps) {
     } finally {
       setIsRefining(false)
     }
-  }, [refinePrompt, refineModel, refineSize, refineAspectRatio, currentImage, seriesId])
+  }, [refinePrompt, refineModel, refineSize, refineAspectRatio, currentImage, refreshImages, seriesId])
 
   // Spot removal handler
   const handleSpotRemoval = useCallback(async () => {
@@ -289,9 +279,7 @@ export function ImageEditor({ seriesId, imageId }: ImageEditorProps) {
         setSpotMaskBase64(null)
         spotMaskCanvasRef.current?.clearMask()
 
-        const response = await fetch(`/api/cog/series/${seriesId}/images`)
-        const data = await response.json()
-        setImages(data)
+        await refreshImages()
 
         alert('Spot removal complete!')
       } else {
@@ -303,7 +291,7 @@ export function ImageEditor({ seriesId, imageId }: ImageEditorProps) {
     } finally {
       setIsSavingSpotRemoval(false)
     }
-  }, [spotMaskBase64, currentImage, seriesId])
+  }, [spotMaskBase64, currentImage, refreshImages, seriesId])
 
   // Guided edit handler
   const handleGuidedEdit = useCallback(async () => {
@@ -324,9 +312,7 @@ export function ImageEditor({ seriesId, imageId }: ImageEditorProps) {
         setGuidedPrompt('')
         guidedMaskCanvasRef.current?.clearMask()
 
-        const response = await fetch(`/api/cog/series/${seriesId}/images`)
-        const data = await response.json()
-        setImages(data)
+        await refreshImages()
 
         alert('Guided edit complete!')
       } else {
@@ -338,7 +324,7 @@ export function ImageEditor({ seriesId, imageId }: ImageEditorProps) {
     } finally {
       setIsSavingGuidedEdit(false)
     }
-  }, [guidedMaskBase64, guidedPrompt, currentImage, seriesId])
+  }, [guidedMaskBase64, guidedPrompt, currentImage, refreshImages, seriesId])
 
   // Navigation
   const exitToGrid = useCallback(() => {

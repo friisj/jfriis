@@ -4,6 +4,7 @@
  */
 
 import { supabase } from './supabase';
+import { getMaxReferenceImagesForModel } from './reference-images';
 import type {
   CogSeries,
   CogSeriesInsert,
@@ -169,14 +170,28 @@ export async function deleteSeriesWithCleanup(id: string): Promise<{ deletedImag
   // First, get all images in this series to clean up storage
   const { data: images, error: fetchError } = await (supabase as any)
     .from('cog_images')
-    .select('storage_path')
+    .select('storage_path, thumbnail_256, thumbnail_128, thumbnail_64')
     .eq('series_id', id);
 
   if (fetchError) throw fetchError;
 
-  const imagePaths = (images || [])
-    .map((img: { storage_path: string }) => img.storage_path)
-    .filter(Boolean);
+  let originalCount = 0;
+  const pathSet = new Set<string>();
+  (images || []).forEach((img: {
+    storage_path: string | null;
+    thumbnail_256: string | null;
+    thumbnail_128: string | null;
+    thumbnail_64: string | null;
+  }) => {
+    if (img.storage_path) {
+      pathSet.add(img.storage_path);
+      originalCount += 1;
+    }
+    if (img.thumbnail_256) pathSet.add(img.thumbnail_256);
+    if (img.thumbnail_128) pathSet.add(img.thumbnail_128);
+    if (img.thumbnail_64) pathSet.add(img.thumbnail_64);
+  });
+  const imagePaths = Array.from(pathSet);
 
   // Delete images from storage (batch delete)
   if (imagePaths.length > 0) {
@@ -198,7 +213,7 @@ export async function deleteSeriesWithCleanup(id: string): Promise<{ deletedImag
 
   if (deleteError) throw deleteError;
 
-  return { deletedImages: imagePaths.length };
+  return { deletedImages: originalCount };
 }
 
 // ============================================================================
@@ -288,7 +303,7 @@ export async function deleteImageWithCleanup(id: string): Promise<void> {
   // 1. Fetch the image to get storage_path, parent_image_id, group_id, and series_id
   const { data: image, error: fetchError } = await (supabase as any)
     .from('cog_images')
-    .select('storage_path, parent_image_id, group_id, series_id')
+    .select('storage_path, thumbnail_256, thumbnail_128, thumbnail_64, parent_image_id, group_id, series_id')
     .eq('id', id)
     .single();
 
@@ -348,10 +363,17 @@ export async function deleteImageWithCleanup(id: string): Promise<void> {
   }
 
   // 5. Delete from storage (fatal - don't leave orphaned DB records)
-  if (image.storage_path) {
+  const storagePaths = [
+    image.storage_path,
+    image.thumbnail_256,
+    image.thumbnail_128,
+    image.thumbnail_64,
+  ].filter((p): p is string => Boolean(p));
+
+  if (storagePaths.length > 0) {
     const { error: storageError } = await supabase.storage
       .from('cog-images')
-      .remove([image.storage_path]);
+      .remove(storagePaths);
 
     if (storageError) {
       throw new Error(`Storage cleanup failed: ${storageError.message}`);
@@ -412,6 +434,7 @@ export async function createJob(input: CogJobInsert): Promise<CogJob> {
       aspect_ratio: input.aspect_ratio || '1:1',
       use_thinking: input.use_thinking || false,
       status: input.status || 'draft',
+      max_reference_images: input.max_reference_images ?? getMaxReferenceImagesForModel(input.image_model || 'auto'),
     })
     .select()
     .single();

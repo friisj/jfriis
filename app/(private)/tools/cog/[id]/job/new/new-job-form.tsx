@@ -26,6 +26,7 @@ import {
 } from '@/lib/ai/actions/generate-cog-job';
 import { generateShootParams } from '@/lib/ai/actions/generate-shoot-params';
 import { createJob, createJobSteps, createJobInputs, getCogImageUrl } from '@/lib/cog';
+import { getMaxReferenceImagesForModel } from '@/lib/reference-images';
 import type {
   CogJobStepInsert,
   CogSeries,
@@ -86,10 +87,7 @@ export function NewJobForm({ series, images }: NewJobFormProps) {
     .join('\n\n');
 
   // Max reference images based on selected model
-  const maxReferenceImages = imageModel === 'gemini-3-pro-image' ? 14
-    : imageModel === 'imagen-3-capability' ? 4
-    : imageModel === 'imagen-4' ? 0
-    : 14; // auto - allow up to 14, actual model will be selected at runtime
+  const maxReferenceImages = getMaxReferenceImagesForModel(imageModel);
 
   function toggleImageSelection(image: CogImage) {
     const existing = selectedInputs.find((s) => s.image.id === image.id);
@@ -196,6 +194,7 @@ export function NewJobForm({ series, images }: NewJobFormProps) {
         framing: shootParams.framing,
         lighting: shootParams.lighting,
         image_model: imageModel,
+        max_reference_images: maxReferenceImages,
         status: runImmediately ? 'ready' : 'draft',
       });
 
@@ -271,8 +270,8 @@ export function NewJobForm({ series, images }: NewJobFormProps) {
             </Label>
             <p className="text-xs text-muted-foreground">
               {maxReferenceImages === 0
-                ? 'Reference images not supported with Imagen 4. Select a different model to use subject references.'
-                : 'Select images to use as subject references. The AI will recreate these subjects in new scenes.'}
+                ? 'Reference images are not supported with the current model. Select a different model to enable subject references.'
+                : `Select up to ${maxReferenceImages} images to use as subject references. The AI will recreate these subjects in new scenes.`}
             </p>
 
             {images.length === 0 && (
