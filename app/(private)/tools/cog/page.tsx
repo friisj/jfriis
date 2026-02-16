@@ -5,11 +5,16 @@ import { SeriesDashboard } from './series-dashboard';
 
 export default async function CogPage() {
   const supabase = await createClient();
-  const { data: seriesData } = await (supabase as any)
+  const { data: seriesData, error: seriesError } = await (supabase as any)
     .from('cog_series')
     .select('*')
     .is('parent_id', null)
     .order('updated_at', { ascending: false });
+
+  if (seriesError) {
+    console.error('[CogPage] Failed to fetch series:', seriesError);
+    return <SeriesDashboard series={[]} />;
+  }
 
   const seriesList: CogSeries[] = Array.isArray(seriesData) ? seriesData : [];
 
@@ -18,11 +23,15 @@ export default async function CogPage() {
   }
 
   const seriesIds = seriesList.map((series) => series.id);
-  const { data: imageRows } = await (supabase as any)
+  const { data: imageRows, error: imageError } = await (supabase as any)
     .from('cog_images')
     .select('id, series_id, storage_path, thumbnail_256, created_at')
     .in('series_id', seriesIds)
     .order('created_at', { ascending: false });
+
+  if (imageError) {
+    console.error('[CogPage] Failed to fetch images:', imageError);
+  }
 
   const imagesBySeries = new Map<
     string,
