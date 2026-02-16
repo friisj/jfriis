@@ -362,7 +362,17 @@ export async function deleteImageWithCleanup(id: string): Promise<void> {
     }
   }
 
-  // 5. Delete from storage (fatal - don't leave orphaned DB records)
+  // 5. Delete the database record first — orphaned storage files are
+  //    invisible to users and can be cleaned up, but orphaned DB records
+  //    would show broken images in the UI.
+  const { error: deleteError } = await (supabase as any)
+    .from('cog_images')
+    .delete()
+    .eq('id', id);
+
+  if (deleteError) throw deleteError;
+
+  // 6. Clean up storage files (best-effort after DB deletion)
   const storagePaths = [
     image.storage_path,
     image.thumbnail_256,
@@ -376,17 +386,9 @@ export async function deleteImageWithCleanup(id: string): Promise<void> {
       .remove(storagePaths);
 
     if (storageError) {
-      throw new Error(`Storage cleanup failed: ${storageError.message}`);
+      console.error(`[deleteImageWithCleanup] Storage cleanup failed for ${id}:`, storageError.message);
     }
   }
-
-  // 6. Delete the database record
-  const { error: deleteError } = await (supabase as any)
-    .from('cog_images')
-    .delete()
-    .eq('id', id);
-
-  if (deleteError) throw deleteError;
 }
 
 // ============================================================================
