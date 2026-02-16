@@ -1,0 +1,83 @@
+{
+  "permissions": {
+    "allow": [
+      "Read",
+      "Edit",
+      "Write",
+      "Glob",
+      "Grep",
+      "Bash(npm run dev)",
+      "Bash(npm run build)",
+      "Bash(npm run lint)",
+      "Bash(npm run type-check)",
+      "Bash(npm run test*)",
+      "Bash(npm run validate)",
+      "Bash(npx lint-staged)",
+      "Bash(npx supabase migration *)",
+      "Bash(npx supabase db push)",
+      "Bash(npx supabase db diff*)",
+      "Bash(npx supabase gen types *)",
+      "Bash(npx supabase migration list*)",
+      "Bash(npx supabase start*)",
+      "Bash(npx supabase status*)",
+      "Bash(cd mcp && npm run build)",
+      "Bash(git status*)",
+      "Bash(git diff*)",
+      "Bash(git log*)",
+      "Bash(git branch*)",
+      "Bash(git fetch*)",
+      "Bash(git add *)",
+      "Bash(git commit *)",
+      "Bash(git checkout *)",
+      "Bash(git switch *)",
+      "Bash(git pull *)",
+      "Bash(git push *)",
+      "Bash(git stash*)",
+      "Bash(git show *)",
+      "Bash(gh *)",
+      "Bash(ls *)",
+      "Bash(pwd)",
+      "Bash(which *)",
+      "Bash(npx tsc *)",
+      "WebFetch",
+      "WebSearch",
+      "NotebookEdit",
+      "mcp__jfriis__*"
+    ],
+    "deny": [
+      "Bash(rm -rf *)",
+      "Bash(rm -r *)",
+      "Bash(find * -delete*)",
+      "Bash(git push --force*)",
+      "Bash(git reset --hard*)",
+      "Bash(git clean -f*)",
+      "Bash(git branch -D *)",
+      "Bash(drop table*)",
+      "Bash(DROP TABLE*)"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": ".claude/hooks/guard-destructive-ops.sh"
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": ".claude/hooks/session-init.sh",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  }
+}

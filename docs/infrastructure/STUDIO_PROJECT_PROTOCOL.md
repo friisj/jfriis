@@ -199,21 +199,6 @@ For `prototype` type experiments, create a React component and register it:
 
 The experiment page will automatically mount your component when viewing `/studio/my-project/my-experiment`.
 
-### Create Linear Project
-
-Use Linear MCP to create a project for task tracking:
-
-```
-mcp__linear__create_project({
-  name: "Project Name",
-  team: "Oji",
-  description: "...",
-  state: "started"
-})
-```
-
-Reference: See `.claude/rules/linear-tracking.md` for Linear workflow.
-
 ### Record Experiment Outcomes
 
 After completing an experiment:

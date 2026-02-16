@@ -46,3 +46,6 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 .envrc
+
+# Claude Code local overrides (personal, not committed)
+.claude/settings.local.json

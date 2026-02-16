@@ -14,7 +14,7 @@ const eslintConfig = defineConfig([
     "next-env.d.ts",
   ]),
   // Temporary: Downgrade rules to warnings while we fix incrementally
-  // TODO: Remove these overrides and fix all issues (tracked in Linear OJI-XX)
+  // TODO: Remove these overrides and fix all issues incrementally
   {
     rules: {
       "@typescript-eslint/no-explicit-any": "warn",
