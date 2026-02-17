@@ -73,7 +73,7 @@ export function EntrySplitWizard({ entry }: { entry: Entry }) {
       )
 
       alert(`Successfully split entry into ${result.createdEntries.length} new entries!`)
-      router.push('/studio/verbivore/entries')
+      router.push('/apps/verbivore/entries')
       router.refresh()
     } catch (error) {
       console.error('Error executing split:', error)

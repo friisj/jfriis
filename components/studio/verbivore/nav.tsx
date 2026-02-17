@@ -4,10 +4,10 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 
 const navItems = [
-  { href: '/studio/verbivore', label: 'Dashboard', exact: true },
-  { href: '/studio/verbivore/entries', label: 'Entries' },
-  { href: '/studio/verbivore/terms', label: 'Terms' },
-  { href: '/studio/verbivore/style-guides', label: 'Style Guides' },
+  { href: '/apps/verbivore', label: 'Dashboard', exact: true },
+  { href: '/apps/verbivore/entries', label: 'Entries' },
+  { href: '/apps/verbivore/terms', label: 'Terms' },
+  { href: '/apps/verbivore/style-guides', label: 'Style Guides' },
 ]
 
 export function VerbivoreNav() {

@@ -187,7 +187,7 @@ A lightweight, browser-based posable figure inspired by traditional artist armat
 
 ### Verbivore
 **Status**: Phase 2 (Prototype) - Core platform migrated, AI features operational
-**Location**: `/app/(private)/studio/verbivore/` + `/docs/studio/verbivore/`
+**Location**: `/app/(private)/apps/verbivore/` + `/docs/studio/verbivore/`
 **Focus**: AI-assisted glossary publishing platform
 
 **Current State**:
@@ -211,7 +211,7 @@ A lightweight, browser-based posable figure inspired by traditional artist armat
 | Public Reader | prototype | planned |
 
 **Documents**: `/docs/studio/verbivore/` (README.md, definitions.md)
-**Routes**: `/studio/verbivore` (dashboard, entries, terms, style guides)
+**Routes**: `/apps/verbivore` (dashboard, entries, terms, style guides)
 
 ---
 

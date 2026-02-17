@@ -307,7 +307,7 @@ export function TermForm({ mode, allEntries = [], initialData }: TermFormProps) 
         if (entriesError) throw entriesError
       }
 
-      router.push('/studio/verbivore/terms')
+      router.push('/apps/verbivore/terms')
       router.refresh()
     } catch (error) {
       console.error('Error saving term:', error)
@@ -663,7 +663,7 @@ export function TermForm({ mode, allEntries = [], initialData }: TermFormProps) 
 
       <div className="flex justify-between items-center pt-6">
         <Link
-          href="/studio/verbivore/terms"
+          href="/apps/verbivore/terms"
           className="px-4 py-2 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-slate-100 font-medium"
         >
           Cancel

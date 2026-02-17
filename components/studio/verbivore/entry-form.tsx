@@ -417,7 +417,7 @@ export function EntryForm({
         if (termsError) throw termsError
       }
 
-      router.push('/studio/verbivore/entries')
+      router.push('/apps/verbivore/entries')
       router.refresh()
     } catch (error) {
       console.error('Error saving entry:', error)
@@ -780,7 +780,7 @@ export function EntryForm({
 
       <div className="flex justify-between items-center pt-6">
         <Link
-          href="/studio/verbivore/entries"
+          href="/apps/verbivore/entries"
           className="px-4 py-2 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-slate-100 font-medium"
         >
           Cancel

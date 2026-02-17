@@ -157,7 +157,7 @@ export function StyleGuideForm({ mode, initialData }: StyleGuideFormProps) {
         if (error) throw error
       }
 
-      router.push('/studio/verbivore/style-guides')
+      router.push('/apps/verbivore/style-guides')
       router.refresh()
     } catch (error) {
       console.error('Error saving style guide:', error)
@@ -420,7 +420,7 @@ export function StyleGuideForm({ mode, initialData }: StyleGuideFormProps) {
 
       <div className="flex justify-between items-center pt-6">
         <Link
-          href="/studio/verbivore/style-guides"
+          href="/apps/verbivore/style-guides"
           className="px-4 py-2 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-slate-100 font-medium"
         >
           Cancel

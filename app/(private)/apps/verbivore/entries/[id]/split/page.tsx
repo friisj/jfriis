@@ -29,7 +29,7 @@ export default async function SplitEntryPage({ params }: { params: Promise<{ id:
     <div className="max-w-7xl mx-auto space-y-6">
       <div className="flex items-center space-x-4">
         <Link
-          href={`/studio/verbivore/entries/${id}`}
+          href={`/apps/verbivore/entries/${id}`}
           className="text-sm text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
         >
           Back to Entry

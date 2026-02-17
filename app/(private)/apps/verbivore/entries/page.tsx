@@ -31,7 +31,7 @@ export default async function EntriesPage() {
       <div className="flex justify-between items-center">
         <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">Entries</h1>
         <Link
-          href="/studio/verbivore/entries/new"
+          href="/apps/verbivore/entries/new"
           className="bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 px-4 py-2 rounded-lg font-medium hover:bg-slate-800 dark:hover:bg-slate-200 transition-colors"
         >
           New Entry
@@ -42,7 +42,7 @@ export default async function EntriesPage() {
         <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm p-12 text-center">
           <p className="text-slate-600 dark:text-slate-400 mb-4">No entries yet.</p>
           <Link
-            href="/studio/verbivore/entries/new"
+            href="/apps/verbivore/entries/new"
             className="text-blue-600 dark:text-blue-400 hover:underline font-medium"
           >
             Create your first entry
@@ -78,7 +78,7 @@ export default async function EntriesPage() {
                 <tr key={entry.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/50">
                   <td className="px-6 py-4">
                     <Link
-                      href={`/studio/verbivore/entries/${entry.id}`}
+                      href={`/apps/verbivore/entries/${entry.id}`}
                       className="text-sm font-medium text-slate-900 dark:text-slate-100 hover:text-blue-600 dark:hover:text-blue-400"
                     >
                       {entry.title}
@@ -107,14 +107,14 @@ export default async function EntriesPage() {
                   </td>
                   <td className="px-6 py-4 text-right space-x-2">
                     <Link
-                      href={`/studio/verbivore/entries/${entry.id}`}
+                      href={`/apps/verbivore/entries/${entry.id}`}
                       className="text-xs font-medium text-blue-600 dark:text-blue-400 hover:text-blue-700"
                     >
                       Edit
                     </Link>
                     {entry.term_count > 5 && (
                       <Link
-                        href={`/studio/verbivore/entries/${entry.id}/split`}
+                        href={`/apps/verbivore/entries/${entry.id}/split`}
                         className="text-xs font-medium text-purple-600 dark:text-purple-400 hover:text-purple-700"
                       >
                         Split

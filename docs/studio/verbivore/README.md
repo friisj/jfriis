@@ -52,7 +52,7 @@ Registered in `lib/ai/actions/verbivore-*.ts`:
 ### File Structure
 
 ```
-app/(private)/studio/verbivore/     # Routes
+app/(private)/apps/verbivore/       # Routes
 components/studio/verbivore/        # UI components
 lib/studio/verbivore/               # Types, queries, server actions
 lib/ai/actions/verbivore-*.ts       # AI action definitions
@@ -65,17 +65,17 @@ supabase/migrations/                # 20260220000000_verbivore_tables.sql
 
 | Path | Description |
 |------|-------------|
-| `/studio/verbivore` | Dashboard with stats |
-| `/studio/verbivore/entries` | Entry list |
-| `/studio/verbivore/entries/new` | Create entry |
-| `/studio/verbivore/entries/[id]` | Edit entry |
-| `/studio/verbivore/entries/[id]/split` | Split wizard |
-| `/studio/verbivore/terms` | Term list |
-| `/studio/verbivore/terms/new` | Create term |
-| `/studio/verbivore/terms/[id]` | Edit term |
-| `/studio/verbivore/style-guides` | Style guide list |
-| `/studio/verbivore/style-guides/new` | Create style guide |
-| `/studio/verbivore/style-guides/[id]` | Edit style guide |
+| `/apps/verbivore` | Dashboard with stats |
+| `/apps/verbivore/entries` | Entry list |
+| `/apps/verbivore/entries/new` | Create entry |
+| `/apps/verbivore/entries/[id]` | Edit entry |
+| `/apps/verbivore/entries/[id]/split` | Split wizard |
+| `/apps/verbivore/terms` | Term list |
+| `/apps/verbivore/terms/new` | Create term |
+| `/apps/verbivore/terms/[id]` | Edit term |
+| `/apps/verbivore/style-guides` | Style guide list |
+| `/apps/verbivore/style-guides/new` | Create style guide |
+| `/apps/verbivore/style-guides/[id]` | Edit style guide |
 
 ## Experiments
 

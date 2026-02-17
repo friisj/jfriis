@@ -45,7 +45,7 @@ export default async function VerbivoreDashboard() {
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <Link
-          href="/studio/verbivore/entries/new"
+          href="/apps/verbivore/entries/new"
           className="bg-white dark:bg-slate-800 rounded-lg shadow-sm p-6 hover:shadow-md transition-shadow"
         >
           <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">New Entry</h3>
@@ -54,7 +54,7 @@ export default async function VerbivoreDashboard() {
           </p>
         </Link>
         <Link
-          href="/studio/verbivore/terms/new"
+          href="/apps/verbivore/terms/new"
           className="bg-white dark:bg-slate-800 rounded-lg shadow-sm p-6 hover:shadow-md transition-shadow"
         >
           <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">New Term</h3>
@@ -63,7 +63,7 @@ export default async function VerbivoreDashboard() {
           </p>
         </Link>
         <Link
-          href="/studio/verbivore/style-guides/new"
+          href="/apps/verbivore/style-guides/new"
           className="bg-white dark:bg-slate-800 rounded-lg shadow-sm p-6 hover:shadow-md transition-shadow"
         >
           <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">

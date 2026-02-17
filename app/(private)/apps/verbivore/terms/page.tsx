@@ -1,31 +1,37 @@
 import Link from 'next/link'
-import { getStyleGuides } from '@/lib/studio/verbivore/queries'
+import { getTerms } from '@/lib/studio/verbivore/queries'
 import { DeleteButton } from '@/components/studio/verbivore/delete-button'
-import { deleteVerbivoreStyleGuide } from '@/lib/studio/verbivore/actions'
+import { deleteVerbivoreTerm } from '@/lib/studio/verbivore/actions'
 
-export default async function StyleGuidesPage() {
-  const styleGuides = await getStyleGuides()
+export default async function TermsPage() {
+  const terms = await getTerms()
+
+  const difficultyColors: Record<string, string> = {
+    beginner: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300',
+    intermediate: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300',
+    advanced: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300',
+  }
 
   return (
     <div className="max-w-7xl mx-auto space-y-6">
       <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">Style Guides</h1>
+        <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">Terms</h1>
         <Link
-          href="/studio/verbivore/style-guides/new"
+          href="/apps/verbivore/terms/new"
           className="bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 px-4 py-2 rounded-lg font-medium hover:bg-slate-800 dark:hover:bg-slate-200 transition-colors"
         >
-          New Style Guide
+          New Term
         </Link>
       </div>
 
-      {styleGuides.length === 0 ? (
+      {terms.length === 0 ? (
         <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm p-12 text-center">
-          <p className="text-slate-600 dark:text-slate-400 mb-4">No style guides yet.</p>
+          <p className="text-slate-600 dark:text-slate-400 mb-4">No terms yet.</p>
           <Link
-            href="/studio/verbivore/style-guides/new"
+            href="/apps/verbivore/terms/new"
             className="text-blue-600 dark:text-blue-400 hover:underline font-medium"
           >
-            Create your first style guide
+            Create your first term
           </Link>
         </div>
       ) : (
@@ -34,16 +40,16 @@ export default async function StyleGuidesPage() {
             <thead className="bg-slate-50 dark:bg-slate-800/50">
               <tr>
                 <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                  Name
+                  Term
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                  Status
+                  Definition
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                  Usage
+                  Difficulty
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                  Updated
+                  Entries
                 </th>
                 <th className="px-6 py-3 text-right text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
                   Actions
@@ -51,52 +57,53 @@ export default async function StyleGuidesPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
-              {styleGuides.map((guide) => (
-                <tr key={guide.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/50">
+              {terms.map((term) => (
+                <tr key={term.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/50">
                   <td className="px-6 py-4">
                     <Link
-                      href={`/studio/verbivore/style-guides/${guide.id}`}
+                      href={`/apps/verbivore/terms/${term.id}`}
                       className="text-sm font-medium text-slate-900 dark:text-slate-100 hover:text-blue-600 dark:hover:text-blue-400"
                     >
-                      {guide.name}
+                      {term.term}
                     </Link>
-                    {guide.description && (
-                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 truncate max-w-sm">
-                        {guide.description}
-                      </p>
+                    {term.tags && term.tags.length > 0 && (
+                      <div className="flex flex-wrap gap-1 mt-1">
+                        {term.tags.slice(0, 3).map((tag) => (
+                          <span
+                            key={tag}
+                            className="inline-flex items-center px-1.5 py-0.5 rounded text-xs bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-400"
+                          >
+                            {tag}
+                          </span>
+                        ))}
+                      </div>
                     )}
+                  </td>
+                  <td className="px-6 py-4 text-sm text-slate-600 dark:text-slate-400 max-w-md truncate">
+                    {term.definition}
                   </td>
                   <td className="px-6 py-4">
-                    {guide.is_default ? (
-                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300">
-                        Default
-                      </span>
-                    ) : guide.is_active ? (
-                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300">
-                        Active
-                      </span>
-                    ) : (
-                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-300">
-                        Inactive
+                    {term.difficulty_level && (
+                      <span
+                        className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${difficultyColors[term.difficulty_level] || ''}`}
+                      >
+                        {term.difficulty_level}
                       </span>
                     )}
                   </td>
                   <td className="px-6 py-4 text-sm text-slate-600 dark:text-slate-400">
-                    {guide.usage_count}
-                  </td>
-                  <td className="px-6 py-4 text-sm text-slate-600 dark:text-slate-400">
-                    {new Date(guide.updated_at).toLocaleDateString()}
+                    {term.entry_count}
                   </td>
                   <td className="px-6 py-4 text-right space-x-2">
                     <Link
-                      href={`/studio/verbivore/style-guides/${guide.id}`}
+                      href={`/apps/verbivore/terms/${term.id}`}
                       className="text-xs font-medium text-blue-600 dark:text-blue-400 hover:text-blue-700"
                     >
                       Edit
                     </Link>
                     <DeleteButton
-                      onDelete={deleteVerbivoreStyleGuide.bind(null, guide.id)}
-                      entityName="style guide"
+                      onDelete={deleteVerbivoreTerm.bind(null, term.id)}
+                      entityName="term"
                     />
                   </td>
                 </tr>
