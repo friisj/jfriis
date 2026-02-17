@@ -185,6 +185,36 @@ A lightweight, browser-based posable figure inspired by traditional artist armat
 
 ---
 
+### Verbivore
+**Status**: Phase 2 (Prototype) - Core platform migrated, AI features operational
+**Location**: `/app/(private)/studio/verbivore/` + `/docs/studio/verbivore/`
+**Focus**: AI-assisted glossary publishing platform
+
+**Current State**:
+- Entry + term CRUD with categories and publishing workflow
+- AI content generation using customizable style guides
+- AI term suggestions with rejection-based preference learning
+- AI-powered term metadata (definitions, pronunciation, etymology, usage examples, synonyms)
+- Entry splitting with AI analysis and execution
+- Style guide system with evaluation criteria and AI enhancement
+- 10 database tables (`verbivore_` prefix), 6 AI actions, dedicated route tree
+
+**Hypothesis**: AI can meaningfully accelerate glossary publishing by handling research-heavy tasks (definitions, etymology, pronunciation) while the editor focuses on curation and narrative.
+
+**Experiments**:
+| Experiment | Type | Status |
+|-----------|------|--------|
+| Core Platform | prototype | in_progress |
+| AI Content Generation | experiment | in_progress |
+| Style Guide System | experiment | in_progress |
+| Entry Splitting | experiment | planned |
+| Public Reader | prototype | planned |
+
+**Documents**: `/docs/studio/verbivore/` (README.md, definitions.md)
+**Routes**: `/studio/verbivore` (dashboard, entries, terms, style guides)
+
+---
+
 ### Experience Systems
 **Status**: Phase 1 (Exploration) - Iteration 8 complete
 **Location**: `/docs/studio/experience-systems/exploration/`

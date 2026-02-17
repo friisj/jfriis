@@ -4273,6 +4273,495 @@ export type Database = {
         }
         Relationships: []
       }
+      verbivore_categories: {
+        Row: {
+          color: string | null
+          created_at: string
+          description: string | null
+          id: string
+          name: string
+          slug: string
+          updated_at: string
+        }
+        Insert: {
+          color?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          name: string
+          slug: string
+          updated_at?: string
+        }
+        Update: {
+          color?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          name?: string
+          slug?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      verbivore_entries: {
+        Row: {
+          category_id: string | null
+          complexity_score: number
+          content: string | null
+          cover_image_url: string | null
+          created_at: string
+          excerpt: string | null
+          featured: boolean
+          id: string
+          published_at: string | null
+          reading_time: number
+          scheduled_at: string | null
+          seo_description: string | null
+          seo_title: string | null
+          slug: string
+          status: string
+          thumbnail_image_url: string | null
+          title: string
+          updated_at: string
+          view_count: number
+          word_count: number
+        }
+        Insert: {
+          category_id?: string | null
+          complexity_score?: number
+          content?: string | null
+          cover_image_url?: string | null
+          created_at?: string
+          excerpt?: string | null
+          featured?: boolean
+          id?: string
+          published_at?: string | null
+          reading_time?: number
+          scheduled_at?: string | null
+          seo_description?: string | null
+          seo_title?: string | null
+          slug: string
+          status?: string
+          thumbnail_image_url?: string | null
+          title: string
+          updated_at?: string
+          view_count?: number
+          word_count?: number
+        }
+        Update: {
+          category_id?: string | null
+          complexity_score?: number
+          content?: string | null
+          cover_image_url?: string | null
+          created_at?: string
+          excerpt?: string | null
+          featured?: boolean
+          id?: string
+          published_at?: string | null
+          reading_time?: number
+          scheduled_at?: string | null
+          seo_description?: string | null
+          seo_title?: string | null
+          slug?: string
+          status?: string
+          thumbnail_image_url?: string | null
+          title?: string
+          updated_at?: string
+          view_count?: number
+          word_count?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "verbivore_entries_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "verbivore_categories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      verbivore_entry_relationships: {
+        Row: {
+          child_entry_id: string
+          created_at: string
+          id: string
+          parent_entry_id: string
+          relationship_type: string
+          sequence_order: number
+          split_strategy: Json | null
+        }
+        Insert: {
+          child_entry_id: string
+          created_at?: string
+          id?: string
+          parent_entry_id: string
+          relationship_type?: string
+          sequence_order?: number
+          split_strategy?: Json | null
+        }
+        Update: {
+          child_entry_id?: string
+          created_at?: string
+          id?: string
+          parent_entry_id?: string
+          relationship_type?: string
+          sequence_order?: number
+          split_strategy?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "verbivore_entry_relationships_child_entry_id_fkey"
+            columns: ["child_entry_id"]
+            isOneToOne: false
+            referencedRelation: "verbivore_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "verbivore_entry_relationships_child_entry_id_fkey"
+            columns: ["child_entry_id"]
+            isOneToOne: false
+            referencedRelation: "verbivore_public_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "verbivore_entry_relationships_parent_entry_id_fkey"
+            columns: ["parent_entry_id"]
+            isOneToOne: false
+            referencedRelation: "verbivore_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "verbivore_entry_relationships_parent_entry_id_fkey"
+            columns: ["parent_entry_id"]
+            isOneToOne: false
+            referencedRelation: "verbivore_public_entries"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      verbivore_entry_terms: {
+        Row: {
+          created_at: string
+          display_order: number
+          entry_id: string
+          id: string
+          is_primary: boolean
+          term_id: string
+        }
+        Insert: {
+          created_at?: string
+          display_order?: number
+          entry_id: string
+          id?: string
+          is_primary?: boolean
+          term_id: string
+        }
+        Update: {
+          created_at?: string
+          display_order?: number
+          entry_id?: string
+          id?: string
+          is_primary?: boolean
+          term_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "verbivore_entry_terms_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "verbivore_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "verbivore_entry_terms_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "verbivore_public_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "verbivore_entry_terms_term_id_fkey"
+            columns: ["term_id"]
+            isOneToOne: false
+            referencedRelation: "verbivore_public_terms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "verbivore_entry_terms_term_id_fkey"
+            columns: ["term_id"]
+            isOneToOne: false
+            referencedRelation: "verbivore_terms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      verbivore_sources: {
+        Row: {
+          author: string | null
+          created_at: string
+          id: string
+          publication_date: string | null
+          source_type: string | null
+          title: string
+          url: string | null
+        }
+        Insert: {
+          author?: string | null
+          created_at?: string
+          id?: string
+          publication_date?: string | null
+          source_type?: string | null
+          title: string
+          url?: string | null
+        }
+        Update: {
+          author?: string | null
+          created_at?: string
+          id?: string
+          publication_date?: string | null
+          source_type?: string | null
+          title?: string
+          url?: string | null
+        }
+        Relationships: []
+      }
+      verbivore_splitting_sessions: {
+        Row: {
+          analysis_result: Json | null
+          created_at: string
+          entry_id: string
+          id: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          analysis_result?: Json | null
+          created_at?: string
+          entry_id: string
+          id?: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          analysis_result?: Json | null
+          created_at?: string
+          entry_id?: string
+          id?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "verbivore_splitting_sessions_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "verbivore_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "verbivore_splitting_sessions_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "verbivore_public_entries"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      verbivore_style_guides: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          is_active: boolean
+          is_default: boolean
+          name: string
+          prompt: string
+          slug: string
+          updated_at: string
+          usage_count: number
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          is_default?: boolean
+          name: string
+          prompt: string
+          slug: string
+          updated_at?: string
+          usage_count?: number
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          is_default?: boolean
+          name?: string
+          prompt?: string
+          slug?: string
+          updated_at?: string
+          usage_count?: number
+        }
+        Relationships: []
+      }
+      verbivore_term_relationships: {
+        Row: {
+          created_at: string
+          id: string
+          related_term_id: string
+          relationship_type: string
+          term_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          related_term_id: string
+          relationship_type?: string
+          term_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          related_term_id?: string
+          relationship_type?: string
+          term_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "verbivore_term_relationships_related_term_id_fkey"
+            columns: ["related_term_id"]
+            isOneToOne: false
+            referencedRelation: "verbivore_public_terms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "verbivore_term_relationships_related_term_id_fkey"
+            columns: ["related_term_id"]
+            isOneToOne: false
+            referencedRelation: "verbivore_terms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "verbivore_term_relationships_term_id_fkey"
+            columns: ["term_id"]
+            isOneToOne: false
+            referencedRelation: "verbivore_public_terms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "verbivore_term_relationships_term_id_fkey"
+            columns: ["term_id"]
+            isOneToOne: false
+            referencedRelation: "verbivore_terms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      verbivore_term_sources: {
+        Row: {
+          created_at: string
+          id: string
+          notes: string | null
+          page_number: string | null
+          source_id: string
+          term_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          notes?: string | null
+          page_number?: string | null
+          source_id: string
+          term_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          notes?: string | null
+          page_number?: string | null
+          source_id?: string
+          term_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "verbivore_term_sources_source_id_fkey"
+            columns: ["source_id"]
+            isOneToOne: false
+            referencedRelation: "verbivore_sources"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "verbivore_term_sources_term_id_fkey"
+            columns: ["term_id"]
+            isOneToOne: false
+            referencedRelation: "verbivore_public_terms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "verbivore_term_sources_term_id_fkey"
+            columns: ["term_id"]
+            isOneToOne: false
+            referencedRelation: "verbivore_terms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      verbivore_terms: {
+        Row: {
+          created_at: string
+          definition: string
+          difficulty_level: string | null
+          etymology_source: string | null
+          id: string
+          image_url: string | null
+          origin: string | null
+          pronunciation: string | null
+          slug: string
+          synonyms: string[] | null
+          tags: string[] | null
+          term: string
+          updated_at: string
+          usage_examples: string[] | null
+          view_count: number
+        }
+        Insert: {
+          created_at?: string
+          definition: string
+          difficulty_level?: string | null
+          etymology_source?: string | null
+          id?: string
+          image_url?: string | null
+          origin?: string | null
+          pronunciation?: string | null
+          slug: string
+          synonyms?: string[] | null
+          tags?: string[] | null
+          term: string
+          updated_at?: string
+          usage_examples?: string[] | null
+          view_count?: number
+        }
+        Update: {
+          created_at?: string
+          definition?: string
+          difficulty_level?: string | null
+          etymology_source?: string | null
+          id?: string
+          image_url?: string | null
+          origin?: string | null
+          pronunciation?: string | null
+          slug?: string
+          synonyms?: string[] | null
+          tags?: string[] | null
+          term?: string
+          updated_at?: string
+          usage_examples?: string[] | null
+          view_count?: number
+        }
+        Relationships: []
+      }
       webauthn_challenges: {
         Row: {
           challenge: string
@@ -4505,6 +4994,45 @@ export type Database = {
           target_project_name: string | null
           target_project_slug: string | null
           target_type: string | null
+        }
+        Relationships: []
+      }
+      verbivore_public_entries: {
+        Row: {
+          category_color: string | null
+          category_name: string | null
+          category_slug: string | null
+          content: string | null
+          cover_image_url: string | null
+          excerpt: string | null
+          featured: boolean | null
+          id: string | null
+          published_at: string | null
+          reading_time: number | null
+          slug: string | null
+          terms: Json[] | null
+          thumbnail_image_url: string | null
+          title: string | null
+          view_count: number | null
+          word_count: number | null
+        }
+        Relationships: []
+      }
+      verbivore_public_terms: {
+        Row: {
+          definition: string | null
+          difficulty_level: string | null
+          entry_titles: string[] | null
+          id: string | null
+          image_url: string | null
+          origin: string | null
+          pronunciation: string | null
+          slug: string | null
+          synonyms: string[] | null
+          tags: string[] | null
+          term: string | null
+          usage_examples: string[] | null
+          view_count: number | null
         }
         Relationships: []
       }
