@@ -9,6 +9,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 
 function PrivateHeader() {
+  const { hidden } = usePrivateHeader()
   const pathname = usePathname()
 
   const segments = pathname
@@ -31,6 +32,8 @@ function PrivateHeader() {
   }
 
   const { actions } = usePrivateHeader()
+
+  if (hidden) return null
 
   return (
     <header className="border-b bg-card flex items-center justify-between">
