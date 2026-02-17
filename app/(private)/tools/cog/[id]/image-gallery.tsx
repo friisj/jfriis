@@ -715,7 +715,7 @@ export function ImageGallery({
                     thumbnail256={image.thumbnail_256}
                     thumbnail128={image.thumbnail_128}
                     fill
-                    className={isSelected ? 'opacity-80' : ''}
+                    className={`object-cover ${isSelected ? 'opacity-80' : ''}`}
                   />
                   {tagCount > 0 && (
                     <div className="absolute bottom-2 left-2 rounded bg-black/70 px-1.5 py-0.5 text-[10px] text-white">
@@ -724,7 +724,7 @@ export function ImageGallery({
                   )}
                   {groupCount > 1 && (
                     <div className="absolute bottom-2 right-2 rounded bg-blue-600/80 px-1.5 py-0.5 text-[10px] text-white">
-                      {groupCount} in group
+                      {groupCount}
                     </div>
                   )}
                   {isPrimary && (
@@ -737,12 +737,6 @@ export function ImageGallery({
                       <StarRating rating={getStarRating(image)} size="sm" />
                     </div>
                   )}
-                </div>
-                <div className="p-2 text-xs">
-                  <p className="truncate font-medium">{image.title || image.filename}</p>
-                  <p className="text-muted-foreground">
-                    {image.source === 'generated' ? 'Generated' : 'Uploaded'}
-                  </p>
                 </div>
               </button>
               {!hasSelection && (
