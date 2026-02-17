@@ -15,6 +15,7 @@ import { Button } from '@/components/ui/button';
 import { CogGridImage, CogTinyImage } from '@/components/cog/cog-image';
 import { StarRating } from './star-rating';
 import type { CogTagWithGroup, CogImageWithGroupInfo } from '@/lib/types/cog';
+import { Trash2 } from 'lucide-react';
 
 export interface UploadingFile {
   id: string;
@@ -91,9 +92,6 @@ function BatchTagPanel({
       <div className="mb-3 flex items-start justify-between">
         <div>
           <h3 className="text-sm font-medium">Batch Tag {selectedCount} Images</h3>
-          <p className="text-xs text-muted-foreground">
-            Click to add, click again to remove from all selected
-          </p>
         </div>
         <button
           onClick={onClose}
@@ -237,11 +235,11 @@ function DeleteConfirmationModal({
         </ul>
 
         {count <= 6 && (
-          <div className="mt-3 flex gap-2">
+          <div className="flex gap-2">
             {imagesToDelete.slice(0, 4).map((img) => (
               <div
                 key={img.id}
-                className="relative h-12 w-12 overflow-hidden rounded border"
+                className="relative h-12 w-12 overflow-hidden"
               >
                 <CogTinyImage
                   storagePath={img.storage_path}
@@ -596,11 +594,6 @@ export function ImageGallery({
 
   return (
     <div className="space-y-4">
-      <div className="rounded-lg border border-dashed bg-muted/30 p-4 text-sm text-muted-foreground">
-        Click any image to open the new editor. All editing, tagging, and grouping tools now live in
-        the full-screen `/editor` experience.
-      </div>
-
       {hasSelection && (
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border bg-muted/40 px-3 py-2 text-sm">
           <div className="flex items-center gap-3">
@@ -678,7 +671,7 @@ export function ImageGallery({
           return (
             <div
               key={image.id}
-              className={`group relative overflow-hidden rounded-lg border transition-all ${
+              className={`group relative overflow-hidden transition-all ${
                 isSelected
                   ? 'border-primary ring-2 ring-primary/40'
                   : isDragTarget
@@ -715,7 +708,7 @@ export function ImageGallery({
                     thumbnail256={image.thumbnail_256}
                     thumbnail128={image.thumbnail_128}
                     fill
-                    className={isSelected ? 'opacity-80' : ''}
+                    className={`object-cover ${isSelected ? 'opacity-80' : ''}`}
                   />
                   {tagCount > 0 && (
                     <div className="absolute bottom-2 left-2 rounded bg-black/70 px-1.5 py-0.5 text-[10px] text-white">
@@ -724,7 +717,7 @@ export function ImageGallery({
                   )}
                   {groupCount > 1 && (
                     <div className="absolute bottom-2 right-2 rounded bg-blue-600/80 px-1.5 py-0.5 text-[10px] text-white">
-                      {groupCount} in group
+                      {groupCount}
                     </div>
                   )}
                   {isPrimary && (
@@ -738,23 +731,17 @@ export function ImageGallery({
                     </div>
                   )}
                 </div>
-                <div className="p-2 text-xs">
-                  <p className="truncate font-medium">{image.title || image.filename}</p>
-                  <p className="text-muted-foreground">
-                    {image.source === 'generated' ? 'Generated' : 'Uploaded'}
-                  </p>
-                </div>
               </button>
               {!hasSelection && (
                 <button
-                  className="absolute right-2 top-2 rounded-full bg-white/80 p-1 text-xs text-destructive opacity-0 transition group-hover:opacity-100"
+                  className="absolute right-2 top-2 rounded bg-white/80 p-1 text-xs text-destructive opacity-0 transition group-hover:opacity-100"
                   onClick={(e) => {
                     e.stopPropagation();
                     handleDeleteFromGrid(image.id);
                   }}
                   title="Delete image"
                 >
-                  ×
+                  <Trash2 className="size-3" />
                 </button>
               )}
             </div>

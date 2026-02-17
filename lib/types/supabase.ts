@@ -803,6 +803,157 @@ export type Database = {
           },
         ]
       }
+      chalk_boards: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          name: string
+          project_id: string
+          tldraw_snapshot: Json
+          updated_at: string
+          viewport: Json | null
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          name?: string
+          project_id: string
+          tldraw_snapshot?: Json
+          updated_at?: string
+          viewport?: Json | null
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          name?: string
+          project_id?: string
+          tldraw_snapshot?: Json
+          updated_at?: string
+          viewport?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chalk_boards_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "chalk_projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      chalk_chat_messages: {
+        Row: {
+          board_id: string
+          content: Json
+          context_id: string | null
+          context_type: string
+          created_at: string
+          id: string
+          role: string
+        }
+        Insert: {
+          board_id: string
+          content: Json
+          context_id?: string | null
+          context_type: string
+          created_at?: string
+          id?: string
+          role: string
+        }
+        Update: {
+          board_id?: string
+          content?: Json
+          context_id?: string | null
+          context_type?: string
+          created_at?: string
+          id?: string
+          role?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chalk_chat_messages_board_id_fkey"
+            columns: ["board_id"]
+            isOneToOne: false
+            referencedRelation: "chalk_boards"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      chalk_projects: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          name?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      chalk_versions: {
+        Row: {
+          board_id: string
+          created_at: string
+          fidelity_level: number | null
+          id: string
+          name: string | null
+          parent_id: string | null
+          screenshot_url: string | null
+          tldraw_snapshot: Json
+        }
+        Insert: {
+          board_id: string
+          created_at?: string
+          fidelity_level?: number | null
+          id?: string
+          name?: string | null
+          parent_id?: string | null
+          screenshot_url?: string | null
+          tldraw_snapshot: Json
+        }
+        Update: {
+          board_id?: string
+          created_at?: string
+          fidelity_level?: number | null
+          id?: string
+          name?: string | null
+          parent_id?: string | null
+          screenshot_url?: string | null
+          tldraw_snapshot?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chalk_versions_board_id_fkey"
+            columns: ["board_id"]
+            isOneToOne: false
+            referencedRelation: "chalk_boards"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chalk_versions_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "chalk_versions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       channels: {
         Row: {
           config: Json | null
@@ -2927,6 +3078,712 @@ export type Database = {
           },
         ]
       }
+      ludo_gameplay_analysis: {
+        Row: {
+          analyzed_at: string
+          id: string
+          patterns_found: string[] | null
+          performance_score: number | null
+          recommendations: string[] | null
+          session_id: string
+          stats: Json
+        }
+        Insert: {
+          analyzed_at?: string
+          id?: string
+          patterns_found?: string[] | null
+          performance_score?: number | null
+          recommendations?: string[] | null
+          session_id: string
+          stats?: Json
+        }
+        Update: {
+          analyzed_at?: string
+          id?: string
+          patterns_found?: string[] | null
+          performance_score?: number | null
+          recommendations?: string[] | null
+          session_id?: string
+          stats?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ludo_gameplay_analysis_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "ludo_gameplay_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ludo_gameplay_events: {
+        Row: {
+          ai_personality: string | null
+          ai_preset: string | null
+          anomaly_description: string | null
+          anomaly_severity: string | null
+          anomaly_type: string | null
+          available_moves_count: number | null
+          decision_time_ms: number | null
+          dice_roll: number[] | null
+          evaluation_score: number | null
+          event_type: string
+          game_number: number
+          id: number
+          is_anomaly: boolean | null
+          move_distance: number | null
+          move_from: number | null
+          move_number: number
+          move_to: number | null
+          opening_book_match: boolean | null
+          opening_book_name: string | null
+          player: string | null
+          post_move_valid: boolean | null
+          pre_move_valid: boolean | null
+          rule_check_passed: boolean | null
+          session_id: string
+          strategy_weights: Json | null
+          timestamp_ms: number
+          validation_errors: string[] | null
+        }
+        Insert: {
+          ai_personality?: string | null
+          ai_preset?: string | null
+          anomaly_description?: string | null
+          anomaly_severity?: string | null
+          anomaly_type?: string | null
+          available_moves_count?: number | null
+          decision_time_ms?: number | null
+          dice_roll?: number[] | null
+          evaluation_score?: number | null
+          event_type: string
+          game_number: number
+          id?: number
+          is_anomaly?: boolean | null
+          move_distance?: number | null
+          move_from?: number | null
+          move_number: number
+          move_to?: number | null
+          opening_book_match?: boolean | null
+          opening_book_name?: string | null
+          player?: string | null
+          post_move_valid?: boolean | null
+          pre_move_valid?: boolean | null
+          rule_check_passed?: boolean | null
+          session_id: string
+          strategy_weights?: Json | null
+          timestamp_ms: number
+          validation_errors?: string[] | null
+        }
+        Update: {
+          ai_personality?: string | null
+          ai_preset?: string | null
+          anomaly_description?: string | null
+          anomaly_severity?: string | null
+          anomaly_type?: string | null
+          available_moves_count?: number | null
+          decision_time_ms?: number | null
+          dice_roll?: number[] | null
+          evaluation_score?: number | null
+          event_type?: string
+          game_number?: number
+          id?: number
+          is_anomaly?: boolean | null
+          move_distance?: number | null
+          move_from?: number | null
+          move_number?: number
+          move_to?: number | null
+          opening_book_match?: boolean | null
+          opening_book_name?: string | null
+          player?: string | null
+          post_move_valid?: boolean | null
+          pre_move_valid?: boolean | null
+          rule_check_passed?: boolean | null
+          session_id?: string
+          strategy_weights?: Json | null
+          timestamp_ms?: number
+          validation_errors?: string[] | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ludo_gameplay_events_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "ludo_gameplay_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ludo_gameplay_issues: {
+        Row: {
+          description: string | null
+          detected_at: string
+          event_id: number | null
+          evidence: Json | null
+          game_number: number | null
+          id: string
+          issue_type: string
+          move_number: number | null
+          player: string | null
+          resolution_notes: string | null
+          resolved_at: string | null
+          session_id: string
+          severity: string
+          status: string | null
+          tags: string[] | null
+          title: string | null
+        }
+        Insert: {
+          description?: string | null
+          detected_at?: string
+          event_id?: number | null
+          evidence?: Json | null
+          game_number?: number | null
+          id?: string
+          issue_type: string
+          move_number?: number | null
+          player?: string | null
+          resolution_notes?: string | null
+          resolved_at?: string | null
+          session_id: string
+          severity: string
+          status?: string | null
+          tags?: string[] | null
+          title?: string | null
+        }
+        Update: {
+          description?: string | null
+          detected_at?: string
+          event_id?: number | null
+          evidence?: Json | null
+          game_number?: number | null
+          id?: string
+          issue_type?: string
+          move_number?: number | null
+          player?: string | null
+          resolution_notes?: string | null
+          resolved_at?: string | null
+          session_id?: string
+          severity?: string
+          status?: string | null
+          tags?: string[] | null
+          title?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ludo_gameplay_issues_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "ludo_gameplay_events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ludo_gameplay_issues_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "ludo_gameplay_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ludo_gameplay_sessions: {
+        Row: {
+          anomaly_count: number | null
+          app_version: string | null
+          avg_game_duration_ms: number | null
+          black_ai_personality: string | null
+          black_ai_preset: string | null
+          black_wins: number | null
+          completed_at: string | null
+          created_at: string
+          id: string
+          iteration_count: number | null
+          match_length: number | null
+          mode: string
+          notes: string | null
+          random_seed: string | null
+          rule_violations: number | null
+          strategy_inconsistencies: number | null
+          total_games: number | null
+          total_moves: number | null
+          white_ai_personality: string | null
+          white_ai_preset: string | null
+          white_wins: number | null
+        }
+        Insert: {
+          anomaly_count?: number | null
+          app_version?: string | null
+          avg_game_duration_ms?: number | null
+          black_ai_personality?: string | null
+          black_ai_preset?: string | null
+          black_wins?: number | null
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          iteration_count?: number | null
+          match_length?: number | null
+          mode: string
+          notes?: string | null
+          random_seed?: string | null
+          rule_violations?: number | null
+          strategy_inconsistencies?: number | null
+          total_games?: number | null
+          total_moves?: number | null
+          white_ai_personality?: string | null
+          white_ai_preset?: string | null
+          white_wins?: number | null
+        }
+        Update: {
+          anomaly_count?: number | null
+          app_version?: string | null
+          avg_game_duration_ms?: number | null
+          black_ai_personality?: string | null
+          black_ai_preset?: string | null
+          black_wins?: number | null
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          iteration_count?: number | null
+          match_length?: number | null
+          mode?: string
+          notes?: string | null
+          random_seed?: string | null
+          rule_violations?: number | null
+          strategy_inconsistencies?: number | null
+          total_games?: number | null
+          total_moves?: number | null
+          white_ai_personality?: string | null
+          white_ai_preset?: string | null
+          white_wins?: number | null
+        }
+        Relationships: []
+      }
+      ludo_gameplay_snapshots: {
+        Row: {
+          black_checkers_off: number | null
+          black_checkers_on_bar: number | null
+          black_pip_count: number | null
+          board_state_compressed: string
+          game_number: number
+          id: number
+          is_keyframe: boolean | null
+          move_number: number
+          session_id: string
+          snapshot_type: string
+          white_checkers_off: number | null
+          white_checkers_on_bar: number | null
+          white_pip_count: number | null
+        }
+        Insert: {
+          black_checkers_off?: number | null
+          black_checkers_on_bar?: number | null
+          black_pip_count?: number | null
+          board_state_compressed: string
+          game_number: number
+          id?: number
+          is_keyframe?: boolean | null
+          move_number: number
+          session_id: string
+          snapshot_type: string
+          white_checkers_off?: number | null
+          white_checkers_on_bar?: number | null
+          white_pip_count?: number | null
+        }
+        Update: {
+          black_checkers_off?: number | null
+          black_checkers_on_bar?: number | null
+          black_pip_count?: number | null
+          board_state_compressed?: string
+          game_number?: number
+          id?: number
+          is_keyframe?: boolean | null
+          move_number?: number
+          session_id?: string
+          snapshot_type?: string
+          white_checkers_off?: number | null
+          white_checkers_on_bar?: number | null
+          white_pip_count?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ludo_gameplay_snapshots_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "ludo_gameplay_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ludo_mcts_evaluations: {
+        Row: {
+          actual_time_ms: number
+          ai_difficulty: string
+          alternative_moves: Json | null
+          created_at: string
+          exceeded_time_budget: boolean | null
+          exploration_constant: number
+          fallback_reason: string | null
+          fallback_to_rules: boolean | null
+          game_number: number
+          games_per_second: number | null
+          id: number
+          is_bearoff_with_contact: boolean
+          is_contact_position: boolean
+          is_cube_decision: boolean
+          is_forced_move: boolean
+          is_match_critical: boolean
+          is_opening_move: boolean
+          mcts_rule_agreement: boolean | null
+          mcts_time_budget_ms: number
+          move_count: number
+          move_number: number
+          nodes_created: number | null
+          player: string
+          position_hash: string | null
+          rollout_count_actual: number
+          rollout_count_target: number
+          rollout_policy: string
+          rule_based_move_from: number | null
+          rule_based_move_to: number | null
+          rule_based_score: number | null
+          selected_move_from: number
+          selected_move_to: number
+          selected_move_visits: number | null
+          selected_move_win_rate: number | null
+          session_id: string | null
+          simulations_run: number | null
+          thinking_time_budget_ms: number
+        }
+        Insert: {
+          actual_time_ms: number
+          ai_difficulty: string
+          alternative_moves?: Json | null
+          created_at?: string
+          exceeded_time_budget?: boolean | null
+          exploration_constant: number
+          fallback_reason?: string | null
+          fallback_to_rules?: boolean | null
+          game_number: number
+          games_per_second?: number | null
+          id?: number
+          is_bearoff_with_contact?: boolean
+          is_contact_position?: boolean
+          is_cube_decision?: boolean
+          is_forced_move?: boolean
+          is_match_critical?: boolean
+          is_opening_move?: boolean
+          mcts_rule_agreement?: boolean | null
+          mcts_time_budget_ms: number
+          move_count: number
+          move_number: number
+          nodes_created?: number | null
+          player: string
+          position_hash?: string | null
+          rollout_count_actual: number
+          rollout_count_target: number
+          rollout_policy: string
+          rule_based_move_from?: number | null
+          rule_based_move_to?: number | null
+          rule_based_score?: number | null
+          selected_move_from: number
+          selected_move_to: number
+          selected_move_visits?: number | null
+          selected_move_win_rate?: number | null
+          session_id?: string | null
+          simulations_run?: number | null
+          thinking_time_budget_ms: number
+        }
+        Update: {
+          actual_time_ms?: number
+          ai_difficulty?: string
+          alternative_moves?: Json | null
+          created_at?: string
+          exceeded_time_budget?: boolean | null
+          exploration_constant?: number
+          fallback_reason?: string | null
+          fallback_to_rules?: boolean | null
+          game_number?: number
+          games_per_second?: number | null
+          id?: number
+          is_bearoff_with_contact?: boolean
+          is_contact_position?: boolean
+          is_cube_decision?: boolean
+          is_forced_move?: boolean
+          is_match_critical?: boolean
+          is_opening_move?: boolean
+          mcts_rule_agreement?: boolean | null
+          mcts_time_budget_ms?: number
+          move_count?: number
+          move_number?: number
+          nodes_created?: number | null
+          player?: string
+          position_hash?: string | null
+          rollout_count_actual?: number
+          rollout_count_target?: number
+          rollout_policy?: string
+          rule_based_move_from?: number | null
+          rule_based_move_to?: number | null
+          rule_based_score?: number | null
+          selected_move_from?: number
+          selected_move_to?: number
+          selected_move_visits?: number | null
+          selected_move_win_rate?: number | null
+          session_id?: string | null
+          simulations_run?: number | null
+          thinking_time_budget_ms?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ludo_mcts_evaluations_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "ludo_gameplay_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ludo_mcts_performance_benchmarks: {
+        Row: {
+          app_version: string | null
+          created_at: string
+          device_info: Json | null
+          duration_ms: number
+          games_per_second: number
+          games_simulated: number
+          id: number
+          performance_tier: string | null
+          rollout_policy: string
+        }
+        Insert: {
+          app_version?: string | null
+          created_at?: string
+          device_info?: Json | null
+          duration_ms: number
+          games_per_second: number
+          games_simulated: number
+          id?: number
+          performance_tier?: string | null
+          rollout_policy: string
+        }
+        Update: {
+          app_version?: string | null
+          created_at?: string
+          device_info?: Json | null
+          duration_ms?: number
+          games_per_second?: number
+          games_simulated?: number
+          id?: number
+          performance_tier?: string | null
+          rollout_policy?: string
+        }
+        Relationships: []
+      }
+      ludo_mcts_position_library: {
+        Row: {
+          best_move_from: number | null
+          best_move_to: number | null
+          best_move_win_rate: number | null
+          black_pip_count: number | null
+          board_state_compressed: string
+          category: string | null
+          created_at: string
+          current_player: string
+          description: string | null
+          evaluation_simulations: number | null
+          id: string
+          last_evaluated_at: string | null
+          name: string | null
+          position_hash: string | null
+          tags: string[] | null
+          times_evaluated: number | null
+          white_pip_count: number | null
+        }
+        Insert: {
+          best_move_from?: number | null
+          best_move_to?: number | null
+          best_move_win_rate?: number | null
+          black_pip_count?: number | null
+          board_state_compressed: string
+          category?: string | null
+          created_at?: string
+          current_player: string
+          description?: string | null
+          evaluation_simulations?: number | null
+          id?: string
+          last_evaluated_at?: string | null
+          name?: string | null
+          position_hash?: string | null
+          tags?: string[] | null
+          times_evaluated?: number | null
+          white_pip_count?: number | null
+        }
+        Update: {
+          best_move_from?: number | null
+          best_move_to?: number | null
+          best_move_win_rate?: number | null
+          black_pip_count?: number | null
+          board_state_compressed?: string
+          category?: string | null
+          created_at?: string
+          current_player?: string
+          description?: string | null
+          evaluation_simulations?: number | null
+          id?: string
+          last_evaluated_at?: string | null
+          name?: string | null
+          position_hash?: string | null
+          tags?: string[] | null
+          times_evaluated?: number | null
+          white_pip_count?: number | null
+        }
+        Relationships: []
+      }
+      ludo_mcts_training_sessions: {
+        Row: {
+          avg_games_per_second: number | null
+          baseline_configuration: Json | null
+          best_configuration: Json | null
+          best_performance_score: number | null
+          completed_at: string | null
+          created_at: string
+          id: string
+          improvement_percent: number | null
+          notes: string | null
+          parameters_tested: Json
+          status: string | null
+          total_positions_evaluated: number | null
+          total_simulations_run: number | null
+          training_type: string
+        }
+        Insert: {
+          avg_games_per_second?: number | null
+          baseline_configuration?: Json | null
+          best_configuration?: Json | null
+          best_performance_score?: number | null
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          improvement_percent?: number | null
+          notes?: string | null
+          parameters_tested: Json
+          status?: string | null
+          total_positions_evaluated?: number | null
+          total_simulations_run?: number | null
+          training_type: string
+        }
+        Update: {
+          avg_games_per_second?: number | null
+          baseline_configuration?: Json | null
+          best_configuration?: Json | null
+          best_performance_score?: number | null
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          improvement_percent?: number | null
+          notes?: string | null
+          parameters_tested?: Json
+          status?: string | null
+          total_positions_evaluated?: number | null
+          total_simulations_run?: number | null
+          training_type?: string
+        }
+        Relationships: []
+      }
+      ludo_sound_collection_assignments: {
+        Row: {
+          collection_id: string
+          created_at: string
+          gameplay_event: string
+          id: string
+          playback_config: Json | null
+          sound_library_id: string
+        }
+        Insert: {
+          collection_id: string
+          created_at?: string
+          gameplay_event: string
+          id?: string
+          playback_config?: Json | null
+          sound_library_id: string
+        }
+        Update: {
+          collection_id?: string
+          created_at?: string
+          gameplay_event?: string
+          id?: string
+          playback_config?: Json | null
+          sound_library_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ludo_sound_collection_assignments_collection_id_fkey"
+            columns: ["collection_id"]
+            isOneToOne: false
+            referencedRelation: "ludo_sound_collections"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ludo_sound_collections: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          is_active: boolean
+          is_public: boolean
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          is_public?: boolean
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          is_public?: boolean
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      ludo_themes: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          is_public: boolean
+          name: string
+          theme_data: Json
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_public?: boolean
+          name: string
+          theme_data: Json
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_public?: boolean
+          name?: string
+          theme_data?: Json
+          updated_at?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           assigned_projects: string[] | null
@@ -4273,6 +5130,495 @@ export type Database = {
         }
         Relationships: []
       }
+      verbivore_categories: {
+        Row: {
+          color: string | null
+          created_at: string
+          description: string | null
+          id: string
+          name: string
+          slug: string
+          updated_at: string
+        }
+        Insert: {
+          color?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          name: string
+          slug: string
+          updated_at?: string
+        }
+        Update: {
+          color?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          name?: string
+          slug?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      verbivore_entries: {
+        Row: {
+          category_id: string | null
+          complexity_score: number
+          content: string | null
+          cover_image_url: string | null
+          created_at: string
+          excerpt: string | null
+          featured: boolean
+          id: string
+          published_at: string | null
+          reading_time: number
+          scheduled_at: string | null
+          seo_description: string | null
+          seo_title: string | null
+          slug: string
+          status: string
+          thumbnail_image_url: string | null
+          title: string
+          updated_at: string
+          view_count: number
+          word_count: number
+        }
+        Insert: {
+          category_id?: string | null
+          complexity_score?: number
+          content?: string | null
+          cover_image_url?: string | null
+          created_at?: string
+          excerpt?: string | null
+          featured?: boolean
+          id?: string
+          published_at?: string | null
+          reading_time?: number
+          scheduled_at?: string | null
+          seo_description?: string | null
+          seo_title?: string | null
+          slug: string
+          status?: string
+          thumbnail_image_url?: string | null
+          title: string
+          updated_at?: string
+          view_count?: number
+          word_count?: number
+        }
+        Update: {
+          category_id?: string | null
+          complexity_score?: number
+          content?: string | null
+          cover_image_url?: string | null
+          created_at?: string
+          excerpt?: string | null
+          featured?: boolean
+          id?: string
+          published_at?: string | null
+          reading_time?: number
+          scheduled_at?: string | null
+          seo_description?: string | null
+          seo_title?: string | null
+          slug?: string
+          status?: string
+          thumbnail_image_url?: string | null
+          title?: string
+          updated_at?: string
+          view_count?: number
+          word_count?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "verbivore_entries_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "verbivore_categories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      verbivore_entry_relationships: {
+        Row: {
+          child_entry_id: string
+          created_at: string
+          id: string
+          parent_entry_id: string
+          relationship_type: string
+          sequence_order: number
+          split_strategy: Json | null
+        }
+        Insert: {
+          child_entry_id: string
+          created_at?: string
+          id?: string
+          parent_entry_id: string
+          relationship_type?: string
+          sequence_order?: number
+          split_strategy?: Json | null
+        }
+        Update: {
+          child_entry_id?: string
+          created_at?: string
+          id?: string
+          parent_entry_id?: string
+          relationship_type?: string
+          sequence_order?: number
+          split_strategy?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "verbivore_entry_relationships_child_entry_id_fkey"
+            columns: ["child_entry_id"]
+            isOneToOne: false
+            referencedRelation: "verbivore_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "verbivore_entry_relationships_child_entry_id_fkey"
+            columns: ["child_entry_id"]
+            isOneToOne: false
+            referencedRelation: "verbivore_public_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "verbivore_entry_relationships_parent_entry_id_fkey"
+            columns: ["parent_entry_id"]
+            isOneToOne: false
+            referencedRelation: "verbivore_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "verbivore_entry_relationships_parent_entry_id_fkey"
+            columns: ["parent_entry_id"]
+            isOneToOne: false
+            referencedRelation: "verbivore_public_entries"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      verbivore_entry_terms: {
+        Row: {
+          created_at: string
+          display_order: number
+          entry_id: string
+          id: string
+          is_primary: boolean
+          term_id: string
+        }
+        Insert: {
+          created_at?: string
+          display_order?: number
+          entry_id: string
+          id?: string
+          is_primary?: boolean
+          term_id: string
+        }
+        Update: {
+          created_at?: string
+          display_order?: number
+          entry_id?: string
+          id?: string
+          is_primary?: boolean
+          term_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "verbivore_entry_terms_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "verbivore_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "verbivore_entry_terms_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "verbivore_public_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "verbivore_entry_terms_term_id_fkey"
+            columns: ["term_id"]
+            isOneToOne: false
+            referencedRelation: "verbivore_public_terms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "verbivore_entry_terms_term_id_fkey"
+            columns: ["term_id"]
+            isOneToOne: false
+            referencedRelation: "verbivore_terms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      verbivore_sources: {
+        Row: {
+          author: string | null
+          created_at: string
+          id: string
+          publication_date: string | null
+          source_type: string | null
+          title: string
+          url: string | null
+        }
+        Insert: {
+          author?: string | null
+          created_at?: string
+          id?: string
+          publication_date?: string | null
+          source_type?: string | null
+          title: string
+          url?: string | null
+        }
+        Update: {
+          author?: string | null
+          created_at?: string
+          id?: string
+          publication_date?: string | null
+          source_type?: string | null
+          title?: string
+          url?: string | null
+        }
+        Relationships: []
+      }
+      verbivore_splitting_sessions: {
+        Row: {
+          analysis_result: Json | null
+          created_at: string
+          entry_id: string
+          id: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          analysis_result?: Json | null
+          created_at?: string
+          entry_id: string
+          id?: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          analysis_result?: Json | null
+          created_at?: string
+          entry_id?: string
+          id?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "verbivore_splitting_sessions_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "verbivore_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "verbivore_splitting_sessions_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "verbivore_public_entries"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      verbivore_style_guides: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          is_active: boolean
+          is_default: boolean
+          name: string
+          prompt: string
+          slug: string
+          updated_at: string
+          usage_count: number
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          is_default?: boolean
+          name: string
+          prompt: string
+          slug: string
+          updated_at?: string
+          usage_count?: number
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          is_default?: boolean
+          name?: string
+          prompt?: string
+          slug?: string
+          updated_at?: string
+          usage_count?: number
+        }
+        Relationships: []
+      }
+      verbivore_term_relationships: {
+        Row: {
+          created_at: string
+          id: string
+          related_term_id: string
+          relationship_type: string
+          term_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          related_term_id: string
+          relationship_type?: string
+          term_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          related_term_id?: string
+          relationship_type?: string
+          term_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "verbivore_term_relationships_related_term_id_fkey"
+            columns: ["related_term_id"]
+            isOneToOne: false
+            referencedRelation: "verbivore_public_terms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "verbivore_term_relationships_related_term_id_fkey"
+            columns: ["related_term_id"]
+            isOneToOne: false
+            referencedRelation: "verbivore_terms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "verbivore_term_relationships_term_id_fkey"
+            columns: ["term_id"]
+            isOneToOne: false
+            referencedRelation: "verbivore_public_terms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "verbivore_term_relationships_term_id_fkey"
+            columns: ["term_id"]
+            isOneToOne: false
+            referencedRelation: "verbivore_terms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      verbivore_term_sources: {
+        Row: {
+          created_at: string
+          id: string
+          notes: string | null
+          page_number: string | null
+          source_id: string
+          term_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          notes?: string | null
+          page_number?: string | null
+          source_id: string
+          term_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          notes?: string | null
+          page_number?: string | null
+          source_id?: string
+          term_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "verbivore_term_sources_source_id_fkey"
+            columns: ["source_id"]
+            isOneToOne: false
+            referencedRelation: "verbivore_sources"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "verbivore_term_sources_term_id_fkey"
+            columns: ["term_id"]
+            isOneToOne: false
+            referencedRelation: "verbivore_public_terms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "verbivore_term_sources_term_id_fkey"
+            columns: ["term_id"]
+            isOneToOne: false
+            referencedRelation: "verbivore_terms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      verbivore_terms: {
+        Row: {
+          created_at: string
+          definition: string
+          difficulty_level: string | null
+          etymology_source: string | null
+          id: string
+          image_url: string | null
+          origin: string | null
+          pronunciation: string | null
+          slug: string
+          synonyms: string[] | null
+          tags: string[] | null
+          term: string
+          updated_at: string
+          usage_examples: string[] | null
+          view_count: number
+        }
+        Insert: {
+          created_at?: string
+          definition: string
+          difficulty_level?: string | null
+          etymology_source?: string | null
+          id?: string
+          image_url?: string | null
+          origin?: string | null
+          pronunciation?: string | null
+          slug: string
+          synonyms?: string[] | null
+          tags?: string[] | null
+          term: string
+          updated_at?: string
+          usage_examples?: string[] | null
+          view_count?: number
+        }
+        Update: {
+          created_at?: string
+          definition?: string
+          difficulty_level?: string | null
+          etymology_source?: string | null
+          id?: string
+          image_url?: string | null
+          origin?: string | null
+          pronunciation?: string | null
+          slug?: string
+          synonyms?: string[] | null
+          tags?: string[] | null
+          term?: string
+          updated_at?: string
+          usage_examples?: string[] | null
+          view_count?: number
+        }
+        Relationships: []
+      }
       webauthn_challenges: {
         Row: {
           challenge: string
@@ -4488,6 +5834,29 @@ export type Database = {
           },
         ]
       }
+      ludo_mcts_performance_by_complexity: {
+        Row: {
+          avg_games_per_second: number | null
+          avg_rollouts: number | null
+          avg_time_budget: number | null
+          avg_time_ms: number | null
+          position_type: string | null
+          total_evaluations: number | null
+        }
+        Relationships: []
+      }
+      ludo_mcts_performance_by_difficulty: {
+        Row: {
+          ai_difficulty: string | null
+          avg_games_per_second: number | null
+          avg_rollouts: number | null
+          avg_time_ms: number | null
+          fallback_count: number | null
+          rule_agreement_rate: number | null
+          total_evaluations: number | null
+        }
+        Relationships: []
+      }
       studio_project_relationships: {
         Row: {
           created_at: string | null
@@ -4505,6 +5874,45 @@ export type Database = {
           target_project_name: string | null
           target_project_slug: string | null
           target_type: string | null
+        }
+        Relationships: []
+      }
+      verbivore_public_entries: {
+        Row: {
+          category_color: string | null
+          category_name: string | null
+          category_slug: string | null
+          content: string | null
+          cover_image_url: string | null
+          excerpt: string | null
+          featured: boolean | null
+          id: string | null
+          published_at: string | null
+          reading_time: number | null
+          slug: string | null
+          terms: Json[] | null
+          thumbnail_image_url: string | null
+          title: string | null
+          view_count: number | null
+          word_count: number | null
+        }
+        Relationships: []
+      }
+      verbivore_public_terms: {
+        Row: {
+          definition: string | null
+          difficulty_level: string | null
+          entry_titles: string[] | null
+          id: string | null
+          image_url: string | null
+          origin: string | null
+          pronunciation: string | null
+          slug: string | null
+          synonyms: string[] | null
+          tags: string[] | null
+          term: string | null
+          usage_examples: string[] | null
+          view_count: number | null
         }
         Relationships: []
       }

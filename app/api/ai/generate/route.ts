@@ -23,6 +23,12 @@ import '@/lib/ai/actions/generate-draft-name'
 import '@/lib/ai/actions/generate-project-from-logs'
 import '@/lib/ai/actions/generate-survey'
 import '@/lib/ai/actions/generate-survey-suggestions'
+import '@/lib/ai/actions/verbivore-generate-content'
+import '@/lib/ai/actions/verbivore-generate-definition'
+import '@/lib/ai/actions/verbivore-generate-term-field'
+import '@/lib/ai/actions/verbivore-suggest-terms'
+import '@/lib/ai/actions/verbivore-analyze-split'
+import '@/lib/ai/actions/verbivore-enhance-style'
 
 export async function POST(request: Request) {
   try {

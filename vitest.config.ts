@@ -23,6 +23,12 @@ export default defineConfig({
       '**/mcp/**',
       '.next',
       'dist',
+      // Ludo Three.js tests require WebGL (not available in CI/test);
+      // Ludo game store tests use Jest APIs incompatible with Vitest
+      'lib/studio/ludo/three/**/__tests__/**',
+      'lib/studio/ludo/game/stores/__tests__/**',
+      'lib/studio/ludo/game/__tests__/gameState.test.ts',
+      'components/studio/ludo/Board/__tests__/**',
     ],
 
     // Coverage configuration
