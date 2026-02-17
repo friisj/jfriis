@@ -94,10 +94,12 @@ export default function Spike01() {
     // Create ground with small ramp
     const ground = Bodies.rectangle(400, 550, 600, 60, {
       isStatic: true,
+      friction: 1, // High friction for wheel grip
       render: { fillStyle: '#333' }
     })
     const ramp = Bodies.rectangle(650, 500, 200, 20, {
       isStatic: true,
+      friction: 1,
       angle: -0.2,
       render: { fillStyle: '#333' }
     })
@@ -115,13 +117,18 @@ export default function Spike01() {
         render: { fillStyle: '#e74c3c' }
       })
 
-      const frontWheel = Bodies.circle(x + wheelbase / 2, y + 30, wheelSize, {
+      // Position wheels BELOW chassis with clearance
+      // Chassis bottom is at y+20, wheels should be at y+20+wheelSize+suspensionTravel
+      const suspensionRestLength = 40
+      const wheelY = y + 20 + suspensionRestLength
+
+      const frontWheel = Bodies.circle(x + wheelbase / 2, wheelY, wheelSize, {
         friction: 1,
         mass: 1,
         render: { fillStyle: '#333' }
       })
 
-      const rearWheel = Bodies.circle(x - wheelbase / 2, y + 30, wheelSize, {
+      const rearWheel = Bodies.circle(x - wheelbase / 2, wheelY, wheelSize, {
         friction: 1,
         mass: 1,
         render: { fillStyle: '#333' }
@@ -129,21 +136,21 @@ export default function Spike01() {
 
       const frontSuspension = Constraint.create({
         bodyA: chassis,
-        pointA: { x: wheelbase / 2, y: 20 },
+        pointA: { x: wheelbase / 2, y: 20 }, // Bottom corner of chassis
         bodyB: frontWheel,
         stiffness: stiffness,
         damping: damping,
-        length: 10,
+        length: suspensionRestLength, // Allow 40px of travel
         render: { lineWidth: 2, strokeStyle: '#3498db' }
       })
 
       const rearSuspension = Constraint.create({
         bodyA: chassis,
-        pointA: { x: -wheelbase / 2, y: 20 },
+        pointA: { x: -wheelbase / 2, y: 20 }, // Bottom corner of chassis
         bodyB: rearWheel,
         stiffness: stiffness,
         damping: damping,
-        length: 10,
+        length: suspensionRestLength,
         render: { lineWidth: 2, strokeStyle: '#3498db' }
       })
 
@@ -174,14 +181,18 @@ export default function Spike01() {
 
       const { frontWheel, rearWheel } = truckRef.current
 
+      // Apply torque to spin wheels (like a motor)
+      // Torque = force applied at radius
+      const torque = enginePower * 10000 // Scale up for visible effect
+
       if (keys['ArrowRight'] || keys['d']) {
-        Body.applyForce(frontWheel, frontWheel.position, { x: enginePower, y: 0 })
-        Body.applyForce(rearWheel, rearWheel.position, { x: enginePower, y: 0 })
+        Body.setAngularVelocity(frontWheel, frontWheel.angularVelocity + torque)
+        Body.setAngularVelocity(rearWheel, rearWheel.angularVelocity + torque)
       }
 
       if (keys['ArrowLeft'] || keys['a']) {
-        Body.applyForce(frontWheel, frontWheel.position, { x: -enginePower, y: 0 })
-        Body.applyForce(rearWheel, rearWheel.position, { x: -enginePower, y: 0 })
+        Body.setAngularVelocity(frontWheel, frontWheel.angularVelocity - torque)
+        Body.setAngularVelocity(rearWheel, rearWheel.angularVelocity - torque)
       }
     })
 
