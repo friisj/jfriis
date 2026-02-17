@@ -870,7 +870,7 @@ export function SeriesLayout({
           <ResizablePanel defaultSize={75} minSize={50}>
             <div className="h-full flex flex-col overflow-hidden">
               {/* Fixed tabs + upload button */}
-              <div className="flex-none px-6 py-4 border-b">
+              <div className="flex-none px-6 py-4">
                 <Tabs defaultValue="images" className="w-full">
                   <div className="flex items-center justify-between">
                     <TabsList>

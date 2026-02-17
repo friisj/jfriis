@@ -26,8 +26,10 @@ export function ImageEditor({ seriesId, imageId, initialImages }: ImageEditorPro
   const router = useRouter()
   const searchParams = useSearchParams()
   const [images, setImages] = useState<CogImageWithGroupInfo[]>(initialImages)
-  const [currentIndex, setCurrentIndex] = useState(0)
-  const [isLoading, setIsLoading] = useState(true)
+  const [currentIndex, setCurrentIndex] = useState(() => {
+    const index = initialImages.findIndex((img) => img.id === imageId)
+    return index >= 0 ? index : 0
+  })
   const [showGroupMode, setShowGroupMode] = useState(searchParams.get('group') === 'true')
   const [groupImages, setGroupImages] = useState<CogImageWithGroupInfo[]>([])
   const [loadingGroup, setLoadingGroup] = useState(false)
@@ -97,9 +99,7 @@ export function ImageEditor({ seriesId, imageId, initialImages }: ImageEditorPro
     } else if (initialImages.length > 0) {
       // imageId not in list (e.g. wrong group filter) — navigate to first image
       router.replace(`/tools/cog/${seriesId}/editor/${initialImages[0].id}`)
-      return
     }
-    setIsLoading(false)
   }, [initialImages, imageId, router, seriesId])
 
   const refreshImages = useCallback(async () => {
@@ -165,38 +165,50 @@ export function ImageEditor({ seriesId, imageId, initialImages }: ImageEditorPro
 
   // Fetch group images when current image changes
   useEffect(() => {
-    async function loadGroupImages() {
-      if (!currentImage?.group_id) {
-        setGroupImages([])
-        setCurrentGroupIndex(0)
-        return
-      }
+    if (!currentImage?.group_id) {
+      setGroupImages([])
+      setCurrentGroupIndex(0)
+      return
+    }
 
+    const controller = new AbortController()
+
+    async function loadGroupImages() {
       setLoadingGroup(true)
       try {
-        const response = await fetch(`/api/cog/groups/${currentImage.group_id}/images`)
+        const response = await fetch(
+          `/api/cog/groups/${currentImage!.group_id}/images`,
+          { signal: controller.signal },
+        )
         const data = await response.json()
+
+        if (controller.signal.aborted) return
 
         // Ensure data is an array before using it
         if (Array.isArray(data)) {
           setGroupImages(data)
 
           // Find the index of the current image in the group
-          const index = data.findIndex((img: CogImageWithGroupInfo) => img.id === currentImage.id)
+          const index = data.findIndex((img: CogImageWithGroupInfo) => img.id === currentImage!.id)
           setCurrentGroupIndex(index >= 0 ? index : 0)
         } else {
           console.error('Group images API returned non-array:', data)
           setGroupImages([])
         }
       } catch (error) {
+        if (controller.signal.aborted) return
         console.error('Failed to load group images:', error)
         setGroupImages([])
       } finally {
-        setLoadingGroup(false)
+        if (!controller.signal.aborted) {
+          setLoadingGroup(false)
+        }
       }
     }
 
     loadGroupImages()
+
+    return () => controller.abort()
   }, [currentImage?.group_id, currentImage?.id])
 
   const hasGroup = groupImages.length > 1
@@ -518,9 +530,9 @@ export function ImageEditor({ seriesId, imageId, initialImages }: ImageEditorPro
         case 'G':
           if (hasGroup && !showEditMode) {
             if (showGroupMode) {
-              router.push(`/tools/cog/${seriesId}/editor/${imageId}`)
+              router.push(`/tools/cog/${seriesId}/editor/${currentImage.id}`)
             } else {
-              router.push(`/tools/cog/${seriesId}/editor/${imageId}?group=true`)
+              router.push(`/tools/cog/${seriesId}/editor/${currentImage.id}?group=true`)
             }
           }
           break
@@ -561,7 +573,7 @@ export function ImageEditor({ seriesId, imageId, initialImages }: ImageEditorPro
 
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [exitToGrid, goToPrevious, goToNext, hasGroup, showGroupMode, showEditMode, handleSetStarRating])
+  }, [exitToGrid, goToPrevious, goToNext, hasGroup, showGroupMode, showEditMode, handleSetStarRating, currentImage, seriesId, router])
 
   // Preload adjacent images for faster navigation
   useEffect(() => {
@@ -639,7 +651,7 @@ export function ImageEditor({ seriesId, imageId, initialImages }: ImageEditorPro
     }
   }, [currentImage, displayedImage, images, showGroupMode, groupImages])
 
-  if (isLoading || !currentImage) {
+  if (!currentImage) {
     return (
       <div className="fixed inset-0 bg-black flex items-center justify-center">
         <div className="text-white">Loading...</div>
@@ -731,7 +743,7 @@ export function ImageEditor({ seriesId, imageId, initialImages }: ImageEditorPro
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => router.push(`/tools/cog/${seriesId}/editor/${imageId}?group=true`)}
+              onClick={() => router.push(`/tools/cog/${seriesId}/editor/${currentImage.id}?group=true`)}
               className="text-white hover:bg-white/10"
             >
               Group
@@ -741,7 +753,7 @@ export function ImageEditor({ seriesId, imageId, initialImages }: ImageEditorPro
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => router.push(`/tools/cog/${seriesId}/editor/${imageId}`)}
+              onClick={() => router.push(`/tools/cog/${seriesId}/editor/${currentImage.id}`)}
               className="text-white hover:bg-white/10"
             >
               Close Group
@@ -1382,18 +1394,14 @@ export function ImageEditor({ seriesId, imageId, initialImages }: ImageEditorPro
 
       {/* Group Drawer - Overlays bottom when active */}
       {showGroupMode && (
-        <div className="absolute bottom-0 left-0 right-0 z-20 bg-black/90 backdrop-blur-md border-t border-white/10">
+        <div className="absolute bottom-0 inset-x-0 z-20 bg-black/50 backdrop-blur-">
           <div className="px-4 py-4">
             {loadingGroup ? (
               <div className="flex items-center justify-center py-8">
                 <div className="text-sm text-white/40">Loading group...</div>
               </div>
             ) : (
-              <div className="space-y-3">
-                <div className="text-xs text-white/60 font-medium">
-                  {groupImages.length} images in group
-                </div>
-
+              <div>
                 {/* Horizontal thumbnail scroll */}
                 <div className="overflow-x-auto -mx-4 px-4">
                   <div className="flex gap-3 pb-2">
