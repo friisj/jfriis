@@ -14,7 +14,7 @@ You are helping with R&D and conceptual exploration in Jon Friis's Studio space.
 - **Document evolution**: Track how ideas change through iterations
 - **Multiple perspectives**: Welcome multi-model collaboration (Claude, Gemini, Codex)
 - **Conceptual rigor**: Define terms precisely, create glossaries, map relationships
-- **Prototype-grade code**: When building, focus on demonstration not production quality
+- **Code quality at operator's discretion**: No blanket rule — some prototypes are throwaway, others mature into production tools
 
 ## Documentation Expectations
 
@@ -76,15 +76,13 @@ When working with other AI models (Gemini, Codex):
 - Include metrics and calculations
 - Provide "before/after" comparisons
 
-## Prototype Standards
+## Building in Studio
 
-When building prototypes in `/app/studio/`:
+When building in `/app/studio/`:
 
-- **Demonstrate concepts**: Focus on showing the idea, not perfecting implementation
 - **Document learnings**: Track what worked, what didn't, why
 - **Make it visible**: Build with intention to showcase on jonfriis.com/studio
-- **Keep it separate**: Don't mix studio prototype code with production site code
-- **Refactor on promotion**: If prototype becomes a site feature, rebuild with production quality
+- **Keep it separate**: Don't mix studio code with production site code
 
 ### Database for Studio Prototypes
 
@@ -126,16 +124,14 @@ When building prototypes in `/app/studio/`:
 
 ❌ **Don't**:
 - Rush to implementation before concepts are clear
-- Create production-grade code in exploration phase
 - Mix studio work with site features
 - Skip documentation "to move faster"
 - Ignore previous iterations in multi-model collaboration
 - Add baseless time estimates
-- Over-optimize prototypes
 
 ✅ **Do**:
 - Take time to think deeply and document thoroughly
-- Build prototypes only when concepts are well-defined
+- Build only when concepts are well-defined
 - Keep studio and site work separate
 - Prioritize documentation as first-class output
 - Build on previous work respectfully

@@ -870,9 +870,9 @@ export function SeriesLayout({
           <ResizablePanel defaultSize={75} minSize={50}>
             <div className="h-full flex flex-col overflow-hidden">
               {/* Fixed tabs + upload button */}
-              <div className="flex-none px-6 py-4">
-                <Tabs defaultValue="images" className="w-full">
-                  <div className="flex items-center justify-between">
+              <div className="flex-none px-6 h-full">
+                <Tabs defaultValue="images" className="flex flex-col size-full gap-0">
+                  <div className="flex items-center justify-between py-4">
                     <TabsList>
                       <TabsTrigger value="jobs">Jobs ({jobs.length})</TabsTrigger>
                       <TabsTrigger value="images">Images ({images.length})</TabsTrigger>
@@ -883,21 +883,17 @@ export function SeriesLayout({
                   </div>
 
                   {/* Scrollable content */}
-                  <TabsContent value="jobs" className="mt-0">
-                    <div className="h-full overflow-y-auto pt-4">
-                      <JobsPanel jobs={jobs} remixJobs={remixJobs} thinkingJobs={thinkingJobs} seriesId={seriesId} />
-                    </div>
+                  <TabsContent value="jobs" className="mt-0 flex-1 overflow-y-auto">
+                    <JobsPanel jobs={jobs} remixJobs={remixJobs} thinkingJobs={thinkingJobs} seriesId={seriesId} />
                   </TabsContent>
-                  <TabsContent value="images" className="mt-0">
-                    <div className="h-full overflow-y-auto pt-4">
-                      <ImagesPanel
-                        images={images}
-                        seriesId={seriesId}
-                        primaryImageId={series.primary_image_id}
-                        enabledTags={enabledTags}
-                        onUploadClick={() => setShowUploadModal(true)}
-                      />
-                    </div>
+                  <TabsContent value="images" className="mt-0 flex-1 overflow-y-auto">
+                    <ImagesPanel
+                      images={images}
+                      seriesId={seriesId}
+                      primaryImageId={series.primary_image_id}
+                      enabledTags={enabledTags}
+                      onUploadClick={() => setShowUploadModal(true)}
+                    />
                   </TabsContent>
                 </Tabs>
               </div>
