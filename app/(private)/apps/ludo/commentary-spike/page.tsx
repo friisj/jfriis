@@ -1,14 +1,10 @@
 'use client';
 
 import { useState } from 'react';
-import {
-  initializeClients,
-  testScenario,
-  runAllTests,
-  playAudio,
-  type SpikeContext,
-  type SpikeResult
-} from '@/lib/studio/ludo/commentary/spike';
+import type { SpikeContext, SpikeResult } from '@/lib/studio/ludo/commentary/spike';
+
+// Dynamic import to avoid bundling Node.js modules (ElevenLabs SDK uses node:child_process)
+const getSpikeModule = () => import('@/lib/studio/ludo/commentary/spike');
 
 export default function CommentarySpikePage() {
   const [geminiKey, setGeminiKey] = useState('');
@@ -18,11 +14,12 @@ export default function CommentarySpikePage() {
   const [results, setResults] = useState<SpikeResult[]>([]);
   const [currentTest, setCurrentTest] = useState<string>('');
 
-  const handleInitialize = () => {
+  const handleInitialize = async () => {
     if (!geminiKey || !elevenLabsKey) {
       alert('Please enter both API keys');
       return;
     }
+    const { initializeClients } = await getSpikeModule();
     initializeClients(geminiKey, elevenLabsKey);
     setInitialized(true);
   };
@@ -46,12 +43,14 @@ export default function CommentarySpikePage() {
         boardContext: 'Hit opponent checker, sending to bar'
       };
 
+      const { testScenario } = await getSpikeModule();
       const result = await testScenario(scenario);
       setResults([result]);
 
       // Play the audio
       if (result.audio) {
         setCurrentTest('Playing audio...');
+        const { playAudio } = await getSpikeModule();
         await playAudio(result.audio);
       }
 
@@ -75,10 +74,12 @@ export default function CommentarySpikePage() {
     setResults([]);
 
     try {
+      const { runAllTests } = await getSpikeModule();
       const allResults = await runAllTests();
       setResults(allResults);
 
       // Play each audio in sequence
+      const { playAudio } = await getSpikeModule();
       for (let i = 0; i < allResults.length; i++) {
         const result = allResults[i];
         if (result.audio) {
@@ -101,6 +102,7 @@ export default function CommentarySpikePage() {
     const result = results[index];
     if (result.audio) {
       try {
+        const { playAudio } = await getSpikeModule();
         await playAudio(result.audio);
       } catch (error) {
         console.error('Failed to play audio:', error);
