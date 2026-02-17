@@ -20,7 +20,7 @@ export default function CommentarySpikePage() {
       return;
     }
     const { initializeClients } = await getSpikeModule();
-    initializeClients(geminiKey, elevenLabsKey);
+    await initializeClients(geminiKey, elevenLabsKey);
     setInitialized(true);
   };
 

@@ -1,12 +1,16 @@
 import Anthropic from "@anthropic-ai/sdk";
 
-if (!process.env.ANTHROPIC_API_KEY) {
-  throw new Error("ANTHROPIC_API_KEY is not set in environment variables");
+// Lazy init — avoid throwing at import time during build
+let _anthropic: Anthropic | null = null;
+function getAnthropic() {
+  if (!_anthropic) {
+    if (!process.env.ANTHROPIC_API_KEY) {
+      throw new Error("ANTHROPIC_API_KEY is not set in environment variables");
+    }
+    _anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+  }
+  return _anthropic;
 }
-
-export const anthropic = new Anthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY,
-});
 
 /**
  * Claude Sonnet 4.5 - Use for:
@@ -41,7 +45,7 @@ export async function sendToClaudeSonnet(
     systemPrompt?: string;
   }
 ) {
-  const response = await anthropic.messages.create({
+  const response = await getAnthropic().messages.create({
     model: CLAUDE_MODEL,
     max_tokens: options?.maxTokens ?? 4096,
     temperature: options?.temperature ?? 1.0,

@@ -6,7 +6,9 @@
  */
 
 import { GoogleGenerativeAI } from '@google/generative-ai';
-import { ElevenLabsClient } from '@elevenlabs/elevenlabs-js';
+// ElevenLabs SDK imports node:child_process/events/stream which breaks webpack client builds
+// Lazy import to avoid build-time bundling of Node.js modules
+type ElevenLabsClientType = import('@elevenlabs/elevenlabs-js').ElevenLabsClient;
 
 // ============== TYPES ==============
 
@@ -30,10 +32,11 @@ export interface SpikeResult {
 // ============== API CLIENTS ==============
 
 let geminiClient: GoogleGenerativeAI | null = null;
-let elevenLabsClient: ElevenLabsClient | null = null;
+let elevenLabsClient: ElevenLabsClientType | null = null;
 
-export function initializeClients(geminiApiKey: string, elevenLabsApiKey: string) {
+export async function initializeClients(geminiApiKey: string, elevenLabsApiKey: string) {
   geminiClient = new GoogleGenerativeAI(geminiApiKey);
+  const { ElevenLabsClient } = await import('@elevenlabs/elevenlabs-js');
   elevenLabsClient = new ElevenLabsClient({ apiKey: elevenLabsApiKey });
 }
 

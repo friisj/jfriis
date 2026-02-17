@@ -1,10 +1,16 @@
 import { createClient } from "@deepgram/sdk";
 
-if (!process.env.DEEPGRAM_API_KEY) {
-  throw new Error("DEEPGRAM_API_KEY is not set in environment variables");
+// Lazy init — avoid throwing at import time during build
+let _deepgram: ReturnType<typeof createClient> | null = null;
+function getDeepgram() {
+  if (!_deepgram) {
+    if (!process.env.DEEPGRAM_API_KEY) {
+      throw new Error("DEEPGRAM_API_KEY is not set in environment variables");
+    }
+    _deepgram = createClient(process.env.DEEPGRAM_API_KEY);
+  }
+  return _deepgram;
 }
-
-export const deepgram = createClient(process.env.DEEPGRAM_API_KEY);
 
 /**
  * Transcribe audio using Deepgram's pre-recorded API
@@ -22,7 +28,7 @@ export async function transcribeAudio(
   }
 ): Promise<string> {
   try {
-    const { result, error } = await deepgram.listen.prerecorded.transcribeFile(
+    const { result, error } = await getDeepgram().listen.prerecorded.transcribeFile(
       audioBuffer,
       {
         model: options?.model || "nova-2",
