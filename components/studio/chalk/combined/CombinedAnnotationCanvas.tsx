@@ -300,7 +300,7 @@ export const CombinedAnnotationCanvas = forwardRef<
       const formData = new FormData();
       formData.append("audio", new File([audioBlob], "recording.webm", { type: "audio/webm" }));
 
-      const response = await fetch("/api/transcribe-audio", {
+      const response = await fetch("/apps/chalk/api/transcribe-audio", {
         method: "POST",
         body: formData,
       });

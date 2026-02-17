@@ -253,7 +253,7 @@ export function VoiceAnnotationCanvas({
         })
       );
 
-      const response = await fetch("/api/transcribe-audio", {
+      const response = await fetch("/apps/chalk/api/transcribe-audio", {
         method: "POST",
         body: formData,
       });

@@ -53,7 +53,7 @@ export function ChatPanel({
     setLoading(true);
 
     try {
-      const response = await fetch("/api/generate-options", {
+      const response = await fetch("/apps/chalk/api/generate-options", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

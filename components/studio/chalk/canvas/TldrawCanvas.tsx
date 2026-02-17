@@ -85,7 +85,7 @@ export function TldrawCanvas({
 
             try {
               console.log("Saving board...", { boardId, snapshotSize: snapshotString.length });
-              const response = await fetch("/api/save-board", {
+              const response = await fetch("/apps/chalk/api/save-board", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
