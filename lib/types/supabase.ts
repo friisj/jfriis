@@ -803,6 +803,157 @@ export type Database = {
           },
         ]
       }
+      chalk_boards: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          name: string
+          project_id: string
+          tldraw_snapshot: Json
+          updated_at: string
+          viewport: Json | null
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          name?: string
+          project_id: string
+          tldraw_snapshot?: Json
+          updated_at?: string
+          viewport?: Json | null
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          name?: string
+          project_id?: string
+          tldraw_snapshot?: Json
+          updated_at?: string
+          viewport?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chalk_boards_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "chalk_projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      chalk_chat_messages: {
+        Row: {
+          board_id: string
+          content: Json
+          context_id: string | null
+          context_type: string
+          created_at: string
+          id: string
+          role: string
+        }
+        Insert: {
+          board_id: string
+          content: Json
+          context_id?: string | null
+          context_type: string
+          created_at?: string
+          id?: string
+          role: string
+        }
+        Update: {
+          board_id?: string
+          content?: Json
+          context_id?: string | null
+          context_type?: string
+          created_at?: string
+          id?: string
+          role?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chalk_chat_messages_board_id_fkey"
+            columns: ["board_id"]
+            isOneToOne: false
+            referencedRelation: "chalk_boards"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      chalk_projects: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          name?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      chalk_versions: {
+        Row: {
+          board_id: string
+          created_at: string
+          fidelity_level: number | null
+          id: string
+          name: string | null
+          parent_id: string | null
+          screenshot_url: string | null
+          tldraw_snapshot: Json
+        }
+        Insert: {
+          board_id: string
+          created_at?: string
+          fidelity_level?: number | null
+          id?: string
+          name?: string | null
+          parent_id?: string | null
+          screenshot_url?: string | null
+          tldraw_snapshot: Json
+        }
+        Update: {
+          board_id?: string
+          created_at?: string
+          fidelity_level?: number | null
+          id?: string
+          name?: string | null
+          parent_id?: string | null
+          screenshot_url?: string | null
+          tldraw_snapshot?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chalk_versions_board_id_fkey"
+            columns: ["board_id"]
+            isOneToOne: false
+            referencedRelation: "chalk_boards"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chalk_versions_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "chalk_versions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       channels: {
         Row: {
           config: Json | null
