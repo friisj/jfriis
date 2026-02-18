@@ -2,26 +2,21 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase-server'
 import { notFound } from 'next/navigation'
 import dynamic from 'next/dynamic'
+import { ExperimentPrototypeView } from '@/components/studio/experiment-prototype-view'
+import { ExperimentStatusSelect } from '@/components/studio/experiment-status-select'
+
+type ExperimentStatus = 'planned' | 'in_progress' | 'completed' | 'abandoned'
+type ExperimentOutcome = 'success' | 'failure' | 'inconclusive' | null
 
 // Dynamic prototype component registry
 // Add new prototype components here as you build them
 // Components should be placed in: components/studio/prototypes/{project-slug}/{experiment-slug}.tsx
-const prototypeRegistry: Record<string, React.ComponentType<any>> = {
+const prototypeRegistry: Record<string, React.ComponentType> = {
   'putt/physics-engine': dynamic(() => import('@/components/studio/prototypes/putt/physics-engine')),
   'putt/green-outline': dynamic(() => import('@/components/studio/prototypes/putt/green-outline')),
   'putt/green-generation': dynamic(() => import('@/components/studio/prototypes/putt/green-generation')),
   'putt/undulation-system': dynamic(() => import('@/components/studio/prototypes/putt/undulation-system')),
   'putt/cup-mechanics': dynamic(() => import('@/components/studio/prototypes/putt/cup-mechanics')),
-}
-
-function getStatusColor(status: string) {
-  switch (status) {
-    case 'planned': return 'text-gray-400 bg-gray-100'
-    case 'in_progress': return 'text-blue-600 bg-blue-100'
-    case 'completed': return 'text-green-600 bg-green-100'
-    case 'abandoned': return 'text-red-600 bg-red-100'
-    default: return 'text-gray-500 bg-gray-100'
-  }
 }
 
 function getOutcomeDisplay(outcome?: string) {
@@ -81,13 +76,38 @@ export default async function ExperimentPage({ params }: Props) {
     hypothesis = data
   }
 
-  const outcomeDisplay = getOutcomeDisplay(experiment.outcome ?? undefined)
-
   // Look up prototype component by project/experiment slug combination
   const prototypeKey = `${projectSlug}/${experimentSlug}`
   const PrototypeComponent = experiment.type === 'prototype'
     ? prototypeRegistry[prototypeKey]
     : null
+
+  // Fullscreen prototype view
+  if (PrototypeComponent) {
+    return (
+      <ExperimentPrototypeView
+        experiment={{
+          id: experiment.id,
+          slug: experiment.slug,
+          name: experiment.name,
+          description: experiment.description,
+          status: experiment.status as ExperimentStatus,
+          outcome: (experiment.outcome ?? null) as ExperimentOutcome,
+          learnings: experiment.learnings ?? null,
+          type: experiment.type,
+          created_at: experiment.created_at,
+          updated_at: experiment.updated_at,
+        }}
+        project={{ slug: project.slug, name: project.name }}
+        hypothesis={hypothesis}
+      >
+        <PrototypeComponent />
+      </ExperimentPrototypeView>
+    )
+  }
+
+  // Document layout for non-prototype experiments
+  const outcomeDisplay = getOutcomeDisplay(experiment.outcome ?? undefined)
 
   return (
     <div className="min-h-screen bg-white text-black p-8">
@@ -107,9 +127,7 @@ export default async function ExperimentPage({ params }: Props) {
             <span className="text-sm font-medium uppercase text-gray-500">
               {getTypeLabel(experiment.type)}
             </span>
-            <span className={`text-sm font-medium px-2 py-0.5 rounded ${getStatusColor(experiment.status)}`}>
-              {experiment.status.replace('_', ' ')}
-            </span>
+            <ExperimentStatusSelect experimentId={experiment.id} status={experiment.status as ExperimentStatus} />
             {outcomeDisplay && (
               <span className={`text-sm font-bold ${outcomeDisplay.color}`}>
                 {outcomeDisplay.symbol} {outcomeDisplay.text}
@@ -138,20 +156,8 @@ export default async function ExperimentPage({ params }: Props) {
         )}
       </div>
 
-      {/* Prototype Component — full width breakout */}
-      {PrototypeComponent && (
-        <div className="mb-12">
-          <div className="max-w-4xl mx-auto px-8">
-            <h2 className="text-lg font-bold mb-4 uppercase tracking-wide">Prototype</h2>
-          </div>
-          <div className="border-y-2 border-black min-h-[700px]">
-            <PrototypeComponent />
-          </div>
-        </div>
-      )}
-
       {/* Prototype Placeholder (if prototype but no component found) */}
-      {experiment.type === 'prototype' && !PrototypeComponent && (
+      {experiment.type === 'prototype' && (
         <div className="max-w-4xl mx-auto">
           <section className="mb-12 p-6 border-2 border-dashed border-gray-300">
             <h2 className="text-lg font-bold mb-4 uppercase tracking-wide text-gray-400">
