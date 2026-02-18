@@ -7,7 +7,8 @@ import {
   updateExperimentOutcome,
   updateExperimentLearnings,
 } from '@/app/actions/studio'
-import { PanelLeftOpen, Minus, EyeOff } from 'lucide-react'
+import { PanelLeftOpen, Minus, EyeOff, Pencil } from 'lucide-react'
+import Link from 'next/link'
 
 type OverlayState = 'expanded' | 'collapsed' | 'hidden'
 type ExperimentStatus = 'planned' | 'in_progress' | 'completed' | 'abandoned'
@@ -192,6 +193,13 @@ export function ExperimentPrototypeView({
                 {experiment.outcome}
               </span>
             )}
+            <Link
+              href={`/admin/experiments/${experiment.id}/edit`}
+              className="text-gray-400 hover:text-gray-600 transition-colors"
+              title="Edit in admin"
+            >
+              <Pencil className="size-3.5" />
+            </Link>
           </div>
         </div>
       )}
@@ -254,6 +262,15 @@ export function ExperimentPrototypeView({
               <h3 className="text-xs uppercase text-gray-500 font-medium mb-2">Learnings</h3>
               <LearningsEditor experimentId={experiment.id} learnings={experiment.learnings} />
             </div>
+
+            {/* Edit link */}
+            <Link
+              href={`/admin/experiments/${experiment.id}/edit`}
+              className="flex items-center gap-1.5 mb-6 text-sm text-blue-500 hover:text-blue-700 hover:underline transition-colors"
+            >
+              <Pencil className="size-3" />
+              Edit in admin
+            </Link>
 
             {/* Metadata */}
             <div className="text-xs text-gray-400 space-y-1">

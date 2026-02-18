@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase-server'
 import { notFound } from 'next/navigation'
 import { ExperimentStatusSelect } from '@/components/studio/experiment-status-select'
+import { Pencil } from 'lucide-react'
 
 type ExperimentStatus = 'planned' | 'in_progress' | 'completed' | 'abandoned'
 
@@ -156,6 +157,13 @@ export default async function ProjectPage({ params }: Props) {
                                   <span className="font-medium">{experiment.name}</span>
                                 </Link>
                                 <ExperimentStatusSelect experimentId={experiment.id} status={experiment.status as ExperimentStatus} />
+                                <Link
+                                  href={`/admin/experiments/${experiment.id}/edit`}
+                                  className="ml-2 text-gray-300 hover:text-gray-500 transition-colors"
+                                  title="Edit in admin"
+                                >
+                                  <Pencil className="size-3" />
+                                </Link>
                               </div>
                             ))}
                           </div>
@@ -190,6 +198,13 @@ export default async function ProjectPage({ params }: Props) {
                       <span className="font-bold">{experiment.name}</span>
                     </Link>
                     <ExperimentStatusSelect experimentId={experiment.id} status={experiment.status as ExperimentStatus} />
+                    <Link
+                      href={`/admin/experiments/${experiment.id}/edit`}
+                      className="ml-2 text-gray-300 hover:text-gray-500 transition-colors"
+                      title="Edit in admin"
+                    >
+                      <Pencil className="size-3" />
+                    </Link>
                   </div>
                   {experiment.description && (
                     <Link href={`/studio/${projectSlug}/${experiment.slug}`}>

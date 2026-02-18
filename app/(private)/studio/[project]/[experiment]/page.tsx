@@ -113,12 +113,20 @@ export default async function ExperimentPage({ params }: Props) {
     <div className="min-h-screen bg-white text-black p-8">
       <div className="max-w-4xl mx-auto">
         {/* Breadcrumb */}
-        <nav className="mb-8 text-sm">
-          <Link href={`/studio/${project.slug}`} className="text-blue-600 hover:underline">
-            {project.name}
+        <nav className="mb-8 text-sm flex items-center justify-between">
+          <div>
+            <Link href={`/studio/${project.slug}`} className="text-blue-600 hover:underline">
+              {project.name}
+            </Link>
+            <span className="mx-2 text-gray-400">/</span>
+            <span className="text-gray-600">{experiment.name}</span>
+          </div>
+          <Link
+            href={`/admin/experiments/${experiment.id}/edit`}
+            className="text-gray-400 hover:text-gray-600 text-xs hover:underline transition-colors"
+          >
+            Edit
           </Link>
-          <span className="mx-2 text-gray-400">/</span>
-          <span className="text-gray-600">{experiment.name}</span>
         </nav>
 
         {/* Header */}
