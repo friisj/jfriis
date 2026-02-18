@@ -39,6 +39,7 @@ export function StudioProjectForm({ project, mode, existingProjectNames = [] }: 
     success_criteria: project?.success_criteria || '',
     scope_out: project?.scope_out || '',
     is_private: project?.is_private || false,
+    app_path: project?.app_path || '',
   })
 
   // Get current user on mount
@@ -124,6 +125,7 @@ export function StudioProjectForm({ project, mode, existingProjectNames = [] }: 
         problem_statement: formData.problem_statement || null,
         success_criteria: formData.success_criteria || null,
         scope_out: formData.scope_out || null,
+        app_path: formData.app_path || null,
         ...(mode === 'create' && userId ? { user_id: userId } : {}),
       }
 
@@ -259,6 +261,20 @@ export function StudioProjectForm({ project, mode, existingProjectNames = [] }: 
                   pattern="[a-z0-9\-]+"
                 />
               </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-1">App Path</label>
+              <input
+                type="text"
+                value={formData.app_path}
+                onChange={(e) => setFormData({ ...formData, app_path: e.target.value })}
+                className="w-full px-3 py-2 rounded-lg border bg-background font-mono text-sm"
+                placeholder="/apps/my-project"
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                URL path to the prototype app (e.g., /apps/ludo, /tools/cog)
+              </p>
             </div>
 
             <FormFieldWithAI

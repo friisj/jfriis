@@ -120,7 +120,7 @@ npx supabase migration new {slug}_studio_records
 ```
 
 Insert:
-- `studio_projects` row (slug, name, description, status: 'active', temperature: 'warm')
+- `studio_projects` row (slug, name, description, status: 'active', temperature: 'warm', app_path: '/apps/{slug}')
 - `studio_hypotheses` rows (derived from your analysis)
 - `studio_experiments` rows (one per major feature area, type: 'prototype', status: 'planned')
 - `log_entries` genesis idea (type: 'idea', idea_stage: 'graduated')
@@ -134,7 +134,7 @@ DECLARE
   hypothesis_id UUID;
   idea_id UUID;
 BEGIN
-  INSERT INTO studio_projects (...) VALUES (...) RETURNING id INTO project_id;
+  INSERT INTO studio_projects (..., app_path) VALUES (..., '/apps/{slug}') RETURNING id INTO project_id;
   INSERT INTO studio_hypotheses (...) VALUES (...) RETURNING id INTO hypothesis_id;
   -- etc.
 END $$;

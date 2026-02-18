@@ -82,6 +82,14 @@ export default async function ProjectPage({ params }: Props) {
           {project.description && (
             <p className="text-xl text-gray-600">{project.description}</p>
           )}
+          {project.app_path && (
+            <Link
+              href={project.app_path}
+              className="inline-flex items-center gap-2 mt-4 px-4 py-2 text-sm font-medium bg-black text-white rounded-lg hover:bg-gray-800 transition-colors"
+            >
+              Open app &rarr;
+            </Link>
+          )}
         </header>
 
         {/* PRD Summary */}
