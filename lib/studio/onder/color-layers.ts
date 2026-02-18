@@ -16,9 +16,6 @@ export interface ColorLayer {
   harmonicMode: 'follow' | 'independent' | 'complement';
   rhythmSync: boolean;
   characterLabel: string; // UI label for the character parameter
-  // Wash-specific stereo panning controls
-  panSpeed?: number;     // 0-100 (wash layer only: stereo movement speed)
-  panDepth?: number;     // 0-100 (wash layer only: pan modulation depth, default 90%)
 }
 
 // Audio nodes for each layer
@@ -33,7 +30,7 @@ export interface LayerAudioNodes {
 // Layer metrics for visual feedback
 export interface LayerMetrics {
   rmsLevel: number;        // Current RMS level in dB
-  peakLevel: number;       // Peak level in dB  
+  peakLevel: number;       // Peak level in dB
   activity: number;        // 0-100 activity percentage
   harmonicContent: number; // Harmonic richness measure
 }
@@ -64,16 +61,16 @@ export const layerDefinitions: Record<string, Omit<ColorLayer, 'enabled' | 'volu
     name: 'Crystalline Arpeggios',
     characterLabel: 'Pattern Complexity',
     sendLevels: { chorus: 20, reverb: 80 },
-    harmonicMode: 'complement',
+    harmonicMode: 'follow',
     rhythmSync: true
   },
   strings: {
     id: 'strings',
-    name: 'ARP Solina Strings',
-    characterLabel: 'Phaser Depth',
+    name: 'String Ensemble',
+    characterLabel: 'Warmth & Spread',
     sendLevels: { chorus: 60, reverb: 70 },
     harmonicMode: 'follow',
-    rhythmSync: false
+    rhythmSync: true
   },
   sparkle: {
     id: 'sparkle',
@@ -81,7 +78,7 @@ export const layerDefinitions: Record<string, Omit<ColorLayer, 'enabled' | 'volu
     characterLabel: 'Brightness Range',
     sendLevels: { chorus: 10, reverb: 90 },
     harmonicMode: 'complement',
-    rhythmSync: true
+    rhythmSync: false
   },
   whistle: {
     id: 'whistle',
@@ -96,8 +93,8 @@ export const layerDefinitions: Record<string, Omit<ColorLayer, 'enabled' | 'volu
     name: 'Ambient Wash',
     characterLabel: 'Texture Filter',
     sendLevels: { chorus: 0, reverb: 95 },
-    harmonicMode: 'complement',
-    rhythmSync: true
+    harmonicMode: 'independent',
+    rhythmSync: false
   }
 };
 
@@ -105,10 +102,10 @@ export const layerDefinitions: Record<string, Omit<ColorLayer, 'enabled' | 'volu
 export const layerParameterMaps: Record<string, ParameterMapper> = {
   arpeggiator: {
     volume: (val) => -60 + (val/100) * 50,    // dB mapping
-    density: (val) => 200 + (val/100) * 600,  // 200-800ms intervals  
+    density: (val) => 200 + (val/100) * 600,  // 200-800ms intervals
     character: (val) => {                     // Pattern complexity
       if (val < 33) return 'ascending';
-      if (val < 66) return 'descending'; 
+      if (val < 66) return 'descending';
       return 'cascade';
     }
   },
