@@ -7,8 +7,11 @@ import dynamic from 'next/dynamic'
 // Add new prototype components here as you build them
 // Components should be placed in: components/studio/prototypes/{project-slug}/{experiment-slug}.tsx
 const prototypeRegistry: Record<string, React.ComponentType<any>> = {
-  // Example: 'ctrl/design-system-configurator': dynamic(() => import('@/components/studio/prototypes/ctrl/design-system-configurator')),
-  // Add more prototypes as: 'project-slug/experiment-slug': dynamic(() => import('@/components/studio/prototypes/project-slug/experiment-slug'))
+  'putt/physics-engine': dynamic(() => import('@/components/studio/prototypes/putt/physics-engine')),
+  'putt/green-outline': dynamic(() => import('@/components/studio/prototypes/putt/green-outline')),
+  'putt/green-generation': dynamic(() => import('@/components/studio/prototypes/putt/green-generation')),
+  'putt/undulation-system': dynamic(() => import('@/components/studio/prototypes/putt/undulation-system')),
+  'putt/cup-mechanics': dynamic(() => import('@/components/studio/prototypes/putt/cup-mechanics')),
 }
 
 function getStatusColor(status: string) {
@@ -133,17 +136,23 @@ export default async function ExperimentPage({ params }: Props) {
             )}
           </section>
         )}
+      </div>
 
-        {/* Prototype Component */}
-        {PrototypeComponent && (
-          <section className="mb-12 p-6 border-2 border-black">
+      {/* Prototype Component — full width breakout */}
+      {PrototypeComponent && (
+        <div className="mb-12">
+          <div className="max-w-4xl mx-auto px-8">
             <h2 className="text-lg font-bold mb-4 uppercase tracking-wide">Prototype</h2>
+          </div>
+          <div className="border-y-2 border-black min-h-[700px]">
             <PrototypeComponent />
-          </section>
-        )}
+          </div>
+        </div>
+      )}
 
-        {/* Prototype Placeholder (if prototype but no component found) */}
-        {experiment.type === 'prototype' && !PrototypeComponent && (
+      {/* Prototype Placeholder (if prototype but no component found) */}
+      {experiment.type === 'prototype' && !PrototypeComponent && (
+        <div className="max-w-4xl mx-auto">
           <section className="mb-12 p-6 border-2 border-dashed border-gray-300">
             <h2 className="text-lg font-bold mb-4 uppercase tracking-wide text-gray-400">
               Prototype Component
@@ -153,8 +162,10 @@ export default async function ExperimentPage({ params }: Props) {
               <code className="bg-gray-100 px-1 ml-1">app/(private)/studio/[project]/[experiment]/page.tsx</code>
             </p>
           </section>
-        )}
+        </div>
+      )}
 
+      <div className="max-w-4xl mx-auto">
         {/* Discovery Tools Placeholder */}
         {experiment.type === 'discovery_interviews' && (
           <section className="mb-12 p-6 border-2 border-dashed border-gray-300">
