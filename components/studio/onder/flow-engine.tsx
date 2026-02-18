@@ -39,7 +39,7 @@ const CHORD_RELATIONSHIPS = {
   'Amaj': ['Dmaj', 'Emaj', 'F#min', 'Bmin'],
   'Emaj': ['Amaj', 'Bmaj', 'C#min', 'F#min'],
   'Bmaj': ['Emaj', 'F#min', 'C#min', 'Gmaj'],
-  
+
   // Minor chords - using actual chord names from chordDefinitions
   'Amin': ['Cmaj', 'Fmaj', 'Dmin', 'Em'],
   'Dmin': ['Fmaj', 'Bmaj', 'Amin', 'Cmaj'],
@@ -47,13 +47,13 @@ const CHORD_RELATIONSHIPS = {
   'Bmin': ['Dmaj', 'Gmaj', 'Em', 'Amaj'],
   'F#min': ['Amaj', 'Emaj', 'Bmin', 'C#min'],
   'C#min': ['Emaj', 'Bmaj', 'F#min', 'Amin'],
-  
+
   // Extended chords - using actual chord names from chordDefinitions
   'Cmaj7': ['Fmaj7', 'Am7', 'Dm7', 'Gmaj'],
   'Fmaj7': ['Cmaj7', 'Dm7', 'Am7', 'Bmaj'],
   'Am7': ['Cmaj7', 'Fmaj7', 'Dm7', 'Em'],
   'Dm7': ['Fmaj7', 'Cmaj7', 'Am7', 'Gmaj'],
-  
+
   // Suspended chords - using actual chord names from chordDefinitions
   'Csus2': ['Fsus4', 'Gsus4', 'Amin', 'Dmin'],
   'Fsus4': ['Csus2', 'Bmaj', 'Dmin', 'Amin'],
@@ -62,7 +62,7 @@ const CHORD_RELATIONSHIPS = {
 
 const PACE_INTERVALS = {
   slow: { min: 30000, max: 60000 }, // 30s-1min for testing
-  medium: { min: 15000, max: 30000 }, // 15-30s for testing 
+  medium: { min: 15000, max: 30000 }, // 15-30s for testing
   fast: { min: 5000, max: 15000 } // 5-15s for testing
 };
 
@@ -70,10 +70,10 @@ const COLOR_LAYERS = [
   'arpeggiator', 'strings', 'sparkle', 'whistle', 'wash'
 ];
 
-export function FlowEngine({ 
-  isPlaying, 
-  currentChord, 
-  onChordChange, 
+export function FlowEngine({
+  isPlaying,
+  currentChord,
+  onChordChange,
   onLayerToggle,
   availableChords,
   onFlowStateChange,
@@ -81,7 +81,7 @@ export function FlowEngine({
 }: FlowEngineProps) {
   const driftIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const evolutionIntervalRef = useRef<NodeJS.Timeout | null>(null);
-  
+
   const [flowState, setFlowState] = useState<FlowState>({
     harmonicDrift: false,
     layerEvolution: false,
@@ -117,9 +117,9 @@ export function FlowEngine({
   // Get memory-biased related chords (prefer recently used progressions)
   const getMemoryBiasedChords = useCallback((chord: string, sessionMemory: string[]): string[] => {
     const relatedChords = getRelatedChords(chord);
-    
+
     if (sessionMemory.length === 0) return relatedChords;
-    
+
     // Weight chords that appear in recent memory more heavily
     const weightedChords: string[] = [];
     relatedChords.forEach(relatedChord => {
@@ -129,7 +129,7 @@ export function FlowEngine({
         weightedChords.push(relatedChord);
       }
     });
-    
+
     return weightedChords.length > 0 ? weightedChords : relatedChords;
   }, [getRelatedChords]); // Removed flowState dependency
 
@@ -138,7 +138,7 @@ export function FlowEngine({
     const baseInterval = PACE_INTERVALS[flowState.pace];
     const range = baseInterval.max - baseInterval.min;
     const chaosVariation = (range * flowState.chaosFactor / 100) * (Math.random() - 0.5);
-    
+
     return baseInterval.min + (Math.random() * range) + chaosVariation;
   }, [flowState.pace, flowState.chaosFactor]);
 
@@ -146,12 +146,12 @@ export function FlowEngine({
   const updateFlowDescription = useCallback((action: string, chord?: string, force = false) => {
     const descriptions = [
       `Gently ${action} around ${chord || currentChord}...`,
-      `Exploring harmonic territories near ${chord || currentChord}...`, 
+      `Exploring harmonic territories near ${chord || currentChord}...`,
       `Drifting through ${chord || currentChord} with subtle variations...`,
       `Organic evolution around ${chord || currentChord}...`,
       `Finding new paths from ${chord || currentChord}...`
     ];
-    
+
     const description = descriptions[Math.floor(Math.random() * descriptions.length)];
     setFlowState(prev => ({ ...prev, currentFlow: description }));
   }, [currentChord]); // Removed flowState.currentFlow dependency
@@ -159,14 +159,14 @@ export function FlowEngine({
   // Main harmonic drift effect
   useEffect(() => {
     console.log(`🌊 Flow Engine useEffect: isPlaying=${isPlaying}, drift=${flowState.harmonicDrift}, currentChord=${currentChord}`);
-    
+
     // Clear existing interval
     if (driftIntervalRef.current) {
       console.log(`🌊 Flow Engine: Clearing existing drift interval`);
       clearInterval(driftIntervalRef.current);
       driftIntervalRef.current = null;
     }
-    
+
     if (!isPlaying || !flowState.harmonicDrift) {
       setFlowState(prev => ({ ...prev, currentFlow: 'Flow paused - ready when you are...' }));
       return;
@@ -179,23 +179,23 @@ export function FlowEngine({
 
     const executeDrift = () => {
       console.log(`🌊 Flow Engine: *** EXECUTE DRIFT CALLED ***`);
-      
+
       const randomCheck = Math.random() * 100;
       console.log(`🌊 Flow Engine: Random roll: ${randomCheck.toFixed(1)} vs ${flowState.driftProbability}%`);
-      
+
       if (randomCheck < flowState.driftProbability) {
         console.log(`🌊 Flow Engine: DRIFT TRIGGERED! Starting chord analysis...`);
-        
+
         const directRelated = getRelatedChords(currentChord);
         console.log(`🌊 Flow Engine: Direct related chords for ${currentChord}:`, directRelated);
-        
+
         const relatedChords = getMemoryBiasedChords(currentChord, flowState.sessionMemory);
         console.log(`🌊 Flow Engine: Memory-biased chords for ${currentChord}:`, relatedChords);
-        
+
         if (relatedChords.length > 0) {
           const newChord = relatedChords[Math.floor(Math.random() * relatedChords.length)];
           console.log(`🌊 Flow Engine: DRIFTING from ${currentChord} → ${newChord}`);
-          
+
           onChordChange(newChord);
           addToMemory(newChord);
           setFlowState(prev => ({ ...prev, currentFlow: `Drifted → ${newChord}` }));
@@ -216,7 +216,7 @@ export function FlowEngine({
     };
 
     driftIntervalRef.current = setInterval(executeDrift, intervalTime);
-    
+
     return () => {
       if (driftIntervalRef.current) {
         console.log(`🌊 Flow Engine: Cleaning up drift interval`);
@@ -225,14 +225,14 @@ export function FlowEngine({
       }
     };
   }, [
-    isPlaying, 
+    isPlaying,
     flowState.harmonicDrift
   ]);
 
   // Layer evolution effect
   useEffect(() => {
     console.log(`🎨 Layer Evolution useEffect: isPlaying=${isPlaying}, evolution=${flowState.layerEvolution}`);
-    
+
     if (!isPlaying || !flowState.layerEvolution) return;
 
     const intervalTime = getRandomInterval() * 0.5;
@@ -242,20 +242,20 @@ export function FlowEngine({
       setFlowState(currentFlowState => {
         const randomCheck = Math.random() * 100;
         console.log(`🎨 Layer Evolution: Check triggered. Roll: ${randomCheck.toFixed(1)} vs ${currentFlowState.evolutionProbability}%`);
-        
+
         if (randomCheck < currentFlowState.evolutionProbability) {
           const randomLayer = COLOR_LAYERS[Math.floor(Math.random() * COLOR_LAYERS.length)];
           console.log(`🎨 Flow Engine: ================= LAYER EVOLUTION TRIGGERED =================`);
           console.log(`🎨 Flow Engine: Selected random layer: ${randomLayer}`);
           console.log(`🎨 Flow Engine: Available layers: ${COLOR_LAYERS.join(', ')}`);
-          
+
           if (getCurrentLayerStates) {
             const currentStates = getCurrentLayerStates();
             console.log(`🎨 Flow Engine: Current layer states:`, currentStates.map(l => `${l.id}=${l.enabled}`).join(', '));
           }
-          
+
           console.log(`🎨 Flow Engine: Evolution will execute in 1 second...`);
-          
+
           // Wait a bit then actually toggle the layer
           setTimeout(() => {
             console.log(`🎨 Flow Engine: =================== LAYER TOGGLE EXECUTING ===================`);
@@ -264,7 +264,7 @@ export function FlowEngine({
             onLayerToggle(randomLayer);
             console.log(`🎨 Flow Engine: onLayerToggle call completed for ${randomLayer}`);
             console.log(`🎨 Flow Engine: ================================================================`);
-            
+
             // Move to decaying list
             setFlowState(prev => {
               const newState = {
@@ -272,17 +272,17 @@ export function FlowEngine({
                 upcomingLayers: prev.upcomingLayers.filter(l => l !== randomLayer),
                 decayingLayers: [...prev.decayingLayers.filter(l => l !== randomLayer), randomLayer].slice(-2)
               };
-              
+
               // Report state change
               onFlowStateChange?.({
                 upcomingLayers: newState.upcomingLayers,
                 decayingLayers: newState.decayingLayers
               });
-              
+
               return newState;
             });
           }, 1000);
-          
+
           // Clear from decaying after delay
           setTimeout(() => {
             setFlowState(prev => {
@@ -290,35 +290,35 @@ export function FlowEngine({
                 ...prev,
                 decayingLayers: prev.decayingLayers.filter(l => l !== randomLayer)
               };
-              
+
               // Report state change
               onFlowStateChange?.({
                 upcomingLayers: newState.upcomingLayers,
                 decayingLayers: newState.decayingLayers
               });
-              
+
               return newState;
             });
           }, 5000);
-          
+
           // Add to upcoming list for visual feedback
           const newState = {
             ...currentFlowState,
             upcomingLayers: [...currentFlowState.upcomingLayers.filter(l => l !== randomLayer), randomLayer].slice(-2),
             currentFlow: `Layer evolving: ${randomLayer}`
           };
-          
+
           // Report state change
           onFlowStateChange?.({
             upcomingLayers: newState.upcomingLayers,
             decayingLayers: newState.decayingLayers
           });
-          
+
           return newState;
         } else {
           console.log(`🎨 Layer Evolution: No evolution this time (${randomCheck.toFixed(1)} >= ${currentFlowState.evolutionProbability})`);
         }
-        
+
         return currentFlowState; // Return unchanged if no evolution
       });
     };
@@ -329,15 +329,15 @@ export function FlowEngine({
       clearInterval(interval);
     };
   }, [
-    isPlaying, 
+    isPlaying,
     flowState.layerEvolution,
     onLayerToggle
   ]);
 
   // Clear session memory
   const clearMemory = useCallback(() => {
-    setFlowState(prev => ({ 
-      ...prev, 
+    setFlowState(prev => ({
+      ...prev,
       sessionMemory: [],
       currentFlow: 'Memory cleared - exploring with fresh perspective...'
     }));
@@ -348,16 +348,16 @@ export function FlowEngine({
   const nudgeHarmonicDrift = useCallback(() => {
     console.log('⚡ NUDGE BUTTON CLICKED!');
     console.log(`⚡ isPlaying: ${isPlaying}, currentChord: ${currentChord}`);
-    
+
     if (!isPlaying) {
       console.log('⚡ Flow Engine: Cannot nudge - not playing');
       return;
     }
-    
+
     console.log('⚡ Flow Engine: Harmonic drift nudged');
     const relatedChords = getMemoryBiasedChords(currentChord, flowState.sessionMemory);
     console.log('⚡ Related chords:', relatedChords);
-    
+
     if (relatedChords.length > 0) {
       const newChord = relatedChords[Math.floor(Math.random() * relatedChords.length)];
       console.log(`⚡ NUDGING: ${currentChord} → ${newChord}`);
@@ -390,12 +390,12 @@ export function FlowEngine({
           Gentle evolution of chords and layers over time
         </p>
       </CardHeader>
-      
+
       <CardContent className="space-y-6">
-        
+
         {/* Main Controls */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          
+
           {/* Drift Toggle */}
           <div className="flex items-center justify-between bg-white/5 rounded-lg p-3">
             <div>
@@ -404,7 +404,7 @@ export function FlowEngine({
             </div>
             <Switch
               checked={flowState.harmonicDrift}
-              onCheckedChange={(checked) => 
+              onCheckedChange={(checked) =>
                 setFlowState(prev => ({ ...prev, harmonicDrift: checked }))
               }
             />
@@ -420,8 +420,8 @@ export function FlowEngine({
                   size="sm"
                   variant={flowState.pace === pace ? "default" : "outline"}
                   className={`text-xs ${
-                    flowState.pace === pace 
-                      ? 'bg-cyan-600 hover:bg-cyan-700' 
+                    flowState.pace === pace
+                      ? 'bg-cyan-600 hover:bg-cyan-700'
                       : 'bg-white/5 border-cyan-500/30 text-cyan-200 hover:bg-cyan-500/20'
                   }`}
                   onClick={() => setFlowState(prev => ({ ...prev, pace }))}
@@ -439,7 +439,7 @@ export function FlowEngine({
               <div className="text-xs text-gray-400">{flowState.sessionMemory.length} patterns</div>
             </div>
             <Button
-              size="sm" 
+              size="sm"
               variant="outline"
               className="bg-white/5 border-red-500/30 text-red-200 hover:bg-red-500/20"
               onClick={clearMemory}
@@ -452,7 +452,7 @@ export function FlowEngine({
 
         {/* Probability Sliders */}
         <div className="space-y-4">
-          
+
           {/* Harmonic Drift */}
           <div>
             <div className="flex items-center justify-between mb-2">
@@ -472,7 +472,7 @@ export function FlowEngine({
             </div>
             <Slider
               value={[flowState.driftProbability]}
-              onValueChange={([value]) => 
+              onValueChange={([value]) =>
                 setFlowState(prev => ({ ...prev, driftProbability: value }))
               }
               max={100}
@@ -489,7 +489,7 @@ export function FlowEngine({
                 <span className="text-cyan-400 text-sm w-10">{flowState.evolutionProbability}%</span>
                 <Switch
                   checked={flowState.layerEvolution}
-                  onCheckedChange={(checked) => 
+                  onCheckedChange={(checked) =>
                     setFlowState(prev => ({ ...prev, layerEvolution: checked }))
                   }
                   disabled={!isPlaying}
@@ -498,7 +498,7 @@ export function FlowEngine({
             </div>
             <Slider
               value={[flowState.evolutionProbability]}
-              onValueChange={([value]) => 
+              onValueChange={([value]) =>
                 setFlowState(prev => ({ ...prev, evolutionProbability: value }))
               }
               max={100}
@@ -515,7 +515,7 @@ export function FlowEngine({
             </div>
             <Slider
               value={[flowState.chaosFactor]}
-              onValueChange={([value]) => 
+              onValueChange={([value]) =>
                 setFlowState(prev => ({ ...prev, chaosFactor: value }))
               }
               max={20}
@@ -530,41 +530,41 @@ export function FlowEngine({
         {/* Layer Activity */}
         <div className="bg-black/30 rounded-lg p-3">
           <div className="text-xs text-gray-400 mb-2">Color Layer Activity</div>
-          
+
           <div className="grid grid-cols-2 gap-3 text-xs">
             <div>
               <div className="text-yellow-300 mb-1">📈 Upcoming</div>
               <div className="space-y-1">
-                {flowState.upcomingLayers.length > 0 ? 
+                {flowState.upcomingLayers.length > 0 ?
                   flowState.upcomingLayers.map(layer => (
                     <div key={layer} className="text-yellow-200 bg-yellow-500/10 px-2 py-1 rounded">
                       {layer}
                     </div>
-                  )) : 
+                  )) :
                   <div className="text-gray-500">None</div>
                 }
               </div>
             </div>
-            
+
             <div>
               <div className="text-blue-300 mb-1">📉 Recently Changed</div>
               <div className="space-y-1">
-                {flowState.decayingLayers.length > 0 ? 
+                {flowState.decayingLayers.length > 0 ?
                   flowState.decayingLayers.map(layer => (
                     <div key={layer} className="text-blue-200 bg-blue-500/10 px-2 py-1 rounded">
                       {layer}
                     </div>
-                  )) : 
+                  )) :
                   <div className="text-gray-500">None</div>
                 }
               </div>
             </div>
           </div>
-          
+
           <div className="mt-2 pt-2 border-t border-gray-600">
             <div className="text-xs text-gray-400">
-              {flowState.harmonicDrift && isPlaying 
-                ? `Drift active - listening for chord changes...` 
+              {flowState.harmonicDrift && isPlaying
+                ? `Drift active - listening for chord changes...`
                 : `Drift paused - enable above to start evolution`
               }
             </div>

@@ -1,25 +1,14 @@
+/* eslint-disable */
 // @ts-nocheck
 import * as Tone from 'tone';
 import { ColorLayer, LayerMetrics, ModulationMatrix, layerDefinitions, layerParameterMaps, defaultModulationMatrix } from './color-layers';
 import { ColorLayerBus } from './color-layer-bus';
-
-// String machine effects chain interface
-interface StringMachineEffects {
-  chorus1: Tone.Chorus;
-  phaser: Tone.Phaser;
-  chorus2: Tone.Chorus;
-  eq: Tone.EQ3;
-  reverb: Tone.Reverb;
-  autoFilter?: Tone.AutoFilter;
-}
 
 export class ColorLayerManager {
   private bus: ColorLayerBus;
   private layers: Map<string, ColorLayer> = new Map();
   private layerTimers: Map<string, NodeJS.Timeout> = new Map();
   private layerSynths: Map<string, Tone.Synth | Tone.PolySynth | Tone.Noise> = new Map();
-  private layerPanners: Map<string, Tone.AutoPanner> = new Map();
-  private stringMachineEffects: Map<string, StringMachineEffects> = new Map();
 
   // Current musical context
   private currentChord: string = 'Cmaj';
@@ -35,7 +24,7 @@ export class ColorLayerManager {
   constructor(bus: ColorLayerBus) {
     this.bus = bus;
     console.log('🎵 Initializing ColorLayerManager');
-    
+
     // Initialize all layers with default settings
     this.initializeLayers();
   }
@@ -43,32 +32,16 @@ export class ColorLayerManager {
   private initializeLayers(): void {
     Object.keys(layerDefinitions).forEach(layerId => {
       const definition = layerDefinitions[layerId];
-
-      // Set default volumes per layer
-      let defaultVolume = 50; // Default for most layers
-      if (layerId === 'wash') defaultVolume = 46;      // Wash at -37dB (was -40dB)
-      if (layerId === 'strings') defaultVolume = 69;   // Solina at 69%
-
       const layer: ColorLayer = {
         ...definition,
-        enabled: false,  // All layers start disabled, will be randomized on play
-        volume: defaultVolume,
+        enabled: false,
+        volume: 50,      // Default 50%
         density: 50,     // Default 50%
-        character: 50,   // Default 50%
-        // Wash-specific stereo panning defaults
-        ...(layerId === 'wash' && {
-          panSpeed: 50,  // Default 50% speed
-          panDepth: 90   // Default 90% depth
-        })
+        character: 50    // Default 50%
       };
 
       this.layers.set(layerId, layer);
       console.log(`🎵 Initialized layer: ${layerId}`);
-
-      // Enable the layer to create synths and start audio
-      if (layer.enabled) {
-        this.enableLayer(layerId);
-      }
     });
   }
 
@@ -80,31 +53,6 @@ export class ColorLayerManager {
   // Get specific layer
   getLayer(layerId: string): ColorLayer | undefined {
     return this.layers.get(layerId);
-  }
-
-  // Randomize which layers are enabled (called when playback starts)
-  randomizeLayers(): void {
-    console.log('🎲 Randomizing color layers for new session...');
-
-    // Randomize which layers are enabled
-    // Wash is always on, strings always off, others randomized
-    const randomizableLayers = ['arpeggiator', 'sparkle', 'whistle'];
-    const numLayersToEnable = 2 + Math.floor(Math.random() * 2); // 2-3 layers
-    const enabledRandomLayers = randomizableLayers
-      .sort(() => Math.random() - 0.5)
-      .slice(0, numLayersToEnable);
-
-    console.log(`🎲 Selected layers: wash, ${enabledRandomLayers.join(', ')}`);
-
-    // Enable/disable layers based on randomization
-    this.layers.forEach((layer, layerId) => {
-      let shouldBeEnabled = false;
-      if (layerId === 'wash') shouldBeEnabled = true;        // Wash always on
-      else if (layerId === 'strings') shouldBeEnabled = false; // Strings always off initially
-      else shouldBeEnabled = enabledRandomLayers.includes(layerId); // Others randomized
-
-      this.updateLayer(layerId, { enabled: shouldBeEnabled });
-    });
   }
 
   // Update layer properties
@@ -141,42 +89,6 @@ export class ColorLayerManager {
 
       if (params.density !== undefined || params.character !== undefined) {
         this.updateLayerBehavior(layerId);
-      }
-
-      // Update panner for wash layer
-      if (layerId === 'wash' && (params.panSpeed !== undefined || params.panDepth !== undefined)) {
-        const panner = this.layerPanners.get(layerId);
-        if (panner) {
-          if (params.panSpeed !== undefined) {
-            const frequency = 0.1 + (params.panSpeed / 100) * 4.9;
-            panner.frequency.value = frequency;
-            console.log(`🎵 Updated wash panner speed: ${frequency.toFixed(2)}Hz`);
-          }
-          if (params.panDepth !== undefined) {
-            const depth = params.panDepth / 100;
-            panner.depth.value = depth;
-            console.log(`🎵 Updated wash panner depth: ${depth.toFixed(2)}`);
-          }
-        }
-      }
-
-      // Update string machine effects for strings layer
-      if (layerId === 'strings' && (params.density !== undefined || params.character !== undefined)) {
-        const effects = this.stringMachineEffects.get(layerId);
-        if (effects) {
-          if (params.density !== undefined) {
-            // Density controls ensemble amount (chorus wet)
-            const ensembleAmount = params.density / 100;
-            effects.chorus1.wet.value = 0.8 * ensembleAmount;
-            console.log(`🎵 Updated strings ensemble amount: ${(ensembleAmount * 100).toFixed(0)}%`);
-          }
-          if (params.character !== undefined) {
-            // Character controls phaser depth
-            const phaserDepth = params.character / 100;
-            effects.phaser.wet.value = 0.6 * phaserDepth;
-            console.log(`🎵 Updated strings phaser depth: ${(phaserDepth * 100).toFixed(0)}%`);
-          }
-        }
       }
     }
 
@@ -220,60 +132,6 @@ export class ColorLayerManager {
     console.log(`🎵 Connecting ${layerId} to bus...`);
     this.bus.connectLayer(layerId, synth, layer);
 
-    // For wash layer, insert auto-panner between synth and bus
-    if (layerId === 'wash') {
-      const panSpeed = layer.panSpeed ?? 50;
-      const panDepth = layer.panDepth ?? 90;
-
-      // Map speed: 0-100 -> 0.1-5 Hz
-      const frequency = 0.1 + (panSpeed / 100) * 4.9;
-      // Map depth: 0-100 -> 0-1
-      const depth = panDepth / 100;
-
-      const panner = new Tone.AutoPanner({
-        frequency,
-        depth
-      }).start();
-
-      this.layerPanners.set(layerId, panner);
-
-      // Disconnect synth from bus and reconnect through panner
-      synth.disconnect();
-      synth.connect(panner);
-
-      // Get the gain node that the bus created and connect panner to it
-      const audioNodes = this.bus.getLayerNodes(layerId);
-      if (audioNodes) {
-        panner.connect(audioNodes.gainNode);
-        console.log(`🎵 Created auto-panner for wash layer: freq=${frequency.toFixed(2)}Hz, depth=${depth.toFixed(2)}`);
-      }
-    }
-
-    // For strings layer, insert ARP Solina effects chain between synth and bus
-    if (layerId === 'strings') {
-      const effects = this.createStringMachineEffects(layer);
-      this.stringMachineEffects.set(layerId, effects);
-
-      // Disconnect synth from bus and reconnect through effects chain
-      synth.disconnect();
-
-      // Wire up the complete Solina effects chain:
-      // synth → chorus1 → phaser → chorus2 → eq → reverb → gainNode
-      synth.connect(effects.chorus1);
-      effects.chorus1.connect(effects.phaser);
-      effects.phaser.connect(effects.chorus2);
-      effects.chorus2.connect(effects.eq);
-      effects.eq.connect(effects.reverb);
-
-      // Get the gain node that the bus created and connect reverb to it
-      const audioNodes = this.bus.getLayerNodes(layerId);
-      if (audioNodes) {
-        effects.reverb.connect(audioNodes.gainNode);
-        console.log(`🎵 Created ARP Solina effects chain for strings layer`);
-        console.log(`🎵   Ensemble: ${((layer.density ?? 50) / 100 * 0.8 * 100).toFixed(0)}%, Phaser: ${((layer.character ?? 50) / 100 * 0.6 * 100).toFixed(0)}%`);
-      }
-    }
-
     // Start layer behavior if it follows harmonic mode
     this.startLayerBehavior(layerId);
 
@@ -293,29 +151,6 @@ export class ColorLayerManager {
 
     // Disconnect from bus
     this.bus.disconnectLayer(layerId);
-
-    // Dispose panner if it exists (wash layer)
-    const panner = this.layerPanners.get(layerId);
-    if (panner) {
-      panner.stop();
-      panner.dispose();
-      this.layerPanners.delete(layerId);
-      console.log(`🎵 Disposed panner for layer: ${layerId}`);
-    }
-
-    // Dispose string machine effects if they exist (strings layer)
-    const stringEffects = this.stringMachineEffects.get(layerId);
-    if (stringEffects) {
-      stringEffects.chorus1.stop();
-      stringEffects.chorus1.dispose();
-      stringEffects.phaser.dispose();
-      stringEffects.chorus2.stop();
-      stringEffects.chorus2.dispose();
-      stringEffects.eq.dispose();
-      stringEffects.reverb.dispose();
-      this.stringMachineEffects.delete(layerId);
-      console.log(`🎵 Disposed ARP Solina effects chain for layer: ${layerId}`);
-    }
 
     // Dispose synth
     const synth = this.layerSynths.get(layerId);
@@ -339,20 +174,11 @@ export class ColorLayerManager {
         });
 
       case 'strings':
-        // ARP Solina-style string machine with vintage character
         return new Tone.PolySynth(Tone.Synth, {
-          maxPolyphony: 16,
-          oscillator: {
-            type: 'sawtooth',
-            detune: 8 // Slight detuning for analog warmth (±8 cents)
-          },
-          envelope: {
-            attack: 0.6,    // Slower attack for smoother swells
-            decay: 0.1,
-            sustain: 0.8,   // High sustain for held notes
-            release: 3.0    // Very long release for smooth chord transitions
-          },
-          volume: -12 // Set to -12dB for balance
+          maxPolyphony: 16, // Adequate for chord playing
+          oscillator: { type: 'sawtooth' },
+          envelope: { attack: 1.5, decay: 1, sustain: 0.7, release: 2 },
+          filter: { frequency: 800, type: 'lowpass' }
         });
 
       case 'sparkle':
@@ -375,65 +201,6 @@ export class ColorLayerManager {
       default:
         return new Tone.Synth();
     }
-  }
-
-  // Create ARP Solina-style effects chain for strings
-  private createStringMachineEffects(layer: ColorLayer): StringMachineEffects {
-    console.log('🎵 Creating ARP Solina string machine effects chain');
-
-    // Ensemble Amount (controls chorus wet/dry)
-    const ensembleAmount = (layer.density ?? 50) / 100;
-
-    // Phaser Depth (controls phaser wet)
-    const phaserDepth = (layer.character ?? 50) / 100;
-
-    // Primary chorus effect - the signature Solina ensemble sound
-    const chorus1 = new Tone.Chorus({
-      frequency: 0.5,
-      delayTime: 3.5,
-      depth: 0.7,
-      spread: 180,
-      wet: 0.8 * ensembleAmount
-    }).start();
-
-    // Phaser for swirling character
-    const phaser = new Tone.Phaser({
-      frequency: 0.3,
-      octaves: 3,
-      baseFrequency: 350,
-      wet: 0.6 * phaserDepth
-    });
-
-    // Second chorus for additional thickness
-    const chorus2 = new Tone.Chorus({
-      frequency: 2,
-      delayTime: 2,
-      depth: 0.5,
-      wet: 0.5
-    }).start();
-
-    // EQ for warm vintage tone
-    const eq = new Tone.EQ3({
-      low: 2,     // +2dB bass warmth
-      mid: -2,    // -2dB mid scoop
-      high: -4,   // -4dB treble roll-off for warmth
-      lowFrequency: 200,
-      highFrequency: 2000
-    });
-
-    // Reverb for spatial depth
-    const reverb = new Tone.Reverb({
-      decay: 3,
-      wet: 0.3
-    });
-
-    return {
-      chorus1,
-      phaser,
-      chorus2,
-      eq,
-      reverb
-    };
   }
 
   // Start layer-specific behavior (arpeggiation, sparkles, etc.)
@@ -490,7 +257,7 @@ export class ColorLayerManager {
     let noteIndex = 0;
     const playNext = () => {
       if (!layer.enabled || !synth) return;
-      
+
       const note = notes[noteIndex % notes.length];
       synth.triggerAttackRelease(note, '8n');
       noteIndex++;
@@ -502,30 +269,6 @@ export class ColorLayerManager {
     setTimeout(playNext, 100);
   }
 
-  // Helper to calculate color note (9th, 7th, or 11th for jazz voicings)
-  private getColorNote(rootNote: string, chordName: string): string {
-    const notes = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
-    const noteName = rootNote.slice(0, -1);
-    const octave = parseInt(rootNote.slice(-1));
-    const rootIndex = notes.indexOf(noteName);
-
-    // Choose color note based on chord type
-    let intervalSemitones: number;
-    if (chordName.includes('7')) {
-      intervalSemitones = chordName.includes('maj7') ? 11 : 10; // Major 7th or dominant 7th
-    } else if (chordName.includes('sus')) {
-      intervalSemitones = chordName.includes('sus4') ? 17 : 14; // 11th for sus4, 9th for sus2
-    } else if (chordName.includes('min')) {
-      intervalSemitones = 17; // 11th for minor chords
-    } else {
-      intervalSemitones = 14; // 9th for major chords
-    }
-
-    const colorNoteIndex = (rootIndex + intervalSemitones) % 12;
-    const colorOctave = octave + Math.floor((rootIndex + intervalSemitones) / 12);
-    return `${notes[colorNoteIndex]}${colorOctave}`;
-  }
-
   private startStringsBehavior(layerId: string): void {
     const layer = this.layers.get(layerId);
     const synth = this.layerSynths.get(layerId) as Tone.PolySynth;
@@ -534,31 +277,13 @@ export class ColorLayerManager {
     console.log(`🎵 Starting strings behavior for ${layerId}`);
     console.log(`🔍 Chord notes available: ${this.chordNotes.length > 0 ? this.chordNotes.join(', ') : 'none'}`);
 
-    // Build rich voicing similar to main pad: root, 5th, 10th, color note
-    if (this.chordNotes.length >= 3) {
-      const rootNote = this.chordNotes[0]; // Low root
-      const thirdNote = this.chordNotes[1]; // 3rd
-      const fifthNote = this.chordNotes[2]; // 5th
-
-      // Calculate 10th (3rd + octave)
-      const thirdOctave = parseInt(thirdNote.slice(-1));
-      const tenthNote = `${thirdNote.slice(0, -1)}${thirdOctave + 1}`;
-
-      // Calculate color note (9th, 7th, or 11th based on chord)
-      const colorNote = this.getColorNote(rootNote, this.currentChord);
-
-      // Build wide, lush voicing: root, 5th, 10th, color
-      const voicing = [rootNote, fifthNote, tenthNote, colorNote];
-
-      console.log(`🎵 Triggering Solina with rich voicing: ${voicing.join(', ')}`);
-      console.log(`🎵   (root=${rootNote}, 5th=${fifthNote}, 10th=${tenthNote}, color=${colorNote})`);
-
-      synth.triggerAttack(voicing);
+    // Strings follow chord changes immediately (if harmonicMode is follow, or always for now)
+    if (this.chordNotes.length > 0) {
+      const chordToPlay = this.chordNotes.slice(0, 4);
+      console.log(`🎵 Triggering strings attack with notes: ${chordToPlay.join(', ')}`);
+      synth.triggerAttack(chordToPlay);
     } else {
-      console.warn(`🎵 Not enough chord notes for rich voicing, using basic chord`);
-      if (this.chordNotes.length > 0) {
-        synth.triggerAttack(this.chordNotes.slice(0, 4));
-      }
+      console.warn(`🎵 No chord notes available for strings layer`);
     }
   }
 
@@ -574,7 +299,7 @@ export class ColorLayerManager {
       if (!layer.enabled || !synth) return;
 
       // Play random high chord tone
-      const highNotes = this.chordNotes.map(note => 
+      const highNotes = this.chordNotes.map(note =>
         Tone.Frequency(note).transpose(24).toNote()
       );
       const note = highNotes[Math.floor(Math.random() * highNotes.length)];
@@ -626,7 +351,7 @@ export class ColorLayerManager {
   // Handle chord changes
   onChordChange(chordName: string, chordNotes: string[]): void {
     console.log(`🎵 Chord change: ${chordName}`, chordNotes);
-    
+
     this.currentChord = chordName;
     this.chordNotes = chordNotes;
 
@@ -664,7 +389,7 @@ export class ColorLayerManager {
       if (!layer) return;
 
       const modAmount = (intensity / 100) * (mod.amount / 100);
-      
+
       if (mod.target === 'volume') {
         const newVolume = Math.max(0, Math.min(100, layer.volume + modAmount * 50));
         this.updateLayer(mod.layerId, { volume: newVolume });
@@ -681,10 +406,10 @@ export class ColorLayerManager {
       if (!layer) return;
 
       const modAmount = (atmosphere / 100) * (mod.amount / 100);
-      
+
       if (mod.target === 'sendLevels.reverb') {
         const newReverb = Math.max(0, Math.min(100, layer.sendLevels.reverb + modAmount * 50));
-        this.updateLayer(mod.layerId, { 
+        this.updateLayer(mod.layerId, {
           sendLevels: { ...layer.sendLevels, reverb: newReverb }
         });
       }
@@ -766,7 +491,7 @@ export class ColorLayerManager {
   // Clean up all resources
   dispose(): void {
     console.log('🎵 Disposing ColorLayerManager');
-    
+
     // Clear all timers
     this.layerTimers.forEach(timer => clearTimeout(timer));
     this.layerTimers.clear();

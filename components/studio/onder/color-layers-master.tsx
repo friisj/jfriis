@@ -1,3 +1,4 @@
+/* eslint-disable */
 // @ts-nocheck
 'use client';
 
@@ -6,7 +7,6 @@ import { ColorLayer, LayerMetrics } from '@/lib/studio/onder/color-layers';
 import { ColorLayerManager } from '@/lib/studio/onder/color-layer-manager';
 import { ColorLayerBus } from '@/lib/studio/onder/color-layer-bus';
 import { ColorLayerControl } from './color-layer-control';
-import { VinylCrackleControl } from './vinyl-crackle-control';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
@@ -18,23 +18,9 @@ interface ColorLayersMasterProps {
     upcomingLayers: string[];
     decayingLayers: string[];
   };
-  // Vinyl crackle props
-  vinylEnabled?: boolean;
-  vinylAmount?: number;
-  onVinylToggle?: () => void;
-  onVinylAmountChange?: (value: number) => void;
 }
 
-export function ColorLayersMaster({
-  manager,
-  bus,
-  isPlaying = false,
-  flowEngineState,
-  vinylEnabled = false,
-  vinylAmount = 50,
-  onVinylToggle,
-  onVinylAmountChange
-}: ColorLayersMasterProps) {
+export function ColorLayersMaster({ manager, bus, isPlaying = false, flowEngineState }: ColorLayersMasterProps) {
   const [layers, setLayers] = useState<ColorLayer[]>(manager?.getAllLayers() || []);
   const [layerMetrics, setLayerMetrics] = useState<Map<string, LayerMetrics>>(new Map());
   const [busMetrics, setBusMetrics] = useState({ level: -60, waveform: new Float32Array(0) });
@@ -42,10 +28,10 @@ export function ColorLayersMaster({
   // Update layers state when manager becomes available or changes
   useEffect(() => {
     if (!manager) return;
-    
+
     // Update layers immediately when manager is available
     setLayers(manager.getAllLayers());
-    
+
     const updateLayers = () => {
       setLayers(manager.getAllLayers());
     };
@@ -98,36 +84,6 @@ export function ColorLayersMaster({
     manager?.triggerLayer(layerId);
   };
 
-  const handleRandomize = () => {
-    if (!manager) return;
-
-    console.log('🎲 Randomizing all color layer parameters');
-
-    layers.forEach(layer => {
-      const updates: Partial<ColorLayer> = {
-        density: Math.floor(Math.random() * 101), // 0-100
-      };
-
-      // Add character randomization for layers that have it
-      if (layer.id !== 'sparkle' && layer.id !== 'whistle' && layer.id !== 'wash') {
-        updates.character = Math.floor(Math.random() * 101);
-      }
-
-      // Add panning randomization for wash layer
-      if (layer.id === 'wash') {
-        updates.panSpeed = Math.floor(Math.random() * 101);
-        updates.panDepth = 70 + Math.floor(Math.random() * 31); // 70-100% for more width
-      }
-
-      manager.updateLayer(layer.id, updates);
-    });
-
-    // Also randomize vinyl frequency if callbacks are provided
-    if (onVinylAmountChange) {
-      onVinylAmountChange(Math.floor(Math.random() * 101));
-    }
-  };
-
   return (
     <Card className="bg-black/40 backdrop-blur-lg border-cyan-500/20">
       <CardHeader>
@@ -135,20 +91,27 @@ export function ColorLayersMaster({
           <CardTitle className="text-xl font-bold text-white">
             Color Layers
           </CardTitle>
-          <Button
-            onClick={handleRandomize}
-            variant="outline"
-            size="sm"
-            className="bg-purple-500/20 border-purple-500/50 hover:bg-purple-500/30 text-purple-200"
-          >
-            🎲 Randomize
-          </Button>
+
         </div>
+
+        <p className="text-cyan-200 text-sm">
+          Textural layers with unified bus processing
+        </p>
       </CardHeader>
-      
+
       <CardContent className="space-y-6">
-        {/* Layer Controls */}
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+
+        {/* Master Controls */}
+        <div className="space-y-4">
+
+
+        </div>
+
+        {/* Individual Layer Controls */}
+        <div>
+          <h3 className="text-lg font-semibold text-cyan-200 mb-4">Individual Layers</h3>
+
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
             {layers.map(layer => (
               <ColorLayerControl
                 key={layer.id}
@@ -159,17 +122,72 @@ export function ColorLayersMaster({
                 flowEngineState={flowEngineState}
               />
             ))}
-
-            {/* Vinyl Crackle Control */}
-            {onVinylToggle && onVinylAmountChange && (
-              <VinylCrackleControl
-                enabled={vinylEnabled}
-                amount={vinylAmount}
-                onToggle={onVinylToggle}
-                onAmountChange={onVinylAmountChange}
-              />
-            )}
+          </div>
         </div>
+
+        {/* Quick Presets */}
+        <div>
+          <h3 className="text-lg font-semibold text-cyan-200 mb-4">Quick Presets</h3>
+
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <Button
+              onClick={() => {
+                manager?.updateLayer('arpeggiator', { enabled: true, volume: 60, density: 70 });
+                manager?.updateLayer('strings', { enabled: true, volume: 50, density: 60 });
+              }}
+              variant="outline"
+              size="sm"
+              className="bg-white/5 border-cyan-500/30 text-cyan-200 hover:bg-cyan-500/20"
+            >
+              Gentle
+            </Button>
+
+            <Button
+              onClick={() => {
+                layers.forEach(layer => {
+                  manager?.updateLayer(layer.id, {
+                    enabled: true,
+                    volume: 70,
+                    density: 60,
+                    character: 50
+                  });
+                });
+              }}
+              variant="outline"
+              size="sm"
+              className="bg-white/5 border-cyan-500/30 text-cyan-200 hover:bg-cyan-500/20"
+            >
+              Full Mix
+            </Button>
+
+            <Button
+              onClick={() => {
+                manager?.updateLayer('sparkle', { enabled: true, volume: 40, density: 30 });
+                manager?.updateLayer('whistle', { enabled: true, volume: 35, density: 25 });
+                manager?.updateLayer('wash', { enabled: true, volume: 30, density: 40 });
+              }}
+              variant="outline"
+              size="sm"
+              className="bg-white/5 border-cyan-500/30 text-cyan-200 hover:bg-cyan-500/20"
+            >
+              Ambient
+            </Button>
+
+            <Button
+              onClick={() => {
+                layers.forEach(layer => {
+                  manager?.updateLayer(layer.id, { enabled: false });
+                });
+              }}
+              variant="outline"
+              size="sm"
+              className="bg-white/5 border-red-500/30 text-red-200 hover:bg-red-500/20"
+            >
+              Clear All
+            </Button>
+          </div>
+        </div>
+
       </CardContent>
     </Card>
   );
