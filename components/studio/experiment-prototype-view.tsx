@@ -146,7 +146,6 @@ export function ExperimentPrototypeView({
   // Keyboard shortcuts
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
-      // Don't capture when typing in inputs
       if (
         e.target instanceof HTMLInputElement ||
         e.target instanceof HTMLTextAreaElement ||
@@ -167,9 +166,9 @@ export function ExperimentPrototypeView({
   }, [])
 
   return (
-    <div className="flex-1 flex flex-col relative">
-      {/* Prototype fills the space */}
-      <div className="flex-1 relative">{children}</div>
+    <div className="flex-1 flex flex-col relative overflow-hidden">
+      {/* Prototype fills the entire remaining viewport */}
+      <div className="size-full absolute inset-0">{children}</div>
 
       {/* Collapsed bar */}
       {overlayState === 'collapsed' && (
@@ -204,12 +203,12 @@ export function ExperimentPrototypeView({
         </div>
       )}
 
-      {/* Expanded panel */}
+      {/* Expanded sidebar — header / scrollable body / footer */}
       {overlayState === 'expanded' && (
         <div className="absolute inset-0 pointer-events-none z-10">
-          <div className="pointer-events-auto w-[420px] h-full bg-white/95 backdrop-blur-sm border-r border-gray-200 shadow-lg overflow-y-auto p-6">
-            {/* Experiment header */}
-            <div className="mb-6">
+          <div className="pointer-events-auto w-[420px] h-full bg-white/95 backdrop-blur-sm border-r border-gray-200 shadow-lg flex flex-col">
+            {/* Sidebar header */}
+            <div className="shrink-0 px-5 py-4 border-b border-gray-200">
               <div className="flex items-center gap-2 mb-1">
                 <span className="text-xs uppercase text-gray-400 font-medium">
                   {experiment.type === 'prototype'
@@ -218,70 +217,81 @@ export function ExperimentPrototypeView({
                       ? 'Discovery'
                       : 'Experiment'}
                 </span>
-              </div>
-              <h2 className="text-xl font-bold mb-1">{experiment.name}</h2>
-              {experiment.description && (
-                <p className="text-sm text-gray-600">{experiment.description}</p>
-              )}
-            </div>
-
-            {/* Status & Outcome */}
-            <div className="mb-6 space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="text-xs uppercase text-gray-500 font-medium">Status</span>
                 <ExperimentStatusSelect
                   experimentId={experiment.id}
                   status={experiment.status}
                 />
+                {experiment.outcome && (
+                  <span
+                    className={`text-xs font-bold ${
+                      experiment.outcome === 'success'
+                        ? 'text-green-600'
+                        : experiment.outcome === 'failure'
+                          ? 'text-red-600'
+                          : 'text-yellow-600'
+                    }`}
+                  >
+                    {experiment.outcome}
+                  </span>
+                )}
               </div>
+              <h2 className="text-lg font-bold leading-tight">{experiment.name}</h2>
+            </div>
+
+            {/* Sidebar scrollable body */}
+            <div className="flex-1 overflow-y-auto px-5 py-4 space-y-5">
+              {experiment.description && (
+                <p className="text-sm text-gray-600">{experiment.description}</p>
+              )}
+
+              {/* Outcome */}
               <div className="flex items-center justify-between">
                 <span className="text-xs uppercase text-gray-500 font-medium">Outcome</span>
                 <OutcomeSelect experimentId={experiment.id} outcome={experiment.outcome} />
               </div>
-            </div>
 
-            {/* Hypothesis */}
-            {hypothesis && (
-              <div className="mb-6 p-4 border border-gray-200 rounded-lg">
-                <h3 className="text-xs uppercase text-gray-500 font-medium mb-1">
-                  Testing Hypothesis
-                </h3>
-                <p className="text-sm italic">
-                  H{hypothesis.sequence}: {hypothesis.statement}
-                </p>
-                {hypothesis.validation_criteria && (
-                  <p className="text-xs text-gray-500 mt-1">
-                    Validation: {hypothesis.validation_criteria}
+              {/* Hypothesis */}
+              {hypothesis && (
+                <div className="p-3 border border-gray-200 rounded-lg">
+                  <h3 className="text-xs uppercase text-gray-500 font-medium mb-1">
+                    Testing Hypothesis
+                  </h3>
+                  <p className="text-sm italic">
+                    H{hypothesis.sequence}: {hypothesis.statement}
                   </p>
-                )}
-              </div>
-            )}
+                  {hypothesis.validation_criteria && (
+                    <p className="text-xs text-gray-500 mt-1">
+                      Validation: {hypothesis.validation_criteria}
+                    </p>
+                  )}
+                </div>
+              )}
 
-            {/* Learnings */}
-            <div className="mb-6">
-              <h3 className="text-xs uppercase text-gray-500 font-medium mb-2">Learnings</h3>
-              <LearningsEditor experimentId={experiment.id} learnings={experiment.learnings} />
+              {/* Learnings */}
+              <div>
+                <h3 className="text-xs uppercase text-gray-500 font-medium mb-2">Learnings</h3>
+                <LearningsEditor experimentId={experiment.id} learnings={experiment.learnings} />
+              </div>
             </div>
 
-            {/* Edit link */}
-            <Link
-              href={`/admin/experiments/${experiment.id}/edit`}
-              className="flex items-center gap-1.5 mb-6 text-sm text-blue-500 hover:text-blue-700 hover:underline transition-colors"
-            >
-              <Pencil className="size-3" />
-              Edit in admin
-            </Link>
-
-            {/* Metadata */}
-            <div className="text-xs text-gray-400 space-y-1">
-              <p>Created: {new Date(experiment.created_at).toLocaleDateString()}</p>
-              <p>Updated: {new Date(experiment.updated_at).toLocaleDateString()}</p>
-              <p>
-                Project:{' '}
-                <a href={`/studio/${project.slug}`} className="text-blue-500 hover:underline">
-                  {project.name}
-                </a>
-              </p>
+            {/* Sidebar footer */}
+            <div className="shrink-0 px-5 py-3 border-t border-gray-200 flex items-center justify-between text-xs text-gray-400">
+              <div className="space-x-3">
+                <span>{new Date(experiment.created_at).toLocaleDateString()}</span>
+                <span>
+                  <a href={`/studio/${project.slug}`} className="text-blue-500 hover:underline">
+                    {project.name}
+                  </a>
+                </span>
+              </div>
+              <Link
+                href={`/admin/experiments/${experiment.id}/edit`}
+                className="flex items-center gap-1 text-gray-400 hover:text-gray-600 transition-colors"
+                title="Edit in admin"
+              >
+                <Pencil className="size-3" />
+                Edit
+              </Link>
             </div>
           </div>
         </div>
