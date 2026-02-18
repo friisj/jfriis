@@ -73,10 +73,13 @@ mcp__supabase__db_create({
     temperature: "warm",
     problem_statement: "<problem_statement>",
     hypothesis: "<hypothesis>",
-    current_focus: "Initial setup and exploration"
+    current_focus: "Initial setup and exploration",
+    app_path: null
   }
 })
 ```
+
+> **Note:** Set `app_path` to the URL path of the prototype app (e.g., `/apps/{slug}`) once an app route is created. Leave `null` during initial setup.
 
 Save the returned project `id` for use in subsequent steps.
 

@@ -4384,6 +4384,7 @@ export type Database = {
       }
       studio_projects: {
         Row: {
+          app_path: string | null
           created_at: string
           current_focus: string | null
           description: string | null
@@ -4402,6 +4403,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          app_path?: string | null
           created_at?: string
           current_focus?: string | null
           description?: string | null
@@ -4420,6 +4422,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          app_path?: string | null
           created_at?: string
           current_focus?: string | null
           description?: string | null
