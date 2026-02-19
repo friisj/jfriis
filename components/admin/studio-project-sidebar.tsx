@@ -31,10 +31,11 @@ const HYPOTHESIS_TYPE_OPTIONS: EntitySubtypeOption[] = [
 
 // Experiment types - matches StudioExperimentType in database
 const EXPERIMENT_TYPE_OPTIONS: EntitySubtypeOption[] = [
+  { value: 'spike', label: 'Spike' },
+  { value: 'experiment', label: 'Experiment' },
   { value: 'prototype', label: 'Prototype' },
-  { value: 'discovery_interviews', label: 'Discovery Interviews' },
-  { value: 'landing_page', label: 'Landing Page' },
-  { value: 'experiment', label: 'Other Experiment' },
+  { value: 'interview', label: 'Interview' },
+  { value: 'smoke_test', label: 'Smoke Test' },
 ]
 
 interface StudioProjectSidebarProps {

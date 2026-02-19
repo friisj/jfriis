@@ -1,12 +1,11 @@
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase-server'
 import { notFound } from 'next/navigation'
-import { ExperimentPrototypeView } from '@/components/studio/experiment-prototype-view'
 import { ExperimentStatusSelect } from '@/components/studio/experiment-status-select'
-import { PrototypeRenderer } from '@/components/studio/prototype-renderer'
+import { EXPERIMENT_TYPE_LABELS } from '@/lib/boundary-objects/studio-experiments'
+import { Zap, Box } from 'lucide-react'
 
 type ExperimentStatus = 'planned' | 'in_progress' | 'completed' | 'abandoned'
-type ExperimentOutcome = 'success' | 'failure' | 'inconclusive' | null
 
 function getOutcomeDisplay(outcome?: string) {
   switch (outcome) {
@@ -14,15 +13,6 @@ function getOutcomeDisplay(outcome?: string) {
     case 'failure': return { text: 'Failed', color: 'text-red-600', symbol: '✗' }
     case 'inconclusive': return { text: 'Inconclusive', color: 'text-yellow-600', symbol: '?' }
     default: return null
-  }
-}
-
-function getTypeLabel(type: string) {
-  switch (type) {
-    case 'prototype': return 'Prototype'
-    case 'discovery_interviews': return 'Discovery'
-    case 'landing_page': return 'Landing Page'
-    default: return 'Experiment'
   }
 }
 
@@ -65,34 +55,45 @@ export default async function ExperimentPage({ params }: Props) {
     hypothesis = data
   }
 
-  // Check if this experiment has a registered prototype component
-  const hasPrototype = experiment.type === 'prototype' && !!experiment.prototype_key
+  // Query linked assets via entity_links
+  const { data: spikeLinks } = await supabase
+    .from('entity_links')
+    .select('target_id')
+    .eq('source_type', 'experiment')
+    .eq('source_id', experiment.id)
+    .eq('target_type', 'asset_spike')
 
-  // Fullscreen prototype view
-  if (hasPrototype) {
-    return (
-      <ExperimentPrototypeView
-        experiment={{
-          id: experiment.id,
-          slug: experiment.slug,
-          name: experiment.name,
-          description: experiment.description,
-          status: experiment.status as ExperimentStatus,
-          outcome: (experiment.outcome ?? null) as ExperimentOutcome,
-          learnings: experiment.learnings ?? null,
-          type: experiment.type,
-          created_at: experiment.created_at,
-          updated_at: experiment.updated_at,
-        }}
-        project={{ slug: project.slug, name: project.name }}
-        hypothesis={hypothesis}
-      >
-        <PrototypeRenderer prototypeKey={experiment.prototype_key!} />
-      </ExperimentPrototypeView>
-    )
+  const { data: protoLinks } = await supabase
+    .from('entity_links')
+    .select('target_id')
+    .eq('source_type', 'experiment')
+    .eq('source_id', experiment.id)
+    .eq('target_type', 'asset_prototype')
+
+  // Fetch spike assets
+  const spikeIds = spikeLinks?.map(l => l.target_id) ?? []
+  let spikes: { id: string; slug: string; name: string; description: string | null }[] = []
+  if (spikeIds.length > 0) {
+    const { data } = await supabase
+      .from('studio_asset_spikes')
+      .select('id, slug, name, description')
+      .in('id', spikeIds)
+    spikes = data ?? []
   }
 
-  // Document layout for non-prototype experiments
+  // Fetch prototype assets
+  const protoIds = protoLinks?.map(l => l.target_id) ?? []
+  let prototypes: { id: string; slug: string; name: string; description: string | null; app_path: string }[] = []
+  if (protoIds.length > 0) {
+    const { data } = await supabase
+      .from('studio_asset_prototypes')
+      .select('id, slug, name, description, app_path')
+      .in('id', protoIds)
+    prototypes = data ?? []
+  }
+
+  const hasAssets = spikes.length > 0 || prototypes.length > 0
+  const typeLabel = EXPERIMENT_TYPE_LABELS[experiment.type as keyof typeof EXPERIMENT_TYPE_LABELS] ?? experiment.type
   const outcomeDisplay = getOutcomeDisplay(experiment.outcome ?? undefined)
 
   return (
@@ -119,7 +120,7 @@ export default async function ExperimentPage({ params }: Props) {
         <header className="mb-12">
           <div className="flex items-center gap-3 mb-2">
             <span className="text-sm font-medium uppercase text-gray-500">
-              {getTypeLabel(experiment.type)}
+              {typeLabel}
             </span>
             <ExperimentStatusSelect experimentId={experiment.id} status={experiment.status as ExperimentStatus} />
             {outcomeDisplay && (
@@ -148,42 +149,49 @@ export default async function ExperimentPage({ params }: Props) {
             )}
           </section>
         )}
-      </div>
 
-      {/* Prototype Placeholder (if prototype but no component found) */}
-      {experiment.type === 'prototype' && (
-        <div className="max-w-4xl mx-auto">
-          <section className="mb-12 p-6 border-2 border-dashed border-gray-300">
-            <h2 className="text-lg font-bold mb-4 uppercase tracking-wide text-gray-400">
-              Prototype Component
-            </h2>
-            <p className="text-gray-400">
-              No prototype component linked. Set the <code className="bg-gray-100 px-1 mx-1">prototype_key</code> field
-              in the experiment record and register the component in
-              <code className="bg-gray-100 px-1 ml-1">prototype-renderer.tsx</code>.
-            </p>
-          </section>
-        </div>
-      )}
-
-      <div className="max-w-4xl mx-auto">
-        {/* Discovery Tools Placeholder */}
-        {experiment.type === 'discovery_interviews' && (
-          <section className="mb-12 p-6 border-2 border-dashed border-gray-300">
-            <h2 className="text-lg font-bold mb-4 uppercase tracking-wide text-gray-400">
-              Discovery Tools (Coming Soon)
-            </h2>
-            <p className="text-gray-400">Interview scheduling, note-taking, and synthesis tools</p>
-          </section>
-        )}
-
-        {/* Landing Page Placeholder */}
-        {experiment.type === 'landing_page' && (
-          <section className="mb-12 p-6 border-2 border-dashed border-gray-300">
-            <h2 className="text-lg font-bold mb-4 uppercase tracking-wide text-gray-400">
-              Landing Page Metrics (Coming Soon)
-            </h2>
-            <p className="text-gray-400">Conversion tracking, A/B testing results, signup metrics</p>
+        {/* Assets */}
+        {hasAssets && (
+          <section className="mb-12">
+            <h2 className="text-2xl font-bold mb-6 border-b-2 border-black pb-2">Assets</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {spikes.map((spike) => (
+                <Link
+                  key={spike.id}
+                  href={`/studio/${project.slug}/${experiment.slug}/${spike.slug}`}
+                  className="block p-4 border-2 border-gray-200 rounded-lg hover:border-black transition-colors"
+                >
+                  <div className="flex items-center gap-2 mb-2">
+                    <Zap className="size-4 text-purple-600" />
+                    <span className="px-2 py-0.5 rounded text-xs font-medium bg-purple-500/10 text-purple-700">
+                      Spike
+                    </span>
+                  </div>
+                  <h3 className="font-bold">{spike.name}</h3>
+                  {spike.description && (
+                    <p className="text-sm text-gray-600 mt-1 line-clamp-2">{spike.description}</p>
+                  )}
+                </Link>
+              ))}
+              {prototypes.map((proto) => (
+                <Link
+                  key={proto.id}
+                  href={`/studio/${project.slug}/${experiment.slug}/${proto.slug}`}
+                  className="block p-4 border-2 border-gray-200 rounded-lg hover:border-black transition-colors"
+                >
+                  <div className="flex items-center gap-2 mb-2">
+                    <Box className="size-4 text-emerald-600" />
+                    <span className="px-2 py-0.5 rounded text-xs font-medium bg-emerald-500/10 text-emerald-700">
+                      Prototype
+                    </span>
+                  </div>
+                  <h3 className="font-bold">{proto.name}</h3>
+                  {proto.description && (
+                    <p className="text-sm text-gray-600 mt-1 line-clamp-2">{proto.description}</p>
+                  )}
+                </Link>
+              ))}
+            </div>
           </section>
         )}
 

@@ -63,7 +63,7 @@ export const StudioExperimentSchema = z.object({
   slug: z.string().min(1).regex(/^[a-z0-9-]+$/),
   name: z.string().min(1),
   description: z.string().optional().nullable(),
-  type: z.enum(['spike', 'experiment', 'prototype']).default('experiment'),
+  type: z.enum(['spike', 'experiment', 'prototype', 'interview', 'smoke_test']).default('experiment'),
   status: z.enum(['planned', 'in_progress', 'completed', 'abandoned']).default('planned'),
   outcome: z.enum(['success', 'failure', 'inconclusive']).optional().nullable(),
   learnings: z.string().optional().nullable(),

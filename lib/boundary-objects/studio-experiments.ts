@@ -22,16 +22,14 @@ export {
 // ============================================================================
 
 /**
- * Valid experiment types
- * Note: MCP schema has spike/experiment/prototype, but protocol also mentions
- * discovery_interviews and landing_page. Using the superset for flexibility.
+ * Valid experiment types (Bland's methodology vocabulary)
  */
 export type ExperimentType =
   | 'spike'
   | 'experiment'
   | 'prototype'
-  | 'discovery_interviews'
-  | 'landing_page'
+  | 'interview'
+  | 'smoke_test'
 
 /**
  * All valid experiment type values
@@ -40,8 +38,8 @@ export const EXPERIMENT_TYPES: readonly ExperimentType[] = [
   'spike',
   'experiment',
   'prototype',
-  'discovery_interviews',
-  'landing_page',
+  'interview',
+  'smoke_test',
 ] as const
 
 /**
@@ -51,8 +49,8 @@ export const EXPERIMENT_TYPE_LABELS: Record<ExperimentType, string> = {
   spike: 'Spike',
   experiment: 'Experiment',
   prototype: 'Prototype',
-  discovery_interviews: 'Discovery Interviews',
-  landing_page: 'Landing Page',
+  interview: 'Interview',
+  smoke_test: 'Smoke Test',
 }
 
 /**
@@ -60,10 +58,10 @@ export const EXPERIMENT_TYPE_LABELS: Record<ExperimentType, string> = {
  */
 export const EXPERIMENT_TYPE_DESCRIPTIONS: Record<ExperimentType, string> = {
   spike: 'Quick technical investigation to reduce uncertainty',
-  experiment: 'Standard hypothesis test with measurable outcomes',
-  prototype: 'Working code demonstration to validate concept',
-  discovery_interviews: 'User research and interviews to gather insights',
-  landing_page: 'Market validation via landing page metrics',
+  experiment: 'Controlled hypothesis test with measurable outcomes',
+  prototype: 'Build or assemble something to validate concept',
+  interview: 'User research and discovery interviews',
+  smoke_test: 'Market validation — measure interest before building',
 }
 
 // ============================================================================

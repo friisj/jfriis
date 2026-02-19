@@ -219,9 +219,13 @@ export function ExperimentPrototypeView({
                 <span className="text-xs uppercase text-gray-400 font-medium">
                   {experiment.type === 'prototype'
                     ? 'Prototype'
-                    : experiment.type === 'discovery_interviews'
-                      ? 'Discovery'
-                      : 'Experiment'}
+                    : experiment.type === 'interview'
+                      ? 'Interview'
+                      : experiment.type === 'smoke_test'
+                        ? 'Smoke Test'
+                        : experiment.type === 'spike'
+                          ? 'Spike'
+                          : 'Experiment'}
                 </span>
                 <ExperimentStatusSelect
                   experimentId={experiment.id}

@@ -4275,6 +4275,88 @@ export type Database = {
           },
         ]
       }
+      studio_asset_prototypes: {
+        Row: {
+          app_path: string
+          created_at: string
+          description: string | null
+          id: string
+          name: string
+          project_id: string
+          slug: string
+          updated_at: string
+        }
+        Insert: {
+          app_path: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          name: string
+          project_id: string
+          slug: string
+          updated_at?: string
+        }
+        Update: {
+          app_path?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          name?: string
+          project_id?: string
+          slug?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "studio_asset_prototypes_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "studio_projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      studio_asset_spikes: {
+        Row: {
+          component_key: string
+          created_at: string
+          description: string | null
+          id: string
+          name: string
+          project_id: string
+          slug: string
+          updated_at: string
+        }
+        Insert: {
+          component_key: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          name: string
+          project_id: string
+          slug: string
+          updated_at?: string
+        }
+        Update: {
+          component_key?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          name?: string
+          project_id?: string
+          slug?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "studio_asset_spikes_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "studio_projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       studio_experiments: {
         Row: {
           created_at: string
@@ -4286,7 +4368,6 @@ export type Database = {
           name: string
           outcome: string | null
           project_id: string
-          prototype_key: string | null
           slug: string
           status: string
           type: string
@@ -4302,7 +4383,6 @@ export type Database = {
           name: string
           outcome?: string | null
           project_id: string
-          prototype_key?: string | null
           slug: string
           status?: string
           type?: string
@@ -4318,7 +4398,6 @@ export type Database = {
           name?: string
           outcome?: string | null
           project_id?: string
-          prototype_key?: string | null
           slug?: string
           status?: string
           type?: string

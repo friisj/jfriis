@@ -35,6 +35,8 @@ const VALID_LINK_TYPES: Partial<Record<LinkableEntityType, Partial<Record<Linkab
     hypothesis: ['tests', 'validates'],
     assumption: ['tests', 'validates'],
     canvas_item: ['validates', 'related'],
+    asset_spike: ['contains', 'related'],
+    asset_prototype: ['contains', 'related'],
   },
 
   // Business Model Canvas relationships
@@ -296,6 +298,10 @@ const COMMON_LINK_PATTERNS: Array<{
   { source: 'user_story', target: 'touchpoint', description: 'Stories enable/fix touchpoints' },
   { source: 'user_story', target: 'blueprint_step', description: 'Stories implement blueprint steps' },
   { source: 'user_story', target: 'assumption', description: 'Stories validate assumptions' },
+
+  // Asset patterns
+  { source: 'experiment', target: 'asset_spike', description: 'Experiments contain spike assets' },
+  { source: 'experiment', target: 'asset_prototype', description: 'Experiments contain prototype assets' },
 ]
 
 /**

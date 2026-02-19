@@ -20,9 +20,10 @@ function getStatusColor(status: string) {
 
 function getTypeLabel(type: string) {
   switch (type) {
+    case 'spike': return 'Spike'
     case 'prototype': return 'Prototype'
-    case 'discovery_interviews': return 'Discovery'
-    case 'landing_page': return 'Landing Page'
+    case 'interview': return 'Interview'
+    case 'smoke_test': return 'Smoke Test'
     default: return 'Experiment'
   }
 }

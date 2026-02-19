@@ -1,13 +1,13 @@
 ---
 name: scaffold-experiment-prototype
-description: Scaffold a new prototype experiment with DB record, component file, and registry entry. Use when adding a new prototype to an existing studio project.
+description: Scaffold a new spike asset with DB record, component file, registry entry, and entity link. Use when adding a new spike to an existing studio project experiment.
 allowed-tools: Read, Write, Edit, Bash, Glob, Grep, Task
 argument-hint: <project-slug> <experiment-name>
 ---
 
-# Scaffold Experiment Prototype
+# Scaffold Experiment Spike Asset
 
-You are scaffolding a new prototype experiment for an existing studio project. This creates the DB record, component file, and registry entry in one step.
+You are scaffolding a new spike asset for an existing studio project. This creates the spike DB record, entity link, component file, and registry entry in one step.
 
 ## Input
 
@@ -19,7 +19,7 @@ Derive:
 - **project-slug**: First argument (kebab-case, e.g., `putt`)
 - **experiment-name**: Remaining arguments as the human-readable name (e.g., `Physics Engine`)
 - **experiment-slug**: Derived from experiment-name via kebab-case (e.g., `physics-engine`)
-- **prototype_key**: `{project-slug}/{experiment-slug}`
+- **component_key**: `{project-slug}/{experiment-slug}`
 - **PascalCaseName**: For the component function name (e.g., `PhysicsEngine`)
 
 If the input is ambiguous or missing, ask for clarification before proceeding.
@@ -56,14 +56,11 @@ mcp__jfriis__db_query({
 })
 ```
 
-- If found: Show the existing record. Ask the user if they want to:
-  - **Update it** to add/change `prototype_key` and ensure the component exists
-  - **Abort** and choose a different name
-- If not found: Proceed to create.
+- If found: Use the existing experiment. Proceed to create the spike asset linked to it.
+- If not found: Create a new experiment record first (Step 3a), then create the spike asset.
 
-### Step 3: Create/Update DB Record
+### Step 3a: Create Experiment (if needed)
 
-**Creating new:**
 ```
 mcp__jfriis__db_create({
   table: "studio_experiments",
@@ -71,22 +68,42 @@ mcp__jfriis__db_create({
     project_id: "<project-id>",
     slug: "<experiment-slug>",
     name: "<experiment-name>",
-    description: "Prototype experiment for <project-name>",
-    type: "prototype",
-    status: "planned",
-    prototype_key: "<project-slug>/<experiment-slug>"
+    description: "Spike experiment for <project-name>",
+    type: "spike",
+    status: "planned"
   }
 })
 ```
 
-**Updating existing:**
+### Step 3b: Create Spike Asset Record
+
 ```
-mcp__jfriis__db_update({
-  table: "studio_experiments",
-  id: "<experiment-id>",
+mcp__jfriis__db_create({
+  table: "studio_asset_spikes",
   data: {
-    type: "prototype",
-    prototype_key: "<project-slug>/<experiment-slug>"
+    project_id: "<project-id>",
+    slug: "<experiment-slug>",
+    name: "<experiment-name>",
+    description: "Spike component for <project-name>",
+    component_key: "<project-slug>/<experiment-slug>"
+  }
+})
+```
+
+### Step 3c: Create Entity Link
+
+Link the experiment to the spike asset:
+
+```
+mcp__jfriis__db_create({
+  table: "entity_links",
+  data: {
+    source_type: "experiment",
+    source_id: "<experiment-id>",
+    target_type: "asset_spike",
+    target_id: "<spike-id>",
+    link_type: "contains",
+    metadata: {}
   }
 })
 ```
@@ -99,7 +116,7 @@ Create `components/studio/prototypes/<project-slug>/<experiment-slug>.tsx`:
 'use client'
 
 /**
- * <Experiment Name> Prototype
+ * <Experiment Name> Spike
  *
  * Part of the <Project Name> studio project.
  * Status: Scaffold - not yet implemented
@@ -110,7 +127,7 @@ export default function <PascalCaseName>() {
       <div className="text-center p-8 border-2 border-dashed border-gray-300 rounded-lg max-w-md">
         <h3 className="text-lg font-bold mb-2"><Experiment Name></h3>
         <p className="text-gray-500 text-sm">
-          Prototype scaffold. Replace this with your implementation.
+          Spike scaffold. Replace this with your implementation.
         </p>
       </div>
     </div>
@@ -133,39 +150,33 @@ Edit `components/studio/prototype-renderer.tsx`:
 
 ### Step 6: Verify
 
-1. Read back the DB record to confirm `prototype_key` is set:
-   ```
-   mcp__jfriis__db_query({
-     table: "studio_experiments",
-     filters: [
-       { field: "project_id", operator: "eq", value: "<project-id>" },
-       { field: "slug", operator: "eq", value: "<experiment-slug>" }
-     ]
-   })
-   ```
-2. Confirm the component file exists at the expected path
-3. Confirm the registry entry exists in `prototype-renderer.tsx`
+1. Read back the spike asset record to confirm it exists
+2. Confirm the entity link exists between experiment and spike
+3. Confirm the component file exists at the expected path
+4. Confirm the registry entry exists in `prototype-renderer.tsx`
 
 ### Step 7: Summary
 
 Present a summary:
 
 ```
-## Prototype Scaffolded
+## Spike Asset Scaffolded
 
 **<Experiment Name>** (<project-slug>/<experiment-slug>)
 
 ### Created:
-- DB record: studio_experiments (prototype_key: <project-slug>/<experiment-slug>)
+- Spike asset: studio_asset_spikes (component_key: <project-slug>/<experiment-slug>)
+- Entity link: experiment → asset_spike (contains)
 - Component: components/studio/prototypes/<project-slug>/<experiment-slug>.tsx
 - Registry: Added to prototype-renderer.tsx
 
 ### View at:
-- Prototype: /studio/<project-slug>/<experiment-slug>
+- Spike: /studio/<project-slug>/<experiment-slug>/<experiment-slug>
+- Experiment: /studio/<project-slug>/<experiment-slug>
 - Edit: /admin/experiments/<id>/edit
 
 ### Next Steps:
-1. Implement the prototype component
+1. Implement the spike component
 2. Update experiment status to `in_progress` when work begins
 ```
 
@@ -175,6 +186,6 @@ Present a summary:
 
 - **Always validate the project exists** before creating anything.
 - **The registry requires static import paths** — dynamic imports in `prototype-renderer.tsx` must use string literals, not variables.
-- **prototype_key format** is always `{project-slug}/{experiment-slug}`.
+- **component_key format** is always `{project-slug}/{experiment-slug}`.
 - **Component files use default exports** — this is required by `next/dynamic`.
-- **Don't create hypothesis records** — this skill only creates experiment records. Link to an existing hypothesis manually if needed.
+- **Don't create hypothesis records** — this skill only creates experiment and spike records. Link to an existing hypothesis manually if needed.

@@ -7,6 +7,7 @@ import { FormFieldWithAI } from '@/components/forms'
 import { SidebarCard } from './sidebar-card'
 import { RelationshipField } from './relationship-field'
 import { EntityLinkField } from './entity-link-field'
+import { MixedAssetLinkField, type PendingAssetLink } from './mixed-asset-link-field'
 import { EvidenceManager } from './evidence-manager'
 import { syncEntityLinks } from '@/lib/entity-links'
 import { syncPendingEvidence } from '@/lib/evidence'
@@ -23,7 +24,6 @@ interface Experiment {
   status: string
   outcome: string | null
   learnings: string | null
-  prototype_key: string | null
 }
 
 interface ExperimentFormProps {
@@ -34,7 +34,9 @@ interface ExperimentFormProps {
 const types = [
   { value: 'spike', label: 'Spike', description: 'Quick investigation to reduce uncertainty' },
   { value: 'experiment', label: 'Experiment', description: 'Controlled test of a hypothesis' },
-  { value: 'prototype', label: 'Prototype', description: 'Build something to learn' },
+  { value: 'prototype', label: 'Prototype', description: 'Build or assemble to validate concept' },
+  { value: 'interview', label: 'Interview', description: 'User research and discovery interviews' },
+  { value: 'smoke_test', label: 'Smoke Test', description: 'Measure interest before building' },
 ]
 
 const statuses = [
@@ -66,6 +68,7 @@ export function ExperimentForm({ experiment, mode }: ExperimentFormProps) {
   const [error, setError] = useState<string | null>(null)
   const [navigateToDetail, setNavigateToDetail] = useState(false)
   const [pendingCanvasLinks, setPendingCanvasLinks] = useState<PendingLink[]>([])
+  const [pendingAssetLinks, setPendingAssetLinks] = useState<PendingAssetLink[]>([])
   const [pendingEvidence, setPendingEvidence] = useState<PendingEvidence[]>([])
 
   // Get project from URL if creating new
@@ -82,10 +85,9 @@ export function ExperimentForm({ experiment, mode }: ExperimentFormProps) {
     status: experiment?.status || 'planned',
     outcome: experiment?.outcome || '',
     learnings: experiment?.learnings || '',
-    prototype_key: experiment?.prototype_key || '',
   })
 
-  // Look up project slug for prototype_key auto-suggest
+  // Look up project slug for Save & View navigation
   const [projectSlug, setProjectSlug] = useState<string | null>(null)
   useEffect(() => {
     if (!formData.project_id) { setProjectSlug(null); return }
@@ -104,13 +106,6 @@ export function ExperimentForm({ experiment, mode }: ExperimentFormProps) {
     }
   }, [formData.name, mode])
 
-  // Auto-suggest prototype_key when creating a new prototype
-  useEffect(() => {
-    if (mode === 'create' && formData.type === 'prototype' && projectSlug && formData.slug && !experiment?.prototype_key) {
-      setFormData((prev) => ({ ...prev, prototype_key: `${projectSlug}/${prev.slug}` }))
-    }
-  }, [mode, formData.type, formData.slug, projectSlug, experiment?.prototype_key])
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setSaving(true)
@@ -127,7 +122,6 @@ export function ExperimentForm({ experiment, mode }: ExperimentFormProps) {
         status: formData.status,
         outcome: formData.outcome || null,
         learnings: formData.learnings || null,
-        prototype_key: formData.type === 'prototype' ? (formData.prototype_key || null) : null,
       }
 
       if (mode === 'edit' && experiment) {
@@ -146,13 +140,35 @@ export function ExperimentForm({ experiment, mode }: ExperimentFormProps) {
 
         if (error) throw error
 
-        // Sync pending entity links for create mode
+        // Sync pending canvas links
         if (pendingCanvasLinks.length > 0) {
           await syncEntityLinks(
             { type: 'studio_experiment' as any, id: newExperiment.id },
             'canvas_item' as any,
             'related' as any,
             pendingCanvasLinks.map(l => l.targetId)
+          )
+        }
+
+        // Sync pending asset links (split by kind)
+        const spikeLinks = pendingAssetLinks.filter(l => l.kind === 'spike')
+        const protoLinks = pendingAssetLinks.filter(l => l.kind === 'prototype')
+
+        if (spikeLinks.length > 0) {
+          await syncEntityLinks(
+            { type: 'experiment' as any, id: newExperiment.id },
+            'asset_spike' as any,
+            'contains' as any,
+            spikeLinks.map(l => l.targetId)
+          )
+        }
+
+        if (protoLinks.length > 0) {
+          await syncEntityLinks(
+            { type: 'experiment' as any, id: newExperiment.id },
+            'asset_prototype' as any,
+            'contains' as any,
+            protoLinks.map(l => l.targetId)
           )
         }
 
@@ -250,6 +266,39 @@ export function ExperimentForm({ experiment, mode }: ExperimentFormProps) {
             </div>
           </div>
 
+          {/* Type selector — inline pill row */}
+          <div>
+            <label className="block text-sm font-medium mb-2">Type</label>
+            <div className="flex flex-wrap gap-2">
+              {types.map((t) => (
+                <label
+                  key={t.value}
+                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border cursor-pointer transition-colors text-sm ${
+                    formData.type === t.value
+                      ? 'border-primary bg-primary/10 font-medium'
+                      : 'border-border hover:border-primary/50'
+                  }`}
+                  title={t.description}
+                >
+                  <input
+                    type="radio"
+                    name="type"
+                    value={t.value}
+                    checked={formData.type === t.value}
+                    onChange={(e) => setFormData({ ...formData, type: e.target.value })}
+                    className="sr-only"
+                  />
+                  {t.label}
+                </label>
+              ))}
+            </div>
+            {types.find(t => t.value === formData.type) && (
+              <p className="text-xs text-muted-foreground mt-1.5">
+                {types.find(t => t.value === formData.type)!.description}
+              </p>
+            )}
+          </div>
+
           <FormFieldWithAI
             label="Description"
             fieldName="description"
@@ -297,6 +346,29 @@ export function ExperimentForm({ experiment, mode }: ExperimentFormProps) {
               placeholder="What did we learn from this experiment?"
             />
           </FormFieldWithAI>
+
+          {/* Assets */}
+          <div>
+            <label className="block text-sm font-medium mb-2">Assets</label>
+            <MixedAssetLinkField
+              experimentId={experiment?.id}
+              projectId={formData.project_id}
+              disabled={saving}
+              pendingLinks={mode === 'create' ? pendingAssetLinks : undefined}
+              onPendingLinksChange={mode === 'create' ? setPendingAssetLinks : undefined}
+            />
+          </div>
+
+          {/* Evidence */}
+          <div>
+            <label className="block text-sm font-medium mb-2">Evidence</label>
+            <EvidenceManager
+              entityType={"studio_experiment" as any}
+              entityId={experiment?.id}
+              pendingEvidence={pendingEvidence}
+              onPendingEvidenceChange={setPendingEvidence}
+            />
+          </div>
         </div>
 
         {/* Sidebar */}
@@ -325,52 +397,6 @@ export function ExperimentForm({ experiment, mode }: ExperimentFormProps) {
               helperText={formData.project_id ? 'Optional: Link to a hypothesis' : 'Select a project first'}
             />
           </SidebarCard>
-
-          <SidebarCard title="Type">
-            <div className="space-y-2">
-              {types.map((t) => (
-                <label
-                  key={t.value}
-                  className={`flex flex-col p-3 rounded-lg border cursor-pointer transition-colors ${
-                    formData.type === t.value
-                      ? 'border-primary bg-primary/5'
-                      : 'border-border hover:border-primary/50'
-                  }`}
-                >
-                  <input
-                    type="radio"
-                    name="type"
-                    value={t.value}
-                    checked={formData.type === t.value}
-                    onChange={(e) => setFormData({ ...formData, type: e.target.value })}
-                    className="sr-only"
-                  />
-                  <span className="font-medium text-sm">{t.label}</span>
-                  <span className="text-xs text-muted-foreground">{t.description}</span>
-                </label>
-              ))}
-            </div>
-          </SidebarCard>
-
-          {formData.type === 'prototype' && (
-            <SidebarCard title="Prototype Component">
-              <div>
-                <input
-                  type="text"
-                  value={formData.prototype_key}
-                  onChange={(e) => setFormData({ ...formData, prototype_key: e.target.value })}
-                  className="w-full px-3 py-2 rounded-lg border bg-background font-mono text-sm"
-                  placeholder="e.g., putt/physics-engine"
-                />
-                <p className="text-xs text-muted-foreground mt-2">
-                  Registry key for the component. Format: project/slug
-                </p>
-                <p className="text-xs text-muted-foreground mt-1">
-                  Component must also be registered in prototype-renderer.tsx
-                </p>
-              </div>
-            </SidebarCard>
-          )}
 
           <SidebarCard title="Status">
             <div className="space-y-2">
@@ -434,14 +460,6 @@ export function ExperimentForm({ experiment, mode }: ExperimentFormProps) {
             />
           </SidebarCard>
 
-          <SidebarCard title="Evidence">
-            <EvidenceManager
-              entityType={"studio_experiment" as any}
-              entityId={experiment?.id}
-              pendingEvidence={pendingEvidence}
-              onPendingEvidenceChange={setPendingEvidence}
-            />
-          </SidebarCard>
         </div>
       </div>
 
