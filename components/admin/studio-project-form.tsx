@@ -42,6 +42,10 @@ export function StudioProjectForm({ project, mode, existingProjectNames = [] }: 
     app_path: project?.app_path || '',
   })
 
+  // Prototype assets for app_path picker (edit mode only)
+  const [prototypes, setPrototypes] = useState<{ id: string; name: string; app_path: string }[]>([])
+  const [customAppPath, setCustomAppPath] = useState(false)
+
   // Get current user on mount
   useEffect(() => {
     const getCurrentUser = async () => {
@@ -52,6 +56,23 @@ export function StudioProjectForm({ project, mode, existingProjectNames = [] }: 
     }
     getCurrentUser()
   }, [])
+
+  // Load prototype assets for app_path picker (edit mode)
+  useEffect(() => {
+    const projectId = project?.id
+    if (!projectId) { setPrototypes([]); return }
+    supabase
+      .from('studio_asset_prototypes')
+      .select('id, name, app_path')
+      .eq('project_id', projectId)
+      .order('name')
+      .then(({ data }) => {
+        setPrototypes(data ?? [])
+        if (formData.app_path && !(data ?? []).some(p => p.app_path === formData.app_path)) {
+          setCustomAppPath(true)
+        }
+      })
+  }, [project?.id]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Handle generation from log entries
   const handleGenerateFromLogs = useCallback(async () => {
@@ -265,16 +286,55 @@ export function StudioProjectForm({ project, mode, existingProjectNames = [] }: 
 
             <div>
               <label className="block text-sm font-medium mb-1">App Path</label>
-              <input
-                type="text"
-                value={formData.app_path}
-                onChange={(e) => setFormData({ ...formData, app_path: e.target.value })}
-                className="w-full px-3 py-2 rounded-lg border bg-background font-mono text-sm"
-                placeholder="/apps/my-project"
-              />
-              <p className="text-xs text-muted-foreground mt-1">
-                URL path to the prototype app (e.g., /apps/ludo, /tools/cog)
-              </p>
+              {mode === 'edit' && prototypes.length > 0 && !customAppPath ? (
+                <>
+                  <select
+                    value={formData.app_path}
+                    onChange={(e) => {
+                      if (e.target.value === '__custom__') {
+                        setCustomAppPath(true)
+                      } else {
+                        setFormData({ ...formData, app_path: e.target.value })
+                      }
+                    }}
+                    className="w-full px-3 py-2 rounded-lg border bg-background"
+                  >
+                    <option value="">None</option>
+                    {prototypes.map((p) => (
+                      <option key={p.id} value={p.app_path}>
+                        {p.name} ({p.app_path})
+                      </option>
+                    ))}
+                    <option value="__custom__">Custom...</option>
+                  </select>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Select a prototype app or choose &quot;Custom...&quot; for a manual path
+                  </p>
+                </>
+              ) : (
+                <>
+                  <input
+                    type="text"
+                    value={formData.app_path}
+                    onChange={(e) => setFormData({ ...formData, app_path: e.target.value })}
+                    className="w-full px-3 py-2 rounded-lg border bg-background font-mono text-sm"
+                    placeholder="/apps/my-project"
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {customAppPath ? (
+                      <button
+                        type="button"
+                        onClick={() => setCustomAppPath(false)}
+                        className="text-primary hover:underline"
+                      >
+                        Back to prototype picker
+                      </button>
+                    ) : (
+                      'URL path to the prototype app (e.g., /apps/ludo, /tools/cog)'
+                    )}
+                  </p>
+                </>
+              )}
             </div>
 
             <FormFieldWithAI
