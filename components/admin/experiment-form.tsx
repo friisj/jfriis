@@ -5,7 +5,6 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { FormFieldWithAI } from '@/components/forms'
 import { SidebarCard } from './sidebar-card'
-import { FormActions } from './form-actions'
 import { RelationshipField } from './relationship-field'
 import { EntityLinkField } from './entity-link-field'
 import { EvidenceManager } from './evidence-manager'
@@ -65,6 +64,7 @@ export function ExperimentForm({ experiment, mode }: ExperimentFormProps) {
   const searchParams = useSearchParams()
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [navigateToDetail, setNavigateToDetail] = useState(false)
   const [pendingCanvasLinks, setPendingCanvasLinks] = useState<PendingLink[]>([])
   const [pendingEvidence, setPendingEvidence] = useState<PendingEvidence[]>([])
 
@@ -162,13 +162,18 @@ export function ExperimentForm({ experiment, mode }: ExperimentFormProps) {
         }
       }
 
-      router.push('/admin/experiments')
+      if (navigateToDetail && projectSlug && formData.slug) {
+        router.push(`/studio/${projectSlug}/${formData.slug}`)
+      } else {
+        router.push('/admin/experiments')
+      }
       router.refresh()
     } catch (err) {
       console.error('Error saving experiment:', err)
       setError(err instanceof Error ? err.message : 'Failed to save experiment')
     } finally {
       setSaving(false)
+      setNavigateToDetail(false)
     }
   }
 
@@ -440,13 +445,51 @@ export function ExperimentForm({ experiment, mode }: ExperimentFormProps) {
         </div>
       </div>
 
-      <FormActions
-        isSubmitting={saving}
-        submitLabel={mode === 'edit' ? 'Save Changes' : 'Create Experiment'}
-        onCancel={() => router.back()}
-        onDelete={mode === 'edit' ? handleDelete : undefined}
-        deleteConfirmMessage="Are you sure you want to delete this experiment?"
-      />
+      <div className="flex items-center justify-between pt-6 border-t">
+        <div>
+          {mode === 'edit' && (
+            <button
+              type="button"
+              onClick={() => {
+                if (confirm('Are you sure you want to delete this experiment?')) {
+                  handleDelete()
+                }
+              }}
+              disabled={saving}
+              className="px-4 py-2 text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/20 rounded-lg transition-colors disabled:opacity-50"
+            >
+              Delete
+            </button>
+          )}
+        </div>
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={() => router.back()}
+            disabled={saving}
+            className="px-4 py-2 border rounded-lg hover:bg-accent transition-colors disabled:opacity-50"
+          >
+            Cancel
+          </button>
+          {projectSlug && (
+            <button
+              type="submit"
+              disabled={saving}
+              onClick={() => setNavigateToDetail(true)}
+              className="px-4 py-2 border rounded-lg hover:bg-accent transition-colors disabled:opacity-50"
+            >
+              {saving && navigateToDetail ? 'Saving...' : 'Save & View'}
+            </button>
+          )}
+          <button
+            type="submit"
+            disabled={saving}
+            className="px-6 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50"
+          >
+            {saving && !navigateToDetail ? 'Saving...' : mode === 'edit' ? 'Save Changes' : 'Create Experiment'}
+          </button>
+        </div>
+      </div>
     </form>
   )
 }
