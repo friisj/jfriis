@@ -35,6 +35,8 @@ const typeColors: Record<string, string> = {
   spike: 'bg-purple-500/10 text-purple-700 dark:text-purple-300',
   experiment: 'bg-blue-500/10 text-blue-700 dark:text-blue-300',
   prototype: 'bg-amber-500/10 text-amber-700 dark:text-amber-300',
+  interview: 'bg-teal-500/10 text-teal-700 dark:text-teal-300',
+  smoke_test: 'bg-orange-500/10 text-orange-700 dark:text-orange-300',
 }
 
 const statusColors: Record<string, string> = {
@@ -103,6 +105,8 @@ export function ExperimentsListView({ experiments, projects }: ExperimentsListVi
             <option value="spike">Spike</option>
             <option value="experiment">Experiment</option>
             <option value="prototype">Prototype</option>
+            <option value="interview">Interview</option>
+            <option value="smoke_test">Smoke Test</option>
           </select>
         </div>
         <div>

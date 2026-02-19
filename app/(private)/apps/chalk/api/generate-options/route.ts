@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { sendToGemini } from "@/lib/studio/chalk/ai/gemini";
+import { sendToGemini, GEMINI_MODEL } from "@/lib/studio/chalk/ai/gemini";
 import type { WireframeOption } from "@/lib/studio/chalk/types/chat";
 
 const COMPONENT_SCHEMA = {
@@ -193,7 +193,7 @@ Please generate 3-4 wireframe options for this request. Remember to follow the c
     return NextResponse.json({
       options,
       usage: {
-        model: "gemini-2.0-flash-exp",
+        model: GEMINI_MODEL,
         // Note: Gemini doesn't provide detailed usage stats like Claude
       },
     });

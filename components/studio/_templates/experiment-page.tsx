@@ -29,10 +29,11 @@ function getOutcomeDisplay(outcome?: string) {
 
 function getTypeLabel(type: string) {
   switch (type) {
+    case 'spike': return 'Spike'
     case 'experiment': return 'Experiment'
     case 'prototype': return 'Prototype'
-    case 'discovery_interviews': return 'Discovery'
-    case 'landing_page': return 'Landing Page'
+    case 'interview': return 'Interview'
+    case 'smoke_test': return 'Smoke Test'
     default: return type
   }
 }

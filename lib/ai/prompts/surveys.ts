@@ -141,7 +141,7 @@ Extract key assumptions that need validation:
 Design initial experiments to test riskiest assumptions:
 - name: Short experiment name
 - description: What to do and why
-- type: spike, discovery_interviews, landing_page, or prototype
+- type: spike, experiment, prototype, interview, or smoke_test
 - expected_outcome: What we expect to learn
 - source_questions: Array of question IDs
 - confidence: Score 0-1

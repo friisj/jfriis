@@ -20,7 +20,7 @@ function getGenAI() {
  * - Bulk generation tasks
  * - Initial exploration and ideation
  */
-export const GEMINI_MODEL = "gemini-2.0-flash-exp" as const;
+export const GEMINI_MODEL = "gemini-2.0-flash" as const;
 
 /**
  * Get Gemini model instance

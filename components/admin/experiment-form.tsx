@@ -5,9 +5,9 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { FormFieldWithAI } from '@/components/forms'
 import { SidebarCard } from './sidebar-card'
-import { FormActions } from './form-actions'
 import { RelationshipField } from './relationship-field'
 import { EntityLinkField } from './entity-link-field'
+import { MixedAssetLinkField, type PendingAssetLink } from './mixed-asset-link-field'
 import { EvidenceManager } from './evidence-manager'
 import { syncEntityLinks } from '@/lib/entity-links'
 import { syncPendingEvidence } from '@/lib/evidence'
@@ -34,7 +34,9 @@ interface ExperimentFormProps {
 const types = [
   { value: 'spike', label: 'Spike', description: 'Quick investigation to reduce uncertainty' },
   { value: 'experiment', label: 'Experiment', description: 'Controlled test of a hypothesis' },
-  { value: 'prototype', label: 'Prototype', description: 'Build something to learn' },
+  { value: 'prototype', label: 'Prototype', description: 'Build or assemble to validate concept' },
+  { value: 'interview', label: 'Interview', description: 'User research and discovery interviews' },
+  { value: 'smoke_test', label: 'Smoke Test', description: 'Measure interest before building' },
 ]
 
 const statuses = [
@@ -64,7 +66,9 @@ export function ExperimentForm({ experiment, mode }: ExperimentFormProps) {
   const searchParams = useSearchParams()
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [navigateToDetail, setNavigateToDetail] = useState(false)
   const [pendingCanvasLinks, setPendingCanvasLinks] = useState<PendingLink[]>([])
+  const [pendingAssetLinks, setPendingAssetLinks] = useState<PendingAssetLink[]>([])
   const [pendingEvidence, setPendingEvidence] = useState<PendingEvidence[]>([])
 
   // Get project from URL if creating new
@@ -82,6 +86,18 @@ export function ExperimentForm({ experiment, mode }: ExperimentFormProps) {
     outcome: experiment?.outcome || '',
     learnings: experiment?.learnings || '',
   })
+
+  // Look up project slug for Save & View navigation
+  const [projectSlug, setProjectSlug] = useState<string | null>(null)
+  useEffect(() => {
+    if (!formData.project_id) { setProjectSlug(null); return }
+    supabase
+      .from('studio_projects')
+      .select('slug')
+      .eq('id', formData.project_id)
+      .single()
+      .then(({ data }) => setProjectSlug(data?.slug ?? null))
+  }, [formData.project_id])
 
   // Auto-generate slug from name in create mode
   useEffect(() => {
@@ -124,7 +140,7 @@ export function ExperimentForm({ experiment, mode }: ExperimentFormProps) {
 
         if (error) throw error
 
-        // Sync pending entity links for create mode
+        // Sync pending canvas links
         if (pendingCanvasLinks.length > 0) {
           await syncEntityLinks(
             { type: 'studio_experiment' as any, id: newExperiment.id },
@@ -134,19 +150,46 @@ export function ExperimentForm({ experiment, mode }: ExperimentFormProps) {
           )
         }
 
+        // Sync pending asset links (split by kind)
+        const spikeLinks = pendingAssetLinks.filter(l => l.kind === 'spike')
+        const protoLinks = pendingAssetLinks.filter(l => l.kind === 'prototype')
+
+        if (spikeLinks.length > 0) {
+          await syncEntityLinks(
+            { type: 'experiment' as any, id: newExperiment.id },
+            'asset_spike' as any,
+            'contains' as any,
+            spikeLinks.map(l => l.targetId)
+          )
+        }
+
+        if (protoLinks.length > 0) {
+          await syncEntityLinks(
+            { type: 'experiment' as any, id: newExperiment.id },
+            'asset_prototype' as any,
+            'contains' as any,
+            protoLinks.map(l => l.targetId)
+          )
+        }
+
         // Sync pending evidence
         if (pendingEvidence.length > 0) {
           await syncPendingEvidence({ type: 'studio_experiment' as any, id: newExperiment.id }, pendingEvidence)
         }
       }
 
-      router.push('/admin/experiments')
+      if (navigateToDetail && projectSlug && formData.slug) {
+        router.push(`/studio/${projectSlug}/${formData.slug}`)
+      } else {
+        router.push('/admin/experiments')
+      }
       router.refresh()
     } catch (err) {
       console.error('Error saving experiment:', err)
       setError(err instanceof Error ? err.message : 'Failed to save experiment')
     } finally {
       setSaving(false)
+      setNavigateToDetail(false)
     }
   }
 
@@ -223,6 +266,39 @@ export function ExperimentForm({ experiment, mode }: ExperimentFormProps) {
             </div>
           </div>
 
+          {/* Type selector — inline pill row */}
+          <div>
+            <label className="block text-sm font-medium mb-2">Type</label>
+            <div className="flex flex-wrap gap-2">
+              {types.map((t) => (
+                <label
+                  key={t.value}
+                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border cursor-pointer transition-colors text-sm ${
+                    formData.type === t.value
+                      ? 'border-primary bg-primary/10 font-medium'
+                      : 'border-border hover:border-primary/50'
+                  }`}
+                  title={t.description}
+                >
+                  <input
+                    type="radio"
+                    name="type"
+                    value={t.value}
+                    checked={formData.type === t.value}
+                    onChange={(e) => setFormData({ ...formData, type: e.target.value })}
+                    className="sr-only"
+                  />
+                  {t.label}
+                </label>
+              ))}
+            </div>
+            {types.find(t => t.value === formData.type) && (
+              <p className="text-xs text-muted-foreground mt-1.5">
+                {types.find(t => t.value === formData.type)!.description}
+              </p>
+            )}
+          </div>
+
           <FormFieldWithAI
             label="Description"
             fieldName="description"
@@ -270,6 +346,29 @@ export function ExperimentForm({ experiment, mode }: ExperimentFormProps) {
               placeholder="What did we learn from this experiment?"
             />
           </FormFieldWithAI>
+
+          {/* Assets */}
+          <div>
+            <label className="block text-sm font-medium mb-2">Assets</label>
+            <MixedAssetLinkField
+              experimentId={experiment?.id}
+              projectId={formData.project_id}
+              disabled={saving}
+              pendingLinks={mode === 'create' ? pendingAssetLinks : undefined}
+              onPendingLinksChange={mode === 'create' ? setPendingAssetLinks : undefined}
+            />
+          </div>
+
+          {/* Evidence */}
+          <div>
+            <label className="block text-sm font-medium mb-2">Evidence</label>
+            <EvidenceManager
+              entityType={"studio_experiment" as any}
+              entityId={experiment?.id}
+              pendingEvidence={pendingEvidence}
+              onPendingEvidenceChange={setPendingEvidence}
+            />
+          </div>
         </div>
 
         {/* Sidebar */}
@@ -297,32 +396,6 @@ export function ExperimentForm({ experiment, mode }: ExperimentFormProps) {
               placeholder="No hypothesis (standalone)"
               helperText={formData.project_id ? 'Optional: Link to a hypothesis' : 'Select a project first'}
             />
-          </SidebarCard>
-
-          <SidebarCard title="Type">
-            <div className="space-y-2">
-              {types.map((t) => (
-                <label
-                  key={t.value}
-                  className={`flex flex-col p-3 rounded-lg border cursor-pointer transition-colors ${
-                    formData.type === t.value
-                      ? 'border-primary bg-primary/5'
-                      : 'border-border hover:border-primary/50'
-                  }`}
-                >
-                  <input
-                    type="radio"
-                    name="type"
-                    value={t.value}
-                    checked={formData.type === t.value}
-                    onChange={(e) => setFormData({ ...formData, type: e.target.value })}
-                    className="sr-only"
-                  />
-                  <span className="font-medium text-sm">{t.label}</span>
-                  <span className="text-xs text-muted-foreground">{t.description}</span>
-                </label>
-              ))}
-            </div>
           </SidebarCard>
 
           <SidebarCard title="Status">
@@ -387,24 +460,54 @@ export function ExperimentForm({ experiment, mode }: ExperimentFormProps) {
             />
           </SidebarCard>
 
-          <SidebarCard title="Evidence">
-            <EvidenceManager
-              entityType={"studio_experiment" as any}
-              entityId={experiment?.id}
-              pendingEvidence={pendingEvidence}
-              onPendingEvidenceChange={setPendingEvidence}
-            />
-          </SidebarCard>
         </div>
       </div>
 
-      <FormActions
-        isSubmitting={saving}
-        submitLabel={mode === 'edit' ? 'Save Changes' : 'Create Experiment'}
-        onCancel={() => router.back()}
-        onDelete={mode === 'edit' ? handleDelete : undefined}
-        deleteConfirmMessage="Are you sure you want to delete this experiment?"
-      />
+      <div className="flex items-center justify-between pt-6 border-t">
+        <div>
+          {mode === 'edit' && (
+            <button
+              type="button"
+              onClick={() => {
+                if (confirm('Are you sure you want to delete this experiment?')) {
+                  handleDelete()
+                }
+              }}
+              disabled={saving}
+              className="px-4 py-2 text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/20 rounded-lg transition-colors disabled:opacity-50"
+            >
+              Delete
+            </button>
+          )}
+        </div>
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={() => router.back()}
+            disabled={saving}
+            className="px-4 py-2 border rounded-lg hover:bg-accent transition-colors disabled:opacity-50"
+          >
+            Cancel
+          </button>
+          {projectSlug && (
+            <button
+              type="submit"
+              disabled={saving}
+              onClick={() => setNavigateToDetail(true)}
+              className="px-4 py-2 border rounded-lg hover:bg-accent transition-colors disabled:opacity-50"
+            >
+              {saving && navigateToDetail ? 'Saving...' : 'Save & View'}
+            </button>
+          )}
+          <button
+            type="submit"
+            disabled={saving}
+            className="px-6 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50"
+          >
+            {saving && !navigateToDetail ? 'Saving...' : mode === 'edit' ? 'Save Changes' : 'Create Experiment'}
+          </button>
+        </div>
+      </div>
     </form>
   )
 }

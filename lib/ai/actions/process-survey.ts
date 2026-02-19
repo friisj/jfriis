@@ -67,7 +67,7 @@ export const ProcessSurveyOutputSchema = z.object({
     z.object({
       name: z.string(),
       description: z.string(),
-      type: z.enum(['spike', 'discovery_interviews', 'landing_page', 'prototype']),
+      type: z.enum(['spike', 'experiment', 'prototype', 'interview', 'smoke_test']),
       expected_outcome: z.string(),
       source_questions: z.array(z.string()),
       confidence: z.number().min(0).max(1),

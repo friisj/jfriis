@@ -1,6 +1,10 @@
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase-server'
 import { notFound } from 'next/navigation'
+import { ExperimentStatusSelect } from '@/components/studio/experiment-status-select'
+import { Pencil } from 'lucide-react'
+
+type ExperimentStatus = 'planned' | 'in_progress' | 'completed' | 'abandoned'
 
 function getStatusColor(status: string) {
   switch (status) {
@@ -13,21 +17,13 @@ function getStatusColor(status: string) {
   }
 }
 
-function getExperimentStatusColor(status: string) {
-  switch (status) {
-    case 'planned': return 'text-gray-400'
-    case 'in_progress': return 'text-blue-500'
-    case 'completed': return 'text-green-500'
-    case 'abandoned': return 'text-red-400'
-    default: return 'text-gray-500'
-  }
-}
 
 function getTypeLabel(type: string) {
   switch (type) {
+    case 'spike': return 'Spike'
     case 'prototype': return 'Prototype'
-    case 'discovery_interviews': return 'Discovery'
-    case 'landing_page': return 'Landing Page'
+    case 'interview': return 'Interview'
+    case 'smoke_test': return 'Smoke Test'
     default: return 'Experiment'
   }
 }
@@ -150,21 +146,26 @@ export default async function ProjectPage({ params }: Props) {
                         {relatedExperiments.length > 0 && (
                           <div className="mt-3 ml-4 space-y-2">
                             {relatedExperiments.map((experiment) => (
-                              <Link
+                              <div
                                 key={experiment.id}
-                                href={`/studio/${projectSlug}/${experiment.slug}`}
-                                className="block p-3 border border-gray-200 hover:border-black transition-colors"
+                                className="flex items-center p-3 border border-gray-200 hover:border-black transition-colors"
                               >
-                                <div className="flex items-center justify-between">
-                                  <div className="flex items-center gap-2">
-                                    <span className="text-xs uppercase text-gray-400">{getTypeLabel(experiment.type)}</span>
-                                    <span className="font-medium">{experiment.name}</span>
-                                  </div>
-                                  <span className={`text-sm ${getExperimentStatusColor(experiment.status)}`}>
-                                    {experiment.status.replace('_', ' ')}
-                                  </span>
-                                </div>
-                              </Link>
+                                <Link
+                                  href={`/studio/${projectSlug}/${experiment.slug}`}
+                                  className="flex-1 flex items-center gap-2"
+                                >
+                                  <span className="text-xs uppercase text-gray-400">{getTypeLabel(experiment.type)}</span>
+                                  <span className="font-medium">{experiment.name}</span>
+                                </Link>
+                                <ExperimentStatusSelect experimentId={experiment.id} status={experiment.status as ExperimentStatus} />
+                                <Link
+                                  href={`/admin/experiments/${experiment.id}/edit`}
+                                  className="ml-2 text-gray-300 hover:text-gray-500 transition-colors"
+                                  title="Edit in admin"
+                                >
+                                  <Pencil className="size-3" />
+                                </Link>
+                              </div>
                             ))}
                           </div>
                         )}
@@ -185,24 +186,33 @@ export default async function ProjectPage({ params }: Props) {
             </h2>
             <div className="space-y-3">
               {(experiments || []).filter(e => !e.hypothesis_id).map((experiment) => (
-                <Link
+                <div
                   key={experiment.id}
-                  href={`/studio/${projectSlug}/${experiment.slug}`}
-                  className="block p-4 border-2 border-black hover:bg-gray-50 transition-colors"
+                  className="p-4 border-2 border-black hover:bg-gray-50 transition-colors"
                 >
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
+                    <Link
+                      href={`/studio/${projectSlug}/${experiment.slug}`}
+                      className="flex-1 flex items-center gap-2"
+                    >
                       <span className="text-xs uppercase text-gray-400">{getTypeLabel(experiment.type)}</span>
                       <span className="font-bold">{experiment.name}</span>
-                    </div>
-                    <span className={`text-sm ${getExperimentStatusColor(experiment.status)}`}>
-                      {experiment.status.replace('_', ' ')}
-                    </span>
+                    </Link>
+                    <ExperimentStatusSelect experimentId={experiment.id} status={experiment.status as ExperimentStatus} />
+                    <Link
+                      href={`/admin/experiments/${experiment.id}/edit`}
+                      className="ml-2 text-gray-300 hover:text-gray-500 transition-colors"
+                      title="Edit in admin"
+                    >
+                      <Pencil className="size-3" />
+                    </Link>
                   </div>
                   {experiment.description && (
-                    <p className="text-gray-600 mt-1">{experiment.description}</p>
+                    <Link href={`/studio/${projectSlug}/${experiment.slug}`}>
+                      <p className="text-gray-600 mt-1">{experiment.description}</p>
+                    </Link>
                   )}
-                </Link>
+                </div>
               ))}
             </div>
           </section>

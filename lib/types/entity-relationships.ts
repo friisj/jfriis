@@ -166,6 +166,9 @@ export type LinkableEntityType =
   | 'assumption'
   // Galleries
   | 'gallery_sequence'
+  // Assets
+  | 'asset_spike'
+  | 'asset_prototype'
 
 /**
  * Types of relationships between entities
@@ -320,6 +323,10 @@ export const ENTITY_TYPES = {
 
   // Galleries
   GALLERY_SEQUENCE: 'gallery_sequence' as const,
+
+  // Assets
+  ASSET_SPIKE: 'asset_spike' as const,
+  ASSET_PROTOTYPE: 'asset_prototype' as const,
 } as const
 
 /**
@@ -405,6 +412,8 @@ export const ENTITY_TYPE_TABLE_MAP: Record<LinkableEntityType, string> = {
   story_release: 'story_releases',
   assumption: 'assumptions',
   gallery_sequence: 'gallery_sequences',
+  asset_spike: 'studio_asset_spikes',
+  asset_prototype: 'studio_asset_prototypes',
 }
 
 /**
@@ -436,6 +445,8 @@ const IMPLEMENTED_ENTITY_TYPES = new Set<LinkableEntityType>([
   'activity',
   'user_story',
   'story_release',
+  'asset_spike',
+  'asset_prototype',
 ])
 
 /**

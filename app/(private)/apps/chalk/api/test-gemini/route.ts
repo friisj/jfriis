@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { sendToGemini } from "@/lib/studio/chalk/ai/gemini";
+import { sendToGemini, GEMINI_MODEL } from "@/lib/studio/chalk/ai/gemini";
 
 export async function POST(request: Request) {
   try {
@@ -17,7 +17,7 @@ export async function POST(request: Request) {
     return NextResponse.json({
       success: true,
       response: response.text,
-      model: "gemini-2.0-flash-exp",
+      model: GEMINI_MODEL,
     });
   } catch (error) {
     console.error("Gemini API error:", error);

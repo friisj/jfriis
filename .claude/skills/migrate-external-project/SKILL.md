@@ -135,6 +135,11 @@ DECLARE
   idea_id UUID;
 BEGIN
   INSERT INTO studio_projects (..., app_path) VALUES (..., '/apps/{slug}') RETURNING id INTO project_id;
+
+  -- Create prototype asset record for the app
+  INSERT INTO studio_asset_prototypes (project_id, slug, name, description, app_path)
+  VALUES (project_id, '{slug}', '{Name} App', 'Primary app prototype for {Name}', '/apps/{slug}');
+
   INSERT INTO studio_hypotheses (...) VALUES (...) RETURNING id INTO hypothesis_id;
   -- etc.
 END $$;

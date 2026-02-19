@@ -103,7 +103,7 @@ export async function flushPendingExperiments(
     }
 
     // Valid type values for experiments (must match DB constraint)
-    const validTypes = ['experiment', 'prototype', 'discovery_interviews', 'landing_page']
+    const validTypes = ['spike', 'experiment', 'prototype', 'interview', 'smoke_test']
 
     // Prepare batch insert
     const inserts = experiments.map((e) => {

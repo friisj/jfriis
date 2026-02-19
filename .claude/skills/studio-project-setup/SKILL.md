@@ -80,6 +80,10 @@ mcp__supabase__db_create({
 ```
 
 > **Note:** Set `app_path` to the URL path of the prototype app (e.g., `/apps/{slug}`) once an app route is created. Leave `null` during initial setup.
+>
+> **When an app route is created at `/apps/{slug}`:**
+> 1. Create a `studio_asset_prototypes` record: `(project_id, slug, name: "{Name} App", description: "Primary app prototype for {Name}", app_path: "/apps/{slug}")`
+> 2. Update `studio_projects.app_path` to match
 
 Save the returned project `id` for use in subsequent steps.
 

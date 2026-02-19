@@ -1,7 +1,6 @@
 'use client'
 
 import { ProtectedRoute } from '@/components/auth/protected-route'
-import { ModeToggle } from '@/components/theme-switcher'
 import { UserMenu } from '@/components/user-menu'
 import { PrivateHeaderProvider, usePrivateHeader } from '@/components/layout/private-header-context'
 import { PrivacyModeProvider } from '@/lib/privacy-mode'
@@ -31,7 +30,7 @@ function PrivateHeader() {
       .replace(/\b\w/g, (c) => c.toUpperCase())
   }
 
-  const { actions } = usePrivateHeader()
+  const { actions, hardNavigation } = usePrivateHeader()
 
   if (hidden) return null
 
@@ -39,9 +38,12 @@ function PrivateHeader() {
     <header className="border-b bg-card flex items-center justify-between">
       <div className="flex items-center justify-between gap-4">
         <nav className="flex items-center gap-1 text-xs text-muted-foreground h-10 px-3">
-          <Link href="/" className="hover:text-foreground">
-            JF
-          </Link>
+          {hardNavigation ? (
+            // eslint-disable-next-line @next/next/no-html-link-for-pages -- intentional hard navigation for WebGL pages
+            <a href="/" className="hover:text-foreground">JF</a>
+          ) : (
+            <Link href="/" className="hover:text-foreground">JF</Link>
+          )}
           {segments.map((segment, index) => (
             <span key={index} className="flex items-center gap-1">
               <span>/</span>
@@ -49,11 +51,12 @@ function PrivateHeader() {
                 <span className="text-foreground">
                   {formatSegment(segment, index)}
                 </span>
+              ) : hardNavigation ? (
+                <a href={buildHref(index)} className="hover:text-foreground">
+                  {formatSegment(segment, index)}
+                </a>
               ) : (
-                <Link
-                  href={buildHref(index)}
-                  className="hover:text-foreground"
-                >
+                <Link href={buildHref(index)} className="hover:text-foreground">
                   {formatSegment(segment, index)}
                 </Link>
               )}
