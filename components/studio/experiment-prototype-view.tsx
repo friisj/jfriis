@@ -7,9 +7,9 @@ import {
   updateExperimentOutcome,
   updateExperimentLearnings,
 } from '@/app/actions/studio'
-import { PanelLeftOpen, Minus, EyeOff, Pencil } from 'lucide-react'
+import { PanelLeftOpen, EyeOff, Pencil } from 'lucide-react'
 
-type OverlayState = 'expanded' | 'collapsed' | 'hidden'
+type OverlayState = 'expanded' | 'hidden'
 type ExperimentStatus = 'planned' | 'in_progress' | 'completed' | 'abandoned'
 type ExperimentOutcome = 'success' | 'failure' | 'inconclusive' | null
 
@@ -103,7 +103,7 @@ export function ExperimentPrototypeView({
   hypothesis,
   children,
 }: ExperimentPrototypeViewProps) {
-  const [overlayState, setOverlayState] = useState<OverlayState>('collapsed')
+  const [overlayState, setOverlayState] = useState<OverlayState>('expanded')
   const { setActions, setHardNavigation } = usePrivateHeader()
 
   // Force hard navigation (full page load) when leaving prototype pages
@@ -113,30 +113,22 @@ export function ExperimentPrototypeView({
     return () => setHardNavigation(false)
   }, [setHardNavigation])
 
-  const cycleState = useCallback(() => {
-    setOverlayState((s) => {
-      if (s === 'expanded') return 'collapsed'
-      if (s === 'collapsed') return 'hidden'
-      return 'expanded'
-    })
+  const toggleState = useCallback(() => {
+    setOverlayState((s) => (s === 'expanded' ? 'hidden' : 'expanded'))
   }, [])
 
   // Inject toggle button into header
   useEffect(() => {
-    const icon =
-      overlayState === 'expanded' ? <PanelLeftOpen className="size-3.5" /> :
-      overlayState === 'collapsed' ? <Minus className="size-3.5" /> :
-      <EyeOff className="size-3.5" />
+    const icon = overlayState === 'expanded'
+      ? <PanelLeftOpen className="size-3.5" />
+      : <EyeOff className="size-3.5" />
 
-    const label =
-      overlayState === 'expanded' ? 'Panel' :
-      overlayState === 'collapsed' ? 'Bar' :
-      'Hidden'
+    const label = overlayState === 'expanded' ? 'Panel' : 'Hidden'
 
     setActions(
       <div className="flex items-center h-10 border-l border-border divide-x divide-border">
         <button
-          onClick={cycleState}
+          onClick={toggleState}
           className="flex items-center gap-1.5 h-10 px-3 text-xs font-medium hover:bg-accent transition-colors"
           title={`Overlay: ${label} (press i to toggle)`}
         >
@@ -147,7 +139,7 @@ export function ExperimentPrototypeView({
     )
 
     return () => setActions(null)
-  }, [overlayState, setActions, cycleState])
+  }, [overlayState, setActions, toggleState])
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -163,7 +155,7 @@ export function ExperimentPrototypeView({
       if (e.key === 'Escape') {
         setOverlayState('hidden')
       } else if (e.key === 'i') {
-        setOverlayState((s) => (s === 'collapsed' ? 'expanded' : 'collapsed'))
+        setOverlayState((s) => (s === 'expanded' ? 'hidden' : 'expanded'))
       }
     }
 
@@ -176,42 +168,9 @@ export function ExperimentPrototypeView({
       {/* Prototype fills the entire remaining viewport (100dvh minus PrivateHeader h-10/2.5rem) */}
       <div className="absolute inset-0">{children}</div>
 
-      {/* Collapsed bar */}
-      {overlayState === 'collapsed' && (
-        <div className="absolute top-0 left-0 right-0 pointer-events-none z-10">
-          <div className="pointer-events-auto inline-flex items-center gap-3 m-3 px-4 py-2 bg-white/90 backdrop-blur-sm border border-gray-200 rounded-lg shadow-sm">
-            <span className="text-sm font-medium">{experiment.name}</span>
-            <ExperimentStatusSelect
-              experimentId={experiment.id}
-              status={experiment.status}
-            />
-            {experiment.outcome && (
-              <span
-                className={`text-xs font-bold ${
-                  experiment.outcome === 'success'
-                    ? 'text-green-600'
-                    : experiment.outcome === 'failure'
-                      ? 'text-red-600'
-                      : 'text-yellow-600'
-                }`}
-              >
-                {experiment.outcome}
-              </span>
-            )}
-            <a
-              href={`/admin/experiments/${experiment.id}/edit`}
-              className="text-gray-400 hover:text-gray-600 transition-colors"
-              title="Edit in admin"
-            >
-              <Pencil className="size-3.5" />
-            </a>
-          </div>
-        </div>
-      )}
-
-      {/* Expanded sidebar — header / scrollable body / footer */}
+      {/* Sidebar — header / scrollable body / footer */}
       {overlayState === 'expanded' && (
-        <div className="absolute inset-0 pointer-events-none z-10">
+        <div className="absolute inset-0 pointer-events-none z-50">
           <div className="pointer-events-auto w-[420px] h-full bg-white/95 backdrop-blur-sm border-r border-gray-200 shadow-lg flex flex-col">
             {/* Sidebar header */}
             <div className="shrink-0 px-5 py-4 border-b border-gray-200">

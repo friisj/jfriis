@@ -19,7 +19,7 @@ function getAnthropic() {
  * - Admin/management tasks
  * - High-quality rationale generation
  */
-export const CLAUDE_MODEL = "claude-sonnet-4-20250514" as const;
+export const CLAUDE_MODEL = "claude-sonnet-4-5-20250929" as const;
 
 export type ClaudeMessage = {
   role: "user" | "assistant";
