@@ -4,7 +4,6 @@ import { Canvas } from "@react-three/fiber";
 import { OrbitControls } from "@react-three/drei";
 import { Physics, usePlane, useSphere } from "@react-three/cannon";
 import { useState, useEffect, useMemo } from "react";
-import { Badge } from "@/components/ui/badge";
 import * as THREE from "three";
 import { PHYSICS_CONFIG } from "@/lib/studio/putt/physics";
 import { createDimpledBallGeometry } from "@/lib/studio/putt/dimple-geometry";
@@ -149,175 +148,102 @@ export default function PhysicsEnginePrototype() {
 
   return (
     <div className="h-full w-full flex bg-background">
-      <div className="flex-1 flex flex-col">
-        <div className="border-b p-3 text-sm bg-muted/50">
-          <span className="font-semibold">Physics Engine:</span> Cannon.js with proper 3D collision and constraints
-        </div>
+      {/* Canvas fills all available space */}
+      <div className="flex-1">
+        <Canvas camera={{ position: [0, 15, 20], fov: 50 }} shadows>
+          <ambientLight intensity={0.6} />
+          <directionalLight position={[10, 15, 5]} intensity={0.8} castShadow />
 
-        <div className="flex-1">
-          <Canvas camera={{ position: [0, 15, 20], fov: 50 }} shadows>
-            <ambientLight intensity={0.6} />
-            <directionalLight position={[10, 15, 5]} intensity={0.8} castShadow />
-
-            <Physics gravity={[0, -9.81, 0]}>
-              <PhysicsPlane slopePct={slopePct} slopeAngleDeg={slopeAngleDeg} />
-              <PhysicsBall
-                key={ballKey}
-                initialVelocity={ballInitialVelocity}
-                onPositionUpdate={handleBallPositionUpdate}
-                slopePct={slopePct}
-              />
-            </Physics>
-
-            <OrbitControls
-              enablePan
-              enableZoom
-              enableRotate
-              target={followCamera ? ballPosition : [0, 0, 0]}
+          <Physics gravity={[0, -9.81, 0]}>
+            <PhysicsPlane slopePct={slopePct} slopeAngleDeg={slopeAngleDeg} />
+            <PhysicsBall
+              key={ballKey}
+              initialVelocity={ballInitialVelocity}
+              onPositionUpdate={handleBallPositionUpdate}
+              slopePct={slopePct}
             />
-          </Canvas>
-        </div>
+          </Physics>
 
-        <footer className="border-t p-3 text-sm bg-card flex gap-8">
-          <div>
-            <span className="font-semibold">Controls:</span> Drag to rotate • Scroll to zoom • Right-click to pan
-          </div>
-          {followCamera && (
-            <div>
-              <span className="font-semibold">Ball Position:</span> ({ballPosition[0].toFixed(2)}, {ballPosition[1].toFixed(2)}, {ballPosition[2].toFixed(2)})
-            </div>
-          )}
-        </footer>
+          <OrbitControls
+            enablePan
+            enableZoom
+            enableRotate
+            target={followCamera ? ballPosition : [0, 0, 0]}
+          />
+        </Canvas>
       </div>
 
-      {/* Controls Panel */}
-      <div className="w-96 border-l bg-card overflow-y-auto">
-        <div className="p-4 border-b">
-          <h2 className="text-lg font-bold mb-3">Plane Configuration</h2>
+      {/* Controls Sidebar */}
+      <div className="w-80 border-l bg-card flex flex-col">
+        <div className="shrink-0 px-4 py-3 border-b text-sm">
+          <span className="font-semibold">Cannon.js</span> — 3D collision &amp; constraints
+        </div>
 
-          <div className="mb-4">
-            <label className="text-sm text-muted-foreground block mb-2">Slope: {slopePct.toFixed(1)}%</label>
-            <input
-              type="range"
-              min="0"
-              max="30"
-              step="0.5"
-              value={slopePct}
-              onChange={(e) => setSlopePct(parseFloat(e.target.value))}
-              className="w-full"
-            />
-            <div className="flex gap-2 mt-2">
-              <button onClick={() => setSlopePct(3)} className="text-xs px-2 py-1 bg-muted rounded">3%</button>
-              <button onClick={() => setSlopePct(5)} className="text-xs px-2 py-1 bg-muted rounded">5%</button>
-              <button onClick={() => setSlopePct(8)} className="text-xs px-2 py-1 bg-muted rounded">8%</button>
-              <button onClick={() => setSlopePct(15)} className="text-xs px-2 py-1 bg-muted rounded">15%</button>
-              <button onClick={() => setSlopePct(20)} className="text-xs px-2 py-1 bg-muted rounded">20%</button>
+        <div className="flex-1 overflow-y-auto p-4 space-y-6">
+          <div>
+            <h2 className="text-sm font-bold mb-3">Plane</h2>
+            <div className="space-y-3">
+              <div>
+                <label className="text-xs text-muted-foreground block mb-1">Slope: {slopePct.toFixed(1)}%</label>
+                <input type="range" min="0" max="30" step="0.5" value={slopePct} onChange={(e) => setSlopePct(parseFloat(e.target.value))} className="w-full" />
+                <div className="flex gap-1 mt-1">
+                  {[3, 5, 8, 15, 20].map(v => (
+                    <button key={v} onClick={() => setSlopePct(v)} className="text-xs px-2 py-0.5 bg-muted rounded">{v}%</button>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <label className="text-xs text-muted-foreground block mb-1">Direction: {slopeAngleDeg}°</label>
+                <input type="range" min="0" max="360" step="15" value={slopeAngleDeg} onChange={(e) => setSlopeAngleDeg(parseFloat(e.target.value))} className="w-full" />
+              </div>
             </div>
           </div>
 
-          <div className="mb-4">
-            <label className="text-sm text-muted-foreground block mb-2">Direction: {slopeAngleDeg}°</label>
-            <input
-              type="range"
-              min="0"
-              max="360"
-              step="15"
-              value={slopeAngleDeg}
-              onChange={(e) => setSlopeAngleDeg(parseFloat(e.target.value))}
-              className="w-full"
-            />
-          </div>
-        </div>
-
-        <div className="p-4 border-b">
-          <h2 className="text-lg font-bold mb-3">Ball Controls</h2>
-
-          <div className="mb-4">
-            <label className="text-sm text-muted-foreground block mb-2">
-              Initial Speed: {ballSpeed.toFixed(2)} m/s
-            </label>
-            <input
-              type="range"
-              min="0"
-              max="3"
-              step="0.1"
-              value={ballSpeed}
-              onChange={(e) => setBallSpeed(parseFloat(e.target.value))}
-              className="w-full"
-            />
+          <div>
+            <h2 className="text-sm font-bold mb-3">Ball</h2>
+            <div className="space-y-3">
+              <div>
+                <label className="text-xs text-muted-foreground block mb-1">Speed: {ballSpeed.toFixed(2)} m/s</label>
+                <input type="range" min="0" max="3" step="0.1" value={ballSpeed} onChange={(e) => setBallSpeed(parseFloat(e.target.value))} className="w-full" />
+              </div>
+              <div>
+                <label className="text-xs text-muted-foreground block mb-1">Direction: {ballDirection}°</label>
+                <input type="range" min="-180" max="180" step="15" value={ballDirection} onChange={(e) => setBallDirection(parseFloat(e.target.value))} className="w-full" />
+              </div>
+              <button onClick={launchBall} className="w-full px-3 py-2 bg-primary text-primary-foreground rounded text-sm font-medium hover:bg-primary/90">
+                Launch Ball
+              </button>
+            </div>
           </div>
 
-          <div className="mb-4">
-            <label className="text-sm text-muted-foreground block mb-2">Direction: {ballDirection}°</label>
-            <input
-              type="range"
-              min="-180"
-              max="180"
-              step="15"
-              value={ballDirection}
-              onChange={(e) => setBallDirection(parseFloat(e.target.value))}
-              className="w-full"
-            />
-          </div>
-
-          <button
-            onClick={launchBall}
-            className="w-full px-4 py-2 bg-primary text-primary-foreground rounded font-medium hover:bg-primary/90"
-          >
-            Launch Ball
-          </button>
-
-          {/* Static Friction Test */}
-          <div className="mt-4 pt-4 border-t">
-            <h3 className="text-sm font-semibold mb-2">Static Friction Test</h3>
+          <div>
+            <h2 className="text-sm font-bold mb-2">Tests</h2>
             <button
-              onClick={() => {
-                setBallSpeed(0);
-                setBallKey((prev) => prev + 1);
-              }}
-              className="w-full px-4 py-2 bg-amber-600 text-white rounded font-medium hover:bg-amber-700"
+              onClick={() => { setBallSpeed(0); setBallKey((prev) => prev + 1); }}
+              className="w-full px-3 py-2 bg-amber-600 text-white rounded text-sm font-medium hover:bg-amber-700"
             >
               Place Ball at Rest
             </button>
-            <p className="text-xs text-muted-foreground mt-2">
-              Places ball at rest on current slope. If ball slowly creeps downhill, static friction is insufficient.
-            </p>
+            <p className="text-xs text-muted-foreground mt-1">Test static friction on current slope.</p>
           </div>
 
-          {/* Follow Camera Toggle */}
-          <div className="mt-4 pt-4 border-t">
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={followCamera}
-                onChange={(e) => setFollowCamera(e.target.checked)}
-                className="rounded"
-              />
-              <span className="text-sm font-medium">Follow Camera</span>
-            </label>
-            <p className="text-xs text-muted-foreground mt-1">
-              Camera tracks the ball as it moves
-            </p>
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input type="checkbox" checked={followCamera} onChange={(e) => setFollowCamera(e.target.checked)} className="rounded" />
+            <span className="text-sm">Follow camera</span>
+          </label>
+
+          <div className="text-xs text-muted-foreground space-y-1">
+            <div className="font-semibold text-foreground mb-1">Physics</div>
+            <div>Gravity: (0, -9.81, 0)</div>
+            <div>Friction: 0.6 · Restitution: 0.2</div>
+            <div>Damping: linear 0.3, angular 0.2</div>
+            <div>Stop threshold: {PHYSICS_CONFIG.greenSpeed.stopping.VELOCITY_THRESHOLD} m/s</div>
           </div>
         </div>
 
-        <div className="p-4">
-          <h3 className="font-semibold text-sm mb-2">Physics Info</h3>
-          <div className="text-xs text-muted-foreground space-y-1">
-            <div>Real 3D gravity (0, -9.81, 0)</div>
-            <div>Collision detection via Cannon.js</div>
-            <div>Friction: 0.6</div>
-            <div>Restitution (bounce): 0.2</div>
-            <div>Linear damping (drag): 0.3</div>
-            <div>Angular damping: 0.2</div>
-          </div>
-
-          <h3 className="font-semibold text-sm mt-4 mb-2">Stopping Logic</h3>
-          <div className="text-xs text-muted-foreground space-y-1">
-            <div>Velocity threshold: {PHYSICS_CONFIG.greenSpeed.stopping.VELOCITY_THRESHOLD} m/s</div>
-            <div>Max stable angle: {PHYSICS_CONFIG.greenSpeed.stopping.MAX_STABLE_ANGLE_DEG}°</div>
-            <div>Lock enabled: {PHYSICS_CONFIG.greenSpeed.stopping.POSITION_LOCK_ENABLED ? 'Yes' : 'No'}</div>
-          </div>
+        <div className="shrink-0 px-4 py-2 border-t text-xs text-muted-foreground">
+          {followCamera && <span>Pos: ({ballPosition[0].toFixed(2)}, {ballPosition[1].toFixed(2)}, {ballPosition[2].toFixed(2)}) · </span>}
+          Drag to rotate · Scroll to zoom
         </div>
       </div>
     </div>

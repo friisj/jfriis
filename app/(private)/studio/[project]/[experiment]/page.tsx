@@ -1,23 +1,22 @@
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase-server'
 import { notFound } from 'next/navigation'
-import dynamic from 'next/dynamic'
 import { ExperimentPrototypeView } from '@/components/studio/experiment-prototype-view'
 import { ExperimentStatusSelect } from '@/components/studio/experiment-status-select'
+import { PrototypeRenderer } from '@/components/studio/prototype-renderer'
 
 type ExperimentStatus = 'planned' | 'in_progress' | 'completed' | 'abandoned'
 type ExperimentOutcome = 'success' | 'failure' | 'inconclusive' | null
 
-// Dynamic prototype component registry
-// Add new prototype components here as you build them
-// Components should be placed in: components/studio/prototypes/{project-slug}/{experiment-slug}.tsx
-const prototypeRegistry: Record<string, React.ComponentType> = {
-  'putt/physics-engine': dynamic(() => import('@/components/studio/prototypes/putt/physics-engine')),
-  'putt/green-outline': dynamic(() => import('@/components/studio/prototypes/putt/green-outline')),
-  'putt/green-generation': dynamic(() => import('@/components/studio/prototypes/putt/green-generation')),
-  'putt/undulation-system': dynamic(() => import('@/components/studio/prototypes/putt/undulation-system')),
-  'putt/cup-mechanics': dynamic(() => import('@/components/studio/prototypes/putt/cup-mechanics')),
-}
+// Prototype keys that have registered components
+// The actual dynamic imports live in components/studio/prototype-renderer.tsx (Client Component)
+const registeredPrototypes = new Set([
+  'putt/physics-engine',
+  'putt/green-outline',
+  'putt/green-generation',
+  'putt/undulation-system',
+  'putt/cup-mechanics',
+])
 
 function getOutcomeDisplay(outcome?: string) {
   switch (outcome) {
@@ -78,12 +77,10 @@ export default async function ExperimentPage({ params }: Props) {
 
   // Look up prototype component by project/experiment slug combination
   const prototypeKey = `${projectSlug}/${experimentSlug}`
-  const PrototypeComponent = experiment.type === 'prototype'
-    ? prototypeRegistry[prototypeKey]
-    : null
+  const hasPrototype = experiment.type === 'prototype' && registeredPrototypes.has(prototypeKey)
 
   // Fullscreen prototype view
-  if (PrototypeComponent) {
+  if (hasPrototype) {
     return (
       <ExperimentPrototypeView
         experiment={{
@@ -101,7 +98,7 @@ export default async function ExperimentPage({ params }: Props) {
         project={{ slug: project.slug, name: project.name }}
         hypothesis={hypothesis}
       >
-        <PrototypeComponent />
+        <PrototypeRenderer prototypeKey={prototypeKey} />
       </ExperimentPrototypeView>
     )
   }

@@ -201,89 +201,57 @@ export default function GreenGenerationPrototype() {
 
   return (
     <div className="h-full w-full flex bg-background">
-      {/* Main 3D View */}
-      <div className="flex-1 flex flex-col">
-        {/* Legend & Controls */}
-        <div className="border-b p-3 text-sm bg-muted/50 flex items-center justify-between">
-          <div className="flex gap-6 flex-wrap">
-            <div>
-              <span className="font-semibold">Features:</span> Toggle in sidebar
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="font-semibold">Colors:</span>
-              <span className="text-green-600">■</span> Flat (0-2%)
-              <span className="text-yellow-600">■</span> Medium (2-5%)
-              <span className="text-orange-600">■</span> Steep (5-8%)
-              <span className="text-red-600">■</span> Very Steep (&gt;8%)
-            </div>
-          </div>
-        </div>
+      {/* Canvas fills all available space */}
+      <div className="flex-1">
+        <Canvas camera={{ position: [0, 25, 35], fov: 50 }} gl={{ antialias: true }}>
+          <ambientLight intensity={0.6} />
+          <directionalLight position={[10, 15, 5]} intensity={0.8} />
 
-        {/* 3D Canvas */}
-        <div className="flex-1">
-          <Canvas camera={{ position: [0, 25, 35], fov: 50 }} gl={{ antialias: true }}>
-            <ambientLight intensity={0.6} />
-            <directionalLight position={[10, 15, 5]} intensity={0.8} />
+          <GreenSurfaceTest
+            seed={seed}
+            surfaceSpec={surfaceSpec}
+            enabledFeatures={enabledFeatures}
+            layerConfig={layerConfig}
+            onMetrics={setMetrics}
+            onPlacement={setPlacement}
+            showPinFlats={showPinFlats}
+            showStartCup={showStartCup}
+            showSDF={showSDF}
+            showContours={showContours}
+            showBall={showBall}
+            ballInitialVelocity={ballInitialVelocity}
+            ballKey={ballKey}
+            showRotationAxis={showRotationAxis}
+            showVelocityVector={showVelocityVector}
+            showSurfaceNormal={showSurfaceNormal}
+            onBallPhysicsUpdate={setBallTelemetry}
+            stimpmeterRating={stimpmeterRating}
+            showCup={showCup}
+            onCupCapture={handleCupCapture}
+            onCupLipOut={handleCupLipOut}
+            showSlopeColors={showSlopeColors}
+            showTrace={showTrace}
+            ballSpeed={ballSpeed}
+            ballDirection={ballDirection}
+          />
 
-            <GreenSurfaceTest
-              seed={seed}
-              surfaceSpec={surfaceSpec}
-              enabledFeatures={enabledFeatures}
-              layerConfig={layerConfig}
-              onMetrics={setMetrics}
-              onPlacement={setPlacement}
-              showPinFlats={showPinFlats}
-              showStartCup={showStartCup}
-              showSDF={showSDF}
-              showContours={showContours}
-              showBall={showBall}
-              ballInitialVelocity={ballInitialVelocity}
-              ballKey={ballKey}
-              showRotationAxis={showRotationAxis}
-              showVelocityVector={showVelocityVector}
-              showSurfaceNormal={showSurfaceNormal}
-              onBallPhysicsUpdate={setBallTelemetry}
-              stimpmeterRating={stimpmeterRating}
-              showCup={showCup}
-              onCupCapture={handleCupCapture}
-              onCupLipOut={handleCupLipOut}
-              showSlopeColors={showSlopeColors}
-              showTrace={showTrace}
-              ballSpeed={ballSpeed}
-              ballDirection={ballDirection}
-            />
-
-            <OrbitControls enablePan enableZoom enableRotate target={[0, 0, 0]} />
-          </Canvas>
-        </div>
-
-        {/* Footer */}
-        <footer className="border-t p-3 text-sm bg-card flex gap-8 flex-wrap">
-          <div>
-            <span className="font-semibold">Controls:</span> Drag to rotate • Scroll to zoom • Right-click to pan
-          </div>
-          <div>
-            <span className="font-semibold">Seed:</span> {seed}
-          </div>
-          {metrics && (
-            <>
-              <div>
-                <span className="font-semibold">Verts:</span> {metrics.vertCount.toLocaleString()}
-              </div>
-              <div>
-                <span className="font-semibold">Height Range:</span>{" "}
-                {metrics.minHeight.toFixed(2)}m to {metrics.maxHeight.toFixed(2)}m
-              </div>
-              <div>
-                <span className="font-semibold">Pin Candidates:</span> {metrics.pinCandidateCount}
-              </div>
-            </>
-          )}
-        </footer>
+          <OrbitControls enablePan enableZoom enableRotate target={[0, 0, 0]} />
+        </Canvas>
       </div>
 
-      {/* Controls Panel */}
-      <div className="w-96 border-l bg-card overflow-y-auto">
+      {/* Controls Sidebar */}
+      <div className="w-80 border-l bg-card flex flex-col">
+        <div className="shrink-0 px-4 py-3 border-b text-sm flex items-center justify-between">
+          <span className="font-semibold">Green Generation</span>
+          <div className="flex items-center gap-2 text-xs text-muted-foreground flex-wrap">
+            <span><span className="text-green-600">■</span> Flat 0-2%</span>
+            <span><span className="text-yellow-600">■</span> Med 2-5%</span>
+            <span><span className="text-orange-600">■</span> Steep 5-8%</span>
+            <span><span className="text-red-600">■</span> &gt;8%</span>
+          </div>
+        </div>
+
+        <div className="flex-1 overflow-y-auto">
         {/* Seed Control */}
         <div className="p-4 border-b">
           <button
@@ -905,6 +873,14 @@ export default function GreenGenerationPrototype() {
             </div>
           </div>
         )}
+        </div>
+
+        <div className="shrink-0 px-4 py-2 border-t text-xs text-muted-foreground space-y-0.5">
+          {metrics && (
+            <div>Verts: {metrics.vertCount.toLocaleString()} · Height: {metrics.minHeight.toFixed(2)}m to {metrics.maxHeight.toFixed(2)}m · Pins: {metrics.pinCandidateCount}</div>
+          )}
+          <div>Seed: {seed} · Drag to rotate · Scroll to zoom</div>
+        </div>
       </div>
     </div>
   );

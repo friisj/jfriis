@@ -5,7 +5,6 @@ import { Canvas } from "@react-three/fiber";
 import { OrbitControls } from "@react-three/drei";
 import { Physics, useBox } from "@react-three/cannon";
 import { useState } from "react";
-import { Badge } from "@/components/ui/badge";
 import * as THREE from "three";
 import { getGreenSpeedPhysics } from "@/lib/studio/putt/physics";
 import { BallCannon } from "@/components/studio/putt/ball-cannon";
@@ -83,22 +82,10 @@ function FlatPlane({
         <meshStandardMaterial color="#44aa44" />
       </mesh>
 
-      <PhysicsBox
-        position={[leftBoxCenterX, boxY, 0]}
-        size={[leftBoxSizeX, boxHeight, planeSize]}
-      />
-      <PhysicsBox
-        position={[rightBoxCenterX, boxY, 0]}
-        size={[rightBoxSizeX, boxHeight, planeSize]}
-      />
-      <PhysicsBox
-        position={[cupX, boxY, frontBoxCenterZ]}
-        size={[frontBoxSizeX, boxHeight, frontBoxSizeZ]}
-      />
-      <PhysicsBox
-        position={[cupX, boxY, backBoxCenterZ]}
-        size={[backBoxSizeX, boxHeight, backBoxSizeZ]}
-      />
+      <PhysicsBox position={[leftBoxCenterX, boxY, 0]} size={[leftBoxSizeX, boxHeight, planeSize]} />
+      <PhysicsBox position={[rightBoxCenterX, boxY, 0]} size={[rightBoxSizeX, boxHeight, planeSize]} />
+      <PhysicsBox position={[cupX, boxY, frontBoxCenterZ]} size={[frontBoxSizeX, boxHeight, frontBoxSizeZ]} />
+      <PhysicsBox position={[cupX, boxY, backBoxCenterZ]} size={[backBoxSizeX, boxHeight, backBoxSizeZ]} />
 
       <gridHelper args={[50, 50, "#ffffff", "#666666"]} position={[0, -0.01, 0]} />
     </>
@@ -171,181 +158,108 @@ export default function CupMechanicsPrototype() {
 
   return (
     <div className="h-full w-full flex bg-background">
-      <div className="flex-1 flex flex-col">
-        <div className="border-b p-3 text-sm bg-muted/50">
-          <span className="font-semibold">Test:</span> Ball capture and lip-out physics • Cup at 5m • Flat green
-        </div>
+      {/* Canvas fills all available space */}
+      <div className="flex-1">
+        <Canvas camera={{ position: [0, 8, 10], fov: 50 }} shadows>
+          <ambientLight intensity={0.6} />
+          <directionalLight position={[10, 15, 5]} intensity={0.8} castShadow />
 
-        <div className="flex-1">
-          <Canvas camera={{ position: [0, 8, 10], fov: 50 }} shadows>
-            <ambientLight intensity={0.6} />
-            <directionalLight position={[10, 15, 5]} intensity={0.8} castShadow />
+          <Physics gravity={[0, -9.81, 0]}>
+            <FlatPlane stimpmeterRating={stimpmeterRating} cupPosition={cupPosition} />
 
-            <Physics gravity={[0, -9.81, 0]}>
-              <FlatPlane stimpmeterRating={stimpmeterRating} cupPosition={cupPosition} />
+            <Cup
+              position={cupPosition}
+              showFlag={true}
+              captureVelocityThreshold={0.5}
+            />
 
-              <Cup
-                position={cupPosition}
-                showFlag={true}
-                captureVelocityThreshold={0.5}
+            {!isCaptured && (
+              <BallCannon
+                key={ballKey}
+                initialPosition={startPosition}
+                initialVelocity={initialVelocity}
+                onPhysicsUpdate={handleBallPhysicsUpdate}
+                onStop={handleBallStop}
+                stimpmeterRating={stimpmeterRating}
+                cupPosition={cupPosition}
               />
-
-              {!isCaptured && (
-                <BallCannon
-                  key={ballKey}
-                  initialPosition={startPosition}
-                  initialVelocity={initialVelocity}
-                  onPhysicsUpdate={handleBallPhysicsUpdate}
-                  onStop={handleBallStop}
-                  stimpmeterRating={stimpmeterRating}
-                  cupPosition={cupPosition}
-                />
-              )}
-            </Physics>
-
-            <OrbitControls enablePan enableZoom enableRotate />
-          </Canvas>
-        </div>
-
-        <footer className="border-t p-3 text-sm bg-card">
-          <div className="flex gap-8">
-            <div>
-              <span className="font-semibold">Controls:</span> Drag to rotate • Scroll to zoom
-            </div>
-            {distanceToCup !== null && (
-              <div>
-                <span className="font-semibold">Distance to cup:</span> {distanceToCup.toFixed(2)}m
-                {isNearRim && <span className="ml-2 text-yellow-600">Near rim</span>}
-              </div>
             )}
-            {isCaptured && (
-              <div className="text-green-600 font-semibold">
-                CAPTURED! Made putt!
-              </div>
-            )}
-          </div>
-        </footer>
+          </Physics>
+
+          <OrbitControls enablePan enableZoom enableRotate />
+        </Canvas>
       </div>
 
-      {/* Controls Panel */}
-      <div className="w-96 border-l bg-card overflow-y-auto">
-        <div className="p-4 border-b">
-          <h2 className="text-lg font-bold mb-3">Ball Controls</h2>
-
-          <div className="mb-4">
-            <label className="text-sm text-muted-foreground block mb-2">
-              Speed: {ballSpeed.toFixed(2)} m/s
-            </label>
-            <input
-              type="range"
-              min="0.3"
-              max="10.0"
-              step="0.01"
-              value={ballSpeed}
-              onChange={(e) => setBallSpeed(parseFloat(e.target.value))}
-              className="w-full"
-            />
-            <div className="flex gap-2 mt-2">
-              <button onClick={() => setBallSpeed(0.4)} className="text-xs px-2 py-1 bg-muted rounded">
-                Slow (0.4)
-              </button>
-              <button onClick={() => setBallSpeed(2.0)} className="text-xs px-2 py-1 bg-muted rounded">
-                Medium (2.0)
-              </button>
-              <button onClick={() => setBallSpeed(5.0)} className="text-xs px-2 py-1 bg-muted rounded">
-                Fast (5.0)
-              </button>
-              <button onClick={() => setBallSpeed(10.0)} className="text-xs px-2 py-1 bg-muted rounded">
-                Max (10.0)
-              </button>
-            </div>
-          </div>
-
-          <div className="mb-4">
-            <label className="text-sm text-muted-foreground block mb-2">
-              Aim Angle: {aimAngle.toFixed(1)}°
-            </label>
-            <input
-              type="range"
-              min="-30"
-              max="30"
-              step="0.1"
-              value={aimAngle}
-              onChange={(e) => setAimAngle(parseFloat(e.target.value))}
-              className="w-full"
-            />
-            <div className="flex gap-2 mt-2">
-              <button onClick={() => setAimAngle(-10)} className="text-xs px-2 py-1 bg-muted rounded">
-                Left (-10°)
-              </button>
-              <button onClick={() => setAimAngle(0)} className="text-xs px-2 py-1 bg-muted rounded">
-                Center (0°)
-              </button>
-              <button onClick={() => setAimAngle(10)} className="text-xs px-2 py-1 bg-muted rounded">
-                Right (10°)
-              </button>
-            </div>
-          </div>
-
-          <button
-            onClick={launchBall}
-            className="w-full px-4 py-2 bg-primary text-primary-foreground rounded font-medium hover:bg-primary/90"
-          >
-            Launch Ball
-          </button>
+      {/* Controls Sidebar */}
+      <div className="w-80 border-l bg-card flex flex-col">
+        <div className="shrink-0 px-4 py-3 border-b text-sm flex items-center justify-between">
+          <span className="font-semibold">Cup at 5m · Flat green</span>
+          {isCaptured && <span className="text-green-600 font-semibold">MADE!</span>}
         </div>
 
-        <div className="p-4 border-b">
-          <h3 className="font-semibold text-sm mb-2">Cup Mechanics Info</h3>
+        <div className="flex-1 overflow-y-auto p-4 space-y-6">
+          <div>
+            <h2 className="text-sm font-bold mb-3">Ball</h2>
+            <div className="space-y-3">
+              <div>
+                <label className="text-xs text-muted-foreground block mb-1">Speed: {ballSpeed.toFixed(2)} m/s</label>
+                <input type="range" min="0.3" max="10.0" step="0.01" value={ballSpeed} onChange={(e) => setBallSpeed(parseFloat(e.target.value))} className="w-full" />
+                <div className="flex gap-1 mt-1">
+                  {[{ l: "Slow", v: 0.4 }, { l: "Med", v: 2 }, { l: "Fast", v: 5 }, { l: "Max", v: 10 }].map(p => (
+                    <button key={p.l} onClick={() => setBallSpeed(p.v)} className="text-xs px-2 py-0.5 bg-muted rounded">{p.l}</button>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <label className="text-xs text-muted-foreground block mb-1">Aim: {aimAngle.toFixed(1)}°</label>
+                <input type="range" min="-30" max="30" step="0.1" value={aimAngle} onChange={(e) => setAimAngle(parseFloat(e.target.value))} className="w-full" />
+                <div className="flex gap-1 mt-1">
+                  {[{ l: "Left", v: -10 }, { l: "Center", v: 0 }, { l: "Right", v: 10 }].map(p => (
+                    <button key={p.l} onClick={() => setAimAngle(p.v)} className="text-xs px-2 py-0.5 bg-muted rounded">{p.l}</button>
+                  ))}
+                </div>
+              </div>
+              <button onClick={launchBall} className="w-full px-3 py-2 bg-primary text-primary-foreground rounded text-sm font-medium hover:bg-primary/90">
+                Launch Ball
+              </button>
+            </div>
+          </div>
+
           <div className="text-xs text-muted-foreground space-y-2">
-            <div className="bg-muted/50 p-2 rounded">
-              <div className="font-semibold mb-1">Cup Physics:</div>
-              <div>Open cylinder - ball can fall in with gravity</div>
-              <div>Thin rim at surface for lip-out collisions</div>
+            <div className="font-semibold text-foreground">Cup Physics</div>
+            <div className="bg-muted/50 p-2 rounded space-y-0.5">
               <div>Diameter: 108mm (USGA standard)</div>
               <div>Depth: 100mm below surface</div>
+              <div>Ball drops with gravity through opening</div>
             </div>
-
-            <div className="bg-muted/50 p-2 rounded mt-2">
-              <div className="font-semibold mb-1">Capture Physics:</div>
-              <div>Ball within cup radius (&lt;54mm horizontally)</div>
-              <div>Deep in cup (&gt;3cm below) → Always captured</div>
-              <div>Slow approach (&lt;0.5 m/s) → Captured if dropping</div>
-              <div>Fast + dropping (high vert. velocity) → Can capture</div>
-              <div>Gravity pulls fast balls down through opening</div>
+            <div className="bg-muted/50 p-2 rounded space-y-0.5">
+              <div className="font-semibold text-foreground">Capture</div>
+              <div>Within cup radius (&lt;54mm) → check velocity</div>
+              <div>Deep (&gt;3cm below) → always captured</div>
+              <div>Slow (&lt;0.5 m/s) + dropping → captured</div>
             </div>
-
-            <div className="bg-muted/50 p-2 rounded mt-2">
-              <div className="font-semibold mb-1">Rim Lip-Out:</div>
-              <div>Rim collision = thin edge at surface</div>
-              <div>Ball hits RIM (not through opening) → deflects</div>
-              <div>Restitution: 0.4 (40% energy retained)</div>
-              <div>Ball can CLEAR rim if dropping through center</div>
-            </div>
-
-            <div className="bg-muted/50 p-2 rounded mt-2">
-              <div className="font-semibold mb-1">Testing Scenarios:</div>
-              <div>Slow roll (&lt;0.6 m/s): Drops if on-line</div>
-              <div>Medium (1-2 m/s): Tests capture vs lip-out</div>
-              <div>Fast (2-3 m/s): Can still drop if trajectory good</div>
-              <div>Off-center fast: Rim collision likely</div>
+            <div className="bg-muted/50 p-2 rounded space-y-0.5">
+              <div className="font-semibold text-foreground">Lip-out</div>
+              <div>Rim collision deflects ball</div>
+              <div>Restitution: 0.4 (40% energy)</div>
             </div>
           </div>
         </div>
 
-        {ballState && ballState.position && ballState.velocity && (
-          <div className="p-4">
-            <h3 className="font-semibold text-sm mb-2">Ball State</h3>
-            <div className="text-xs text-muted-foreground space-y-1">
-              <div>Position: ({ballState.position.x.toFixed(2)}, {ballState.position.y.toFixed(2)}, {ballState.position.z.toFixed(2)})</div>
+        <div className="shrink-0 px-4 py-2 border-t text-xs text-muted-foreground space-y-0.5">
+          {ballState && ballState.position && (
+            <>
               <div>Speed: {ballState.speed.toFixed(3)} m/s</div>
               {distanceToCup !== null && (
-                <div>Distance to cup: {distanceToCup.toFixed(3)}m</div>
+                <div>
+                  Distance: {distanceToCup.toFixed(2)}m
+                  {isNearRim && <span className="ml-1 text-yellow-600">Near rim</span>}
+                </div>
               )}
-              <div>Captured: {isCaptured ? "Yes" : "No"}</div>
-            </div>
-          </div>
-        )}
+            </>
+          )}
+          <div>Drag to rotate · Scroll to zoom</div>
+        </div>
       </div>
     </div>
   );

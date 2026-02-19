@@ -71,84 +71,57 @@ export default function GreenOutlinePrototype() {
 
   return (
     <div className="h-full w-full flex bg-background">
-      {/* Main 3D View */}
-      <div className="flex-1 flex flex-col">
-        {/* Legend & Controls */}
-        <div className="border-b p-3 text-sm bg-muted/50 flex items-center justify-between">
-          <div className="flex gap-6 flex-wrap">
-            <div>
-              <span className="font-semibold">Shapes:</span> Toggle visibility in sidebar
-            </div>
-            <div>
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={showSDF}
-                  onChange={(e) => setShowSDF(e.target.checked)}
-                  className="rounded"
-                />
-                <span className="font-semibold">Show SDF</span>
-                <span className="text-muted-foreground text-xs">(Green=inside, Yellow=boundary, Red=outside)</span>
-              </label>
-            </div>
-          </div>
-          <div className="text-xs text-muted-foreground">
-            {Object.values(shapeFeedback).filter(s => s.visible).length} / 5 visible
-          </div>
-        </div>
+      {/* Canvas fills all available space */}
+      <div className="flex-1">
+        <Canvas
+          camera={{ position: [0, 25, 35], fov: 50 }}
+          gl={{ antialias: true }}
+        >
+          <ambientLight intensity={0.6} />
+          <directionalLight position={[10, 15, 5]} intensity={0.8} />
 
-        {/* 3D Canvas */}
-        <div className="flex-1">
-          <Canvas
-            camera={{ position: [0, 25, 35], fov: 50 }}
-            gl={{ antialias: true }}
-          >
-            <ambientLight intensity={0.6} />
-            <directionalLight position={[10, 15, 5]} intensity={0.8} />
+          <GreenOutlineTest
+            seed={1111}
+            onValidationData={setValidationData}
+            visibleShapes={shapeFeedback}
+            showSDF={showSDF}
+          />
 
-            <GreenOutlineTest
-              seed={1111}
-              onValidationData={setValidationData}
-              visibleShapes={shapeFeedback}
-              showSDF={showSDF}
-            />
+          <gridHelper args={[60, 60, "#444444", "#222222"]} position={[0, -0.01, 0]} />
 
-            <gridHelper args={[60, 60, "#444444", "#222222"]} position={[0, -0.01, 0]} />
-
-            <OrbitControls
-              enablePan
-              enableZoom
-              enableRotate
-              target={[0, 0, 0]}
-            />
-          </Canvas>
-        </div>
-
-        {/* Footer */}
-        <footer className="border-t p-3 text-sm bg-card flex gap-8 flex-wrap">
-          <div><span className="font-semibold">Controls:</span> Drag to rotate • Scroll to zoom • Right-click to pan</div>
-          <div><span className="font-semibold">Seed:</span> 1111 (deterministic generation)</div>
-          <div><span className="font-semibold">Target Area:</span> 500 m² per shape</div>
-        </footer>
+          <OrbitControls
+            enablePan
+            enableZoom
+            enableRotate
+            target={[0, 0, 0]}
+          />
+        </Canvas>
       </div>
 
-      {/* Validation Panel */}
-      <div className="w-96 border-l bg-card overflow-y-auto">
-        <div className="p-4 border-b">
-          <h2 className="text-lg font-bold mb-2">Acceptance Criteria</h2>
-          <div className="flex items-center gap-2">
-            <span className="text-sm text-muted-foreground">Overall Status:</span>
-            {validationData.length === 0 ? (
-              <Badge variant="outline">Loading...</Badge>
-            ) : allPassed ? (
-              <Badge className="bg-green-600">All Passed</Badge>
-            ) : (
-              <Badge variant="destructive">Some Failed</Badge>
-            )}
-          </div>
+      {/* Controls Sidebar */}
+      <div className="w-80 border-l bg-card flex flex-col">
+        <div className="shrink-0 px-4 py-3 border-b text-sm flex items-center justify-between">
+          <span className="font-semibold">5 Shapes · Seed 1111</span>
+          {validationData.length === 0 ? (
+            <Badge variant="outline">Loading...</Badge>
+          ) : allPassed ? (
+            <Badge className="bg-green-600">All Passed</Badge>
+          ) : (
+            <Badge variant="destructive">Some Failed</Badge>
+          )}
         </div>
 
-        <div className="p-4 space-y-4">
+        <div className="flex-1 overflow-y-auto p-4 space-y-4">
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={showSDF}
+              onChange={(e) => setShowSDF(e.target.checked)}
+              className="rounded"
+            />
+            <span className="text-sm font-medium">Show SDF</span>
+            <span className="text-muted-foreground text-xs">(Green=inside, Yellow=boundary, Red=outside)</span>
+          </label>
           {validationData.map((data) => {
             const feedback = shapeFeedback[data.shape];
             return (
@@ -247,32 +220,30 @@ export default function GreenOutlinePrototype() {
               </Card>
             );
           })}
-        </div>
 
-        {/* Criteria Reference */}
-        <div className="p-4 border-t bg-muted/50">
-          <h3 className="font-semibold text-sm mb-2">Pass Criteria</h3>
-          <ul className="text-xs space-y-1 text-muted-foreground">
-            <li>5 distinct shape families generated</li>
-            <li>Area within ±10% of target (500 m²)</li>
-            <li>Minimum neck width ≥ 2m (no pinch points)</li>
-            <li>Smooth Catmull-Rom splines (200-400 points)</li>
-            <li>SDF properly computed (inside/outside detection)</li>
-            <li>Deterministic generation (seed-based)</li>
-          </ul>
-        </div>
+          <div className="bg-muted/50 p-3 rounded">
+            <h3 className="font-semibold text-sm mb-2">Pass Criteria</h3>
+            <ul className="text-xs space-y-1 text-muted-foreground">
+              <li>5 distinct shape families generated</li>
+              <li>Area within ±10% of target (500 m²)</li>
+              <li>Minimum neck width ≥ 2m (no pinch points)</li>
+              <li>Smooth Catmull-Rom splines (200-400 points)</li>
+              <li>SDF properly computed (inside/outside detection)</li>
+              <li>Deterministic generation (seed-based)</li>
+            </ul>
+          </div>
 
-        {/* Export Feedback */}
-        <div className="p-4 border-t">
           <button
             onClick={exportFeedback}
             className="w-full px-4 py-2.5 bg-primary text-primary-foreground rounded font-medium hover:bg-primary/90 transition-colors"
           >
             Export Feedback JSON
           </button>
-          <p className="text-xs text-muted-foreground mt-2 text-center">
-            Download metrics + your feedback for iteration
-          </p>
+        </div>
+
+        <div className="shrink-0 px-4 py-2 border-t text-xs text-muted-foreground space-y-0.5">
+          <div>{Object.values(shapeFeedback).filter(s => s.visible).length} / 5 visible · Target: 500 m²</div>
+          <div>Drag to rotate · Scroll to zoom</div>
         </div>
       </div>
     </div>

@@ -199,60 +199,33 @@ export default function UndulationSystemPrototype() {
 
   return (
     <div className="h-full w-full flex bg-background">
-      {/* Main 3D View */}
-      <div className="flex-1 flex flex-col">
-        {/* Legend */}
-        <div className="border-b p-3 text-sm bg-muted/50 flex items-center justify-between">
-          <div className="flex gap-6 flex-wrap">
-            <div>
-              <span className="font-semibold">Slope Colors:</span>
-              <span className="ml-2 text-green-600">■</span> Flat (0-2%)
-              <span className="ml-2 text-yellow-600">■</span> Medium (2-5%)
-              <span className="ml-2 text-orange-600">■</span> Steep (5-8%)
-              <span className="ml-2 text-red-600">■</span> Very Steep (&gt;8%)
-            </div>
-            <div>
-              <span className="font-semibold">Stats:</span>
-              <span className="ml-2">Avg: {stats.avg.toFixed(1)}%</span>
-              <span className="ml-2">Max: {stats.max.toFixed(1)}%</span>
-              <span className="ml-2">P90: {stats.p90.toFixed(1)}%</span>
-            </div>
-          </div>
-        </div>
+      {/* Canvas fills all available space */}
+      <div className="flex-1">
+        <Canvas camera={{ position: [0, 25, 35], fov: 50 }} gl={{ antialias: true }}>
+          <ambientLight intensity={0.6} />
+          <directionalLight position={[10, 15, 5]} intensity={0.8} />
 
-        {/* 3D Canvas */}
-        <div className="flex-1">
-          <Canvas camera={{ position: [0, 25, 35], fov: 50 }} gl={{ antialias: true }}>
-            <ambientLight intensity={0.6} />
-            <directionalLight position={[10, 15, 5]} intensity={0.8} />
+          <UndulatedTerrain heightfield={heightfield} />
 
-            <UndulatedTerrain heightfield={heightfield} />
+          <OrbitControls enablePan enableZoom enableRotate target={[0, 0, 0]} />
 
-            <OrbitControls enablePan enableZoom enableRotate target={[0, 0, 0]} />
-
-            <gridHelper args={[60, 60, "#444444", "#222222"]} position={[0, -0.01, 0]} />
-          </Canvas>
-        </div>
-
-        {/* Footer */}
-        <footer className="border-t p-3 text-sm bg-card">
-          <div className="flex gap-6">
-            <div>
-              <span className="font-semibold">Controls:</span> Drag to rotate • Scroll to zoom • Right-click to pan
-            </div>
-            <div>
-              <span className="font-semibold">Seed:</span> {seed}
-            </div>
-            <div>
-              <span className="font-semibold">Resolution:</span> 128x128
-            </div>
-          </div>
-        </footer>
+          <gridHelper args={[60, 60, "#444444", "#222222"]} position={[0, -0.01, 0]} />
+        </Canvas>
       </div>
 
-      {/* Controls Panel */}
-      <div className="w-96 border-l bg-card overflow-y-auto">
-        <div className="p-4 space-y-6">
+      {/* Controls Sidebar */}
+      <div className="w-80 border-l bg-card flex flex-col">
+        <div className="shrink-0 px-4 py-3 border-b text-sm">
+          <span className="font-semibold">Undulation System</span>
+          <div className="flex gap-2 mt-1 text-xs text-muted-foreground flex-wrap">
+            <span><span className="text-green-600">■</span> Flat 0-2%</span>
+            <span><span className="text-yellow-600">■</span> Med 2-5%</span>
+            <span><span className="text-orange-600">■</span> Steep 5-8%</span>
+            <span><span className="text-red-600">■</span> V.Steep &gt;8%</span>
+          </div>
+        </div>
+
+        <div className="flex-1 overflow-y-auto p-4 space-y-6">
           {/* Seed Control */}
           <div>
             <h2 className="text-lg font-bold mb-3">Seed</h2>
@@ -427,6 +400,12 @@ export default function UndulationSystemPrototype() {
               crops a small region. Each seed produces different crops.
             </p>
           </div>
+        </div>
+
+        <div className="shrink-0 px-4 py-2 border-t text-xs text-muted-foreground space-y-0.5">
+          <div>Avg: {stats.avg.toFixed(1)}% · Max: {stats.max.toFixed(1)}% · P90: {stats.p90.toFixed(1)}%</div>
+          <div>Seed: {seed} · 128x128</div>
+          <div>Drag to rotate · Scroll to zoom</div>
         </div>
       </div>
     </div>

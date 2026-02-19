@@ -8,7 +8,6 @@ import {
   updateExperimentLearnings,
 } from '@/app/actions/studio'
 import { PanelLeftOpen, Minus, EyeOff, Pencil } from 'lucide-react'
-import Link from 'next/link'
 
 type OverlayState = 'expanded' | 'collapsed' | 'hidden'
 type ExperimentStatus = 'planned' | 'in_progress' | 'completed' | 'abandoned'
@@ -105,7 +104,14 @@ export function ExperimentPrototypeView({
   children,
 }: ExperimentPrototypeViewProps) {
   const [overlayState, setOverlayState] = useState<OverlayState>('collapsed')
-  const { setActions } = usePrivateHeader()
+  const { setActions, setHardNavigation } = usePrivateHeader()
+
+  // Force hard navigation (full page load) when leaving prototype pages
+  // to avoid slow synchronous WebGL/Physics unmount blocking client-side transitions
+  useEffect(() => {
+    setHardNavigation(true)
+    return () => setHardNavigation(false)
+  }, [setHardNavigation])
 
   const cycleState = useCallback(() => {
     setOverlayState((s) => {
@@ -166,9 +172,9 @@ export function ExperimentPrototypeView({
   }, [])
 
   return (
-    <div className="flex-1 flex flex-col relative overflow-hidden">
-      {/* Prototype fills the entire remaining viewport */}
-      <div className="size-full absolute inset-0">{children}</div>
+    <div className="h-[calc(100dvh-2.5rem)] relative overflow-hidden">
+      {/* Prototype fills the entire remaining viewport (100dvh minus PrivateHeader h-10/2.5rem) */}
+      <div className="absolute inset-0">{children}</div>
 
       {/* Collapsed bar */}
       {overlayState === 'collapsed' && (
@@ -192,13 +198,13 @@ export function ExperimentPrototypeView({
                 {experiment.outcome}
               </span>
             )}
-            <Link
+            <a
               href={`/admin/experiments/${experiment.id}/edit`}
               className="text-gray-400 hover:text-gray-600 transition-colors"
               title="Edit in admin"
             >
               <Pencil className="size-3.5" />
-            </Link>
+            </a>
           </div>
         </div>
       )}
@@ -284,14 +290,14 @@ export function ExperimentPrototypeView({
                   </a>
                 </span>
               </div>
-              <Link
+              <a
                 href={`/admin/experiments/${experiment.id}/edit`}
                 className="flex items-center gap-1 text-gray-400 hover:text-gray-600 transition-colors"
                 title="Edit in admin"
               >
                 <Pencil className="size-3" />
                 Edit
-              </Link>
+              </a>
             </div>
           </div>
         </div>
