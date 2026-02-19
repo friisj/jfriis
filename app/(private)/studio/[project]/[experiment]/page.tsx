@@ -8,16 +8,6 @@ import { PrototypeRenderer } from '@/components/studio/prototype-renderer'
 type ExperimentStatus = 'planned' | 'in_progress' | 'completed' | 'abandoned'
 type ExperimentOutcome = 'success' | 'failure' | 'inconclusive' | null
 
-// Prototype keys that have registered components
-// The actual dynamic imports live in components/studio/prototype-renderer.tsx (Client Component)
-const registeredPrototypes = new Set([
-  'putt/physics-engine',
-  'putt/green-outline',
-  'putt/green-generation',
-  'putt/undulation-system',
-  'putt/cup-mechanics',
-])
-
 function getOutcomeDisplay(outcome?: string) {
   switch (outcome) {
     case 'success': return { text: 'Success', color: 'text-green-600', symbol: '✓' }
@@ -75,9 +65,8 @@ export default async function ExperimentPage({ params }: Props) {
     hypothesis = data
   }
 
-  // Look up prototype component by project/experiment slug combination
-  const prototypeKey = `${projectSlug}/${experimentSlug}`
-  const hasPrototype = experiment.type === 'prototype' && registeredPrototypes.has(prototypeKey)
+  // Check if this experiment has a registered prototype component
+  const hasPrototype = experiment.type === 'prototype' && !!experiment.prototype_key
 
   // Fullscreen prototype view
   if (hasPrototype) {
@@ -98,7 +87,7 @@ export default async function ExperimentPage({ params }: Props) {
         project={{ slug: project.slug, name: project.name }}
         hypothesis={hypothesis}
       >
-        <PrototypeRenderer prototypeKey={prototypeKey} />
+        <PrototypeRenderer prototypeKey={experiment.prototype_key!} />
       </ExperimentPrototypeView>
     )
   }
@@ -169,8 +158,9 @@ export default async function ExperimentPage({ params }: Props) {
               Prototype Component
             </h2>
             <p className="text-gray-400">
-              Component not yet implemented. Add to prototype registry at:
-              <code className="bg-gray-100 px-1 ml-1">app/(private)/studio/[project]/[experiment]/page.tsx</code>
+              No prototype component linked. Set the <code className="bg-gray-100 px-1 mx-1">prototype_key</code> field
+              in the experiment record and register the component in
+              <code className="bg-gray-100 px-1 ml-1">prototype-renderer.tsx</code>.
             </p>
           </section>
         </div>

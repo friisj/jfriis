@@ -24,6 +24,7 @@ interface Experiment {
   status: string
   outcome: string | null
   learnings: string | null
+  prototype_key: string | null
 }
 
 interface ExperimentFormProps {
@@ -81,7 +82,20 @@ export function ExperimentForm({ experiment, mode }: ExperimentFormProps) {
     status: experiment?.status || 'planned',
     outcome: experiment?.outcome || '',
     learnings: experiment?.learnings || '',
+    prototype_key: experiment?.prototype_key || '',
   })
+
+  // Look up project slug for prototype_key auto-suggest
+  const [projectSlug, setProjectSlug] = useState<string | null>(null)
+  useEffect(() => {
+    if (!formData.project_id) { setProjectSlug(null); return }
+    supabase
+      .from('studio_projects')
+      .select('slug')
+      .eq('id', formData.project_id)
+      .single()
+      .then(({ data }) => setProjectSlug(data?.slug ?? null))
+  }, [formData.project_id])
 
   // Auto-generate slug from name in create mode
   useEffect(() => {
@@ -89,6 +103,13 @@ export function ExperimentForm({ experiment, mode }: ExperimentFormProps) {
       setFormData((prev) => ({ ...prev, slug: generateSlug(formData.name) }))
     }
   }, [formData.name, mode])
+
+  // Auto-suggest prototype_key when creating a new prototype
+  useEffect(() => {
+    if (mode === 'create' && formData.type === 'prototype' && projectSlug && formData.slug && !experiment?.prototype_key) {
+      setFormData((prev) => ({ ...prev, prototype_key: `${projectSlug}/${prev.slug}` }))
+    }
+  }, [mode, formData.type, formData.slug, projectSlug, experiment?.prototype_key])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -106,6 +127,7 @@ export function ExperimentForm({ experiment, mode }: ExperimentFormProps) {
         status: formData.status,
         outcome: formData.outcome || null,
         learnings: formData.learnings || null,
+        prototype_key: formData.type === 'prototype' ? (formData.prototype_key || null) : null,
       }
 
       if (mode === 'edit' && experiment) {
@@ -324,6 +346,26 @@ export function ExperimentForm({ experiment, mode }: ExperimentFormProps) {
               ))}
             </div>
           </SidebarCard>
+
+          {formData.type === 'prototype' && (
+            <SidebarCard title="Prototype Component">
+              <div>
+                <input
+                  type="text"
+                  value={formData.prototype_key}
+                  onChange={(e) => setFormData({ ...formData, prototype_key: e.target.value })}
+                  className="w-full px-3 py-2 rounded-lg border bg-background font-mono text-sm"
+                  placeholder="e.g., putt/physics-engine"
+                />
+                <p className="text-xs text-muted-foreground mt-2">
+                  Registry key for the component. Format: project/slug
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Component must also be registered in prototype-renderer.tsx
+                </p>
+              </div>
+            </SidebarCard>
+          )}
 
           <SidebarCard title="Status">
             <div className="space-y-2">

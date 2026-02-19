@@ -4286,6 +4286,7 @@ export type Database = {
           name: string
           outcome: string | null
           project_id: string
+          prototype_key: string | null
           slug: string
           status: string
           type: string
@@ -4301,6 +4302,7 @@ export type Database = {
           name: string
           outcome?: string | null
           project_id: string
+          prototype_key?: string | null
           slug: string
           status?: string
           type?: string
@@ -4316,6 +4318,7 @@ export type Database = {
           name?: string
           outcome?: string | null
           project_id?: string
+          prototype_key?: string | null
           slug?: string
           status?: string
           type?: string
