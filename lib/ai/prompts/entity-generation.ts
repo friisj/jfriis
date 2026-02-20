@@ -50,6 +50,11 @@ When testing an assumption:
 - Provide a measurable way to validate or invalidate the assumption
 - Propose a specific action or test to gather evidence
 
+When boundary object context is provided (BMC, VPC, customer profiles, assumptions, journeys):
+- Ground hypotheses in specific strategic findings from the boundary objects
+- Reference specific customer pains, gains, or jobs when relevant
+- Address gaps in the current validation coverage
+
 Return a complete hypothesis object with all required fields.`,
 
     fieldsToGenerate: ['statement', 'rationale', 'validation_criteria'],
@@ -66,7 +71,8 @@ Return a complete hypothesis object with all required fields.`,
       'current_focus',
       'testing_assumption',
       'assumption_category',
-      'assumption_importance'
+      'assumption_importance',
+      'boundary_context',
     ],
 
     displayField: 'statement',
@@ -89,6 +95,15 @@ Each experiment should:
 - Be scoped appropriately (not too broad)
 - Include expected outcomes
 
+When boundary object context is provided (BMC, VPC, customer profiles, assumptions, journeys):
+- Ground experiments in specific strategic findings
+- Choose type based on risk category:
+  - Desirability risks (customer pains/gains) -> prototype or interview
+  - Viability risks (revenue/cost/channels) -> smoke_test
+  - Feasibility risks (technical capabilities) -> spike
+  - Usability risks (journey friction) -> prototype
+- Reference specific untested assumptions or unvalidated hypotheses
+
 Return a complete experiment object with all required fields.`,
 
     fieldsToGenerate: ['name', 'description', 'type', 'expected_outcome'],
@@ -97,7 +112,7 @@ Return a complete experiment object with all required fields.`,
       status: 'planned',
     },
 
-    contextFields: ['name', 'description', 'problem_statement', 'current_focus'],
+    contextFields: ['name', 'description', 'problem_statement', 'current_focus', 'boundary_context'],
 
     displayField: 'name',
 

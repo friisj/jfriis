@@ -5,8 +5,10 @@
  *
  * Client-side sidebar for studio project edit page.
  * Uses EntityGeneratorField for hypotheses and experiments.
+ * Supports context enrichment from linked boundary objects.
  */
 
+import { useState, useCallback } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { EntityGeneratorField } from './entity-generator-field'
@@ -16,6 +18,7 @@ import {
   deleteHypothesis,
   deleteExperiment,
 } from '@/app/actions/entity-generator'
+import { fetchProjectBoundaryContext } from '@/app/actions/fetch-project-context'
 import type { PendingEntity } from '@/lib/ai/hooks/useEntityGenerator'
 import type { EntitySubtypeOption } from './entity-generator-field'
 
@@ -73,6 +76,49 @@ export function StudioProjectSidebar({
   experiments,
 }: StudioProjectSidebarProps) {
   const router = useRouter()
+  const [useContext, setUseContext] = useState(false)
+  const [boundaryContext, setBoundaryContext] = useState<string | null>(null)
+  const [manualContext, setManualContext] = useState('')
+  const [contextLoading, setContextLoading] = useState(false)
+  const [contextError, setContextError] = useState<string | null>(null)
+
+  // Fetch boundary context from server
+  const loadContext = useCallback(async () => {
+    setContextLoading(true)
+    setContextError(null)
+    try {
+      const result = await fetchProjectBoundaryContext(project.id)
+      if (result.hasContext) {
+        setBoundaryContext(result.summary)
+      } else {
+        setBoundaryContext(null)
+      }
+    } catch {
+      setContextError('Failed to load boundary context')
+    } finally {
+      setContextLoading(false)
+    }
+  }, [project.id])
+
+  // Toggle context enrichment
+  const toggleContext = useCallback(() => {
+    const next = !useContext
+    setUseContext(next)
+    if (next && boundaryContext === null && !contextLoading) {
+      loadContext()
+    }
+  }, [useContext, boundaryContext, contextLoading, loadContext])
+
+  // Get the active context string (boundary objects or manual fallback)
+  const activeContext = useContext
+    ? (boundaryContext || manualContext || null)
+    : null
+
+  // Build enriched source data for generators
+  const buildSourceData = (baseData: Record<string, unknown>) => {
+    if (!activeContext) return baseData
+    return { ...baseData, boundary_context: activeContext }
+  }
 
   // Calculate next sequence number for hypotheses (defensive: handle empty array)
   const nextHypothesisSequence = hypotheses.length > 0
@@ -117,6 +163,49 @@ export function StudioProjectSidebar({
 
   return (
     <div className="space-y-6">
+      {/* Context Enrichment Toggle */}
+      <div className="rounded-lg border bg-card p-3">
+        <div className="flex items-center justify-between">
+          <span className="text-sm font-medium">Strategic Context</span>
+          <button
+            type="button"
+            onClick={toggleContext}
+            className={`text-xs px-2 py-1 rounded-md transition-colors ${
+              useContext
+                ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300'
+                : 'bg-muted text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            {contextLoading ? 'Loading...' : useContext ? 'Context on' : 'Add context'}
+          </button>
+        </div>
+
+        {contextError && (
+          <p className="mt-2 text-xs text-red-500">{contextError}</p>
+        )}
+
+        {useContext && !contextLoading && boundaryContext && (
+          <p className="mt-2 text-xs text-muted-foreground">
+            Boundary objects loaded. Generation will be grounded in strategic context.
+          </p>
+        )}
+
+        {useContext && !contextLoading && !boundaryContext && (
+          <div className="mt-2">
+            <p className="text-xs text-muted-foreground mb-1">
+              No linked boundary objects. Add manual context or run{' '}
+              <code className="text-[10px] bg-muted px-1 rounded">/generate-boundary-objects {project.slug}</code>.
+            </p>
+            <textarea
+              value={manualContext}
+              onChange={(e) => setManualContext(e.target.value)}
+              placeholder="Describe your target audience, business model, key risks..."
+              className="w-full h-20 px-2 py-1.5 text-sm rounded border bg-background resize-none"
+            />
+          </div>
+        )}
+      </div>
+
       {/* Hypotheses */}
       <div className="rounded-lg border bg-card p-4">
         <EntityGeneratorField
@@ -124,13 +213,13 @@ export function StudioProjectSidebar({
           sourceEntity={{
             type: 'studio_projects',
             id: project.id,
-            data: {
+            data: buildSourceData({
               name: project.name,
               description: project.description,
               problem_statement: project.problem_statement,
               success_criteria: project.success_criteria,
               current_focus: project.current_focus,
-            },
+            }),
           }}
           targetType="studio_hypotheses"
           items={hypotheses}
@@ -158,12 +247,12 @@ export function StudioProjectSidebar({
           sourceEntity={{
             type: 'studio_projects',
             id: project.id,
-            data: {
+            data: buildSourceData({
               name: project.name,
               description: project.description,
               problem_statement: project.problem_statement,
               current_focus: project.current_focus,
-            },
+            }),
           }}
           targetType="studio_experiments"
           items={experiments}
