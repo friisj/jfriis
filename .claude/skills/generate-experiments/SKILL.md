@@ -191,6 +191,29 @@ Present a summary table:
 
 ---
 
+## Error Handling
+
+### MCP Tool Failures
+
+If any `mcp__jfriis__db_*` call fails:
+
+1. **Report the error**: Show the exact error message and which step failed
+2. **Don't continue blindly**: If a hypothesis creation fails, skip creating its linked experiments
+3. **Partial success is OK**: Report what was created successfully alongside any failures
+4. **Common errors**:
+   - `duplicate key value violates unique constraint` — an experiment with that slug already exists. Suggest a different slug.
+   - `violates check constraint` — a field value is invalid (e.g., wrong experiment type). Check allowed values.
+   - `violates foreign key constraint` — a referenced hypothesis or project doesn't exist. Verify the ID.
+
+### Reporting
+
+After completion, always present a clear summary showing:
+- What was created successfully (with IDs and linked hypotheses)
+- What was skipped (already existed)
+- What failed (with error details)
+
+---
+
 ## Important Notes
 
 - **Context is king**: The whole point of this skill is that experiments are grounded in boundary objects. Reference specific findings (e.g., "tests the assumption that <specific belief>" not "tests user engagement").

@@ -366,6 +366,29 @@ Present a summary of everything created:
 
 ---
 
+## Error Handling
+
+### MCP Tool Failures
+
+If any `mcp__jfriis__db_*` call fails:
+
+1. **Report the error**: Show the exact error message and which step failed
+2. **Don't continue blindly**: If a dependency fails (e.g., BMC creation fails), skip steps that depend on it (e.g., don't create entity_link for BMC)
+3. **Partial success is OK**: If 3 of 5 assumptions succeed, report what worked and what didn't
+4. **Common errors**:
+   - `duplicate key value violates unique constraint` — a record with that slug already exists. Suggest a different slug or offer to link the existing record instead.
+   - `violates check constraint` — a field value is invalid. Check the "Required Fields by Table" section for valid enum values.
+   - `violates foreign key constraint` — a referenced record doesn't exist. Verify the ID is correct.
+
+### Reporting
+
+After completion, always present a clear summary showing:
+- What was created successfully (with IDs)
+- What was skipped (already existed)
+- What failed (with error details and suggested fixes)
+
+---
+
 ## Important Notes
 
 - **Idempotent**: Always check existing links before creating. Never duplicate boundary objects.

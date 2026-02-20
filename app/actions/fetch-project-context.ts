@@ -5,9 +5,18 @@
  *
  * Fetches all linked boundary objects for a studio project and builds
  * a structured context summary for prompt injection into AI generation.
+ *
+ * Handles two JSONB formats for canvas blocks:
+ * - Block format: { items: [{ id, content, priority, created_at }], assumptions: [], validation_status }
+ * - Legacy plain array: ["string1", "string2"]
  */
 
 import { createClient } from '@/lib/supabase-server'
+import type { SupabaseClient } from '@supabase/supabase-js'
+import type { Database } from '@/lib/types/supabase'
+
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+const MAX_SUMMARY_LENGTH = 2000
 
 export interface BoundaryObjectContext {
   assumptions: Array<{ title: string; statement: string; status: string; category: string | null; risk_level: string | null }>
@@ -24,23 +33,30 @@ export interface ProjectContextResult {
   summary: string
 }
 
-// Table mapping for entity_link target_types
-const TARGET_TYPE_TABLE: Record<string, string> = {
-  business_model_canvas: 'business_model_canvases',
-  value_proposition_canvas: 'value_proposition_canvases',
-  customer_profile: 'customer_profiles',
-  assumption: 'assumptions',
-  user_journey: 'user_journeys',
-}
-
 export async function fetchProjectBoundaryContext(
   projectId: string
 ): Promise<ProjectContextResult> {
+  // C3: Validate UUID format at application boundary
+  if (!UUID_REGEX.test(projectId)) {
+    return { context: emptyContext(), hasContext: false, summary: '' }
+  }
+
   const supabase = await createClient()
 
   // Auth check
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) {
+    return { context: emptyContext(), hasContext: false, summary: '' }
+  }
+
+  // C1: Verify user has access to this project (RLS enforces ownership)
+  const { data: project, error: projectError } = await supabase
+    .from('studio_projects')
+    .select('id')
+    .eq('id', projectId)
+    .single()
+
+  if (projectError || !project) {
     return { context: emptyContext(), hasContext: false, summary: '' }
   }
 
@@ -70,14 +86,14 @@ export async function fetchProjectBoundaryContext(
     linksByType[type].push(link.target_id)
   }
 
-  // Fetch each entity type in parallel
+  // H4: Fetch each entity type with individual error handling
   const [assumptions, bmcs, vpcs, profiles, journeys, hypotheses] = await Promise.all([
-    fetchByIds(supabase, 'assumptions', linksByType['assumption'] || [], ['title', 'statement', 'status', 'category', 'risk_level']),
-    fetchByIds(supabase, 'business_model_canvases', linksByType['business_model_canvas'] || [], ['name', 'description']),
-    fetchByIds(supabase, 'value_proposition_canvases', linksByType['value_proposition_canvas'] || [], ['name', 'description', 'products_services', 'pain_relievers', 'gain_creators']),
-    fetchByIds(supabase, 'customer_profiles', linksByType['customer_profile'] || [], ['name', 'description', 'jobs', 'pains', 'gains']),
-    fetchByIds(supabase, 'user_journeys', linksByType['user_journey'] || [], ['name', 'description']),
-    fetchHypotheses(supabase, projectId),
+    fetchSafe(() => fetchByIds(supabase, 'assumptions', linksByType['assumption'] || [], ['title', 'statement', 'status', 'category', 'risk_level']), 'assumptions'),
+    fetchSafe(() => fetchByIds(supabase, 'business_model_canvases', linksByType['business_model_canvas'] || [], ['name', 'description']), 'BMCs'),
+    fetchSafe(() => fetchByIds(supabase, 'value_proposition_canvases', linksByType['value_proposition_canvas'] || [], ['name', 'description', 'products_services', 'pain_relievers', 'gain_creators']), 'VPCs'),
+    fetchSafe(() => fetchByIds(supabase, 'customer_profiles', linksByType['customer_profile'] || [], ['name', 'description', 'jobs', 'pains', 'gains']), 'customer profiles'),
+    fetchSafe(() => fetchByIds(supabase, 'user_journeys', linksByType['user_journey'] || [], ['name', 'description']), 'user journeys'),
+    fetchSafe(() => fetchHypotheses(supabase, projectId), 'hypotheses'),
   ])
 
   const context: BoundaryObjectContext = {
@@ -110,18 +126,38 @@ function emptyContext(): BoundaryObjectContext {
   }
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function fetchByIds(supabase: any, table: string, ids: string[], fields: string[]): Promise<Record<string, unknown>[]> {
+// H4: Wrap fetches so one failure doesn't break the whole context
+async function fetchSafe<T>(fn: () => Promise<T[]>, label: string): Promise<T[]> {
+  try {
+    return await fn()
+  } catch (err) {
+    console.error(`[fetchProjectBoundaryContext] ${label} fetch failed:`, err)
+    return []
+  }
+}
+
+// C2: Properly typed Supabase client. Table name is validated by caller (known constants).
+type TableName = Database['public']['Tables'] extends Record<infer K, unknown> ? K & string : never
+
+async function fetchByIds(
+  supabase: SupabaseClient<Database>,
+  table: TableName,
+  ids: string[],
+  fields: string[]
+): Promise<Record<string, unknown>[]> {
   if (ids.length === 0) return []
   const { data } = await supabase
     .from(table)
     .select(fields.join(', '))
     .in('id', ids)
-  return data || []
+  return (data as Record<string, unknown>[] | null) || []
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function fetchHypotheses(supabase: any, projectId: string) {
+// C2: Properly typed Supabase client
+async function fetchHypotheses(
+  supabase: SupabaseClient<Database>,
+  projectId: string
+): Promise<Array<{ statement: string; status: string; validation_criteria: string | null }>> {
   const { data } = await supabase
     .from('studio_hypotheses')
     .select('statement, status, validation_criteria')
@@ -133,23 +169,48 @@ async function fetchHypotheses(supabase: any, projectId: string) {
  * Extract item content from a JSONB block field.
  * Handles both formats:
  * - Block format: { items: [{ content: "..." }] }
- * - Plain array: ["string1", "string2"]
+ * - Legacy plain array: ["string1", "string2"]
+ * - Gracefully handles nulls, unexpected types, and malformed data.
  */
 function extractBlockItems(field: unknown): string[] {
   if (!field) return []
+
+  // Handle plain array format
   if (Array.isArray(field)) {
-    return field.map(item => typeof item === 'string' ? item : (item as Record<string, unknown>)?.content as string).filter(Boolean)
+    return field
+      .map(item => {
+        if (typeof item === 'string') return item
+        if (item && typeof item === 'object' && 'content' in item) {
+          const content = (item as Record<string, unknown>).content
+          return typeof content === 'string' ? content : null
+        }
+        return null
+      })
+      .filter((c): c is string => c !== null && c.trim().length > 0)
   }
+
+  // Handle block format: { items: [{ content: "..." }] }
   if (typeof field === 'object' && field !== null && 'items' in field) {
-    const block = field as { items?: Array<{ content?: string }> }
-    return (block.items || []).map(item => item.content).filter((c): c is string => !!c)
+    const block = field as { items?: unknown }
+    if (!Array.isArray(block.items)) return []
+
+    return block.items
+      .map(item => {
+        if (item && typeof item === 'object' && 'content' in item) {
+          const content = (item as Record<string, unknown>).content
+          return typeof content === 'string' ? content : null
+        }
+        return null
+      })
+      .filter((c): c is string => c !== null && c.trim().length > 0)
   }
+
   return []
 }
 
 /**
  * Build a human-readable summary string for prompt injection.
- * Kept under ~2000 chars to avoid bloating the prompt.
+ * Enforced max ~2000 chars to avoid bloating the prompt.
  */
 function buildSummary(context: BoundaryObjectContext): string {
   const parts: string[] = []
@@ -199,5 +260,11 @@ function buildSummary(context: BoundaryObjectContext): string {
     parts.push(`User journeys: ${context.userJourneys.map(j => j.name).join(', ')}`)
   }
 
-  return parts.join('\n')
+  // H6: Enforce max length to prevent prompt bloat
+  let summary = parts.join('\n')
+  if (summary.length > MAX_SUMMARY_LENGTH) {
+    summary = summary.slice(0, MAX_SUMMARY_LENGTH - 50) + '\n\n[Context truncated — see full details in admin UI]'
+  }
+
+  return summary
 }

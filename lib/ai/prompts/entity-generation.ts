@@ -51,9 +51,10 @@ When testing an assumption:
 - Propose a specific action or test to gather evidence
 
 When boundary object context is provided (BMC, VPC, customer profiles, assumptions, journeys):
-- Ground hypotheses in specific strategic findings from the boundary objects
-- Reference specific customer pains, gains, or jobs when relevant
-- Address gaps in the current validation coverage
+- Ground hypotheses in specific strategic findings — reference the exact pain, gain, or assumption
+- Example: "We believe reducing 'difficulty tracking progress' (customer pain) by adding a visual timeline will increase retention because users indicated temporal context improves decision-making"
+- Address untested assumptions directly — design hypotheses that validate or invalidate them
+- Prioritize risk categories that have no existing hypotheses
 
 Return a complete hypothesis object with all required fields.`,
 
@@ -96,13 +97,14 @@ Each experiment should:
 - Include expected outcomes
 
 When boundary object context is provided (BMC, VPC, customer profiles, assumptions, journeys):
-- Ground experiments in specific strategic findings
+- Ground experiments in specific strategic findings — name the exact pain, assumption, or BMC block being tested
 - Choose type based on risk category:
   - Desirability risks (customer pains/gains) -> prototype or interview
   - Viability risks (revenue/cost/channels) -> smoke_test
   - Feasibility risks (technical capabilities) -> spike
   - Usability risks (journey friction) -> prototype
-- Reference specific untested assumptions or unvalidated hypotheses
+- Reference specific untested assumptions or unvalidated hypotheses by name
+- Example: "Test whether the 'automated invoice matching' pain reliever (from VPC) actually reduces the 'manual data entry frustration' (customer pain) via a clickable prototype"
 
 Return a complete experiment object with all required fields.`,
 

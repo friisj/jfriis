@@ -8,7 +8,7 @@
  * Supports context enrichment from linked boundary objects.
  */
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useRef } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { EntityGeneratorField } from './entity-generator-field'
@@ -81,9 +81,12 @@ export function StudioProjectSidebar({
   const [manualContext, setManualContext] = useState('')
   const [contextLoading, setContextLoading] = useState(false)
   const [contextError, setContextError] = useState<string | null>(null)
+  const loadingRef = useRef(false)
 
-  // Fetch boundary context from server
+  // H1: Fetch boundary context with guard against concurrent loads
   const loadContext = useCallback(async () => {
+    if (loadingRef.current) return
+    loadingRef.current = true
     setContextLoading(true)
     setContextError(null)
     try {
@@ -97,6 +100,7 @@ export function StudioProjectSidebar({
       setContextError('Failed to load boundary context')
     } finally {
       setContextLoading(false)
+      loadingRef.current = false
     }
   }, [project.id])
 
@@ -104,10 +108,10 @@ export function StudioProjectSidebar({
   const toggleContext = useCallback(() => {
     const next = !useContext
     setUseContext(next)
-    if (next && boundaryContext === null && !contextLoading) {
-      loadContext()
+    if (next && boundaryContext === null && !loadingRef.current) {
+      void loadContext()
     }
-  }, [useContext, boundaryContext, contextLoading, loadContext])
+  }, [useContext, boundaryContext, loadContext])
 
   // Get the active context string (boundary objects or manual fallback)
   const activeContext = useContext
@@ -170,12 +174,19 @@ export function StudioProjectSidebar({
           <button
             type="button"
             onClick={toggleContext}
-            className={`text-xs px-2 py-1 rounded-md transition-colors ${
+            disabled={contextLoading}
+            className={`text-xs px-2 py-1 rounded-md transition-colors flex items-center gap-1 ${
               useContext
                 ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300'
                 : 'bg-muted text-muted-foreground hover:text-foreground'
             }`}
           >
+            {contextLoading && (
+              <svg className="animate-spin h-3 w-3" viewBox="0 0 24 24" fill="none">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+              </svg>
+            )}
             {contextLoading ? 'Loading...' : useContext ? 'Context on' : 'Add context'}
           </button>
         </div>
@@ -192,16 +203,22 @@ export function StudioProjectSidebar({
 
         {useContext && !contextLoading && !boundaryContext && (
           <div className="mt-2">
-            <p className="text-xs text-muted-foreground mb-1">
-              No linked boundary objects. Add manual context or run{' '}
-              <code className="text-[10px] bg-muted px-1 rounded">/generate-boundary-objects {project.slug}</code>.
-            </p>
+            <div className="flex items-center justify-between mb-1">
+              <p className="text-xs text-muted-foreground">
+                No linked boundary objects. Add manual context or run{' '}
+                <code className="text-[10px] bg-muted px-1 rounded">/generate-boundary-objects {project.slug}</code>.
+              </p>
+            </div>
             <textarea
               value={manualContext}
-              onChange={(e) => setManualContext(e.target.value)}
+              onChange={(e) => setManualContext(e.target.value.slice(0, 1500))}
               placeholder="Describe your target audience, business model, key risks..."
               className="w-full h-20 px-2 py-1.5 text-sm rounded border bg-background resize-none"
+              maxLength={1500}
             />
+            <span className={`text-[10px] ${manualContext.length > 1400 ? 'text-amber-500' : 'text-muted-foreground'}`}>
+              {manualContext.length}/1500
+            </span>
           </div>
         )}
       </div>
