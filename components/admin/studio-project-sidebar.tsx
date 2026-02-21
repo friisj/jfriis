@@ -195,6 +195,26 @@ export function StudioProjectSidebar({
             linkType="explores"
             allowMultiple={true}
           />
+          <EntityLinkField
+            label="Service Blueprints"
+            sourceType="studio_project"
+            sourceId={project.id}
+            targetType="service_blueprint"
+            targetTableName="service_blueprints"
+            targetDisplayField="name"
+            linkType="prototypes"
+            allowMultiple={true}
+          />
+          <EntityLinkField
+            label="Story Maps"
+            sourceType="studio_project"
+            sourceId={project.id}
+            targetType="story_map"
+            targetTableName="story_maps"
+            targetDisplayField="name"
+            linkType="informs"
+            allowMultiple={true}
+          />
         </div>
       </div>
 

@@ -79,6 +79,38 @@ Optional: `studio_project_id`, `category`, `is_leap_of_faith`, `notes`, `validat
 Required: `slug`, `name`, `status`
 Optional: `description`, `studio_project_id`, `customer_profile_id`, `journey_type` (use `end_to_end`), `goal`
 
+### `journey_stages`
+Required: `user_journey_id`, `name`, `sequence`
+Optional: `description`, `stage_type` (pre_purchase|purchase|post_purchase|ongoing), `customer_emotion`, `customer_mindset`, `customer_goal`, `drop_off_risk` (low|medium|high)
+
+### `touchpoints`
+Required: `journey_stage_id`, `name`, `sequence`
+Optional: `description`, `channel_type` (web|mobile_app|phone|email|in_person|chat|social|physical_location|mail|other), `interaction_type` (browse|search|read|watch|listen|form|transaction|conversation|notification|passive), `importance` (critical|high|medium|low), `pain_level` (none|minor|moderate|major|critical), `delight_potential` (low|medium|high)
+
+### `service_blueprints`
+Required: `slug`, `name`, `status`
+Optional: `description`, `studio_project_id`, `blueprint_type` (service|product|hybrid|digital|physical), `service_scope`, `service_duration`
+
+### `blueprint_steps`
+Required: `service_blueprint_id`, `name`, `sequence`
+Optional: `description`, `layers` (JSONB with keys: customer_action, frontstage, backstage, support_process), `cost_implication` (none|low|medium|high), `customer_value_delivery` (none|low|medium|high), `failure_risk` (low|medium|high|critical), `failure_impact`
+
+### `story_maps`
+Required: `slug`, `name`, `status`
+Optional: `description`, `studio_project_id`, `map_type` (feature|product|release|discovery)
+
+### `activities`
+Required: `story_map_id`, `name`, `sequence`
+Optional: `description`, `user_goal`
+
+### `user_stories`
+Required: `activity_id`, `title`
+Optional: `description`, `acceptance_criteria`, `story_type` (feature|enhancement|bug|tech_debt|spike), `priority` (critical|high|medium|low), `status` (default: backlog), `story_points`
+
+### `entity_links`
+Required: `source_type`, `source_id`, `target_type`, `target_id`
+Optional: `link_type` (default: 'related'), `strength` (strong|moderate|weak|tentative), `notes`, `metadata`, `position`
+
 ---
 
 ## Procedure
@@ -316,9 +348,13 @@ mcp__jfriis__db_create({
 
 Link each with `tests`.
 
-### Step 8: Optional — Generate User Journey
+### Step 8: Generate User Journey + Stages + Touchpoints
 
-If the project has enough customer-facing context, create a `user_journeys` record:
+**Skip if** an entity_link to `user_journey` already exists.
+
+Create the full journey cascade — journey record, stages, and touchpoints:
+
+**8a. Create the journey:**
 
 ```
 mcp__jfriis__db_create({
@@ -326,7 +362,7 @@ mcp__jfriis__db_create({
   data: {
     slug: "<project-slug>-core-journey",
     name: "<Project Name> - Core Journey",
-    description: "<Journey description>",
+    description: "<Journey description grounded in project context>",
     studio_project_id: "<project-id>",
     customer_profile_id: "<profile-id>",
     journey_type: "end_to_end",
@@ -336,9 +372,238 @@ mcp__jfriis__db_create({
 })
 ```
 
-Link with `improves`. If insufficient customer context, skip and note in summary.
+**8b. Create 4-5 journey stages** distributed across stage types:
 
-### Step 9: Summary
+```
+mcp__jfriis__db_create({
+  table: "journey_stages",
+  data: {
+    user_journey_id: "<journey-id>",
+    name: "<Stage Name>",
+    description: "<What happens at this stage>",
+    sequence: 1,
+    stage_type: "pre_purchase|purchase|post_purchase|ongoing",
+    customer_emotion: "<How the customer feels>",
+    customer_mindset: "<What the customer is thinking>",
+    customer_goal: "<What they want to achieve>",
+    drop_off_risk: "low|medium|high"
+  }
+})
+```
+
+Create stages for: Awareness/Discovery (pre_purchase), Evaluation (pre_purchase), Commitment/Action (purchase), First Use/Onboarding (post_purchase), and Ongoing Usage (ongoing). Adapt names to match the project domain.
+
+**8c. Create 2-3 touchpoints per stage:**
+
+```
+mcp__jfriis__db_create({
+  table: "touchpoints",
+  data: {
+    journey_stage_id: "<stage-id>",
+    name: "<Touchpoint Name>",
+    description: "<What happens at this touchpoint>",
+    sequence: 1,
+    channel_type: "web|mobile_app|phone|email|in_person|chat|social|physical_location|mail|other",
+    interaction_type: "browse|search|read|watch|listen|form|transaction|conversation|notification|passive",
+    importance: "critical|high|medium|low",
+    pain_level: "none|minor|moderate|major|critical",
+    delight_potential: "low|medium|high"
+  }
+})
+```
+
+**8d. Create entity_link:**
+
+```
+mcp__jfriis__db_create({
+  table: "entity_links",
+  data: {
+    source_type: "studio_project",
+    source_id: "<project-id>",
+    target_type: "user_journey",
+    target_id: "<journey-id>",
+    link_type: "explores",
+    metadata: {}
+  }
+})
+```
+
+### Step 9: Generate Service Blueprint + Steps
+
+**Skip if** an entity_link to `service_blueprint` already exists.
+
+The service blueprint mirrors the journey stages, mapping what happens behind the scenes.
+
+**9a. Create the blueprint:**
+
+```
+mcp__jfriis__db_create({
+  table: "service_blueprints",
+  data: {
+    slug: "<project-slug>-service-blueprint",
+    name: "<Project Name> - Service Blueprint",
+    description: "<How the service is delivered>",
+    studio_project_id: "<project-id>",
+    blueprint_type: "service|product|hybrid|digital|physical",
+    status: "draft"
+  }
+})
+```
+
+**9b. Create one blueprint_step per journey stage** (mirror the stage names):
+
+```
+mcp__jfriis__db_create({
+  table: "blueprint_steps",
+  data: {
+    service_blueprint_id: "<blueprint-id>",
+    name: "<Matching Stage Name>",
+    description: "<Step description>",
+    sequence: 1,
+    layers: {
+      "customer_action": "<What the customer does>",
+      "frontstage": "<Visible service interactions>",
+      "backstage": "<Behind-the-scenes processes>",
+      "support_process": "<Technical/infrastructure support>"
+    },
+    cost_implication: "none|low|medium|high",
+    customer_value_delivery: "none|low|medium|high",
+    failure_risk: "low|medium|high|critical"
+  }
+})
+```
+
+Populate all 4 layer keys with project-specific content derived from the journey stages and project context.
+
+**9c. Create entity_links:**
+
+```
+// studio_project → service_blueprint
+mcp__jfriis__db_create({
+  table: "entity_links",
+  data: {
+    source_type: "studio_project",
+    source_id: "<project-id>",
+    target_type: "service_blueprint",
+    target_id: "<blueprint-id>",
+    link_type: "prototypes",
+    metadata: {}
+  }
+})
+
+// service_blueprint → user_journey
+mcp__jfriis__db_create({
+  table: "entity_links",
+  data: {
+    source_type: "service_blueprint",
+    source_id: "<blueprint-id>",
+    target_type: "user_journey",
+    target_id: "<journey-id>",
+    link_type: "implements",
+    metadata: {}
+  }
+})
+```
+
+### Step 10: Generate Story Map + Activities + Stories
+
+**Skip if** an entity_link to `story_map` already exists.
+
+The story map translates the journey into development work.
+
+**10a. Create the story map:**
+
+```
+mcp__jfriis__db_create({
+  table: "story_maps",
+  data: {
+    slug: "<project-slug>-story-map",
+    name: "<Project Name> - Story Map",
+    description: "<Dev planning for the project>",
+    studio_project_id: "<project-id>",
+    map_type: "feature",
+    status: "draft"
+  }
+})
+```
+
+**10b. Create one activity per journey stage** (backbone mirrors stage names):
+
+```
+mcp__jfriis__db_create({
+  table: "activities",
+  data: {
+    story_map_id: "<story-map-id>",
+    name: "<Matching Stage Name>",
+    description: "<What this activity covers>",
+    sequence: 1,
+    user_goal: "<User's goal at this stage>"
+  }
+})
+```
+
+**10c. Create 2-3 user stories per activity:**
+
+```
+mcp__jfriis__db_create({
+  table: "user_stories",
+  data: {
+    activity_id: "<activity-id>",
+    title: "As a <persona>, I want to <action> so that <benefit>",
+    description: "<More detail about the story>",
+    story_type: "feature|enhancement|spike",
+    priority: "critical|high|medium|low",
+    status: "backlog"
+  }
+})
+```
+
+Use the user story format: "As a [persona], I want to [action] so that [benefit]". Ground stories in the customer profile and journey touchpoints.
+
+**10d. Create entity_links:**
+
+```
+// studio_project → story_map
+mcp__jfriis__db_create({
+  table: "entity_links",
+  data: {
+    source_type: "studio_project",
+    source_id: "<project-id>",
+    target_type: "story_map",
+    target_id: "<story-map-id>",
+    link_type: "informs",
+    metadata: {}
+  }
+})
+
+// story_map → user_journey
+mcp__jfriis__db_create({
+  table: "entity_links",
+  data: {
+    source_type: "story_map",
+    source_id: "<story-map-id>",
+    target_type: "user_journey",
+    target_id: "<journey-id>",
+    link_type: "implements",
+    metadata: {}
+  }
+})
+
+// story_map → service_blueprint
+mcp__jfriis__db_create({
+  table: "entity_links",
+  data: {
+    source_type: "story_map",
+    source_id: "<story-map-id>",
+    target_type: "service_blueprint",
+    target_id: "<blueprint-id>",
+    link_type: "implements",
+    metadata: {}
+  }
+})
+```
+
+### Step 11: Summary
 
 Present a summary of everything created:
 
@@ -353,7 +618,12 @@ Present a summary of everything created:
 - Assumptions: <count> created
   - <statement summary> (<category>, <importance>)
   - ...
-- User Journey: "<name>" (id: <id>) [or "Skipped — insufficient customer context"]
+- User Journey: "<name>" (id: <id>) — <N> stages, <M> touchpoints
+- Service Blueprint: "<name>" (id: <id>) — <N> steps with 4-layer structure
+- Story Map: "<name>" (id: <id>) — <N> activities, <M> user stories
+
+### Cascade:
+Journey → Blueprint → Story Map (all cross-linked via entity_links)
 
 ### Skipped (already linked):
 - <list any types that were skipped>

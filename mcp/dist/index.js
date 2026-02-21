@@ -298,7 +298,7 @@ var StudioExperimentSchema = z8.object({
   slug: z8.string().min(1).regex(/^[a-z0-9-]+$/),
   name: z8.string().min(1),
   description: z8.string().optional().nullable(),
-  type: z8.enum(["spike", "experiment", "prototype"]).default("experiment"),
+  type: z8.enum(["spike", "experiment", "prototype", "interview", "smoke_test"]).default("experiment"),
   status: z8.enum(["planned", "in_progress", "completed", "abandoned"]).default("planned"),
   outcome: z8.enum(["success", "failure", "inconclusive"]).optional().nullable(),
   learnings: z8.string().optional().nullable()
@@ -851,6 +851,316 @@ var CanvasItemEvidenceCreateSchema = CanvasItemEvidenceSchema.omit({
 });
 var CanvasItemEvidenceUpdateSchema = CanvasItemEvidenceCreateSchema.omit({ canvas_item_id: true }).partial();
 
+// ../lib/mcp/schemas/entity-links.ts
+import { z as z12 } from "zod";
+var EntityLinkStrengthSchema = z12.enum(["strong", "moderate", "weak", "tentative"]);
+var EntityLinkSchema = z12.object({
+  id: z12.string().uuid().optional(),
+  created_at: z12.string().datetime().optional(),
+  source_type: z12.string().min(1),
+  source_id: z12.string().uuid(),
+  target_type: z12.string().min(1),
+  target_id: z12.string().uuid(),
+  link_type: z12.string().min(1).default("related"),
+  strength: EntityLinkStrengthSchema.optional().nullable(),
+  notes: z12.string().optional().nullable(),
+  metadata: z12.record(z12.string(), z12.any()).default({}),
+  position: z12.number().int().optional().nullable()
+});
+var EntityLinkCreateSchema = EntityLinkSchema.omit({
+  id: true,
+  created_at: true
+});
+var EntityLinkUpdateSchema = EntityLinkCreateSchema.partial();
+
+// ../lib/mcp/schemas/journeys.ts
+import { z as z13 } from "zod";
+var JourneyTypeSchema = z13.enum(["end_to_end", "sub_journey", "micro_moment"]);
+var JourneyStatusSchema = z13.enum(["draft", "active", "validated", "archived"]);
+var ValidationStatusSchema2 = z13.enum(["untested", "testing", "validated", "invalidated"]);
+var ValidationConfidenceSchema = z13.enum(["low", "medium", "high"]);
+var StageTypeSchema = z13.enum(["pre_purchase", "purchase", "post_purchase", "ongoing"]);
+var DropOffRiskSchema = z13.enum(["low", "medium", "high"]);
+var ChannelTypeSchema = z13.enum([
+  "web",
+  "mobile_app",
+  "phone",
+  "email",
+  "in_person",
+  "chat",
+  "social",
+  "physical_location",
+  "mail",
+  "other"
+]);
+var InteractionTypeSchema = z13.enum([
+  "browse",
+  "search",
+  "read",
+  "watch",
+  "listen",
+  "form",
+  "transaction",
+  "conversation",
+  "notification",
+  "passive"
+]);
+var ImportanceSchema2 = z13.enum(["critical", "high", "medium", "low"]);
+var ExperienceQualitySchema = z13.enum(["poor", "fair", "good", "excellent", "unknown"]);
+var PainLevelSchema = z13.enum(["none", "minor", "moderate", "major", "critical"]);
+var DelightPotentialSchema = z13.enum(["low", "medium", "high"]);
+var UserJourneySchema = z13.object({
+  id: z13.string().uuid().optional(),
+  created_at: z13.string().datetime().optional(),
+  updated_at: z13.string().datetime().optional(),
+  slug: z13.string().min(1).regex(/^[a-z0-9-]+$/),
+  name: z13.string().min(1),
+  description: z13.string().optional().nullable(),
+  studio_project_id: z13.string().uuid().optional().nullable(),
+  hypothesis_id: z13.string().uuid().optional().nullable(),
+  customer_profile_id: z13.string().uuid().optional().nullable(),
+  journey_type: JourneyTypeSchema.default("end_to_end"),
+  status: JourneyStatusSchema.default("draft"),
+  version: z13.number().int().default(1),
+  parent_version_id: z13.string().uuid().optional().nullable(),
+  goal: z13.string().optional().nullable(),
+  context: z13.record(z13.string(), z13.any()).default({}),
+  duration_estimate: z13.string().optional().nullable(),
+  validation_status: ValidationStatusSchema2.default("untested"),
+  validated_at: z13.string().datetime().optional().nullable(),
+  validation_confidence: ValidationConfidenceSchema.optional().nullable(),
+  related_value_proposition_ids: z13.array(z13.string().uuid()).default([]),
+  related_business_model_ids: z13.array(z13.string().uuid()).default([]),
+  tags: z13.array(z13.string()).default([]),
+  metadata: z13.record(z13.string(), z13.any()).default({})
+});
+var UserJourneyCreateSchema = UserJourneySchema.omit({
+  id: true,
+  created_at: true,
+  updated_at: true
+});
+var UserJourneyUpdateSchema = UserJourneyCreateSchema.partial();
+var JourneyStageSchema = z13.object({
+  id: z13.string().uuid().optional(),
+  created_at: z13.string().datetime().optional(),
+  updated_at: z13.string().datetime().optional(),
+  user_journey_id: z13.string().uuid(),
+  name: z13.string().min(1),
+  description: z13.string().optional().nullable(),
+  sequence: z13.number().int(),
+  stage_type: StageTypeSchema.optional().nullable(),
+  customer_emotion: z13.string().optional().nullable(),
+  customer_mindset: z13.string().optional().nullable(),
+  customer_goal: z13.string().optional().nullable(),
+  duration_estimate: z13.string().optional().nullable(),
+  drop_off_risk: DropOffRiskSchema.optional().nullable(),
+  validation_status: ValidationStatusSchema2.default("untested"),
+  metadata: z13.record(z13.string(), z13.any()).default({})
+});
+var JourneyStageCreateSchema = JourneyStageSchema.omit({
+  id: true,
+  created_at: true,
+  updated_at: true
+});
+var JourneyStageUpdateSchema = JourneyStageCreateSchema.partial();
+var TouchpointSchema = z13.object({
+  id: z13.string().uuid().optional(),
+  created_at: z13.string().datetime().optional(),
+  updated_at: z13.string().datetime().optional(),
+  journey_stage_id: z13.string().uuid(),
+  name: z13.string().min(1),
+  description: z13.string().optional().nullable(),
+  sequence: z13.number().int(),
+  channel_type: ChannelTypeSchema.optional().nullable(),
+  interaction_type: InteractionTypeSchema.optional().nullable(),
+  importance: ImportanceSchema2.optional().nullable(),
+  current_experience_quality: ExperienceQualitySchema.optional().nullable(),
+  pain_level: PainLevelSchema.optional().nullable(),
+  delight_potential: DelightPotentialSchema.optional().nullable(),
+  user_actions: z13.array(z13.any()).default([]),
+  system_response: z13.record(z13.string(), z13.any()).default({}),
+  validation_status: ValidationStatusSchema2.default("untested"),
+  validated_at: z13.string().datetime().optional().nullable(),
+  metadata: z13.record(z13.string(), z13.any()).default({})
+});
+var TouchpointCreateSchema = TouchpointSchema.omit({
+  id: true,
+  created_at: true,
+  updated_at: true
+});
+var TouchpointUpdateSchema = TouchpointCreateSchema.partial();
+
+// ../lib/mcp/schemas/blueprints.ts
+import { z as z14 } from "zod";
+var BlueprintTypeSchema = z14.enum(["service", "product", "hybrid", "digital", "physical"]);
+var BlueprintStatusSchema = z14.enum(["draft", "active", "validated", "archived"]);
+var BlueprintValidationStatusSchema = z14.enum(["untested", "testing", "validated", "invalidated"]);
+var CostImplicationSchema = z14.enum(["none", "low", "medium", "high"]);
+var CustomerValueDeliverySchema = z14.enum(["none", "low", "medium", "high"]);
+var FailureRiskSchema = z14.enum(["low", "medium", "high", "critical"]);
+var ServiceBlueprintSchema = z14.object({
+  id: z14.string().uuid().optional(),
+  created_at: z14.string().datetime().optional(),
+  updated_at: z14.string().datetime().optional(),
+  slug: z14.string().min(1).regex(/^[a-z0-9-]+$/),
+  name: z14.string().min(1),
+  description: z14.string().optional().nullable(),
+  studio_project_id: z14.string().uuid().optional().nullable(),
+  hypothesis_id: z14.string().uuid().optional().nullable(),
+  blueprint_type: BlueprintTypeSchema.default("service"),
+  status: BlueprintStatusSchema.default("draft"),
+  version: z14.number().int().default(1),
+  parent_version_id: z14.string().uuid().optional().nullable(),
+  service_scope: z14.string().optional().nullable(),
+  service_duration: z14.string().optional().nullable(),
+  validation_status: BlueprintValidationStatusSchema.default("untested"),
+  validated_at: z14.string().datetime().optional().nullable(),
+  tags: z14.array(z14.string()).default([]),
+  metadata: z14.record(z14.string(), z14.any()).default({})
+});
+var ServiceBlueprintCreateSchema = ServiceBlueprintSchema.omit({
+  id: true,
+  created_at: true,
+  updated_at: true
+});
+var ServiceBlueprintUpdateSchema = ServiceBlueprintCreateSchema.partial();
+var BlueprintStepSchema = z14.object({
+  id: z14.string().uuid().optional(),
+  created_at: z14.string().datetime().optional(),
+  updated_at: z14.string().datetime().optional(),
+  service_blueprint_id: z14.string().uuid(),
+  name: z14.string().min(1),
+  description: z14.string().optional().nullable(),
+  sequence: z14.number().int(),
+  layers: z14.record(z14.string(), z14.any()).default({
+    customer_action: null,
+    frontstage: null,
+    backstage: null,
+    support_process: null
+  }),
+  actors: z14.record(z14.string(), z14.any()).default({}),
+  duration_estimate: z14.string().optional().nullable(),
+  cost_implication: CostImplicationSchema.optional().nullable(),
+  customer_value_delivery: CustomerValueDeliverySchema.optional().nullable(),
+  failure_risk: FailureRiskSchema.optional().nullable(),
+  failure_impact: z14.string().optional().nullable(),
+  validation_status: BlueprintValidationStatusSchema.default("untested"),
+  metadata: z14.record(z14.string(), z14.any()).default({})
+});
+var BlueprintStepCreateSchema = BlueprintStepSchema.omit({
+  id: true,
+  created_at: true,
+  updated_at: true
+});
+var BlueprintStepUpdateSchema = BlueprintStepCreateSchema.partial();
+
+// ../lib/mcp/schemas/story-maps.ts
+import { z as z15 } from "zod";
+var MapTypeSchema = z15.enum(["feature", "product", "release", "discovery"]);
+var StoryMapStatusSchema = z15.enum(["draft", "active", "validated", "archived"]);
+var StoryMapValidationStatusSchema = z15.enum(["untested", "testing", "validated", "invalidated"]);
+var StoryTypeSchema = z15.enum(["feature", "enhancement", "bug", "tech_debt", "spike"]);
+var StoryPrioritySchema = z15.enum(["critical", "high", "medium", "low"]);
+var StoryStatusSchema = z15.enum(["backlog", "ready", "in_progress", "review", "done", "archived"]);
+var StoryMapSchema = z15.object({
+  id: z15.string().uuid().optional(),
+  created_at: z15.string().datetime().optional(),
+  updated_at: z15.string().datetime().optional(),
+  slug: z15.string().min(1).regex(/^[a-z0-9-]+$/),
+  name: z15.string().min(1),
+  description: z15.string().optional().nullable(),
+  studio_project_id: z15.string().uuid().optional().nullable(),
+  hypothesis_id: z15.string().uuid().optional().nullable(),
+  map_type: MapTypeSchema.default("feature"),
+  status: StoryMapStatusSchema.default("draft"),
+  version: z15.number().int().default(1),
+  parent_version_id: z15.string().uuid().optional().nullable(),
+  validation_status: StoryMapValidationStatusSchema.default("untested"),
+  validated_at: z15.string().datetime().optional().nullable(),
+  tags: z15.array(z15.string()).default([]),
+  metadata: z15.record(z15.string(), z15.any()).default({})
+});
+var StoryMapCreateSchema = StoryMapSchema.omit({
+  id: true,
+  created_at: true,
+  updated_at: true
+});
+var StoryMapUpdateSchema = StoryMapCreateSchema.partial();
+var StoryMapLayerSchema = z15.object({
+  id: z15.string().uuid().optional(),
+  created_at: z15.string().datetime().optional(),
+  updated_at: z15.string().datetime().optional(),
+  story_map_id: z15.string().uuid(),
+  name: z15.string().min(1),
+  description: z15.string().optional().nullable(),
+  sequence: z15.number().int(),
+  layer_type: z15.string().optional().nullable(),
+  customer_profile_id: z15.string().uuid().optional().nullable(),
+  metadata: z15.record(z15.string(), z15.any()).default({})
+});
+var StoryMapLayerCreateSchema = StoryMapLayerSchema.omit({
+  id: true,
+  created_at: true,
+  updated_at: true
+});
+var StoryMapLayerUpdateSchema = StoryMapLayerCreateSchema.partial();
+var ActivitySchema = z15.object({
+  id: z15.string().uuid().optional(),
+  created_at: z15.string().datetime().optional(),
+  updated_at: z15.string().datetime().optional(),
+  story_map_id: z15.string().uuid(),
+  name: z15.string().min(1),
+  description: z15.string().optional().nullable(),
+  sequence: z15.number().int(),
+  user_goal: z15.string().optional().nullable(),
+  metadata: z15.record(z15.string(), z15.any()).default({})
+});
+var ActivityCreateSchema = ActivitySchema.omit({
+  id: true,
+  created_at: true,
+  updated_at: true
+});
+var ActivityUpdateSchema = ActivityCreateSchema.partial();
+var UserStorySchema = z15.object({
+  id: z15.string().uuid().optional(),
+  created_at: z15.string().datetime().optional(),
+  updated_at: z15.string().datetime().optional(),
+  activity_id: z15.string().uuid(),
+  title: z15.string().min(1),
+  description: z15.string().optional().nullable(),
+  acceptance_criteria: z15.string().optional().nullable(),
+  story_type: StoryTypeSchema.optional().nullable(),
+  priority: StoryPrioritySchema.optional().nullable(),
+  story_points: z15.number().int().positive().optional().nullable(),
+  status: StoryStatusSchema.default("backlog"),
+  vertical_position: z15.number().int().optional().nullable(),
+  layer_id: z15.string().uuid().optional().nullable(),
+  validation_status: StoryMapValidationStatusSchema.default("untested"),
+  validated_at: z15.string().datetime().optional().nullable(),
+  tags: z15.array(z15.string()).default([]),
+  metadata: z15.record(z15.string(), z15.any()).default({})
+});
+var UserStoryCreateSchema = UserStorySchema.omit({
+  id: true,
+  created_at: true,
+  updated_at: true
+});
+var UserStoryUpdateSchema = UserStoryCreateSchema.partial();
+var StoryReleaseSchema = z15.object({
+  id: z15.string().uuid().optional(),
+  created_at: z15.string().datetime().optional(),
+  user_story_id: z15.string().uuid(),
+  release_name: z15.string().min(1),
+  release_date: z15.string().optional().nullable(),
+  release_order: z15.number().int().optional().nullable(),
+  metadata: z15.record(z15.string(), z15.any()).default({})
+});
+var StoryReleaseCreateSchema = StoryReleaseSchema.omit({
+  id: true,
+  created_at: true
+});
+var StoryReleaseUpdateSchema = StoryReleaseCreateSchema.partial();
+
 // ../lib/mcp/tables.ts
 var tables = {
   // Site content tables
@@ -1061,8 +1371,100 @@ var tables = {
     hasSlug: false,
     hasProjectId: false
     // Admin only
-  }
+  },
   // canvas_item_evidence has been deprecated - use universal `evidence` table instead
+  // Entity Links (universal many-to-many relationship table)
+  entity_links: {
+    description: "Universal many-to-many entity relationships",
+    schema: EntityLinkSchema,
+    createSchema: EntityLinkCreateSchema,
+    updateSchema: EntityLinkUpdateSchema,
+    hasSlug: false,
+    hasProjectId: false
+  },
+  // Journey tables (customer experience mapping)
+  user_journeys: {
+    description: "User journey maps tracking customer experience end-to-end",
+    schema: UserJourneySchema,
+    createSchema: UserJourneyCreateSchema,
+    updateSchema: UserJourneyUpdateSchema,
+    hasSlug: true,
+    hasProjectId: false
+  },
+  journey_stages: {
+    description: "Stages within a user journey (pre_purchase, purchase, post_purchase, ongoing)",
+    schema: JourneyStageSchema,
+    createSchema: JourneyStageCreateSchema,
+    updateSchema: JourneyStageUpdateSchema,
+    hasSlug: false,
+    hasProjectId: false
+  },
+  touchpoints: {
+    description: "Customer touchpoints within journey stages",
+    schema: TouchpointSchema,
+    createSchema: TouchpointCreateSchema,
+    updateSchema: TouchpointUpdateSchema,
+    hasSlug: false,
+    hasProjectId: false
+  },
+  // Service Blueprint tables (service delivery mapping)
+  service_blueprints: {
+    description: "Service blueprints mapping service delivery layers",
+    schema: ServiceBlueprintSchema,
+    createSchema: ServiceBlueprintCreateSchema,
+    updateSchema: ServiceBlueprintUpdateSchema,
+    hasSlug: true,
+    hasProjectId: false
+  },
+  blueprint_steps: {
+    description: "Steps within a service blueprint with 4-layer structure",
+    schema: BlueprintStepSchema,
+    createSchema: BlueprintStepCreateSchema,
+    updateSchema: BlueprintStepUpdateSchema,
+    hasSlug: false,
+    hasProjectId: false
+  },
+  // Story Map tables (dev planning)
+  story_maps: {
+    description: "Story maps for user story hierarchy and release planning",
+    schema: StoryMapSchema,
+    createSchema: StoryMapCreateSchema,
+    updateSchema: StoryMapUpdateSchema,
+    hasSlug: true,
+    hasProjectId: false
+  },
+  story_map_layers: {
+    description: "Layers within a story map for organizing stories",
+    schema: StoryMapLayerSchema,
+    createSchema: StoryMapLayerCreateSchema,
+    updateSchema: StoryMapLayerUpdateSchema,
+    hasSlug: false,
+    hasProjectId: false
+  },
+  activities: {
+    description: "Activities (backbone) within a story map",
+    schema: ActivitySchema,
+    createSchema: ActivityCreateSchema,
+    updateSchema: ActivityUpdateSchema,
+    hasSlug: false,
+    hasProjectId: false
+  },
+  user_stories: {
+    description: "User stories within story map activities",
+    schema: UserStorySchema,
+    createSchema: UserStoryCreateSchema,
+    updateSchema: UserStoryUpdateSchema,
+    hasSlug: false,
+    hasProjectId: false
+  },
+  story_releases: {
+    description: "Release assignments for user stories",
+    schema: StoryReleaseSchema,
+    createSchema: StoryReleaseCreateSchema,
+    updateSchema: StoryReleaseUpdateSchema,
+    hasSlug: false,
+    hasProjectId: false
+  }
 };
 function getTableColumns(tableName) {
   const table = tables[tableName];

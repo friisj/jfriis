@@ -104,6 +104,51 @@ import {
   CanvasItemEvidenceUpdateSchema,
 } from './schemas/canvas-items'
 
+import {
+  EntityLinkSchema,
+  EntityLinkCreateSchema,
+  EntityLinkUpdateSchema,
+} from './schemas/entity-links'
+
+import {
+  UserJourneySchema,
+  UserJourneyCreateSchema,
+  UserJourneyUpdateSchema,
+  JourneyStageSchema,
+  JourneyStageCreateSchema,
+  JourneyStageUpdateSchema,
+  TouchpointSchema,
+  TouchpointCreateSchema,
+  TouchpointUpdateSchema,
+} from './schemas/journeys'
+
+import {
+  ServiceBlueprintSchema,
+  ServiceBlueprintCreateSchema,
+  ServiceBlueprintUpdateSchema,
+  BlueprintStepSchema,
+  BlueprintStepCreateSchema,
+  BlueprintStepUpdateSchema,
+} from './schemas/blueprints'
+
+import {
+  StoryMapSchema,
+  StoryMapCreateSchema,
+  StoryMapUpdateSchema,
+  StoryMapLayerSchema,
+  StoryMapLayerCreateSchema,
+  StoryMapLayerUpdateSchema,
+  ActivitySchema,
+  ActivityCreateSchema,
+  ActivityUpdateSchema,
+  UserStorySchema,
+  UserStoryCreateSchema,
+  UserStoryUpdateSchema,
+  StoryReleaseSchema,
+  StoryReleaseCreateSchema,
+  StoryReleaseUpdateSchema,
+} from './schemas/story-maps'
+
 export interface TableDefinition {
   description: string
   schema: z.ZodObject<any>
@@ -308,6 +353,102 @@ export const tables: Record<string, TableDefinition> = {
     hasProjectId: false, // Admin only
   },
   // canvas_item_evidence has been deprecated - use universal `evidence` table instead
+
+  // Entity Links (universal many-to-many relationship table)
+  entity_links: {
+    description: 'Universal many-to-many entity relationships',
+    schema: EntityLinkSchema,
+    createSchema: EntityLinkCreateSchema,
+    updateSchema: EntityLinkUpdateSchema,
+    hasSlug: false,
+    hasProjectId: false,
+  },
+
+  // Journey tables (customer experience mapping)
+  user_journeys: {
+    description: 'User journey maps tracking customer experience end-to-end',
+    schema: UserJourneySchema,
+    createSchema: UserJourneyCreateSchema,
+    updateSchema: UserJourneyUpdateSchema,
+    hasSlug: true,
+    hasProjectId: false,
+  },
+  journey_stages: {
+    description: 'Stages within a user journey (pre_purchase, purchase, post_purchase, ongoing)',
+    schema: JourneyStageSchema,
+    createSchema: JourneyStageCreateSchema,
+    updateSchema: JourneyStageUpdateSchema,
+    hasSlug: false,
+    hasProjectId: false,
+  },
+  touchpoints: {
+    description: 'Customer touchpoints within journey stages',
+    schema: TouchpointSchema,
+    createSchema: TouchpointCreateSchema,
+    updateSchema: TouchpointUpdateSchema,
+    hasSlug: false,
+    hasProjectId: false,
+  },
+
+  // Service Blueprint tables (service delivery mapping)
+  service_blueprints: {
+    description: 'Service blueprints mapping service delivery layers',
+    schema: ServiceBlueprintSchema,
+    createSchema: ServiceBlueprintCreateSchema,
+    updateSchema: ServiceBlueprintUpdateSchema,
+    hasSlug: true,
+    hasProjectId: false,
+  },
+  blueprint_steps: {
+    description: 'Steps within a service blueprint with 4-layer structure',
+    schema: BlueprintStepSchema,
+    createSchema: BlueprintStepCreateSchema,
+    updateSchema: BlueprintStepUpdateSchema,
+    hasSlug: false,
+    hasProjectId: false,
+  },
+
+  // Story Map tables (dev planning)
+  story_maps: {
+    description: 'Story maps for user story hierarchy and release planning',
+    schema: StoryMapSchema,
+    createSchema: StoryMapCreateSchema,
+    updateSchema: StoryMapUpdateSchema,
+    hasSlug: true,
+    hasProjectId: false,
+  },
+  story_map_layers: {
+    description: 'Layers within a story map for organizing stories',
+    schema: StoryMapLayerSchema,
+    createSchema: StoryMapLayerCreateSchema,
+    updateSchema: StoryMapLayerUpdateSchema,
+    hasSlug: false,
+    hasProjectId: false,
+  },
+  activities: {
+    description: 'Activities (backbone) within a story map',
+    schema: ActivitySchema,
+    createSchema: ActivityCreateSchema,
+    updateSchema: ActivityUpdateSchema,
+    hasSlug: false,
+    hasProjectId: false,
+  },
+  user_stories: {
+    description: 'User stories within story map activities',
+    schema: UserStorySchema,
+    createSchema: UserStoryCreateSchema,
+    updateSchema: UserStoryUpdateSchema,
+    hasSlug: false,
+    hasProjectId: false,
+  },
+  story_releases: {
+    description: 'Release assignments for user stories',
+    schema: StoryReleaseSchema,
+    createSchema: StoryReleaseCreateSchema,
+    updateSchema: StoryReleaseUpdateSchema,
+    hasSlug: false,
+    hasProjectId: false,
+  },
 }
 
 // Helper to get schema columns for db_list_tables

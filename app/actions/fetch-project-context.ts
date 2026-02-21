@@ -24,6 +24,8 @@ export interface BoundaryObjectContext {
   valuePropositionCanvases: Array<{ name: string; description: string | null; products_services: unknown; pain_relievers: unknown; gain_creators: unknown }>
   customerProfiles: Array<{ name: string; description: string | null; jobs: unknown; pains: unknown; gains: unknown }>
   userJourneys: Array<{ name: string; description: string | null }>
+  serviceBlueprints: Array<{ name: string; description: string | null; blueprint_type: string | null }>
+  storyMaps: Array<{ name: string; description: string | null; map_type: string | null }>
   hypotheses: Array<{ statement: string; status: string; validation_criteria: string | null }>
 }
 
@@ -87,12 +89,14 @@ export async function fetchProjectBoundaryContext(
   }
 
   // H4: Fetch each entity type with individual error handling
-  const [assumptions, bmcs, vpcs, profiles, journeys, hypotheses] = await Promise.all([
+  const [assumptions, bmcs, vpcs, profiles, journeys, blueprints, storyMaps, hypotheses] = await Promise.all([
     fetchSafe(() => fetchByIds(supabase, 'assumptions', linksByType['assumption'] || [], ['title', 'statement', 'status', 'category', 'risk_level']), 'assumptions'),
     fetchSafe(() => fetchByIds(supabase, 'business_model_canvases', linksByType['business_model_canvas'] || [], ['name', 'description']), 'BMCs'),
     fetchSafe(() => fetchByIds(supabase, 'value_proposition_canvases', linksByType['value_proposition_canvas'] || [], ['name', 'description', 'products_services', 'pain_relievers', 'gain_creators']), 'VPCs'),
     fetchSafe(() => fetchByIds(supabase, 'customer_profiles', linksByType['customer_profile'] || [], ['name', 'description', 'jobs', 'pains', 'gains']), 'customer profiles'),
     fetchSafe(() => fetchByIds(supabase, 'user_journeys', linksByType['user_journey'] || [], ['name', 'description']), 'user journeys'),
+    fetchSafe(() => fetchByIds(supabase, 'service_blueprints', linksByType['service_blueprint'] || [], ['name', 'description', 'blueprint_type']), 'service blueprints'),
+    fetchSafe(() => fetchByIds(supabase, 'story_maps', linksByType['story_map'] || [], ['name', 'description', 'map_type']), 'story maps'),
     fetchSafe(() => fetchHypotheses(supabase, projectId), 'hypotheses'),
   ])
 
@@ -102,11 +106,13 @@ export async function fetchProjectBoundaryContext(
     valuePropositionCanvases: vpcs as BoundaryObjectContext['valuePropositionCanvases'],
     customerProfiles: profiles as BoundaryObjectContext['customerProfiles'],
     userJourneys: journeys as BoundaryObjectContext['userJourneys'],
+    serviceBlueprints: blueprints as BoundaryObjectContext['serviceBlueprints'],
+    storyMaps: storyMaps as BoundaryObjectContext['storyMaps'],
     hypotheses: hypotheses as BoundaryObjectContext['hypotheses'],
   }
 
   const hasContext = assumptions.length > 0 || bmcs.length > 0 || vpcs.length > 0 ||
-    profiles.length > 0 || journeys.length > 0
+    profiles.length > 0 || journeys.length > 0 || blueprints.length > 0 || storyMaps.length > 0
 
   return {
     context,
@@ -122,6 +128,8 @@ function emptyContext(): BoundaryObjectContext {
     valuePropositionCanvases: [],
     customerProfiles: [],
     userJourneys: [],
+    serviceBlueprints: [],
+    storyMaps: [],
     hypotheses: [],
   }
 }
@@ -258,6 +266,14 @@ function buildSummary(context: BoundaryObjectContext): string {
 
   if (context.userJourneys.length > 0) {
     parts.push(`User journeys: ${context.userJourneys.map(j => j.name).join(', ')}`)
+  }
+
+  if (context.serviceBlueprints.length > 0) {
+    parts.push(`Service blueprints: ${context.serviceBlueprints.map(b => b.name).join(', ')}`)
+  }
+
+  if (context.storyMaps.length > 0) {
+    parts.push(`Story maps: ${context.storyMaps.map(s => s.name).join(', ')}`)
   }
 
   // H6: Enforce max length to prevent prompt bloat
