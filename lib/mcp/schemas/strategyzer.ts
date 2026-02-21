@@ -103,10 +103,6 @@ export const BusinessModelCanvasSchema = z.object({
     validation_status: 'untested',
   }),
 
-  // Relationships
-  related_value_proposition_ids: z.array(z.string().uuid()).default([]),
-  related_customer_profile_ids: z.array(z.string().uuid()).default([]),
-
   // Metadata
   tags: z.array(z.string()).default([]),
   metadata: z.record(z.string(), z.any()).default({}),
@@ -282,10 +278,6 @@ export const CustomerProfileSchema = z.object({
   evidence_sources: z.object({ items: z.array(EvidenceSchema) }).default({ items: [] }),
   validation_confidence: z.enum(['low', 'medium', 'high']).optional().nullable(),
   last_validated_at: z.string().datetime().optional().nullable(),
-
-  // Relationships
-  related_business_model_ids: z.array(z.string().uuid()).default([]),
-  related_value_proposition_ids: z.array(z.string().uuid()).default([]),
 
   // Metadata
   tags: z.array(z.string()).default([]),
