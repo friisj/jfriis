@@ -12,6 +12,7 @@ import { useState, useCallback, useRef } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { EntityGeneratorField } from './entity-generator-field'
+import { EntityLinkField } from './entity-link-field'
 import {
   flushPendingHypotheses,
   flushPendingExperiments,
@@ -221,6 +222,63 @@ export function StudioProjectSidebar({
             </span>
           </div>
         )}
+      </div>
+
+      {/* Linked Boundary Objects */}
+      <div className="rounded-lg border bg-card p-4">
+        <h3 className="font-semibold mb-3">Boundary Objects</h3>
+        <div className="space-y-4">
+          <EntityLinkField
+            label="Customer Profiles"
+            sourceType="studio_project"
+            sourceId={project.id}
+            targetType="customer_profile"
+            targetTableName="customer_profiles"
+            targetDisplayField="name"
+            linkType="explores"
+            allowMultiple={true}
+          />
+          <EntityLinkField
+            label="Business Model Canvases"
+            sourceType="studio_project"
+            sourceId={project.id}
+            targetType="business_model_canvas"
+            targetTableName="business_model_canvases"
+            targetDisplayField="name"
+            linkType="explores"
+            allowMultiple={true}
+          />
+          <EntityLinkField
+            label="Value Proposition Canvases"
+            sourceType="studio_project"
+            sourceId={project.id}
+            targetType="value_proposition_canvas"
+            targetTableName="value_proposition_canvases"
+            targetDisplayField="name"
+            linkType="explores"
+            allowMultiple={true}
+          />
+          <EntityLinkField
+            label="Assumptions"
+            sourceType="studio_project"
+            sourceId={project.id}
+            targetType="assumption"
+            targetTableName="assumptions"
+            targetDisplayField="statement"
+            linkType="tests"
+            allowMultiple={true}
+          />
+          <EntityLinkField
+            label="User Journeys"
+            sourceType="studio_project"
+            sourceId={project.id}
+            targetType="user_journey"
+            targetTableName="user_journeys"
+            targetDisplayField="name"
+            linkType="explores"
+            allowMultiple={true}
+          />
+        </div>
       </div>
 
       {/* Hypotheses */}
