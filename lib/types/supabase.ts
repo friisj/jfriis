@@ -4470,7 +4470,6 @@ export type Database = {
           created_at: string
           current_focus: string | null
           description: string | null
-          has_pending_survey: boolean | null
           id: string
           is_private: boolean | null
           name: string
@@ -4479,7 +4478,6 @@ export type Database = {
           slug: string
           status: string
           success_criteria: string | null
-          survey_generated_at: string | null
           temperature: string | null
           updated_at: string
           user_id: string
@@ -4489,7 +4487,6 @@ export type Database = {
           created_at?: string
           current_focus?: string | null
           description?: string | null
-          has_pending_survey?: boolean | null
           id?: string
           is_private?: boolean | null
           name: string
@@ -4498,7 +4495,6 @@ export type Database = {
           slug: string
           status?: string
           success_criteria?: string | null
-          survey_generated_at?: string | null
           temperature?: string | null
           updated_at?: string
           user_id: string
@@ -4508,7 +4504,6 @@ export type Database = {
           created_at?: string
           current_focus?: string | null
           description?: string | null
-          has_pending_survey?: boolean | null
           id?: string
           is_private?: boolean | null
           name?: string
@@ -4517,168 +4512,11 @@ export type Database = {
           slug?: string
           status?: string
           success_criteria?: string | null
-          survey_generated_at?: string | null
           temperature?: string | null
           updated_at?: string
           user_id?: string
         }
         Relationships: []
-      }
-      studio_survey_artifacts: {
-        Row: {
-          artifact_field: string | null
-          artifact_id: string | null
-          artifact_type: string
-          confidence_score: number | null
-          created_at: string
-          id: string
-          source_questions: string[] | null
-          survey_id: string
-          user_accepted: boolean | null
-          user_modified: boolean | null
-        }
-        Insert: {
-          artifact_field?: string | null
-          artifact_id?: string | null
-          artifact_type: string
-          confidence_score?: number | null
-          created_at?: string
-          id?: string
-          source_questions?: string[] | null
-          survey_id: string
-          user_accepted?: boolean | null
-          user_modified?: boolean | null
-        }
-        Update: {
-          artifact_field?: string | null
-          artifact_id?: string | null
-          artifact_type?: string
-          confidence_score?: number | null
-          created_at?: string
-          id?: string
-          source_questions?: string[] | null
-          survey_id?: string
-          user_accepted?: boolean | null
-          user_modified?: boolean | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "studio_survey_artifacts_survey_id_fkey"
-            columns: ["survey_id"]
-            isOneToOne: false
-            referencedRelation: "studio_surveys"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      studio_survey_responses: {
-        Row: {
-          created_at: string
-          id: string
-          question_id: string
-          response_text: string | null
-          response_value: Json
-          skipped: boolean | null
-          survey_id: string
-          time_spent_seconds: number | null
-          updated_at: string
-        }
-        Insert: {
-          created_at?: string
-          id?: string
-          question_id: string
-          response_text?: string | null
-          response_value: Json
-          skipped?: boolean | null
-          survey_id: string
-          time_spent_seconds?: number | null
-          updated_at?: string
-        }
-        Update: {
-          created_at?: string
-          id?: string
-          question_id?: string
-          response_text?: string | null
-          response_value?: Json
-          skipped?: boolean | null
-          survey_id?: string
-          time_spent_seconds?: number | null
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "studio_survey_responses_survey_id_fkey"
-            columns: ["survey_id"]
-            isOneToOne: false
-            referencedRelation: "studio_surveys"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      studio_surveys: {
-        Row: {
-          completed_at: string | null
-          created_at: string
-          current_question_index: number | null
-          generation_context: Json
-          generation_model: string
-          id: string
-          processing_completed_at: string | null
-          processing_error: string | null
-          processing_started_at: string | null
-          processing_status: string | null
-          project_id: string
-          questions: Json
-          started_at: string | null
-          status: string
-          updated_at: string
-          version: number
-        }
-        Insert: {
-          completed_at?: string | null
-          created_at?: string
-          current_question_index?: number | null
-          generation_context: Json
-          generation_model: string
-          id?: string
-          processing_completed_at?: string | null
-          processing_error?: string | null
-          processing_started_at?: string | null
-          processing_status?: string | null
-          project_id: string
-          questions: Json
-          started_at?: string | null
-          status?: string
-          updated_at?: string
-          version?: number
-        }
-        Update: {
-          completed_at?: string | null
-          created_at?: string
-          current_question_index?: number | null
-          generation_context?: Json
-          generation_model?: string
-          id?: string
-          processing_completed_at?: string | null
-          processing_error?: string | null
-          processing_started_at?: string | null
-          processing_status?: string | null
-          project_id?: string
-          questions?: Json
-          started_at?: string | null
-          status?: string
-          updated_at?: string
-          version?: number
-        }
-        Relationships: [
-          {
-            foreignKeyName: "studio_surveys_project_id_fkey"
-            columns: ["project_id"]
-            isOneToOne: false
-            referencedRelation: "studio_projects"
-            referencedColumns: ["id"]
-          },
-        ]
       }
       touchpoints: {
         Row: {
