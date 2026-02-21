@@ -404,9 +404,6 @@ var BusinessModelCanvasSchema = z9.object({
     assumptions: [],
     validation_status: "untested"
   }),
-  // Relationships
-  related_value_proposition_ids: z9.array(z9.string().uuid()).default([]),
-  related_customer_profile_ids: z9.array(z9.string().uuid()).default([]),
   // Metadata
   tags: z9.array(z9.string()).default([]),
   metadata: z9.record(z9.string(), z9.any()).default({})
@@ -445,8 +442,9 @@ var ValueMapSchema = z9.object({
     assumptions: [],
     validation_status: "untested"
   }),
-  // Relationship to BMC
+  // Relationships
   business_model_canvas_id: z9.string().uuid().optional().nullable(),
+  customer_profile_id: z9.string().uuid().optional().nullable(),
   // Metadata
   tags: z9.array(z9.string()).default([]),
   metadata: z9.record(z9.string(), z9.any()).default({})
@@ -543,9 +541,6 @@ var CustomerProfileSchema = z9.object({
   evidence_sources: z9.object({ items: z9.array(EvidenceSchema) }).default({ items: [] }),
   validation_confidence: z9.enum(["low", "medium", "high"]).optional().nullable(),
   last_validated_at: z9.string().datetime().optional().nullable(),
-  // Relationships
-  related_business_model_ids: z9.array(z9.string().uuid()).default([]),
-  related_value_proposition_ids: z9.array(z9.string().uuid()).default([]),
   // Metadata
   tags: z9.array(z9.string()).default([]),
   metadata: z9.record(z9.string(), z9.any()).default({})
@@ -929,8 +924,6 @@ var UserJourneySchema = z13.object({
   validation_status: ValidationStatusSchema2.default("untested"),
   validated_at: z13.string().datetime().optional().nullable(),
   validation_confidence: ValidationConfidenceSchema.optional().nullable(),
-  related_value_proposition_ids: z13.array(z13.string().uuid()).default([]),
-  related_business_model_ids: z13.array(z13.string().uuid()).default([]),
   tags: z13.array(z13.string()).default([]),
   metadata: z13.record(z13.string(), z13.any()).default({})
 });

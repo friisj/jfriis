@@ -52,8 +52,6 @@ export const UserJourneySchema = z.object({
   validated_at: z.string().datetime().optional().nullable(),
   validation_confidence: ValidationConfidenceSchema.optional().nullable(),
 
-  related_value_proposition_ids: z.array(z.string().uuid()).default([]),
-  related_business_model_ids: z.array(z.string().uuid()).default([]),
   tags: z.array(z.string()).default([]),
   metadata: z.record(z.string(), z.any()).default({}),
 })

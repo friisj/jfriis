@@ -55,13 +55,17 @@ Generate unique IDs using a prefix + sequence pattern (e.g., `job-001`, `pain-00
 
 ## Required Fields by Table
 
+> **Schema source of truth:** `lib/mcp/schemas/*.ts`
+> If any field documentation here conflicts with the Zod schemas, the schemas are correct.
+> Last synced: 2026-02-21
+
 ### `business_model_canvases`
 Required: `slug`, `name`, `status`
 Optional: `description`, `studio_project_id`, all 9 block columns (JSONB format above)
 
 ### `customer_profiles`
 Required: `slug`, `name`, `status`
-Optional: `description`, `studio_project_id`, `profile_type`, `demographics`, `jobs` (JSONB), `pains` (JSONB), `gains` (JSONB)
+Optional: `description`, `studio_project_id`, `profile_type`, `demographics` (JSONB object), `jobs` (JSONB), `pains` (JSONB), `gains` (JSONB)
 
 ### `value_maps`
 Required: `slug`, `name`, `status`
@@ -73,7 +77,8 @@ Optional: `description`, `studio_project_id`, `customer_profile_id`, `addressed_
 
 ### `assumptions`
 Required: `slug`, `statement`, `status` (use `identified`), `importance` (`critical`|`high`|`medium`|`low`)
-Optional: `studio_project_id`, `category`, `is_leap_of_faith`, `notes`, `validation_criteria`
+Optional: `studio_project_id`, `category`, `notes`, `validation_criteria`
+Note: `is_leap_of_faith` is computed by DB trigger — do not provide
 
 ### `user_journeys`
 Required: `slug`, `name`, `status`
@@ -225,7 +230,12 @@ mcp__jfriis__db_create({
     description: "<2-3 sentences describing the target customer>",
     studio_project_id: "<project-id>",
     profile_type: "persona",
-    demographics: "<Age range, income, role, technical level, etc.>",
+    demographics: {
+      "age_range": "<Age range>",
+      "role": "<Role or occupation>",
+      "tech_level": "<Technical proficiency>",
+      "income": "<Income range>"
+    },
     jobs: {
       "items": [
         { "id": "job-001", "content": "<job-to-be-done>", "metadata": { "type": "functional" }, "priority": "high", "created_at": "<now>" },
@@ -314,9 +324,9 @@ mcp__jfriis__db_create({
     studio_project_id: "<project-id>",
     customer_profile_id: "<profile-id>",
     value_map_id: "<value-map-id>",
-    addressed_jobs: ["<job-001 content>", "<job-002 content>"],
-    addressed_pains: ["<pain-001 content>", "<pain-002 content>"],
-    addressed_gains: ["<gain-001 content>", "<gain-002 content>"],
+    addressed_jobs: { "items": ["<job-001 content>", "<job-002 content>"] },
+    addressed_pains: { "items": ["<pain-001 content>", "<pain-002 content>"] },
+    addressed_gains: { "items": ["<gain-001 content>", "<gain-002 content>"] },
     status: "draft"
   }
 })
@@ -339,7 +349,6 @@ mcp__jfriis__db_create({
     status: "identified",
     importance: "critical|high|medium|low",
     category: "desirability|viability|feasibility|usability",
-    is_leap_of_faith: true|false,
     studio_project_id: "<project-id>",
     notes: "<Why this matters and what happens if wrong>"
   }
