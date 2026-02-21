@@ -397,8 +397,6 @@ export interface StudioProject extends BaseRecord {
   problem_statement?: string
   success_criteria?: string
   scope_out?: string
-  has_pending_survey?: boolean
-  survey_generated_at?: string
   is_private?: boolean
   app_path?: string
 }

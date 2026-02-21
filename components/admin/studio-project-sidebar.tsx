@@ -51,7 +51,6 @@ interface StudioProjectSidebarProps {
     problem_statement: string | null
     success_criteria: string | null
     current_focus: string | null
-
   }
   hypotheses: Array<{
     id: string
