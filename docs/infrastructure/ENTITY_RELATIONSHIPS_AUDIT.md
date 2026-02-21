@@ -35,15 +35,6 @@
 
 These create redundancy with entity_links and fragment the relationship model.
 
-### Survey Artifacts (Special Case)
-
-`studio_survey_artifacts` table (migration: `20260106000000_studio_surveys.sql`) tracks:
-- What was generated from surveys (hypotheses, experiments, profiles, assumptions)
-- User acceptance state
-- Source survey/response context
-
-**May be unique** - tracks generation provenance and acceptance workflow beyond simple relationships.
-
 ---
 
 ## Entity Relationship Gaps
@@ -109,18 +100,7 @@ ON CONFLICT DO NOTHING;
 - Lib functions gain new query capabilities
 - Admin UI can offer richer relationship views
 
-### 2. Keep Survey Artifacts Separate
-
-**Rationale**: Tracks provenance and acceptance, not just relationships
-
-Survey artifacts answer:
-- "What was auto-generated from this survey response?"
-- "Has the user accepted/rejected this generated artifact?"
-- "Which survey question led to this hypothesis?"
-
-Entity_links can't capture this context. Keep `studio_survey_artifacts` as-is.
-
-### 3. Define Studio Project Link Conventions
+### 2. Define Studio Project Link Conventions
 
 Create conventions for linking studio projects to other entities:
 
@@ -182,5 +162,4 @@ Create conventions for linking studio projects to other entities:
    - But conventions should guide which direction to use
 
 3. When should links be created - manually via admin UI or automatically by code?
-   - Survey artifacts are auto-created
    - Strategic framework links probably manual (deliberate)

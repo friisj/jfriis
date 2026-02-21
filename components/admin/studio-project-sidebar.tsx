@@ -51,7 +51,7 @@ interface StudioProjectSidebarProps {
     problem_statement: string | null
     success_criteria: string | null
     current_focus: string | null
-    has_pending_survey?: boolean
+
   }
   hypotheses: Array<{
     id: string
@@ -284,24 +284,6 @@ export function StudioProjectSidebar({
           subtypeLabel="Experiment Type"
         />
       </div>
-
-      {/* Pending Survey Banner */}
-      {project.has_pending_survey && (
-        <div className="rounded-lg border border-amber-500 bg-amber-50 dark:bg-amber-950/20 p-4">
-          <h3 className="font-semibold mb-2 text-amber-800 dark:text-amber-200">
-            📋 Survey In Progress
-          </h3>
-          <p className="text-sm text-amber-700 dark:text-amber-300 mb-3">
-            Complete the discovery survey to generate hypotheses and experiments.
-          </p>
-          <Link
-            href={`/admin/studio/${project.id}/survey`}
-            className="inline-block px-3 py-1.5 text-sm font-medium bg-amber-600 text-white rounded hover:bg-amber-700"
-          >
-            Continue Survey →
-          </Link>
-        </div>
-      )}
 
       {/* Quick Links */}
       <div className="rounded-lg border bg-card p-4">

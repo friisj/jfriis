@@ -342,11 +342,9 @@ npm run test:smoke   # Only smoke tests
 | Draft Generation | `lib/ai/actions/generate-draft.ts` | High |
 | Field Generation | `lib/ai/actions/generate-field.ts` | High |
 | Prompt Templates | `lib/ai/prompts/*.ts` | Critical |
-| Survey Processing | `lib/ai/actions/process-survey.ts` | Medium |
-
 ### Studio Projects
 
-Studio infrastructure is tested like any other domain - full coverage for admin workflows, CRUD operations, and the survey/artifact system. Individual experiment prototypes may also need tests as they mature.
+Studio infrastructure is tested like any other domain - full coverage for admin workflows and CRUD operations. Individual experiment prototypes may also need tests as they mature.
 
 #### Studio Infrastructure (Full Coverage)
 
@@ -355,18 +353,14 @@ Studio infrastructure is tested like any other domain - full coverage for admin 
 | Studio Projects | `studio_projects` | High | Unit + Integration + Smoke |
 | Hypotheses | `studio_hypotheses` | High | Unit + Integration |
 | Experiments | `studio_experiments` | High | Unit + Integration + Smoke |
-| Surveys | `studio_surveys` | Critical | Unit + Integration |
-| Survey Responses | `studio_survey_responses` | Critical | Unit + Integration |
-| Survey Artifacts | `studio_survey_artifacts` | Critical | Unit + Integration |
-
 #### Test Coverage by Type
 
 | Test Type | What to Test |
 |-----------|--------------|
-| **Unit** | Validation functions, artifact parsing, status transitions, survey question schemas |
+| **Unit** | Validation functions, status transitions |
 | **Smoke** | Admin list pages (`/admin/studio-projects`), detail pages, dynamic routes (`/studio/[project]`) |
-| **Integration** | Project CRUD actions, hypothesis/experiment management, survey → artifact generation pipeline |
-| **E2E** | Full project lifecycle (create → shape → work → complete), survey submission flow |
+| **Integration** | Project CRUD actions, hypothesis/experiment management |
+| **E2E** | Full project lifecycle (create → shape → work → complete) |
 
 #### Individual Experiment Prototypes
 
@@ -433,15 +427,9 @@ Studio infrastructure follows the same testing standards as other domains. Indiv
 
 | Priority | Category | Items | Test Types |
 |----------|----------|-------|------------|
-| Critical | Survey System | Survey → artifact generation pipeline | Unit + Integration |
 | High | Studio Admin | Project/hypothesis/experiment CRUD, admin pages | Unit + Integration + Smoke |
 | High | Dynamic Pages | `/studio/[project]`, `/studio/[project]/[experiment]` | Smoke |
 | As Needed | Prototypes | Individual experiment implementations | Tests added when complexity warrants |
-
-**Survey System Tests (Critical)**:
-- Unit: Validate survey question schema, parse AI artifact responses, artifact type mapping
-- Integration: Full flow from survey submission → AI call → artifact creation → acceptance state
-- Integration: Error handling, rollback on partial failures
 
 **Studio Admin Tests (High)**:
 - Unit: Status transitions, validation functions
@@ -615,14 +603,7 @@ describe('circular reference detection', () => {
 | `lib/ai/actions/generate-draft.ts` | `generate-draft.test.ts` | 10-15 |
 | `lib/ai/actions/generate-field.ts` | `generate-field.test.ts` | 10-15 |
 
-#### Studio Unit Tests (Selective)
-
-| File to Test | Test File | Est. Tests |
-|--------------|-----------|------------|
-| `lib/ai/actions/process-survey.ts` | `process-survey.test.ts` | 10-15 |
-| `lib/ai/prompts/surveys.ts` | `surveys.test.ts` | 8-12 |
-
-**Phase 1 Target**: ~145-185 unit tests
+**Phase 1 Target**: ~120-160 unit tests
 
 ---
 
@@ -841,7 +822,6 @@ describe('Story Map Layer Actions', () => {
 | Studio project actions | Project CRUD, status transitions | High |
 | Studio hypothesis actions | Hypothesis CRUD, validation status | High |
 | Studio experiment actions | Experiment CRUD, outcome recording | High |
-| `lib/ai/actions/process-survey.ts` | Survey → artifact generation | Critical |
 
 **Studio Admin Integration Test Focus:**
 
@@ -863,30 +843,6 @@ describe('Studio Experiment Actions', () => {
   it('creates experiment linked to project and hypothesis', async () => {})
   it('validates experiment type', async () => {})
   it('records outcome with learnings', async () => {})
-})
-```
-
-**Survey Integration Test Focus:**
-
-```typescript
-describe('Survey → Artifact Generation Flow', () => {
-  it('creates artifacts from survey responses', async () => {
-    // 1. Submit survey response
-    // 2. Trigger AI processing
-    // 3. Verify artifacts created in correct tables
-    // 4. Verify artifact status is 'pending_review'
-  })
-
-  it('handles AI generation failure gracefully', async () => {
-    // Mock AI to fail
-    // Verify error recorded, no partial artifacts
-  })
-
-  it('respects artifact type mapping', async () => {
-    // hypothesis questions → studio_hypotheses
-    // experiment questions → studio_experiments
-    // assumption questions → appropriate table
-  })
 })
 ```
 
@@ -1101,7 +1057,6 @@ test.describe('AI Generation', () => {
 | `e2e/ai-generation.spec.ts` | Entity generation flows | High |
 | `e2e/canvas-navigation.spec.ts` | Entity linking, navigation between canvases | Medium |
 | `e2e/studio-project.spec.ts` | Project lifecycle (create → shape → work → complete) | High |
-| `e2e/studio-survey.spec.ts` | Survey submission → artifact generation → acceptance | High |
 
 **Phase 4 Target**: ~25-35 E2E tests
 
@@ -1502,8 +1457,6 @@ describe('Canvas Page Smoke Tests', () => {
 - [ ] `lib/ai/actions/generate-field.test.ts` (~10 tests)
 
 #### Studio
-- [ ] `lib/ai/actions/process-survey.test.ts` (~15 tests)
-- [ ] `lib/ai/prompts/surveys.test.ts` (~12 tests)
 - [ ] `lib/boundary-objects/studio-project-links.test.ts` (~10 tests)
 
 #### Validation (extend existing)
@@ -1544,11 +1497,6 @@ describe('Canvas Page Smoke Tests', () => {
   - Hypothesis CRUD, status validation, sequence ordering
 - [ ] Studio experiment actions (~10 tests)
   - Experiment CRUD, type validation, outcome recording
-- [ ] `lib/ai/actions/process-survey.test.ts` - integration (~12 tests)
-  - Survey response → AI call → artifact creation
-  - Artifact type mapping (hypothesis, experiment, assumption)
-  - Error handling and rollback
-  - Acceptance workflow
 
 ### Phase 4: E2E Tests (Target: 25-35 tests)
 
@@ -1568,11 +1516,6 @@ describe('Canvas Page Smoke Tests', () => {
   - Add hypotheses and experiments
   - Update status through lifecycle
   - View project on dynamic route
-- [ ] `e2e/studio-survey.spec.ts` (~5 tests)
-  - Submit survey responses
-  - Trigger artifact generation
-  - Accept/reject generated artifacts
-
 ### Test Infrastructure Updates
 
 - [ ] Add `data-testid` attributes to key components
