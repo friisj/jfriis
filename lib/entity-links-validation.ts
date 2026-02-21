@@ -81,6 +81,20 @@ const VALID_LINK_TYPES: Partial<Record<LinkableEntityType, Partial<Record<Linkab
     canvas_item: ['related'],
   },
 
+  // Studio projects explore strategic context
+  studio_project: {
+    business_model_canvas: ['explores', 'related'],
+    value_proposition_canvas: ['explores', 'related'],
+    customer_profile: ['explores', 'related'],
+    user_journey: ['improves', 'explores', 'related'],
+    service_blueprint: ['prototypes', 'related'],
+    story_map: ['informs', 'related'],
+    assumption: ['tests', 'validates', 'related'],
+    studio_project: ['related', 'spin_off', 'inspired_by'],
+    log_entry: ['inspired_by', 'evolved_from', 'related'],
+    venture: ['spin_off', 'related'],
+  },
+
   // Assumptions can link to many things
   assumption: {
     canvas_item: ['related'],
@@ -278,6 +292,16 @@ const COMMON_LINK_PATTERNS: Array<{
 
   // Hypothesis patterns
   { source: 'hypothesis', target: 'assumption', description: 'Hypotheses relate to assumptions' },
+
+  // Studio project patterns
+  { source: 'studio_project', target: 'business_model_canvas', description: 'Studio projects explore business models' },
+  { source: 'studio_project', target: 'value_proposition_canvas', description: 'Studio projects explore value propositions' },
+  { source: 'studio_project', target: 'customer_profile', description: 'Studio projects explore customer profiles' },
+  { source: 'studio_project', target: 'user_journey', description: 'Studio projects improve user journeys' },
+  { source: 'studio_project', target: 'service_blueprint', description: 'Studio projects prototype service blueprints' },
+  { source: 'studio_project', target: 'story_map', description: 'Studio projects inform story maps' },
+  { source: 'studio_project', target: 'assumption', description: 'Studio projects test assumptions' },
+  { source: 'studio_project', target: 'venture', description: 'Studio projects spin off into ventures' },
 
   // Touchpoint patterns (entity_links migration)
   { source: 'touchpoint', target: 'canvas_item', description: 'Touchpoints address jobs/pains/gains' },

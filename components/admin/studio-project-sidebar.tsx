@@ -5,17 +5,21 @@
  *
  * Client-side sidebar for studio project edit page.
  * Uses EntityGeneratorField for hypotheses and experiments.
+ * Supports context enrichment from linked boundary objects.
  */
 
+import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { EntityGeneratorField } from './entity-generator-field'
+import { EntityLinkField } from './entity-link-field'
 import {
   flushPendingHypotheses,
   flushPendingExperiments,
   deleteHypothesis,
   deleteExperiment,
 } from '@/app/actions/entity-generator'
+import { fetchProjectBoundaryContext } from '@/app/actions/fetch-project-context'
 import type { PendingEntity } from '@/lib/ai/hooks/useEntityGenerator'
 import type { EntitySubtypeOption } from './entity-generator-field'
 
@@ -73,6 +77,26 @@ export function StudioProjectSidebar({
   experiments,
 }: StudioProjectSidebarProps) {
   const router = useRouter()
+  const [boundaryContext, setBoundaryContext] = useState<string | null>(null)
+  const loadingRef = useRef(false)
+
+  // Fetch boundary context on mount — silently enriches AI generation
+  useEffect(() => {
+    if (loadingRef.current) return
+    loadingRef.current = true
+    fetchProjectBoundaryContext(project.id)
+      .then(result => {
+        if (result.hasContext) setBoundaryContext(result.summary)
+      })
+      .catch(() => {})
+      .finally(() => { loadingRef.current = false })
+  }, [project.id])
+
+  // Build enriched source data for generators
+  const buildSourceData = (baseData: Record<string, unknown>) => {
+    if (!boundaryContext) return baseData
+    return { ...baseData, boundary_context: boundaryContext }
+  }
 
   // Calculate next sequence number for hypotheses (defensive: handle empty array)
   const nextHypothesisSequence = hypotheses.length > 0
@@ -117,6 +141,83 @@ export function StudioProjectSidebar({
 
   return (
     <div className="space-y-6">
+      {/* Linked Boundary Objects */}
+      <div className="rounded-lg border bg-card p-4">
+        <h3 className="font-semibold mb-3">Boundary Objects</h3>
+        <div className="space-y-4">
+          <EntityLinkField
+            label="Customer Profiles"
+            sourceType="studio_project"
+            sourceId={project.id}
+            targetType="customer_profile"
+            targetTableName="customer_profiles"
+            targetDisplayField="name"
+            linkType="explores"
+            allowMultiple={true}
+          />
+          <EntityLinkField
+            label="Business Model Canvases"
+            sourceType="studio_project"
+            sourceId={project.id}
+            targetType="business_model_canvas"
+            targetTableName="business_model_canvases"
+            targetDisplayField="name"
+            linkType="explores"
+            allowMultiple={true}
+          />
+          <EntityLinkField
+            label="Value Proposition Canvases"
+            sourceType="studio_project"
+            sourceId={project.id}
+            targetType="value_proposition_canvas"
+            targetTableName="value_proposition_canvases"
+            targetDisplayField="name"
+            linkType="explores"
+            allowMultiple={true}
+          />
+          <EntityLinkField
+            label="Assumptions"
+            sourceType="studio_project"
+            sourceId={project.id}
+            targetType="assumption"
+            targetTableName="assumptions"
+            targetDisplayField="statement"
+            linkType="tests"
+            allowMultiple={true}
+          />
+          <EntityLinkField
+            label="User Journeys"
+            sourceType="studio_project"
+            sourceId={project.id}
+            targetType="user_journey"
+            targetTableName="user_journeys"
+            targetDisplayField="name"
+            linkType="explores"
+            allowMultiple={true}
+          />
+          <EntityLinkField
+            label="Service Blueprints"
+            sourceType="studio_project"
+            sourceId={project.id}
+            targetType="service_blueprint"
+            targetTableName="service_blueprints"
+            targetDisplayField="name"
+            linkType="prototypes"
+            allowMultiple={true}
+          />
+          <EntityLinkField
+            label="Story Maps"
+            sourceType="studio_project"
+            sourceId={project.id}
+            targetType="story_map"
+            targetTableName="story_maps"
+            targetDisplayField="name"
+            linkType="informs"
+            allowMultiple={true}
+          />
+        </div>
+      </div>
+
       {/* Hypotheses */}
       <div className="rounded-lg border bg-card p-4">
         <EntityGeneratorField
@@ -124,13 +225,13 @@ export function StudioProjectSidebar({
           sourceEntity={{
             type: 'studio_projects',
             id: project.id,
-            data: {
+            data: buildSourceData({
               name: project.name,
               description: project.description,
               problem_statement: project.problem_statement,
               success_criteria: project.success_criteria,
               current_focus: project.current_focus,
-            },
+            }),
           }}
           targetType="studio_hypotheses"
           items={hypotheses}
@@ -158,12 +259,12 @@ export function StudioProjectSidebar({
           sourceEntity={{
             type: 'studio_projects',
             id: project.id,
-            data: {
+            data: buildSourceData({
               name: project.name,
               description: project.description,
               problem_statement: project.problem_statement,
               current_focus: project.current_focus,
-            },
+            }),
           }}
           targetType="studio_experiments"
           items={experiments}

@@ -365,6 +365,7 @@ After completing all steps, present a summary:
 2. Define key terms in exploration/definitions.md
 3. Begin validating H1
 4. When ready, implement the prototype component
+5. Run `/generate-boundary-objects <slug>` to build strategic context (BMC, VPC, customer profile, assumptions)
 ```
 
 ---

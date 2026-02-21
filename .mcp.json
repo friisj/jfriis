@@ -2,12 +2,7 @@
   "mcpServers": {
     "jfriis": {
       "command": "node",
-      "args": ["mcp/dist/index.js"],
-      "env": {
-        "NEXT_PUBLIC_SUPABASE_URL": "${NEXT_PUBLIC_SUPABASE_URL}",
-        "NEXT_PUBLIC_SUPABASE_ANON_KEY": "${NEXT_PUBLIC_SUPABASE_ANON_KEY}",
-        "SUPABASE_SERVICE_ROLE_KEY": "${SUPABASE_SERVICE_ROLE_KEY}"
-      }
+      "args": ["--env-file=.env.local", "mcp/dist/index.js"]
     }
   }
 }
