@@ -114,7 +114,6 @@ mcp__jfriis__db_create({
   data: {
     project_id: "<project-id>",
     statement: "We believe that [action/change] will [result/outcome] for [audience] because [rationale]",
-    rationale: "<Why this hypothesis matters, grounded in boundary object context>",
     validation_criteria: "<Specific, measurable criteria>",
     status: "proposed",
     sequence: <next-sequence>
@@ -213,6 +212,12 @@ After completion, always present a clear summary showing:
 - What failed (with error details)
 
 ---
+
+## Schema Reference
+
+> **Schema source of truth:** `lib/mcp/schemas/*.ts`
+> If any field documentation here conflicts with the Zod schemas, the schemas are correct.
+> Last synced: 2026-02-21
 
 ## Important Notes
 

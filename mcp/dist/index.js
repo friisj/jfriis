@@ -442,8 +442,9 @@ var ValueMapSchema = z9.object({
     assumptions: [],
     validation_status: "untested"
   }),
-  // Relationship to BMC
+  // Relationships
   business_model_canvas_id: z9.string().uuid().optional().nullable(),
+  customer_profile_id: z9.string().uuid().optional().nullable(),
   // Metadata
   tags: z9.array(z9.string()).default([]),
   metadata: z9.record(z9.string(), z9.any()).default({})

@@ -151,8 +151,9 @@ export const ValueMapSchema = z.object({
     validation_status: 'untested',
   }),
 
-  // Relationship to BMC
+  // Relationships
   business_model_canvas_id: z.string().uuid().optional().nullable(),
+  customer_profile_id: z.string().uuid().optional().nullable(),
 
   // Metadata
   tags: z.array(z.string()).default([]),
