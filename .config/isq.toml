@@ -1,0 +1,12 @@
+# isq configuration
+# https://github.com/camwest/isq
+
+[worktree]
+setup = "npm install"
+
+[on_start]
+transition = "started"
+assign_self = true
+
+[on_cleanup]
+# transition = "backlog"  # Optional: move issue back to backlog
