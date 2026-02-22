@@ -239,6 +239,32 @@ A lightweight, browser-based posable figure inspired by traditional artist armat
 
 ---
 
+### ARIS
+**Status**: Phase 1 (Exploration) - Initial scaffold
+**Location**: `/components/studio/prototypes/aris/` + `/docs/studio/aris/`
+**Focus**: RTS-style strategic command layer for multi-agent AI workflows
+
+**Current State**:
+- ✅ Project scaffolded and initial research begun
+- ⏳ Surveying existing multi-agent frameworks and orchestration UIs
+- ⏳ Mapping RTS mechanics → knowledge work equivalents
+
+**Concept**:
+ARIS surfaces AI agents as named, visible strategic assets managed through a command-and-control interface inspired by real-time strategy (RTS) game mechanics. Instead of chat threads or invisible background agents, commanders get a live strategic overview — control groups, hierarchical delegation, real-time interruption, autonomy throttles, and mission budgets. Humans are commanders, not prompters.
+
+**Key RTS→Agent Mappings**: Unit selection → agent inspection, Control groups → agent teams, Minimap → mission overview, Fog of war → agent uncertainty, Resource panel → token/cost budget, Unit morale → context health
+
+**Next Steps**:
+1. Complete landscape research (existing multi-agent frameworks, orchestration UIs)
+2. Define agent data model (identity, role, memory, status)
+3. Map RTS mechanics to concrete knowledge work equivalents
+4. Design command interface wireframes
+5. Build minimal agent panel prototype
+
+**Documents**: `/docs/studio/aris/exploration/` (research.md, definitions.md)
+
+---
+
 ## Future Studio Projects
 
 ### Ideas Under Consideration
