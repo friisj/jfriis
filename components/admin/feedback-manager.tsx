@@ -2,29 +2,34 @@
 
 import { useState, useEffect } from 'react'
 import type {
-  EvidenceEntityType,
-  UniversalEvidence,
-  UniversalEvidenceType,
-  PendingEvidence,
+  FeedbackEntityType,
+  Feedback,
+  FeedbackSourceType,
+  PendingFeedback,
+  HatType,
 } from '@/lib/types/entity-relationships'
-import { getEvidence, addEvidence, deleteEvidence, updateEvidence } from '@/lib/evidence'
+import {
+  HAT_TYPE_LABELS,
+  HAT_TYPE_COLORS,
+} from '@/lib/types/entity-relationships'
+import { getFeedback, addFeedback, deleteFeedback, updateFeedback } from '@/lib/feedback'
 
-interface EvidenceManagerProps {
-  // Entity this evidence supports
-  entityType: EvidenceEntityType
+interface FeedbackManagerProps {
+  // Entity this feedback is attached to
+  entityType: FeedbackEntityType
   entityId?: string // undefined for create mode
 
   // UI configuration
   label?: string
   compact?: boolean // Sidebar mode vs full mode
-  allowedTypes?: UniversalEvidenceType[] // Restrict evidence types
+  allowedTypes?: FeedbackSourceType[] // Restrict source types
 
   // For controlled mode (create forms)
-  pendingEvidence?: PendingEvidence[]
-  onPendingEvidenceChange?: (evidence: PendingEvidence[]) => void
+  pendingFeedback?: PendingFeedback[]
+  onPendingFeedbackChange?: (feedback: PendingFeedback[]) => void
 }
 
-const ALL_EVIDENCE_TYPES: UniversalEvidenceType[] = [
+const ALL_FEEDBACK_TYPES: FeedbackSourceType[] = [
   'interview',
   'survey',
   'observation',
@@ -43,7 +48,7 @@ const ALL_EVIDENCE_TYPES: UniversalEvidenceType[] = [
   'stakeholder_feedback',
 ]
 
-const EVIDENCE_TYPE_LABELS: Record<UniversalEvidenceType, string> = {
+const FEEDBACK_TYPE_LABELS: Record<FeedbackSourceType, string> = {
   interview: 'Interview',
   survey: 'Survey',
   observation: 'Observation',
@@ -62,87 +67,89 @@ const EVIDENCE_TYPE_LABELS: Record<UniversalEvidenceType, string> = {
   stakeholder_feedback: 'Stakeholder Feedback',
 }
 
-export function EvidenceManager({
+const ALL_HATS: HatType[] = ['white', 'black', 'yellow', 'red', 'green', 'blue']
+
+export function FeedbackManager({
   entityType,
   entityId,
-  label = 'Evidence',
+  label = 'Feedback',
   compact = false,
   allowedTypes,
-  pendingEvidence,
-  onPendingEvidenceChange,
-}: EvidenceManagerProps) {
-  const [existingEvidence, setExistingEvidence] = useState<UniversalEvidence[]>([])
+  pendingFeedback,
+  onPendingFeedbackChange,
+}: FeedbackManagerProps) {
+  const [existingFeedback, setExistingFeedback] = useState<Feedback[]>([])
   const [loading, setLoading] = useState(false)
   const [showAddForm, setShowAddForm] = useState(false)
   const [saving, setSaving] = useState(false)
-  const [editingId, setEditingId] = useState<string | null>(null)
 
   // Determine if we're in controlled mode (create) or uncontrolled mode (edit)
-  const isControlled = pendingEvidence !== undefined && onPendingEvidenceChange !== undefined
+  const isControlled = pendingFeedback !== undefined && onPendingFeedbackChange !== undefined
   const isEditMode = entityId !== undefined
 
-  const availableTypes = allowedTypes || ALL_EVIDENCE_TYPES
+  const availableTypes = allowedTypes || ALL_FEEDBACK_TYPES
 
-  // Load existing evidence in edit mode
+  // Load existing feedback in edit mode
   useEffect(() => {
     if (!isEditMode) return
 
-    const loadEvidence = async () => {
+    const loadFeedback = async () => {
       setLoading(true)
       try {
-        const data = await getEvidence({ type: entityType, id: entityId })
-        setExistingEvidence(data)
+        const data = await getFeedback({ type: entityType, id: entityId })
+        setExistingFeedback(data)
       } catch (err) {
-        console.error('Error loading evidence:', err)
+        console.error('Error loading feedback:', err)
       } finally {
         setLoading(false)
       }
     }
 
-    loadEvidence()
+    loadFeedback()
   }, [isEditMode, entityType, entityId])
 
-  // Evidence item with optional ID (for display)
-  type EvidenceDisplayItem = PendingEvidence & { id?: string }
+  // Feedback item with optional ID (for display)
+  type FeedbackDisplayItem = PendingFeedback & { id?: string }
 
-  // Get all evidence items to display
-  const allEvidence: EvidenceDisplayItem[] = isControlled
-    ? pendingEvidence || []
-    : existingEvidence.map((e) => ({
-        evidence_type: e.evidence_type as UniversalEvidenceType,
-        title: e.title,
-        displayLabel: e.title, // Use title as display label for existing evidence
-        content: e.content,
-        source_url: e.source_url,
-        confidence: e.confidence || undefined,
-        supports: e.supports,
-        id: e.id,
+  // Get all feedback items to display
+  const allFeedback: FeedbackDisplayItem[] = isControlled
+    ? pendingFeedback || []
+    : existingFeedback.map((f) => ({
+        hat_type: f.hat_type,
+        feedback_type: f.feedback_type as FeedbackSourceType,
+        title: f.title,
+        displayLabel: f.title,
+        content: f.content,
+        source_url: f.source_url,
+        confidence: f.confidence || undefined,
+        supports: f.supports,
+        id: f.id,
       }))
 
-  const handleAddEvidence = async (newEvidence: PendingEvidence) => {
+  const handleAddFeedback = async (newFeedback: PendingFeedback) => {
     if (isControlled) {
-      onPendingEvidenceChange?.([...(pendingEvidence || []), newEvidence])
+      onPendingFeedbackChange?.([...(pendingFeedback || []), newFeedback])
     } else if (entityId) {
       setSaving(true)
       try {
-        await addEvidence(
+        await addFeedback(
           { type: entityType, id: entityId },
           {
-            evidence_type: newEvidence.evidence_type,
-            title: newEvidence.title,
-            content: newEvidence.content,
-            source_url: newEvidence.source_url,
-            confidence: newEvidence.confidence,
-            supports: newEvidence.supports,
+            hat_type: newFeedback.hat_type,
+            feedback_type: newFeedback.feedback_type,
+            title: newFeedback.title,
+            content: newFeedback.content,
+            source_url: newFeedback.source_url,
+            confidence: newFeedback.confidence,
+            supports: newFeedback.supports,
             tags: [],
             metadata: {},
           }
         )
-        // Reload evidence
-        const data = await getEvidence({ type: entityType, id: entityId })
-        setExistingEvidence(data)
+        const data = await getFeedback({ type: entityType, id: entityId })
+        setExistingFeedback(data)
       } catch (err) {
-        console.error('Error adding evidence:', err)
+        console.error('Error adding feedback:', err)
       } finally {
         setSaving(false)
       }
@@ -150,19 +157,19 @@ export function EvidenceManager({
     setShowAddForm(false)
   }
 
-  const handleRemoveEvidence = async (index: number, id?: string) => {
+  const handleRemoveFeedback = async (index: number, id?: string) => {
     if (isControlled) {
-      const updated = [...(pendingEvidence || [])]
+      const updated = [...(pendingFeedback || [])]
       updated.splice(index, 1)
-      onPendingEvidenceChange?.(updated)
+      onPendingFeedbackChange?.(updated)
     } else if (id && entityId) {
       setSaving(true)
       try {
-        await deleteEvidence(id)
-        const data = await getEvidence({ type: entityType, id: entityId })
-        setExistingEvidence(data)
+        await deleteFeedback(id)
+        const data = await getFeedback({ type: entityType, id: entityId })
+        setExistingFeedback(data)
       } catch (err) {
-        console.error('Error deleting evidence:', err)
+        console.error('Error deleting feedback:', err)
       } finally {
         setSaving(false)
       }
@@ -186,38 +193,32 @@ export function EvidenceManager({
       <div className="space-y-2">
         {label && <h4 className="text-sm font-medium">{label}</h4>}
 
-        {allEvidence.length === 0 && !showAddForm && (
-          <p className="text-sm text-muted-foreground">No evidence collected</p>
+        {allFeedback.length === 0 && !showAddForm && (
+          <p className="text-sm text-muted-foreground">No feedback collected</p>
         )}
 
-        {allEvidence.length > 0 && (
+        {allFeedback.length > 0 && (
           <ul className="space-y-1.5">
-            {allEvidence.map((evidence, index) => (
+            {allFeedback.map((item, index) => (
               <li
-                key={evidence.id ?? index}
+                key={item.id ?? index}
                 className="flex items-start gap-2 text-sm p-2 rounded bg-muted/50"
               >
-                <span
-                  className={`inline-block px-1.5 py-0.5 rounded text-xs ${
-                    evidence.supports
-                      ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
-                      : 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400'
-                  }`}
-                >
-                  {evidence.supports ? '+' : '-'}
+                <span className={`inline-block px-1.5 py-0.5 rounded text-xs ${HAT_TYPE_COLORS[item.hat_type]}`}>
+                  {HAT_TYPE_LABELS[item.hat_type]}
                 </span>
                 <div className="flex-1 min-w-0">
                   <div className="font-medium truncate">
-                    {evidence.displayLabel || evidence.title || EVIDENCE_TYPE_LABELS[evidence.evidence_type]}
+                    {item.displayLabel || item.title || FEEDBACK_TYPE_LABELS[item.feedback_type]}
                   </div>
                   <div className="text-xs text-muted-foreground">
-                    {EVIDENCE_TYPE_LABELS[evidence.evidence_type]}
-                    {evidence.confidence && ` (${Math.round(evidence.confidence * 100)}%)`}
+                    {FEEDBACK_TYPE_LABELS[item.feedback_type]}
+                    {item.confidence && ` (${Math.round(item.confidence * 100)}%)`}
                   </div>
                 </div>
                 <button
                   type="button"
-                  onClick={() => handleRemoveEvidence(index, evidence.id)}
+                  onClick={() => handleRemoveFeedback(index, item.id)}
                   disabled={saving}
                   className="text-muted-foreground hover:text-foreground disabled:opacity-50"
                 >
@@ -231,9 +232,9 @@ export function EvidenceManager({
         )}
 
         {showAddForm ? (
-          <EvidenceForm
+          <FeedbackForm
             availableTypes={availableTypes}
-            onSubmit={handleAddEvidence}
+            onSubmit={handleAddFeedback}
             onCancel={() => setShowAddForm(false)}
             compact
           />
@@ -244,7 +245,7 @@ export function EvidenceManager({
             disabled={saving}
             className="w-full px-3 py-2 text-sm border border-dashed rounded-lg text-muted-foreground hover:text-foreground hover:border-primary/50 transition-colors disabled:opacity-50"
           >
-            + Add Evidence
+            + Add Feedback
           </button>
         )}
       </div>
@@ -256,56 +257,55 @@ export function EvidenceManager({
     <div className="space-y-4">
       {label && <h4 className="text-base font-medium">{label}</h4>}
 
-      {allEvidence.length === 0 && !showAddForm && (
+      {allFeedback.length === 0 && !showAddForm && (
         <div className="text-center py-8 border border-dashed rounded-lg">
-          <p className="text-muted-foreground mb-2">No evidence collected yet</p>
+          <p className="text-muted-foreground mb-2">No feedback collected yet</p>
           <button
             type="button"
             onClick={() => setShowAddForm(true)}
             className="text-sm text-primary hover:underline"
           >
-            Add your first piece of evidence
+            Add your first piece of feedback
           </button>
         </div>
       )}
 
-      {allEvidence.length > 0 && (
+      {allFeedback.length > 0 && (
         <div className="space-y-3">
-          {allEvidence.map((evidence, index) => (
+          {allFeedback.map((item, index) => (
             <div
-              key={evidence.id ?? index}
+              key={item.id ?? index}
               className="p-4 border rounded-lg"
             >
               <div className="flex items-start justify-between gap-4">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1">
-                    <span
-                      className={`inline-block px-2 py-0.5 rounded text-xs font-medium ${
-                        evidence.supports
-                          ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
-                          : 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400'
-                      }`}
-                    >
-                      {evidence.supports ? 'Supporting' : 'Refuting'}
+                    <span className={`inline-block px-2 py-0.5 rounded text-xs font-medium ${HAT_TYPE_COLORS[item.hat_type]}`}>
+                      {HAT_TYPE_LABELS[item.hat_type]}
                     </span>
                     <span className="text-xs text-muted-foreground">
-                      {EVIDENCE_TYPE_LABELS[evidence.evidence_type]}
+                      {FEEDBACK_TYPE_LABELS[item.feedback_type]}
                     </span>
-                    {evidence.confidence && (
+                    {item.supports !== null && item.supports !== undefined && (
+                      <span className={`text-xs ${item.supports ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                        {item.supports ? 'Supporting' : 'Refuting'}
+                      </span>
+                    )}
+                    {item.confidence && (
                       <span className="text-xs text-muted-foreground">
-                        {Math.round(evidence.confidence * 100)}% confidence
+                        {Math.round(item.confidence * 100)}% confidence
                       </span>
                     )}
                   </div>
                   <h5 className="font-medium">
-                    {evidence.displayLabel || evidence.title || EVIDENCE_TYPE_LABELS[evidence.evidence_type]}
+                    {item.displayLabel || item.title || FEEDBACK_TYPE_LABELS[item.feedback_type]}
                   </h5>
-                  {evidence.content && (
-                    <p className="text-sm text-muted-foreground mt-1">{evidence.content}</p>
+                  {item.content && (
+                    <p className="text-sm text-muted-foreground mt-1">{item.content}</p>
                   )}
-                  {evidence.source_url && (
+                  {item.source_url && (
                     <a
-                      href={evidence.source_url}
+                      href={item.source_url}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="text-xs text-primary hover:underline mt-1 inline-block"
@@ -316,7 +316,7 @@ export function EvidenceManager({
                 </div>
                 <button
                   type="button"
-                  onClick={() => handleRemoveEvidence(index, evidence.id)}
+                  onClick={() => handleRemoveFeedback(index, item.id)}
                   disabled={saving}
                   className="p-1 text-muted-foreground hover:text-foreground disabled:opacity-50"
                 >
@@ -331,20 +331,20 @@ export function EvidenceManager({
       )}
 
       {showAddForm ? (
-        <EvidenceForm
+        <FeedbackForm
           availableTypes={availableTypes}
-          onSubmit={handleAddEvidence}
+          onSubmit={handleAddFeedback}
           onCancel={() => setShowAddForm(false)}
         />
       ) : (
-        allEvidence.length > 0 && (
+        allFeedback.length > 0 && (
           <button
             type="button"
             onClick={() => setShowAddForm(true)}
             disabled={saving}
             className="w-full px-4 py-3 text-sm border border-dashed rounded-lg text-muted-foreground hover:text-foreground hover:border-primary/50 transition-colors disabled:opacity-50"
           >
-            + Add More Evidence
+            + Add More Feedback
           </button>
         )
       )}
@@ -352,22 +352,35 @@ export function EvidenceManager({
   )
 }
 
-// Evidence form subcomponent
-interface EvidenceFormProps {
-  availableTypes: UniversalEvidenceType[]
-  onSubmit: (evidence: PendingEvidence) => void
+// Feedback form subcomponent
+interface FeedbackFormProps {
+  availableTypes: FeedbackSourceType[]
+  onSubmit: (feedback: PendingFeedback) => void
   onCancel: () => void
   compact?: boolean
 }
 
-function EvidenceForm({ availableTypes, onSubmit, onCancel, compact = false }: EvidenceFormProps) {
-  const [formData, setFormData] = useState<PendingEvidence>({
-    evidence_type: availableTypes[0],
+function supportsFromString(value: string): boolean | null {
+  if (value === 'supports') return true
+  if (value === 'refutes') return false
+  return null
+}
+
+function supportsToString(value: boolean | null): string {
+  if (value === true) return 'supports'
+  if (value === false) return 'refutes'
+  return 'neutral'
+}
+
+function FeedbackForm({ availableTypes, onSubmit, onCancel, compact = false }: FeedbackFormProps) {
+  const [formData, setFormData] = useState<PendingFeedback>({
+    hat_type: 'white',
+    feedback_type: availableTypes[0],
     title: '',
     content: '',
     source_url: '',
     confidence: undefined,
-    supports: true,
+    supports: null,
   })
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -380,29 +393,37 @@ function EvidenceForm({ availableTypes, onSubmit, onCancel, compact = false }: E
       <form onSubmit={handleSubmit} className="space-y-2 p-3 border rounded-lg bg-background">
         <div className="grid grid-cols-2 gap-2">
           <select
-            value={formData.evidence_type}
+            value={formData.hat_type}
+            onChange={(e) => setFormData({ ...formData, hat_type: e.target.value as HatType })}
+            className="px-2 py-1.5 text-sm border rounded bg-background"
+          >
+            {ALL_HATS.map((hat) => (
+              <option key={hat} value={hat}>{HAT_TYPE_LABELS[hat]}</option>
+            ))}
+          </select>
+          <select
+            value={formData.feedback_type}
             onChange={(e) =>
-              setFormData({ ...formData, evidence_type: e.target.value as UniversalEvidenceType })
+              setFormData({ ...formData, feedback_type: e.target.value as FeedbackSourceType })
             }
             className="px-2 py-1.5 text-sm border rounded bg-background"
           >
             {availableTypes.map((type) => (
               <option key={type} value={type}>
-                {EVIDENCE_TYPE_LABELS[type]}
+                {FEEDBACK_TYPE_LABELS[type]}
               </option>
             ))}
           </select>
-          <select
-            value={formData.supports ? 'supports' : 'refutes'}
-            onChange={(e) =>
-              setFormData({ ...formData, supports: e.target.value === 'supports' })
-            }
-            className="px-2 py-1.5 text-sm border rounded bg-background"
-          >
-            <option value="supports">Supporting</option>
-            <option value="refutes">Refuting</option>
-          </select>
         </div>
+        <select
+          value={supportsToString(formData.supports)}
+          onChange={(e) => setFormData({ ...formData, supports: supportsFromString(e.target.value) })}
+          className="w-full px-2 py-1.5 text-sm border rounded bg-background"
+        >
+          <option value="neutral">Neutral</option>
+          <option value="supports">Supporting</option>
+          <option value="refutes">Refuting</option>
+        </select>
         <input
           type="text"
           placeholder="Title (optional)"
@@ -438,46 +459,58 @@ function EvidenceForm({ availableTypes, onSubmit, onCancel, compact = false }: E
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4 p-4 border rounded-lg bg-muted/30">
-      <h5 className="font-medium">Add Evidence</h5>
+      <h5 className="font-medium">Add Feedback</h5>
 
       <div className="grid grid-cols-2 gap-4">
         <div>
-          <label className="block text-sm font-medium mb-1">Type</label>
+          <label className="block text-sm font-medium mb-1">Hat</label>
           <select
-            value={formData.evidence_type}
-            onChange={(e) =>
-              setFormData({ ...formData, evidence_type: e.target.value as UniversalEvidenceType })
-            }
+            value={formData.hat_type}
+            onChange={(e) => setFormData({ ...formData, hat_type: e.target.value as HatType })}
             className="w-full px-3 py-2 border rounded-lg bg-background"
           >
-            {availableTypes.map((type) => (
-              <option key={type} value={type}>
-                {EVIDENCE_TYPE_LABELS[type]}
-              </option>
+            {ALL_HATS.map((hat) => (
+              <option key={hat} value={hat}>{HAT_TYPE_LABELS[hat]}</option>
             ))}
           </select>
         </div>
 
         <div>
-          <label className="block text-sm font-medium mb-1">Stance</label>
+          <label className="block text-sm font-medium mb-1">Source</label>
           <select
-            value={formData.supports ? 'supports' : 'refutes'}
+            value={formData.feedback_type}
             onChange={(e) =>
-              setFormData({ ...formData, supports: e.target.value === 'supports' })
+              setFormData({ ...formData, feedback_type: e.target.value as FeedbackSourceType })
             }
             className="w-full px-3 py-2 border rounded-lg bg-background"
           >
-            <option value="supports">Supporting</option>
-            <option value="refutes">Refuting</option>
+            {availableTypes.map((type) => (
+              <option key={type} value={type}>
+                {FEEDBACK_TYPE_LABELS[type]}
+              </option>
+            ))}
           </select>
         </div>
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium mb-1">Stance</label>
+        <select
+          value={supportsToString(formData.supports)}
+          onChange={(e) => setFormData({ ...formData, supports: supportsFromString(e.target.value) })}
+          className="w-full px-3 py-2 border rounded-lg bg-background"
+        >
+          <option value="neutral">Neutral</option>
+          <option value="supports">Supporting</option>
+          <option value="refutes">Refuting</option>
+        </select>
       </div>
 
       <div>
         <label className="block text-sm font-medium mb-1">Title</label>
         <input
           type="text"
-          placeholder="Brief title for this evidence"
+          placeholder="Brief title for this feedback"
           value={formData.title || ''}
           onChange={(e) => setFormData({ ...formData, title: e.target.value })}
           className="w-full px-3 py-2 border rounded-lg bg-background"
@@ -487,7 +520,7 @@ function EvidenceForm({ availableTypes, onSubmit, onCancel, compact = false }: E
       <div>
         <label className="block text-sm font-medium mb-1">Summary</label>
         <textarea
-          placeholder="What did you learn? Key findings..."
+          placeholder="What did you observe? Key findings..."
           value={formData.content || ''}
           onChange={(e) => setFormData({ ...formData, content: e.target.value })}
           rows={3}
@@ -533,7 +566,7 @@ function EvidenceForm({ availableTypes, onSubmit, onCancel, compact = false }: E
           type="submit"
           className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90"
         >
-          Add Evidence
+          Add Feedback
         </button>
         <button
           type="button"
@@ -548,15 +581,15 @@ function EvidenceForm({ availableTypes, onSubmit, onCancel, compact = false }: E
 }
 
 /**
- * Evidence summary badge for list views
+ * Feedback summary badge for list views
  */
-interface EvidenceBadgeProps {
-  entityType: EvidenceEntityType
+interface FeedbackBadgeProps {
+  entityType: FeedbackEntityType
   entityId: string
   className?: string
 }
 
-export function EvidenceBadge({ entityType, entityId, className = '' }: EvidenceBadgeProps) {
+export function FeedbackBadge({ entityType, entityId, className = '' }: FeedbackBadgeProps) {
   const [summary, setSummary] = useState<{
     total: number
     supporting: number
@@ -566,11 +599,11 @@ export function EvidenceBadge({ entityType, entityId, className = '' }: Evidence
   useEffect(() => {
     const loadSummary = async () => {
       try {
-        const { getEvidenceSummary } = await import('@/lib/evidence')
-        const data = await getEvidenceSummary({ type: entityType, id: entityId })
+        const { getFeedbackSummary } = await import('@/lib/feedback')
+        const data = await getFeedbackSummary({ type: entityType, id: entityId })
         setSummary(data)
       } catch (err) {
-        console.error('Error loading evidence summary:', err)
+        console.error('Error loading feedback summary:', err)
       }
     }
 

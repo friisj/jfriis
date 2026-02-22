@@ -10,10 +10,10 @@ import { AdminEntityLayout } from '@/components/admin/admin-entity-layout'
 import { EntityControlCluster } from '@/components/admin/entity-control-cluster'
 import { RelationshipManager, type RelationshipSlot } from '@/components/admin/relationship-manager'
 import { RelationshipField } from './relationship-field'
-import { EvidenceManager } from './evidence-manager'
+import { FeedbackManager } from './feedback-manager'
 import { syncEntityLinks } from '@/lib/entity-links'
-import { syncPendingEvidence } from '@/lib/evidence'
-import type { PendingLink, PendingEvidence } from '@/lib/types/entity-relationships'
+import { syncPendingFeedback } from '@/lib/feedback'
+import type { PendingLink, PendingFeedback } from '@/lib/types/entity-relationships'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
@@ -85,7 +85,7 @@ export function ValuePropositionCanvasForm({ vpcId, initialData }: VPCFormProps)
   const [customerProfiles, setCustomerProfiles] = useState<CustomerProfile[]>([])
   const [selectedProfile, setSelectedProfile] = useState<CustomerProfile | null>(null)
   const [pendingLinks, setPendingLinks] = useState<PendingLink[]>([])
-  const [pendingEvidence, setPendingEvidence] = useState<PendingEvidence[]>([])
+  const [pendingFeedback, setPendingFeedback] = useState<PendingFeedback[]>([])
 
   const [formData, setFormData] = useState<VPCFormData>({
     slug: initialData?.slug || '',
@@ -184,8 +184,8 @@ export function ValuePropositionCanvasForm({ vpcId, initialData }: VPCFormProps)
           )
         }
 
-        if (pendingEvidence.length > 0) {
-          await syncPendingEvidence({ type: 'value_proposition_canvas', id: created.id }, pendingEvidence)
+        if (pendingFeedback.length > 0) {
+          await syncPendingFeedback({ type: 'value_proposition_canvas', id: created.id }, pendingFeedback)
         }
       }
 
@@ -443,14 +443,14 @@ export function ValuePropositionCanvasForm({ vpcId, initialData }: VPCFormProps)
         </div>
       )}
 
-      {/* Evidence */}
+      {/* Feedback */}
       <div>
-        <Label className="block mb-2">Evidence</Label>
-        <EvidenceManager
+        <Label className="block mb-2">Feedback</Label>
+        <FeedbackManager
           entityType="value_proposition_canvas"
           entityId={vpcId}
-          pendingEvidence={pendingEvidence}
-          onPendingEvidenceChange={setPendingEvidence}
+          pendingFeedback={pendingFeedback}
+          onPendingFeedbackChange={setPendingFeedback}
         />
       </div>
     </div>
