@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, use } from 'react'
 import Link from 'next/link'
-import { AdminDetailLayout, StatusBadge, EvidenceManager } from '@/components/admin'
+import { AdminDetailLayout, StatusBadge, FeedbackManager } from '@/components/admin'
 import { TouchpointAssumptionLinker } from '@/components/admin/touchpoint-assumption-linker'
 import { TouchpointMappingLinker } from '@/components/admin/touchpoint-mapping-linker'
 import { getTouchpoint } from '@/lib/boundary-objects/journeys'
@@ -280,7 +280,7 @@ export default function TouchpointDetailPage({ params }: TouchpointDetailPagePro
 
         {activeTab === 'evidence' && (
           <div className="rounded-lg border bg-card p-6">
-            <EvidenceManager
+            <FeedbackManager
               entityType="touchpoint"
               entityId={touchpointId}
             />

@@ -1,24 +1,24 @@
 /**
- * Evidence Helper Functions
+ * Feedback Helper Functions
  *
- * Utilities for working with the universal evidence table.
- * Part of Entity Relationship Simplification (OJI-5)
+ * Utilities for working with the universal feedback table.
+ * Evolved from the evidence table as part of the feedback entity upgrade.
  */
 
 import { supabase } from './supabase'
 import type {
-  EvidenceEntityType,
-  UniversalEvidence,
-  UniversalEvidenceInsert,
-  UniversalEvidenceType,
-  PendingEvidence,
+  FeedbackEntityType,
+  Feedback,
+  FeedbackInsert,
+  FeedbackSourceType,
+  PendingFeedback,
 } from './types/entity-relationships'
 
 /**
- * Entity reference for evidence operations
+ * Entity reference for feedback operations
  */
-interface EvidenceEntityRef {
-  type: EvidenceEntityType
+interface FeedbackEntityRef {
+  type: FeedbackEntityType
   id: string
 }
 
@@ -26,12 +26,8 @@ interface EvidenceEntityRef {
 // OBSERVABILITY
 // ============================================================================
 
-/**
- * Observability logging for evidence queries.
- * Logs query patterns, timing, and result counts for debugging.
- */
 const ENABLE_QUERY_LOGGING = process.env.NODE_ENV === 'development' ||
-  process.env.EVIDENCE_DEBUG === 'true'
+  process.env.FEEDBACK_DEBUG === 'true'
 
 interface QueryLog {
   operation: string
@@ -46,11 +42,11 @@ function logQuery(log: QueryLog) {
   const slowThreshold = 100 // ms
   const logLevel = log.duration > slowThreshold ? 'warn' : 'debug'
 
-  const message = `[evidence] ${log.operation}: ${log.entityType} (${log.duration}ms, ${log.resultCount} results)`
+  const message = `[feedback] ${log.operation}: ${log.entityType} (${log.duration}ms, ${log.resultCount} results)`
 
   if (logLevel === 'warn') {
     console.warn(`⚠️ SLOW QUERY ${message}`)
-  } else if (process.env.EVIDENCE_VERBOSE === 'true') {
+  } else if (process.env.FEEDBACK_VERBOSE === 'true') {
     console.log(message)
   }
 }
@@ -75,48 +71,53 @@ async function withTiming<T>(
 }
 
 /**
- * Add evidence to an entity
+ * Add feedback to an entity
  */
-export async function addEvidence(
-  entity: EvidenceEntityRef,
-  evidence: Omit<UniversalEvidenceInsert, 'entity_type' | 'entity_id'>
-): Promise<UniversalEvidence> {
+export async function addFeedback(
+  entity: FeedbackEntityRef,
+  feedback: Omit<FeedbackInsert, 'entity_type' | 'entity_id'>
+): Promise<Feedback> {
   const { data, error } = await supabase
-    .from('evidence')
+    .from('feedback')
     .insert({
       entity_type: entity.type,
       entity_id: entity.id,
-      ...evidence,
+      ...feedback,
     } as any)
     .select()
     .single()
 
   if (error) throw error
-  return data as unknown as UniversalEvidence
+  return data as unknown as Feedback
 }
 
 /**
- * Get all evidence for an entity
+ * Get all feedback for an entity
  */
-export async function getEvidence(
-  entity: EvidenceEntityRef,
+export async function getFeedback(
+  entity: FeedbackEntityRef,
   options?: {
-    evidenceType?: UniversalEvidenceType
+    feedbackType?: FeedbackSourceType
+    hatType?: string
     supportsOnly?: boolean
     refutesOnly?: boolean
     orderBy?: 'created_at' | 'collected_at' | 'confidence'
     ascending?: boolean
   }
-): Promise<UniversalEvidence[]> {
-  return withTiming('getEvidence', entity.type, async () => {
+): Promise<Feedback[]> {
+  return withTiming('getFeedback', entity.type, async () => {
     let query = supabase
-      .from('evidence')
+      .from('feedback')
       .select('*')
       .eq('entity_type', entity.type)
       .eq('entity_id', entity.id)
 
-    if (options?.evidenceType) {
-      query = query.eq('evidence_type', options.evidenceType)
+    if (options?.feedbackType) {
+      query = query.eq('feedback_type', options.feedbackType)
+    }
+
+    if (options?.hatType) {
+      query = query.eq('hat_type', options.hatType)
     }
 
     if (options?.supportsOnly) {
@@ -131,16 +132,16 @@ export async function getEvidence(
     const { data, error } = await query
 
     if (error) throw error
-    return (data || []) as unknown as UniversalEvidence[]
+    return (data || []) as unknown as Feedback[]
   })
 }
 
 /**
- * Get evidence count for an entity
+ * Get feedback count for an entity
  */
-export async function getEvidenceCount(entity: EvidenceEntityRef): Promise<number> {
+export async function getFeedbackCount(entity: FeedbackEntityRef): Promise<number> {
   const { count, error } = await supabase
-    .from('evidence')
+    .from('feedback')
     .select('*', { count: 'exact', head: true })
     .eq('entity_type', entity.type)
     .eq('entity_id', entity.id)
@@ -150,30 +151,33 @@ export async function getEvidenceCount(entity: EvidenceEntityRef): Promise<numbe
 }
 
 /**
- * Get evidence summary (counts by type and support status)
+ * Get feedback summary (counts by type, hat, and support status)
  */
-export async function getEvidenceSummary(entity: EvidenceEntityRef): Promise<{
+export async function getFeedbackSummary(entity: FeedbackEntityRef): Promise<{
   total: number
   supporting: number
   refuting: number
   byType: Record<string, number>
+  byHat: Record<string, number>
 }> {
-  return withTiming('getEvidenceSummary', entity.type, async () => {
+  return withTiming('getFeedbackSummary', entity.type, async () => {
     const { data, error } = await supabase
-      .from('evidence')
-      .select('evidence_type, supports')
+      .from('feedback')
+      .select('feedback_type, hat_type, supports')
       .eq('entity_type', entity.type)
       .eq('entity_id', entity.id)
 
     if (error) throw error
-    if (!data) return { total: 0, supporting: 0, refuting: 0, byType: {} }
+    if (!data) return { total: 0, supporting: 0, refuting: 0, byType: {}, byHat: {} }
 
     const byType: Record<string, number> = {}
+    const byHat: Record<string, number> = {}
     let supporting = 0
     let refuting = 0
 
     for (const item of data) {
-      byType[item.evidence_type] = (byType[item.evidence_type] || 0) + 1
+      byType[item.feedback_type] = (byType[item.feedback_type] || 0) + 1
+      byHat[item.hat_type] = (byHat[item.hat_type] || 0) + 1
       if (item.supports === true) supporting++
       else if (item.supports === false) refuting++
     }
@@ -183,46 +187,47 @@ export async function getEvidenceSummary(entity: EvidenceEntityRef): Promise<{
       supporting,
       refuting,
       byType,
+      byHat,
     }
   })
 }
 
 /**
- * Update evidence
+ * Update feedback
  */
-export async function updateEvidence(
-  evidenceId: string,
-  updates: Partial<Omit<UniversalEvidenceInsert, 'entity_type' | 'entity_id'>>
-): Promise<UniversalEvidence> {
+export async function updateFeedback(
+  feedbackId: string,
+  updates: Partial<Omit<FeedbackInsert, 'entity_type' | 'entity_id'>>
+): Promise<Feedback> {
   const { data, error } = await supabase
-    .from('evidence')
+    .from('feedback')
     .update(updates as any)
-    .eq('id', evidenceId)
+    .eq('id', feedbackId)
     .select()
     .single()
 
   if (error) throw error
-  return data as unknown as UniversalEvidence
+  return data as unknown as Feedback
 }
 
 /**
- * Delete evidence
+ * Delete feedback
  */
-export async function deleteEvidence(evidenceId: string): Promise<void> {
+export async function deleteFeedback(feedbackId: string): Promise<void> {
   const { error } = await supabase
-    .from('evidence')
+    .from('feedback')
     .delete()
-    .eq('id', evidenceId)
+    .eq('id', feedbackId)
 
   if (error) throw error
 }
 
 /**
- * Delete all evidence for an entity
+ * Delete all feedback for an entity
  */
-export async function deleteAllEvidence(entity: EvidenceEntityRef): Promise<void> {
+export async function deleteAllFeedback(entity: FeedbackEntityRef): Promise<void> {
   const { error } = await supabase
-    .from('evidence')
+    .from('feedback')
     .delete()
     .eq('entity_type', entity.type)
     .eq('entity_id', entity.id)
@@ -231,43 +236,44 @@ export async function deleteAllEvidence(entity: EvidenceEntityRef): Promise<void
 }
 
 /**
- * Sync pending evidence to an entity
- * Inserts new evidence items (for use after entity creation)
+ * Sync pending feedback to an entity
+ * Inserts new feedback items (for use after entity creation)
  */
-export async function syncPendingEvidence(
-  entity: EvidenceEntityRef,
-  pendingEvidence: PendingEvidence[]
-): Promise<UniversalEvidence[]> {
-  if (pendingEvidence.length === 0) return []
+export async function syncPendingFeedback(
+  entity: FeedbackEntityRef,
+  pendingFeedback: PendingFeedback[]
+): Promise<Feedback[]> {
+  if (pendingFeedback.length === 0) return []
 
-  const evidenceToInsert = pendingEvidence.map(e => ({
+  const feedbackToInsert = pendingFeedback.map(f => ({
     entity_type: entity.type,
     entity_id: entity.id,
-    evidence_type: e.evidence_type,
-    title: e.title,
-    content: e.content,
-    source_url: e.source_url,
-    confidence: e.confidence,
-    supports: e.supports,
+    hat_type: f.hat_type,
+    feedback_type: f.feedback_type,
+    title: f.title,
+    content: f.content,
+    source_url: f.source_url,
+    confidence: f.confidence,
+    supports: f.supports,
     tags: [],
     metadata: {},
   }))
 
   const { data, error } = await supabase
-    .from('evidence')
-    .insert(evidenceToInsert as any)
+    .from('feedback')
+    .insert(feedbackToInsert as any)
     .select()
 
   if (error) throw error
-  return (data || []) as unknown as UniversalEvidence[]
+  return (data || []) as unknown as Feedback[]
 }
 
 /**
- * Calculate average confidence for an entity's evidence
+ * Calculate average confidence for an entity's feedback
  */
-export async function getAverageConfidence(entity: EvidenceEntityRef): Promise<number | null> {
+export async function getAverageConfidence(entity: FeedbackEntityRef): Promise<number | null> {
   const { data, error } = await supabase
-    .from('evidence')
+    .from('feedback')
     .select('confidence')
     .eq('entity_type', entity.type)
     .eq('entity_id', entity.id)

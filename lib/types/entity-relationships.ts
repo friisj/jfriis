@@ -44,13 +44,13 @@ export function isValidConfidence(value: number): value is Confidence {
 }
 
 // ============================================================================
-// EVIDENCE TYPES
+// FEEDBACK TYPES
 // ============================================================================
 
 /**
- * Entity types that can have evidence attached
+ * Entity types that can have feedback attached
  */
-export type EvidenceEntityType =
+export type FeedbackEntityType =
   | 'assumption'
   | 'canvas_item'
   | 'touchpoint'
@@ -64,9 +64,49 @@ export type EvidenceEntityType =
   | 'business_model_canvas'
 
 /**
- * Types of evidence that can be collected
+ * De Bono thinking hats derivative.
+ * Frames the perspective from which feedback was collected.
+ *
+ * - white:  Facts & data — objective information, what do we know
+ * - black:  Risk & caution — challenges, problems, what could go wrong
+ * - yellow: Value & optimism — benefits, positive signals, why this could work
+ * - red:    Intuition & emotion — gut feelings, qualitative sentiment
+ * - green:  Creative & generative — new ideas, alternatives, pivots suggested
+ * - blue:   Process & meta — systemic observations, about the experiment itself
  */
-export type UniversalEvidenceType =
+export type HatType = 'white' | 'black' | 'yellow' | 'red' | 'green' | 'blue'
+
+export const HAT_TYPES = {
+  WHITE:  'white'  as const,
+  BLACK:  'black'  as const,
+  YELLOW: 'yellow' as const,
+  RED:    'red'    as const,
+  GREEN:  'green'  as const,
+  BLUE:   'blue'   as const,
+} as const
+
+export const HAT_TYPE_LABELS: Record<HatType, string> = {
+  white:  'Facts',
+  black:  'Risk',
+  yellow: 'Value',
+  red:    'Intuition',
+  green:  'Creative',
+  blue:   'Process',
+}
+
+export const HAT_TYPE_COLORS: Record<HatType, string> = {
+  white:  'bg-gray-100 text-gray-800 dark:bg-gray-800/30 dark:text-gray-400',
+  black:  'bg-slate-200 text-slate-900 dark:bg-slate-700/40 dark:text-slate-300',
+  yellow: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400',
+  red:    'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400',
+  green:  'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400',
+  blue:   'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400',
+}
+
+/**
+ * Signal source types — how the feedback was collected
+ */
+export type FeedbackSourceType =
   // Research methods
   | 'interview'
   | 'survey'
@@ -90,19 +130,20 @@ export type UniversalEvidenceType =
   | 'stakeholder_feedback'
 
 /**
- * Universal Evidence record
+ * Feedback record
  */
-export interface UniversalEvidence {
+export interface Feedback {
   id: string
-  entity_type: EvidenceEntityType
+  entity_type: FeedbackEntityType
   entity_id: string
-  evidence_type: UniversalEvidenceType
+  hat_type: HatType
+  feedback_type: FeedbackSourceType
   title?: string
   content?: string
   source_url?: string
   source_reference?: string
   confidence?: number // 0.0 - 1.0
-  supports: boolean
+  supports: boolean | null // true=supports, false=refutes, null=not applicable (red/green/blue)
   collected_at?: string
   collector_notes?: string
   tags: string[]
@@ -111,20 +152,21 @@ export interface UniversalEvidence {
   updated_at: string
 }
 
-export type UniversalEvidenceInsert = Omit<UniversalEvidence, 'id' | 'created_at' | 'updated_at'>
-export type UniversalEvidenceUpdate = Partial<UniversalEvidenceInsert>
+export type FeedbackInsert = Omit<Feedback, 'id' | 'created_at' | 'updated_at'>
+export type FeedbackUpdate = Partial<FeedbackInsert>
 
 /**
- * Pending evidence for create forms (before entity is saved)
+ * Pending feedback for create forms (before entity is saved)
  */
-export interface PendingEvidence {
-  evidence_type: UniversalEvidenceType
+export interface PendingFeedback {
+  hat_type: HatType
+  feedback_type: FeedbackSourceType
   title?: string
   displayLabel?: string // For UI display before save (auto-generated if not provided)
   content?: string
   source_url?: string
   confidence?: number
-  supports: boolean
+  supports: boolean | null // null for hats where valence is not applicable
 }
 
 // ============================================================================

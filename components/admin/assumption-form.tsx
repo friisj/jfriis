@@ -10,10 +10,10 @@ import { AdminEntityLayout } from '@/components/admin/admin-entity-layout'
 import { EntityControlCluster } from '@/components/admin/entity-control-cluster'
 import { RelationshipManager, type RelationshipSlot } from '@/components/admin/relationship-manager'
 import { RelationshipField } from './relationship-field'
-import { EvidenceManager } from './evidence-manager'
-import { syncPendingEvidence } from '@/lib/evidence'
+import { FeedbackManager } from './feedback-manager'
+import { syncPendingFeedback } from '@/lib/feedback'
 import { syncEntityLinks } from '@/lib/entity-links'
-import type { PendingEvidence, PendingLink } from '@/lib/types/entity-relationships'
+import type { PendingFeedback, PendingLink } from '@/lib/types/entity-relationships'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
@@ -143,7 +143,7 @@ export function AssumptionForm({ assumption }: AssumptionFormProps) {
   const router = useRouter()
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [pendingEvidence, setPendingEvidence] = useState<PendingEvidence[]>([])
+  const [pendingFeedback, setPendingFeedback] = useState<PendingFeedback[]>([])
   const [pendingHypothesisLinks, setPendingHypothesisLinks] = useState<PendingLink[]>([])
 
   const [formData, setFormData] = useState({
@@ -235,9 +235,9 @@ export function AssumptionForm({ assumption }: AssumptionFormProps) {
           .single()
         if (error) throw error
 
-        // Sync pending evidence
-        if (pendingEvidence.length > 0 && created) {
-          await syncPendingEvidence({ type: 'assumption', id: created.id }, pendingEvidence)
+        // Sync pending feedback
+        if (pendingFeedback.length > 0 && created) {
+          await syncPendingFeedback({ type: 'assumption', id: created.id }, pendingFeedback)
         }
 
         // Sync pending entity links
@@ -532,14 +532,14 @@ export function AssumptionForm({ assumption }: AssumptionFormProps) {
         />
       </FormFieldWithAI>
 
-      {/* Evidence */}
+      {/* Feedback */}
       <div>
-        <Label className="block mb-2">Evidence</Label>
-        <EvidenceManager
+        <Label className="block mb-2">Feedback</Label>
+        <FeedbackManager
           entityType="assumption"
           entityId={assumption?.id}
-          pendingEvidence={pendingEvidence}
-          onPendingEvidenceChange={setPendingEvidence}
+          pendingFeedback={pendingFeedback}
+          onPendingFeedbackChange={setPendingFeedback}
         />
       </div>
 

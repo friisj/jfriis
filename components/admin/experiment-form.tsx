@@ -10,10 +10,10 @@ import { EntityControlCluster } from '@/components/admin/entity-control-cluster'
 import { RelationshipManager, type RelationshipSlot } from '@/components/admin/relationship-manager'
 import { RelationshipField } from './relationship-field'
 import { MixedAssetLinkField, type PendingAssetLink } from './mixed-asset-link-field'
-import { EvidenceManager } from './evidence-manager'
+import { FeedbackManager } from './feedback-manager'
 import { syncEntityLinks } from '@/lib/entity-links'
-import { syncPendingEvidence } from '@/lib/evidence'
-import type { PendingLink, PendingEvidence } from '@/lib/types/entity-relationships'
+import { syncPendingFeedback } from '@/lib/feedback'
+import type { PendingLink, PendingFeedback } from '@/lib/types/entity-relationships'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
@@ -97,7 +97,7 @@ export function ExperimentForm({ experiment }: ExperimentFormProps) {
   const [error, setError] = useState<string | null>(null)
   const [pendingCanvasLinks, setPendingCanvasLinks] = useState<PendingLink[]>([])
   const [pendingAssetLinks, setPendingAssetLinks] = useState<PendingAssetLink[]>([])
-  const [pendingEvidence, setPendingEvidence] = useState<PendingEvidence[]>([])
+  const [pendingFeedback, setPendingFeedback] = useState<PendingFeedback[]>([])
 
   const projectFromUrl = searchParams.get('project')
   const hypothesisFromUrl = searchParams.get('hypothesis')
@@ -206,9 +206,9 @@ export function ExperimentForm({ experiment }: ExperimentFormProps) {
           )
         }
 
-        // Sync pending evidence
-        if (pendingEvidence.length > 0) {
-          await syncPendingEvidence({ type: 'studio_experiment' as any, id: newExperiment.id }, pendingEvidence)
+        // Sync pending feedback
+        if (pendingFeedback.length > 0) {
+          await syncPendingFeedback({ type: 'studio_experiment' as any, id: newExperiment.id }, pendingFeedback)
         }
       }
 
@@ -396,14 +396,14 @@ export function ExperimentForm({ experiment }: ExperimentFormProps) {
         />
       </div>
 
-      {/* Evidence */}
+      {/* Feedback */}
       <div>
-        <Label className="block mb-2">Evidence</Label>
-        <EvidenceManager
+        <Label className="block mb-2">Feedback</Label>
+        <FeedbackManager
           entityType={"studio_experiment" as any}
           entityId={experiment?.id}
-          pendingEvidence={pendingEvidence}
-          onPendingEvidenceChange={setPendingEvidence}
+          pendingFeedback={pendingFeedback}
+          onPendingFeedbackChange={setPendingFeedback}
         />
       </div>
     </div>

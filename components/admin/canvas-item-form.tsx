@@ -5,9 +5,9 @@ import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import type { CanvasItemType, JobType, Intensity, Importance, ValidationStatus, Frequency } from '@/lib/types/canvas-items'
 import { FormFieldWithAI } from '@/components/forms'
-import { EvidenceManager } from './evidence-manager'
-import { syncPendingEvidence } from '@/lib/evidence'
-import type { PendingEvidence } from '@/lib/types/entity-relationships'
+import { FeedbackManager } from './feedback-manager'
+import { syncPendingFeedback } from '@/lib/feedback'
+import type { PendingFeedback } from '@/lib/types/entity-relationships'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
@@ -97,7 +97,7 @@ export function CanvasItemForm({ item, mode }: CanvasItemFormProps) {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [projects, setProjects] = useState<StudioProject[]>([])
-  const [pendingEvidence, setPendingEvidence] = useState<PendingEvidence[]>([])
+  const [pendingFeedback, setPendingFeedback] = useState<PendingFeedback[]>([])
 
   const [formData, setFormData] = useState({
     title: item?.title || '',
@@ -165,9 +165,9 @@ export function CanvasItemForm({ item, mode }: CanvasItemFormProps) {
           .single()
         if (error) throw error
 
-        // Sync pending evidence to the newly created entity
-        if (pendingEvidence.length > 0 && created) {
-          await syncPendingEvidence({ type: 'canvas_item', id: created.id }, pendingEvidence)
+        // Sync pending feedback to the newly created entity
+        if (pendingFeedback.length > 0 && created) {
+          await syncPendingFeedback({ type: 'canvas_item', id: created.id }, pendingFeedback)
         }
       } else {
         const { error } = await supabase
@@ -619,17 +619,17 @@ export function CanvasItemForm({ item, mode }: CanvasItemFormProps) {
         </FormFieldWithAI>
       </div>
 
-      {/* Evidence */}
+      {/* Feedback */}
       <div className="space-y-4">
-        <h2 className="text-lg font-semibold border-b pb-2">Evidence</h2>
+        <h2 className="text-lg font-semibold border-b pb-2">Feedback</h2>
         <p className="text-sm text-muted-foreground -mt-2">
-          Attach evidence that supports or refutes this canvas item.
+          Attach feedback that supports or refutes this canvas item.
         </p>
-        <EvidenceManager
+        <FeedbackManager
           entityType="canvas_item"
           entityId={item?.id}
-          pendingEvidence={pendingEvidence}
-          onPendingEvidenceChange={setPendingEvidence}
+          pendingFeedback={pendingFeedback}
+          onPendingFeedbackChange={setPendingFeedback}
         />
       </div>
 

@@ -39,12 +39,13 @@ import type {
 
 // Re-export universal relationship types
 export type {
-  EvidenceEntityType,
-  UniversalEvidenceType,
-  UniversalEvidence,
-  UniversalEvidenceInsert,
-  UniversalEvidenceUpdate,
-  PendingEvidence,
+  FeedbackEntityType,
+  FeedbackSourceType,
+  HatType,
+  Feedback,
+  FeedbackInsert,
+  FeedbackUpdate,
+  PendingFeedback,
   LinkableEntityType,
   LinkType,
   LinkStrength,
