@@ -1,17 +1,41 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
-import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
-import { SidebarCard } from './sidebar-card'
-import { FormActions } from './form-actions'
+import { toast } from 'sonner'
 import { FormFieldWithAI } from '@/components/forms'
+import { AdminEntityLayout } from '@/components/admin/admin-entity-layout'
+import { EntityControlCluster } from '@/components/admin/entity-control-cluster'
+import { RelationshipManager, type RelationshipSlot } from '@/components/admin/relationship-manager'
 import { RelationshipField } from './relationship-field'
-import { EntityLinkField } from './entity-link-field'
 import { syncEntityLinks } from '@/lib/entity-links'
 import { buildEntityContext } from '@/lib/ai-context'
 import type { PendingLink } from '@/lib/types/entity-relationships'
+import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
+import { Label } from '@/components/ui/label'
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select'
+import { ExternalLink } from 'lucide-react'
+
+// ============================================================================
+// Relationship slots
+// ============================================================================
+
+const STORY_MAP_SLOTS: RelationshipSlot[] = [
+  {
+    targetType: 'touchpoint',
+    linkType: 'expands',
+    label: 'Touchpoint',
+    group: 'Journeys',
+    displayField: 'name',
+    allowMultiple: false,
+  },
+]
+
+// ============================================================================
+// Types & Constants
+// ============================================================================
 
 interface StoryMap {
   id: string
@@ -28,7 +52,6 @@ interface StoryMap {
 
 interface StoryMapFormProps {
   storyMap?: StoryMap
-  projects: { id: string; name: string }[]
 }
 
 const mapTypes = [
@@ -52,12 +75,16 @@ const validationStatuses = [
   { value: 'invalidated', label: 'Invalidated' },
 ]
 
-export function StoryMapForm({ storyMap, projects }: StoryMapFormProps) {
+// ============================================================================
+// Component
+// ============================================================================
+
+export function StoryMapForm({ storyMap }: StoryMapFormProps) {
   const router = useRouter()
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [relatedContext, setRelatedContext] = useState<Record<string, unknown>>({})
-  const [pendingTouchpointLinks, setPendingTouchpointLinks] = useState<PendingLink[]>([])
+  const [pendingLinks, setPendingLinks] = useState<PendingLink[]>([])
 
   const [formData, setFormData] = useState({
     slug: storyMap?.slug || '',
@@ -70,6 +97,13 @@ export function StoryMapForm({ storyMap, projects }: StoryMapFormProps) {
     hypothesis_id: storyMap?.hypothesis_id || '',
     tags: storyMap?.tags?.join(', ') || '',
   })
+
+  // Track dirty state
+  const [initialFormData] = useState(formData)
+  const isDirty = useMemo(
+    () => JSON.stringify(formData) !== JSON.stringify(initialFormData),
+    [formData, initialFormData]
+  )
 
   // Auto-generate slug from name
   useEffect(() => {
@@ -88,14 +122,13 @@ export function StoryMapForm({ storyMap, projects }: StoryMapFormProps) {
     buildEntityContext('story_maps', formData).then(setRelatedContext)
   }, [formData.studio_project_id, formData.hypothesis_id])
 
-  // Build AI context including related entity data
   const getAIContext = (additionalContext: Record<string, unknown> = {}) => ({
     ...relatedContext,
     ...additionalContext,
   })
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
+  const handleSubmit = async (e?: React.FormEvent) => {
+    e?.preventDefault()
     setSaving(true)
     setError(null)
 
@@ -118,7 +151,7 @@ export function StoryMapForm({ storyMap, projects }: StoryMapFormProps) {
       }
 
       if (storyMap?.id) {
-        // Check slug uniqueness on update (if slug changed)
+        // Check slug uniqueness on update
         if (formData.slug !== storyMap.slug) {
           let query = supabase
             .from('story_maps')
@@ -133,9 +166,8 @@ export function StoryMapForm({ storyMap, projects }: StoryMapFormProps) {
           }
 
           const { data: existing } = await query.maybeSingle()
-
           if (existing) {
-            throw new Error(`A story map with slug "${formData.slug}" already exists in this project. Please use a different slug.`)
+            throw new Error(`A story map with slug "${formData.slug}" already exists in this project.`)
           }
         }
 
@@ -145,7 +177,6 @@ export function StoryMapForm({ storyMap, projects }: StoryMapFormProps) {
           .eq('id', storyMap.id)
 
         if (updateError) throw updateError
-        router.push('/admin/story-maps')
       } else {
         // Check slug uniqueness on create
         let query = supabase
@@ -160,9 +191,8 @@ export function StoryMapForm({ storyMap, projects }: StoryMapFormProps) {
         }
 
         const { data: existing } = await query.maybeSingle()
-
         if (existing) {
-          throw new Error(`A story map with slug "${formData.slug}" already exists in this project. Please use a different slug.`)
+          throw new Error(`A story map with slug "${formData.slug}" already exists in this project.`)
         }
 
         const { data: created, error: insertError } = await supabase
@@ -174,28 +204,28 @@ export function StoryMapForm({ storyMap, projects }: StoryMapFormProps) {
         if (insertError) throw insertError
 
         // Sync pending entity links for create mode
-        const sourceRef = { type: 'story_map' as const, id: created.id }
-        if (pendingTouchpointLinks.length > 0) {
-          await syncEntityLinks(sourceRef, 'touchpoint', 'expands', pendingTouchpointLinks.map(l => l.targetId))
+        if (pendingLinks.length > 0) {
+          const sourceRef = { type: 'story_map' as const, id: created.id }
+          await syncEntityLinks(sourceRef, 'touchpoint', 'expands', pendingLinks.map(l => l.targetId))
         }
-
-        router.push(`/admin/story-maps/${created.id}/edit`)
       }
-    } catch (err: any) {
-      // Handle specific error types with actionable messages
-      const message = err.message || ''
-      if (message.includes('duplicate key') || err.code === '23505') {
-        setError('A story map with this slug already exists. Please use a different slug.')
-      } else if (message.includes('not authenticated') || err.code === 'PGRST301') {
+
+      toast.success(storyMap ? 'Story map updated!' : 'Story map created!')
+      router.push('/admin/story-maps')
+      router.refresh()
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : ''
+      const code = (err as { code?: string })?.code
+      if (message.includes('duplicate key') || code === '23505') {
+        setError('A story map with this slug already exists.')
+      } else if (message.includes('not authenticated') || code === 'PGRST301') {
         setError('You must be logged in to save story maps.')
       } else if (message.includes('permission denied') || message.includes('policy')) {
-        setError('You do not have permission to modify story maps. Admin access required.')
-      } else if (message.includes('network') || err.code === 'NETWORK_ERROR') {
-        setError('Network error. Please check your connection and try again.')
+        setError('You do not have permission to modify story maps.')
       } else {
-        setError(message || 'Failed to save story map. Please try again.')
+        setError(message || 'Failed to save story map.')
       }
-    } finally {
+      toast.error(message || 'Failed to save story map.')
       setSaving(false)
     }
   }
@@ -211,264 +241,266 @@ export function StoryMapForm({ storyMap, projects }: StoryMapFormProps) {
         .eq('id', storyMap.id)
 
       if (deleteError) throw deleteError
+
+      toast.success('Story map deleted')
       router.push('/admin/story-maps')
-    } catch (err: any) {
-      const message = err.message || ''
-      if (message.includes('permission denied') || message.includes('policy')) {
-        setError('You do not have permission to delete story maps. Admin access required.')
-      } else {
-        setError(message || 'Failed to delete story map. Please try again.')
-      }
+      router.refresh()
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Failed to delete story map.'
+      setError(message)
+      toast.error(message)
       setSaving(false)
     }
   }
 
-  return (
-    <form onSubmit={handleSubmit}>
-      {/* Canvas view toggle - only show for existing story maps */}
-      {storyMap?.id && (
-        <div className="mb-6 flex items-center justify-between p-4 border rounded-lg bg-muted/30">
-          <div>
-            <h3 className="font-medium text-sm">Visual Canvas</h3>
-            <p className="text-xs text-muted-foreground">
-              Edit activities and stories in a visual grid layout
-            </p>
-          </div>
-          <Link
-            href={`/admin/story-maps/${storyMap.id}/canvas`}
-            className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-md text-sm hover:opacity-90 transition-opacity"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
-            </svg>
-            Open Canvas View
-          </Link>
+  // Status badge
+  const statusLabel = formData.status.charAt(0).toUpperCase() + formData.status.slice(1)
+  const statusVariant = formData.status === 'active' ? 'default'
+    : formData.status === 'validated' ? 'secondary'
+    : 'outline'
+
+  // ============================================================================
+  // Fields tab
+  // ============================================================================
+
+  const fieldsTab = (
+    <div className="space-y-6">
+      {error && (
+        <div className="p-4 rounded-lg border border-red-200 bg-red-50 dark:bg-red-950/10 text-red-800 dark:text-red-200">
+          {error}
         </div>
       )}
 
-      <div className="flex gap-8">
-        {/* Main content */}
-        <div className="flex-1 space-y-6">
-          {/* Name */}
-          <FormFieldWithAI
-            label="Name *"
-            fieldName="name"
-            entityType="story_maps"
-            context={getAIContext({
-              map_type: formData.map_type,
-              status: formData.status,
-            })}
-            currentValue={formData.name}
-            onGenerate={(content) => setFormData((prev) => ({ ...prev, name: content }))}
-            disabled={saving}
+      <FormFieldWithAI
+        label="Name *"
+        fieldName="name"
+        entityType="story_maps"
+        context={getAIContext({
+          map_type: formData.map_type,
+          status: formData.status,
+        })}
+        currentValue={formData.name}
+        onGenerate={(content) => setFormData((prev) => ({ ...prev, name: content }))}
+        disabled={saving}
+      >
+        <Input
+          type="text"
+          value={formData.name}
+          onChange={(e) => setFormData((prev) => ({ ...prev, name: e.target.value }))}
+          required
+          placeholder="e.g., Checkout Feature Map"
+        />
+      </FormFieldWithAI>
+
+      <div>
+        <Label htmlFor="slug" className="block mb-1">Slug *</Label>
+        <Input
+          type="text"
+          id="slug"
+          value={formData.slug}
+          onChange={(e) => setFormData((prev) => ({ ...prev, slug: e.target.value }))}
+          required
+          className="font-mono text-sm"
+          placeholder="checkout-feature-map"
+        />
+        <p className="mt-1 text-xs text-muted-foreground">URL-friendly identifier</p>
+      </div>
+
+      <FormFieldWithAI
+        label="Description"
+        fieldName="description"
+        entityType="story_maps"
+        context={getAIContext({
+          name: formData.name,
+          map_type: formData.map_type,
+        })}
+        currentValue={formData.description}
+        onGenerate={(content) => setFormData((prev) => ({ ...prev, description: content }))}
+        disabled={saving}
+      >
+        <Textarea
+          value={formData.description}
+          onChange={(e) => setFormData((prev) => ({ ...prev, description: e.target.value }))}
+          rows={3}
+          placeholder="What does this story map cover?"
+        />
+      </FormFieldWithAI>
+
+      <div>
+        <Label htmlFor="map_type" className="block mb-1">Map Type</Label>
+        <Select
+          value={formData.map_type}
+          onValueChange={(v) => setFormData((prev) => ({ ...prev, map_type: v }))}
+        >
+          <SelectTrigger id="map_type" className="w-full">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {mapTypes.map((type) => (
+              <SelectItem key={type.value} value={type.value}>
+                {type.label} - {type.description}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+    </div>
+  )
+
+  // ============================================================================
+  // Links tab
+  // ============================================================================
+
+  const linksTab = (
+    <div className="space-y-6">
+      {storyMap?.id ? (
+        <RelationshipManager
+          entity={{ type: 'story_map', id: storyMap.id }}
+          slots={STORY_MAP_SLOTS}
+        />
+      ) : (
+        <RelationshipManager
+          entity={{ type: 'story_map' }}
+          slots={STORY_MAP_SLOTS}
+          pendingLinks={pendingLinks}
+          onPendingLinksChange={setPendingLinks}
+        />
+      )}
+    </div>
+  )
+
+  // ============================================================================
+  // Metadata panel
+  // ============================================================================
+
+  const metadataPanel = (
+    <div className="space-y-4">
+      <div className="rounded-lg border bg-card p-4 space-y-4">
+        <h3 className="text-sm font-semibold">Status</h3>
+        <div>
+          <Label className="block text-xs mb-1 text-muted-foreground">Status</Label>
+          <Select
+            value={formData.status}
+            onValueChange={(v) => setFormData((prev) => ({ ...prev, status: v }))}
           >
-            <input
-              type="text"
-              id="name"
-              value={formData.name}
-              onChange={(e) => setFormData((prev) => ({ ...prev, name: e.target.value }))}
-              required
-              className="w-full px-3 py-2 border rounded-md bg-background"
-              placeholder="e.g., Checkout Feature Map"
-            />
-          </FormFieldWithAI>
-
-          {/* Slug */}
-          <div>
-            <label htmlFor="slug" className="block text-sm font-medium mb-1">
-              Slug <span className="text-destructive">*</span>
-            </label>
-            <input
-              type="text"
-              id="slug"
-              value={formData.slug}
-              onChange={(e) => setFormData((prev) => ({ ...prev, slug: e.target.value }))}
-              required
-              className="w-full px-3 py-2 border rounded-md bg-background font-mono text-sm"
-              placeholder="checkout-feature-map"
-            />
-            <p className="mt-1 text-xs text-muted-foreground">
-              URL-friendly identifier
-            </p>
-          </div>
-
-          {/* Description */}
-          <FormFieldWithAI
-            label="Description"
-            fieldName="description"
-            entityType="story_maps"
-            context={getAIContext({
-              name: formData.name,
-              map_type: formData.map_type,
-            })}
-            currentValue={formData.description}
-            onGenerate={(content) => setFormData((prev) => ({ ...prev, description: content }))}
-            disabled={saving}
-          >
-            <textarea
-              id="description"
-              value={formData.description}
-              onChange={(e) => setFormData((prev) => ({ ...prev, description: e.target.value }))}
-              rows={3}
-              className="w-full px-3 py-2 border rounded-md bg-background"
-              placeholder="What does this story map cover?"
-            />
-          </FormFieldWithAI>
-
-          {/* Map Type */}
-          <div>
-            <label htmlFor="map_type" className="block text-sm font-medium mb-1">
-              Map Type
-            </label>
-            <select
-              id="map_type"
-              value={formData.map_type}
-              onChange={(e) => setFormData((prev) => ({ ...prev, map_type: e.target.value }))}
-              className="w-full px-3 py-2 border rounded-md bg-background"
-            >
-              {mapTypes.map((type) => (
-                <option key={type.value} value={type.value}>
-                  {type.label} - {type.description}
-                </option>
+            <SelectTrigger size="sm" className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {statuses.map((s) => (
+                <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
               ))}
-            </select>
-          </div>
-
-          {/* Tags */}
-          <FormFieldWithAI
-            label="Tags"
-            fieldName="tags"
-            entityType="story_maps"
-            context={getAIContext({
-              name: formData.name,
-              description: formData.description,
-              map_type: formData.map_type,
-            })}
-            currentValue={formData.tags}
-            onGenerate={(content) => setFormData((prev) => ({ ...prev, tags: content }))}
-            disabled={saving}
-            description="Comma-separated tags for organization"
-          >
-            <input
-              type="text"
-              id="tags"
-              value={formData.tags}
-              onChange={(e) => setFormData((prev) => ({ ...prev, tags: e.target.value }))}
-              className="w-full px-3 py-2 border rounded-md bg-background"
-              placeholder="mvp, checkout, sprint-1"
-            />
-          </FormFieldWithAI>
-
-          {/* Error */}
-          {error && (
-            <div className="p-3 bg-destructive/10 text-destructive rounded-md text-sm">
-              {error}
-            </div>
-          )}
+            </SelectContent>
+          </Select>
         </div>
-
-        {/* Sidebar */}
-        <div className="w-80 space-y-4">
-          <SidebarCard title="Status">
-            <div className="space-y-3">
-              <div>
-                <label htmlFor="status" className="block text-xs font-medium mb-1 text-muted-foreground">
-                  Status
-                </label>
-                <select
-                  id="status"
-                  value={formData.status}
-                  onChange={(e) => setFormData((prev) => ({ ...prev, status: e.target.value }))}
-                  className="w-full px-2 py-1.5 border rounded bg-background text-sm"
-                >
-                  {statuses.map((s) => (
-                    <option key={s.value} value={s.value}>
-                      {s.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label htmlFor="validation_status" className="block text-xs font-medium mb-1 text-muted-foreground">
-                  Validation
-                </label>
-                <select
-                  id="validation_status"
-                  value={formData.validation_status}
-                  onChange={(e) => setFormData((prev) => ({ ...prev, validation_status: e.target.value }))}
-                  className="w-full px-2 py-1.5 border rounded bg-background text-sm"
-                >
-                  {validationStatuses.map((s) => (
-                    <option key={s.value} value={s.value}>
-                      {s.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-          </SidebarCard>
-
-          <SidebarCard title="Relationships">
-            <div className="space-y-4">
-              <div>
-                <label htmlFor="studio_project_id" className="block text-xs font-medium mb-1 text-muted-foreground">
-                  Studio Project
-                </label>
-                <select
-                  id="studio_project_id"
-                  value={formData.studio_project_id}
-                  onChange={(e) => setFormData((prev) => ({ ...prev, studio_project_id: e.target.value }))}
-                  className="w-full px-2 py-1.5 border rounded bg-background text-sm"
-                >
-                  <option value="">None</option>
-                  {projects.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <RelationshipField
-                label="Hypothesis"
-                value={formData.hypothesis_id}
-                onChange={(id) => setFormData((prev) => ({ ...prev, hypothesis_id: id as string }))}
-                tableName="studio_hypotheses"
-                displayField="statement"
-                mode="single"
-                placeholder="Select hypothesis..."
-                helperText="Link to a hypothesis to validate"
-              />
-            </div>
-          </SidebarCard>
-
-          <SidebarCard title="Expands Touchpoint">
-            <div className="space-y-4">
-              <EntityLinkField
-                label="Touchpoint"
-                sourceType="story_map"
-                sourceId={storyMap?.id}
-                targetType="touchpoint"
-                targetTableName="touchpoints"
-                targetDisplayField="name"
-                linkType="expands"
-                allowMultiple={false}
-                pendingLinks={pendingTouchpointLinks}
-                onPendingLinksChange={setPendingTouchpointLinks}
-                helperText="The touchpoint this story map expands into detailed micro-steps"
-              />
-            </div>
-          </SidebarCard>
-
-          <FormActions
-            isSubmitting={saving}
-            submitLabel={storyMap ? 'Save Changes' : 'Create Story Map'}
-            onCancel={() => router.push('/admin/story-maps')}
-            onDelete={storyMap ? handleDelete : undefined}
-            deleteConfirmMessage="Are you sure you want to delete this story map? This will also delete all activities and stories. This action cannot be undone."
-          />
+        <div>
+          <Label className="block text-xs mb-1 text-muted-foreground">Validation</Label>
+          <Select
+            value={formData.validation_status}
+            onValueChange={(v) => setFormData((prev) => ({ ...prev, validation_status: v }))}
+          >
+            <SelectTrigger size="sm" className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {validationStatuses.map((s) => (
+                <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
       </div>
-    </form>
+
+      <div className="rounded-lg border bg-card p-4 space-y-4">
+        <h3 className="text-sm font-semibold">Relationships</h3>
+        <RelationshipField
+          label="Studio Project"
+          value={formData.studio_project_id}
+          onChange={(id) => setFormData((prev) => ({ ...prev, studio_project_id: id as string }))}
+          tableName="studio_projects"
+          displayField="name"
+          mode="single"
+          placeholder="Select project..."
+        />
+        <RelationshipField
+          label="Hypothesis"
+          value={formData.hypothesis_id}
+          onChange={(id) => setFormData((prev) => ({ ...prev, hypothesis_id: id as string }))}
+          tableName="studio_hypotheses"
+          displayField="statement"
+          mode="single"
+          placeholder="Select hypothesis..."
+          helperText="Link to a hypothesis to validate"
+        />
+      </div>
+
+      <div className="rounded-lg border bg-card p-4 space-y-3">
+        <FormFieldWithAI
+          label="Tags"
+          fieldName="tags"
+          entityType="story_maps"
+          context={getAIContext({
+            name: formData.name,
+            description: formData.description,
+            map_type: formData.map_type,
+          })}
+          currentValue={formData.tags}
+          onGenerate={(content) => setFormData((prev) => ({ ...prev, tags: content }))}
+          disabled={saving}
+          description="Comma-separated tags"
+        >
+          <Input
+            type="text"
+            value={formData.tags}
+            onChange={(e) => setFormData((prev) => ({ ...prev, tags: e.target.value }))}
+            placeholder="mvp, checkout, sprint-1"
+          />
+        </FormFieldWithAI>
+      </div>
+    </div>
+  )
+
+  // ============================================================================
+  // Tabs
+  // ============================================================================
+
+  const tabs = [
+    { id: 'fields', label: 'Fields', content: fieldsTab },
+    { id: 'links', label: 'Links', content: linksTab },
+  ]
+
+  // ============================================================================
+  // Render
+  // ============================================================================
+
+  return (
+    <AdminEntityLayout
+      title={storyMap ? formData.name || 'Untitled' : 'New Story Map'}
+      subtitle={storyMap ? formData.slug : undefined}
+      status={{ label: statusLabel, variant: statusVariant as 'default' | 'secondary' | 'outline' }}
+      backHref="/admin/story-maps"
+      backLabel="Story Maps"
+      controlCluster={
+        <EntityControlCluster
+          isDirty={isDirty}
+          isSaving={saving}
+          onSave={() => handleSubmit()}
+          onCancel={() => router.push('/admin/story-maps')}
+          saveLabel={storyMap ? 'Save' : 'Create'}
+          links={storyMap ? [
+            { label: 'Canvas', href: `/admin/story-maps/${storyMap.id}/canvas`, icon: <ExternalLink className="size-4" /> },
+          ] : undefined}
+          onDelete={storyMap ? handleDelete : undefined}
+          deleteConfirmMessage="Are you sure you want to delete this story map? This will also delete all activities and stories."
+        />
+      }
+      tabs={tabs}
+      metadata={metadataPanel}
+      isDirty={isDirty}
+      isSaving={saving}
+      onSave={() => handleSubmit()}
+      onCancel={() => router.push('/admin/story-maps')}
+      onSubmit={handleSubmit}
+    />
   )
 }

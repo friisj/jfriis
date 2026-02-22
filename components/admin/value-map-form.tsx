@@ -1,12 +1,24 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
+import { toast } from 'sonner'
 import { syncCanvasPlacements } from '@/lib/utils/canvas-placements'
 import { AssumptionLinker } from './assumption-linker'
 import { CanvasItemSelector, getAllowedTypesForBlock } from './canvas-item-selector'
 import { FormFieldWithAI } from '@/components/forms'
+import { AdminEntityLayout } from '@/components/admin/admin-entity-layout'
+import { EntityControlCluster } from '@/components/admin/entity-control-cluster'
+import { RelationshipField } from './relationship-field'
+import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
+import { Label } from '@/components/ui/label'
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select'
+
+// ============================================================================
+// Types & Constants
+// ============================================================================
 
 interface CanvasBlock {
   item_ids: string[]
@@ -14,33 +26,22 @@ interface CanvasBlock {
   validation_status: 'untested' | 'testing' | 'validated' | 'invalidated'
 }
 
-interface ValueMapFormData {
+interface ValueMap {
+  id: string
   slug: string
   name: string
-  description: string
-  status: 'draft' | 'active' | 'validated' | 'archived'
-  tags: string
-  studio_project_id: string
-  business_model_canvas_id: string
-  // Value Map blocks (the "square" side - what you offer)
+  description?: string | null
+  status: string
+  tags: string[]
+  studio_project_id?: string | null
+  business_model_canvas_id?: string | null
   products_services: CanvasBlock
   pain_relievers: CanvasBlock
   gain_creators: CanvasBlock
 }
 
-interface StudioProject {
-  id: string
-  name: string
-}
-
-interface BusinessModelCanvas {
-  id: string
-  name: string
-}
-
 interface ValueMapFormProps {
-  valueMapId?: string
-  initialData?: Partial<ValueMapFormData>
+  valueMap?: ValueMap
 }
 
 const defaultBlock = (): CanvasBlock => ({
@@ -48,6 +49,13 @@ const defaultBlock = (): CanvasBlock => ({
   assumption_ids: [],
   validation_status: 'untested',
 })
+
+const statuses = [
+  { value: 'draft', label: 'Draft' },
+  { value: 'active', label: 'Active' },
+  { value: 'validated', label: 'Validated' },
+  { value: 'archived', label: 'Archived' },
+]
 
 const BLOCK_LABELS: Record<string, { title: string; description: string }> = {
   products_services: {
@@ -63,6 +71,10 @@ const BLOCK_LABELS: Record<string, { title: string; description: string }> = {
     description: 'How do your products/services create customer gains?',
   },
 }
+
+// ============================================================================
+// CanvasBlockEditor
+// ============================================================================
 
 function CanvasBlockEditor({
   blockKey,
@@ -118,7 +130,7 @@ function CanvasBlockEditor({
       {isOpen && (
         <div className="px-4 pb-4 space-y-4 border-t pt-4">
           <div>
-            <label className="block text-sm font-medium mb-2">Items</label>
+            <Label className="block mb-2">Items</Label>
             <CanvasItemSelector
               placedItemIds={itemIds}
               canvasType="value_map"
@@ -136,7 +148,7 @@ function CanvasBlockEditor({
           </div>
 
           <div>
-            <label className="block text-sm font-medium mb-2">Linked Assumptions</label>
+            <Label className="block mb-2">Linked Assumptions</Label>
             <AssumptionLinker
               linkedIds={assumptionIds}
               onChange={(ids) =>
@@ -152,22 +164,26 @@ function CanvasBlockEditor({
           </div>
 
           <div>
-            <label className="block text-sm font-medium mb-1">Validation Status</label>
-            <select
+            <Label className="block mb-1">Validation Status</Label>
+            <Select
               value={value.validation_status}
-              onChange={(e) =>
+              onValueChange={(v) =>
                 onChange({
                   ...value,
-                  validation_status: e.target.value as CanvasBlock['validation_status'],
+                  validation_status: v as CanvasBlock['validation_status'],
                 })
               }
-              className="w-full px-3 py-2 rounded-lg border bg-background text-sm"
             >
-              <option value="untested">Untested</option>
-              <option value="testing">Testing</option>
-              <option value="validated">Validated</option>
-              <option value="invalidated">Invalidated</option>
-            </select>
+              <SelectTrigger className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="untested">Untested</SelectItem>
+                <SelectItem value="testing">Testing</SelectItem>
+                <SelectItem value="validated">Validated</SelectItem>
+                <SelectItem value="invalidated">Invalidated</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
         </div>
       )}
@@ -175,48 +191,37 @@ function CanvasBlockEditor({
   )
 }
 
-export function ValueMapForm({ valueMapId, initialData }: ValueMapFormProps) {
+// ============================================================================
+// Component
+// ============================================================================
+
+export function ValueMapForm({ valueMap }: ValueMapFormProps) {
   const router = useRouter()
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [projects, setProjects] = useState<StudioProject[]>([])
-  const [bmcs, setBmcs] = useState<BusinessModelCanvas[]>([])
 
-  const [formData, setFormData] = useState<ValueMapFormData>({
-    slug: initialData?.slug || '',
-    name: initialData?.name || '',
-    description: initialData?.description || '',
-    status: initialData?.status || 'draft',
-    tags: initialData?.tags || '',
-    studio_project_id: initialData?.studio_project_id || '',
-    business_model_canvas_id: initialData?.business_model_canvas_id || '',
-    products_services: initialData?.products_services || defaultBlock(),
-    pain_relievers: initialData?.pain_relievers || defaultBlock(),
-    gain_creators: initialData?.gain_creators || defaultBlock(),
+  const [formData, setFormData] = useState({
+    slug: valueMap?.slug || '',
+    name: valueMap?.name || '',
+    description: valueMap?.description || '',
+    status: valueMap?.status || 'draft',
+    tags: valueMap?.tags?.join(', ') || '',
+    studio_project_id: valueMap?.studio_project_id || '',
+    business_model_canvas_id: valueMap?.business_model_canvas_id || '',
+    products_services: valueMap?.products_services || defaultBlock(),
+    pain_relievers: valueMap?.pain_relievers || defaultBlock(),
+    gain_creators: valueMap?.gain_creators || defaultBlock(),
   })
 
-  useEffect(() => {
-    async function loadRelations() {
-      const [projectsRes, bmcsRes] = await Promise.all([
-        supabase.from('studio_projects').select('id, name').order('name'),
-        supabase.from('business_model_canvases').select('id, name').order('name'),
-      ])
+  // Track dirty state
+  const [initialFormData] = useState(formData)
+  const isDirty = useMemo(
+    () => JSON.stringify(formData) !== JSON.stringify(initialFormData),
+    [formData, initialFormData]
+  )
 
-      if (projectsRes.data) setProjects(projectsRes.data)
-      if (bmcsRes.data) setBmcs(bmcsRes.data)
-    }
-    loadRelations()
-  }, [])
-
-  const generateSlug = (name: string) => {
-    return name
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, '-')
-      .replace(/^-|-$/g, '')
-  }
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
+  const handleSubmit = async (e?: React.FormEvent) => {
+    e?.preventDefault()
     setSaving(true)
     setError(null)
 
@@ -226,8 +231,14 @@ export function ValueMapForm({ valueMapId, initialData }: ValueMapFormProps) {
         .map((t) => t.trim())
         .filter((t) => t.length > 0)
 
+      // Auto-generate slug if empty
+      const slug = formData.slug || formData.name
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-|-$/g, '')
+
       const data = {
-        slug: formData.slug,
+        slug,
         name: formData.name,
         description: formData.description || null,
         status: formData.status,
@@ -239,22 +250,19 @@ export function ValueMapForm({ valueMapId, initialData }: ValueMapFormProps) {
         gain_creators: formData.gain_creators,
       }
 
-      let savedValueMapId = valueMapId
+      let savedValueMapId = valueMap?.id
 
-      if (valueMapId) {
-        // Update existing value map
-        const { error } = await (supabase.from('value_maps') as any).update(data).eq('id', valueMapId)
-
-        if (error) throw error
+      if (valueMap?.id) {
+        const { error: updateError } = await (supabase.from('value_maps') as any).update(data).eq('id', valueMap.id)
+        if (updateError) throw updateError
       } else {
-        // Create new value map and get the ID
-        const { data: newValueMap, error } = await (supabase
+        const { data: newValueMap, error: insertError } = await (supabase
           .from('value_maps') as any)
           .insert([data])
           .select('id')
           .single()
 
-        if (error) throw error
+        if (insertError) throw insertError
         savedValueMapId = newValueMap.id
       }
 
@@ -266,192 +274,137 @@ export function ValueMapForm({ valueMapId, initialData }: ValueMapFormProps) {
         formData: formData as any,
       })
 
-      // Check for placement errors
       if (!placementResult.success) {
         const failedBlocks = placementResult.errors.map((e) => e.blockKey).join(', ')
         console.error('Failed to save placements for blocks:', failedBlocks, placementResult.errors)
         setError(
           `Value Map saved but some items failed to place (${placementResult.successfulBlocks}/${placementResult.totalBlocks} blocks succeeded). Failed blocks: ${failedBlocks}`
         )
-        // Still navigate but with error message visible
       }
 
+      toast.success(valueMap ? 'Value map updated!' : 'Value map created!')
       router.push('/admin/canvases/value-maps')
       router.refresh()
     } catch (err) {
       console.error('Error saving value map:', err)
-      setError(err instanceof Error ? err.message : 'Failed to save value map')
-    } finally {
+      const message = err instanceof Error ? err.message : 'Failed to save value map'
+      setError(message)
+      toast.error(message)
       setSaving(false)
     }
   }
 
   const handleDelete = async () => {
-    if (!valueMapId || !confirm('Are you sure you want to delete this value map?')) return
+    if (!valueMap?.id) return
 
     setSaving(true)
     try {
-      const { error } = await (supabase.from('value_maps') as any).delete().eq('id', valueMapId)
+      const { error: deleteError } = await (supabase.from('value_maps') as any).delete().eq('id', valueMap.id)
+      if (deleteError) throw deleteError
 
-      if (error) throw error
-
+      toast.success('Value map deleted')
       router.push('/admin/canvases/value-maps')
       router.refresh()
     } catch (err) {
       console.error('Error deleting value map:', err)
-      setError(err instanceof Error ? err.message : 'Failed to delete value map')
-    } finally {
+      const message = err instanceof Error ? err.message : 'Failed to delete value map'
+      setError(message)
+      toast.error(message)
       setSaving(false)
     }
   }
 
-  return (
-    <form onSubmit={handleSubmit} className="space-y-8">
+  // Status badge
+  const statusLabel = formData.status.charAt(0).toUpperCase() + formData.status.slice(1)
+  const statusVariant = formData.status === 'active' ? 'default'
+    : formData.status === 'validated' ? 'secondary'
+    : 'outline'
+
+  // ============================================================================
+  // Fields tab
+  // ============================================================================
+
+  const fieldsTab = (
+    <div className="space-y-6">
       {error && (
-        <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-lg text-red-600 dark:text-red-400">
+        <div className="p-4 rounded-lg border border-red-200 bg-red-50 dark:bg-red-950/10 text-red-800 dark:text-red-200">
           {error}
         </div>
       )}
 
-      {/* Basic Info */}
-      <div className="space-y-4">
-        <h2 className="text-lg font-semibold border-b pb-2">Basic Information</h2>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium mb-1">Name *</label>
-            <input
-              type="text"
-              value={formData.name}
-              onChange={(e) => {
-                const name = e.target.value
-                setFormData({
-                  ...formData,
-                  name,
-                  slug: valueMapId ? formData.slug : generateSlug(name),
-                })
-              }}
-              className="w-full px-3 py-2 rounded-lg border bg-background"
-              required
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium mb-1">Slug *</label>
-            <input
-              type="text"
-              value={formData.slug}
-              onChange={(e) =>
-                setFormData({
-                  ...formData,
-                  slug: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '-'),
-                })
-              }
-              className="w-full px-3 py-2 rounded-lg border bg-background font-mono text-sm"
-              required
-              pattern="^[a-z0-9-]+$"
-            />
-          </div>
-        </div>
-
-        <FormFieldWithAI
-          label="Description"
-          fieldName="description"
-          entityType="value_maps"
-          context={{
-            name: formData.name,
-            status: formData.status,
+      <FormFieldWithAI
+        label="Name *"
+        fieldName="name"
+        entityType="value_maps"
+        context={{
+          status: formData.status,
+        }}
+        currentValue={formData.name}
+        onGenerate={(content) => setFormData((prev) => ({ ...prev, name: content }))}
+        disabled={saving}
+      >
+        <Input
+          type="text"
+          value={formData.name}
+          onChange={(e) => {
+            const name = e.target.value
+            setFormData((prev) => ({
+              ...prev,
+              name,
+              slug: valueMap?.slug ? prev.slug : name
+                .toLowerCase()
+                .replace(/[^a-z0-9]+/g, '-')
+                .replace(/^-|-$/g, ''),
+            }))
           }}
-          currentValue={formData.description}
-          onGenerate={(content) => setFormData({ ...formData, description: content })}
-          disabled={saving}
-          description="Describe this value map..."
-        >
-          <textarea
-            value={formData.description}
-            onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-            className="w-full px-3 py-2 rounded-lg border bg-background"
-            rows={2}
-            placeholder="Describe this value map..."
-          />
-        </FormFieldWithAI>
+          required
+          placeholder="e.g., Premium Checkout Value Map"
+        />
+      </FormFieldWithAI>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div>
-            <label className="block text-sm font-medium mb-1">Status</label>
-            <select
-              value={formData.status}
-              onChange={(e) =>
-                setFormData({ ...formData, status: e.target.value as ValueMapFormData['status'] })
-              }
-              className="w-full px-3 py-2 rounded-lg border bg-background"
-            >
-              <option value="draft">Draft</option>
-              <option value="active">Active</option>
-              <option value="validated">Validated</option>
-              <option value="archived">Archived</option>
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm font-medium mb-1">Studio Project</label>
-            <select
-              value={formData.studio_project_id}
-              onChange={(e) => setFormData({ ...formData, studio_project_id: e.target.value })}
-              className="w-full px-3 py-2 rounded-lg border bg-background"
-            >
-              <option value="">None</option>
-              {projects.map((project) => (
-                <option key={project.id} value={project.id}>
-                  {project.name}
-                </option>
-              ))}
-            </select>
-          </div>
-          <FormFieldWithAI
-            label="Tags"
-            fieldName="tags"
-            entityType="value_maps"
-            context={{
-              name: formData.name,
-              description: formData.description,
-              status: formData.status,
-            }}
-            currentValue={formData.tags}
-            onGenerate={(content) => setFormData({ ...formData, tags: content })}
-            disabled={saving}
-          >
-            <input
-              type="text"
-              value={formData.tags}
-              onChange={(e) => setFormData({ ...formData, tags: e.target.value })}
-              className="w-full px-3 py-2 rounded-lg border bg-background"
-              placeholder="tag1, tag2"
-            />
-          </FormFieldWithAI>
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium mb-1">Linked Business Model Canvas</label>
-          <select
-            value={formData.business_model_canvas_id}
-            onChange={(e) => setFormData({ ...formData, business_model_canvas_id: e.target.value })}
-            className="w-full px-3 py-2 rounded-lg border bg-background"
-          >
-            <option value="">None</option>
-            {bmcs.map((bmc) => (
-              <option key={bmc.id} value={bmc.id}>
-                {bmc.name}
-              </option>
-            ))}
-          </select>
-          <p className="text-xs text-muted-foreground mt-1">
-            Link to the Business Model Canvas this value map elaborates on
-          </p>
-        </div>
+      <div>
+        <Label htmlFor="slug" className="block mb-1">Slug *</Label>
+        <Input
+          type="text"
+          id="slug"
+          value={formData.slug}
+          onChange={(e) =>
+            setFormData((prev) => ({
+              ...prev,
+              slug: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '-'),
+            }))
+          }
+          className="font-mono text-sm"
+          required
+          pattern="^[a-z0-9-]+$"
+          placeholder="premium-checkout-value-map"
+        />
+        <p className="mt-1 text-xs text-muted-foreground">URL-friendly identifier</p>
       </div>
+
+      <FormFieldWithAI
+        label="Description"
+        fieldName="description"
+        entityType="value_maps"
+        context={{
+          name: formData.name,
+          status: formData.status,
+        }}
+        currentValue={formData.description}
+        onGenerate={(content) => setFormData((prev) => ({ ...prev, description: content }))}
+        disabled={saving}
+      >
+        <Textarea
+          value={formData.description}
+          onChange={(e) => setFormData((prev) => ({ ...prev, description: e.target.value }))}
+          rows={2}
+          placeholder="Describe this value map..."
+        />
+      </FormFieldWithAI>
 
       {/* Value Map Blocks */}
       <div className="space-y-4">
-        <h2 className="text-lg font-semibold border-b pb-2">Value Map (What You Offer)</h2>
+        <h3 className="text-sm font-semibold border-b pb-2">Value Map (What You Offer)</h3>
         <p className="text-sm text-muted-foreground">
           Define your products, services, and how they address customer needs
         </p>
@@ -459,57 +412,140 @@ export function ValueMapForm({ valueMapId, initialData }: ValueMapFormProps) {
         <CanvasBlockEditor
           blockKey="products_services"
           value={formData.products_services}
-          onChange={(value) => setFormData({ ...formData, products_services: value })}
-          valueMapId={valueMapId}
+          onChange={(value) => setFormData((prev) => ({ ...prev, products_services: value }))}
+          valueMapId={valueMap?.id}
           projectId={formData.studio_project_id}
         />
         <CanvasBlockEditor
           blockKey="pain_relievers"
           value={formData.pain_relievers}
-          onChange={(value) => setFormData({ ...formData, pain_relievers: value })}
-          valueMapId={valueMapId}
+          onChange={(value) => setFormData((prev) => ({ ...prev, pain_relievers: value }))}
+          valueMapId={valueMap?.id}
           projectId={formData.studio_project_id}
         />
         <CanvasBlockEditor
           blockKey="gain_creators"
           value={formData.gain_creators}
-          onChange={(value) => setFormData({ ...formData, gain_creators: value })}
-          valueMapId={valueMapId}
+          onChange={(value) => setFormData((prev) => ({ ...prev, gain_creators: value }))}
+          valueMapId={valueMap?.id}
           projectId={formData.studio_project_id}
         />
       </div>
+    </div>
+  )
 
-      {/* Actions */}
-      <div className="flex items-center justify-between pt-4 border-t">
+  // ============================================================================
+  // Metadata panel
+  // ============================================================================
+
+  const metadataPanel = (
+    <div className="space-y-4">
+      <div className="rounded-lg border bg-card p-4 space-y-4">
+        <h3 className="text-sm font-semibold">Status</h3>
         <div>
-          {valueMapId && (
-            <button
-              type="button"
-              onClick={handleDelete}
-              disabled={saving}
-              className="px-4 py-2 text-red-600 hover:bg-red-500/10 rounded-lg transition-colors"
-            >
-              Delete Value Map
-            </button>
-          )}
-        </div>
-        <div className="flex items-center gap-3">
-          <button
-            type="button"
-            onClick={() => router.back()}
-            className="px-4 py-2 border rounded-lg hover:bg-accent transition-colors"
+          <Label className="block text-xs mb-1 text-muted-foreground">Status</Label>
+          <Select
+            value={formData.status}
+            onValueChange={(v) => setFormData((prev) => ({ ...prev, status: v }))}
           >
-            Cancel
-          </button>
-          <button
-            type="submit"
-            disabled={saving}
-            className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50"
-          >
-            {saving ? 'Saving...' : valueMapId ? 'Save Changes' : 'Create Value Map'}
-          </button>
+            <SelectTrigger size="sm" className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {statuses.map((s) => (
+                <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
       </div>
-    </form>
+
+      <div className="rounded-lg border bg-card p-4 space-y-4">
+        <h3 className="text-sm font-semibold">Relationships</h3>
+        <RelationshipField
+          label="Studio Project"
+          value={formData.studio_project_id}
+          onChange={(id) => setFormData((prev) => ({ ...prev, studio_project_id: id as string }))}
+          tableName="studio_projects"
+          displayField="name"
+          mode="single"
+          placeholder="Select project..."
+        />
+        <RelationshipField
+          label="Business Model Canvas"
+          value={formData.business_model_canvas_id}
+          onChange={(id) => setFormData((prev) => ({ ...prev, business_model_canvas_id: id as string }))}
+          tableName="business_model_canvases"
+          displayField="name"
+          mode="single"
+          placeholder="Select BMC..."
+          helperText="Link to the Business Model Canvas this value map elaborates on"
+        />
+      </div>
+
+      <div className="rounded-lg border bg-card p-4 space-y-3">
+        <FormFieldWithAI
+          label="Tags"
+          fieldName="tags"
+          entityType="value_maps"
+          context={{
+            name: formData.name,
+            description: formData.description,
+            status: formData.status,
+          }}
+          currentValue={formData.tags}
+          onGenerate={(content) => setFormData((prev) => ({ ...prev, tags: content }))}
+          disabled={saving}
+          description="Comma-separated tags"
+        >
+          <Input
+            type="text"
+            value={formData.tags}
+            onChange={(e) => setFormData((prev) => ({ ...prev, tags: e.target.value }))}
+            placeholder="saas, premium, checkout"
+          />
+        </FormFieldWithAI>
+      </div>
+    </div>
+  )
+
+  // ============================================================================
+  // Tabs
+  // ============================================================================
+
+  const tabs = [
+    { id: 'fields', label: 'Fields', content: fieldsTab },
+  ]
+
+  // ============================================================================
+  // Render
+  // ============================================================================
+
+  return (
+    <AdminEntityLayout
+      title={valueMap ? formData.name || 'Untitled' : 'New Value Map'}
+      subtitle={valueMap ? formData.slug : undefined}
+      status={{ label: statusLabel, variant: statusVariant as 'default' | 'secondary' | 'outline' }}
+      backHref="/admin/canvases/value-maps"
+      backLabel="Value Maps"
+      controlCluster={
+        <EntityControlCluster
+          isDirty={isDirty}
+          isSaving={saving}
+          onSave={() => handleSubmit()}
+          onCancel={() => router.push('/admin/canvases/value-maps')}
+          saveLabel={valueMap ? 'Save' : 'Create'}
+          onDelete={valueMap ? handleDelete : undefined}
+          deleteConfirmMessage="Are you sure you want to delete this value map?"
+        />
+      }
+      tabs={tabs}
+      metadata={metadataPanel}
+      isDirty={isDirty}
+      isSaving={saving}
+      onSave={() => handleSubmit()}
+      onCancel={() => router.push('/admin/canvases/value-maps')}
+      onSubmit={handleSubmit}
+    />
   )
 }

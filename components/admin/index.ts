@@ -1,6 +1,6 @@
 export { AdminListLayout } from './admin-list-layout'
 export { AdminDetailLayout } from './admin-detail-layout'
-export { AdminFormLayout } from './admin-form-layout'
+export { AdminEntityLayout } from './admin-entity-layout'
 export { SidebarCard } from './sidebar-card'
 export { FormActions } from './form-actions'
 export { RelationshipField } from './relationship-field'

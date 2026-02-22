@@ -8,6 +8,10 @@ import { FormFieldWithAI } from '@/components/forms'
 import { EvidenceManager } from './evidence-manager'
 import { syncPendingEvidence } from '@/lib/evidence'
 import type { PendingEvidence } from '@/lib/types/entity-relationships'
+import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
+import { Label } from '@/components/ui/label'
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select'
 
 interface StudioProject {
   id: string
@@ -234,11 +238,10 @@ export function CanvasItemForm({ item, mode }: CanvasItemFormProps) {
           onGenerate={(content) => setFormData({ ...formData, title: content })}
           disabled={saving}
         >
-          <input
+          <Input
             type="text"
             value={formData.title}
             onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-            className="w-full px-3 py-2 rounded-lg border bg-background"
             required
             placeholder="e.g., Small Business Owners, Auto-backup feature"
           />
@@ -257,29 +260,32 @@ export function CanvasItemForm({ item, mode }: CanvasItemFormProps) {
           onGenerate={(content) => setFormData({ ...formData, description: content })}
           disabled={saving}
         >
-          <textarea
+          <Textarea
             value={formData.description}
             onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-            className="w-full px-3 py-2 rounded-lg border bg-background"
             rows={3}
             placeholder="Detailed description of this item"
           />
         </FormFieldWithAI>
 
         <div>
-          <label className="block text-sm font-medium mb-1">Project</label>
-          <select
-            value={formData.studio_project_id}
-            onChange={(e) => setFormData({ ...formData, studio_project_id: e.target.value })}
-            className="w-full px-3 py-2 rounded-lg border bg-background"
+          <Label className="block mb-1">Project</Label>
+          <Select
+            value={formData.studio_project_id || '__none__'}
+            onValueChange={(v) => setFormData({ ...formData, studio_project_id: v === '__none__' ? '' : v })}
           >
-            <option value="">No project</option>
-            {projects.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.name}
-              </option>
-            ))}
-          </select>
+            <SelectTrigger className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__none__">No project</SelectItem>
+              {projects.map((p) => (
+                <SelectItem key={p.id} value={p.id}>
+                  {p.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
       </div>
 
@@ -383,7 +389,7 @@ export function CanvasItemForm({ item, mode }: CanvasItemFormProps) {
           </p>
 
           <div>
-            <label className="block text-sm font-medium mb-2">Job Type</label>
+            <Label className="block mb-2">Job Type</Label>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               {jobTypes.map((type) => (
                 <label
@@ -425,11 +431,10 @@ export function CanvasItemForm({ item, mode }: CanvasItemFormProps) {
             disabled={saving}
             description="Example: When I'm preparing a weekly status report"
           >
-            <input
+            <Input
               type="text"
               value={formData.job_context}
               onChange={(e) => setFormData({ ...formData, job_context: e.target.value })}
-              className="w-full px-3 py-2 rounded-lg border bg-background"
               placeholder="When I'm... (context or trigger)"
             />
           </FormFieldWithAI>
@@ -480,7 +485,7 @@ export function CanvasItemForm({ item, mode }: CanvasItemFormProps) {
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
-            <label className="block text-sm font-medium mb-2">Importance *</label>
+            <Label className="block mb-2">Importance *</Label>
             <div className="space-y-2">
               {importanceLevels.map((level) => (
                 <label
@@ -509,7 +514,7 @@ export function CanvasItemForm({ item, mode }: CanvasItemFormProps) {
           </div>
 
           <div>
-            <label className="block text-sm font-medium mb-2">Validation Status *</label>
+            <Label className="block mb-2">Validation Status *</Label>
             <div className="space-y-2">
               {validationStatuses.map((status) => (
                 <label
@@ -539,7 +544,7 @@ export function CanvasItemForm({ item, mode }: CanvasItemFormProps) {
         </div>
 
         <div>
-          <label className="block text-sm font-medium mb-1">Frequency</label>
+          <Label className="block mb-1">Frequency</Label>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
             {frequencies.map((freq) => (
               <label
@@ -584,10 +589,9 @@ export function CanvasItemForm({ item, mode }: CanvasItemFormProps) {
           onGenerate={(content) => setFormData({ ...formData, notes: content })}
           disabled={saving}
         >
-          <textarea
+          <Textarea
             value={formData.notes}
             onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-            className="w-full px-3 py-2 rounded-lg border bg-background"
             rows={3}
             placeholder="Additional context, insights, or observations"
           />
@@ -606,11 +610,10 @@ export function CanvasItemForm({ item, mode }: CanvasItemFormProps) {
           onGenerate={(content) => setFormData({ ...formData, tags: content })}
           disabled={saving}
         >
-          <input
+          <Input
             type="text"
             value={formData.tags}
             onChange={(e) => setFormData({ ...formData, tags: e.target.value })}
-            className="w-full px-3 py-2 rounded-lg border bg-background"
             placeholder="premium, b2b, technical (comma-separated)"
           />
         </FormFieldWithAI>

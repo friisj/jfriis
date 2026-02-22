@@ -1,15 +1,50 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
+import { toast } from 'sonner'
 import { syncCanvasPlacements } from '@/lib/utils/canvas-placements'
 import { AssumptionLinker } from './assumption-linker'
 import { CanvasItemSelector, getAllowedTypesForBlock } from './canvas-item-selector'
 import { FormFieldWithAI } from '@/components/forms'
-import { EntityLinkField } from './entity-link-field'
+import { AdminEntityLayout } from '@/components/admin/admin-entity-layout'
+import { EntityControlCluster } from '@/components/admin/entity-control-cluster'
+import { RelationshipManager, type RelationshipSlot } from '@/components/admin/relationship-manager'
+import { RelationshipField } from './relationship-field'
 import { syncEntityLinks } from '@/lib/entity-links'
 import type { PendingLink } from '@/lib/types/entity-relationships'
+import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
+import { Label } from '@/components/ui/label'
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select'
+
+// ============================================================================
+// Relationship slots
+// ============================================================================
+
+const CUSTOMER_PROFILE_SLOTS: RelationshipSlot[] = [
+  {
+    targetType: 'value_proposition_canvas',
+    linkType: 'related',
+    label: 'Value Proposition Canvases',
+    group: 'Canvases',
+    displayField: 'name',
+    editHref: (id) => `/admin/canvases/value-proposition/${id}/edit`,
+  },
+  {
+    targetType: 'business_model_canvas',
+    linkType: 'related',
+    label: 'Business Model Canvases',
+    group: 'Canvases',
+    displayField: 'name',
+    editHref: (id) => `/admin/canvases/business-model/${id}/edit`,
+  },
+]
+
+// ============================================================================
+// Types & Constants
+// ============================================================================
 
 interface ProfileBlock {
   item_ids: string[]
@@ -17,37 +52,29 @@ interface ProfileBlock {
   validation_status: 'untested' | 'testing' | 'validated' | 'invalidated'
 }
 
-interface CustomerProfileFormData {
+interface CustomerProfile {
+  id: string
   slug: string
   name: string
-  description: string
-  status: 'draft' | 'active' | 'validated' | 'archived'
-  profile_type: 'persona' | 'segment' | 'archetype' | 'icp' | ''
-  tags: string
-  studio_project_id: string
-  // Profile data (JSON as strings for editing)
-  demographics_text: string
-  psychographics_text: string
-  behaviors_text: string
-  environment_text: string
-  // JTBD blocks
+  description?: string | null
+  status: string
+  profile_type: string | null
+  tags: string[]
+  studio_project_id?: string | null
+  demographics: object | null
+  psychographics: object | null
+  behaviors: object | null
+  environment: object | null
   jobs: ProfileBlock
   pains: ProfileBlock
   gains: ProfileBlock
-  // Metrics
-  market_size_estimate: string
-  addressable_percentage: string
-  validation_confidence: 'low' | 'medium' | 'high' | ''
-}
-
-interface StudioProject {
-  id: string
-  name: string
+  market_size_estimate?: string | null
+  addressable_percentage?: number | null
+  validation_confidence?: string | null
 }
 
 interface CustomerProfileFormProps {
-  profileId?: string
-  initialData?: Partial<CustomerProfileFormData>
+  profile?: CustomerProfile
 }
 
 const defaultBlock = (): ProfileBlock => ({
@@ -55,6 +82,32 @@ const defaultBlock = (): ProfileBlock => ({
   assumption_ids: [],
   validation_status: 'untested',
 })
+
+const statuses = [
+  { value: 'draft', label: 'Draft' },
+  { value: 'active', label: 'Active' },
+  { value: 'validated', label: 'Validated' },
+  { value: 'archived', label: 'Archived' },
+]
+
+const profileTypes = [
+  { value: '', label: 'None' },
+  { value: 'persona', label: 'Persona' },
+  { value: 'segment', label: 'Segment' },
+  { value: 'archetype', label: 'Archetype' },
+  { value: 'icp', label: 'Ideal Customer Profile' },
+]
+
+const validationConfidences = [
+  { value: '', label: 'Not set' },
+  { value: 'low', label: 'Low' },
+  { value: 'medium', label: 'Medium' },
+  { value: 'high', label: 'High' },
+]
+
+// ============================================================================
+// ProfileBlockEditor
+// ============================================================================
 
 function ProfileBlockEditor({
   label,
@@ -113,7 +166,7 @@ function ProfileBlockEditor({
       {isOpen && (
         <div className="px-4 pb-4 space-y-4 border-t pt-4">
           <div>
-            <label className="block text-sm font-medium mb-2">Items</label>
+            <Label className="block mb-2">Items</Label>
             <CanvasItemSelector
               placedItemIds={itemIds}
               canvasType="customer_profile"
@@ -131,7 +184,7 @@ function ProfileBlockEditor({
           </div>
 
           <div>
-            <label className="block text-sm font-medium mb-2">Linked Assumptions</label>
+            <Label className="block mb-2">Linked Assumptions</Label>
             <AssumptionLinker
               linkedIds={assumptionIds}
               onChange={(ids) =>
@@ -147,22 +200,26 @@ function ProfileBlockEditor({
           </div>
 
           <div>
-            <label className="block text-sm font-medium mb-1">Validation Status</label>
-            <select
+            <Label className="block mb-1">Validation Status</Label>
+            <Select
               value={value.validation_status}
-              onChange={(e) =>
+              onValueChange={(v) =>
                 onChange({
                   ...value,
-                  validation_status: e.target.value as ProfileBlock['validation_status'],
+                  validation_status: v as ProfileBlock['validation_status'],
                 })
               }
-              className="w-full px-3 py-2 rounded-lg border bg-background text-sm"
             >
-              <option value="untested">Untested</option>
-              <option value="testing">Testing</option>
-              <option value="validated">Validated</option>
-              <option value="invalidated">Invalidated</option>
-            </select>
+              <SelectTrigger className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="untested">Untested</SelectItem>
+                <SelectItem value="testing">Testing</SelectItem>
+                <SelectItem value="validated">Validated</SelectItem>
+                <SelectItem value="invalidated">Invalidated</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
         </div>
       )}
@@ -170,48 +227,54 @@ function ProfileBlockEditor({
   )
 }
 
-export function CustomerProfileForm({ profileId, initialData }: CustomerProfileFormProps) {
+// ============================================================================
+// Component
+// ============================================================================
+
+export function CustomerProfileForm({ profile }: CustomerProfileFormProps) {
   const router = useRouter()
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [projects, setProjects] = useState<StudioProject[]>([])
-  const [pendingVpcLinks, setPendingVpcLinks] = useState<PendingLink[]>([])
-  const [pendingBmcLinks, setPendingBmcLinks] = useState<PendingLink[]>([])
+  const [pendingLinks, setPendingLinks] = useState<PendingLink[]>([])
 
-  const [formData, setFormData] = useState<CustomerProfileFormData>({
-    slug: initialData?.slug || '',
-    name: initialData?.name || '',
-    description: initialData?.description || '',
-    status: initialData?.status || 'draft',
-    profile_type: initialData?.profile_type || '',
-    tags: initialData?.tags || '',
-    studio_project_id: initialData?.studio_project_id || '',
-    demographics_text: initialData?.demographics_text || '{}',
-    psychographics_text: initialData?.psychographics_text || '{}',
-    behaviors_text: initialData?.behaviors_text || '{}',
-    environment_text: initialData?.environment_text || '{}',
-    jobs: initialData?.jobs || defaultBlock(),
-    pains: initialData?.pains || defaultBlock(),
-    gains: initialData?.gains || defaultBlock(),
-    market_size_estimate: initialData?.market_size_estimate || '',
-    addressable_percentage: initialData?.addressable_percentage || '',
-    validation_confidence: initialData?.validation_confidence || '',
+  const [formData, setFormData] = useState({
+    slug: profile?.slug || '',
+    name: profile?.name || '',
+    description: profile?.description || '',
+    status: profile?.status || 'draft',
+    profile_type: profile?.profile_type || '',
+    tags: profile?.tags?.join(', ') || '',
+    studio_project_id: profile?.studio_project_id || '',
+    demographics_text: profile?.demographics ? JSON.stringify(profile.demographics, null, 2) : '{}',
+    psychographics_text: profile?.psychographics ? JSON.stringify(profile.psychographics, null, 2) : '{}',
+    behaviors_text: profile?.behaviors ? JSON.stringify(profile.behaviors, null, 2) : '{}',
+    environment_text: profile?.environment ? JSON.stringify(profile.environment, null, 2) : '{}',
+    jobs: profile?.jobs || defaultBlock(),
+    pains: profile?.pains || defaultBlock(),
+    gains: profile?.gains || defaultBlock(),
+    market_size_estimate: profile?.market_size_estimate || '',
+    addressable_percentage: profile?.addressable_percentage?.toString() || '',
+    validation_confidence: profile?.validation_confidence || '',
   })
 
-  useEffect(() => {
-    async function loadProjects() {
-      const { data } = await supabase.from('studio_projects').select('id, name').order('name')
-      if (data) setProjects(data)
-    }
-    loadProjects()
-  }, [])
+  // Track dirty state
+  const [initialFormData] = useState(formData)
+  const isDirty = useMemo(
+    () => JSON.stringify(formData) !== JSON.stringify(initialFormData),
+    [formData, initialFormData]
+  )
 
-  const generateSlug = (name: string) => {
-    return name
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, '-')
-      .replace(/^-|-$/g, '')
-  }
+  // Auto-generate slug from name
+  useEffect(() => {
+    if (!profile?.slug && formData.name) {
+      const slug = formData.name
+        .toLowerCase()
+        .slice(0, 50)
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-|-$/g, '')
+      setFormData((prev) => ({ ...prev, slug }))
+    }
+  }, [formData.name, profile?.slug])
 
   const parseJsonSafe = (text: string): object => {
     try {
@@ -221,8 +284,8 @@ export function CustomerProfileForm({ profileId, initialData }: CustomerProfileF
     }
   }
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
+  const handleSubmit = async (e?: React.FormEvent) => {
+    e?.preventDefault()
     setSaving(true)
     setError(null)
 
@@ -252,40 +315,54 @@ export function CustomerProfileForm({ profileId, initialData }: CustomerProfileF
         validation_confidence: formData.validation_confidence || null,
       }
 
-      let savedProfileId = profileId
+      let savedProfileId = profile?.id
 
-      if (profileId) {
-        // Update existing profile
-        const { error } = await (supabase.from('customer_profiles') as any).update(data).eq('id', profileId)
-
-        if (error) throw error
+      if (profile?.id) {
+        const { error: updateError } = await (supabase.from('customer_profiles') as any).update(data).eq('id', profile.id)
+        if (updateError) throw updateError
       } else {
-        // Create new profile and get the ID
-        const { data: newProfile, error } = await (supabase
+        const { data: newProfile, error: insertError } = await (supabase
           .from('customer_profiles') as any)
           .insert([data])
           .select('id')
           .single()
 
-        if (error) throw error
+        if (insertError) throw insertError
         savedProfileId = newProfile.id
 
         // Sync pending entity links for create mode
-        if (pendingVpcLinks.length > 0) {
-          await syncEntityLinks(
-            { type: 'customer_profile', id: newProfile.id },
-            'value_proposition_canvas',
-            'related',
-            pendingVpcLinks.map(l => l.targetId)
-          )
-        }
-        if (pendingBmcLinks.length > 0) {
-          await syncEntityLinks(
-            { type: 'customer_profile', id: newProfile.id },
-            'business_model_canvas',
-            'related',
-            pendingBmcLinks.map(l => l.targetId)
-          )
+        // Determine which pending links belong to which slot by checking target IDs
+        // against the available items in each target table
+        if (pendingLinks.length > 0) {
+          const targetIds = pendingLinks.map(l => l.targetId)
+
+          // Fetch VPC IDs to distinguish from BMC IDs
+          const { data: vpcRows } = await (supabase
+            .from('value_proposition_canvases') as any)
+            .select('id')
+            .in('id', targetIds)
+
+          const vpcIdSet = new Set((vpcRows || []).map((r: { id: string }) => r.id))
+
+          const vpcTargetIds = targetIds.filter(id => vpcIdSet.has(id))
+          const bmcTargetIds = targetIds.filter(id => !vpcIdSet.has(id))
+
+          if (vpcTargetIds.length > 0) {
+            await syncEntityLinks(
+              { type: 'customer_profile', id: newProfile.id },
+              'value_proposition_canvas',
+              'related',
+              vpcTargetIds
+            )
+          }
+          if (bmcTargetIds.length > 0) {
+            await syncEntityLinks(
+              { type: 'customer_profile', id: newProfile.id },
+              'business_model_canvas',
+              'related',
+              bmcTargetIds
+            )
+          }
         }
       }
 
@@ -297,227 +374,166 @@ export function CustomerProfileForm({ profileId, initialData }: CustomerProfileF
         formData: formData as any,
       })
 
-      // Check for placement errors
       if (!placementResult.success) {
         const failedBlocks = placementResult.errors.map((e) => e.blockKey).join(', ')
         console.error('Failed to save placements for blocks:', failedBlocks, placementResult.errors)
         setError(
           `Profile saved but some items failed to place (${placementResult.successfulBlocks}/${placementResult.totalBlocks} blocks succeeded). Failed blocks: ${failedBlocks}`
         )
-        // Still navigate but with error message visible
       }
 
+      toast.success(profile ? 'Customer profile updated!' : 'Customer profile created!')
       router.push('/admin/canvases/customer-profiles')
       router.refresh()
     } catch (err) {
       console.error('Error saving profile:', err)
-      setError(err instanceof Error ? err.message : 'Failed to save profile')
-    } finally {
+      const message = err instanceof Error ? err.message : 'Failed to save profile'
+      setError(message)
+      toast.error(message)
       setSaving(false)
     }
   }
 
   const handleDelete = async () => {
-    if (!profileId || !confirm('Are you sure you want to delete this profile?')) return
+    if (!profile?.id) return
 
     setSaving(true)
     try {
-      const { error } = await supabase.from('customer_profiles').delete().eq('id', profileId)
+      const { error: deleteError } = await supabase.from('customer_profiles').delete().eq('id', profile.id)
+      if (deleteError) throw deleteError
 
-      if (error) throw error
-
+      toast.success('Customer profile deleted')
       router.push('/admin/canvases/customer-profiles')
       router.refresh()
     } catch (err) {
       console.error('Error deleting profile:', err)
-      setError(err instanceof Error ? err.message : 'Failed to delete profile')
-    } finally {
+      const message = err instanceof Error ? err.message : 'Failed to delete profile'
+      setError(message)
+      toast.error(message)
       setSaving(false)
     }
   }
 
-  return (
-    <form onSubmit={handleSubmit} className="space-y-8">
+  // Status badge
+  const statusLabel = formData.status.charAt(0).toUpperCase() + formData.status.slice(1)
+  const statusVariant = formData.status === 'active' ? 'default'
+    : formData.status === 'validated' ? 'secondary'
+    : 'outline'
+
+  // ============================================================================
+  // Fields tab
+  // ============================================================================
+
+  const fieldsTab = (
+    <div className="space-y-6">
       {error && (
-        <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-lg text-red-600 dark:text-red-400">
+        <div className="p-4 rounded-lg border border-red-200 bg-red-50 dark:bg-red-950/10 text-red-800 dark:text-red-200">
           {error}
         </div>
       )}
 
-      {/* Basic Info */}
-      <div className="space-y-4">
-        <h2 className="text-lg font-semibold border-b pb-2">Basic Information</h2>
+      <FormFieldWithAI
+        label="Name *"
+        fieldName="name"
+        entityType="customer_profiles"
+        context={{
+          profile_type: formData.profile_type,
+          status: formData.status,
+        }}
+        currentValue={formData.name}
+        onGenerate={(content) => setFormData((prev) => ({ ...prev, name: content }))}
+        disabled={saving}
+      >
+        <Input
+          type="text"
+          value={formData.name}
+          onChange={(e) => setFormData((prev) => ({ ...prev, name: e.target.value }))}
+          required
+          placeholder="e.g., Enterprise SaaS Buyer"
+        />
+      </FormFieldWithAI>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium mb-1">Name *</label>
-            <input
-              type="text"
-              value={formData.name}
-              onChange={(e) => {
-                const name = e.target.value
-                setFormData({
-                  ...formData,
-                  name,
-                  slug: profileId ? formData.slug : generateSlug(name),
-                })
-              }}
-              className="w-full px-3 py-2 rounded-lg border bg-background"
-              required
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium mb-1">Slug *</label>
-            <input
-              type="text"
-              value={formData.slug}
-              onChange={(e) =>
-                setFormData({
-                  ...formData,
-                  slug: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '-'),
-                })
-              }
-              className="w-full px-3 py-2 rounded-lg border bg-background font-mono text-sm"
-              required
-              pattern="^[a-z0-9-]+$"
-            />
-          </div>
-        </div>
-
-        <FormFieldWithAI
-          label="Description"
-          fieldName="description"
-          entityType="customer_profiles"
-          context={{
-            name: formData.name,
-            profile_type: formData.profile_type,
-            status: formData.status,
-          }}
-          currentValue={formData.description}
-          onGenerate={(content) => setFormData({ ...formData, description: content })}
-          disabled={saving}
-        >
-          <textarea
-            value={formData.description}
-            onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-            className="w-full px-3 py-2 rounded-lg border bg-background"
-            rows={2}
-          />
-        </FormFieldWithAI>
-
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <div>
-            <label className="block text-sm font-medium mb-1">Status</label>
-            <select
-              value={formData.status}
-              onChange={(e) =>
-                setFormData({ ...formData, status: e.target.value as CustomerProfileFormData['status'] })
-              }
-              className="w-full px-3 py-2 rounded-lg border bg-background"
-            >
-              <option value="draft">Draft</option>
-              <option value="active">Active</option>
-              <option value="validated">Validated</option>
-              <option value="archived">Archived</option>
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm font-medium mb-1">Profile Type</label>
-            <select
-              value={formData.profile_type}
-              onChange={(e) =>
-                setFormData({ ...formData, profile_type: e.target.value as CustomerProfileFormData['profile_type'] })
-              }
-              className="w-full px-3 py-2 rounded-lg border bg-background"
-            >
-              <option value="">None</option>
-              <option value="persona">Persona</option>
-              <option value="segment">Segment</option>
-              <option value="archetype">Archetype</option>
-              <option value="icp">Ideal Customer Profile</option>
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm font-medium mb-1">Studio Project</label>
-            <select
-              value={formData.studio_project_id}
-              onChange={(e) => setFormData({ ...formData, studio_project_id: e.target.value })}
-              className="w-full px-3 py-2 rounded-lg border bg-background"
-            >
-              <option value="">None</option>
-              {projects.map((project) => (
-                <option key={project.id} value={project.id}>
-                  {project.name}
-                </option>
-              ))}
-            </select>
-          </div>
-          <FormFieldWithAI
-            label="Tags"
-            fieldName="tags"
-            entityType="customer_profiles"
-            context={{
-              name: formData.name,
-              description: formData.description,
-              profile_type: formData.profile_type,
-              status: formData.status,
-            }}
-            currentValue={formData.tags}
-            onGenerate={(content) => setFormData({ ...formData, tags: content })}
-            disabled={saving}
-          >
-            <input
-              type="text"
-              value={formData.tags}
-              onChange={(e) => setFormData({ ...formData, tags: e.target.value })}
-              className="w-full px-3 py-2 rounded-lg border bg-background"
-              placeholder="tag1, tag2"
-            />
-          </FormFieldWithAI>
-        </div>
+      <div>
+        <Label htmlFor="slug" className="block mb-1">Slug *</Label>
+        <Input
+          type="text"
+          id="slug"
+          value={formData.slug}
+          onChange={(e) =>
+            setFormData((prev) => ({
+              ...prev,
+              slug: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '-'),
+            }))
+          }
+          className="font-mono text-sm"
+          required
+          pattern="^[a-z0-9-]+$"
+          placeholder="enterprise-saas-buyer"
+        />
+        <p className="mt-1 text-xs text-muted-foreground">URL-friendly identifier</p>
       </div>
 
-      {/* Profile Data */}
-      <div className="space-y-4">
-        <h2 className="text-lg font-semibold border-b pb-2">Profile Data (JSON)</h2>
+      <FormFieldWithAI
+        label="Description"
+        fieldName="description"
+        entityType="customer_profiles"
+        context={{
+          name: formData.name,
+          profile_type: formData.profile_type,
+          status: formData.status,
+        }}
+        currentValue={formData.description}
+        onGenerate={(content) => setFormData((prev) => ({ ...prev, description: content }))}
+        disabled={saving}
+      >
+        <Textarea
+          value={formData.description}
+          onChange={(e) => setFormData((prev) => ({ ...prev, description: e.target.value }))}
+          rows={2}
+          placeholder="Who is this customer profile?"
+        />
+      </FormFieldWithAI>
 
+      {/* Profile Data (JSON) */}
+      <div className="space-y-4">
+        <h3 className="text-sm font-semibold border-b pb-2">Profile Data (JSON)</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label className="block text-sm font-medium mb-1">Demographics</label>
-            <textarea
+            <Label className="block mb-1">Demographics</Label>
+            <Textarea
               value={formData.demographics_text}
-              onChange={(e) => setFormData({ ...formData, demographics_text: e.target.value })}
-              className="w-full px-3 py-2 rounded-lg border bg-background font-mono text-sm"
+              onChange={(e) => setFormData((prev) => ({ ...prev, demographics_text: e.target.value }))}
+              className="font-mono text-sm"
               rows={4}
               placeholder='{"age_range": "25-35", "location": "...", "role": "..."}'
             />
           </div>
           <div>
-            <label className="block text-sm font-medium mb-1">Psychographics</label>
-            <textarea
+            <Label className="block mb-1">Psychographics</Label>
+            <Textarea
               value={formData.psychographics_text}
-              onChange={(e) => setFormData({ ...formData, psychographics_text: e.target.value })}
-              className="w-full px-3 py-2 rounded-lg border bg-background font-mono text-sm"
+              onChange={(e) => setFormData((prev) => ({ ...prev, psychographics_text: e.target.value }))}
+              className="font-mono text-sm"
               rows={4}
               placeholder='{"values": [...], "interests": [...], "attitudes": [...]}'
             />
           </div>
           <div>
-            <label className="block text-sm font-medium mb-1">Behaviors</label>
-            <textarea
+            <Label className="block mb-1">Behaviors</Label>
+            <Textarea
               value={formData.behaviors_text}
-              onChange={(e) => setFormData({ ...formData, behaviors_text: e.target.value })}
-              className="w-full px-3 py-2 rounded-lg border bg-background font-mono text-sm"
+              onChange={(e) => setFormData((prev) => ({ ...prev, behaviors_text: e.target.value }))}
+              className="font-mono text-sm"
               rows={4}
               placeholder='{"buying_patterns": [...], "tool_usage": [...]}'
             />
           </div>
           <div>
-            <label className="block text-sm font-medium mb-1">Environment</label>
-            <textarea
+            <Label className="block mb-1">Environment</Label>
+            <Textarea
               value={formData.environment_text}
-              onChange={(e) => setFormData({ ...formData, environment_text: e.target.value })}
-              className="w-full px-3 py-2 rounded-lg border bg-background font-mono text-sm"
+              onChange={(e) => setFormData((prev) => ({ ...prev, environment_text: e.target.value }))}
+              className="font-mono text-sm"
               rows={4}
               placeholder='{"tools": [...], "constraints": [...], "influencers": [...]}'
             />
@@ -527,15 +543,15 @@ export function CustomerProfileForm({ profileId, initialData }: CustomerProfileF
 
       {/* Jobs, Pains, Gains */}
       <div className="space-y-4">
-        <h2 className="text-lg font-semibold border-b pb-2">Jobs, Pains, and Gains</h2>
+        <h3 className="text-sm font-semibold border-b pb-2">Jobs, Pains, and Gains</h3>
 
         <ProfileBlockEditor
           label="Jobs to be Done"
           description="What tasks are they trying to accomplish?"
           blockKey="jobs"
           value={formData.jobs}
-          onChange={(value) => setFormData({ ...formData, jobs: value })}
-          profileId={profileId}
+          onChange={(value) => setFormData((prev) => ({ ...prev, jobs: value }))}
+          profileId={profile?.id}
           projectId={formData.studio_project_id}
         />
 
@@ -544,8 +560,8 @@ export function CustomerProfileForm({ profileId, initialData }: CustomerProfileF
           description="What obstacles, risks, or negative outcomes do they face?"
           blockKey="pains"
           value={formData.pains}
-          onChange={(value) => setFormData({ ...formData, pains: value })}
-          profileId={profileId}
+          onChange={(value) => setFormData((prev) => ({ ...prev, pains: value }))}
+          profileId={profile?.id}
           projectId={formData.studio_project_id}
         />
 
@@ -554,126 +570,203 @@ export function CustomerProfileForm({ profileId, initialData }: CustomerProfileF
           description="What outcomes and benefits do they desire?"
           blockKey="gains"
           value={formData.gains}
-          onChange={(value) => setFormData({ ...formData, gains: value })}
-          profileId={profileId}
+          onChange={(value) => setFormData((prev) => ({ ...prev, gains: value }))}
+          profileId={profile?.id}
           projectId={formData.studio_project_id}
         />
       </div>
+    </div>
+  )
 
-      {/* Metrics */}
-      <div className="space-y-4">
-        <h2 className="text-lg font-semibold border-b pb-2">Market Metrics</h2>
+  // ============================================================================
+  // Links tab
+  // ============================================================================
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div>
-            <label className="block text-sm font-medium mb-1">Market Size Estimate</label>
-            <input
-              type="text"
-              value={formData.market_size_estimate}
-              onChange={(e) => setFormData({ ...formData, market_size_estimate: e.target.value })}
-              className="w-full px-3 py-2 rounded-lg border bg-background"
-              placeholder="e.g., 10K-50K companies"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium mb-1">Addressable %</label>
-            <input
-              type="number"
-              min="0"
-              max="100"
-              step="0.01"
-              value={formData.addressable_percentage}
-              onChange={(e) => setFormData({ ...formData, addressable_percentage: e.target.value })}
-              className="w-full px-3 py-2 rounded-lg border bg-background"
-              placeholder="0-100"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium mb-1">Validation Confidence</label>
-            <select
-              value={formData.validation_confidence}
-              onChange={(e) =>
-                setFormData({
-                  ...formData,
-                  validation_confidence: e.target.value as CustomerProfileFormData['validation_confidence'],
-                })
-              }
-              className="w-full px-3 py-2 rounded-lg border bg-background"
-            >
-              <option value="">Not set</option>
-              <option value="low">Low</option>
-              <option value="medium">Medium</option>
-              <option value="high">High</option>
-            </select>
-          </div>
-        </div>
-      </div>
+  const linksTab = (
+    <div className="space-y-6">
+      {profile?.id ? (
+        <RelationshipManager
+          entity={{ type: 'customer_profile', id: profile.id }}
+          slots={CUSTOMER_PROFILE_SLOTS}
+        />
+      ) : (
+        <RelationshipManager
+          entity={{ type: 'customer_profile' }}
+          slots={CUSTOMER_PROFILE_SLOTS}
+          pendingLinks={pendingLinks}
+          onPendingLinksChange={setPendingLinks}
+        />
+      )}
+    </div>
+  )
 
-      {/* Related Canvases */}
-      <div className="space-y-4">
-        <h2 className="text-lg font-semibold border-b pb-2">Related Canvases</h2>
+  // ============================================================================
+  // Metadata panel
+  // ============================================================================
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <EntityLinkField
-            label="Value Proposition Canvases"
-            sourceType="customer_profile"
-            sourceId={profileId}
-            targetType="value_proposition_canvas"
-            targetTableName="value_proposition_canvases"
-            targetDisplayField="name"
-            linkType="related"
-            allowMultiple={true}
-            pendingLinks={pendingVpcLinks}
-            onPendingLinksChange={setPendingVpcLinks}
-            helperText="Link to related value proposition canvases"
-          />
-          <EntityLinkField
-            label="Business Model Canvases"
-            sourceType="customer_profile"
-            sourceId={profileId}
-            targetType="business_model_canvas"
-            targetTableName="business_model_canvases"
-            targetDisplayField="name"
-            linkType="related"
-            allowMultiple={true}
-            pendingLinks={pendingBmcLinks}
-            onPendingLinksChange={setPendingBmcLinks}
-            helperText="Link to related business model canvases"
-          />
-        </div>
-      </div>
-
-      {/* Actions */}
-      <div className="flex items-center justify-between pt-4 border-t">
+  const metadataPanel = (
+    <div className="space-y-4">
+      <div className="rounded-lg border bg-card p-4 space-y-4">
+        <h3 className="text-sm font-semibold">Status</h3>
         <div>
-          {profileId && (
-            <button
-              type="button"
-              onClick={handleDelete}
-              disabled={saving}
-              className="px-4 py-2 text-red-600 hover:bg-red-500/10 rounded-lg transition-colors"
-            >
-              Delete Profile
-            </button>
-          )}
+          <Label className="block text-xs mb-1 text-muted-foreground">Status</Label>
+          <Select
+            value={formData.status}
+            onValueChange={(v) => setFormData((prev) => ({ ...prev, status: v }))}
+          >
+            <SelectTrigger size="sm" className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {statuses.map((s) => (
+                <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
-        <div className="flex items-center gap-3">
-          <button
-            type="button"
-            onClick={() => router.back()}
-            className="px-4 py-2 border rounded-lg hover:bg-accent transition-colors"
+        <div>
+          <Label className="block text-xs mb-1 text-muted-foreground">Profile Type</Label>
+          <Select
+            value={formData.profile_type || '__none__'}
+            onValueChange={(v) =>
+              setFormData((prev) => ({ ...prev, profile_type: v === '__none__' ? '' : v }))
+            }
           >
-            Cancel
-          </button>
-          <button
-            type="submit"
-            disabled={saving}
-            className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50"
-          >
-            {saving ? 'Saving...' : profileId ? 'Save Changes' : 'Create Profile'}
-          </button>
+            <SelectTrigger size="sm" className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {profileTypes.map((t) => (
+                <SelectItem key={t.value || '__none__'} value={t.value || '__none__'}>{t.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
       </div>
-    </form>
+
+      <div className="rounded-lg border bg-card p-4 space-y-4">
+        <h3 className="text-sm font-semibold">Relationships</h3>
+        <RelationshipField
+          label="Studio Project"
+          value={formData.studio_project_id}
+          onChange={(id) => setFormData((prev) => ({ ...prev, studio_project_id: id as string }))}
+          tableName="studio_projects"
+          displayField="name"
+          mode="single"
+          placeholder="Select project..."
+        />
+      </div>
+
+      <div className="rounded-lg border bg-card p-4 space-y-4">
+        <h3 className="text-sm font-semibold">Market Metrics</h3>
+        <div>
+          <Label className="block text-xs mb-1 text-muted-foreground">Market Size Estimate</Label>
+          <Input
+            type="text"
+            value={formData.market_size_estimate}
+            onChange={(e) => setFormData((prev) => ({ ...prev, market_size_estimate: e.target.value }))}
+            placeholder="e.g., 10K-50K companies"
+          />
+        </div>
+        <div>
+          <Label className="block text-xs mb-1 text-muted-foreground">Addressable %</Label>
+          <Input
+            type="number"
+            min="0"
+            max="100"
+            step="0.01"
+            value={formData.addressable_percentage}
+            onChange={(e) => setFormData((prev) => ({ ...prev, addressable_percentage: e.target.value }))}
+            placeholder="0-100"
+          />
+        </div>
+        <div>
+          <Label className="block text-xs mb-1 text-muted-foreground">Validation Confidence</Label>
+          <Select
+            value={formData.validation_confidence || '__none__'}
+            onValueChange={(v) =>
+              setFormData((prev) => ({
+                ...prev,
+                validation_confidence: v === '__none__' ? '' : v,
+              }))
+            }
+          >
+            <SelectTrigger size="sm" className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {validationConfidences.map((c) => (
+                <SelectItem key={c.value || '__none__'} value={c.value || '__none__'}>{c.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
+      <div className="rounded-lg border bg-card p-4 space-y-3">
+        <FormFieldWithAI
+          label="Tags"
+          fieldName="tags"
+          entityType="customer_profiles"
+          context={{
+            name: formData.name,
+            description: formData.description,
+            profile_type: formData.profile_type,
+          }}
+          currentValue={formData.tags}
+          onGenerate={(content) => setFormData((prev) => ({ ...prev, tags: content }))}
+          disabled={saving}
+          description="Comma-separated tags"
+        >
+          <Input
+            type="text"
+            value={formData.tags}
+            onChange={(e) => setFormData((prev) => ({ ...prev, tags: e.target.value }))}
+            placeholder="b2b, enterprise, saas"
+          />
+        </FormFieldWithAI>
+      </div>
+    </div>
+  )
+
+  // ============================================================================
+  // Tabs
+  // ============================================================================
+
+  const tabs = [
+    { id: 'fields', label: 'Fields', content: fieldsTab },
+    { id: 'links', label: 'Links', content: linksTab },
+  ]
+
+  // ============================================================================
+  // Render
+  // ============================================================================
+
+  return (
+    <AdminEntityLayout
+      title={profile ? formData.name || 'Untitled' : 'New Customer Profile'}
+      subtitle={profile ? formData.slug : undefined}
+      status={{ label: statusLabel, variant: statusVariant as 'default' | 'secondary' | 'outline' }}
+      backHref="/admin/canvases/customer-profiles"
+      backLabel="Customer Profiles"
+      controlCluster={
+        <EntityControlCluster
+          isDirty={isDirty}
+          isSaving={saving}
+          onSave={() => handleSubmit()}
+          onCancel={() => router.push('/admin/canvases/customer-profiles')}
+          saveLabel={profile ? 'Save' : 'Create'}
+          onDelete={profile ? handleDelete : undefined}
+          deleteConfirmMessage="Are you sure you want to delete this customer profile?"
+        />
+      }
+      tabs={tabs}
+      metadata={metadataPanel}
+      isDirty={isDirty}
+      isSaving={saving}
+      onSave={() => handleSubmit()}
+      onCancel={() => router.push('/admin/canvases/customer-profiles')}
+      onSubmit={handleSubmit}
+    />
   )
 }

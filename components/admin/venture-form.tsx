@@ -1,15 +1,119 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { toast } from 'sonner'
 import { MdxEditor } from '@/components/forms/mdx-editor'
 import { FormFieldWithAI } from '@/components/forms'
-import { SidebarCard } from './sidebar-card'
-import { FormActions } from './form-actions'
-import { RelationshipField } from './relationship-field'
-import { syncEntityLinks, syncEntityLinksAsTarget } from '@/lib/entity-links'
+import { AdminEntityLayout } from '@/components/admin/admin-entity-layout'
+import { EntityControlCluster } from '@/components/admin/entity-control-cluster'
+import { RelationshipManager, type RelationshipSlot } from '@/components/admin/relationship-manager'
+import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
+import { Label } from '@/components/ui/label'
+import { Switch } from '@/components/ui/switch'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import { ExternalLink } from 'lucide-react'
+
+// ============================================================================
+// Relationship slots for ventures
+// ============================================================================
+
+const VENTURE_SLOTS: RelationshipSlot[] = [
+  {
+    targetType: 'specimen',
+    linkType: 'contains',
+    label: 'Specimens',
+    group: 'Portfolio',
+    displayField: 'title',
+    editHref: (id) => `/admin/specimens/${id}/edit`,
+    ordered: true,
+  },
+  {
+    targetType: 'log_entry',
+    linkType: 'related',
+    label: 'Log Entries',
+    group: 'Documentation',
+    displayField: 'title',
+    direction: 'inbound',
+    editHref: (id) => `/admin/log/${id}/edit`,
+  },
+  {
+    targetType: 'studio_project',
+    linkType: 'related',
+    label: 'Studio Projects',
+    group: 'R&D',
+    displayField: 'name',
+    editHref: (id) => `/admin/studio/${id}/edit`,
+  },
+  {
+    targetType: 'business_model_canvas',
+    linkType: 'related',
+    label: 'Business Models',
+    group: 'Strategic Context',
+    displayField: 'name',
+    editHref: (id) => `/admin/canvases/business-model/${id}/edit`,
+  },
+  {
+    targetType: 'customer_profile',
+    linkType: 'related',
+    label: 'Customer Profiles',
+    group: 'Strategic Context',
+    displayField: 'name',
+    editHref: (id) => `/admin/canvases/customer-profiles/${id}/edit`,
+  },
+  {
+    targetType: 'value_proposition_canvas',
+    linkType: 'related',
+    label: 'Value Propositions',
+    group: 'Strategic Context',
+    displayField: 'name',
+    editHref: (id) => `/admin/canvases/value-proposition/${id}/edit`,
+  },
+  {
+    targetType: 'value_map',
+    linkType: 'related',
+    label: 'Value Maps',
+    group: 'Strategic Context',
+    displayField: 'name',
+    editHref: (id) => `/admin/canvases/value-maps/${id}/edit`,
+  },
+  {
+    targetType: 'user_journey',
+    linkType: 'related',
+    label: 'User Journeys',
+    group: 'Journeys & Blueprints',
+    displayField: 'name',
+    editHref: (id) => `/admin/journeys/${id}/edit`,
+  },
+  {
+    targetType: 'service_blueprint',
+    linkType: 'related',
+    label: 'Service Blueprints',
+    group: 'Journeys & Blueprints',
+    displayField: 'name',
+    editHref: (id) => `/admin/blueprints/${id}/edit`,
+  },
+  {
+    targetType: 'story_map',
+    linkType: 'related',
+    label: 'Story Maps',
+    group: 'Development',
+    displayField: 'name',
+    editHref: (id) => `/admin/story-maps/${id}/edit`,
+  },
+]
+
+// ============================================================================
+// Component
+// ============================================================================
 
 interface VentureFormData {
   title: string
@@ -22,18 +126,6 @@ interface VentureFormData {
   end_date: string
   published: boolean
   tags: string
-  specimenIds: string[]
-  logEntryIds: string[]
-  // Strategic artifacts
-  studioProjectIds: string[]
-  blueprintIds: string[]
-  journeyIds: string[]
-  storyMapIds: string[]
-  // Canvases
-  businessModelIds: string[]
-  customerProfileIds: string[]
-  valuePropositionIds: string[]
-  valueMapIds: string[]
 }
 
 interface VentureFormProps {
@@ -57,130 +149,14 @@ export function VentureForm({ ventureId, initialData }: VentureFormProps) {
     end_date: initialData?.end_date || '',
     published: initialData?.published || false,
     tags: initialData?.tags || '',
-    specimenIds: initialData?.specimenIds || [],
-    logEntryIds: initialData?.logEntryIds || [],
-    // Strategic artifacts
-    studioProjectIds: initialData?.studioProjectIds || [],
-    blueprintIds: initialData?.blueprintIds || [],
-    journeyIds: initialData?.journeyIds || [],
-    storyMapIds: initialData?.storyMapIds || [],
-    // Canvases
-    businessModelIds: initialData?.businessModelIds || [],
-    customerProfileIds: initialData?.customerProfileIds || [],
-    valuePropositionIds: initialData?.valuePropositionIds || [],
-    valueMapIds: initialData?.valueMapIds || [],
   })
 
-  // Load existing relationships
-  useEffect(() => {
-    if (ventureId) {
-      loadRelationships()
-    }
-  }, [ventureId])
-
-  const loadRelationships = async () => {
-    if (!ventureId) return
-
-    // Load all relationships in parallel
-    const [
-      specimenLinks,
-      logEntryLinks,
-      studioProjectLinks,
-      blueprintLinks,
-      journeyLinks,
-      storyMapLinks,
-      businessModelLinks,
-      customerProfileLinks,
-      valuePropositionLinks,
-      valueMapLinks,
-    ] = await Promise.all([
-      // project->specimen
-      supabase
-        .from('entity_links')
-        .select('target_id')
-        .eq('source_type', 'project')
-        .eq('source_id', ventureId)
-        .eq('target_type', 'specimen')
-        .order('position'),
-      // log_entry->project (project is target)
-      supabase
-        .from('entity_links')
-        .select('source_id')
-        .eq('source_type', 'log_entry')
-        .eq('target_type', 'project')
-        .eq('target_id', ventureId),
-      // project->studio_project
-      supabase
-        .from('entity_links')
-        .select('target_id')
-        .eq('source_type', 'project')
-        .eq('source_id', ventureId)
-        .eq('target_type', 'studio_project'),
-      // project->service_blueprint
-      supabase
-        .from('entity_links')
-        .select('target_id')
-        .eq('source_type', 'project')
-        .eq('source_id', ventureId)
-        .eq('target_type', 'service_blueprint'),
-      // project->user_journey
-      supabase
-        .from('entity_links')
-        .select('target_id')
-        .eq('source_type', 'project')
-        .eq('source_id', ventureId)
-        .eq('target_type', 'user_journey'),
-      // project->story_map
-      supabase
-        .from('entity_links')
-        .select('target_id')
-        .eq('source_type', 'project')
-        .eq('source_id', ventureId)
-        .eq('target_type', 'story_map'),
-      // project->business_model_canvas
-      supabase
-        .from('entity_links')
-        .select('target_id')
-        .eq('source_type', 'project')
-        .eq('source_id', ventureId)
-        .eq('target_type', 'business_model_canvas'),
-      // project->customer_profile
-      supabase
-        .from('entity_links')
-        .select('target_id')
-        .eq('source_type', 'project')
-        .eq('source_id', ventureId)
-        .eq('target_type', 'customer_profile'),
-      // project->value_proposition
-      supabase
-        .from('entity_links')
-        .select('target_id')
-        .eq('source_type', 'project')
-        .eq('source_id', ventureId)
-        .eq('target_type', 'value_proposition'),
-      // project->value_map
-      supabase
-        .from('entity_links')
-        .select('target_id')
-        .eq('source_type', 'project')
-        .eq('source_id', ventureId)
-        .eq('target_type', 'value_map'),
-    ])
-
-    setFormData(prev => ({
-      ...prev,
-      specimenIds: specimenLinks.data?.map(r => r.target_id) || [],
-      logEntryIds: logEntryLinks.data?.map(r => r.source_id) || [],
-      studioProjectIds: studioProjectLinks.data?.map(r => r.target_id) || [],
-      blueprintIds: blueprintLinks.data?.map(r => r.target_id) || [],
-      journeyIds: journeyLinks.data?.map(r => r.target_id) || [],
-      storyMapIds: storyMapLinks.data?.map(r => r.target_id) || [],
-      businessModelIds: businessModelLinks.data?.map(r => r.target_id) || [],
-      customerProfileIds: customerProfileLinks.data?.map(r => r.target_id) || [],
-      valuePropositionIds: valuePropositionLinks.data?.map(r => r.target_id) || [],
-      valueMapIds: valueMapLinks.data?.map(r => r.target_id) || [],
-    }))
-  }
+  // Track dirty state
+  const [initialFormData] = useState(formData)
+  const isDirty = useMemo(
+    () => JSON.stringify(formData) !== JSON.stringify(initialFormData),
+    [formData, initialFormData]
+  )
 
   const generateSlug = (title: string) => {
     return title
@@ -190,19 +166,19 @@ export function VentureForm({ ventureId, initialData }: VentureFormProps) {
   }
 
   const handleTitleChange = (value: string) => {
-    setFormData({ ...formData, title: value })
     if (!ventureId && !formData.slug) {
       setFormData({ ...formData, title: value, slug: generateSlug(value) })
+    } else {
+      setFormData({ ...formData, title: value })
     }
   }
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
+  const handleSubmit = async (e?: React.FormEvent) => {
+    e?.preventDefault()
     setIsSubmitting(true)
     setError(null)
 
     try {
-      // Validate slug format
       if (!/^[a-z0-9-]+$/.test(formData.slug)) {
         throw new Error('Slug can only contain lowercase letters, numbers, and hyphens')
       }
@@ -226,58 +202,30 @@ export function VentureForm({ ventureId, initialData }: VentureFormProps) {
         ...(formData.published && !initialData?.published ? { published_at: new Date().toISOString() } : {}),
       }
 
-      let savedVentureId = ventureId
-
       if (ventureId) {
-        // Update existing venture
         const { error: updateError } = await supabase
           .from('ventures')
           .update(ventureData)
           .eq('id', ventureId)
-
         if (updateError) throw updateError
       } else {
-        // Create new venture
-        const { data: newVenture, error: insertError } = await supabase
+        const { error: insertError } = await supabase
           .from('ventures')
           .insert([ventureData])
           .select('id')
           .single()
-
         if (insertError) throw insertError
-        savedVentureId = newVenture.id
       }
 
-      // Update relationships via entity_links
-      if (savedVentureId) {
-        const source = { type: 'project' as const, id: savedVentureId }
+      // Relationships are handled by RelationshipManager — no sync needed here
 
-        // Sync all relationships in parallel
-        await Promise.all([
-          // Original relationships
-          syncEntityLinks(source, 'specimen', 'contains', formData.specimenIds),
-          syncEntityLinksAsTarget(source, 'log_entry', 'related', formData.logEntryIds),
-          // Strategic artifacts
-          syncEntityLinks(source, 'studio_project', 'related', formData.studioProjectIds),
-          syncEntityLinks(source, 'service_blueprint' as any, 'related', formData.blueprintIds),
-          syncEntityLinks(source, 'user_journey', 'related', formData.journeyIds),
-          syncEntityLinks(source, 'story_map', 'related', formData.storyMapIds),
-          // Canvases
-          syncEntityLinks(source, 'business_model_canvas', 'related', formData.businessModelIds),
-          syncEntityLinks(source, 'customer_profile', 'related', formData.customerProfileIds),
-          syncEntityLinks(source, 'value_proposition_canvas', 'related', formData.valuePropositionIds),
-          syncEntityLinks(source, 'value_map', 'related', formData.valueMapIds),
-        ])
-      }
-
-      toast.success(ventureId ? 'Venture updated successfully!' : 'Venture created successfully!')
+      toast.success(ventureId ? 'Venture updated!' : 'Venture created!')
       router.push('/admin/ventures')
       router.refresh()
     } catch (err: any) {
       console.error('Error saving venture:', err)
-      // Provide user-friendly error for duplicate slug
       if (err.code === '23505' || err.message?.includes('duplicate key')) {
-        setError(`The slug "${formData.slug}" is already in use. Please choose a different one.`)
+        setError(`The slug "${formData.slug}" is already in use.`)
         toast.error('Slug already in use')
       } else {
         setError(err.message || 'Failed to save venture')
@@ -287,13 +235,8 @@ export function VentureForm({ ventureId, initialData }: VentureFormProps) {
     }
   }
 
-  const handleCancel = () => {
-    router.push('/admin/ventures')
-  }
-
   const handleDelete = async () => {
     if (!ventureId) return
-
     setIsSubmitting(true)
     setError(null)
 
@@ -302,10 +245,9 @@ export function VentureForm({ ventureId, initialData }: VentureFormProps) {
         .from('ventures')
         .delete()
         .eq('id', ventureId)
-
       if (deleteError) throw deleteError
 
-      toast.success('Venture deleted successfully')
+      toast.success('Venture deleted')
       router.push('/admin/ventures')
       router.refresh()
     } catch (err: any) {
@@ -316,322 +258,237 @@ export function VentureForm({ ventureId, initialData }: VentureFormProps) {
     }
   }
 
-  return (
-    <form onSubmit={handleSubmit} className="space-y-6">
+  // Status for badge
+  const statusLabel = formData.status.charAt(0).toUpperCase() + formData.status.slice(1)
+  const statusVariant = formData.status === 'active' ? 'default'
+    : formData.status === 'completed' ? 'secondary'
+    : 'outline'
+
+  // ============================================================================
+  // Tab content
+  // ============================================================================
+
+  const fieldsTab = (
+    <div className="space-y-6">
       {error && (
         <div className="p-4 rounded-lg border border-red-200 bg-red-50 dark:bg-red-950/10 text-red-800 dark:text-red-200">
           {error}
         </div>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Main Content */}
-        <div className="lg:col-span-2 space-y-6">
-          <FormFieldWithAI
-            label="Title *"
-            fieldName="title"
-            entityType="ventures"
-            context={{
-              status: formData.status,
-              type: formData.type,
-            }}
-            currentValue={formData.title}
-            onGenerate={(content) => handleTitleChange(content)}
-            disabled={isSubmitting}
+      <FormFieldWithAI
+        label="Title *"
+        fieldName="title"
+        entityType="ventures"
+        context={{ status: formData.status, type: formData.type }}
+        currentValue={formData.title}
+        onGenerate={(content) => handleTitleChange(content)}
+        disabled={isSubmitting}
+      >
+        <Input
+          type="text"
+          required
+          value={formData.title}
+          onChange={(e) => handleTitleChange(e.target.value)}
+          placeholder="My Awesome Venture"
+        />
+      </FormFieldWithAI>
+
+      <div>
+        <Label htmlFor="slug" className="block mb-2">Slug *</Label>
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-muted-foreground">/</span>
+          <Input
+            type="text"
+            id="slug"
+            required
+            value={formData.slug}
+            onChange={(e) => setFormData({ ...formData, slug: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '-') })}
+            className="flex-1"
+            placeholder="my-awesome-venture"
+          />
+        </div>
+        <p className="text-xs text-muted-foreground mt-1">
+          Only lowercase letters, numbers, and hyphens.
+        </p>
+      </div>
+
+      <FormFieldWithAI
+        label="Description"
+        fieldName="description"
+        entityType="ventures"
+        context={{ title: formData.title, status: formData.status, type: formData.type }}
+        currentValue={formData.description}
+        onGenerate={(content) => setFormData({ ...formData, description: content })}
+        disabled={isSubmitting}
+      >
+        <Textarea
+          value={formData.description}
+          onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+          rows={3}
+          className="resize-none"
+          placeholder="A brief description of your venture..."
+        />
+      </FormFieldWithAI>
+
+      <MdxEditor
+        value={formData.content}
+        onChange={(value) => setFormData({ ...formData, content: value })}
+        placeholder="# Venture Details&#10;&#10;Write your venture content here in Markdown..."
+        rows={16}
+      />
+    </div>
+  )
+
+  const linksTab = (
+    <div className="space-y-6">
+      {ventureId ? (
+        <RelationshipManager
+          entity={{ type: 'project', id: ventureId }}
+          slots={VENTURE_SLOTS}
+        />
+      ) : (
+        <p className="text-sm text-muted-foreground py-4">
+          Save the venture first to link related entities.
+        </p>
+      )}
+    </div>
+  )
+
+  // ============================================================================
+  // Metadata panel
+  // ============================================================================
+
+  const metadataPanel = (
+    <div className="space-y-4">
+      <div className="rounded-lg border bg-card p-4 space-y-4">
+        <h3 className="text-sm font-semibold">Settings</h3>
+
+        <div>
+          <Label htmlFor="status" className="block mb-1 text-xs text-muted-foreground">Status</Label>
+          <Select
+            value={formData.status}
+            onValueChange={(v) => setFormData({ ...formData, status: v })}
           >
-            <input
-              type="text"
-              required
-              value={formData.title}
-              onChange={(e) => handleTitleChange(e.target.value)}
-              className="w-full px-3 py-2 rounded-lg border bg-background"
-              placeholder="My Awesome Venture"
-            />
-          </FormFieldWithAI>
+            <SelectTrigger id="status" className="w-full" size="sm">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="draft">Draft</SelectItem>
+              <SelectItem value="active">Active</SelectItem>
+              <SelectItem value="completed">Completed</SelectItem>
+              <SelectItem value="archived">Archived</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
 
-          <div>
-            <label htmlFor="slug" className="block text-sm font-medium mb-2">
-              Slug *
-            </label>
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-muted-foreground">/</span>
-              <input
-                type="text"
-                id="slug"
-                required
-                value={formData.slug}
-                onChange={(e) => setFormData({ ...formData, slug: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '-') })}
-                className="flex-1 px-3 py-2 rounded-lg border bg-background"
-                placeholder="my-awesome-venture"
-              />
-            </div>
-            <p className="text-xs text-muted-foreground mt-1">
-              Only lowercase letters, numbers, and hyphens. Will be used in the URL.
-            </p>
-          </div>
-
-          <FormFieldWithAI
-            label="Description"
-            fieldName="description"
-            entityType="ventures"
-            context={{
-              title: formData.title,
-              status: formData.status,
-              type: formData.type,
-            }}
-            currentValue={formData.description}
-            onGenerate={(content) => setFormData({ ...formData, description: content })}
-            disabled={isSubmitting}
-          >
-            <textarea
-              value={formData.description}
-              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-              rows={3}
-              className="w-full px-3 py-2 rounded-lg border bg-background resize-none"
-              placeholder="A brief description of your venture..."
-            />
-          </FormFieldWithAI>
-
-          <MdxEditor
-            value={formData.content}
-            onChange={(value) => setFormData({ ...formData, content: value })}
-            placeholder="# Venture Details&#10;&#10;Write your venture content here in Markdown...&#10;&#10;You can embed specimens using: <Specimen id=&quot;simple-card&quot; />"
-            rows={16}
+        <div>
+          <Label htmlFor="type" className="block mb-1 text-xs text-muted-foreground">Type</Label>
+          <Input
+            type="text"
+            id="type"
+            value={formData.type}
+            onChange={(e) => setFormData({ ...formData, type: e.target.value })}
+            placeholder="project, business..."
           />
         </div>
 
-        {/* Sidebar */}
-        <div className="space-y-6">
-          <SidebarCard title="Settings">
-            <div>
-              <label htmlFor="status" className="block text-sm font-medium mb-2">
-                Status
-              </label>
-              <select
-                id="status"
-                value={formData.status}
-                onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-                className="w-full px-3 py-2 rounded-lg border bg-background"
-              >
-                <option value="draft">Draft</option>
-                <option value="active">Active</option>
-                <option value="completed">Completed</option>
-                <option value="archived">Archived</option>
-              </select>
-            </div>
-
-            <div>
-              <label htmlFor="type" className="block text-sm font-medium mb-2">
-                Type
-              </label>
-              <input
-                type="text"
-                id="type"
-                value={formData.type}
-                onChange={(e) => setFormData({ ...formData, type: e.target.value })}
-                className="w-full px-3 py-2 rounded-lg border bg-background"
-                placeholder="project, business, experiment..."
-              />
-            </div>
-
-            <div>
-              <label className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  checked={formData.published}
-                  onChange={(e) => setFormData({ ...formData, published: e.target.checked })}
-                  className="rounded border-gray-300"
-                />
-                <span className="text-sm font-medium">Published</span>
-              </label>
-              <p className="text-xs text-muted-foreground mt-1">
-                Make this venture visible to the public
-              </p>
-            </div>
-          </SidebarCard>
-
-          <SidebarCard title="Dates">
-            <div>
-              <label htmlFor="start_date" className="block text-sm font-medium mb-2">
-                Start Date
-              </label>
-              <input
-                type="date"
-                id="start_date"
-                value={formData.start_date}
-                onChange={(e) => setFormData({ ...formData, start_date: e.target.value })}
-                className="w-full px-3 py-2 rounded-lg border bg-background"
-              />
-            </div>
-
-            <div>
-              <label htmlFor="end_date" className="block text-sm font-medium mb-2">
-                End Date
-              </label>
-              <input
-                type="date"
-                id="end_date"
-                value={formData.end_date}
-                onChange={(e) => setFormData({ ...formData, end_date: e.target.value })}
-                className="w-full px-3 py-2 rounded-lg border bg-background"
-              />
-            </div>
-          </SidebarCard>
-
-          <SidebarCard title="Tags">
-            <FormFieldWithAI
-              label=""
-              fieldName="tags"
-              entityType="ventures"
-              context={{
-                title: formData.title,
-                description: formData.description,
-                type: formData.type,
-              }}
-              currentValue={formData.tags}
-              onGenerate={(content) => setFormData({ ...formData, tags: content })}
-              disabled={isSubmitting}
-              description="Comma-separated tags"
-            >
-              <input
-                type="text"
-                value={formData.tags}
-                onChange={(e) => setFormData({ ...formData, tags: e.target.value })}
-                className="w-full px-3 py-2 rounded-lg border bg-background"
-                placeholder="react, typescript, design"
-              />
-            </FormFieldWithAI>
-          </SidebarCard>
-
-          <SidebarCard title="Linked Specimens">
-            <RelationshipField
-              label=""
-              value={formData.specimenIds}
-              onChange={(ids) => setFormData({ ...formData, specimenIds: ids as string[] })}
-              tableName="specimens"
-              displayField="title"
-              mode="multi"
-              helperText="Select specimens to showcase in this venture"
-            />
-          </SidebarCard>
-
-          <SidebarCard title="Linked Log Entries">
-            <RelationshipField
-              label=""
-              value={formData.logEntryIds}
-              onChange={(ids) => setFormData({ ...formData, logEntryIds: ids as string[] })}
-              tableName="log_entries"
-              displayField="title"
-              mode="multi"
-              helperText="Select log entries related to this venture"
-            />
-          </SidebarCard>
-
-          <SidebarCard title="Studio Projects">
-            <RelationshipField
-              label=""
-              value={formData.studioProjectIds}
-              onChange={(ids) => setFormData({ ...formData, studioProjectIds: ids as string[] })}
-              tableName="studio_projects"
-              displayField="name"
-              mode="multi"
-              helperText="Link to R&D studio projects"
-            />
-          </SidebarCard>
-
-          <SidebarCard title="Blueprints">
-            <RelationshipField
-              label=""
-              value={formData.blueprintIds}
-              onChange={(ids) => setFormData({ ...formData, blueprintIds: ids as string[] })}
-              tableName="service_blueprints"
-              displayField="name"
-              mode="multi"
-              helperText="Link service blueprints"
-            />
-          </SidebarCard>
-
-          <SidebarCard title="User Journeys">
-            <RelationshipField
-              label=""
-              value={formData.journeyIds}
-              onChange={(ids) => setFormData({ ...formData, journeyIds: ids as string[] })}
-              tableName="user_journeys"
-              displayField="name"
-              mode="multi"
-              helperText="Link user journey maps"
-            />
-          </SidebarCard>
-
-          <SidebarCard title="Story Maps">
-            <RelationshipField
-              label=""
-              value={formData.storyMapIds}
-              onChange={(ids) => setFormData({ ...formData, storyMapIds: ids as string[] })}
-              tableName="story_maps"
-              displayField="name"
-              mode="multi"
-              helperText="Link story maps"
-            />
-          </SidebarCard>
-
-          <SidebarCard title="Business Models">
-            <RelationshipField
-              label=""
-              value={formData.businessModelIds}
-              onChange={(ids) => setFormData({ ...formData, businessModelIds: ids as string[] })}
-              tableName="business_model_canvases"
-              displayField="name"
-              mode="multi"
-              helperText="Link business model canvases"
-            />
-          </SidebarCard>
-
-          <SidebarCard title="Customer Profiles">
-            <RelationshipField
-              label=""
-              value={formData.customerProfileIds}
-              onChange={(ids) => setFormData({ ...formData, customerProfileIds: ids as string[] })}
-              tableName="customer_profiles"
-              displayField="name"
-              mode="multi"
-              helperText="Link customer profile canvases"
-            />
-          </SidebarCard>
-
-          <SidebarCard title="Value Propositions">
-            <RelationshipField
-              label=""
-              value={formData.valuePropositionIds}
-              onChange={(ids) => setFormData({ ...formData, valuePropositionIds: ids as string[] })}
-              tableName="value_propositions"
-              displayField="name"
-              mode="multi"
-              helperText="Link value proposition canvases"
-            />
-          </SidebarCard>
-
-          <SidebarCard title="Value Maps">
-            <RelationshipField
-              label=""
-              value={formData.valueMapIds}
-              onChange={(ids) => setFormData({ ...formData, valueMapIds: ids as string[] })}
-              tableName="value_maps"
-              displayField="name"
-              mode="multi"
-              helperText="Link value map canvases"
-            />
-          </SidebarCard>
+        <div className="flex items-center gap-2">
+          <Switch
+            id="meta_published"
+            checked={formData.published}
+            onCheckedChange={(checked) => setFormData({ ...formData, published: checked })}
+          />
+          <Label htmlFor="meta_published" className="text-sm">Published</Label>
         </div>
       </div>
 
-      <FormActions
-        isSubmitting={isSubmitting}
-        submitLabel={ventureId ? 'Update Venture' : 'Create Venture'}
-        onCancel={handleCancel}
-        onDelete={ventureId ? handleDelete : undefined}
-        deleteConfirmMessage="Are you sure you want to delete this venture? This action cannot be undone."
-      />
-    </form>
+      <div className="rounded-lg border bg-card p-4 space-y-4">
+        <h3 className="text-sm font-semibold">Dates</h3>
+
+        <div>
+          <Label htmlFor="start_date" className="block mb-1 text-xs text-muted-foreground">Start</Label>
+          <Input
+            type="date"
+            id="start_date"
+            value={formData.start_date}
+            onChange={(e) => setFormData({ ...formData, start_date: e.target.value })}
+          />
+        </div>
+
+        <div>
+          <Label htmlFor="end_date" className="block mb-1 text-xs text-muted-foreground">End</Label>
+          <Input
+            type="date"
+            id="end_date"
+            value={formData.end_date}
+            onChange={(e) => setFormData({ ...formData, end_date: e.target.value })}
+          />
+        </div>
+      </div>
+
+      <div className="rounded-lg border bg-card p-4 space-y-3">
+        <FormFieldWithAI
+          label="Tags"
+          fieldName="tags"
+          entityType="ventures"
+          context={{ title: formData.title, description: formData.description, type: formData.type }}
+          currentValue={formData.tags}
+          onGenerate={(content) => setFormData({ ...formData, tags: content })}
+          disabled={isSubmitting}
+          description="Comma-separated tags"
+        >
+          <Input
+            type="text"
+            value={formData.tags}
+            onChange={(e) => setFormData({ ...formData, tags: e.target.value })}
+            placeholder="react, typescript, design"
+          />
+        </FormFieldWithAI>
+      </div>
+    </div>
+  )
+
+  // ============================================================================
+  // Tabs
+  // ============================================================================
+
+  const tabs = [
+    { id: 'fields', label: 'Fields', content: fieldsTab },
+    { id: 'links', label: 'Links', content: linksTab },
+  ]
+
+  // ============================================================================
+  // Render
+  // ============================================================================
+
+  return (
+    <AdminEntityLayout
+      title={ventureId ? formData.title || 'Untitled' : 'New Venture'}
+      subtitle={ventureId ? formData.slug : undefined}
+      status={{ label: statusLabel, variant: statusVariant as any }}
+      backHref="/admin/ventures"
+      backLabel="Ventures"
+      controlCluster={
+        <EntityControlCluster
+          isDirty={isDirty}
+          isSaving={isSubmitting}
+          onSave={() => handleSubmit()}
+          onCancel={() => router.push('/admin/ventures')}
+          saveLabel={ventureId ? 'Save' : 'Create'}
+          links={ventureId ? [
+            { label: 'Portfolio', href: `/portfolio/${formData.slug}`, icon: <ExternalLink className="size-4" />, external: true },
+          ] : undefined}
+          onDelete={ventureId ? handleDelete : undefined}
+        />
+      }
+      tabs={tabs}
+      metadata={metadataPanel}
+      isDirty={isDirty}
+      isSaving={isSubmitting}
+      onSave={() => handleSubmit()}
+      onCancel={() => router.push('/admin/ventures')}
+      onSubmit={handleSubmit}
+    />
   )
 }

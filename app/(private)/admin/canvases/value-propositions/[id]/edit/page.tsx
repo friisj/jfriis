@@ -1,10 +1,8 @@
 export const dynamic = 'force-dynamic'
 
-import Link from 'next/link'
 import { createClient } from '@/lib/supabase-server'
 import { ValuePropositionCanvasForm } from '@/components/admin/value-proposition-canvas-form'
 import { notFound } from 'next/navigation'
-import { LayoutGrid } from 'lucide-react'
 
 interface PageProps {
   params: Promise<{ id: string }>
@@ -43,27 +41,5 @@ export default async function EditValuePropositionCanvasPage({ params }: PagePro
     validation_status: vpc.validation_status as 'untested' | 'testing' | 'validated' | 'invalidated',
   }
 
-  return (
-    <div className="p-8">
-      <div className="max-w-5xl mx-auto">
-        <div className="mb-8 flex items-start justify-between">
-          <div>
-            <h1 className="text-3xl font-bold mb-2">Edit: {vpc.name}</h1>
-            <p className="text-muted-foreground">Update value proposition canvas fit analysis</p>
-          </div>
-          <Link
-            href={`/admin/canvases/value-propositions/${id}/canvas`}
-            className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium border rounded-md hover:bg-muted transition-colors"
-          >
-            <LayoutGrid className="h-4 w-4" />
-            Canvas View
-          </Link>
-        </div>
-
-        <div className="rounded-lg border bg-card p-6">
-          <ValuePropositionCanvasForm vpcId={id} initialData={initialData} />
-        </div>
-      </div>
-    </div>
-  )
+  return <ValuePropositionCanvasForm vpcId={id} initialData={initialData} />
 }

@@ -1,12 +1,14 @@
 'use client'
 
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { toast } from 'sonner'
 import { MdxEditor } from '@/components/forms/mdx-editor'
 import { FormFieldWithAI } from '@/components/forms'
-import { EntityLinkField } from './entity-link-field'
+import { AdminEntityLayout } from '@/components/admin/admin-entity-layout'
+import { EntityControlCluster } from '@/components/admin/entity-control-cluster'
+import { RelationshipManager, type RelationshipSlot } from '@/components/admin/relationship-manager'
 import { DraftTabs } from './draft-tabs'
 import { DraftGenerationControls, type GenerationMetadata } from './draft-generation-controls'
 import { syncEntityLinks } from '@/lib/entity-links'
@@ -20,6 +22,53 @@ import {
 } from '@/app/actions/log-entry-drafts'
 import type { PendingLink } from '@/lib/types/entity-relationships'
 import type { LogEntryDraft } from '@/lib/types/database'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Switch } from '@/components/ui/switch'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import { ExternalLink } from 'lucide-react'
+
+// ============================================================================
+// Relationship slots for log entries
+// ============================================================================
+
+const LOG_ENTRY_SLOTS: RelationshipSlot[] = [
+  {
+    targetType: 'specimen',
+    linkType: 'contains',
+    label: 'Specimens',
+    group: 'Content',
+    displayField: 'title',
+    editHref: (id) => `/admin/specimens/${id}/edit`,
+    ordered: true,
+  },
+  {
+    targetType: 'project',
+    linkType: 'related',
+    label: 'Projects',
+    group: 'Context',
+    displayField: 'name',
+    editHref: (id) => `/admin/ventures/${id}/edit`,
+  },
+  {
+    targetType: 'assumption',
+    linkType: 'related',
+    label: 'Assumptions',
+    group: 'Context',
+    displayField: 'title',
+    editHref: (id) => `/admin/assumptions/${id}/edit`,
+  },
+]
+
+// ============================================================================
+// Types
+// ============================================================================
 
 interface LogEntryFormData {
   title: string
@@ -38,15 +87,17 @@ interface LogEntryFormProps {
   initialData?: Partial<LogEntryFormData>
 }
 
+// ============================================================================
+// Component
+// ============================================================================
+
 export function LogEntryForm({ entryId, initialData }: LogEntryFormProps) {
   const router = useRouter()
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  // Pending links for create mode (EntityLinkField handles edit mode internally)
-  const [pendingSpecimenLinks, setPendingSpecimenLinks] = useState<PendingLink[]>([])
-  const [pendingProjectLinks, setPendingProjectLinks] = useState<PendingLink[]>([])
-  const [pendingAssumptionLinks, setPendingAssumptionLinks] = useState<PendingLink[]>([])
+  // Pending links for create mode (RelationshipManager handles edit mode internally)
+  const [pendingLinks, setPendingLinks] = useState<PendingLink[]>([])
 
   // Draft state
   const [drafts, setDrafts] = useState<LogEntryDraft[]>([])
@@ -64,8 +115,15 @@ export function LogEntryForm({ entryId, initialData }: LogEntryFormProps) {
     published: initialData?.published || false,
     is_private: initialData?.is_private || false,
     tags: initialData?.tags || '',
-    idea_stage: (initialData as any)?.idea_stage || '',
+    idea_stage: (initialData as Record<string, string>)?.idea_stage || '',
   })
+
+  // Track dirty state
+  const [initialFormData] = useState(formData)
+  const isDirty = useMemo(
+    () => JSON.stringify(formData) !== JSON.stringify(initialFormData),
+    [formData, initialFormData]
+  )
 
   // Load drafts for existing entry
   useEffect(() => {
@@ -203,7 +261,7 @@ export function LogEntryForm({ entryId, initialData }: LogEntryFormProps) {
       } else {
         toast.error('Failed to generate name')
       }
-    } catch (err) {
+    } catch {
       toast.error('Failed to regenerate name')
     }
   }, [drafts, formData.title, formData.type])
@@ -293,8 +351,8 @@ export function LogEntryForm({ entryId, initialData }: LogEntryFormProps) {
     }
   }
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
+  const handleSubmit = async (e?: React.FormEvent) => {
+    e?.preventDefault()
     setIsSubmitting(true)
     setError(null)
 
@@ -351,43 +409,51 @@ export function LogEntryForm({ entryId, initialData }: LogEntryFormProps) {
         // Sync pending entity links for create mode
         const entityRef = { type: 'log_entry' as const, id: newEntry.id }
 
-        if (pendingSpecimenLinks.length > 0) {
-          await syncEntityLinks(entityRef, 'specimen', 'contains', pendingSpecimenLinks.map(l => l.targetId))
+        // Group pending links by target type and link type, then sync
+        const specimenLinks = pendingLinks.filter(l => l.linkType === 'contains')
+        const projectLinks = pendingLinks.filter(
+          l => l.linkType === 'related' && LOG_ENTRY_SLOTS.find(
+            s => s.targetType === 'project' && s.linkType === l.linkType
+          )
+        )
+        const assumptionLinks = pendingLinks.filter(
+          l => l.linkType === 'related' && LOG_ENTRY_SLOTS.find(
+            s => s.targetType === 'assumption' && s.linkType === l.linkType
+          )
+        )
+
+        if (specimenLinks.length > 0) {
+          await syncEntityLinks(entityRef, 'specimen', 'contains', specimenLinks.map(l => l.targetId))
         }
-        if (pendingProjectLinks.length > 0) {
-          await syncEntityLinks(entityRef, 'project', 'related', pendingProjectLinks.map(l => l.targetId))
+        if (projectLinks.length > 0) {
+          await syncEntityLinks(entityRef, 'project', 'related', projectLinks.map(l => l.targetId))
         }
-        if (pendingAssumptionLinks.length > 0) {
-          await syncEntityLinks(entityRef, 'assumption', 'related', pendingAssumptionLinks.map(l => l.targetId))
+        if (assumptionLinks.length > 0) {
+          await syncEntityLinks(entityRef, 'assumption', 'related', assumptionLinks.map(l => l.targetId))
         }
       }
 
       toast.success(entryId ? 'Log entry updated successfully!' : 'Log entry created successfully!')
       router.push('/admin/log')
       router.refresh()
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Failed to save log entry'
+      const code = (err as { code?: string })?.code
       console.error('Error saving log entry:', err)
       // Provide user-friendly error for duplicate slug
-      if (err.code === '23505' || err.message?.includes('duplicate key')) {
+      if (code === '23505' || message?.includes('duplicate key')) {
         setError(`The slug "${formData.slug}" is already in use. Please choose a different one.`)
         toast.error('Slug already in use')
       } else {
-        setError(err.message || 'Failed to save log entry')
-        toast.error(err.message || 'Failed to save log entry')
+        setError(message)
+        toast.error(message)
       }
       setIsSubmitting(false)
     }
   }
 
-  const handleCancel = () => {
-    router.push('/admin/log')
-  }
-
   const handleDelete = async () => {
     if (!entryId) return
-
-    const confirmed = confirm('Are you sure you want to delete this log entry? This action cannot be undone.')
-    if (!confirmed) return
 
     setIsSubmitting(true)
     setError(null)
@@ -403,314 +469,327 @@ export function LogEntryForm({ entryId, initialData }: LogEntryFormProps) {
       toast.success('Log entry deleted successfully')
       router.push('/admin/log')
       router.refresh()
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Failed to delete log entry'
       console.error('Error deleting log entry:', err)
-      setError(err.message || 'Failed to delete log entry')
-      toast.error(err.message || 'Failed to delete log entry')
+      setError(message)
+      toast.error(message)
       setIsSubmitting(false)
     }
   }
 
-  return (
-    <form onSubmit={handleSubmit} className="space-y-6">
+  // ============================================================================
+  // Status badge
+  // ============================================================================
+
+  const getStatusConfig = () => {
+    if (formData.published) {
+      return { label: 'Published', variant: 'default' as const }
+    }
+    if (formData.is_private) {
+      return { label: 'Private', variant: 'destructive' as const }
+    }
+    if (formData.type) {
+      const typeLabel = formData.type.charAt(0).toUpperCase() + formData.type.slice(1)
+      return { label: typeLabel, variant: 'secondary' as const }
+    }
+    return { label: 'Draft', variant: 'outline' as const }
+  }
+
+  // ============================================================================
+  // Fields tab
+  // ============================================================================
+
+  const fieldsTab = (
+    <div className="space-y-6">
       {error && (
         <div className="p-4 rounded-lg border border-red-200 bg-red-50 dark:bg-red-950/10 text-red-800 dark:text-red-200">
           {error}
         </div>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Main Content */}
-        <div className="lg:col-span-2 space-y-6">
-          <FormFieldWithAI
-            label="Title *"
-            fieldName="title"
-            entityType="log_entries"
-            context={{
-              type: formData.type,
-              entry_date: formData.entry_date,
-            }}
-            currentValue={formData.title}
-            onGenerate={(content) => handleTitleChange(content)}
-            disabled={isSubmitting}
-          >
-            <input
-              type="text"
-              required
-              value={formData.title}
-              onChange={(e) => handleTitleChange(e.target.value)}
-              className="w-full px-3 py-2 rounded-lg border bg-background"
-              placeholder="Today's experiment with..."
-            />
-          </FormFieldWithAI>
+      <FormFieldWithAI
+        label="Title *"
+        fieldName="title"
+        entityType="log_entries"
+        context={{
+          type: formData.type,
+          entry_date: formData.entry_date,
+        }}
+        currentValue={formData.title}
+        onGenerate={(content) => handleTitleChange(content)}
+        disabled={isSubmitting}
+      >
+        <Input
+          type="text"
+          required
+          value={formData.title}
+          onChange={(e) => handleTitleChange(e.target.value)}
+          placeholder="Today's experiment with..."
+        />
+      </FormFieldWithAI>
 
-          <div>
-            <label htmlFor="slug" className="block text-sm font-medium mb-2">
-              Slug *
-            </label>
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-muted-foreground">/</span>
-              <input
-                type="text"
-                id="slug"
-                required
-                value={formData.slug}
-                onChange={(e) => setFormData({ ...formData, slug: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '-') })}
-                className="flex-1 px-3 py-2 rounded-lg border bg-background"
-                placeholder="todays-experiment"
-              />
-            </div>
-            <p className="text-xs text-muted-foreground mt-1">
-              Only lowercase letters, numbers, and hyphens. Will be used in the URL.
-            </p>
-          </div>
-
-          {/* Drafts Section */}
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <label className="block text-sm font-medium">Content</label>
-              <DraftGenerationControls
-                currentContent={formData.content}
-                context={{
-                  title: formData.title,
-                  type: formData.type || undefined,
-                  tags: formData.tags
-                    ? formData.tags.split(',').map((t) => t.trim()).filter(Boolean)
-                    : undefined,
-                }}
-                onGenerated={handleGenerated}
-                disabled={isSubmitting || draftsLoading}
-              />
-            </div>
-
-            {/* Draft tabs (only show in edit mode with drafts) */}
-            {entryId && drafts.length > 0 && (
-              <DraftTabs
-                drafts={drafts}
-                activeDraftId={activeDraftId}
-                onSelectDraft={handleSelectDraft}
-                onCreateDraft={handleCreateDraft}
-                onSetPrimary={handleSetPrimary}
-                onRenameDraft={handleRenameDraft}
-                onRegenerateName={handleRegenerateName}
-                onDeleteDraft={handleDeleteDraft}
-                disabled={isSubmitting || draftsLoading}
-              />
-            )}
-
-            {draftsLoading ? (
-              <div className="h-[400px] flex items-center justify-center border rounded-lg bg-muted/20">
-                <span className="text-muted-foreground">Loading drafts...</span>
-              </div>
-            ) : (
-              <MdxEditor
-                value={formData.content}
-                onChange={handleContentChange}
-                placeholder="# What I learned today&#10;&#10;Write your log entry content here in Markdown...&#10;&#10;Embed specimens: <Specimen id=&quot;simple-card&quot; />"
-                rows={20}
-              />
-            )}
-          </div>
+      <div>
+        <Label htmlFor="slug" className="block mb-2">
+          Slug *
+        </Label>
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-muted-foreground">/</span>
+          <Input
+            type="text"
+            id="slug"
+            required
+            value={formData.slug}
+            onChange={(e) => setFormData({ ...formData, slug: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '-') })}
+            className="flex-1"
+            placeholder="todays-experiment"
+          />
         </div>
-
-        {/* Sidebar */}
-        <div className="space-y-6">
-          <div className="rounded-lg border bg-card p-4 space-y-4">
-            <h3 className="font-medium">Settings</h3>
-
-            <div>
-              <label htmlFor="entry_date" className="block text-sm font-medium mb-2">
-                Entry Date *
-              </label>
-              <input
-                type="date"
-                id="entry_date"
-                required
-                value={formData.entry_date}
-                onChange={(e) => setFormData({ ...formData, entry_date: e.target.value })}
-                className="w-full px-3 py-2 rounded-lg border bg-background"
-              />
-            </div>
-
-            <div>
-              <label htmlFor="type" className="block text-sm font-medium mb-2">
-                Type
-              </label>
-              <select
-                id="type"
-                value={formData.type}
-                onChange={(e) => {
-                  const newType = e.target.value
-                  setFormData({
-                    ...formData,
-                    type: newType,
-                    idea_stage: newType === 'idea' && !formData.idea_stage ? 'captured' : formData.idea_stage,
-                  })
-                }}
-                className="w-full px-3 py-2 rounded-lg border bg-background"
-              >
-                <option value="">Select type...</option>
-                <option value="experiment">Experiment</option>
-                <option value="idea">Idea</option>
-                <option value="research">Research</option>
-                <option value="update">Update</option>
-              </select>
-            </div>
-
-            {formData.type === 'idea' && (
-              <div>
-                <label htmlFor="idea_stage" className="block text-sm font-medium mb-2">
-                  Idea Stage
-                </label>
-                <select
-                  id="idea_stage"
-                  value={formData.idea_stage}
-                  onChange={(e) => setFormData({ ...formData, idea_stage: e.target.value })}
-                  className="w-full px-3 py-2 rounded-lg border bg-background"
-                >
-                  <option value="captured">Captured</option>
-                  <option value="exploring">Exploring</option>
-                  <option value="validated">Validated</option>
-                  <option value="graduated">Graduated</option>
-                  <option value="parked">Parked</option>
-                </select>
-              </div>
-            )}
-
-            <div>
-              <label className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  checked={formData.published}
-                  onChange={(e) => setFormData({ ...formData, published: e.target.checked })}
-                  className="rounded border-gray-300"
-                />
-                <span className="text-sm font-medium">Published</span>
-              </label>
-              <p className="text-xs text-muted-foreground mt-1">
-                Make this entry visible to the public
-              </p>
-            </div>
-
-            <div>
-              <label className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  checked={formData.is_private}
-                  onChange={(e) => setFormData({ ...formData, is_private: e.target.checked })}
-                  className="rounded border-gray-300"
-                />
-                <span className="text-sm font-medium">Private</span>
-              </label>
-              <p className="text-xs text-muted-foreground mt-1">
-                Hidden in privacy mode
-              </p>
-            </div>
-          </div>
-
-          <div className="rounded-lg border bg-card p-4 space-y-4">
-            <FormFieldWithAI
-              label="Tags"
-              fieldName="tags"
-              entityType="log_entries"
-              context={{
-                title: formData.title,
-                type: formData.type,
-              }}
-              currentValue={formData.tags}
-              onGenerate={(content) => setFormData({ ...formData, tags: content })}
-              disabled={isSubmitting}
-              description="Comma-separated tags"
-            >
-              <input
-                type="text"
-                value={formData.tags}
-                onChange={(e) => setFormData({ ...formData, tags: e.target.value })}
-                className="w-full px-3 py-2 rounded-lg border bg-background"
-                placeholder="learning, coding, design"
-              />
-            </FormFieldWithAI>
-          </div>
-
-          <div className="rounded-lg border bg-card p-4">
-            <EntityLinkField
-              label="Link Specimens"
-              sourceType="log_entry"
-              sourceId={entryId}
-              targetType="specimen"
-              targetTableName="specimens"
-              targetDisplayField="name"
-              linkType="contains"
-              allowMultiple={true}
-              pendingLinks={pendingSpecimenLinks}
-              onPendingLinksChange={setPendingSpecimenLinks}
-              helperText="Select specimens to showcase in this log entry"
-            />
-          </div>
-
-          <div className="rounded-lg border bg-card p-4">
-            <EntityLinkField
-              label="Link Projects"
-              sourceType="log_entry"
-              sourceId={entryId}
-              targetType="project"
-              targetTableName="projects"
-              targetDisplayField="name"
-              linkType="related"
-              allowMultiple={true}
-              pendingLinks={pendingProjectLinks}
-              onPendingLinksChange={setPendingProjectLinks}
-              helperText="Link related projects to this log entry"
-            />
-          </div>
-
-          <div className="rounded-lg border bg-card p-4">
-            <EntityLinkField
-              label="Related Assumptions"
-              sourceType="log_entry"
-              sourceId={entryId}
-              targetType="assumption"
-              targetTableName="assumptions"
-              targetDisplayField="title"
-              linkType="related"
-              allowMultiple={true}
-              pendingLinks={pendingAssumptionLinks}
-              onPendingLinksChange={setPendingAssumptionLinks}
-              helperText="Link to related assumptions"
-            />
-          </div>
-        </div>
+        <p className="text-xs text-muted-foreground mt-1">
+          Only lowercase letters, numbers, and hyphens. Will be used in the URL.
+        </p>
       </div>
 
-      <div className="flex items-center justify-between pt-6 border-t">
-        <div className="flex items-center gap-3">
-          <button
-            type="submit"
-            disabled={isSubmitting}
-            className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50"
-          >
-            {isSubmitting ? 'Saving...' : entryId ? 'Update Entry' : 'Create Entry'}
-          </button>
-          <button
-            type="button"
-            onClick={handleCancel}
-            className="px-4 py-2 border rounded-lg hover:bg-accent transition-colors"
-          >
-            Cancel
-          </button>
+      {/* Drafts Section */}
+      <div>
+        <div className="flex items-center justify-between mb-2">
+          <Label className="block">Content</Label>
+          <DraftGenerationControls
+            currentContent={formData.content}
+            context={{
+              title: formData.title,
+              type: formData.type || undefined,
+              tags: formData.tags
+                ? formData.tags.split(',').map((t) => t.trim()).filter(Boolean)
+                : undefined,
+            }}
+            onGenerated={handleGenerated}
+            disabled={isSubmitting || draftsLoading}
+          />
         </div>
 
-        {entryId && (
-          <button
-            type="button"
-            onClick={handleDelete}
-            disabled={isSubmitting}
-            className="px-4 py-2 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/20 rounded-lg transition-colors disabled:opacity-50"
-          >
-            Delete Entry
-          </button>
+        {/* Draft tabs (only show in edit mode with drafts) */}
+        {entryId && drafts.length > 0 && (
+          <DraftTabs
+            drafts={drafts}
+            activeDraftId={activeDraftId}
+            onSelectDraft={handleSelectDraft}
+            onCreateDraft={handleCreateDraft}
+            onSetPrimary={handleSetPrimary}
+            onRenameDraft={handleRenameDraft}
+            onRegenerateName={handleRegenerateName}
+            onDeleteDraft={handleDeleteDraft}
+            disabled={isSubmitting || draftsLoading}
+          />
+        )}
+
+        {draftsLoading ? (
+          <div className="h-[400px] flex items-center justify-center border rounded-lg bg-muted/20">
+            <span className="text-muted-foreground">Loading drafts...</span>
+          </div>
+        ) : (
+          <MdxEditor
+            value={formData.content}
+            onChange={handleContentChange}
+            placeholder="# What I learned today&#10;&#10;Write your log entry content here in Markdown...&#10;&#10;Embed specimens: <Specimen id=&quot;simple-card&quot; />"
+            rows={20}
+          />
         )}
       </div>
-    </form>
+    </div>
+  )
+
+  // ============================================================================
+  // Links tab
+  // ============================================================================
+
+  const linksTab = (
+    <div className="space-y-6">
+      {entryId ? (
+        <RelationshipManager
+          entity={{ type: 'log_entry', id: entryId }}
+          slots={LOG_ENTRY_SLOTS}
+        />
+      ) : (
+        <RelationshipManager
+          entity={{ type: 'log_entry' }}
+          slots={LOG_ENTRY_SLOTS}
+          pendingLinks={pendingLinks}
+          onPendingLinksChange={setPendingLinks}
+        />
+      )}
+    </div>
+  )
+
+  // ============================================================================
+  // Metadata panel
+  // ============================================================================
+
+  const metadataPanel = (
+    <div className="space-y-4">
+      <div className="rounded-lg border bg-card p-4 space-y-4">
+        <h3 className="text-sm font-semibold">Settings</h3>
+
+        <div>
+          <Label htmlFor="entry_date" className="block mb-1 text-xs text-muted-foreground">
+            Entry Date *
+          </Label>
+          <Input
+            type="date"
+            id="entry_date"
+            required
+            value={formData.entry_date}
+            onChange={(e) => setFormData({ ...formData, entry_date: e.target.value })}
+          />
+        </div>
+
+        <div>
+          <Label htmlFor="type" className="block mb-1 text-xs text-muted-foreground">
+            Type
+          </Label>
+          <Select
+            value={formData.type || '__none__'}
+            onValueChange={(v) => {
+              const newType = v === '__none__' ? '' : v
+              setFormData({
+                ...formData,
+                type: newType,
+                idea_stage: newType === 'idea' && !formData.idea_stage ? 'captured' : formData.idea_stage,
+              })
+            }}
+          >
+            <SelectTrigger id="type" className="w-full" size="sm">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__none__">Select type...</SelectItem>
+              <SelectItem value="experiment">Experiment</SelectItem>
+              <SelectItem value="idea">Idea</SelectItem>
+              <SelectItem value="research">Research</SelectItem>
+              <SelectItem value="update">Update</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        {formData.type === 'idea' && (
+          <div>
+            <Label htmlFor="idea_stage" className="block mb-1 text-xs text-muted-foreground">
+              Idea Stage
+            </Label>
+            <Select
+              value={formData.idea_stage}
+              onValueChange={(v) => setFormData({ ...formData, idea_stage: v })}
+            >
+              <SelectTrigger id="idea_stage" className="w-full" size="sm">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="captured">Captured</SelectItem>
+                <SelectItem value="exploring">Exploring</SelectItem>
+                <SelectItem value="validated">Validated</SelectItem>
+                <SelectItem value="graduated">Graduated</SelectItem>
+                <SelectItem value="parked">Parked</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        )}
+
+        <div className="flex items-center gap-2">
+          <Switch
+            id="meta_published"
+            checked={formData.published}
+            onCheckedChange={(checked) => setFormData({ ...formData, published: checked })}
+          />
+          <div>
+            <Label htmlFor="meta_published" className="text-sm">Published</Label>
+            <p className="text-xs text-muted-foreground">
+              Make this entry visible to the public
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <Switch
+            id="meta_is_private"
+            checked={formData.is_private}
+            onCheckedChange={(checked) => setFormData({ ...formData, is_private: checked })}
+          />
+          <div>
+            <Label htmlFor="meta_is_private" className="text-sm">Private</Label>
+            <p className="text-xs text-muted-foreground">
+              Hidden in privacy mode
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div className="rounded-lg border bg-card p-4 space-y-3">
+        <FormFieldWithAI
+          label="Tags"
+          fieldName="tags"
+          entityType="log_entries"
+          context={{
+            title: formData.title,
+            type: formData.type,
+          }}
+          currentValue={formData.tags}
+          onGenerate={(content) => setFormData({ ...formData, tags: content })}
+          disabled={isSubmitting}
+          description="Comma-separated tags"
+        >
+          <Input
+            type="text"
+            value={formData.tags}
+            onChange={(e) => setFormData({ ...formData, tags: e.target.value })}
+            placeholder="learning, coding, design"
+          />
+        </FormFieldWithAI>
+      </div>
+    </div>
+  )
+
+  // ============================================================================
+  // Tabs
+  // ============================================================================
+
+  const tabs = [
+    { id: 'fields', label: 'Fields', content: fieldsTab },
+    { id: 'links', label: 'Links', content: linksTab },
+  ]
+
+  // ============================================================================
+  // Render
+  // ============================================================================
+
+  const statusConfig = getStatusConfig()
+
+  return (
+    <AdminEntityLayout
+      title={entryId ? formData.title || 'Untitled' : 'New Log Entry'}
+      subtitle={entryId ? formData.slug : undefined}
+      status={statusConfig}
+      backHref="/admin/log"
+      backLabel="Log"
+      controlCluster={
+        <EntityControlCluster
+          isDirty={isDirty}
+          isSaving={isSubmitting}
+          onSave={() => handleSubmit()}
+          onCancel={() => router.push('/admin/log')}
+          saveLabel={entryId ? 'Save' : 'Create'}
+          links={entryId && formData.published ? [
+            { label: 'View', href: `/log/${formData.slug}`, icon: <ExternalLink className="size-4" />, external: true },
+          ] : undefined}
+          onDelete={entryId ? handleDelete : undefined}
+        />
+      }
+      tabs={tabs}
+      metadata={metadataPanel}
+      isDirty={isDirty}
+      isSaving={isSubmitting}
+      onSave={() => handleSubmit()}
+      onCancel={() => router.push('/admin/log')}
+      onSubmit={handleSubmit}
+    />
   )
 }

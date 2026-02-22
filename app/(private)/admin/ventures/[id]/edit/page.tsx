@@ -25,7 +25,6 @@ export default async function EditVenturePage({ params }: EditVenturePageProps) 
     notFound()
   }
 
-  // Transform the data for the form
   const initialData = {
     title: venture.title,
     slug: venture.slug,
@@ -39,18 +38,5 @@ export default async function EditVenturePage({ params }: EditVenturePageProps) 
     tags: venture.tags?.join(', ') || '',
   }
 
-  return (
-    <div className="p-8">
-      <div className="max-w-7xl mx-auto">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold mb-2">Edit Venture</h1>
-          <p className="text-muted-foreground">
-            Update venture details and content
-          </p>
-        </div>
-
-        <VentureForm ventureId={id} initialData={initialData} />
-      </div>
-    </div>
-  )
+  return <VentureForm ventureId={id} initialData={initialData} />
 }
