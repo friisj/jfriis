@@ -40,7 +40,6 @@ describe('isValidEntityType', () => {
       'log_entries',
       'specimens',
       'user_journeys',
-      'touchpoint_evidence',
       'service_blueprints',
       'story_maps',
       'bmc_items',

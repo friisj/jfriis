@@ -84,8 +84,6 @@ export type {
   MappingType,
   FitStrength,
   ValidationMethod,
-  EvidenceType,
-  Confidence,
 } from './canvas-items'
 
 // Re-export boundary object types for convenience

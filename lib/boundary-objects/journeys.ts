@@ -429,10 +429,8 @@ export async function getTouchpointWithRelations(id: string): Promise<Touchpoint
     customer_profiles: customerProfiles as unknown as TouchpointCustomerProfile[],
     value_propositions: valuePropositions as unknown as TouchpointValueProposition[],
     assumptions: assumptions as unknown as TouchpointAssumption[],
-    evidence: relations.evidence,
     mapping_count: relations.mapping_count,
     assumption_count: relations.assumption_count,
-    evidence_count: relations.evidence_count,
   } as TouchpointWithRelations
 }
 

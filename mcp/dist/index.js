@@ -645,36 +645,6 @@ var AssumptionExperimentCreateSchema = AssumptionExperimentSchema.omit({
   updated_at: true
 });
 var AssumptionExperimentUpdateSchema = AssumptionExperimentCreateSchema.partial();
-var AssumptionEvidenceTypeSchema = z10.enum([
-  "interview",
-  "survey",
-  "analytics",
-  "experiment",
-  "observation",
-  "research",
-  "competitor",
-  "expert"
-]);
-var AssumptionEvidenceSchema = z10.object({
-  id: z10.string().uuid().optional(),
-  created_at: z10.string().datetime().optional(),
-  updated_at: z10.string().datetime().optional(),
-  assumption_id: z10.string().uuid(),
-  evidence_type: AssumptionEvidenceTypeSchema,
-  title: z10.string().min(1),
-  summary: z10.string().optional().nullable(),
-  url: z10.string().url().optional().nullable(),
-  supports_assumption: z10.boolean().optional().nullable(),
-  confidence: z10.enum(["low", "medium", "high"]).optional().nullable(),
-  collected_at: z10.string().datetime().optional().nullable(),
-  metadata: z10.record(z10.string(), z10.any()).default({})
-});
-var AssumptionEvidenceCreateSchema = AssumptionEvidenceSchema.omit({
-  id: true,
-  created_at: true,
-  updated_at: true
-});
-var AssumptionEvidenceUpdateSchema = AssumptionEvidenceCreateSchema.partial();
 
 // ../lib/mcp/schemas/canvas-items.ts
 import { z as z11 } from "zod";
@@ -741,17 +711,6 @@ var MappingTypeSchema = z11.enum([
 ]);
 var FitStrengthSchema = z11.enum(["weak", "partial", "strong", "perfect"]);
 var ValidationMethodSchema = z11.enum(["assumed", "interviewed", "tested", "measured"]);
-var EvidenceTypeSchema = z11.enum([
-  "interview",
-  "survey",
-  "analytics",
-  "experiment",
-  "observation",
-  "research",
-  "competitor",
-  "expert"
-]);
-var ConfidenceSchema = z11.enum(["low", "medium", "high"]);
 var CanvasItemSchema = z11.object({
   id: z11.string().uuid().optional(),
   created_at: z11.string().datetime().optional(),
@@ -825,26 +784,6 @@ var CanvasItemMappingCreateSchema = CanvasItemMappingSchema.omit({
   updated_at: true
 });
 var CanvasItemMappingUpdateSchema = CanvasItemMappingCreateSchema.omit({ source_item_id: true, target_item_id: true }).partial();
-var CanvasItemEvidenceSchema = z11.object({
-  id: z11.string().uuid().optional(),
-  created_at: z11.string().datetime().optional(),
-  updated_at: z11.string().datetime().optional(),
-  canvas_item_id: z11.string().uuid(),
-  evidence_type: EvidenceTypeSchema,
-  title: z11.string().min(1),
-  summary: z11.string().optional().nullable(),
-  url: z11.string().url().optional().nullable(),
-  supports_item: z11.boolean().optional().nullable(),
-  confidence: ConfidenceSchema.optional().nullable(),
-  collected_at: z11.string().datetime().optional().nullable(),
-  metadata: z11.record(z11.string(), z11.any()).default({})
-});
-var CanvasItemEvidenceCreateSchema = CanvasItemEvidenceSchema.omit({
-  id: true,
-  created_at: true,
-  updated_at: true
-});
-var CanvasItemEvidenceUpdateSchema = CanvasItemEvidenceCreateSchema.omit({ canvas_item_id: true }).partial();
 
 // ../lib/mcp/schemas/entity-links.ts
 import { z as z12 } from "zod";
@@ -1327,7 +1266,7 @@ var tables = {
     hasProjectId: false
     // Admin only
   },
-  // assumption_evidence has been deprecated - use universal `evidence` table instead
+  // assumption_evidence has been deprecated - use universal `feedback` table instead
   // Canvas Items tables (first-class entities for canvas block items)
   canvas_items: {
     description: "First-class entities for canvas block items with individual validation tracking",
@@ -1365,7 +1304,7 @@ var tables = {
     hasProjectId: false
     // Admin only
   },
-  // canvas_item_evidence has been deprecated - use universal `evidence` table instead
+  // canvas_item_evidence has been deprecated - use universal `feedback` table instead
   // Entity Links (universal many-to-many relationship table)
   entity_links: {
     description: "Universal many-to-many entity relationships",

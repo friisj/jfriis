@@ -51,19 +51,6 @@ export const MappingTypeSchema = z.enum([
 export const FitStrengthSchema = z.enum(['weak', 'partial', 'strong', 'perfect'])
 export const ValidationMethodSchema = z.enum(['assumed', 'interviewed', 'tested', 'measured'])
 
-export const EvidenceTypeSchema = z.enum([
-  'interview',
-  'survey',
-  'analytics',
-  'experiment',
-  'observation',
-  'research',
-  'competitor',
-  'expert',
-])
-
-export const ConfidenceSchema = z.enum(['low', 'medium', 'high'])
-
 // ============================================================================
 // CANVAS ITEM SCHEMA
 // ============================================================================
@@ -197,39 +184,3 @@ export type CanvasItemMapping = z.infer<typeof CanvasItemMappingSchema>
 export type CanvasItemMappingCreate = z.infer<typeof CanvasItemMappingCreateSchema>
 export type CanvasItemMappingUpdate = z.infer<typeof CanvasItemMappingUpdateSchema>
 
-// ============================================================================
-// CANVAS ITEM EVIDENCE SCHEMA
-// ============================================================================
-
-export const CanvasItemEvidenceSchema = z.object({
-  id: z.string().uuid().optional(),
-  created_at: z.string().datetime().optional(),
-  updated_at: z.string().datetime().optional(),
-
-  canvas_item_id: z.string().uuid(),
-
-  evidence_type: EvidenceTypeSchema,
-  title: z.string().min(1),
-  summary: z.string().optional().nullable(),
-  url: z.string().url().optional().nullable(),
-
-  supports_item: z.boolean().optional().nullable(),
-  confidence: ConfidenceSchema.optional().nullable(),
-  collected_at: z.string().datetime().optional().nullable(),
-
-  metadata: z.record(z.string(), z.any()).default({}),
-})
-
-export const CanvasItemEvidenceCreateSchema = CanvasItemEvidenceSchema.omit({
-  id: true,
-  created_at: true,
-  updated_at: true,
-})
-
-export const CanvasItemEvidenceUpdateSchema = CanvasItemEvidenceCreateSchema
-  .omit({ canvas_item_id: true })
-  .partial()
-
-export type CanvasItemEvidence = z.infer<typeof CanvasItemEvidenceSchema>
-export type CanvasItemEvidenceCreate = z.infer<typeof CanvasItemEvidenceCreateSchema>
-export type CanvasItemEvidenceUpdate = z.infer<typeof CanvasItemEvidenceUpdateSchema>

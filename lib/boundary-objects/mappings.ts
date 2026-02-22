@@ -1,5 +1,5 @@
 /**
- * CRUD Operations for Touchpoint Mappings, Assumptions, and Evidence
+ * CRUD Operations for Touchpoint Mappings and Assumptions
  *
  * Phase 2B: Migrated to use entity_links universal relationship table
  */
@@ -8,7 +8,6 @@ import { supabase } from '@/lib/supabase'
 import type {
   TouchpointMapping,
   TouchpointAssumption,
-  TouchpointEvidence,
 } from '@/lib/types/boundary-objects'
 import {
   linkEntities,
@@ -43,29 +42,6 @@ export interface TouchpointAssumptionInsert {
   assumption_id: string
   relationship_type?: 'tests' | 'depends_on' | 'validates' | 'challenges'
   notes?: string
-}
-
-export interface TouchpointEvidenceInsert {
-  touchpoint_id: string
-  evidence_type: 'user_test' | 'interview' | 'survey' | 'analytics' | 'observation' | 'prototype' | 'ab_test' | 'heuristic_eval'
-  title: string
-  summary?: string
-  url?: string
-  supports_design?: boolean | null
-  confidence?: 'low' | 'medium' | 'high'
-  collected_at?: string
-  metadata?: Record<string, unknown>
-}
-
-export interface TouchpointEvidenceUpdate {
-  evidence_type?: 'user_test' | 'interview' | 'survey' | 'analytics' | 'observation' | 'prototype' | 'ab_test' | 'heuristic_eval'
-  title?: string
-  summary?: string
-  url?: string
-  supports_design?: boolean | null
-  confidence?: 'low' | 'medium' | 'high'
-  collected_at?: string
-  metadata?: Record<string, unknown>
 }
 
 // Extended types with related data
@@ -346,93 +322,19 @@ export async function listAssumptionTouchpoints(
 }
 
 // ============================================================================
-// TOUCHPOINT EVIDENCE
-// ============================================================================
-
-// NOTE: touchpoint_evidence table not in generated Supabase types - using type assertions
-export async function createTouchpointEvidence(
-  data: TouchpointEvidenceInsert
-): Promise<TouchpointEvidence> {
-  const { data: evidence, error } = await (supabase as any)
-    .from('touchpoint_evidence')
-    .insert({
-      ...data,
-      metadata: data.metadata ?? {},
-    })
-    .select()
-    .single()
-
-  if (error) throw error
-  return evidence as TouchpointEvidence
-}
-
-export async function updateTouchpointEvidence(
-  id: string,
-  data: TouchpointEvidenceUpdate
-): Promise<TouchpointEvidence> {
-  const { data: evidence, error } = await (supabase as any)
-    .from('touchpoint_evidence')
-    .update(data)
-    .eq('id', id)
-    .select()
-    .single()
-
-  if (error) throw error
-  return evidence as TouchpointEvidence
-}
-
-export async function deleteTouchpointEvidence(id: string): Promise<void> {
-  const { error } = await (supabase as any)
-    .from('touchpoint_evidence')
-    .delete()
-    .eq('id', id)
-
-  if (error) throw error
-}
-
-export async function listTouchpointEvidence(
-  touchpointId: string
-): Promise<TouchpointEvidence[]> {
-  const { data, error } = await (supabase as any)
-    .from('touchpoint_evidence')
-    .select('*')
-    .eq('touchpoint_id', touchpointId)
-    .order('collected_at', { ascending: false, nullsFirst: false })
-
-  if (error) throw error
-  return (data || []) as TouchpointEvidence[]
-}
-
-export async function getTouchpointEvidence(
-  id: string
-): Promise<TouchpointEvidence> {
-  const { data, error } = await (supabase as any)
-    .from('touchpoint_evidence')
-    .select('*')
-    .eq('id', id)
-    .single()
-
-  if (error) throw error
-  return data as TouchpointEvidence
-}
-
-// ============================================================================
 // BULK OPERATIONS
 // ============================================================================
 
 export async function getTouchpointWithAllRelations(touchpointId: string) {
-  const [mappings, assumptions, evidence] = await Promise.all([
+  const [mappings, assumptions] = await Promise.all([
     listTouchpointMappings(touchpointId),
     listTouchpointAssumptions(touchpointId),
-    listTouchpointEvidence(touchpointId),
   ])
 
   return {
     mappings,
     assumptions,
-    evidence,
     mapping_count: mappings.length,
     assumption_count: assumptions.length,
-    evidence_count: evidence.length,
   }
 }

@@ -81,9 +81,6 @@ import {
   AssumptionExperimentSchema,
   AssumptionExperimentCreateSchema,
   AssumptionExperimentUpdateSchema,
-  AssumptionEvidenceSchema,
-  AssumptionEvidenceCreateSchema,
-  AssumptionEvidenceUpdateSchema,
 } from './schemas/assumptions'
 
 import {
@@ -99,9 +96,6 @@ import {
   CanvasItemMappingSchema,
   CanvasItemMappingCreateSchema,
   CanvasItemMappingUpdateSchema,
-  CanvasItemEvidenceSchema,
-  CanvasItemEvidenceCreateSchema,
-  CanvasItemEvidenceUpdateSchema,
 } from './schemas/canvas-items'
 
 import {
@@ -317,7 +311,7 @@ export const tables: Record<string, TableDefinition> = {
     hasSlug: false,
     hasProjectId: false, // Admin only
   },
-  // assumption_evidence has been deprecated - use universal `evidence` table instead
+  // assumption_evidence has been deprecated - use universal `feedback` table instead
 
   // Canvas Items tables (first-class entities for canvas block items)
   canvas_items: {
@@ -352,7 +346,7 @@ export const tables: Record<string, TableDefinition> = {
     hasSlug: false,
     hasProjectId: false, // Admin only
   },
-  // canvas_item_evidence has been deprecated - use universal `evidence` table instead
+  // canvas_item_evidence has been deprecated - use universal `feedback` table instead
 
   // Entity Links (universal many-to-many relationship table)
   entity_links: {

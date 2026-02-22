@@ -14,7 +14,7 @@ import {
 } from '@/components/ui/command'
 import { BLOCK_ITEM_TYPES, type CanvasItemType, type CanvasType } from '@/lib/types/canvas-items'
 import { AssumptionLinker } from './assumption-linker'
-import { EvidenceLinker } from './evidence-linker'
+import { FeedbackManager } from './feedback-manager'
 
 interface CanvasItem {
   id: string
@@ -26,7 +26,7 @@ interface CanvasItem {
   tags: string[] | null
   studio_project_id: string | null
   assumption_count?: number
-  evidence_count?: number
+  feedback_count?: number
 }
 
 interface CanvasItemSelectorProps {
@@ -174,36 +174,37 @@ export function CanvasItemSelector({
 
         // Fallback to manual counting if RPC function doesn't exist yet
         const assumptionCountMap: Record<string, number> = {}
-        const evidenceCountMap: Record<string, number> = {}
+        const feedbackCountMap: Record<string, number> = {}
 
         if (countsError) {
           // RPC function not available - use fallback queries
           // TODO: This should be removed once database migration is complete
           console.warn('RPC function not available, using fallback queries:', countsError)
 
-          const [assumptionsResult, evidenceResult] = await Promise.all([
+          const [assumptionsResult, feedbackResult] = await Promise.all([
             supabase
               .from('canvas_item_assumptions')
               .select('canvas_item_id')
               .in('canvas_item_id', placedItemIds),
             (supabase as any)
-              .from('canvas_item_evidence')
-              .select('canvas_item_id')
-              .in('canvas_item_id', placedItemIds),
+              .from('feedback')
+              .select('entity_id')
+              .eq('entity_type', 'canvas_item')
+              .in('entity_id', placedItemIds),
           ])
 
           assumptionsResult.data?.forEach((row) => {
             assumptionCountMap[row.canvas_item_id] = (assumptionCountMap[row.canvas_item_id] || 0) + 1
           })
 
-          evidenceResult.data?.forEach((row: any) => {
-            evidenceCountMap[row.canvas_item_id] = (evidenceCountMap[row.canvas_item_id] || 0) + 1
+          feedbackResult.data?.forEach((row: { entity_id: string }) => {
+            feedbackCountMap[row.entity_id] = (feedbackCountMap[row.entity_id] || 0) + 1
           })
         } else {
-          // Use RPC function results
-          counts?.forEach((row: { item_id: string; assumption_count: number; evidence_count: number }) => {
+          // Use RPC function results (RPC still returns evidence_count until migration hits remote)
+          counts?.forEach((row) => {
             assumptionCountMap[row.item_id] = row.assumption_count || 0
-            evidenceCountMap[row.item_id] = row.evidence_count || 0
+            feedbackCountMap[row.item_id] = row.evidence_count || 0
           })
         }
 
@@ -215,7 +216,7 @@ export function CanvasItemSelector({
               return {
                 ...item,
                 assumption_count: assumptionCountMap[id] || 0,
-                evidence_count: evidenceCountMap[id] || 0,
+                feedback_count: feedbackCountMap[id] || 0,
               }
             }
             return null
@@ -389,9 +390,9 @@ export function CanvasItemSelector({
                       {item.assumption_count} assumption{item.assumption_count !== 1 ? 's' : ''}
                     </span>
                   )}
-                  {(item.evidence_count || 0) > 0 && (
+                  {(item.feedback_count || 0) > 0 && (
                     <span className="text-xs px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-700 dark:text-blue-400 border border-blue-500/20">
-                      {item.evidence_count} evidence
+                      {item.feedback_count} feedback
                     </span>
                   )}
                 </div>
@@ -452,10 +453,10 @@ export function CanvasItemSelector({
                       />
                     </div>
 
-                    {/* Evidence */}
+                    {/* Feedback */}
                     <div className="pt-2 border-t">
-                      <h5 className="text-xs font-medium text-muted-foreground mb-2">Evidence</h5>
-                      <EvidenceLinker canvasItemId={item.id} compact />
+                      <h5 className="text-xs font-medium text-muted-foreground mb-2">Feedback</h5>
+                      <FeedbackManager entityType="canvas_item" entityId={item.id} compact />
                     </div>
                   </div>
                 </PopoverContent>

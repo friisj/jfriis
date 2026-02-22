@@ -55,16 +55,6 @@ export type TouchpointMappingType =
 
 export type AssumptionRelationshipType = 'tests' | 'depends_on' | 'validates' | 'challenges'
 
-export type EvidenceType =
-  | 'user_test'
-  | 'interview'
-  | 'survey'
-  | 'analytics'
-  | 'observation'
-  | 'prototype'
-  | 'ab_test'
-  | 'heuristic_eval'
-
 // Common status type used across boundary objects
 export type BoundaryObjectStatus = 'draft' | 'active' | 'validated' | 'archived'
 
@@ -235,21 +225,6 @@ export interface TouchpointAssumption extends BaseRecord {
   notes?: string | null
 }
 
-/**
- * Evidence collected for a touchpoint
- */
-export interface TouchpointEvidence extends BaseRecord {
-  touchpoint_id: string
-  evidence_type: EvidenceType | string
-  title: string
-  summary?: string | null
-  url?: string | null
-  supports_design?: boolean | null
-  confidence?: ValidationConfidence | string | null
-  collected_at?: string | null
-  metadata: EntityMetadata | null
-}
-
 // ============================================================================
 // INSERT/UPDATE TYPES
 // ============================================================================
@@ -278,9 +253,6 @@ export type TouchpointValuePropositionUpdate = Partial<TouchpointValuePropositio
 export type TouchpointAssumptionInsert = Omit<TouchpointAssumption, keyof BaseRecord>
 export type TouchpointAssumptionUpdate = Partial<TouchpointAssumptionInsert>
 
-export type TouchpointEvidenceInsert = Omit<TouchpointEvidence, keyof BaseRecord>
-export type TouchpointEvidenceUpdate = Partial<TouchpointEvidenceInsert>
-
 // ============================================================================
 // EXTENDED VIEWS (with relationships)
 // ============================================================================
@@ -301,10 +273,8 @@ export interface TouchpointWithRelations extends Touchpoint {
   customer_profiles: TouchpointCustomerProfile[]
   value_propositions: TouchpointValueProposition[]
   assumptions: TouchpointAssumption[]
-  evidence: TouchpointEvidence[]
   mapping_count: number
   assumption_count: number
-  evidence_count: number
 }
 
 // ============================================================================

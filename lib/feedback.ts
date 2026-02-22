@@ -14,6 +14,10 @@ import type {
   PendingFeedback,
 } from './types/entity-relationships'
 
+// Feedback table isn't in generated Supabase types until migration is applied to remote.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const feedbackTable = () => (supabase as any).from('feedback')
+
 /**
  * Entity reference for feedback operations
  */
@@ -77,13 +81,12 @@ export async function addFeedback(
   entity: FeedbackEntityRef,
   feedback: Omit<FeedbackInsert, 'entity_type' | 'entity_id'>
 ): Promise<Feedback> {
-  const { data, error } = await supabase
-    .from('feedback')
+  const { data, error } = await feedbackTable()
     .insert({
       entity_type: entity.type,
       entity_id: entity.id,
       ...feedback,
-    } as any)
+    })
     .select()
     .single()
 
@@ -106,8 +109,7 @@ export async function getFeedback(
   }
 ): Promise<Feedback[]> {
   return withTiming('getFeedback', entity.type, async () => {
-    let query = supabase
-      .from('feedback')
+    let query = feedbackTable()
       .select('*')
       .eq('entity_type', entity.type)
       .eq('entity_id', entity.id)
@@ -140,8 +142,7 @@ export async function getFeedback(
  * Get feedback count for an entity
  */
 export async function getFeedbackCount(entity: FeedbackEntityRef): Promise<number> {
-  const { count, error } = await supabase
-    .from('feedback')
+  const { count, error } = await feedbackTable()
     .select('*', { count: 'exact', head: true })
     .eq('entity_type', entity.type)
     .eq('entity_id', entity.id)
@@ -161,8 +162,7 @@ export async function getFeedbackSummary(entity: FeedbackEntityRef): Promise<{
   byHat: Record<string, number>
 }> {
   return withTiming('getFeedbackSummary', entity.type, async () => {
-    const { data, error } = await supabase
-      .from('feedback')
+    const { data, error } = await feedbackTable()
       .select('feedback_type, hat_type, supports')
       .eq('entity_type', entity.type)
       .eq('entity_id', entity.id)
@@ -199,9 +199,8 @@ export async function updateFeedback(
   feedbackId: string,
   updates: Partial<Omit<FeedbackInsert, 'entity_type' | 'entity_id'>>
 ): Promise<Feedback> {
-  const { data, error } = await supabase
-    .from('feedback')
-    .update(updates as any)
+  const { data, error } = await feedbackTable()
+    .update(updates)
     .eq('id', feedbackId)
     .select()
     .single()
@@ -214,8 +213,7 @@ export async function updateFeedback(
  * Delete feedback
  */
 export async function deleteFeedback(feedbackId: string): Promise<void> {
-  const { error } = await supabase
-    .from('feedback')
+  const { error } = await feedbackTable()
     .delete()
     .eq('id', feedbackId)
 
@@ -226,8 +224,7 @@ export async function deleteFeedback(feedbackId: string): Promise<void> {
  * Delete all feedback for an entity
  */
 export async function deleteAllFeedback(entity: FeedbackEntityRef): Promise<void> {
-  const { error } = await supabase
-    .from('feedback')
+  const { error } = await feedbackTable()
     .delete()
     .eq('entity_type', entity.type)
     .eq('entity_id', entity.id)
@@ -259,9 +256,8 @@ export async function syncPendingFeedback(
     metadata: {},
   }))
 
-  const { data, error } = await supabase
-    .from('feedback')
-    .insert(feedbackToInsert as any)
+  const { data, error } = await feedbackTable()
+    .insert(feedbackToInsert)
     .select()
 
   if (error) throw error
@@ -272,8 +268,7 @@ export async function syncPendingFeedback(
  * Calculate average confidence for an entity's feedback
  */
 export async function getAverageConfidence(entity: FeedbackEntityRef): Promise<number | null> {
-  const { data, error } = await supabase
-    .from('feedback')
+  const { data, error } = await feedbackTable()
     .select('confidence')
     .eq('entity_type', entity.type)
     .eq('entity_id', entity.id)
@@ -282,6 +277,6 @@ export async function getAverageConfidence(entity: FeedbackEntityRef): Promise<n
   if (error) throw error
   if (!data || data.length === 0) return null
 
-  const sum = data.reduce((acc, item) => acc + (item.confidence || 0), 0)
+  const sum = data.reduce((acc: number, item: { confidence?: number }) => acc + (item.confidence || 0), 0)
   return sum / data.length
 }

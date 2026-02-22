@@ -6,7 +6,6 @@
  * - Assumptions linked to specific items (not just blocks)
  * - Cross-canvas item reuse
  * - FIT analysis mappings between Value Map and Customer Profile items
- * - Evidence attached directly to items
  */
 
 // ============================================================================
@@ -137,40 +136,6 @@ export type CanvasItemMappingInsert = Omit<CanvasItemMapping, 'id' | 'created_at
 export type CanvasItemMappingUpdate = Partial<Omit<CanvasItemMappingInsert, 'source_item_id' | 'target_item_id'>>
 
 // ============================================================================
-// CANVAS ITEM EVIDENCE
-// ============================================================================
-
-export type EvidenceType =
-  | 'interview'
-  | 'survey'
-  | 'analytics'
-  | 'experiment'
-  | 'observation'
-  | 'research'
-  | 'competitor'
-  | 'expert'
-
-export type Confidence = 'low' | 'medium' | 'high'
-
-export interface CanvasItemEvidence {
-  id: string
-  canvas_item_id: string
-  evidence_type: EvidenceType | string
-  title: string
-  summary?: string | null
-  url?: string | null
-  supports_item?: boolean | null // true = supports, false = contradicts, null = unclear
-  confidence?: Confidence | string | null
-  collected_at?: string | null
-  metadata: Record<string, unknown> | null
-  created_at: string
-  updated_at: string
-}
-
-export type CanvasItemEvidenceInsert = Omit<CanvasItemEvidence, 'id' | 'created_at' | 'updated_at'>
-export type CanvasItemEvidenceUpdate = Partial<Omit<CanvasItemEvidenceInsert, 'canvas_item_id'>>
-
-// ============================================================================
 // BLOCK TO ITEM TYPE MAPPING
 // ============================================================================
 
@@ -238,7 +203,6 @@ export interface CanvasItemWithAssumptions extends CanvasItem {
 export interface CanvasItemWithRelations extends CanvasItem {
   placements: CanvasItemPlacement[]
   assumptions: CanvasItemAssumption[]
-  evidence: CanvasItemEvidence[]
   source_mappings: CanvasItemMapping[] // Mappings where this item is the source
   target_mappings: CanvasItemMapping[] // Mappings where this item is the target
 }

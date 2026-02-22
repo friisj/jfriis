@@ -1,7 +1,7 @@
 /**
  * Entity Relationship Type Definitions
  *
- * Universal types for the evidence and entity_links tables.
+ * Universal types for the feedback and entity_links tables.
  * Part of Entity Relationship Simplification (OJI-5)
  */
 

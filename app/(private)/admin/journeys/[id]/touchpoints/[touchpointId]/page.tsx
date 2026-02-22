@@ -46,7 +46,7 @@ export default function TouchpointDetailPage({ params }: TouchpointDetailPagePro
   const [assumptions, setAssumptions] = useState<TouchpointAssumptionWithDetails[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [activeTab, setActiveTab] = useState<'overview' | 'mappings' | 'assumptions' | 'evidence'>('overview')
+  const [activeTab, setActiveTab] = useState<'overview' | 'mappings' | 'assumptions' | 'feedback'>('overview')
 
   const loadTouchpoint = useCallback(async () => {
     try {
@@ -148,7 +148,7 @@ export default function TouchpointDetailPage({ params }: TouchpointDetailPagePro
 
         {/* Tabs */}
         <div className="flex gap-1 border-b">
-          {(['overview', 'mappings', 'assumptions', 'evidence'] as const).map((tab) => (
+          {(['overview', 'mappings', 'assumptions', 'feedback'] as const).map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
@@ -278,7 +278,7 @@ export default function TouchpointDetailPage({ params }: TouchpointDetailPagePro
           </div>
         )}
 
-        {activeTab === 'evidence' && (
+        {activeTab === 'feedback' && (
           <div className="rounded-lg border bg-card p-6">
             <FeedbackManager
               entityType="touchpoint"

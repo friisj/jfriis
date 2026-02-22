@@ -98,10 +98,6 @@ const fieldPrompts: Record<string, Record<string, string>> = {
     goal: 'The primary goal or outcome the customer is trying to achieve in this journey.',
     tags: 'Tags for categorizing this journey (e.g., onboarding, purchase, support).',
   },
-  touchpoint_evidence: {
-    title: 'A clear, descriptive title for this evidence.',
-    summary: 'Brief summary of the key findings or insights from this evidence.',
-  },
 }
 
 // Input schema
