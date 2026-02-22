@@ -99,4 +99,5 @@ That's it. Do not offer to elaborate, create studio projects, or do anything els
 - **Private by default.** All ideas start as `is_private: true` and `published: false`.
 - **Stage is always 'captured'.** Progression happens later in the /admin/ideas UI.
 - **Don't create drafts.** The initial content is stored directly in the log entry content field.
+- **Don't conflate with studio-log.** If the user's input has enough substance to argue from — an articulated insight, a pattern with examples, a commentary with a point of view — suggest `/studio-log` instead. Idea capture is for seeds; studio-log is for material ready to become prose.
 - **If MCP is unavailable**, fall back to creating the entry via the Supabase client library by writing a small script, or inform the user and provide the SQL INSERT statement they can run manually.
