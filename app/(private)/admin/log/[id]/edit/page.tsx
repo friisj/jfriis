@@ -38,18 +38,5 @@ export default async function EditLogEntryPage({ params }: EditLogEntryPageProps
     tags: entry.tags?.join(', ') || '',
   }
 
-  return (
-    <div className="p-8">
-      <div className="max-w-7xl mx-auto">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold mb-2">Edit Log Entry</h1>
-          <p className="text-muted-foreground">
-            Update your log entry content and settings
-          </p>
-        </div>
-
-        <LogEntryForm entryId={id} initialData={initialData} />
-      </div>
-    </div>
-  )
+  return <LogEntryForm entryId={id} initialData={initialData} />
 }

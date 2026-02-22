@@ -1,18 +1,50 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
+import { toast } from 'sonner'
 import { syncCanvasPlacements } from '@/lib/utils/canvas-placements'
 import { AssumptionLinker } from './assumption-linker'
 import { CanvasItemSelector, getAllowedTypesForBlock } from './canvas-item-selector'
 import { FormFieldWithAI } from '@/components/forms'
-import { SidebarCard } from './sidebar-card'
-import { FormActions } from './form-actions'
+import { AdminEntityLayout } from '@/components/admin/admin-entity-layout'
+import { EntityControlCluster } from '@/components/admin/entity-control-cluster'
+import { RelationshipManager, type RelationshipSlot } from '@/components/admin/relationship-manager'
 import { RelationshipField } from './relationship-field'
-import { EntityLinkField } from './entity-link-field'
 import { syncEntityLinks } from '@/lib/entity-links'
 import type { PendingLink } from '@/lib/types/entity-relationships'
+import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
+import { Label } from '@/components/ui/label'
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select'
+
+// ============================================================================
+// Relationship slots
+// ============================================================================
+
+const BMC_SLOTS: RelationshipSlot[] = [
+  {
+    targetType: 'value_proposition_canvas',
+    linkType: 'related',
+    label: 'Value Propositions',
+    group: 'Strategic Context',
+    displayField: 'name',
+    editHref: (id) => `/admin/canvases/value-proposition/${id}/edit`,
+  },
+  {
+    targetType: 'customer_profile',
+    linkType: 'related',
+    label: 'Customer Profiles',
+    group: 'Strategic Context',
+    displayField: 'name',
+    editHref: (id) => `/admin/canvases/customer-profiles/${id}/edit`,
+  },
+]
+
+// ============================================================================
+// Types
+// ============================================================================
 
 interface CanvasBlock {
   item_ids: string[]
@@ -27,7 +59,6 @@ interface BusinessModelCanvasFormData {
   status: 'draft' | 'active' | 'validated' | 'archived'
   tags: string
   studio_project_id: string
-  // Canvas blocks
   key_partners: CanvasBlock
   key_activities: CanvasBlock
   key_resources: CanvasBlock
@@ -61,6 +92,10 @@ const BLOCK_LABELS: Record<string, { title: string; description: string }> = {
   cost_structure: { title: 'Cost Structure', description: 'What are the most important costs in your business model?' },
   revenue_streams: { title: 'Revenue Streams', description: 'For what value are customers willing to pay?' },
 }
+
+// ============================================================================
+// Canvas Block Editor (internal)
+// ============================================================================
 
 function CanvasBlockEditor({
   blockKey,
@@ -116,7 +151,7 @@ function CanvasBlockEditor({
       {isOpen && (
         <div className="px-4 pb-4 space-y-4 border-t pt-4">
           <div>
-            <label className="block text-sm font-medium mb-2">Items</label>
+            <Label className="block mb-2">Items</Label>
             <CanvasItemSelector
               placedItemIds={itemIds}
               canvasType="business_model_canvas"
@@ -124,48 +159,35 @@ function CanvasBlockEditor({
               blockName={blockKey}
               allowedTypes={allowedTypes}
               projectId={projectId}
-              onItemsChange={(ids) =>
-                onChange({
-                  ...value,
-                  item_ids: ids,
-                })
-              }
+              onItemsChange={(ids) => onChange({ ...value, item_ids: ids })}
             />
           </div>
-
           <div>
-            <label className="block text-sm font-medium mb-2">Linked Assumptions</label>
+            <Label className="block mb-2">Linked Assumptions</Label>
             <AssumptionLinker
               linkedIds={assumptionIds}
-              onChange={(ids) =>
-                onChange({
-                  ...value,
-                  assumption_ids: ids,
-                })
-              }
+              onChange={(ids) => onChange({ ...value, assumption_ids: ids })}
               sourceType="business_model_canvas"
               sourceBlock={blockKey}
               projectId={projectId}
             />
           </div>
-
           <div>
-            <label className="block text-sm font-medium mb-1">Validation Status</label>
-            <select
+            <Label className="block mb-1">Validation Status</Label>
+            <Select
               value={value.validation_status}
-              onChange={(e) =>
-                onChange({
-                  ...value,
-                  validation_status: e.target.value as CanvasBlock['validation_status'],
-                })
-              }
-              className="w-full px-3 py-2 rounded-lg border bg-background text-sm"
+              onValueChange={(v) => onChange({ ...value, validation_status: v as CanvasBlock['validation_status'] })}
             >
-              <option value="untested">Untested</option>
-              <option value="testing">Testing</option>
-              <option value="validated">Validated</option>
-              <option value="invalidated">Invalidated</option>
-            </select>
+              <SelectTrigger className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="untested">Untested</SelectItem>
+                <SelectItem value="testing">Testing</SelectItem>
+                <SelectItem value="validated">Validated</SelectItem>
+                <SelectItem value="invalidated">Invalidated</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
         </div>
       )}
@@ -173,12 +195,15 @@ function CanvasBlockEditor({
   )
 }
 
+// ============================================================================
+// Component
+// ============================================================================
+
 export function BusinessModelCanvasForm({ canvasId, initialData }: BusinessModelCanvasFormProps) {
   const router = useRouter()
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [pendingVpcLinks, setPendingVpcLinks] = useState<PendingLink[]>([])
-  const [pendingCpLinks, setPendingCpLinks] = useState<PendingLink[]>([])
+  const [pendingLinks, setPendingLinks] = useState<PendingLink[]>([])
 
   const [formData, setFormData] = useState<BusinessModelCanvasFormData>({
     slug: initialData?.slug || '',
@@ -198,6 +223,13 @@ export function BusinessModelCanvasForm({ canvasId, initialData }: BusinessModel
     revenue_streams: initialData?.revenue_streams || defaultBlock(),
   })
 
+  // Track dirty state
+  const [initialFormState] = useState(formData)
+  const isDirty = useMemo(
+    () => JSON.stringify(formData) !== JSON.stringify(initialFormState),
+    [formData, initialFormState]
+  )
+
   const generateSlug = (name: string) => {
     return name
       .toLowerCase()
@@ -205,8 +237,8 @@ export function BusinessModelCanvasForm({ canvasId, initialData }: BusinessModel
       .replace(/^-|-$/g, '')
   }
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
+  const handleSubmit = async (e?: React.FormEvent) => {
+    e?.preventDefault()
     setSaving(true)
     setError(null)
 
@@ -237,40 +269,39 @@ export function BusinessModelCanvasForm({ canvasId, initialData }: BusinessModel
       let savedCanvasId = canvasId
 
       if (canvasId) {
-        // Update existing canvas
-        const { error } = await (supabase
-          .from('business_model_canvases') as any)
+        const { error } = await (supabase.from('business_model_canvases') as any)
           .update(data)
           .eq('id', canvasId)
-
         if (error) throw error
       } else {
-        // Create new canvas and get the ID
-        const { data: newCanvas, error } = await (supabase
-          .from('business_model_canvases') as any)
+        const { data: newCanvas, error } = await (supabase.from('business_model_canvases') as any)
           .insert([data])
           .select('id')
           .single()
-
         if (error) throw error
         savedCanvasId = newCanvas.id
 
         // Sync pending entity links for create mode
-        if (pendingVpcLinks.length > 0) {
-          await syncEntityLinks(
-            { type: 'business_model_canvas', id: newCanvas.id },
-            'value_proposition_canvas',
-            'related',
-            pendingVpcLinks.map(l => l.targetId)
-          )
-        }
-        if (pendingCpLinks.length > 0) {
-          await syncEntityLinks(
-            { type: 'business_model_canvas', id: newCanvas.id },
-            'customer_profile',
-            'related',
-            pendingCpLinks.map(l => l.targetId)
-          )
+        if (pendingLinks.length > 0) {
+          const vpcLinks = pendingLinks.filter(l => l.notes?.includes('value_proposition') || false)
+          const cpLinks = pendingLinks.filter(l => l.notes?.includes('customer_profile') || false)
+
+          if (vpcLinks.length > 0) {
+            await syncEntityLinks(
+              { type: 'business_model_canvas', id: newCanvas.id },
+              'value_proposition_canvas',
+              'related',
+              vpcLinks.map(l => l.targetId)
+            )
+          }
+          if (cpLinks.length > 0) {
+            await syncEntityLinks(
+              { type: 'business_model_canvas', id: newCanvas.id },
+              'customer_profile',
+              'related',
+              cpLinks.map(l => l.targetId)
+            )
+          }
         }
       }
 
@@ -279,35 +310,26 @@ export function BusinessModelCanvasForm({ canvasId, initialData }: BusinessModel
         canvasId: savedCanvasId!,
         canvasType: 'business_model_canvas',
         blockKeys: [
-          'key_partners',
-          'key_activities',
-          'key_resources',
-          'value_propositions',
-          'customer_segments',
-          'customer_relationships',
-          'channels',
-          'cost_structure',
-          'revenue_streams',
+          'key_partners', 'key_activities', 'key_resources',
+          'value_propositions', 'customer_segments', 'customer_relationships',
+          'channels', 'cost_structure', 'revenue_streams',
         ],
         formData: formData as any,
       })
 
-      // Check for placement errors
       if (!placementResult.success) {
         const failedBlocks = placementResult.errors.map((e) => e.blockKey).join(', ')
-        console.error('Failed to save placements for blocks:', failedBlocks, placementResult.errors)
-        setError(
-          `Canvas saved but some items failed to place (${placementResult.successfulBlocks}/${placementResult.totalBlocks} blocks succeeded). Failed blocks: ${failedBlocks}`
-        )
-        // Still navigate but with error message visible
+        console.error('Failed to save placements:', failedBlocks, placementResult.errors)
+        setError(`Canvas saved but some items failed to place (${placementResult.successfulBlocks}/${placementResult.totalBlocks} blocks). Failed: ${failedBlocks}`)
       }
 
+      toast.success(canvasId ? 'Canvas updated!' : 'Canvas created!')
       router.push('/admin/canvases/business-models')
       router.refresh()
     } catch (err) {
       console.error('Error saving canvas:', err)
       setError(err instanceof Error ? err.message : 'Failed to save canvas')
-    } finally {
+      toast.error(err instanceof Error ? err.message : 'Failed to save canvas')
       setSaving(false)
     }
   }
@@ -318,265 +340,236 @@ export function BusinessModelCanvasForm({ canvasId, initialData }: BusinessModel
     setSaving(true)
     try {
       const { error } = await supabase.from('business_model_canvases').delete().eq('id', canvasId)
-
       if (error) throw error
 
+      toast.success('Canvas deleted')
       router.push('/admin/canvases/business-models')
       router.refresh()
     } catch (err) {
       console.error('Error deleting canvas:', err)
       setError(err instanceof Error ? err.message : 'Failed to delete canvas')
-    } finally {
+      toast.error(err instanceof Error ? err.message : 'Failed to delete canvas')
       setSaving(false)
     }
   }
 
-  return (
-    <form onSubmit={handleSubmit} className="space-y-6">
+  // Status badge
+  const statusLabel = formData.status.charAt(0).toUpperCase() + formData.status.slice(1)
+  const statusVariant = formData.status === 'active' ? 'default'
+    : formData.status === 'validated' ? 'secondary'
+    : 'outline'
+
+  // ============================================================================
+  // Fields tab
+  // ============================================================================
+
+  const fieldsTab = (
+    <div className="space-y-6">
       {error && (
-        <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-lg text-red-600 dark:text-red-400">
+        <div className="p-4 rounded-lg border border-red-200 bg-red-50 dark:bg-red-950/10 text-red-800 dark:text-red-200">
           {error}
         </div>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Main Content */}
-        <div className="lg:col-span-2 space-y-6">
-          {/* Basic Info */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium mb-1">Name *</label>
-              <input
-                type="text"
-                value={formData.name}
-                onChange={(e) => {
-                  const name = e.target.value
-                  setFormData({
-                    ...formData,
-                    name,
-                    slug: canvasId ? formData.slug : generateSlug(name),
-                  })
-                }}
-                className="w-full px-3 py-2 rounded-lg border bg-background"
-                required
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-1">Slug *</label>
-              <input
-                type="text"
-                value={formData.slug}
-                onChange={(e) =>
-                  setFormData({
-                    ...formData,
-                    slug: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '-'),
-                  })
-                }
-                className="w-full px-3 py-2 rounded-lg border bg-background font-mono text-sm"
-                required
-                pattern="^[a-z0-9-]+$"
-              />
-            </div>
-          </div>
-
-          <FormFieldWithAI
-            label="Description"
-            fieldName="description"
-            entityType="business_model_canvases"
-            context={{
-              name: formData.name,
-              status: formData.status,
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <Label className="block mb-1">Name *</Label>
+          <Input
+            type="text"
+            value={formData.name}
+            onChange={(e) => {
+              const name = e.target.value
+              setFormData({
+                ...formData,
+                name,
+                slug: canvasId ? formData.slug : generateSlug(name),
+              })
             }}
-            currentValue={formData.description}
-            onGenerate={(content) => setFormData({ ...formData, description: content })}
-            disabled={saving}
-          >
-            <textarea
-              value={formData.description}
-              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-              className="w-full px-3 py-2 rounded-lg border bg-background"
-              rows={2}
-            />
-          </FormFieldWithAI>
-
-          {/* Canvas Blocks */}
-          <div className="space-y-4">
-            <h3 className="font-medium">Canvas Blocks</h3>
-
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              {/* Left side - Infrastructure */}
-              <div className="space-y-4">
-                <CanvasBlockEditor
-                  blockKey="key_partners"
-                  value={formData.key_partners}
-                  onChange={(value) => setFormData({ ...formData, key_partners: value })}
-                  canvasId={canvasId}
-                  projectId={formData.studio_project_id}
-                />
-                <CanvasBlockEditor
-                  blockKey="key_activities"
-                  value={formData.key_activities}
-                  onChange={(value) => setFormData({ ...formData, key_activities: value })}
-                  canvasId={canvasId}
-                  projectId={formData.studio_project_id}
-                />
-                <CanvasBlockEditor
-                  blockKey="key_resources"
-                  value={formData.key_resources}
-                  onChange={(value) => setFormData({ ...formData, key_resources: value })}
-                  canvasId={canvasId}
-                  projectId={formData.studio_project_id}
-                />
-              </div>
-
-              {/* Right side - Customers */}
-              <div className="space-y-4">
-                <CanvasBlockEditor
-                  blockKey="customer_segments"
-                  value={formData.customer_segments}
-                  onChange={(value) => setFormData({ ...formData, customer_segments: value })}
-                  canvasId={canvasId}
-                  projectId={formData.studio_project_id}
-                />
-                <CanvasBlockEditor
-                  blockKey="customer_relationships"
-                  value={formData.customer_relationships}
-                  onChange={(value) => setFormData({ ...formData, customer_relationships: value })}
-                  canvasId={canvasId}
-                  projectId={formData.studio_project_id}
-                />
-                <CanvasBlockEditor
-                  blockKey="channels"
-                  value={formData.channels}
-                  onChange={(value) => setFormData({ ...formData, channels: value })}
-                  canvasId={canvasId}
-                  projectId={formData.studio_project_id}
-                />
-              </div>
-            </div>
-
-            {/* Center - Value Proposition */}
-            <CanvasBlockEditor
-              blockKey="value_propositions"
-              value={formData.value_propositions}
-              onChange={(value) => setFormData({ ...formData, value_propositions: value })}
-              canvasId={canvasId}
-              projectId={formData.studio_project_id}
-            />
-
-            {/* Bottom - Financials */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              <CanvasBlockEditor
-                blockKey="cost_structure"
-                value={formData.cost_structure}
-                onChange={(value) => setFormData({ ...formData, cost_structure: value })}
-                canvasId={canvasId}
-                projectId={formData.studio_project_id}
-              />
-              <CanvasBlockEditor
-                blockKey="revenue_streams"
-                value={formData.revenue_streams}
-                onChange={(value) => setFormData({ ...formData, revenue_streams: value })}
-                canvasId={canvasId}
-                projectId={formData.studio_project_id}
-              />
-            </div>
-          </div>
+            required
+          />
         </div>
-
-        {/* Sidebar */}
-        <div className="space-y-6">
-          <SidebarCard title="Relationships">
-            <RelationshipField
-              label="Studio Project"
-              value={formData.studio_project_id}
-              onChange={(id) => setFormData({ ...formData, studio_project_id: id as string })}
-              tableName="studio_projects"
-              displayField="name"
-              mode="single"
-              placeholder="Select project..."
-            />
-            <EntityLinkField
-              label="Related Value Propositions"
-              sourceType="business_model_canvas"
-              sourceId={canvasId}
-              targetType="value_proposition_canvas"
-              targetTableName="value_proposition_canvases"
-              targetDisplayField="name"
-              linkType="related"
-              allowMultiple={true}
-              placeholder="Link to VPCs..."
-              helperText="Value propositions that this BMC addresses"
-              pendingLinks={pendingVpcLinks}
-              onPendingLinksChange={setPendingVpcLinks}
-            />
-            <EntityLinkField
-              label="Related Customer Profiles"
-              sourceType="business_model_canvas"
-              sourceId={canvasId}
-              targetType="customer_profile"
-              targetTableName="customer_profiles"
-              targetDisplayField="name"
-              linkType="related"
-              allowMultiple={true}
-              placeholder="Link to profiles..."
-              helperText="Customer profiles this model targets"
-              pendingLinks={pendingCpLinks}
-              onPendingLinksChange={setPendingCpLinks}
-            />
-          </SidebarCard>
-
-          <SidebarCard title="Status">
-            <div>
-              <label className="block text-sm font-medium mb-1">Status</label>
-              <select
-                value={formData.status}
-                onChange={(e) =>
-                  setFormData({ ...formData, status: e.target.value as BusinessModelCanvasFormData['status'] })
-                }
-                className="w-full px-3 py-2 rounded-lg border bg-background"
-              >
-                <option value="draft">Draft</option>
-                <option value="active">Active</option>
-                <option value="validated">Validated</option>
-                <option value="archived">Archived</option>
-              </select>
-            </div>
-          </SidebarCard>
-
-          <SidebarCard title="Tags">
-            <FormFieldWithAI
-              label=""
-              fieldName="tags"
-              entityType="business_model_canvases"
-              context={{
-                name: formData.name,
-                description: formData.description,
-                status: formData.status,
-              }}
-              currentValue={formData.tags}
-              onGenerate={(content) => setFormData({ ...formData, tags: content })}
-              disabled={saving}
-            >
-              <input
-                type="text"
-                value={formData.tags}
-                onChange={(e) => setFormData({ ...formData, tags: e.target.value })}
-                className="w-full px-3 py-2 rounded-lg border bg-background"
-                placeholder="tag1, tag2, tag3"
-              />
-            </FormFieldWithAI>
-          </SidebarCard>
+        <div>
+          <Label className="block mb-1">Slug *</Label>
+          <Input
+            type="text"
+            value={formData.slug}
+            onChange={(e) =>
+              setFormData({
+                ...formData,
+                slug: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '-'),
+              })
+            }
+            className="font-mono text-sm"
+            required
+            pattern="^[a-z0-9-]+$"
+          />
         </div>
       </div>
 
-      <FormActions
-        isSubmitting={saving}
-        submitLabel={canvasId ? 'Save Changes' : 'Create Canvas'}
-        onCancel={() => router.back()}
-        onDelete={canvasId ? handleDelete : undefined}
-        deleteConfirmMessage="Are you sure you want to delete this Business Model Canvas?"
-      />
-    </form>
+      <FormFieldWithAI
+        label="Description"
+        fieldName="description"
+        entityType="business_model_canvases"
+        context={{ name: formData.name, status: formData.status }}
+        currentValue={formData.description}
+        onGenerate={(content) => setFormData({ ...formData, description: content })}
+        disabled={saving}
+      >
+        <Textarea
+          value={formData.description}
+          onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+          rows={2}
+        />
+      </FormFieldWithAI>
+
+      {/* Canvas Blocks */}
+      <div className="space-y-4">
+        <h3 className="font-medium">Canvas Blocks</h3>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <div className="space-y-4">
+            <CanvasBlockEditor blockKey="key_partners" value={formData.key_partners} onChange={(value) => setFormData({ ...formData, key_partners: value })} canvasId={canvasId} projectId={formData.studio_project_id} />
+            <CanvasBlockEditor blockKey="key_activities" value={formData.key_activities} onChange={(value) => setFormData({ ...formData, key_activities: value })} canvasId={canvasId} projectId={formData.studio_project_id} />
+            <CanvasBlockEditor blockKey="key_resources" value={formData.key_resources} onChange={(value) => setFormData({ ...formData, key_resources: value })} canvasId={canvasId} projectId={formData.studio_project_id} />
+          </div>
+          <div className="space-y-4">
+            <CanvasBlockEditor blockKey="customer_segments" value={formData.customer_segments} onChange={(value) => setFormData({ ...formData, customer_segments: value })} canvasId={canvasId} projectId={formData.studio_project_id} />
+            <CanvasBlockEditor blockKey="customer_relationships" value={formData.customer_relationships} onChange={(value) => setFormData({ ...formData, customer_relationships: value })} canvasId={canvasId} projectId={formData.studio_project_id} />
+            <CanvasBlockEditor blockKey="channels" value={formData.channels} onChange={(value) => setFormData({ ...formData, channels: value })} canvasId={canvasId} projectId={formData.studio_project_id} />
+          </div>
+        </div>
+
+        <CanvasBlockEditor blockKey="value_propositions" value={formData.value_propositions} onChange={(value) => setFormData({ ...formData, value_propositions: value })} canvasId={canvasId} projectId={formData.studio_project_id} />
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <CanvasBlockEditor blockKey="cost_structure" value={formData.cost_structure} onChange={(value) => setFormData({ ...formData, cost_structure: value })} canvasId={canvasId} projectId={formData.studio_project_id} />
+          <CanvasBlockEditor blockKey="revenue_streams" value={formData.revenue_streams} onChange={(value) => setFormData({ ...formData, revenue_streams: value })} canvasId={canvasId} projectId={formData.studio_project_id} />
+        </div>
+      </div>
+    </div>
+  )
+
+  // ============================================================================
+  // Links tab
+  // ============================================================================
+
+  const linksTab = (
+    <div className="space-y-6">
+      {canvasId ? (
+        <RelationshipManager
+          entity={{ type: 'business_model_canvas', id: canvasId }}
+          slots={BMC_SLOTS}
+        />
+      ) : (
+        <RelationshipManager
+          entity={{ type: 'business_model_canvas' }}
+          slots={BMC_SLOTS}
+          pendingLinks={pendingLinks}
+          onPendingLinksChange={setPendingLinks}
+        />
+      )}
+    </div>
+  )
+
+  // ============================================================================
+  // Metadata panel
+  // ============================================================================
+
+  const metadataPanel = (
+    <div className="space-y-4">
+      <div className="rounded-lg border bg-card p-4 space-y-4">
+        <h3 className="text-sm font-semibold">Relationships</h3>
+        <RelationshipField
+          label="Studio Project"
+          value={formData.studio_project_id}
+          onChange={(id) => setFormData({ ...formData, studio_project_id: id as string })}
+          tableName="studio_projects"
+          displayField="name"
+          mode="single"
+          placeholder="Select project..."
+        />
+      </div>
+
+      <div className="rounded-lg border bg-card p-4 space-y-4">
+        <h3 className="text-sm font-semibold">Status</h3>
+        <div>
+          <Label className="block mb-1 text-xs text-muted-foreground">Status</Label>
+          <Select
+            value={formData.status}
+            onValueChange={(v) => setFormData({ ...formData, status: v as BusinessModelCanvasFormData['status'] })}
+          >
+            <SelectTrigger className="w-full" size="sm">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="draft">Draft</SelectItem>
+              <SelectItem value="active">Active</SelectItem>
+              <SelectItem value="validated">Validated</SelectItem>
+              <SelectItem value="archived">Archived</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
+      <div className="rounded-lg border bg-card p-4 space-y-3">
+        <FormFieldWithAI
+          label="Tags"
+          fieldName="tags"
+          entityType="business_model_canvases"
+          context={{ name: formData.name, description: formData.description, status: formData.status }}
+          currentValue={formData.tags}
+          onGenerate={(content) => setFormData({ ...formData, tags: content })}
+          disabled={saving}
+          description="Comma-separated tags"
+        >
+          <Input
+            type="text"
+            value={formData.tags}
+            onChange={(e) => setFormData({ ...formData, tags: e.target.value })}
+            placeholder="tag1, tag2, tag3"
+          />
+        </FormFieldWithAI>
+      </div>
+    </div>
+  )
+
+  // ============================================================================
+  // Tabs
+  // ============================================================================
+
+  const tabs = [
+    { id: 'fields', label: 'Fields', content: fieldsTab },
+    { id: 'links', label: 'Links', content: linksTab },
+  ]
+
+  // ============================================================================
+  // Render
+  // ============================================================================
+
+  return (
+    <AdminEntityLayout
+      title={canvasId ? formData.name || 'Untitled' : 'New Business Model Canvas'}
+      subtitle={canvasId ? formData.slug : undefined}
+      status={{ label: statusLabel, variant: statusVariant as 'default' | 'secondary' | 'outline' }}
+      backHref="/admin/canvases/business-models"
+      backLabel="Business Models"
+      controlCluster={
+        <EntityControlCluster
+          isDirty={isDirty}
+          isSaving={saving}
+          onSave={() => handleSubmit()}
+          onCancel={() => router.push('/admin/canvases/business-models')}
+          saveLabel={canvasId ? 'Save' : 'Create'}
+          onDelete={canvasId ? handleDelete : undefined}
+        />
+      }
+      tabs={tabs}
+      metadata={metadataPanel}
+      isDirty={isDirty}
+      isSaving={saving}
+      onSave={() => handleSubmit()}
+      onCancel={() => router.push('/admin/canvases/business-models')}
+      onSubmit={handleSubmit}
+    />
   )
 }

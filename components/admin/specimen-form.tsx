@@ -1,14 +1,59 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { getAllSpecimens, type SpecimenMetadata } from '@/components/specimens/registry'
 import { toast } from 'sonner'
 import { FormFieldWithAI } from '@/components/forms'
-import { EntityLinkField } from './entity-link-field'
+import { AdminEntityLayout } from '@/components/admin/admin-entity-layout'
+import { EntityControlCluster } from '@/components/admin/entity-control-cluster'
+import { RelationshipManager, type RelationshipSlot } from '@/components/admin/relationship-manager'
 import { syncEntityLinks, syncEntityLinksAsTarget } from '@/lib/entity-links'
 import type { PendingLink } from '@/lib/types/entity-relationships'
+import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
+import { Label } from '@/components/ui/label'
+import { Switch } from '@/components/ui/switch'
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select'
+import { ExternalLink } from 'lucide-react'
+
+// ============================================================================
+// Relationship slots
+// ============================================================================
+
+const SPECIMEN_SLOTS: RelationshipSlot[] = [
+  {
+    targetType: 'project',
+    linkType: 'contains',
+    label: 'Projects',
+    group: 'Portfolio',
+    displayField: 'name',
+    direction: 'inbound',
+    editHref: (id) => `/admin/ventures/${id}/edit`,
+  },
+  {
+    targetType: 'log_entry',
+    linkType: 'contains',
+    label: 'Log Entries',
+    group: 'Documentation',
+    displayField: 'title',
+    direction: 'inbound',
+    editHref: (id) => `/admin/log/${id}/edit`,
+  },
+  {
+    targetType: 'assumption',
+    linkType: 'related',
+    label: 'Assumptions',
+    group: 'Validation',
+    displayField: 'statement',
+    editHref: (id) => `/admin/assumptions/${id}/edit`,
+  },
+]
+
+// ============================================================================
+// Types
+// ============================================================================
 
 interface SpecimenFormData {
   title: string
@@ -25,16 +70,18 @@ interface SpecimenFormProps {
   initialData?: Partial<SpecimenFormData>
 }
 
+// ============================================================================
+// Component
+// ============================================================================
+
 export function SpecimenForm({ specimenId, initialData }: SpecimenFormProps) {
   const router = useRouter()
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [availableSpecimens, setAvailableSpecimens] = useState<SpecimenMetadata[]>([])
 
-  // Pending links for create mode (EntityLinkField handles edit mode internally)
-  const [pendingProjectLinks, setPendingProjectLinks] = useState<PendingLink[]>([])
-  const [pendingLogEntryLinks, setPendingLogEntryLinks] = useState<PendingLink[]>([])
-  const [pendingAssumptionLinks, setPendingAssumptionLinks] = useState<PendingLink[]>([])
+  // Pending links for create mode
+  const [pendingLinks, setPendingLinks] = useState<PendingLink[]>([])
 
   const [formData, setFormData] = useState<SpecimenFormData>({
     title: initialData?.title || '',
@@ -46,8 +93,14 @@ export function SpecimenForm({ specimenId, initialData }: SpecimenFormProps) {
     tags: initialData?.tags || '',
   })
 
+  // Track dirty state
+  const [initialFormData] = useState(formData)
+  const isDirty = useMemo(
+    () => JSON.stringify(formData) !== JSON.stringify(initialFormData),
+    [formData, initialFormData]
+  )
+
   useEffect(() => {
-    // Load available specimens from registry
     setAvailableSpecimens(getAllSpecimens())
   }, [])
 
@@ -59,19 +112,19 @@ export function SpecimenForm({ specimenId, initialData }: SpecimenFormProps) {
   }
 
   const handleTitleChange = (value: string) => {
-    setFormData({ ...formData, title: value })
     if (!specimenId && !formData.slug) {
       setFormData({ ...formData, title: value, slug: generateSlug(value) })
+    } else {
+      setFormData({ ...formData, title: value })
     }
   }
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
+  const handleSubmit = async (e?: React.FormEvent) => {
+    e?.preventDefault()
     setIsSubmitting(true)
     setError(null)
 
     try {
-      // Validate slug format
       if (!/^[a-z0-9-]+$/.test(formData.slug)) {
         throw new Error('Slug can only contain lowercase letters, numbers, and hyphens')
       }
@@ -85,14 +138,13 @@ export function SpecimenForm({ specimenId, initialData }: SpecimenFormProps) {
         title: formData.title,
         slug: formData.slug,
         description: formData.description || null,
-        component_code: formData.component_id, // Store component ID in component_code field
+        component_code: formData.component_id,
         type: formData.type || null,
         published: formData.published,
         tags: tagsArray.length > 0 ? tagsArray : null,
       }
 
       if (specimenId) {
-        // Update existing specimen (EntityLinkField handles its own syncing)
         const { error: updateError } = await supabase
           .from('specimens')
           .update(specimenData)
@@ -100,7 +152,6 @@ export function SpecimenForm({ specimenId, initialData }: SpecimenFormProps) {
 
         if (updateError) throw updateError
       } else {
-        // Create new specimen
         const { data: newSpecimen, error: insertError } = await supabase
           .from('specimens')
           .insert([specimenData])
@@ -110,48 +161,41 @@ export function SpecimenForm({ specimenId, initialData }: SpecimenFormProps) {
         if (insertError) throw insertError
 
         // Sync pending entity links for create mode
+        // pendingLinks are handled by RelationshipManager — split by type
         const entityRef = { type: 'specimen' as const, id: newSpecimen.id }
 
-        // Specimen is SOURCE for assumptions
-        if (pendingAssumptionLinks.length > 0) {
-          await syncEntityLinks(entityRef, 'assumption', 'related', pendingAssumptionLinks.map(l => l.targetId))
+        const assumptionLinks = pendingLinks.filter(l => l.linkType === 'related')
+        const projectLinks = pendingLinks.filter(l => l.linkType === 'contains' && l.targetLabel) // inbound
+
+        if (assumptionLinks.length > 0) {
+          await syncEntityLinks(entityRef, 'assumption', 'related', assumptionLinks.map(l => l.targetId))
         }
 
-        // Specimen is TARGET for projects and log entries
-        if (pendingProjectLinks.length > 0) {
-          await syncEntityLinksAsTarget(entityRef, 'project', 'contains', pendingProjectLinks.map(l => l.targetId))
-        }
-        if (pendingLogEntryLinks.length > 0) {
-          await syncEntityLinksAsTarget(entityRef, 'log_entry', 'contains', pendingLogEntryLinks.map(l => l.targetId))
+        if (projectLinks.length > 0) {
+          await syncEntityLinksAsTarget(entityRef, 'project', 'contains', projectLinks.map(l => l.targetId))
         }
       }
 
-      toast.success(specimenId ? 'Specimen updated successfully!' : 'Specimen created successfully!')
+      toast.success(specimenId ? 'Specimen updated!' : 'Specimen created!')
       router.push('/admin/specimens')
       router.refresh()
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Failed to save specimen'
+      const code = (err as { code?: string })?.code
       console.error('Error saving specimen:', err)
-      // Provide user-friendly error for duplicate slug
-      if (err.code === '23505' || err.message?.includes('duplicate key')) {
-        setError(`The slug "${formData.slug}" is already in use. Please choose a different one.`)
+      if (code === '23505' || message?.includes('duplicate key')) {
+        setError(`The slug "${formData.slug}" is already in use.`)
         toast.error('Slug already in use')
       } else {
-        setError(err.message || 'Failed to save specimen')
-        toast.error(err.message || 'Failed to save specimen')
+        setError(message)
+        toast.error(message)
       }
       setIsSubmitting(false)
     }
   }
 
-  const handleCancel = () => {
-    router.push('/admin/specimens')
-  }
-
   const handleDelete = async () => {
     if (!specimenId) return
-
-    const confirmed = confirm('Are you sure you want to delete this specimen? This action cannot be undone.')
-    if (!confirmed) return
 
     setIsSubmitting(true)
     setError(null)
@@ -164,272 +208,259 @@ export function SpecimenForm({ specimenId, initialData }: SpecimenFormProps) {
 
       if (deleteError) throw deleteError
 
-      toast.success('Specimen deleted successfully')
+      toast.success('Specimen deleted')
       router.push('/admin/specimens')
       router.refresh()
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Failed to delete specimen'
       console.error('Error deleting specimen:', err)
-      setError(err.message || 'Failed to delete specimen')
-      toast.error(err.message || 'Failed to delete specimen')
+      setError(message)
+      toast.error(message)
       setIsSubmitting(false)
     }
   }
 
-  return (
-    <form onSubmit={handleSubmit} className="space-y-6">
+  // Status badge
+  const statusLabel = formData.published ? 'Published' : 'Draft'
+  const statusVariant = formData.published ? 'default' : 'outline'
+
+  // ============================================================================
+  // Fields tab
+  // ============================================================================
+
+  const fieldsTab = (
+    <div className="space-y-6">
       {error && (
         <div className="p-4 rounded-lg border border-red-200 bg-red-50 dark:bg-red-950/10 text-red-800 dark:text-red-200">
           {error}
         </div>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Main Content */}
-        <div className="lg:col-span-2 space-y-6">
-          <FormFieldWithAI
-            label="Title *"
-            fieldName="title"
-            entityType="specimens"
-            context={{
-              type: formData.type,
-              component_id: formData.component_id,
-            }}
-            currentValue={formData.title}
-            onGenerate={(content) => handleTitleChange(content)}
-            disabled={isSubmitting}
+      <FormFieldWithAI
+        label="Title *"
+        fieldName="title"
+        entityType="specimens"
+        context={{
+          type: formData.type,
+          component_id: formData.component_id,
+        }}
+        currentValue={formData.title}
+        onGenerate={(content) => handleTitleChange(content)}
+        disabled={isSubmitting}
+      >
+        <Input
+          type="text"
+          required
+          value={formData.title}
+          onChange={(e) => handleTitleChange(e.target.value)}
+          placeholder="Animated Card Component"
+        />
+      </FormFieldWithAI>
+
+      <div>
+        <Label htmlFor="slug" className="block mb-2">Slug *</Label>
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-muted-foreground">/</span>
+          <Input
+            type="text"
+            id="slug"
+            required
+            value={formData.slug}
+            onChange={(e) => setFormData({ ...formData, slug: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '-') })}
+            className="flex-1"
+            placeholder="animated-card"
+          />
+        </div>
+        <p className="text-xs text-muted-foreground mt-1">
+          Only lowercase letters, numbers, and hyphens
+        </p>
+      </div>
+
+      <div>
+        <Label htmlFor="component_id" className="block mb-2">Component *</Label>
+        <Select
+          value={formData.component_id || '__none__'}
+          onValueChange={(v) => {
+            const value = v === '__none__' ? '' : v
+            const selectedSpecimen = availableSpecimens.find(s => s.id === value)
+            setFormData({
+              ...formData,
+              component_id: value,
+              description: formData.description || selectedSpecimen?.description || '',
+              type: formData.type || selectedSpecimen?.category || '',
+              tags: formData.tags || selectedSpecimen?.tags?.join(', ') || '',
+            })
+          }}
+          required
+        >
+          <SelectTrigger id="component_id" className="w-full">
+            <SelectValue placeholder="Select a component..." />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="__none__">Select a component...</SelectItem>
+            {availableSpecimens.map((specimen) => (
+              <SelectItem key={specimen.id} value={specimen.id}>
+                {specimen.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <p className="text-xs text-muted-foreground mt-1">
+          Components are defined in <code className="px-1 py-0.5 bg-muted rounded text-xs">components/specimens/</code>
+        </p>
+      </div>
+
+      <FormFieldWithAI
+        label="Description"
+        fieldName="description"
+        entityType="specimens"
+        context={{
+          title: formData.title,
+          type: formData.type,
+          component_id: formData.component_id,
+        }}
+        currentValue={formData.description}
+        onGenerate={(content) => setFormData({ ...formData, description: content })}
+        disabled={isSubmitting}
+        description="Auto-filled from registry, but you can customize it"
+      >
+        <Textarea
+          value={formData.description}
+          onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+          rows={4}
+          className="resize-none"
+          placeholder="A brief description of this component..."
+        />
+      </FormFieldWithAI>
+    </div>
+  )
+
+  // ============================================================================
+  // Links tab
+  // ============================================================================
+
+  const linksTab = (
+    <div className="space-y-6">
+      {specimenId ? (
+        <RelationshipManager
+          entity={{ type: 'specimen', id: specimenId }}
+          slots={SPECIMEN_SLOTS}
+        />
+      ) : (
+        <RelationshipManager
+          entity={{ type: 'specimen' }}
+          slots={SPECIMEN_SLOTS}
+          pendingLinks={pendingLinks}
+          onPendingLinksChange={setPendingLinks}
+        />
+      )}
+    </div>
+  )
+
+  // ============================================================================
+  // Metadata panel
+  // ============================================================================
+
+  const metadataPanel = (
+    <div className="space-y-4">
+      <div className="rounded-lg border bg-card p-4 space-y-4">
+        <h3 className="text-sm font-semibold">Settings</h3>
+
+        <div>
+          <Label htmlFor="type" className="block mb-1 text-xs text-muted-foreground">Type</Label>
+          <Select
+            value={formData.type || '__none__'}
+            onValueChange={(v) => setFormData({ ...formData, type: v === '__none__' ? '' : v })}
           >
-            <input
-              type="text"
-              required
-              value={formData.title}
-              onChange={(e) => handleTitleChange(e.target.value)}
-              className="w-full px-3 py-2 rounded-lg border bg-background"
-              placeholder="Animated Card Component"
-            />
-          </FormFieldWithAI>
-
-          <div>
-            <label htmlFor="slug" className="block text-sm font-medium mb-2">
-              Slug *
-            </label>
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-muted-foreground">/</span>
-              <input
-                type="text"
-                id="slug"
-                required
-                value={formData.slug}
-                onChange={(e) => setFormData({ ...formData, slug: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '-') })}
-                className="flex-1 px-3 py-2 rounded-lg border bg-background"
-                placeholder="animated-card"
-              />
-            </div>
-            <p className="text-xs text-muted-foreground mt-1">
-              Only lowercase letters, numbers, and hyphens
-            </p>
-          </div>
-
-          <div>
-            <label htmlFor="component_id" className="block text-sm font-medium mb-2">
-              Component *
-            </label>
-            <select
-              id="component_id"
-              required
-              value={formData.component_id}
-              onChange={(e) => {
-                const selectedSpecimen = availableSpecimens.find(s => s.id === e.target.value)
-                setFormData({
-                  ...formData,
-                  component_id: e.target.value,
-                  description: formData.description || selectedSpecimen?.description || '',
-                  type: formData.type || selectedSpecimen?.category || '',
-                  tags: formData.tags || selectedSpecimen?.tags?.join(', ') || '',
-                })
-              }}
-              className="w-full px-3 py-2 rounded-lg border bg-background"
-            >
-              <option value="">Select a component...</option>
-              {availableSpecimens.map((specimen) => (
-                <option key={specimen.id} value={specimen.id}>
-                  {specimen.name}
-                </option>
-              ))}
-            </select>
-            <p className="text-xs text-muted-foreground mt-1">
-              Components are defined in <code className="px-1 py-0.5 bg-muted rounded text-xs">components/specimens/</code>
-            </p>
-          </div>
-
-          <FormFieldWithAI
-            label="Description"
-            fieldName="description"
-            entityType="specimens"
-            context={{
-              title: formData.title,
-              type: formData.type,
-              component_id: formData.component_id,
-            }}
-            currentValue={formData.description}
-            onGenerate={(content) => setFormData({ ...formData, description: content })}
-            disabled={isSubmitting}
-            description="Auto-filled from registry, but you can customize it"
-          >
-            <textarea
-              value={formData.description}
-              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-              rows={4}
-              className="w-full px-3 py-2 rounded-lg border bg-background resize-none"
-              placeholder="A brief description of this component..."
-            />
-          </FormFieldWithAI>
+            <SelectTrigger id="type" className="w-full" size="sm">
+              <SelectValue placeholder="Select type..." />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__none__">Select type...</SelectItem>
+              <SelectItem value="ui-component">UI Component</SelectItem>
+              <SelectItem value="interactive">Interactive</SelectItem>
+              <SelectItem value="visual">Visual</SelectItem>
+              <SelectItem value="animation">Animation</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
 
-        {/* Sidebar */}
-        <div className="space-y-6">
-          <div className="rounded-lg border bg-card p-4 space-y-4">
-            <h3 className="font-medium">Settings</h3>
-
-            <div>
-              <label htmlFor="type" className="block text-sm font-medium mb-2">
-                Type
-              </label>
-              <select
-                id="type"
-                value={formData.type}
-                onChange={(e) => setFormData({ ...formData, type: e.target.value })}
-                className="w-full px-3 py-2 rounded-lg border bg-background"
-              >
-                <option value="">Select type...</option>
-                <option value="ui-component">UI Component</option>
-                <option value="interactive">Interactive</option>
-                <option value="visual">Visual</option>
-                <option value="animation">Animation</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  checked={formData.published}
-                  onChange={(e) => setFormData({ ...formData, published: e.target.checked })}
-                  className="rounded border-gray-300"
-                />
-                <span className="text-sm font-medium">Published</span>
-              </label>
-              <p className="text-xs text-muted-foreground mt-1">
-                Make this specimen visible to the public
-              </p>
-            </div>
-          </div>
-
-          <div className="rounded-lg border bg-card p-4 space-y-4">
-            <FormFieldWithAI
-              label="Tags"
-              fieldName="tags"
-              entityType="specimens"
-              context={{
-                title: formData.title,
-                description: formData.description,
-                type: formData.type,
-              }}
-              currentValue={formData.tags}
-              onGenerate={(content) => setFormData({ ...formData, tags: content })}
-              disabled={isSubmitting}
-              description="Comma-separated tags"
-            >
-              <input
-                type="text"
-                value={formData.tags}
-                onChange={(e) => setFormData({ ...formData, tags: e.target.value })}
-                className="w-full px-3 py-2 rounded-lg border bg-background"
-                placeholder="react, animation, ui"
-              />
-            </FormFieldWithAI>
-          </div>
-
-          <div className="rounded-lg border bg-card p-4">
-            <EntityLinkField
-              label="Link Projects"
-              sourceType="specimen"
-              sourceId={specimenId}
-              targetType="project"
-              targetTableName="projects"
-              targetDisplayField="name"
-              linkType="contains"
-              asTarget={true}
-              allowMultiple={true}
-              pendingLinks={pendingProjectLinks}
-              onPendingLinksChange={setPendingProjectLinks}
-              helperText="Select projects that use this specimen"
-            />
-          </div>
-
-          <div className="rounded-lg border bg-card p-4">
-            <EntityLinkField
-              label="Link Log Entries"
-              sourceType="specimen"
-              sourceId={specimenId}
-              targetType="log_entry"
-              targetTableName="log_entries"
-              targetDisplayField="title"
-              linkType="contains"
-              asTarget={true}
-              allowMultiple={true}
-              pendingLinks={pendingLogEntryLinks}
-              onPendingLinksChange={setPendingLogEntryLinks}
-              helperText="Select log entries that feature this specimen"
-            />
-          </div>
-
-          <div className="rounded-lg border bg-card p-4">
-            <EntityLinkField
-              label="Related Assumptions"
-              sourceType="specimen"
-              sourceId={specimenId}
-              targetType="assumption"
-              targetTableName="assumptions"
-              targetDisplayField="title"
-              linkType="related"
-              allowMultiple={true}
-              pendingLinks={pendingAssumptionLinks}
-              onPendingLinksChange={setPendingAssumptionLinks}
-              helperText="Link to related assumptions"
-            />
-          </div>
+        <div className="flex items-center gap-2">
+          <Switch
+            id="published"
+            checked={formData.published}
+            onCheckedChange={(checked) => setFormData({ ...formData, published: checked })}
+          />
+          <Label htmlFor="published" className="text-sm">Published</Label>
         </div>
       </div>
 
-      <div className="flex items-center justify-between pt-6 border-t">
-        <div className="flex items-center gap-3">
-          <button
-            type="submit"
-            disabled={isSubmitting}
-            className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50"
-          >
-            {isSubmitting ? 'Saving...' : specimenId ? 'Update Specimen' : 'Create Specimen'}
-          </button>
-          <button
-            type="button"
-            onClick={handleCancel}
-            className="px-4 py-2 border rounded-lg hover:bg-accent transition-colors"
-          >
-            Cancel
-          </button>
-        </div>
-
-        {specimenId && (
-          <button
-            type="button"
-            onClick={handleDelete}
-            disabled={isSubmitting}
-            className="px-4 py-2 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/20 rounded-lg transition-colors disabled:opacity-50"
-          >
-            Delete Specimen
-          </button>
-        )}
+      <div className="rounded-lg border bg-card p-4 space-y-3">
+        <FormFieldWithAI
+          label="Tags"
+          fieldName="tags"
+          entityType="specimens"
+          context={{
+            title: formData.title,
+            description: formData.description,
+            type: formData.type,
+          }}
+          currentValue={formData.tags}
+          onGenerate={(content) => setFormData({ ...formData, tags: content })}
+          disabled={isSubmitting}
+          description="Comma-separated tags"
+        >
+          <Input
+            type="text"
+            value={formData.tags}
+            onChange={(e) => setFormData({ ...formData, tags: e.target.value })}
+            placeholder="react, animation, ui"
+          />
+        </FormFieldWithAI>
       </div>
-    </form>
+    </div>
+  )
+
+  // ============================================================================
+  // Tabs
+  // ============================================================================
+
+  const tabs = [
+    { id: 'fields', label: 'Fields', content: fieldsTab },
+    { id: 'links', label: 'Links', content: linksTab },
+  ]
+
+  // ============================================================================
+  // Render
+  // ============================================================================
+
+  return (
+    <AdminEntityLayout
+      title={specimenId ? formData.title || 'Untitled' : 'New Specimen'}
+      subtitle={specimenId ? formData.slug : undefined}
+      status={{ label: statusLabel, variant: statusVariant as 'default' | 'outline' }}
+      backHref="/admin/specimens"
+      backLabel="Specimens"
+      controlCluster={
+        <EntityControlCluster
+          isDirty={isDirty}
+          isSaving={isSubmitting}
+          onSave={() => handleSubmit()}
+          onCancel={() => router.push('/admin/specimens')}
+          saveLabel={specimenId ? 'Save' : 'Create'}
+          links={specimenId ? [
+            { label: 'Gallery', href: `/gallery/${formData.slug}`, icon: <ExternalLink className="size-4" />, external: true },
+          ] : undefined}
+          onDelete={specimenId ? handleDelete : undefined}
+        />
+      }
+      tabs={tabs}
+      metadata={metadataPanel}
+      isDirty={isDirty}
+      isSaving={isSubmitting}
+      onSave={() => handleSubmit()}
+      onCancel={() => router.push('/admin/specimens')}
+      onSubmit={handleSubmit}
+    />
   )
 }

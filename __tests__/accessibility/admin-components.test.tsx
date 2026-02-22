@@ -10,7 +10,7 @@ import userEvent from '@testing-library/user-event'
 import { axe, toHaveNoViolations } from 'jest-axe'
 import {
   AdminListLayout,
-  AdminFormLayout,
+  AdminEntityLayout,
   AdminEmptyState,
   SidebarCard,
   FormActions,
@@ -76,22 +76,27 @@ describe('AdminListLayout Accessibility', () => {
 })
 
 // ============================================================================
-// AdminFormLayout Accessibility Tests
+// AdminEntityLayout Accessibility Tests
 // ============================================================================
 
-describe('AdminFormLayout Accessibility', () => {
+describe('AdminEntityLayout Accessibility', () => {
   it('has no accessibility violations', async () => {
     const { container } = render(
-      <AdminFormLayout
+      <AdminEntityLayout
         title="Edit Journey"
         backHref="/admin/journeys"
         backLabel="Back to Journeys"
-      >
-        <form>
-          <label htmlFor="name">Name</label>
-          <input id="name" type="text" />
-        </form>
-      </AdminFormLayout>
+        tabs={[{
+          id: 'fields',
+          label: 'Fields',
+          content: (
+            <div>
+              <label htmlFor="name">Name</label>
+              <input id="name" type="text" />
+            </div>
+          ),
+        }]}
+      />
     )
 
     const results = await axe(container)
@@ -100,13 +105,12 @@ describe('AdminFormLayout Accessibility', () => {
 
   it('back link has accessible text', () => {
     render(
-      <AdminFormLayout
+      <AdminEntityLayout
         title="Edit"
         backHref="/admin"
         backLabel="Back to List"
-      >
-        <div>Form</div>
-      </AdminFormLayout>
+        tabs={[{ id: 'fields', label: 'Fields', content: <div>Form</div> }]}
+      />
     )
 
     const backLink = screen.getByRole('link', { name: /Back to List/i })
@@ -349,32 +353,39 @@ describe('Keyboard Navigation Integration', () => {
     const mockOnCancel = vi.fn()
 
     render(
-      <AdminFormLayout
+      <AdminEntityLayout
         title="Create Item"
         backHref="/admin"
         backLabel="Back"
-      >
-        <form>
-          <label htmlFor="name">Name</label>
-          <input id="name" type="text" />
+        tabs={[{
+          id: 'fields',
+          label: 'Fields',
+          content: (
+            <div>
+              <label htmlFor="name">Name</label>
+              <input id="name" type="text" />
 
-          <label htmlFor="description">Description</label>
-          <textarea id="description" />
+              <label htmlFor="description">Description</label>
+              <textarea id="description" />
 
-          <FormActions
-            isSubmitting={false}
-            onCancel={mockOnCancel}
-          />
-        </form>
-      </AdminFormLayout>
+              <FormActions
+                isSubmitting={false}
+                onCancel={mockOnCancel}
+              />
+            </div>
+          ),
+        }]}
+      />
     )
 
     // Start at back link
     await user.tab()
     expect(screen.getByRole('link', { name: /back/i })).toHaveFocus()
 
-    // Tab to name input
-    await user.tab()
+    // Tab through tab trigger and tab panel, then to name input
+    await user.tab() // Fields tab trigger
+    await user.tab() // TabsContent panel (Radix sets tabindex=0)
+    await user.tab() // Name input
     expect(screen.getByLabelText('Name')).toHaveFocus()
 
     // Tab to description

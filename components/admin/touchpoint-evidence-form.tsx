@@ -3,6 +3,9 @@
 import { useState } from 'react'
 import type { TouchpointEvidence } from '@/lib/types/boundary-objects'
 import { FormFieldWithAI } from '@/components/forms'
+import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
+import { Label } from '@/components/ui/label'
 
 interface TouchpointEvidenceFormProps {
   evidence?: TouchpointEvidence
@@ -71,7 +74,7 @@ export function TouchpointEvidenceForm({
     <form onSubmit={handleSubmit} className="space-y-4">
       {/* Evidence Type */}
       <div>
-        <label className="block text-sm font-medium mb-2">Evidence Type *</label>
+        <Label className="block mb-2">Evidence Type *</Label>
         <div className="grid grid-cols-2 gap-2">
           {evidenceTypes.map((type) => (
             <label
@@ -110,11 +113,10 @@ export function TouchpointEvidenceForm({
         onGenerate={(content) => setFormData({ ...formData, title: content })}
         disabled={saving}
       >
-        <input
+        <Input
           type="text"
           value={formData.title}
           onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-          className="w-full px-3 py-2 rounded-lg border bg-background"
           required
           placeholder="e.g., User Test Session #4 - Checkout Flow"
         />
@@ -135,10 +137,9 @@ export function TouchpointEvidenceForm({
         onGenerate={(content) => setFormData({ ...formData, summary: content })}
         disabled={saving}
       >
-        <textarea
+        <Textarea
           value={formData.summary}
           onChange={(e) => setFormData({ ...formData, summary: e.target.value })}
-          className="w-full px-3 py-2 rounded-lg border bg-background"
           rows={3}
           placeholder="Key findings and observations..."
         />
@@ -146,12 +147,11 @@ export function TouchpointEvidenceForm({
 
       {/* URL */}
       <div>
-        <label className="block text-sm font-medium mb-1">URL</label>
-        <input
+        <Label className="block mb-1">URL</Label>
+        <Input
           type="url"
           value={formData.url}
           onChange={(e) => setFormData({ ...formData, url: e.target.value })}
-          className="w-full px-3 py-2 rounded-lg border bg-background"
           placeholder="https://..."
         />
         <p className="text-xs text-muted-foreground mt-1">
@@ -161,7 +161,7 @@ export function TouchpointEvidenceForm({
 
       {/* Supports Design */}
       <div>
-        <label className="block text-sm font-medium mb-2">Does this evidence support the design?</label>
+        <Label className="block mb-2">Does this evidence support the design?</Label>
         <div className="flex gap-2">
           <button
             type="button"
@@ -201,7 +201,7 @@ export function TouchpointEvidenceForm({
 
       {/* Confidence */}
       <div>
-        <label className="block text-sm font-medium mb-2">Confidence Level</label>
+        <Label className="block mb-2">Confidence Level</Label>
         <div className="grid grid-cols-3 gap-2">
           {confidenceLevels.map((level) => (
             <label
@@ -229,12 +229,11 @@ export function TouchpointEvidenceForm({
 
       {/* Collected At */}
       <div>
-        <label className="block text-sm font-medium mb-1">Collected Date</label>
-        <input
+        <Label className="block mb-1">Collected Date</Label>
+        <Input
           type="date"
           value={formData.collected_at}
           onChange={(e) => setFormData({ ...formData, collected_at: e.target.value })}
-          className="w-full px-3 py-2 rounded-lg border bg-background"
         />
       </div>
 

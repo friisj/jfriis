@@ -13,7 +13,7 @@ import {
   CanvasSurface,
 } from '@/components/admin/canvas'
 import {
-  AdminFormLayout,
+  AdminEntityLayout,
   FormActions,
   SidebarCard,
   StatusBadge,
@@ -98,29 +98,35 @@ describe('Form Submission Workflow', () => {
     const onSubmit = vi.fn((e) => e.preventDefault())
 
     render(
-      <AdminFormLayout
+      <AdminEntityLayout
         title="Create Blueprint"
         backHref="/admin/blueprints"
         backLabel="Back to Blueprints"
-      >
-        <form onSubmit={onSubmit}>
-          <div className="space-y-4">
-            <div>
-              <label htmlFor="name">Name</label>
-              <input id="name" type="text" data-testid="name-input" />
+        tabs={[{
+          id: 'fields',
+          label: 'Fields',
+          content: (
+            <div className="space-y-4">
+              <div>
+                <label htmlFor="name">Name</label>
+                <input id="name" type="text" data-testid="name-input" />
+              </div>
+              <div>
+                <label htmlFor="description">Description</label>
+                <textarea id="description" data-testid="description-input" />
+              </div>
+              <FormActions isSubmitting={false} onCancel={onCancel} />
             </div>
-            <div>
-              <label htmlFor="description">Description</label>
-              <textarea id="description" data-testid="description-input" />
-            </div>
-            <FormActions isSubmitting={false} onCancel={onCancel} />
-          </div>
-        </form>
-      </AdminFormLayout>
+          ),
+        }]}
+        onSubmit={onSubmit}
+      />
     )
 
-    // Tab to first input
+    // Tab to first input (past back link, tab trigger, and tab panel)
     await user.tab() // Back link
+    await user.tab() // Fields tab trigger
+    await user.tab() // TabsContent panel (Radix sets tabindex=0)
     await user.tab() // Name input
 
     const nameInput = screen.getByTestId('name-input')
@@ -176,13 +182,12 @@ describe('Form Submission Workflow', () => {
 describe('List to Detail Navigation', () => {
   it('navigates from list view to detail via link', () => {
     render(
-      <AdminFormLayout
+      <AdminEntityLayout
         title="Edit Item"
         backHref="/admin/items"
         backLabel="Back to Items"
-      >
-        <div>Item details</div>
-      </AdminFormLayout>
+        tabs={[{ id: 'fields', label: 'Fields', content: <div>Item details</div> }]}
+      />
     )
 
     const backLink = screen.getByRole('link', { name: /back to items/i })
@@ -195,35 +200,40 @@ describe('List to Detail Navigation', () => {
 // ============================================================================
 
 describe('Multi-Component Integration', () => {
-  it('renders complex form layout with sidebar', async () => {
+  it('renders complex form layout with metadata', async () => {
     const user = userEvent.setup()
     const onCancel = vi.fn()
 
     render(
-      <AdminFormLayout
+      <AdminEntityLayout
         title="Edit Journey"
         backHref="/admin/journeys"
         backLabel="Back"
-        sidebar={
+        tabs={[{
+          id: 'fields',
+          label: 'Fields',
+          content: (
+            <div>
+              <label htmlFor="name">Name</label>
+              <input id="name" type="text" />
+              <FormActions isSubmitting={false} onCancel={onCancel} />
+            </div>
+          ),
+        }]}
+        metadata={
           <SidebarCard title="Metadata">
             <div>
               <StatusBadge value="draft" />
             </div>
           </SidebarCard>
         }
-      >
-        <form>
-          <label htmlFor="name">Name</label>
-          <input id="name" type="text" />
-          <FormActions isSubmitting={false} onCancel={onCancel} />
-        </form>
-      </AdminFormLayout>
+      />
     )
 
     // Main form content exists
     expect(screen.getByLabelText('Name')).toBeInTheDocument()
 
-    // Sidebar content exists
+    // Metadata content exists (desktop panel)
     expect(screen.getByText('Metadata')).toBeInTheDocument()
     expect(screen.getByText('draft')).toBeInTheDocument()
 
@@ -338,18 +348,23 @@ describe('State Persistence', () => {
     const onCancel = vi.fn()
 
     const FormWrapper = ({ extra }: { extra?: string }) => (
-      <AdminFormLayout
+      <AdminEntityLayout
         title="Edit"
         backHref="/admin"
         backLabel="Back"
-      >
-        <form>
-          <label htmlFor="persistent">Persistent Field</label>
-          <input id="persistent" type="text" defaultValue="" />
-          <FormActions isSubmitting={false} onCancel={onCancel} />
-          {extra && <span>{extra}</span>}
-        </form>
-      </AdminFormLayout>
+        tabs={[{
+          id: 'fields',
+          label: 'Fields',
+          content: (
+            <div>
+              <label htmlFor="persistent">Persistent Field</label>
+              <input id="persistent" type="text" defaultValue="" />
+              <FormActions isSubmitting={false} onCancel={onCancel} />
+              {extra && <span>{extra}</span>}
+            </div>
+          ),
+        }]}
+      />
     )
 
     const { rerender } = render(<FormWrapper />)

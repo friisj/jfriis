@@ -6,7 +6,7 @@
 import { describe, it, expect, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import {
-  AdminFormLayout,
+  AdminEntityLayout,
   SidebarCard,
   FormActions,
   AdminTable,
@@ -19,62 +19,58 @@ import {
 } from '@/components/admin'
 
 // ============================================================================
-// AdminFormLayout Tests
+// AdminEntityLayout Tests
 // ============================================================================
 
-describe('AdminFormLayout', () => {
+describe('AdminEntityLayout', () => {
   it('renders without crashing', () => {
     render(
-      <AdminFormLayout
+      <AdminEntityLayout
         title="Edit Journey"
         backHref="/admin/journeys"
         backLabel="Back to Journeys"
-      >
-        <div>Form Content</div>
-      </AdminFormLayout>
+        tabs={[{ id: 'fields', label: 'Fields', content: <div>Form Content</div> }]}
+      />
     )
     expect(screen.getByRole('heading', { name: 'Edit Journey' })).toBeInTheDocument()
     expect(screen.getByText('Form Content')).toBeInTheDocument()
   })
 
-  it('renders with description', () => {
+  it('renders with subtitle', () => {
     render(
-      <AdminFormLayout
+      <AdminEntityLayout
         title="New Blueprint"
-        description="Create a service blueprint"
+        subtitle="Create a service blueprint"
         backHref="/admin/blueprints"
         backLabel="Back"
-      >
-        <div>Content</div>
-      </AdminFormLayout>
+        tabs={[{ id: 'fields', label: 'Fields', content: <div>Content</div> }]}
+      />
     )
     expect(screen.getByText('Create a service blueprint')).toBeInTheDocument()
   })
 
-  it('renders with sidebar', () => {
+  it('renders with metadata panel', () => {
     render(
-      <AdminFormLayout
+      <AdminEntityLayout
         title="Edit"
         backHref="/admin"
         backLabel="Back"
-        sidebar={<div data-testid="sidebar">Sidebar Content</div>}
-      >
-        <div>Main Content</div>
-      </AdminFormLayout>
+        tabs={[{ id: 'fields', label: 'Fields', content: <div>Main Content</div> }]}
+        metadata={<div data-testid="metadata">Metadata Content</div>}
+      />
     )
-    expect(screen.getByTestId('sidebar')).toBeInTheDocument()
-    expect(screen.getByText('Sidebar Content')).toBeInTheDocument()
+    expect(screen.getByTestId('metadata')).toBeInTheDocument()
+    expect(screen.getByText('Metadata Content')).toBeInTheDocument()
   })
 
   it('renders back link with correct href', () => {
     render(
-      <AdminFormLayout
+      <AdminEntityLayout
         title="Edit"
         backHref="/admin/projects"
         backLabel="All Projects"
-      >
-        <div>Content</div>
-      </AdminFormLayout>
+        tabs={[{ id: 'fields', label: 'Fields', content: <div>Content</div> }]}
+      />
     )
     const backLink = screen.getByRole('link', { name: /All Projects/i })
     expect(backLink).toHaveAttribute('href', '/admin/projects')

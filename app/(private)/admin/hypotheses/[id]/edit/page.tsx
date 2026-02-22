@@ -22,20 +22,5 @@ export default async function EditHypothesisPage({ params }: PageProps) {
     notFound()
   }
 
-  return (
-    <div className="p-8">
-      <div className="max-w-2xl mx-auto">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold mb-2">Edit Hypothesis</h1>
-          <p className="text-muted-foreground">
-            Update hypothesis details
-          </p>
-        </div>
-
-        <div className="rounded-lg border bg-card p-6">
-          <HypothesisForm hypothesis={data} mode="edit" />
-        </div>
-      </div>
-    </div>
-  )
+  return <HypothesisForm hypothesis={data} />
 }

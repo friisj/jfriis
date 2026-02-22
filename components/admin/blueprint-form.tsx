@@ -1,16 +1,65 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
-import { SidebarCard } from './sidebar-card'
-import { FormActions } from './form-actions'
+import { toast } from 'sonner'
 import { FormFieldWithAI } from '@/components/forms'
+import { AdminEntityLayout } from '@/components/admin/admin-entity-layout'
+import { EntityControlCluster } from '@/components/admin/entity-control-cluster'
+import { RelationshipManager, type RelationshipSlot } from '@/components/admin/relationship-manager'
 import { RelationshipField } from './relationship-field'
-import { EntityLinkField } from './entity-link-field'
 import { syncEntityLinks } from '@/lib/entity-links'
 import { buildEntityContext } from '@/lib/ai-context'
 import type { PendingLink } from '@/lib/types/entity-relationships'
+import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
+import { Label } from '@/components/ui/label'
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select'
+import { ExternalLink } from 'lucide-react'
+
+// ============================================================================
+// Relationship slots
+// ============================================================================
+
+const BLUEPRINT_SLOTS: RelationshipSlot[] = [
+  {
+    targetType: 'user_journey',
+    linkType: 'related',
+    label: 'User Journeys',
+    group: 'Journeys & Maps',
+    displayField: 'name',
+    editHref: (id) => `/admin/journeys/${id}/edit`,
+  },
+  {
+    targetType: 'story_map',
+    linkType: 'related',
+    label: 'Story Maps',
+    group: 'Journeys & Maps',
+    displayField: 'name',
+    editHref: (id) => `/admin/story-maps/${id}/edit`,
+  },
+  {
+    targetType: 'value_proposition_canvas',
+    linkType: 'related',
+    label: 'Value Propositions',
+    group: 'Strategic Context',
+    displayField: 'name',
+    editHref: (id) => `/admin/canvases/value-proposition/${id}/edit`,
+  },
+  {
+    targetType: 'business_model_canvas',
+    linkType: 'related',
+    label: 'Business Models',
+    group: 'Strategic Context',
+    displayField: 'name',
+    editHref: (id) => `/admin/canvases/business-model/${id}/edit`,
+  },
+]
+
+// ============================================================================
+// Types & Constants
+// ============================================================================
 
 interface Blueprint {
   id: string
@@ -29,7 +78,6 @@ interface Blueprint {
 
 interface BlueprintFormProps {
   blueprint?: Blueprint
-  projects: { id: string; name: string }[]
 }
 
 const blueprintTypes = [
@@ -54,15 +102,16 @@ const validationStatuses = [
   { value: 'invalidated', label: 'Invalidated' },
 ]
 
-export function BlueprintForm({ blueprint, projects }: BlueprintFormProps) {
+// ============================================================================
+// Component
+// ============================================================================
+
+export function BlueprintForm({ blueprint }: BlueprintFormProps) {
   const router = useRouter()
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [relatedContext, setRelatedContext] = useState<Record<string, unknown>>({})
-  const [pendingJourneyLinks, setPendingJourneyLinks] = useState<PendingLink[]>([])
-  const [pendingStoryMapLinks, setPendingStoryMapLinks] = useState<PendingLink[]>([])
-  const [pendingVpcLinks, setPendingVpcLinks] = useState<PendingLink[]>([])
-  const [pendingBmcLinks, setPendingBmcLinks] = useState<PendingLink[]>([])
+  const [pendingLinks, setPendingLinks] = useState<PendingLink[]>([])
 
   const [formData, setFormData] = useState({
     slug: blueprint?.slug || '',
@@ -77,6 +126,13 @@ export function BlueprintForm({ blueprint, projects }: BlueprintFormProps) {
     service_duration: blueprint?.service_duration || '',
     tags: blueprint?.tags?.join(', ') || '',
   })
+
+  // Track dirty state
+  const [initialFormData] = useState(formData)
+  const isDirty = useMemo(
+    () => JSON.stringify(formData) !== JSON.stringify(initialFormData),
+    [formData, initialFormData]
+  )
 
   // Auto-generate slug from name
   useEffect(() => {
@@ -95,14 +151,13 @@ export function BlueprintForm({ blueprint, projects }: BlueprintFormProps) {
     buildEntityContext('service_blueprints', formData).then(setRelatedContext)
   }, [formData.studio_project_id, formData.hypothesis_id])
 
-  // Build AI context including related entity data
   const getAIContext = (additionalContext: Record<string, unknown> = {}) => ({
     ...relatedContext,
     ...additionalContext,
   })
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
+  const handleSubmit = async (e?: React.FormEvent) => {
+    e?.preventDefault()
     setSaving(true)
     setError(null)
 
@@ -142,9 +197,8 @@ export function BlueprintForm({ blueprint, projects }: BlueprintFormProps) {
           }
 
           const { data: existing } = await query.maybeSingle()
-
           if (existing) {
-            throw new Error(`A blueprint with slug "${formData.slug}" already exists in this project. Please use a different slug.`)
+            throw new Error(`A blueprint with slug "${formData.slug}" already exists in this project.`)
           }
         }
 
@@ -154,7 +208,6 @@ export function BlueprintForm({ blueprint, projects }: BlueprintFormProps) {
           .eq('id', blueprint.id)
 
         if (updateError) throw updateError
-        router.push('/admin/blueprints')
       } else {
         // Check slug uniqueness on create
         let query = supabase
@@ -169,9 +222,8 @@ export function BlueprintForm({ blueprint, projects }: BlueprintFormProps) {
         }
 
         const { data: existing } = await query.maybeSingle()
-
         if (existing) {
-          throw new Error(`A blueprint with slug "${formData.slug}" already exists in this project. Please use a different slug.`)
+          throw new Error(`A blueprint with slug "${formData.slug}" already exists in this project.`)
         }
 
         const { data: created, error: insertError } = await supabase
@@ -183,37 +235,45 @@ export function BlueprintForm({ blueprint, projects }: BlueprintFormProps) {
         if (insertError) throw insertError
 
         // Sync pending entity links for create mode
-        const sourceRef = { type: 'service_blueprint' as const, id: created.id }
-        if (pendingJourneyLinks.length > 0) {
-          await syncEntityLinks(sourceRef, 'user_journey', 'related', pendingJourneyLinks.map(l => l.targetId))
-        }
-        if (pendingStoryMapLinks.length > 0) {
-          await syncEntityLinks(sourceRef, 'story_map', 'related', pendingStoryMapLinks.map(l => l.targetId))
-        }
-        if (pendingVpcLinks.length > 0) {
-          await syncEntityLinks(sourceRef, 'value_proposition_canvas', 'related', pendingVpcLinks.map(l => l.targetId))
-        }
-        if (pendingBmcLinks.length > 0) {
-          await syncEntityLinks(sourceRef, 'business_model_canvas', 'related', pendingBmcLinks.map(l => l.targetId))
-        }
+        // RelationshipManager handles all link types via slots
+        if (pendingLinks.length > 0) {
+          const sourceRef = { type: 'service_blueprint' as const, id: created.id }
+          const journeyLinks = pendingLinks.filter(l => l.notes?.includes('user_journey') || false)
+          const storyMapLinks = pendingLinks.filter(l => l.notes?.includes('story_map') || false)
+          const vpcLinks = pendingLinks.filter(l => l.notes?.includes('value_proposition') || false)
+          const bmcLinks = pendingLinks.filter(l => l.notes?.includes('business_model') || false)
 
-        router.push(`/admin/blueprints/${created.id}/edit`)
+          if (journeyLinks.length > 0) {
+            await syncEntityLinks(sourceRef, 'user_journey', 'related', journeyLinks.map(l => l.targetId))
+          }
+          if (storyMapLinks.length > 0) {
+            await syncEntityLinks(sourceRef, 'story_map', 'related', storyMapLinks.map(l => l.targetId))
+          }
+          if (vpcLinks.length > 0) {
+            await syncEntityLinks(sourceRef, 'value_proposition_canvas', 'related', vpcLinks.map(l => l.targetId))
+          }
+          if (bmcLinks.length > 0) {
+            await syncEntityLinks(sourceRef, 'business_model_canvas', 'related', bmcLinks.map(l => l.targetId))
+          }
+        }
       }
-    } catch (err: any) {
-      // Handle specific error types with actionable messages
-      const message = err.message || ''
-      if (message.includes('duplicate key') || err.code === '23505') {
-        setError('A blueprint with this slug already exists. Please use a different slug.')
-      } else if (message.includes('not authenticated') || err.code === 'PGRST301') {
+
+      toast.success(blueprint ? 'Blueprint updated!' : 'Blueprint created!')
+      router.push('/admin/blueprints')
+      router.refresh()
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : ''
+      const code = (err as { code?: string })?.code
+      if (message.includes('duplicate key') || code === '23505') {
+        setError('A blueprint with this slug already exists.')
+      } else if (message.includes('not authenticated') || code === 'PGRST301') {
         setError('You must be logged in to save blueprints.')
       } else if (message.includes('permission denied') || message.includes('policy')) {
-        setError('You do not have permission to modify blueprints. Admin access required.')
-      } else if (message.includes('network') || err.code === 'NETWORK_ERROR') {
-        setError('Network error. Please check your connection and try again.')
+        setError('You do not have permission to modify blueprints.')
       } else {
-        setError(message || 'Failed to save blueprint. Please try again.')
+        setError(message || 'Failed to save blueprint.')
       }
-    } finally {
+      toast.error(message || 'Failed to save blueprint.')
       setSaving(false)
     }
   }
@@ -229,331 +289,308 @@ export function BlueprintForm({ blueprint, projects }: BlueprintFormProps) {
         .eq('id', blueprint.id)
 
       if (deleteError) throw deleteError
+
+      toast.success('Blueprint deleted')
       router.push('/admin/blueprints')
-    } catch (err: any) {
-      const message = err.message || ''
-      if (message.includes('permission denied') || message.includes('policy')) {
-        setError('You do not have permission to delete blueprints. Admin access required.')
-      } else {
-        setError(message || 'Failed to delete blueprint. Please try again.')
-      }
+      router.refresh()
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Failed to delete blueprint.'
+      setError(message)
+      toast.error(message)
       setSaving(false)
     }
   }
 
-  return (
-    <form onSubmit={handleSubmit}>
-      <div className="flex gap-8">
-        {/* Main content */}
-        <div className="flex-1 space-y-6">
-          {/* Name */}
-          <FormFieldWithAI
-            label="Name *"
-            fieldName="name"
-            entityType="service_blueprints"
-            context={getAIContext({
-              blueprint_type: formData.blueprint_type,
-              status: formData.status,
-            })}
-            currentValue={formData.name}
-            onGenerate={(content) => setFormData((prev) => ({ ...prev, name: content }))}
-            disabled={saving}
-          >
-            <input
-              type="text"
-              id="name"
-              value={formData.name}
-              onChange={(e) => setFormData((prev) => ({ ...prev, name: e.target.value }))}
-              required
-              className="w-full px-3 py-2 border rounded-md bg-background"
-              placeholder="e.g., Customer Onboarding Flow"
-            />
-          </FormFieldWithAI>
+  // Status badge
+  const statusLabel = formData.status.charAt(0).toUpperCase() + formData.status.slice(1)
+  const statusVariant = formData.status === 'active' ? 'default'
+    : formData.status === 'validated' ? 'secondary'
+    : 'outline'
 
-          {/* Slug */}
-          <div>
-            <label htmlFor="slug" className="block text-sm font-medium mb-1">
-              Slug <span className="text-destructive">*</span>
-            </label>
-            <input
-              type="text"
-              id="slug"
-              value={formData.slug}
-              onChange={(e) => setFormData((prev) => ({ ...prev, slug: e.target.value }))}
-              required
-              className="w-full px-3 py-2 border rounded-md bg-background font-mono text-sm"
-              placeholder="customer-onboarding-flow"
-            />
-            <p className="mt-1 text-xs text-muted-foreground">
-              URL-friendly identifier
-            </p>
-          </div>
+  // ============================================================================
+  // Fields tab
+  // ============================================================================
 
-          {/* Description */}
-          <FormFieldWithAI
-            label="Description"
-            fieldName="description"
-            entityType="service_blueprints"
-            context={getAIContext({
-              name: formData.name,
-              blueprint_type: formData.blueprint_type,
-              service_scope: formData.service_scope,
-            })}
-            currentValue={formData.description}
-            onGenerate={(content) => setFormData((prev) => ({ ...prev, description: content }))}
-            disabled={saving}
-          >
-            <textarea
-              id="description"
-              value={formData.description}
-              onChange={(e) => setFormData((prev) => ({ ...prev, description: e.target.value }))}
-              rows={3}
-              className="w-full px-3 py-2 border rounded-md bg-background"
-              placeholder="What does this blueprint cover?"
-            />
-          </FormFieldWithAI>
-
-          {/* Blueprint Type */}
-          <div>
-            <label htmlFor="blueprint_type" className="block text-sm font-medium mb-1">
-              Blueprint Type
-            </label>
-            <select
-              id="blueprint_type"
-              value={formData.blueprint_type}
-              onChange={(e) => setFormData((prev) => ({ ...prev, blueprint_type: e.target.value }))}
-              className="w-full px-3 py-2 border rounded-md bg-background"
-            >
-              {blueprintTypes.map((type) => (
-                <option key={type.value} value={type.value}>
-                  {type.label} - {type.description}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Service Scope */}
-          <FormFieldWithAI
-            label="Service Scope"
-            fieldName="service_scope"
-            entityType="service_blueprints"
-            context={getAIContext({
-              name: formData.name,
-              description: formData.description,
-              blueprint_type: formData.blueprint_type,
-            })}
-            currentValue={formData.service_scope}
-            onGenerate={(content) => setFormData((prev) => ({ ...prev, service_scope: content }))}
-            disabled={saving}
-          >
-            <input
-              type="text"
-              id="service_scope"
-              value={formData.service_scope}
-              onChange={(e) => setFormData((prev) => ({ ...prev, service_scope: e.target.value }))}
-              className="w-full px-3 py-2 border rounded-md bg-background"
-              placeholder="e.g., New customer signup to first value delivery"
-            />
-          </FormFieldWithAI>
-
-          {/* Service Duration */}
-          <FormFieldWithAI
-            label="Service Duration"
-            fieldName="service_duration"
-            entityType="service_blueprints"
-            context={getAIContext({
-              name: formData.name,
-              service_scope: formData.service_scope,
-              blueprint_type: formData.blueprint_type,
-            })}
-            currentValue={formData.service_duration}
-            onGenerate={(content) => setFormData((prev) => ({ ...prev, service_duration: content }))}
-            disabled={saving}
-          >
-            <input
-              type="text"
-              id="service_duration"
-              value={formData.service_duration}
-              onChange={(e) => setFormData((prev) => ({ ...prev, service_duration: e.target.value }))}
-              className="w-full px-3 py-2 border rounded-md bg-background"
-              placeholder="e.g., 15-30 minutes"
-            />
-          </FormFieldWithAI>
-
-          {/* Tags */}
-          <FormFieldWithAI
-            label="Tags"
-            fieldName="tags"
-            entityType="service_blueprints"
-            context={getAIContext({
-              name: formData.name,
-              description: formData.description,
-              blueprint_type: formData.blueprint_type,
-            })}
-            currentValue={formData.tags}
-            onGenerate={(content) => setFormData((prev) => ({ ...prev, tags: content }))}
-            disabled={saving}
-            description="Comma-separated tags for organization"
-          >
-            <input
-              type="text"
-              id="tags"
-              value={formData.tags}
-              onChange={(e) => setFormData((prev) => ({ ...prev, tags: e.target.value }))}
-              className="w-full px-3 py-2 border rounded-md bg-background"
-              placeholder="onboarding, digital, self-service"
-            />
-          </FormFieldWithAI>
-
-          {/* Error */}
-          {error && (
-            <div className="p-3 bg-destructive/10 text-destructive rounded-md text-sm">
-              {error}
-            </div>
-          )}
+  const fieldsTab = (
+    <div className="space-y-6">
+      {error && (
+        <div className="p-4 rounded-lg border border-red-200 bg-red-50 dark:bg-red-950/10 text-red-800 dark:text-red-200">
+          {error}
         </div>
+      )}
 
-        {/* Sidebar */}
-        <div className="w-80 space-y-4">
-          <SidebarCard title="Status">
-            <div className="space-y-3">
-              <div>
-                <label htmlFor="status" className="block text-xs font-medium mb-1 text-muted-foreground">
-                  Status
-                </label>
-                <select
-                  id="status"
-                  value={formData.status}
-                  onChange={(e) => setFormData((prev) => ({ ...prev, status: e.target.value }))}
-                  className="w-full px-2 py-1.5 border rounded bg-background text-sm"
-                >
-                  {statuses.map((s) => (
-                    <option key={s.value} value={s.value}>
-                      {s.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
+      <FormFieldWithAI
+        label="Name *"
+        fieldName="name"
+        entityType="service_blueprints"
+        context={getAIContext({
+          blueprint_type: formData.blueprint_type,
+          status: formData.status,
+        })}
+        currentValue={formData.name}
+        onGenerate={(content) => setFormData((prev) => ({ ...prev, name: content }))}
+        disabled={saving}
+      >
+        <Input
+          type="text"
+          value={formData.name}
+          onChange={(e) => setFormData((prev) => ({ ...prev, name: e.target.value }))}
+          required
+          placeholder="e.g., Customer Onboarding Flow"
+        />
+      </FormFieldWithAI>
 
-              <div>
-                <label htmlFor="validation_status" className="block text-xs font-medium mb-1 text-muted-foreground">
-                  Validation
-                </label>
-                <select
-                  id="validation_status"
-                  value={formData.validation_status}
-                  onChange={(e) => setFormData((prev) => ({ ...prev, validation_status: e.target.value }))}
-                  className="w-full px-2 py-1.5 border rounded bg-background text-sm"
-                >
-                  {validationStatuses.map((s) => (
-                    <option key={s.value} value={s.value}>
-                      {s.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-          </SidebarCard>
+      <div>
+        <Label htmlFor="slug" className="block mb-1">Slug *</Label>
+        <Input
+          type="text"
+          id="slug"
+          value={formData.slug}
+          onChange={(e) => setFormData((prev) => ({ ...prev, slug: e.target.value }))}
+          required
+          className="font-mono text-sm"
+          placeholder="customer-onboarding-flow"
+        />
+        <p className="mt-1 text-xs text-muted-foreground">URL-friendly identifier</p>
+      </div>
 
-          <SidebarCard title="Relationships">
-            <div className="space-y-4">
-              <div>
-                <label htmlFor="studio_project_id" className="block text-xs font-medium mb-1 text-muted-foreground">
-                  Studio Project
-                </label>
-                <select
-                  id="studio_project_id"
-                  value={formData.studio_project_id}
-                  onChange={(e) => setFormData((prev) => ({ ...prev, studio_project_id: e.target.value }))}
-                  className="w-full px-2 py-1.5 border rounded bg-background text-sm"
-                >
-                  <option value="">None</option>
-                  {projects.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <RelationshipField
-                label="Hypothesis"
-                value={formData.hypothesis_id}
-                onChange={(id) => setFormData((prev) => ({ ...prev, hypothesis_id: id as string }))}
-                tableName="studio_hypotheses"
-                displayField="statement"
-                mode="single"
-                placeholder="Select hypothesis..."
-                helperText="Link to a hypothesis to validate"
-              />
-            </div>
-          </SidebarCard>
+      <FormFieldWithAI
+        label="Description"
+        fieldName="description"
+        entityType="service_blueprints"
+        context={getAIContext({
+          name: formData.name,
+          blueprint_type: formData.blueprint_type,
+          service_scope: formData.service_scope,
+        })}
+        currentValue={formData.description}
+        onGenerate={(content) => setFormData((prev) => ({ ...prev, description: content }))}
+        disabled={saving}
+      >
+        <Textarea
+          value={formData.description}
+          onChange={(e) => setFormData((prev) => ({ ...prev, description: e.target.value }))}
+          rows={3}
+          placeholder="What does this blueprint cover?"
+        />
+      </FormFieldWithAI>
 
-          <SidebarCard title="Related Entities">
-            <div className="space-y-4">
-              <EntityLinkField
-                label="User Journeys"
-                sourceType="service_blueprint"
-                sourceId={blueprint?.id}
-                targetType="user_journey"
-                targetTableName="user_journeys"
-                targetDisplayField="name"
-                linkType="related"
-                allowMultiple={true}
-                pendingLinks={pendingJourneyLinks}
-                onPendingLinksChange={setPendingJourneyLinks}
-                helperText="Link to customer journeys this blueprint supports"
-              />
-              <EntityLinkField
-                label="Story Maps"
-                sourceType="service_blueprint"
-                sourceId={blueprint?.id}
-                targetType="story_map"
-                targetTableName="story_maps"
-                targetDisplayField="name"
-                linkType="related"
-                allowMultiple={true}
-                pendingLinks={pendingStoryMapLinks}
-                onPendingLinksChange={setPendingStoryMapLinks}
-                helperText="Link to story maps that implement this blueprint"
-              />
-              <EntityLinkField
-                label="Value Propositions"
-                sourceType="service_blueprint"
-                sourceId={blueprint?.id}
-                targetType="value_proposition_canvas"
-                targetTableName="value_proposition_canvases"
-                targetDisplayField="name"
-                linkType="related"
-                allowMultiple={true}
-                pendingLinks={pendingVpcLinks}
-                onPendingLinksChange={setPendingVpcLinks}
-                helperText="Link to value proposition canvases"
-              />
-              <EntityLinkField
-                label="Business Models"
-                sourceType="service_blueprint"
-                sourceId={blueprint?.id}
-                targetType="business_model_canvas"
-                targetTableName="business_model_canvases"
-                targetDisplayField="name"
-                linkType="related"
-                allowMultiple={true}
-                pendingLinks={pendingBmcLinks}
-                onPendingLinksChange={setPendingBmcLinks}
-                helperText="Link to business model canvases"
-              />
-            </div>
-          </SidebarCard>
+      <div>
+        <Label htmlFor="blueprint_type" className="block mb-1">Blueprint Type</Label>
+        <Select
+          value={formData.blueprint_type}
+          onValueChange={(v) => setFormData((prev) => ({ ...prev, blueprint_type: v }))}
+        >
+          <SelectTrigger id="blueprint_type" className="w-full">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {blueprintTypes.map((type) => (
+              <SelectItem key={type.value} value={type.value}>
+                {type.label} - {type.description}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
 
-          <FormActions
-            isSubmitting={saving}
-            submitLabel={blueprint ? 'Save Changes' : 'Create Blueprint'}
-            onCancel={() => router.push('/admin/blueprints')}
-            onDelete={blueprint ? handleDelete : undefined}
-            deleteConfirmMessage="Are you sure you want to delete this blueprint? This action cannot be undone."
-          />
+      <FormFieldWithAI
+        label="Service Scope"
+        fieldName="service_scope"
+        entityType="service_blueprints"
+        context={getAIContext({
+          name: formData.name,
+          description: formData.description,
+          blueprint_type: formData.blueprint_type,
+        })}
+        currentValue={formData.service_scope}
+        onGenerate={(content) => setFormData((prev) => ({ ...prev, service_scope: content }))}
+        disabled={saving}
+      >
+        <Input
+          type="text"
+          value={formData.service_scope}
+          onChange={(e) => setFormData((prev) => ({ ...prev, service_scope: e.target.value }))}
+          placeholder="e.g., New customer signup to first value delivery"
+        />
+      </FormFieldWithAI>
+
+      <FormFieldWithAI
+        label="Service Duration"
+        fieldName="service_duration"
+        entityType="service_blueprints"
+        context={getAIContext({
+          name: formData.name,
+          service_scope: formData.service_scope,
+          blueprint_type: formData.blueprint_type,
+        })}
+        currentValue={formData.service_duration}
+        onGenerate={(content) => setFormData((prev) => ({ ...prev, service_duration: content }))}
+        disabled={saving}
+      >
+        <Input
+          type="text"
+          value={formData.service_duration}
+          onChange={(e) => setFormData((prev) => ({ ...prev, service_duration: e.target.value }))}
+          placeholder="e.g., 15-30 minutes"
+        />
+      </FormFieldWithAI>
+    </div>
+  )
+
+  // ============================================================================
+  // Links tab
+  // ============================================================================
+
+  const linksTab = (
+    <div className="space-y-6">
+      {blueprint?.id ? (
+        <RelationshipManager
+          entity={{ type: 'service_blueprint', id: blueprint.id }}
+          slots={BLUEPRINT_SLOTS}
+        />
+      ) : (
+        <RelationshipManager
+          entity={{ type: 'service_blueprint' }}
+          slots={BLUEPRINT_SLOTS}
+          pendingLinks={pendingLinks}
+          onPendingLinksChange={setPendingLinks}
+        />
+      )}
+    </div>
+  )
+
+  // ============================================================================
+  // Metadata panel
+  // ============================================================================
+
+  const metadataPanel = (
+    <div className="space-y-4">
+      <div className="rounded-lg border bg-card p-4 space-y-4">
+        <h3 className="text-sm font-semibold">Status</h3>
+        <div>
+          <Label className="block text-xs mb-1 text-muted-foreground">Status</Label>
+          <Select
+            value={formData.status}
+            onValueChange={(v) => setFormData((prev) => ({ ...prev, status: v }))}
+          >
+            <SelectTrigger size="sm" className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {statuses.map((s) => (
+                <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div>
+          <Label className="block text-xs mb-1 text-muted-foreground">Validation</Label>
+          <Select
+            value={formData.validation_status}
+            onValueChange={(v) => setFormData((prev) => ({ ...prev, validation_status: v }))}
+          >
+            <SelectTrigger size="sm" className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {validationStatuses.map((s) => (
+                <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
       </div>
-    </form>
+
+      <div className="rounded-lg border bg-card p-4 space-y-4">
+        <h3 className="text-sm font-semibold">Relationships</h3>
+        <RelationshipField
+          label="Studio Project"
+          value={formData.studio_project_id}
+          onChange={(id) => setFormData((prev) => ({ ...prev, studio_project_id: id as string }))}
+          tableName="studio_projects"
+          displayField="name"
+          mode="single"
+          placeholder="Select project..."
+        />
+        <RelationshipField
+          label="Hypothesis"
+          value={formData.hypothesis_id}
+          onChange={(id) => setFormData((prev) => ({ ...prev, hypothesis_id: id as string }))}
+          tableName="studio_hypotheses"
+          displayField="statement"
+          mode="single"
+          placeholder="Select hypothesis..."
+          helperText="Link to a hypothesis to validate"
+        />
+      </div>
+
+      <div className="rounded-lg border bg-card p-4 space-y-3">
+        <FormFieldWithAI
+          label="Tags"
+          fieldName="tags"
+          entityType="service_blueprints"
+          context={getAIContext({
+            name: formData.name,
+            description: formData.description,
+            blueprint_type: formData.blueprint_type,
+          })}
+          currentValue={formData.tags}
+          onGenerate={(content) => setFormData((prev) => ({ ...prev, tags: content }))}
+          disabled={saving}
+          description="Comma-separated tags"
+        >
+          <Input
+            type="text"
+            value={formData.tags}
+            onChange={(e) => setFormData((prev) => ({ ...prev, tags: e.target.value }))}
+            placeholder="onboarding, digital, self-service"
+          />
+        </FormFieldWithAI>
+      </div>
+    </div>
+  )
+
+  // ============================================================================
+  // Tabs
+  // ============================================================================
+
+  const tabs = [
+    { id: 'fields', label: 'Fields', content: fieldsTab },
+    { id: 'links', label: 'Links', content: linksTab },
+  ]
+
+  // ============================================================================
+  // Render
+  // ============================================================================
+
+  return (
+    <AdminEntityLayout
+      title={blueprint ? formData.name || 'Untitled' : 'New Blueprint'}
+      subtitle={blueprint ? formData.slug : undefined}
+      status={{ label: statusLabel, variant: statusVariant as 'default' | 'secondary' | 'outline' }}
+      backHref="/admin/blueprints"
+      backLabel="Blueprints"
+      controlCluster={
+        <EntityControlCluster
+          isDirty={isDirty}
+          isSaving={saving}
+          onSave={() => handleSubmit()}
+          onCancel={() => router.push('/admin/blueprints')}
+          saveLabel={blueprint ? 'Save' : 'Create'}
+          links={blueprint ? [
+            { label: 'Canvas', href: `/admin/blueprints/${blueprint.id}`, icon: <ExternalLink className="size-4" /> },
+          ] : undefined}
+          onDelete={blueprint ? handleDelete : undefined}
+        />
+      }
+      tabs={tabs}
+      metadata={metadataPanel}
+      isDirty={isDirty}
+      isSaving={saving}
+      onSave={() => handleSubmit()}
+      onCancel={() => router.push('/admin/blueprints')}
+      onSubmit={handleSubmit}
+    />
   )
 }

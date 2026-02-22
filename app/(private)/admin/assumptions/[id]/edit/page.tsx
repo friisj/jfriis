@@ -2,7 +2,6 @@ export const dynamic = 'force-dynamic'
 
 import { notFound } from 'next/navigation'
 import { createClient } from '@/lib/supabase-server'
-import { AdminFormLayout } from '@/components/admin'
 import { AssumptionForm } from '@/components/admin/assumption-form'
 
 interface EditAssumptionPageProps {
@@ -23,14 +22,5 @@ export default async function EditAssumptionPage({ params }: EditAssumptionPageP
     notFound()
   }
 
-  return (
-    <AdminFormLayout
-      title="Edit Assumption"
-      description={assumption.statement.slice(0, 60) + (assumption.statement.length > 60 ? '...' : '')}
-      backHref="/admin/assumptions"
-      backLabel="Back to Assumptions"
-    >
-      <AssumptionForm assumption={assumption} />
-    </AdminFormLayout>
-  )
+  return <AssumptionForm assumption={assumption} />
 }
