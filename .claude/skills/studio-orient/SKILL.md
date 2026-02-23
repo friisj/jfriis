@@ -2,7 +2,7 @@
 name: studio-orient
 description: Orient on studio projects and prototypes. Portfolio snapshot (no args), or deep-dive on a specific project with filesystem map, DB state, entity links, and log entries. Use when starting a session, resuming work, or diving into a specific project.
 allowed-tools: Read, Bash, Glob, Grep, Task
-argument-hint: [optional: slug, status filter, or "deep <slug>"]
+argument-hint: [optional: slug or status filter]
 ---
 
 # Studio Orientation
@@ -99,13 +99,10 @@ Drill into any project: /studio-orient <slug>
 
 ## Deep-Dive Mode
 
-When a specific slug is provided, build full project context. Run queries and filesystem scans in parallel where possible.
+When a specific slug is provided, build full project context. This output is for **your own orientation** — optimize for what helps you start working immediately.
 
-### Step 1: Query All Project Data (parallel)
+### Step 1: Get Project ID
 
-Run ALL of these in parallel:
-
-**1a. Project record:**
 ```
 mcp__jfriis__db_query({
   table: "studio_projects",
@@ -113,161 +110,134 @@ mcp__jfriis__db_query({
 })
 ```
 
-**1b. Hypotheses:**
-```
-mcp__jfriis__db_query({
-  table: "studio_hypotheses",
-  filter: { "project_id": "<project-id>" },
-  order_by: { "column": "sequence", "ascending": true }
-})
-```
-Note: You need the project ID from 1a first. If running truly parallel, query hypotheses by project slug if possible, or run 1a first then 1b-1f in parallel.
+Save the project record. You need the `id` for all subsequent queries.
 
-**1c. Experiments:**
-```
-mcp__jfriis__db_query({
-  table: "studio_experiments",
-  filter: { "project_id": "<project-id>" }
-})
-```
+### Step 2: Query Everything Else (all in parallel)
 
-**1d. Entity links (outbound):**
-```
-mcp__jfriis__db_query({
-  table: "entity_links",
-  filter: { "source_type": "studio_project", "source_id": "<project-id>" }
-})
-```
+Once you have the project ID, run ALL of these in a single parallel batch:
 
-**1e. Entity links (inbound):**
+**DB queries:**
 ```
-mcp__jfriis__db_query({
-  table: "entity_links",
-  filter: { "target_type": "studio_project", "target_id": "<project-id>" }
-})
+// Hypotheses
+mcp__jfriis__db_query({ table: "studio_hypotheses", filter: { "project_id": "<id>" }, order_by: { "column": "sequence", "ascending": true } })
+
+// Experiments
+mcp__jfriis__db_query({ table: "studio_experiments", filter: { "project_id": "<id>" } })
+
+// Entity links (outbound)
+mcp__jfriis__db_query({ table: "entity_links", filter: { "source_type": "studio_project", "source_id": "<id>" } })
+
+// Entity links (inbound)
+mcp__jfriis__db_query({ table: "entity_links", filter: { "target_type": "studio_project", "target_id": "<id>" } })
+
+// Log entries
+mcp__jfriis__db_query({ table: "log_entries", filter: { "studio_project_id": "<id>" }, select: "id, title, slug, entry_date, published, type", order_by: { "column": "entry_date", "ascending": false }, limit: 10 })
+
+// DB tables (to find <slug>_* tables)
+mcp__jfriis__db_list_tables()
 ```
 
-**1f. Linked log entries:**
+**Filesystem scans (Glob, also in same parallel batch):**
 ```
-mcp__jfriis__db_query({
-  table: "log_entries",
-  filter: { "studio_project_id": "<project-id>" },
-  select: "id, title, slug, entry_date, published, type",
-  order_by: { "column": "entry_date", "ascending": false },
-  limit: 10
-})
-```
-
-### Step 2: Scan Filesystem (parallel with Step 1 where possible)
-
-Use Glob to check for files in each location. Run these in parallel:
-
-**2a. App prototype:**
-```
-Glob: app/(private)/apps/<slug>/**/*
-```
-
-**2b. Components:**
-```
-Glob: components/studio/<slug>/**/*
-```
-
-**2c. Prototype experiment components:**
-```
-Glob: components/studio/prototypes/<slug>/**/*
-```
-
-**2d. Library code:**
-```
-Glob: lib/studio/<slug>/**/*
-```
-
-**2e. Documentation:**
-```
-Glob: docs/studio/<slug>/**/*
+app/(private)/apps/<slug>/**/*
+components/studio/<slug>/**/*
+components/studio/prototypes/<slug>/**/*
+lib/studio/<slug>/**/*
+docs/studio/<slug>/**/*
 ```
 
 ### Step 3: Format Deep-Dive Output
 
-Present the complete context in this structure:
+The output structure is optimized for your working context. **Summarize, don't list.**
 
 ```
 ## <name> (<slug>)
 
-Status: <status> | Temperature: <temp>
-Created: <created_at> | Updated: <updated_at>
+<description — this is your tech stack summary, show it prominently>
 
-### Focus
-<current_focus or "none set">
+Status: <status> | Temp: <temp> | Updated: <updated_at>
+Focus: <current_focus or "none set">
 
 ### PRD
-<Include problem_statement, success_criteria, scope_out if populated. Skip section if all empty.>
+<problem_statement, success_criteria, scope_out — only show fields that are populated>
+```
 
----
+#### Filesystem — show **directory structure with file counts**, not individual files
 
-### Filesystem
+```
+### Codebase
 
-<For each location that has files, show the tree. Skip empty locations.>
+app/(private)/apps/<slug>/
+  page.tsx, <route>/page.tsx, ...        (list page routes only, not layout files)
 
-**App** — `app/(private)/apps/<slug>/`
-<file list or "none">
+components/studio/<slug>/
+  Board/ (3)  Game/ (1)  HUD/ (2)  UI/ (17)  Audio/ (1)  ThemeBuilder/ (8)
+  Tests: Board/__tests__/ (1)
 
-**Components** — `components/studio/<slug>/`
-<file list or "none">
+lib/studio/<slug>/
+  ai/ (8)  audio/ (14)  game/ (12)  three/ (4)  audit/ (7)  theme-builder/ (3)
+  Tests: ai/__tests__/ (4)  game/__tests__/ (4)  three/__tests__/ (3)
 
-**Prototypes** — `components/studio/prototypes/<slug>/`
-<file list or "none">
+components/studio/prototypes/<slug>/
+  <list or "none">
 
-**Library** — `lib/studio/<slug>/`
-<file list or "none">
+docs/studio/<slug>/
+  <list or "none — consider creating README.md">
 
-**Docs** — `docs/studio/<slug>/`
-<file list or "none">
+DB tables: ludo_themes, ludo_sound_collections, ludo_sound_assignments
+  (Filter db_list_tables output for tables starting with <slug>_)
+```
 
-**DB Tables**: <slug>_* (if app prototype exists, note the table prefix convention)
+**Key rules for filesystem section:**
+- Show **subdirectory names with file counts in parens**, not individual files
+- Call out **test directories separately** so you know what's covered
+- For app routes, list just the **page.tsx routes** (these are the entry points)
+- If docs/ is empty, note it as a gap
+- For DB tables, show the **actual table names** from db_list_tables, not just the convention
 
----
+#### Validation Chain — group experiments under their hypothesis
 
+```
 ### Validation Chain
 
-**Hypotheses** (<N>)
-<For each hypothesis:>
-  <seq>. <statement> [<status>]
-     Criteria: <validation_criteria>
+H1. <hypothesis statement> [<status>]
+    Criteria: <validation_criteria>
+    Experiments:
+      - <name> (<slug>) [<status>] type:<type>
+      - <name> (<slug>) [<status>] type:<type>
 
-**Experiments** (<N>)
-<For each experiment:>
-  - <name> (<slug>) [<status>] — type: <type>
-    <If completed: outcome: <outcome>>
-    <If has learnings: <first ~80 chars of learnings>>
+H2. <hypothesis statement> [<status>]
+    Criteria: <validation_criteria>
+    Experiments:
+      - <name> (<slug>) [<status>] type:<type>
 
----
+Unlinked experiments (no hypothesis):
+  - <name> (<slug>) [<status>] type:<type>
+```
 
+**Key rules for validation chain:**
+- Group experiments under the hypothesis they test (match via `hypothesis_id`)
+- Show experiment learnings (truncated to ~80 chars) if present
+- Show outcome for completed experiments
+- List any experiments with no `hypothesis_id` separately at the end
+
+#### Entity Links and Log Entries
+
+```
 ### Entity Links
+<Group by target/source type. Resolve names via db_get for readability.>
 
-<Group by target type. Skip section if no links.>
+Linked to:
+  - venture: "Venture Name" (spin_off)
+  - log_entry: "Entry Title" (evolved_from)
 
-**Linked to:**
-  - <target_table>: <target_id> (<link_type>)
-  ...
+Linked from:
+  - log_entry: "Entry Title" (documents)
 
-**Linked from:**
-  - <source_table>: <source_id> (<link_type>)
-  ...
-
-<If entity links reference known tables (ventures, canvases, journeys, etc.), resolve the name/title via a quick db_get. If too many links, just show IDs.>
-
----
-
-### Log Entries (<N>)
-
-<For each log entry:>
+### Recent Log Entries (<N>)
   - <entry_date> — <title> [<type>] <"(published)" if published>
 
----
-
 ### Quick Links
-
 - Admin: /admin/studio/<id>/edit
 - Web: /studio/<slug>
 ```
@@ -276,10 +246,11 @@ Created: <created_at> | Updated: <updated_at>
 
 ## Notes
 
+- **This output is for your orientation, not a report for the user.** Optimize for what helps you start working: directory structure, tech stack, test locations, table names.
 - **Speed over completeness.** If MCP is slow or a sub-query fails, proceed with what you have and note the gap.
 - **No strategic recommendations.** This skill is orientation only — what exists and what state it's in. For prioritization and strategy, the user can follow up or use the studio-mgr agent.
-- **Accurate field names matter.** Use exact field names: `status`, `temperature`, `current_focus`, `scaffolded_at`, `slug`, `path`, `updated_at`.
+- **Summarize filesystem, don't dump it.** Directory names with file counts. Individual files only for app routes (entry points) and docs. Never list 90 files.
+- **Parallel is key.** Get the project ID first, then run everything else (all DB queries + all Globs) in a single parallel batch.
+- **Entity link column names** are `source_type`/`target_type` and `source_id`/`target_id`. Entity types use singular form: `studio_project`, `venture`, `business_model_canvas`, `log_entry`, etc.
+- **DB table discovery**: Use `db_list_tables` and filter for tables starting with `<slug>_`. Show actual table names, not just the convention.
 - **If MCP is unavailable**, fall back to reading `docs/studio/` directory structure and listing project folders as a degraded snapshot. Note the fallback clearly.
-- **Parallel is key.** The deep-dive mode involves many queries. Maximize parallel tool calls to minimize latency. Get the project ID first, then run everything else in parallel.
-- **Entity link entity types** use singular form without table prefix: `studio_project`, `venture`, `business_model_canvas`, `log_entry`, etc. See `lib/entity-links-validation.ts` for the full list.
-- **DB table prefix convention**: Migrated app prototypes use `<slug>_` prefixed tables (e.g., `ludo_themes`, `verbivore_entries`). Mention this in the output so the user knows what tables to query.
