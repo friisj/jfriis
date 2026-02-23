@@ -15,6 +15,7 @@ export const StudioProjectSchema = z.object({
   hypothesis: z.string().optional().nullable(),
   success_criteria: z.string().optional().nullable(),
   scope_out: z.string().optional().nullable(),
+  user_id: z.string().uuid().optional().nullable(),
 })
 
 export const StudioProjectCreateSchema = StudioProjectSchema.omit({
@@ -80,3 +81,51 @@ export const StudioExperimentUpdateSchema = StudioExperimentCreateSchema.partial
 export type StudioExperiment = z.infer<typeof StudioExperimentSchema>
 export type StudioExperimentCreate = z.infer<typeof StudioExperimentCreateSchema>
 export type StudioExperimentUpdate = z.infer<typeof StudioExperimentUpdateSchema>
+
+// Studio Asset Spikes
+export const StudioAssetSpikeSchema = z.object({
+  id: z.string().uuid().optional(),
+  created_at: z.string().datetime().optional(),
+  updated_at: z.string().datetime().optional(),
+  project_id: z.string().uuid(),
+  slug: z.string().min(1).regex(/^[a-z0-9-]+$/),
+  name: z.string().min(1),
+  description: z.string().optional().nullable(),
+  component_key: z.string().min(1),
+})
+
+export const StudioAssetSpikeCreateSchema = StudioAssetSpikeSchema.omit({
+  id: true,
+  created_at: true,
+  updated_at: true,
+})
+
+export const StudioAssetSpikeUpdateSchema = StudioAssetSpikeCreateSchema.partial()
+
+export type StudioAssetSpike = z.infer<typeof StudioAssetSpikeSchema>
+export type StudioAssetSpikeCreate = z.infer<typeof StudioAssetSpikeCreateSchema>
+export type StudioAssetSpikeUpdate = z.infer<typeof StudioAssetSpikeUpdateSchema>
+
+// Studio Asset Prototypes
+export const StudioAssetPrototypeSchema = z.object({
+  id: z.string().uuid().optional(),
+  created_at: z.string().datetime().optional(),
+  updated_at: z.string().datetime().optional(),
+  project_id: z.string().uuid(),
+  slug: z.string().min(1).regex(/^[a-z0-9-]+$/),
+  name: z.string().min(1),
+  description: z.string().optional().nullable(),
+  app_path: z.string().min(1),
+})
+
+export const StudioAssetPrototypeCreateSchema = StudioAssetPrototypeSchema.omit({
+  id: true,
+  created_at: true,
+  updated_at: true,
+})
+
+export const StudioAssetPrototypeUpdateSchema = StudioAssetPrototypeCreateSchema.partial()
+
+export type StudioAssetPrototype = z.infer<typeof StudioAssetPrototypeSchema>
+export type StudioAssetPrototypeCreate = z.infer<typeof StudioAssetPrototypeCreateSchema>
+export type StudioAssetPrototypeUpdate = z.infer<typeof StudioAssetPrototypeUpdateSchema>

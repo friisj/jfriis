@@ -57,6 +57,12 @@ import {
   StudioExperimentSchema,
   StudioExperimentCreateSchema,
   StudioExperimentUpdateSchema,
+  StudioAssetSpikeSchema,
+  StudioAssetSpikeCreateSchema,
+  StudioAssetSpikeUpdateSchema,
+  StudioAssetPrototypeSchema,
+  StudioAssetPrototypeCreateSchema,
+  StudioAssetPrototypeUpdateSchema,
 } from './schemas/studio'
 
 import {
@@ -256,6 +262,22 @@ export const tables: Record<string, TableDefinition> = {
     schema: StudioExperimentSchema,
     createSchema: StudioExperimentCreateSchema,
     updateSchema: StudioExperimentUpdateSchema,
+    hasSlug: true,
+    hasProjectId: false, // Admin only
+  },
+  studio_asset_spikes: {
+    description: 'Isolated component investigations linked to experiments via entity_links',
+    schema: StudioAssetSpikeSchema,
+    createSchema: StudioAssetSpikeCreateSchema,
+    updateSchema: StudioAssetSpikeUpdateSchema,
+    hasSlug: true,
+    hasProjectId: false, // Admin only
+  },
+  studio_asset_prototypes: {
+    description: 'Assembled app references linked to experiments via entity_links',
+    schema: StudioAssetPrototypeSchema,
+    createSchema: StudioAssetPrototypeCreateSchema,
+    updateSchema: StudioAssetPrototypeUpdateSchema,
     hasSlug: true,
     hasProjectId: false, // Admin only
   },
