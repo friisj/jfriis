@@ -265,7 +265,8 @@ var StudioProjectSchema = z8.object({
   problem_statement: z8.string().optional().nullable(),
   hypothesis: z8.string().optional().nullable(),
   success_criteria: z8.string().optional().nullable(),
-  scope_out: z8.string().optional().nullable()
+  scope_out: z8.string().optional().nullable(),
+  user_id: z8.string().uuid().optional().nullable()
 });
 var StudioProjectCreateSchema = StudioProjectSchema.omit({
   id: true,
@@ -309,6 +310,38 @@ var StudioExperimentCreateSchema = StudioExperimentSchema.omit({
   updated_at: true
 });
 var StudioExperimentUpdateSchema = StudioExperimentCreateSchema.partial();
+var StudioAssetSpikeSchema = z8.object({
+  id: z8.string().uuid().optional(),
+  created_at: z8.string().datetime().optional(),
+  updated_at: z8.string().datetime().optional(),
+  project_id: z8.string().uuid(),
+  slug: z8.string().min(1).regex(/^[a-z0-9-]+$/),
+  name: z8.string().min(1),
+  description: z8.string().optional().nullable(),
+  component_key: z8.string().min(1)
+});
+var StudioAssetSpikeCreateSchema = StudioAssetSpikeSchema.omit({
+  id: true,
+  created_at: true,
+  updated_at: true
+});
+var StudioAssetSpikeUpdateSchema = StudioAssetSpikeCreateSchema.partial();
+var StudioAssetPrototypeSchema = z8.object({
+  id: z8.string().uuid().optional(),
+  created_at: z8.string().datetime().optional(),
+  updated_at: z8.string().datetime().optional(),
+  project_id: z8.string().uuid(),
+  slug: z8.string().min(1).regex(/^[a-z0-9-]+$/),
+  name: z8.string().min(1),
+  description: z8.string().optional().nullable(),
+  app_path: z8.string().min(1)
+});
+var StudioAssetPrototypeCreateSchema = StudioAssetPrototypeSchema.omit({
+  id: true,
+  created_at: true,
+  updated_at: true
+});
+var StudioAssetPrototypeUpdateSchema = StudioAssetPrototypeCreateSchema.partial();
 
 // ../lib/mcp/schemas/strategyzer.ts
 import { z as z9 } from "zod";
@@ -1206,6 +1239,24 @@ var tables = {
     schema: StudioExperimentSchema,
     createSchema: StudioExperimentCreateSchema,
     updateSchema: StudioExperimentUpdateSchema,
+    hasSlug: true,
+    hasProjectId: false
+    // Admin only
+  },
+  studio_asset_spikes: {
+    description: "Isolated component investigations linked to experiments via entity_links",
+    schema: StudioAssetSpikeSchema,
+    createSchema: StudioAssetSpikeCreateSchema,
+    updateSchema: StudioAssetSpikeUpdateSchema,
+    hasSlug: true,
+    hasProjectId: false
+    // Admin only
+  },
+  studio_asset_prototypes: {
+    description: "Assembled app references linked to experiments via entity_links",
+    schema: StudioAssetPrototypeSchema,
+    createSchema: StudioAssetPrototypeCreateSchema,
+    updateSchema: StudioAssetPrototypeUpdateSchema,
     hasSlug: true,
     hasProjectId: false
     // Admin only

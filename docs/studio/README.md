@@ -239,6 +239,34 @@ A lightweight, browser-based posable figure inspired by traditional artist armat
 
 ---
 
+### Arena
+**Status**: Phase 1 (Exploration) - Initial research and concept definition
+**Location**: `/components/studio/prototypes/arena/` + `/docs/studio/arena/`
+**Focus**: Design system gym — train agent skills through reinforced feedback sessions
+
+**Current State**:
+- ✅ Project scaffolding and concept alignment
+- ⏳ Defining skill data model and training loop mechanics
+- ⏳ Planning validation spikes
+
+**Concept**:
+Arena applies reinforcement learning patterns to design system creation. Users train agent skills through focused feedback sessions (approve/reject with reasons, De Bono hat feedback, visual annotations). Skills are the primary artifact — structured specifications that agents consume to make design-consistent decisions. Derived artifacts (Tailwind themes, Figma tokens, npm packages) are exports. Arena also serves as an evaluation environment, testing whether coding agents can reliably apply trained skills.
+
+**Key Mechanics**:
+- **Levels of Play**: Dependency hierarchy from primitive tokens (L1) through components (L3) to voice/tone (L5)
+- **Skill Status**: Drafting → Reinforcing → Hardened (human-approved + agent-evaluated + automated checks)
+- **Two Modes**: Training (the gym) and Evaluation (the arena)
+
+**Next Steps**:
+1. Design skill data model
+2. Spike: core training loop (propose → feedback → skill update)
+3. Spike: derived artifact export (skill → Tailwind config)
+4. Spike: agent evaluation (give agent skill, evaluate output)
+
+**Documents**: `/docs/studio/arena/exploration/` (research.md, definitions.md)
+
+---
+
 ## Future Studio Projects
 
 ### Ideas Under Consideration
