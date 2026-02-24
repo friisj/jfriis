@@ -21,13 +21,8 @@ This should be a studio project slug (e.g., `chalk`, `putt`).
 
 ### Step 1: Validate Project
 
-Query `studio_projects` via MCP for the given slug:
-
-```
-mcp__jfriis__db_query({
-  table: "studio_projects",
-  filters: { slug: "<slug>" }
-})
+```bash
+scripts/sb query studio_projects "slug=eq.<slug>"
 ```
 
 If not found, abort with: "No studio project found with slug '<slug>'."
@@ -40,19 +35,24 @@ Save the project fields: `id`, `name`, `description`, `problem_statement`, `hypo
 
 Query all outbound links from the studio project:
 
-```
-mcp__jfriis__db_query({
-  table: "entity_links",
-  filters: {
-    source_type: "studio_project",
-    source_id: "<project-id>"
-  }
-})
+```bash
+scripts/sb query entity_links "source_type=eq.studio_project&source_id=eq.<project-id>"
 ```
 
 #### 2b. Fetch Linked Entities
 
-For each linked target, fetch the full entity. Use `mcp__jfriis__db_get` with the target_id and the appropriate table:
+For each linked target, fetch the full entity:
+
+```bash
+# Fetch each linked entity by ID — run these in parallel
+scripts/sb get business_model_canvases <bmc-id>
+scripts/sb get customer_profiles <profile-id>
+scripts/sb get value_proposition_canvases <vpc-id>
+scripts/sb get assumptions <assumption-id>
+scripts/sb get user_journeys <journey-id>
+scripts/sb get service_blueprints <blueprint-id>
+scripts/sb get story_maps <story-map-id>
+```
 
 | target_type | table |
 |---|---|
@@ -68,16 +68,10 @@ Collect all data for use in gap analysis.
 
 #### 2c. Get Existing Hypotheses and Experiments
 
-```
-mcp__jfriis__db_query({
-  table: "studio_hypotheses",
-  filters: { project_id: "<project-id>" }
-})
-
-mcp__jfriis__db_query({
-  table: "studio_experiments",
-  filters: { project_id: "<project-id>" }
-})
+```bash
+# Run in parallel
+scripts/sb query studio_hypotheses "project_id=eq.<project-id>"
+scripts/sb query studio_experiments "project_id=eq.<project-id>"
 ```
 
 ### Step 3: Check for Boundary Objects
@@ -102,23 +96,20 @@ Present the gap analysis to the user before generating.
 
 ### Step 5: Generate Hypotheses
 
-For each identified gap, propose a hypothesis. **Present each for user review before creating via MCP.**
+For each identified gap, propose a hypothesis. **Present each for user review before creating.**
 
 Determine the next available sequence number from existing hypotheses.
 
 For each approved hypothesis:
 
-```
-mcp__jfriis__db_create({
-  table: "studio_hypotheses",
-  data: {
-    project_id: "<project-id>",
-    statement: "We believe that [action/change] will [result/outcome] for [audience] because [rationale]",
-    validation_criteria: "<Specific, measurable criteria>",
-    status: "proposed",
-    sequence: <next-sequence>
-  }
-})
+```bash
+scripts/sb create studio_hypotheses '{
+  "project_id": "<project-id>",
+  "statement": "We believe that [action/change] will [result/outcome] for [audience] because [rationale]",
+  "validation_criteria": "<Specific, measurable criteria>",
+  "status": "proposed",
+  "sequence": <next-sequence>
+}'
 ```
 
 ### Step 6: Generate Experiments
@@ -134,20 +125,17 @@ For each hypothesis (newly created + existing unvalidated ones), propose experim
 
 For each approved experiment:
 
-```
-mcp__jfriis__db_create({
-  table: "studio_experiments",
-  data: {
-    project_id: "<project-id>",
-    hypothesis_id: "<hypothesis-id>",
-    name: "<Descriptive experiment name>",
-    slug: "<kebab-case-slug>",
-    description: "<What we're testing and how, grounded in specific boundary object findings>",
-    type: "<spike|experiment|prototype|interview|smoke_test>",
-    status: "planned",
-    expected_outcome: "<What we expect to learn>"
-  }
-})
+```bash
+scripts/sb create studio_experiments '{
+  "project_id": "<project-id>",
+  "hypothesis_id": "<hypothesis-id>",
+  "name": "<Descriptive experiment name>",
+  "slug": "<kebab-case-slug>",
+  "description": "<What we are testing and how, grounded in specific boundary object findings>",
+  "type": "<spike|experiment|prototype|interview|smoke_test>",
+  "status": "planned",
+  "expected_outcome": "<What we expect to learn>"
+}'
 ```
 
 ### Step 7: Propose Asset Scaffolding
@@ -192,9 +180,9 @@ Present a summary table:
 
 ## Error Handling
 
-### MCP Tool Failures
+### API Failures
 
-If any `mcp__jfriis__db_*` call fails:
+If any `scripts/sb` call fails:
 
 1. **Report the error**: Show the exact error message and which step failed
 2. **Don't continue blindly**: If a hypothesis creation fails, skip creating its linked experiments
@@ -222,8 +210,8 @@ After completion, always present a clear summary showing:
 ## Important Notes
 
 - **Context is king**: The whole point of this skill is that experiments are grounded in boundary objects. Reference specific findings (e.g., "tests the assumption that <specific belief>" not "tests user engagement").
-- **Present before creating**: Always show proposed hypotheses/experiments for user approval before MCP create calls.
-- **Use MCP tools**: All database operations go through `mcp__jfriis__db_*` tools.
+- **Present before creating**: Always show proposed hypotheses/experiments for user approval before creating.
+- **Use scripts/sb**: All database operations go through `scripts/sb` commands via the Bash tool.
 - **Experiment types matter**: Match experiment type to risk category as specified in the table above.
 - **Idempotent**: Check for existing experiments with similar names/slugs before creating duplicates.
 - **Sequence matters**: Hypotheses have a `sequence` field. Always calculate the next available number.

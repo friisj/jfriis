@@ -30,12 +30,12 @@ If the input is ambiguous, ask clarifying questions before proceeding.
 
 Before creating anything, check for both existing projects and captured ideas:
 
-1. **Query `studio_projects`** via MCP for matching slug or similar name:
-   ```
-   mcp__supabase__db_query({ table: "studio_projects" })
+1. **Query `studio_projects`** for matching slug or similar name:
+   ```bash
+   scripts/sb query studio_projects "select=id,slug,name,status,description"
    ```
 2. **Check the filesystem** for existing docs:
-   ```
+   ```bash
    ls docs/studio/
    ```
 3. If a matching project exists:
@@ -44,11 +44,8 @@ Before creating anything, check for both existing projects and captured ideas:
    - If resuming, skip to Step 4 (scaffold only what's missing)
 
 4. **Query `log_entries`** for matching ideas:
-   ```
-   mcp__supabase__db_query({
-     table: "log_entries",
-     filters: { type: "idea" }
-   })
+   ```bash
+   scripts/sb query log_entries "type=eq.idea&select=id,title,slug,idea_stage,entry_date,tags"
    ```
    Search results for title/content similarity to the input. Consider ideas with `idea_stage` in ('captured', 'exploring', 'validated') — not already graduated or parked.
 
@@ -60,23 +57,20 @@ Before creating anything, check for both existing projects and captured ideas:
 
 ### Step 2: Create Database Record
 
-Create the `studio_projects` record via MCP:
+Create the `studio_projects` record:
 
-```
-mcp__supabase__db_create({
-  table: "studio_projects",
-  data: {
-    slug: "<derived-slug>",
-    name: "<derived-name>",
-    description: "<description>",
-    status: "draft",
-    temperature: "warm",
-    problem_statement: "<problem_statement>",
-    hypothesis: "<hypothesis>",
-    current_focus: "Initial setup and exploration",
-    app_path: null
-  }
-})
+```bash
+scripts/sb create studio_projects '{
+  "slug": "<derived-slug>",
+  "name": "<derived-name>",
+  "description": "<description>",
+  "status": "draft",
+  "temperature": "warm",
+  "problem_statement": "<problem_statement>",
+  "hypothesis": "<hypothesis>",
+  "current_focus": "Initial setup and exploration",
+  "app_path": null
+}'
 ```
 
 > **Note:** Set `app_path` to the URL path of the prototype app (e.g., `/apps/{slug}`) once an app route is created. Leave `null` during initial setup.
@@ -94,79 +88,63 @@ Every studio project should have traceable lineage back to an idea. There are tw
 **Path A — Graduating an existing idea** (if user chose to link in Step 1):
 
 1. Create an `evolved_from` entity link:
-   ```
-   mcp__supabase__db_create({
-     table: "entity_links",
-     data: {
-       source_type: "studio_project",
-       source_id: "<project-id>",
-       target_type: "log_entry",
-       target_id: "<source-idea-id>",
-       link_type: "evolved_from",
-       metadata: {}
-     }
-   })
+   ```bash
+   scripts/sb create entity_links '{
+     "source_type": "studio_project",
+     "source_id": "<project-id>",
+     "target_type": "log_entry",
+     "target_id": "<source-idea-id>",
+     "link_type": "evolved_from",
+     "metadata": {}
+   }'
    ```
 
 2. Update the idea's stage to `graduated`:
-   ```
-   mcp__supabase__db_update({
-     table: "log_entries",
-     id: "<source-idea-id>",
-     data: { idea_stage: "graduated" }
-   })
+   ```bash
+   scripts/sb update log_entries <source-idea-id> '{"idea_stage": "graduated"}'
    ```
 
 **Path B — Creating a genesis idea** (no existing idea matched):
 
 1. Create a log entry as the origin record:
-   ```
-   mcp__supabase__db_create({
-     table: "log_entries",
-     data: {
-       title: "<name>",
-       slug: "<slug>-genesis",
-       content: { markdown: "Genesis idea for studio project: <name>.\n\n<problem_statement>" },
-       entry_date: "<today's date YYYY-MM-DD>",
-       type: "idea",
-       idea_stage: "graduated",
-       published: false,
-       is_private: true,
-       tags: ["studio", "genesis"]
-     }
-   })
+   ```bash
+   scripts/sb create log_entries '{
+     "title": "<name>",
+     "slug": "<slug>-genesis",
+     "content": {"markdown": "Genesis idea for studio project: <name>.\n\n<problem_statement>"},
+     "entry_date": "<today YYYY-MM-DD>",
+     "type": "idea",
+     "idea_stage": "graduated",
+     "published": false,
+     "is_private": true,
+     "tags": ["studio", "genesis"]
+   }'
    ```
 
 2. Create an `evolved_from` entity link:
-   ```
-   mcp__supabase__db_create({
-     table: "entity_links",
-     data: {
-       source_type: "studio_project",
-       source_id: "<project-id>",
-       target_type: "log_entry",
-       target_id: "<genesis-idea-id>",
-       link_type: "evolved_from",
-       metadata: {}
-     }
-   })
+   ```bash
+   scripts/sb create entity_links '{
+     "source_type": "studio_project",
+     "source_id": "<project-id>",
+     "target_type": "log_entry",
+     "target_id": "<genesis-idea-id>",
+     "link_type": "evolved_from",
+     "metadata": {}
+   }'
    ```
 
 ### Step 3: Create Initial Hypothesis
 
 Create at least one hypothesis record:
 
-```
-mcp__supabase__db_create({
-  table: "studio_hypotheses",
-  data: {
-    project_id: "<project-id>",
-    statement: "<core hypothesis statement>",
-    validation_criteria: "<how we'll know if this is true>",
-    sequence: 1,
-    status: "proposed"
-  }
-})
+```bash
+scripts/sb create studio_hypotheses '{
+  "project_id": "<project-id>",
+  "statement": "<core hypothesis statement>",
+  "validation_criteria": "<how we will know if this is true>",
+  "sequence": 1,
+  "status": "proposed"
+}'
 ```
 
 ### Step 4: Scaffold Documentation
@@ -320,19 +298,16 @@ export default function <PascalCaseName>Prototype() {
 
 Create a `studio_experiments` record for the initial prototype:
 
-```
-mcp__supabase__db_create({
-  table: "studio_experiments",
-  data: {
-    project_id: "<project-id>",
-    hypothesis_id: "<hypothesis-id>",
-    slug: "<slug>-prototype",
-    name: "<Name> Prototype",
-    description: "Initial prototype exploring core concept",
-    type: "prototype",
-    status: "planned"
-  }
-})
+```bash
+scripts/sb create studio_experiments '{
+  "project_id": "<project-id>",
+  "hypothesis_id": "<hypothesis-id>",
+  "slug": "<slug>-prototype",
+  "name": "<Name> Prototype",
+  "description": "Initial prototype exploring core concept",
+  "type": "prototype",
+  "status": "planned"
+}'
 ```
 
 ### Step 7: Update Studio README

@@ -34,14 +34,15 @@ Scan `$ARGUMENTS` for a studio project slug or name:
 
 If a slug or name is found, query for the project:
 
-```
-mcp__jfriis__db_query({
-  table: "studio_projects",
-  filters: { "slug": "<detected-slug>" }
-})
+```bash
+scripts/sb query studio_projects "slug=eq.<detected-slug>"
 ```
 
-If only a name is found and no exact slug match is clear, query without filters and scan names for a match.
+If only a name is found and no exact slug match is clear, query without filters and scan names for a match:
+
+```bash
+scripts/sb query studio_projects "select=id,slug,name,description,problem_statement,current_focus,hypothesis"
+```
 
 Save: `id`, `name`, `description`, `problem_statement`, `current_focus`, `hypothesis`.
 
@@ -79,20 +80,17 @@ Draft a title: concise, specific, not click-bait. Under 80 characters. Avoid "Th
 
 ### Step 4: Create the Log Entry
 
-```
-mcp__jfriis__db_create({
-  table: "log_entries",
-  data: {
-    title: "<drafted title>",
-    slug: "<kebab-case-title>",
-    content: { "markdown": "<full drafted prose>" },
-    entry_date: "<today YYYY-MM-DD>",
-    type: "research",
-    published: false,
-    is_private: true,
-    tags: ["studio", "<angle>", "<project-slug if applicable>"]
-  }
-})
+```bash
+scripts/sb create log_entries '{
+  "title": "<drafted title>",
+  "slug": "<kebab-case-title>",
+  "content": {"markdown": "<full drafted prose>"},
+  "entry_date": "<today YYYY-MM-DD>",
+  "type": "research",
+  "published": false,
+  "is_private": true,
+  "tags": ["studio", "<angle>", "<project-slug if applicable>"]
+}'
 ```
 
 Save the returned entry `id`.
@@ -103,37 +101,31 @@ Save the returned entry `id`.
 
 Record this as a tracked first draft in `log_entry_drafts`:
 
-```
-mcp__jfriis__db_create({
-  table: "log_entry_drafts",
-  data: {
-    log_entry_id: "<entry-id>",
-    content: "<full drafted prose>",
-    is_primary: true,
-    label: "initial-draft",
-    generation_instructions: "<first 500 chars of raw user input>",
-    generation_model: "claude-sonnet-4-6",
-    generation_mode: "rewrite"
-  }
-})
+```bash
+scripts/sb create log_entry_drafts '{
+  "log_entry_id": "<entry-id>",
+  "content": "<full drafted prose>",
+  "is_primary": true,
+  "label": "initial-draft",
+  "generation_instructions": "<first 500 chars of raw user input>",
+  "generation_model": "claude-sonnet-4-6",
+  "generation_mode": "rewrite"
+}'
 ```
 
 ### Step 6: Link to Studio Project
 
 If a project was identified in Step 1, create an entity link:
 
-```
-mcp__jfriis__db_create({
-  table: "entity_links",
-  data: {
-    source_type: "log_entry",
-    source_id: "<entry-id>",
-    target_type: "studio_project",
-    target_id: "<project-id>",
-    link_type: "related",
-    metadata: {}
-  }
-})
+```bash
+scripts/sb create entity_links '{
+  "source_type": "log_entry",
+  "source_id": "<entry-id>",
+  "target_type": "studio_project",
+  "target_id": "<project-id>",
+  "link_type": "related",
+  "metadata": {}
+}'
 ```
 
 ### Step 7: Confirmation
@@ -163,4 +155,4 @@ Edit: /admin/log/<id>/edit
 - **Angle is texture, not taxonomy.** The angle (design / engineering / user-insight / philosophy / commentary) should be visible in how the entry is argued and structured, not just reflected in tags.
 - **Subheadings only when earned.** If the entry is a single sustained argument, don't break it into sections. Only use `##` subheadings if the material genuinely has distinct components.
 - **Don't conflate with idea-capture.** If the user's input is a quick capture of a not-yet-formed thought, suggest `/idea-capture` instead. Studio log is for material with enough substance to draft against.
-- **If MCP is unavailable**, output the full drafted prose to the user with a note, then provide the SQL INSERT statement for manual entry.
+- **If scripts/sb is unavailable**, output the full drafted prose to the user with a note, then provide the SQL INSERT statement for manual entry.

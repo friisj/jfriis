@@ -122,13 +122,8 @@ Optional: `link_type` (default: 'related'), `strength` (strong|moderate|weak|ten
 
 ### Step 1: Validate Project
 
-Query `studio_projects` via MCP for the given slug:
-
-```
-mcp__jfriis__db_query({
-  table: "studio_projects",
-  filters: { slug: "<slug>" }
-})
+```bash
+scripts/sb query studio_projects "slug=eq.<slug>"
 ```
 
 If not found, abort with: "No studio project found with slug '<slug>'. Check `studio_projects` table."
@@ -139,14 +134,8 @@ Save the project `id`, `name`, `description`, `problem_statement`, `hypothesis`,
 
 Query entity_links for existing outbound links from this project:
 
-```
-mcp__jfriis__db_query({
-  table: "entity_links",
-  filters: {
-    source_type: "studio_project",
-    source_id: "<project-id>"
-  }
-})
+```bash
+scripts/sb query entity_links "source_type=eq.studio_project&source_id=eq.<project-id>"
 ```
 
 Show what's already linked. **Skip types that already have links** to keep this idempotent. Report which types are being skipped and why.
@@ -155,11 +144,8 @@ Show what's already linked. **Skip types that already have links** to keep this 
 
 Also query `studio_hypotheses` for this project:
 
-```
-mcp__jfriis__db_query({
-  table: "studio_hypotheses",
-  filters: { project_id: "<project-id>" }
-})
+```bash
+scripts/sb query studio_hypotheses "project_id=eq.<project-id>"
 ```
 
 Gather all available context: name, description, problem_statement, hypothesis, success_criteria, current_focus, scope_out, plus hypothesis statements.
@@ -168,101 +154,59 @@ Gather all available context: name, description, problem_statement, hypothesis, 
 
 **Skip if** an entity_link to `business_model_canvas` already exists.
 
-Create a `business_model_canvases` record via MCP. Populate ALL 9 blocks with initial items derived from project context:
+Create a `business_model_canvases` record. Populate ALL 9 blocks with initial items derived from project context:
 
-```
-mcp__jfriis__db_create({
-  table: "business_model_canvases",
-  data: {
-    slug: "<project-slug>-business-model",
-    name: "<Project Name> - Business Model",
-    description: "<1-2 sentences grounded in project context>",
-    studio_project_id: "<project-id>",
-    status: "draft",
-    key_partners: {
-      "items": [
-        { "id": "kp-001", "content": "<partner>", "priority": "high", "created_at": "<now>" },
-        ...
-      ],
-      "assumptions": [],
-      "validation_status": "untested"
-    },
-    key_activities: { "items": [...], "assumptions": [], "validation_status": "untested" },
-    key_resources: { "items": [...], "assumptions": [], "validation_status": "untested" },
-    value_propositions: { "items": [...], "assumptions": [], "validation_status": "untested" },
-    customer_segments: { "items": [...], "assumptions": [], "validation_status": "untested" },
-    customer_relationships: { "items": [...], "assumptions": [], "validation_status": "untested" },
-    channels: { "items": [...], "assumptions": [], "validation_status": "untested" },
-    cost_structure: { "items": [...], "assumptions": [], "validation_status": "untested" },
-    revenue_streams: { "items": [...], "assumptions": [], "validation_status": "untested" }
-  }
-})
+```bash
+scripts/sb create business_model_canvases '{
+  "slug": "<project-slug>-business-model",
+  "name": "<Project Name> - Business Model",
+  "description": "<1-2 sentences grounded in project context>",
+  "studio_project_id": "<project-id>",
+  "status": "draft",
+  "key_partners": {"items": [{"id": "kp-001", "content": "<partner>", "priority": "high", "created_at": "<now>"}], "assumptions": [], "validation_status": "untested"},
+  "key_activities": {"items": [...], "assumptions": [], "validation_status": "untested"},
+  "key_resources": {"items": [...], "assumptions": [], "validation_status": "untested"},
+  "value_propositions": {"items": [...], "assumptions": [], "validation_status": "untested"},
+  "customer_segments": {"items": [...], "assumptions": [], "validation_status": "untested"},
+  "customer_relationships": {"items": [...], "assumptions": [], "validation_status": "untested"},
+  "channels": {"items": [...], "assumptions": [], "validation_status": "untested"},
+  "cost_structure": {"items": [...], "assumptions": [], "validation_status": "untested"},
+  "revenue_streams": {"items": [...], "assumptions": [], "validation_status": "untested"}
+}'
 ```
 
 Generate 2-4 items per block, grounded in the project's problem statement and description. Then create the entity_link:
 
-```
-mcp__jfriis__db_create({
-  table: "entity_links",
-  data: {
-    source_type: "studio_project",
-    source_id: "<project-id>",
-    target_type: "business_model_canvas",
-    target_id: "<bmc-id>",
-    link_type: "explores",
-    metadata: {}
-  }
-})
+```bash
+scripts/sb create entity_links '{
+  "source_type": "studio_project",
+  "source_id": "<project-id>",
+  "target_type": "business_model_canvas",
+  "target_id": "<bmc-id>",
+  "link_type": "explores",
+  "metadata": {}
+}'
 ```
 
 ### Step 5: Generate Customer Profile
 
 **Skip if** an entity_link to `customer_profile` already exists.
 
-Create a `customer_profiles` record via MCP. Use the JSONB block format for jobs, pains, and gains:
+Create a `customer_profiles` record. Use the JSONB block format for jobs, pains, and gains:
 
-```
-mcp__jfriis__db_create({
-  table: "customer_profiles",
-  data: {
-    slug: "<project-slug>-primary-customer",
-    name: "<Project Name> - Primary Customer",
-    description: "<2-3 sentences describing the target customer>",
-    studio_project_id: "<project-id>",
-    profile_type: "persona",
-    demographics: {
-      "age_range": "<Age range>",
-      "role": "<Role or occupation>",
-      "tech_level": "<Technical proficiency>",
-      "income": "<Income range>"
-    },
-    jobs: {
-      "items": [
-        { "id": "job-001", "content": "<job-to-be-done>", "metadata": { "type": "functional" }, "priority": "high", "created_at": "<now>" },
-        ...
-      ],
-      "assumptions": [],
-      "validation_status": "untested"
-    },
-    pains: {
-      "items": [
-        { "id": "pain-001", "content": "<pain point>", "priority": "high", "created_at": "<now>" },
-        ...
-      ],
-      "assumptions": [],
-      "validation_status": "untested"
-    },
-    gains: {
-      "items": [
-        { "id": "gain-001", "content": "<desired gain>", "priority": "high", "created_at": "<now>" },
-        ...
-      ],
-      "assumptions": [],
-      "validation_status": "untested"
-    },
-    status: "draft"
-  }
-})
+```bash
+scripts/sb create customer_profiles '{
+  "slug": "<project-slug>-primary-customer",
+  "name": "<Project Name> - Primary Customer",
+  "description": "<2-3 sentences describing the target customer>",
+  "studio_project_id": "<project-id>",
+  "profile_type": "persona",
+  "demographics": {"age_range": "<Age range>", "role": "<Role>", "tech_level": "<level>", "income": "<range>"},
+  "jobs": {"items": [...], "assumptions": [], "validation_status": "untested"},
+  "pains": {"items": [...], "assumptions": [], "validation_status": "untested"},
+  "gains": {"items": [...], "assumptions": [], "validation_status": "untested"},
+  "status": "draft"
+}'
 ```
 
 Generate 3-5 items per block. Link with `explores`.
@@ -273,63 +217,36 @@ Generate 3-5 items per block. Link with `explores`.
 
 The VPC requires a `value_map_id`, so create the value map first:
 
-```
-mcp__jfriis__db_create({
-  table: "value_maps",
-  data: {
-    slug: "<project-slug>-value-map",
-    name: "<Project Name> - Value Map",
-    description: "<1-2 sentences>",
-    studio_project_id: "<project-id>",
-    customer_profile_id: "<profile-id>",
-    business_model_canvas_id: "<bmc-id>",
-    products_services: {
-      "items": [
-        { "id": "ps-001", "content": "<product/service>", "priority": "high", "created_at": "<now>" },
-        ...
-      ],
-      "assumptions": [],
-      "validation_status": "untested"
-    },
-    pain_relievers: {
-      "items": [
-        { "id": "pr-001", "content": "<how we relieve a pain>", "priority": "high", "created_at": "<now>" },
-        ...
-      ],
-      "assumptions": [],
-      "validation_status": "untested"
-    },
-    gain_creators: {
-      "items": [
-        { "id": "gc-001", "content": "<how we create a gain>", "priority": "high", "created_at": "<now>" },
-        ...
-      ],
-      "assumptions": [],
-      "validation_status": "untested"
-    },
-    status: "draft"
-  }
-})
+```bash
+scripts/sb create value_maps '{
+  "slug": "<project-slug>-value-map",
+  "name": "<Project Name> - Value Map",
+  "description": "<1-2 sentences>",
+  "studio_project_id": "<project-id>",
+  "customer_profile_id": "<profile-id>",
+  "business_model_canvas_id": "<bmc-id>",
+  "products_services": {"items": [...], "assumptions": [], "validation_status": "untested"},
+  "pain_relievers": {"items": [...], "assumptions": [], "validation_status": "untested"},
+  "gain_creators": {"items": [...], "assumptions": [], "validation_status": "untested"},
+  "status": "draft"
+}'
 ```
 
 Then create the VPC linked to the value map:
 
-```
-mcp__jfriis__db_create({
-  table: "value_proposition_canvases",
-  data: {
-    slug: "<project-slug>-value-proposition",
-    name: "<Project Name> - Value Proposition",
-    description: "<Value prop description>",
-    studio_project_id: "<project-id>",
-    customer_profile_id: "<profile-id>",
-    value_map_id: "<value-map-id>",
-    addressed_jobs: { "items": ["<job-001 content>", "<job-002 content>"] },
-    addressed_pains: { "items": ["<pain-001 content>", "<pain-002 content>"] },
-    addressed_gains: { "items": ["<gain-001 content>", "<gain-002 content>"] },
-    status: "draft"
-  }
-})
+```bash
+scripts/sb create value_proposition_canvases '{
+  "slug": "<project-slug>-value-proposition",
+  "name": "<Project Name> - Value Proposition",
+  "description": "<Value prop description>",
+  "studio_project_id": "<project-id>",
+  "customer_profile_id": "<profile-id>",
+  "value_map_id": "<value-map-id>",
+  "addressed_jobs": {"items": ["<job content>", "<job content>"]},
+  "addressed_pains": {"items": ["<pain content>", "<pain content>"]},
+  "addressed_gains": {"items": ["<gain content>", "<gain content>"]},
+  "status": "draft"
+}'
 ```
 
 Link the VPC with `explores`.
@@ -338,24 +255,33 @@ Link the VPC with `explores`.
 
 **Skip if** entity_links to `assumption` already exist (3+ links).
 
-Create 3-5 `assumptions` records via MCP. Distribute across risk categories (desirability, viability, feasibility, usability):
+Create 3-5 `assumptions` records. Distribute across risk categories (desirability, viability, feasibility, usability). **Bulk insert as an array:**
 
-```
-mcp__jfriis__db_create({
-  table: "assumptions",
-  data: {
-    slug: "<project-slug>-<short-name>",
-    statement: "We assume that <specific belief>",
-    status: "identified",
-    importance: "critical|high|medium|low",
-    category: "desirability|viability|feasibility|usability",
-    studio_project_id: "<project-id>",
-    notes: "<Why this matters and what happens if wrong>"
-  }
-})
+```bash
+scripts/sb create assumptions '[
+  {
+    "slug": "<project-slug>-<short-name>",
+    "statement": "We assume that <specific belief>",
+    "status": "identified",
+    "importance": "critical",
+    "category": "desirability",
+    "studio_project_id": "<project-id>",
+    "notes": "<Why this matters>"
+  },
+  { ... },
+  { ... }
+]'
 ```
 
-Link each with `tests`.
+Then bulk-create entity_links for all assumptions:
+
+```bash
+scripts/sb create entity_links '[
+  {"source_type": "studio_project", "source_id": "<project-id>", "target_type": "assumption", "target_id": "<id-1>", "link_type": "tests", "metadata": {}},
+  {"source_type": "studio_project", "source_id": "<project-id>", "target_type": "assumption", "target_id": "<id-2>", "link_type": "tests", "metadata": {}},
+  ...
+]'
+```
 
 ### Step 8: Generate User Journey + Stages + Touchpoints
 
@@ -365,76 +291,55 @@ Create the full journey cascade — journey record, stages, and touchpoints:
 
 **8a. Create the journey:**
 
-```
-mcp__jfriis__db_create({
-  table: "user_journeys",
-  data: {
-    slug: "<project-slug>-core-journey",
-    name: "<Project Name> - Core Journey",
-    description: "<Journey description grounded in project context>",
-    studio_project_id: "<project-id>",
-    customer_profile_id: "<profile-id>",
-    journey_type: "end_to_end",
-    goal: "<What success looks like for this journey>",
-    status: "draft"
-  }
-})
+```bash
+scripts/sb create user_journeys '{
+  "slug": "<project-slug>-core-journey",
+  "name": "<Project Name> - Core Journey",
+  "description": "<Journey description grounded in project context>",
+  "studio_project_id": "<project-id>",
+  "customer_profile_id": "<profile-id>",
+  "journey_type": "end_to_end",
+  "goal": "<What success looks like for this journey>",
+  "status": "draft"
+}'
 ```
 
-**8b. Create 4-5 journey stages** distributed across stage types:
+**8b. Bulk-create 4-5 journey stages:**
 
-```
-mcp__jfriis__db_create({
-  table: "journey_stages",
-  data: {
-    user_journey_id: "<journey-id>",
-    name: "<Stage Name>",
-    description: "<What happens at this stage>",
-    sequence: 1,
-    stage_type: "pre_purchase|purchase|post_purchase|ongoing",
-    customer_emotion: "<How the customer feels>",
-    customer_mindset: "<What the customer is thinking>",
-    customer_goal: "<What they want to achieve>",
-    drop_off_risk: "low|medium|high"
-  }
-})
+```bash
+scripts/sb create journey_stages '[
+  {"user_journey_id": "<journey-id>", "name": "Discovery", "description": "...", "sequence": 1, "stage_type": "pre_purchase", "customer_emotion": "...", "customer_mindset": "...", "customer_goal": "...", "drop_off_risk": "medium"},
+  {"user_journey_id": "<journey-id>", "name": "Evaluation", "description": "...", "sequence": 2, "stage_type": "pre_purchase", ...},
+  {"user_journey_id": "<journey-id>", "name": "Commitment", "description": "...", "sequence": 3, "stage_type": "purchase", ...},
+  {"user_journey_id": "<journey-id>", "name": "Onboarding", "description": "...", "sequence": 4, "stage_type": "post_purchase", ...},
+  {"user_journey_id": "<journey-id>", "name": "Ongoing Usage", "description": "...", "sequence": 5, "stage_type": "ongoing", ...}
+]'
 ```
 
-Create stages for: Awareness/Discovery (pre_purchase), Evaluation (pre_purchase), Commitment/Action (purchase), First Use/Onboarding (post_purchase), and Ongoing Usage (ongoing). Adapt names to match the project domain.
+Adapt stage names to match the project domain.
 
-**8c. Create 2-3 touchpoints per stage:**
+**8c. Bulk-create touchpoints per stage (2-3 per stage):**
 
-```
-mcp__jfriis__db_create({
-  table: "touchpoints",
-  data: {
-    journey_stage_id: "<stage-id>",
-    name: "<Touchpoint Name>",
-    description: "<What happens at this touchpoint>",
-    sequence: 1,
-    channel_type: "web|mobile_app|phone|email|in_person|chat|social|physical_location|mail|other",
-    interaction_type: "browse|search|read|watch|listen|form|transaction|conversation|notification|passive",
-    importance: "critical|high|medium|low",
-    pain_level: "none|minor|moderate|major|critical",
-    delight_potential: "low|medium|high"
-  }
-})
+```bash
+scripts/sb create touchpoints '[
+  {"journey_stage_id": "<stage-1-id>", "name": "...", "sequence": 1, "channel_type": "web", "interaction_type": "browse", "importance": "high", "pain_level": "minor", "delight_potential": "medium"},
+  {"journey_stage_id": "<stage-1-id>", "name": "...", "sequence": 2, ...},
+  {"journey_stage_id": "<stage-2-id>", "name": "...", "sequence": 1, ...},
+  ...
+]'
 ```
 
 **8d. Create entity_link:**
 
-```
-mcp__jfriis__db_create({
-  table: "entity_links",
-  data: {
-    source_type: "studio_project",
-    source_id: "<project-id>",
-    target_type: "user_journey",
-    target_id: "<journey-id>",
-    link_type: "explores",
-    metadata: {}
-  }
-})
+```bash
+scripts/sb create entity_links '{
+  "source_type": "studio_project",
+  "source_id": "<project-id>",
+  "target_type": "user_journey",
+  "target_id": "<journey-id>",
+  "link_type": "explores",
+  "metadata": {}
+}'
 ```
 
 ### Step 9: Generate Service Blueprint + Steps
@@ -445,73 +350,36 @@ The service blueprint mirrors the journey stages, mapping what happens behind th
 
 **9a. Create the blueprint:**
 
-```
-mcp__jfriis__db_create({
-  table: "service_blueprints",
-  data: {
-    slug: "<project-slug>-service-blueprint",
-    name: "<Project Name> - Service Blueprint",
-    description: "<How the service is delivered>",
-    studio_project_id: "<project-id>",
-    blueprint_type: "service|product|hybrid|digital|physical",
-    status: "draft"
-  }
-})
+```bash
+scripts/sb create service_blueprints '{
+  "slug": "<project-slug>-service-blueprint",
+  "name": "<Project Name> - Service Blueprint",
+  "description": "<How the service is delivered>",
+  "studio_project_id": "<project-id>",
+  "blueprint_type": "digital",
+  "status": "draft"
+}'
 ```
 
-**9b. Create one blueprint_step per journey stage** (mirror the stage names):
+**9b. Bulk-create blueprint_steps (one per journey stage):**
 
-```
-mcp__jfriis__db_create({
-  table: "blueprint_steps",
-  data: {
-    service_blueprint_id: "<blueprint-id>",
-    name: "<Matching Stage Name>",
-    description: "<Step description>",
-    sequence: 1,
-    layers: {
-      "customer_action": "<What the customer does>",
-      "frontstage": "<Visible service interactions>",
-      "backstage": "<Behind-the-scenes processes>",
-      "support_process": "<Technical/infrastructure support>"
-    },
-    cost_implication: "none|low|medium|high",
-    customer_value_delivery: "none|low|medium|high",
-    failure_risk: "low|medium|high|critical"
-  }
-})
+```bash
+scripts/sb create blueprint_steps '[
+  {"service_blueprint_id": "<blueprint-id>", "name": "Discovery", "description": "...", "sequence": 1, "layers": {"customer_action": "...", "frontstage": "...", "backstage": "...", "support_process": "..."}, "cost_implication": "low", "customer_value_delivery": "medium", "failure_risk": "low"},
+  {"service_blueprint_id": "<blueprint-id>", "name": "Evaluation", ...},
+  ...
+]'
 ```
 
 Populate all 4 layer keys with project-specific content derived from the journey stages and project context.
 
 **9c. Create entity_links:**
 
-```
-// studio_project → service_blueprint
-mcp__jfriis__db_create({
-  table: "entity_links",
-  data: {
-    source_type: "studio_project",
-    source_id: "<project-id>",
-    target_type: "service_blueprint",
-    target_id: "<blueprint-id>",
-    link_type: "prototypes",
-    metadata: {}
-  }
-})
-
-// service_blueprint → user_journey
-mcp__jfriis__db_create({
-  table: "entity_links",
-  data: {
-    source_type: "service_blueprint",
-    source_id: "<blueprint-id>",
-    target_type: "user_journey",
-    target_id: "<journey-id>",
-    link_type: "implements",
-    metadata: {}
-  }
-})
+```bash
+scripts/sb create entity_links '[
+  {"source_type": "studio_project", "source_id": "<project-id>", "target_type": "service_blueprint", "target_id": "<blueprint-id>", "link_type": "prototypes", "metadata": {}},
+  {"source_type": "service_blueprint", "source_id": "<blueprint-id>", "target_type": "user_journey", "target_id": "<journey-id>", "link_type": "implements", "metadata": {}}
+]'
 ```
 
 ### Step 10: Generate Story Map + Activities + Stories
@@ -522,94 +390,48 @@ The story map translates the journey into development work.
 
 **10a. Create the story map:**
 
-```
-mcp__jfriis__db_create({
-  table: "story_maps",
-  data: {
-    slug: "<project-slug>-story-map",
-    name: "<Project Name> - Story Map",
-    description: "<Dev planning for the project>",
-    studio_project_id: "<project-id>",
-    map_type: "feature",
-    status: "draft"
-  }
-})
+```bash
+scripts/sb create story_maps '{
+  "slug": "<project-slug>-story-map",
+  "name": "<Project Name> - Story Map",
+  "description": "<Dev planning for the project>",
+  "studio_project_id": "<project-id>",
+  "map_type": "feature",
+  "status": "draft"
+}'
 ```
 
-**10b. Create one activity per journey stage** (backbone mirrors stage names):
+**10b. Bulk-create activities (one per journey stage):**
 
-```
-mcp__jfriis__db_create({
-  table: "activities",
-  data: {
-    story_map_id: "<story-map-id>",
-    name: "<Matching Stage Name>",
-    description: "<What this activity covers>",
-    sequence: 1,
-    user_goal: "<User's goal at this stage>"
-  }
-})
+```bash
+scripts/sb create activities '[
+  {"story_map_id": "<story-map-id>", "name": "Discovery", "description": "...", "sequence": 1, "user_goal": "..."},
+  {"story_map_id": "<story-map-id>", "name": "Evaluation", "description": "...", "sequence": 2, "user_goal": "..."},
+  ...
+]'
 ```
 
-**10c. Create 2-3 user stories per activity:**
+**10c. Bulk-create user stories (2-3 per activity):**
 
-```
-mcp__jfriis__db_create({
-  table: "user_stories",
-  data: {
-    activity_id: "<activity-id>",
-    title: "As a <persona>, I want to <action> so that <benefit>",
-    description: "<More detail about the story>",
-    story_type: "feature|enhancement|spike",
-    priority: "critical|high|medium|low",
-    status: "backlog"
-  }
-})
+```bash
+scripts/sb create user_stories '[
+  {"activity_id": "<activity-1-id>", "title": "As a <persona>, I want to <action> so that <benefit>", "description": "...", "story_type": "feature", "priority": "high", "status": "backlog"},
+  {"activity_id": "<activity-1-id>", "title": "As a ...", ...},
+  {"activity_id": "<activity-2-id>", "title": "As a ...", ...},
+  ...
+]'
 ```
 
 Use the user story format: "As a [persona], I want to [action] so that [benefit]". Ground stories in the customer profile and journey touchpoints.
 
 **10d. Create entity_links:**
 
-```
-// studio_project → story_map
-mcp__jfriis__db_create({
-  table: "entity_links",
-  data: {
-    source_type: "studio_project",
-    source_id: "<project-id>",
-    target_type: "story_map",
-    target_id: "<story-map-id>",
-    link_type: "informs",
-    metadata: {}
-  }
-})
-
-// story_map → user_journey
-mcp__jfriis__db_create({
-  table: "entity_links",
-  data: {
-    source_type: "story_map",
-    source_id: "<story-map-id>",
-    target_type: "user_journey",
-    target_id: "<journey-id>",
-    link_type: "implements",
-    metadata: {}
-  }
-})
-
-// story_map → service_blueprint
-mcp__jfriis__db_create({
-  table: "entity_links",
-  data: {
-    source_type: "story_map",
-    source_id: "<story-map-id>",
-    target_type: "service_blueprint",
-    target_id: "<blueprint-id>",
-    link_type: "implements",
-    metadata: {}
-  }
-})
+```bash
+scripts/sb create entity_links '[
+  {"source_type": "studio_project", "source_id": "<project-id>", "target_type": "story_map", "target_id": "<story-map-id>", "link_type": "informs", "metadata": {}},
+  {"source_type": "story_map", "source_id": "<story-map-id>", "target_type": "user_journey", "target_id": "<journey-id>", "link_type": "implements", "metadata": {}},
+  {"source_type": "story_map", "source_id": "<story-map-id>", "target_type": "service_blueprint", "target_id": "<blueprint-id>", "link_type": "implements", "metadata": {}}
+]'
 ```
 
 ### Step 11: Summary
@@ -647,9 +469,9 @@ Journey → Blueprint → Story Map (all cross-linked via entity_links)
 
 ## Error Handling
 
-### MCP Tool Failures
+### API Failures
 
-If any `mcp__jfriis__db_*` call fails:
+If any `scripts/sb` call fails:
 
 1. **Report the error**: Show the exact error message and which step failed
 2. **Don't continue blindly**: If a dependency fails (e.g., BMC creation fails), skip steps that depend on it (e.g., don't create entity_link for BMC)
@@ -671,7 +493,8 @@ After completion, always present a clear summary showing:
 ## Important Notes
 
 - **Idempotent**: Always check existing links before creating. Never duplicate boundary objects.
-- **Use MCP tools**: All database operations go through `mcp__jfriis__db_*` tools.
+- **Use scripts/sb**: All database operations go through `scripts/sb` commands via the Bash tool.
+- **Bulk inserts**: Use array JSON for journey_stages, touchpoints, blueprint_steps, activities, user_stories, assumptions, and entity_links. This is one of the key wins — a single POST instead of N sequential calls.
 - **Draft status**: All generated objects start as `draft` — they need human review.
 - **JSONB block format**: All canvas block columns MUST use `{ items: [...], assumptions: [], validation_status: "untested" }` format. Plain arrays will not render in the admin UI.
 - **Context-grounded**: Every generated object should be grounded in the project's actual problem_statement, hypothesis, and description. Don't generate generic content.

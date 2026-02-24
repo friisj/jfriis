@@ -154,22 +154,45 @@ Table namespacing:
 - Don't wrap migrations in BEGIN/COMMIT — Supabase's `db push` handles transactions automatically
 - Create rollback migrations when appropriate
 
+## Database Helper (`scripts/sb`)
+
+`scripts/sb` is a shell wrapper around the Supabase PostgREST API. Prefer it over MCP tools in skills and automation — it's faster, supports bulk inserts, and can be parallelized via Bash tool.
+
+```bash
+scripts/sb tables                                    # List public tables
+scripts/sb query <table> [postgrest-query-string]    # Query rows
+scripts/sb get <table> <id>                          # Get single row by UUID
+scripts/sb create <table> '<json>'                   # Insert — supports array for bulk
+scripts/sb update <table> <id> '<json>'              # Patch row by UUID
+scripts/sb delete <table> <id>                       # Delete row by UUID
+```
+
+### PostgREST Query Syntax
+
+Filters use `column=operator.value` syntax, chained with `&`:
+
+```bash
+# Filter by equality
+scripts/sb query studio_projects "slug=eq.ludo&select=id,name,slug"
+
+# Filter by inequality (not archived)
+scripts/sb query studio_projects "status=neq.archived&order=updated_at.desc"
+
+# Filter by foreign key + select specific columns
+scripts/sb query entity_links "source_type=eq.studio_project&source_id=eq.<uuid>&select=*"
+
+# Multiple filters
+scripts/sb query log_entries "studio_project_id=eq.<uuid>&select=id,title,slug,entry_date,published,type&order=entry_date.desc&limit=10"
+
+# Bulk insert (array)
+scripts/sb create journey_stages '[{"user_journey_id":"<id>","name":"Discovery","sequence":1}, ...]'
+```
+
+Common operators: `eq`, `neq`, `gt`, `lt`, `gte`, `lte`, `like`, `ilike`, `in`, `is`. Full reference: [PostgREST docs](https://postgrest.org/en/stable/references/api/tables_views.html).
+
 ## MCP Server (jfriis-mcp)
 
-The project has a custom MCP server providing Supabase database tools. Tools are defined in `lib/mcp/tools-core.ts` and exposed via `mcp/src/index.ts`.
-
-### Available MCP Tools
-
-| Tool | Description |
-|------|-------------|
-| `mcp__jfriis__db_list_tables` | List all database tables |
-| `mcp__jfriis__db_query` | Query with filters, sorting, pagination |
-| `mcp__jfriis__db_get` | Get single record by ID |
-| `mcp__jfriis__db_create` | Insert a new record |
-| `mcp__jfriis__db_update` | Update a record by ID |
-| `mcp__jfriis__db_delete` | Delete a record by ID |
-
-Use these tools for database operations instead of raw SQL when possible. See `lib/mcp/tools-core.ts` for the authoritative tool definitions.
+The project also has a custom MCP server providing Supabase database tools. Tools are defined in `lib/mcp/tools-core.ts` and exposed via `mcp/src/index.ts`. MCP tools (`mcp__jfriis__db_*`) are available as a fallback but `scripts/sb` is preferred for skill authoring.
 
 ## Pre-commit Hook
 

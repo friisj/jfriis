@@ -32,11 +32,8 @@ If the input is ambiguous or missing, ask for clarification before proceeding.
 
 Query `studio_projects` to confirm the project exists:
 
-```
-mcp__jfriis__db_query({
-  table: "studio_projects",
-  filters: [{ field: "slug", operator: "eq", value: "<project-slug>" }]
-})
+```bash
+scripts/sb query studio_projects "slug=eq.<project-slug>"
 ```
 
 - If not found: Stop and tell the user. Suggest running `/studio-project-setup` first.
@@ -46,14 +43,8 @@ mcp__jfriis__db_query({
 
 Query `studio_experiments` for a matching slug under this project:
 
-```
-mcp__jfriis__db_query({
-  table: "studio_experiments",
-  filters: [
-    { field: "project_id", operator: "eq", value: "<project-id>" },
-    { field: "slug", operator: "eq", value: "<experiment-slug>" }
-  ]
-})
+```bash
+scripts/sb query studio_experiments "project_id=eq.<project-id>&slug=eq.<experiment-slug>"
 ```
 
 - If found: Use the existing experiment. Proceed to create the spike asset linked to it.
@@ -61,51 +52,42 @@ mcp__jfriis__db_query({
 
 ### Step 3a: Create Experiment (if needed)
 
-```
-mcp__jfriis__db_create({
-  table: "studio_experiments",
-  data: {
-    project_id: "<project-id>",
-    slug: "<experiment-slug>",
-    name: "<experiment-name>",
-    description: "Spike experiment for <project-name>",
-    type: "spike",
-    status: "planned"
-  }
-})
+```bash
+scripts/sb create studio_experiments '{
+  "project_id": "<project-id>",
+  "slug": "<experiment-slug>",
+  "name": "<experiment-name>",
+  "description": "Spike experiment for <project-name>",
+  "type": "spike",
+  "status": "planned"
+}'
 ```
 
 ### Step 3b: Create Spike Asset Record
 
-```
-mcp__jfriis__db_create({
-  table: "studio_asset_spikes",
-  data: {
-    project_id: "<project-id>",
-    slug: "<experiment-slug>",
-    name: "<experiment-name>",
-    description: "Spike component for <project-name>",
-    component_key: "<project-slug>/<experiment-slug>"
-  }
-})
+```bash
+scripts/sb create studio_asset_spikes '{
+  "project_id": "<project-id>",
+  "slug": "<experiment-slug>",
+  "name": "<experiment-name>",
+  "description": "Spike component for <project-name>",
+  "component_key": "<project-slug>/<experiment-slug>"
+}'
 ```
 
 ### Step 3c: Create Entity Link
 
 Link the experiment to the spike asset:
 
-```
-mcp__jfriis__db_create({
-  table: "entity_links",
-  data: {
-    source_type: "experiment",
-    source_id: "<experiment-id>",
-    target_type: "asset_spike",
-    target_id: "<spike-id>",
-    link_type: "contains",
-    metadata: {}
-  }
-})
+```bash
+scripts/sb create entity_links '{
+  "source_type": "experiment",
+  "source_id": "<experiment-id>",
+  "target_type": "asset_spike",
+  "target_id": "<spike-id>",
+  "link_type": "contains",
+  "metadata": {}
+}'
 ```
 
 ### Step 4: Create Component File

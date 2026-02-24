@@ -33,19 +33,16 @@ This may be:
 
 ### Step 1: Query Studio Projects
 
-```
-mcp__jfriis__db_query({
-  table: "studio_projects",
-  filters: <see below>,
-  order_by: "updated_at",
-  order_direction: "desc"
-})
-```
+```bash
+# No argument (all except archived):
+scripts/sb query studio_projects "status=neq.archived&order=updated_at.desc"
 
-**Filter logic:**
-- No argument → `{ "status": "neq:archived" }` (all except archived)
-- Status filter (e.g., "active") → `{ "status": "active" }`
-- "archived" → `{ "status": "archived" }`
+# Status filter (e.g., "active"):
+scripts/sb query studio_projects "status=eq.active&order=updated_at.desc"
+
+# Archived:
+scripts/sb query studio_projects "status=eq.archived&order=updated_at.desc"
+```
 
 Save the returned projects array.
 
@@ -53,16 +50,9 @@ Save the returned projects array.
 
 For each project returned, query hypothesis and experiment counts in parallel:
 
-```
-mcp__jfriis__db_query({
-  table: "studio_hypotheses",
-  filters: { "project_id": "<project-id>" }
-})
-
-mcp__jfriis__db_query({
-  table: "studio_experiments",
-  filters: { "project_id": "<project-id>" }
-})
+```bash
+scripts/sb query studio_hypotheses "project_id=eq.<project-id>&select=id"
+scripts/sb query studio_experiments "project_id=eq.<project-id>&select=id"
 ```
 
 Record counts per project: `hypotheses_count`, `experiments_count`.
@@ -103,11 +93,8 @@ When a specific slug is provided, build full project context. This output is for
 
 ### Step 1: Get Project ID
 
-```
-mcp__jfriis__db_query({
-  table: "studio_projects",
-  filter: { "slug": "<slug>" }
-})
+```bash
+scripts/sb query studio_projects "slug=eq.<slug>"
 ```
 
 Save the project record. You need the `id` for all subsequent queries.
@@ -116,25 +103,25 @@ Save the project record. You need the `id` for all subsequent queries.
 
 Once you have the project ID, run ALL of these in a single parallel batch:
 
-**DB queries:**
-```
-// Hypotheses
-mcp__jfriis__db_query({ table: "studio_hypotheses", filter: { "project_id": "<id>" }, order_by: { "column": "sequence", "ascending": true } })
+**DB queries (via Bash tool):**
+```bash
+# Hypotheses
+scripts/sb query studio_hypotheses "project_id=eq.<id>&order=sequence.asc"
 
-// Experiments
-mcp__jfriis__db_query({ table: "studio_experiments", filter: { "project_id": "<id>" } })
+# Experiments
+scripts/sb query studio_experiments "project_id=eq.<id>"
 
-// Entity links (outbound)
-mcp__jfriis__db_query({ table: "entity_links", filter: { "source_type": "studio_project", "source_id": "<id>" } })
+# Entity links (outbound)
+scripts/sb query entity_links "source_type=eq.studio_project&source_id=eq.<id>"
 
-// Entity links (inbound)
-mcp__jfriis__db_query({ table: "entity_links", filter: { "target_type": "studio_project", "target_id": "<id>" } })
+# Entity links (inbound)
+scripts/sb query entity_links "target_type=eq.studio_project&target_id=eq.<id>"
 
-// Log entries
-mcp__jfriis__db_query({ table: "log_entries", filter: { "studio_project_id": "<id>" }, select: "id, title, slug, entry_date, published, type", order_by: { "column": "entry_date", "ascending": false }, limit: 10 })
+# Log entries
+scripts/sb query log_entries "studio_project_id=eq.<id>&select=id,title,slug,entry_date,published,type&order=entry_date.desc&limit=10"
 
-// DB tables (to find <slug>_* tables)
-mcp__jfriis__db_list_tables()
+# DB tables (to find <slug>_* tables)
+scripts/sb tables
 ```
 
 **Filesystem scans (Glob, also in same parallel batch):**
@@ -185,7 +172,7 @@ docs/studio/<slug>/
   <list or "none — consider creating README.md">
 
 DB tables: ludo_themes, ludo_sound_collections, ludo_sound_assignments
-  (Filter db_list_tables output for tables starting with <slug>_)
+  (Filter tables output for tables starting with <slug>_)
 ```
 
 **Key rules for filesystem section:**
@@ -193,7 +180,7 @@ DB tables: ludo_themes, ludo_sound_collections, ludo_sound_assignments
 - Call out **test directories separately** so you know what's covered
 - For app routes, list just the **page.tsx routes** (these are the entry points)
 - If docs/ is empty, note it as a gap
-- For DB tables, show the **actual table names** from db_list_tables, not just the convention
+- For DB tables, show the **actual table names** from the tables output, not just the convention
 
 #### Validation Chain — group experiments under their hypothesis
 
@@ -247,10 +234,10 @@ Linked from:
 ## Notes
 
 - **This output is for your orientation, not a report for the user.** Optimize for what helps you start working: directory structure, tech stack, test locations, table names.
-- **Speed over completeness.** If MCP is slow or a sub-query fails, proceed with what you have and note the gap.
+- **Speed over completeness.** If a query fails, proceed with what you have and note the gap.
 - **No strategic recommendations.** This skill is orientation only — what exists and what state it's in. For prioritization and strategy, the user can follow up or use the studio-mgr agent.
 - **Summarize filesystem, don't dump it.** Directory names with file counts. Individual files only for app routes (entry points) and docs. Never list 90 files.
 - **Parallel is key.** Get the project ID first, then run everything else (all DB queries + all Globs) in a single parallel batch.
 - **Entity link column names** are `source_type`/`target_type` and `source_id`/`target_id`. Entity types use singular form: `studio_project`, `venture`, `business_model_canvas`, `log_entry`, etc.
-- **DB table discovery**: Use `db_list_tables` and filter for tables starting with `<slug>_`. Show actual table names, not just the convention.
-- **If MCP is unavailable**, fall back to reading `docs/studio/` directory structure and listing project folders as a degraded snapshot. Note the fallback clearly.
+- **DB table discovery**: Use `scripts/sb tables` and filter for tables starting with `<slug>_`. Show actual table names, not just the convention.
+- **If scripts/sb is unavailable**, fall back to reading `docs/studio/` directory structure and listing project folders as a degraded snapshot. Note the fallback clearly.
