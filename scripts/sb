@@ -1,0 +1,103 @@
+#!/usr/bin/env bash
+#
+# sb — Supabase PostgREST CLI helper
+#
+# Usage:
+#   scripts/sb tables                              List public tables
+#   scripts/sb query <table> [postgrest-qs]        Query rows (e.g. "slug=eq.ludo&select=id,name")
+#   scripts/sb get <table> <id>                    Get single row by UUID
+#   scripts/sb create <table> '<json>'             Insert row(s) — supports array for bulk
+#   scripts/sb update <table> <id> '<json>'        Patch a row by UUID
+#   scripts/sb delete <table> <id>                 Delete a row by UUID
+#
+# Sources .env.local for NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY.
+
+set -euo pipefail
+
+# --- Load credentials ---
+ENV_FILE="${ENV_FILE:-$(cd "$(dirname "$0")/.." && pwd)/.env.local}"
+if [[ ! -f "$ENV_FILE" ]]; then
+  echo "Error: $ENV_FILE not found" >&2; exit 1
+fi
+
+get_env() { grep "^$1=" "$ENV_FILE" | head -1 | cut -d= -f2-; }
+
+SB_URL="$(get_env NEXT_PUBLIC_SUPABASE_URL)"
+SB_KEY="$(get_env SUPABASE_SERVICE_ROLE_KEY)"
+
+if [[ -z "$SB_URL" || -z "$SB_KEY" ]]; then
+  echo "Error: NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY not set in $ENV_FILE" >&2; exit 1
+fi
+
+API="$SB_URL/rest/v1"
+
+# --- Helpers ---
+auth_headers=(
+  -H "apikey: $SB_KEY"
+  -H "Authorization: Bearer $SB_KEY"
+)
+
+cmd="${1:-help}"
+shift || true
+
+case "$cmd" in
+
+  tables)
+    # Query the PostgREST OpenAPI spec for table names
+    curl -sf "${auth_headers[@]}" "$API/" \
+      | python3 -c "import sys,json; d=json.load(sys.stdin); print('\n'.join(sorted(d.get('paths',{}).keys())))" \
+      | sed 's|^/||' | grep -v '^$'
+    ;;
+
+  query)
+    table="${1:?Usage: sb query <table> [postgrest-query-string]}"
+    qs="${2:-}"
+    url="$API/$table"
+    [[ -n "$qs" ]] && url="$url?$qs"
+    curl -sf "${auth_headers[@]}" "$url"
+    ;;
+
+  get)
+    table="${1:?Usage: sb get <table> <id>}"
+    id="${2:?Usage: sb get <table> <id>}"
+    curl -sf "${auth_headers[@]}" \
+      -H "Accept: application/vnd.pgrst.object+json" \
+      "$API/$table?id=eq.$id"
+    ;;
+
+  create)
+    table="${1:?Usage: sb create <table> '<json>'}"
+    data="${2:?Usage: sb create <table> '<json>'}"
+    curl -sf "${auth_headers[@]}" \
+      -H "Content-Type: application/json" \
+      -H "Prefer: return=representation" \
+      -X POST \
+      -d "$data" \
+      "$API/$table"
+    ;;
+
+  update)
+    table="${1:?Usage: sb update <table> <id> '<json>'}"
+    id="${2:?Usage: sb update <table> <id> '<json>'}"
+    data="${3:?Usage: sb update <table> <id> '<json>'}"
+    curl -sf "${auth_headers[@]}" \
+      -H "Content-Type: application/json" \
+      -H "Prefer: return=representation" \
+      -X PATCH \
+      -d "$data" \
+      "$API/$table?id=eq.$id"
+    ;;
+
+  delete)
+    table="${1:?Usage: sb delete <table> <id>}"
+    id="${2:?Usage: sb delete <table> <id>}"
+    curl -sf "${auth_headers[@]}" \
+      -X DELETE \
+      "$API/$table?id=eq.$id"
+    ;;
+
+  help|*)
+    sed -n '3,12p' "$0"
+    ;;
+
+esac

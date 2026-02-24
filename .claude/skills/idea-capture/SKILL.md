@@ -32,23 +32,18 @@ Do NOT ask clarifying questions unless the input is truly unintelligible. Defaul
 
 ### Step 2: Create the Log Entry
 
-Create the idea via MCP Supabase:
-
-```
-mcp__supabase__db_create({
-  table: "log_entries",
-  data: {
-    title: "<title>",
-    slug: "<slug>",
-    content: { markdown: "<description or empty string>" },
-    entry_date: "<today's date YYYY-MM-DD>",
-    type: "idea",
-    idea_stage: "captured",
-    published: false,
-    is_private: true,
-    tags: ["<tag1>", "<tag2>"]
-  }
-})
+```bash
+scripts/sb create log_entries '{
+  "title": "<title>",
+  "slug": "<slug>",
+  "content": {"markdown": "<description or empty string>"},
+  "entry_date": "<today YYYY-MM-DD>",
+  "type": "idea",
+  "idea_stage": "captured",
+  "published": false,
+  "is_private": true,
+  "tags": ["<tag1>", "<tag2>"]
+}'
 ```
 
 **Important**: If the slug already exists (duplicate key error), append a numeric suffix (e.g., `audio-visualizer-2`).
@@ -62,18 +57,15 @@ If the user is currently working in a studio project context (check for recent m
 1. Ask briefly: "Link this to [project name]?"
 2. If yes, create an entity link:
 
-```
-mcp__supabase__db_create({
-  table: "entity_links",
-  data: {
-    source_type: "log_entry",
-    source_id: "<entry-id>",
-    target_type: "studio_project",
-    target_id: "<project-id>",
-    link_type: "related",
-    metadata: {}
-  }
-})
+```bash
+scripts/sb create entity_links '{
+  "source_type": "log_entry",
+  "source_id": "<entry-id>",
+  "target_type": "studio_project",
+  "target_id": "<project-id>",
+  "link_type": "related",
+  "metadata": {}
+}'
 ```
 
 If no obvious context, skip this step entirely. Speed is more important than completeness.
@@ -100,4 +92,4 @@ That's it. Do not offer to elaborate, create studio projects, or do anything els
 - **Stage is always 'captured'.** Progression happens later in the /admin/ideas UI.
 - **Don't create drafts.** The initial content is stored directly in the log entry content field.
 - **Don't conflate with studio-log.** If the user's input has enough substance to argue from — an articulated insight, a pattern with examples, a commentary with a point of view — suggest `/studio-log` instead. Idea capture is for seeds; studio-log is for material ready to become prose.
-- **If MCP is unavailable**, fall back to creating the entry via the Supabase client library by writing a small script, or inform the user and provide the SQL INSERT statement they can run manually.
+- **If scripts/sb is unavailable**, fall back to creating the entry via the Supabase client library by writing a small script, or inform the user and provide the SQL INSERT statement they can run manually.
