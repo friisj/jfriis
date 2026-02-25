@@ -29,11 +29,11 @@ export interface ModelConfig {
 
 // Model catalog
 export const models: Record<string, ModelConfig> = {
-  // Anthropic Models (Claude 4.5 series - latest as of 2026)
+  // Anthropic Models (Claude 4.5/4.6 series)
   'claude-sonnet': {
-    id: 'claude-sonnet-4-5-20250929',
+    id: 'claude-sonnet-4-6-20250514',
     provider: 'anthropic',
-    name: 'Claude Sonnet 4.5',
+    name: 'Claude Sonnet 4.6',
     description: 'Best balance of capability and speed for most tasks',
     capabilities: ['reasoning', 'coding', 'creative', 'vision', 'structured'],
     contextWindow: 200000,
@@ -49,9 +49,9 @@ export const models: Record<string, ModelConfig> = {
     costTier: 'low',
   },
   'claude-opus': {
-    id: 'claude-opus-4-5-20251101',
+    id: 'claude-opus-4-6-20250514',
     provider: 'anthropic',
-    name: 'Claude Opus 4.5',
+    name: 'Claude Opus 4.6',
     description: 'Most capable model for complex reasoning',
     capabilities: ['reasoning', 'coding', 'creative', 'vision', 'long-context'],
     contextWindow: 200000,

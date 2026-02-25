@@ -364,6 +364,7 @@ interface AgentEvalResult {
   challenge: string
   interpretation: string
   decisions: { area: string; choice: string; reason: string }[]
+  compliance: { token: string; expectedValue: string; usedValue: string; compliant: boolean; note: string }[]
   html: string
 }
 
@@ -681,6 +682,33 @@ function SkillStatePanel({ skillState }: { skillState: SkillState }) {
 function AgentEvalPanel({ skillState }: { skillState: SkillState }) {
   const skillMarkdown = useMemo(() => generateSkillMarkdown(skillState), [skillState])
 
+  // Build expected tokens list and a dynamic challenge from trained decisions
+  const { expectedTokens, challenge } = useMemo(() => {
+    const dims: Dimension[] = ['color', 'typography', 'spacing']
+    const tokens: { label: string; value: string; dimension: string }[] = []
+    for (const dim of dims) {
+      for (const d of skillState[dim].decisions) {
+        tokens.push({ label: d.label, value: d.value, dimension: dim })
+      }
+    }
+
+    // Generate a challenge that exercises the trained tokens
+    const hasColor = skillState.color.decisions.length > 0
+    const hasTypography = skillState.typography.decisions.length > 0
+    const hasSpacing = skillState.spacing.decisions.length > 0
+
+    const parts: string[] = []
+    if (hasColor) parts.push('using the trained color palette')
+    if (hasTypography) parts.push('with the specified typography')
+    if (hasSpacing) parts.push('applying the defined spacing tokens')
+
+    const ch = tokens.length > 0
+      ? `Build a notification card with a heading, body text, timestamp, and a primary action button — ${parts.join(', ')}. Every trained token must be visible in the result.`
+      : 'Build a notification card with a heading, body text, timestamp, and a primary action button.'
+
+    return { expectedTokens: tokens, challenge: ch }
+  }, [skillState])
+
   const [evaluation, setEvaluation] = useState<AgentEvalResult | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -689,11 +717,7 @@ function AgentEvalPanel({ skillState }: { skillState: SkillState }) {
   const [copied, setCopied] = useState(false)
   const abortRef = useRef<AbortController | null>(null)
 
-  // Fire the eval call on mount
-  useEffect(() => {
-    const controller = new AbortController()
-    abortRef.current = controller
-
+  const fireEval = useCallback((controller: AbortController) => {
     async function run() {
       setLoading(true)
       setError(null)
@@ -704,7 +728,7 @@ function AgentEvalPanel({ skillState }: { skillState: SkillState }) {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             action: 'arena-eval-skill',
-            input: { skillMarkdown },
+            input: { skillMarkdown, challenge, expectedTokens },
           }),
           signal: controller.signal,
         })
@@ -722,43 +746,21 @@ function AgentEvalPanel({ skillState }: { skillState: SkillState }) {
       }
     }
     run()
+  }, [skillMarkdown, challenge, expectedTokens])
 
+  // Fire the eval call on mount
+  useEffect(() => {
+    const controller = new AbortController()
+    abortRef.current = controller
+    fireEval(controller)
     return () => { controller.abort() }
-  }, [skillMarkdown])
+  }, [fireEval])
 
   const handleRetry = () => {
     abortRef.current?.abort()
     const controller = new AbortController()
     abortRef.current = controller
-
-    async function run() {
-      setLoading(true)
-      setError(null)
-      setEvaluation(null)
-      try {
-        const res = await fetch('/api/ai/generate', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            action: 'arena-eval-skill',
-            input: { skillMarkdown },
-          }),
-          signal: controller.signal,
-        })
-        const result = await res.json()
-        if (!result.success) {
-          setError(result.error?.message ?? 'Evaluation failed')
-        } else {
-          setEvaluation(result.data)
-        }
-      } catch (err) {
-        if (err instanceof Error && err.name === 'AbortError') return
-        setError(err instanceof Error ? err.message : 'Network error')
-      } finally {
-        setLoading(false)
-      }
-    }
-    run()
+    fireEval(controller)
   }
 
   const handleCopy = () => {
@@ -872,6 +874,40 @@ function AgentEvalPanel({ skillState }: { skillState: SkillState }) {
           ))}
         </div>
       </div>
+
+      {/* Compliance report */}
+      {evaluation.compliance && evaluation.compliance.length > 0 && (
+        <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl p-5">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">Token Compliance</h3>
+            <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${
+              evaluation.compliance.every(c => c.compliant)
+                ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                : 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
+            }`}>
+              {evaluation.compliance.filter(c => c.compliant).length}/{evaluation.compliance.length} compliant
+            </span>
+          </div>
+          <div className="space-y-1.5">
+            {evaluation.compliance.map((c, i) => (
+              <div key={i} className="flex items-start gap-2 text-xs">
+                <span className={`mt-0.5 flex-shrink-0 ${c.compliant ? 'text-green-500' : 'text-red-500'}`}>
+                  {c.compliant ? '\u2713' : '\u2717'}
+                </span>
+                <span className="font-medium text-gray-600 dark:text-gray-400 w-32 flex-shrink-0">{c.token}</span>
+                <code className="text-[10px] bg-gray-100 dark:bg-gray-800 px-1 rounded">{c.expectedValue}</code>
+                {!c.compliant && (
+                  <>
+                    <span className="text-gray-400">{'\u2192'}</span>
+                    <code className="text-[10px] bg-red-100 dark:bg-red-900/30 px-1 rounded text-red-600 dark:text-red-400">{c.usedValue}</code>
+                  </>
+                )}
+                {c.note && <span className="text-gray-400 flex-1 text-right">{c.note}</span>}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Live preview */}
       <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl p-5">
