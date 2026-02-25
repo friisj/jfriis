@@ -241,8 +241,37 @@ function pickNextProposal(
   const bank = PROPOSAL_BANK[dimension]
   const proposalIndex = Math.min(round, bank.length - 1)
   const base = bank[proposalIndex]
+  const dimState = skillState[dimension]
+
+  // Filter out options whose values were already rejected in previous rounds
+  const filteredOptions = base.options.filter(
+    opt => !dimState.rejectedValues.includes(opt.value)
+  )
+
+  // Also filter out options whose values were already approved (no need to re-propose)
+  const approvedValues = new Set(dimState.decisions.map(d => {
+    // Extract raw value from "value (label)" format
+    const match = d.value.match(/^([^ ]+)/)
+    return match ? match[1] : d.value
+  }))
+  const availableOptions = filteredOptions.filter(
+    opt => !approvedValues.has(opt.value)
+  )
+
+  // Use filtered options if any remain, otherwise fall back to original
+  // (don't present an empty proposal)
+  const options = availableOptions.length > 0 ? availableOptions : base.options
+
+  // Adapt the description if options were filtered
+  const filtered = base.options.length - options.length
+  const description = filtered > 0
+    ? `${base.description} (${filtered} option${filtered > 1 ? 's' : ''} filtered based on your previous feedback)`
+    : base.description
+
   return {
     ...base,
+    options,
+    description,
     id: `${dimension}-${round}-${Date.now()}`,
     rationale: generateRationale(base, skillState, round),
   }
