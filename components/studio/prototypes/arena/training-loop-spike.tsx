@@ -676,6 +676,69 @@ function SkillStatePanel({ skillState }: { skillState: SkillState }) {
 }
 
 // ---------------------------------------------------------------------------
+// Skill export panel (markdown + JSON tabs with copy)
+// ---------------------------------------------------------------------------
+
+function SkillExportPanel({ skillState }: { skillState: SkillState }) {
+  const [activeTab, setActiveTab] = useState<'markdown' | 'json'>('markdown')
+  const [copied, setCopied] = useState(false)
+
+  const markdown = useMemo(() => generateSkillMarkdown(skillState), [skillState])
+  const json = useMemo(() => JSON.stringify(exportSkillJSON(skillState), null, 2), [skillState])
+
+  const content = activeTab === 'markdown' ? markdown : json
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(content)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
+
+  return (
+    <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl p-5">
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-1 bg-gray-100 dark:bg-gray-800 rounded-lg p-0.5">
+          <button
+            onClick={() => setActiveTab('markdown')}
+            className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${
+              activeTab === 'markdown'
+                ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 shadow-sm'
+                : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
+            }`}
+          >
+            Markdown
+          </button>
+          <button
+            onClick={() => setActiveTab('json')}
+            className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${
+              activeTab === 'json'
+                ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 shadow-sm'
+                : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
+            }`}
+          >
+            JSON
+          </button>
+        </div>
+        <button
+          onClick={handleCopy}
+          className="text-xs px-3 py-1 rounded-md bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+        >
+          {copied ? 'Copied!' : 'Copy'}
+        </button>
+      </div>
+      <pre className="p-4 bg-gray-50 dark:bg-gray-800/50 rounded-lg text-xs text-gray-700 dark:text-gray-300 overflow-x-auto whitespace-pre-wrap max-h-80 overflow-y-auto">
+        {content}
+      </pre>
+      <p className="mt-2 text-[10px] text-gray-400">
+        {activeTab === 'json'
+          ? 'Structured artifact matching the skill-authoring data model. Consumable by downstream spikes.'
+          : 'Human-readable skill file. This is what the eval agent receives.'}
+      </p>
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
 // Agent eval component
 // ---------------------------------------------------------------------------
 
@@ -713,8 +776,6 @@ function AgentEvalPanel({ skillState }: { skillState: SkillState }) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [showCode, setShowCode] = useState(false)
-  const [showSkill, setShowSkill] = useState(false)
-  const [copied, setCopied] = useState(false)
   const abortRef = useRef<AbortController | null>(null)
 
   const fireEval = useCallback((controller: AbortController) => {
@@ -763,12 +824,6 @@ function AgentEvalPanel({ skillState }: { skillState: SkillState }) {
     fireEval(controller)
   }
 
-  const handleCopy = () => {
-    navigator.clipboard.writeText(skillMarkdown)
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
-  }
-
   // Loading state
   if (loading) {
     return (
@@ -792,23 +847,7 @@ function AgentEvalPanel({ skillState }: { skillState: SkillState }) {
           </div>
         </div>
 
-        {/* Show skill file while loading */}
-        <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl p-5">
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">Skill Sent to Agent</h3>
-            <button
-              onClick={() => setShowSkill(!showSkill)}
-              className="text-xs px-3 py-1 rounded-md bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
-            >
-              {showSkill ? 'Hide' : 'Show'}
-            </button>
-          </div>
-          {showSkill && (
-            <pre className="p-4 bg-gray-50 dark:bg-gray-800/50 rounded-lg text-xs text-gray-700 dark:text-gray-300 overflow-x-auto whitespace-pre-wrap">
-              {skillMarkdown}
-            </pre>
-          )}
-        </div>
+        <SkillExportPanel skillState={skillState} />
       </div>
     )
   }
@@ -938,31 +977,8 @@ function AgentEvalPanel({ skillState }: { skillState: SkillState }) {
         )}
       </div>
 
-      {/* Skill file */}
-      <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl p-5">
-        <div className="flex items-center justify-between mb-3">
-          <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">Trained Skill File</h3>
-          <div className="flex gap-2">
-            <button
-              onClick={handleCopy}
-              className="text-xs px-3 py-1 rounded-md bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
-            >
-              {copied ? 'Copied!' : 'Copy'}
-            </button>
-            <button
-              onClick={() => setShowSkill(!showSkill)}
-              className="text-xs px-3 py-1 rounded-md bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
-            >
-              {showSkill ? 'Hide' : 'Show'}
-            </button>
-          </div>
-        </div>
-        {showSkill && (
-          <pre className="p-4 bg-gray-50 dark:bg-gray-800/50 rounded-lg text-xs text-gray-700 dark:text-gray-300 overflow-x-auto whitespace-pre-wrap">
-            {skillMarkdown}
-          </pre>
-        )}
-      </div>
+      {/* Skill file (markdown + JSON) */}
+      <SkillExportPanel skillState={skillState} />
 
       {/* Evaluation prompt */}
       <div className="bg-purple-50 dark:bg-purple-950/20 border border-purple-200 dark:border-purple-800 rounded-xl p-5">
@@ -1183,6 +1199,9 @@ export default function TrainingLoopSpike() {
         <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl p-6">
           <SkillStatePanel skillState={skillState} />
         </div>
+
+        {/* Exportable skill artifact */}
+        <SkillExportPanel skillState={skillState} />
 
         <div className="flex gap-3 justify-center">
           <button
