@@ -166,7 +166,7 @@ export function ExperimentPrototypeView({
   return (
     <div className="h-[calc(100dvh-2.5rem)] relative overflow-hidden">
       {/* Prototype fills the entire remaining viewport (100dvh minus PrivateHeader h-10/2.5rem) */}
-      <div className="absolute inset-0">{children}</div>
+      <div className="absolute inset-0 overflow-y-auto">{children}</div>
 
       {/* Sidebar — header / scrollable body / footer */}
       {overlayState === 'expanded' && (

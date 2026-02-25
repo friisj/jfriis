@@ -35,16 +35,32 @@ interface RoundResult {
   timestamp: number
 }
 
+interface SkillDecision {
+  id: string
+  label: string       // role: "Primary Color", "Type Scale Ratio"
+  value: string       // concrete value: "#15803D", "1.25"
+  rationale: string   // user's reason for approving
+  confidence: 'low' | 'medium' | 'high'
+  proposalTitle: string  // which proposal this came from
+}
+
+interface SkillRule {
+  id: string
+  statement: string
+  type: 'must' | 'should' | 'must-not' | 'prefer'
+  source: string      // which decision/feedback derived this
+}
+
+interface DimensionState {
+  decisions: SkillDecision[]
+  rejectedValues: string[] // track rejected values for proposal adaptation, not exported
+  rules: SkillRule[]
+}
+
 interface SkillState {
   color: DimensionState
   typography: DimensionState
   spacing: DimensionState
-}
-
-interface DimensionState {
-  approved: { label: string; value: string; reason: string }[]
-  rejected: { label: string; value: string; reason: string }[]
-  rules: string[]
 }
 
 interface Proposal {
@@ -200,18 +216,19 @@ function generateRationale(
   round: number
 ): string {
   const dimState = skillState[proposal.dimension]
-  if (round === 0 || (dimState.approved.length === 0 && dimState.rejected.length === 0)) {
+  if (round === 0 || (dimState.decisions.length === 0 && dimState.rejectedValues.length === 0)) {
     return 'Starting fresh. React to each option independently — approve what resonates, reject what doesn\'t, skip what you\'re neutral on.'
   }
   const parts: string[] = []
-  if (dimState.approved.length > 0) {
-    parts.push(`Building on: ${dimState.approved.map(a => a.label).join(', ')}.`)
+  if (dimState.decisions.length > 0) {
+    parts.push(`Building on: ${dimState.decisions.map(d => d.label + ': ' + d.value).join(', ')}.`)
   }
-  if (dimState.rejected.length > 0) {
-    parts.push(`Avoiding: ${dimState.rejected.map(r => r.label).join(', ')}.`)
+  if (dimState.rejectedValues.length > 0) {
+    parts.push(`Filtered out ${dimState.rejectedValues.length} rejected option(s).`)
   }
-  if (dimState.rules.length > 0) {
-    parts.push(`Learned: ${dimState.rules.slice(-2).join('; ')}.`)
+  const recentRules = dimState.rules.slice(-2)
+  if (recentRules.length > 0) {
+    parts.push(`Rules: ${recentRules.map(r => r.statement).join('; ')}.`)
   }
   return parts.join(' ') || 'Continuing exploration.'
 }
@@ -237,7 +254,7 @@ function pickNextProposal(
 
 function generateSkillMarkdown(skillState: SkillState): string {
   const lines: string[] = [
-    '# Design System Skill — Session Output',
+    '# Design System Skill',
     '',
     '> Trained through interactive feedback. Status: drafting.',
     '',
@@ -251,32 +268,63 @@ function generateSkillMarkdown(skillState: SkillState): string {
 
   for (const dim of dims) {
     const state = skillState[dim.key]
-    if (state.approved.length === 0 && state.rejected.length === 0) continue
+    if (state.decisions.length === 0 && state.rules.length === 0) continue
+
     lines.push(`## ${dim.label}`, '')
-    if (state.approved.length > 0) {
-      lines.push('### Approved Decisions')
-      for (const a of state.approved) {
-        lines.push(`- **${a.label}** (\`${a.value}\`)${a.reason ? ` — ${a.reason}` : ''}`)
+
+    if (state.decisions.length > 0) {
+      lines.push('### Decisions', '')
+      for (const d of state.decisions) {
+        lines.push(`- **${d.label}**: \`${d.value}\` [confidence: ${d.confidence}]`)
+        if (d.rationale) {
+          lines.push(`  Rationale: ${d.rationale}`)
+        }
       }
       lines.push('')
     }
-    if (state.rejected.length > 0) {
-      lines.push('### Rejected (avoid)')
-      for (const r of state.rejected) {
-        lines.push(`- ~~${r.label}~~ (\`${r.value}\`)${r.reason ? ` — ${r.reason}` : ''}`)
-      }
-      lines.push('')
-    }
+
     if (state.rules.length > 0) {
-      lines.push('### Derived Rules')
+      lines.push('### Rules', '')
       for (const rule of state.rules) {
-        lines.push(`- ${rule}`)
+        const prefix = rule.type.charAt(0).toUpperCase() + rule.type.slice(1)
+        lines.push(`- **${prefix}**: ${rule.statement}`)
       }
       lines.push('')
     }
   }
 
   return lines.join('\n')
+}
+
+/**
+ * Export skill state as structured JSON matching the skill-authoring data model.
+ * This is the artifact downstream spikes (agent-compliance, session-one-export) consume.
+ */
+function exportSkillJSON(skillState: SkillState) {
+  const dims: Dimension[] = ['color', 'typography', 'spacing']
+  return {
+    name: 'design-system',
+    status: 'drafting',
+    dimensions: dims
+      .filter(d => skillState[d].decisions.length > 0)
+      .map(d => ({
+        dimension: d,
+        decisions: skillState[d].decisions.map(dec => ({
+          label: dec.label,
+          value: dec.value,
+          rationale: dec.rationale,
+          confidence: dec.confidence,
+        })),
+        rules: skillState[d].rules.map(r => ({
+          statement: r.statement,
+          type: r.type,
+        })),
+      })),
+    metadata: {
+      version: 1,
+      trainedAt: new Date().toISOString(),
+    },
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -545,7 +593,7 @@ function PerOptionProposalCard({
 
 function SkillStatePanel({ skillState }: { skillState: SkillState }) {
   const dims: Dimension[] = ['color', 'typography', 'spacing']
-  const hasAny = dims.some(d => skillState[d].approved.length > 0 || skillState[d].rejected.length > 0)
+  const hasAny = dims.some(d => skillState[d].decisions.length > 0)
   return (
     <div className="space-y-4">
       <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
@@ -553,31 +601,19 @@ function SkillStatePanel({ skillState }: { skillState: SkillState }) {
       </h3>
       {dims.map((dim) => {
         const state = skillState[dim]
-        if (state.approved.length === 0 && state.rejected.length === 0) return null
+        if (state.decisions.length === 0 && state.rules.length === 0) return null
         return (
           <div key={dim} className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-3 space-y-2">
             <h4 className="text-xs font-medium text-gray-800 dark:text-gray-200 capitalize">{dim}</h4>
-            {state.approved.length > 0 && (
+            {state.decisions.length > 0 && (
               <div className="space-y-1">
-                {state.approved.map((a, i) => (
-                  <div key={i} className="flex items-start gap-1.5">
-                    <span className="text-green-500 text-xs mt-0.5">+</span>
+                {state.decisions.map((d) => (
+                  <div key={d.id} className="flex items-start gap-1.5">
+                    <span className="text-green-500 text-xs mt-0.5 flex-shrink-0">+</span>
                     <span className="text-xs text-gray-600 dark:text-gray-400">
-                      <span className="font-medium">{a.label}</span>
-                      {a.reason && <span className="text-gray-400"> — {a.reason}</span>}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            )}
-            {state.rejected.length > 0 && (
-              <div className="space-y-1">
-                {state.rejected.map((r, i) => (
-                  <div key={i} className="flex items-start gap-1.5">
-                    <span className="text-red-500 text-xs mt-0.5">-</span>
-                    <span className="text-xs text-gray-600 dark:text-gray-400">
-                      <span className="font-medium line-through">{r.label}</span>
-                      {r.reason && <span className="text-gray-400"> — {r.reason}</span>}
+                      <span className="font-medium">{d.label}:</span>{' '}
+                      <code className="text-[10px] bg-gray-200 dark:bg-gray-700 px-1 rounded">{d.value}</code>
+                      {d.rationale && <span className="text-gray-400"> — {d.rationale}</span>}
                     </span>
                   </div>
                 ))}
@@ -585,10 +621,16 @@ function SkillStatePanel({ skillState }: { skillState: SkillState }) {
             )}
             {state.rules.length > 0 && (
               <div className="space-y-1 pt-1 border-t border-gray-200 dark:border-gray-700">
-                {state.rules.map((rule, i) => (
-                  <div key={i} className="flex items-start gap-1.5">
-                    <span className="text-blue-500 text-xs mt-0.5">*</span>
-                    <span className="text-xs text-gray-500 dark:text-gray-400">{rule}</span>
+                {state.rules.map((rule) => (
+                  <div key={rule.id} className="flex items-start gap-1.5">
+                    <span className={`text-xs mt-0.5 flex-shrink-0 ${
+                      rule.type === 'must-not' ? 'text-red-500' : 'text-blue-500'
+                    }`}>
+                      {rule.type === 'must-not' ? '!' : '*'}
+                    </span>
+                    <span className="text-xs text-gray-500 dark:text-gray-400">
+                      <span className="font-medium capitalize">{rule.type}:</span> {rule.statement}
+                    </span>
                   </div>
                 ))}
               </div>
@@ -758,7 +800,20 @@ function AgentEvalPanel({ skillState }: { skillState: SkillState }) {
     )
   }
 
-  if (!evaluation) return null
+  if (!evaluation) {
+    return (
+      <div className="bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-xl p-5 text-center space-y-3">
+        <h3 className="text-sm font-semibold text-gray-600 dark:text-gray-400">No evaluation result</h3>
+        <p className="text-xs text-gray-400">The agent call may have been interrupted. Try again.</p>
+        <button
+          onClick={handleRetry}
+          className="px-4 py-2 text-xs font-medium bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+        >
+          Run Evaluation
+        </button>
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-6">
@@ -871,9 +926,9 @@ const DIMENSIONS: { key: Dimension; label: string }[] = [
 
 function initialSkillState(): SkillState {
   return {
-    color: { approved: [], rejected: [], rules: [] },
-    typography: { approved: [], rejected: [], rules: [] },
-    spacing: { approved: [], rejected: [], rules: [] },
+    color: { decisions: [], rejectedValues: [], rules: [] },
+    typography: { decisions: [], rejectedValues: [], rules: [] },
+    spacing: { decisions: [], rejectedValues: [], rules: [] },
   }
 }
 
@@ -905,27 +960,54 @@ export default function TrainingLoopSpike() {
       // Update skill state from per-option feedback
       setSkillState((prev) => {
         const dimState = { ...prev[activeDimension] }
-        const newApproved = [...dimState.approved]
-        const newRejected = [...dimState.rejected]
+        const newDecisions = [...dimState.decisions]
+        const newRejectedValues = [...dimState.rejectedValues]
         const newRules = [...dimState.rules]
+        let ruleCounter = newRules.length
 
         for (const fb of feedbacks) {
           if (fb.action === 'approve') {
-            newApproved.push({ label: fb.optionLabel, value: fb.optionValue, reason: fb.reason })
+            // Create a structured decision with role from proposal title
+            const decision: SkillDecision = {
+              id: `${activeDimension}-d${newDecisions.length + 1}`,
+              label: currentProposal.title,  // "Primary Color", "Type Scale Ratio"
+              value: `${fb.optionValue} (${fb.optionLabel})`,  // "#15803D (Forest Green)"
+              rationale: fb.reason.trim() || `Selected from ${currentProposal.title} options`,
+              confidence: fb.reason.trim() ? 'medium' : 'low',
+              proposalTitle: currentProposal.title,
+            }
+            newDecisions.push(decision)
+
+            // Derive a "should" rule from approval reason
             if (fb.reason.trim()) {
-              newRules.push(`Prefer: ${fb.reason.trim()} (from ${fb.optionLabel})`)
+              ruleCounter++
+              newRules.push({
+                id: `${activeDimension}-r${ruleCounter}`,
+                statement: fb.reason.trim(),
+                type: 'prefer',
+                source: `${fb.optionLabel} approval`,
+              })
             }
           } else if (fb.action === 'reject') {
-            newRejected.push({ label: fb.optionLabel, value: fb.optionValue, reason: fb.reason })
+            // Track for proposal adaptation, but don't export
+            newRejectedValues.push(fb.optionValue)
+
+            // Derive a "must-not" or "should" avoidance rule from rejection reason
             if (fb.reason.trim()) {
-              newRules.push(`Avoid: ${fb.reason.trim()} (from ${fb.optionLabel})`)
+              ruleCounter++
+              newRules.push({
+                id: `${activeDimension}-r${ruleCounter}`,
+                statement: `Avoid: ${fb.reason.trim()}`,
+                type: 'must-not',
+                source: `${fb.optionLabel} rejection`,
+              })
             }
           }
         }
 
         return {
           ...prev,
-          [activeDimension]: { approved: newApproved, rejected: newRejected, rules: newRules },
+          [activeDimension]: { decisions: newDecisions, rejectedValues: newRejectedValues, rules: newRules },
         }
       })
 
@@ -965,8 +1047,8 @@ export default function TrainingLoopSpike() {
   )
   const trainingComplete = totalRounds >= totalPossible
 
-  const totalApproved = Object.values(skillState).reduce((sum, d) => sum + d.approved.length, 0)
-  const totalRejected = Object.values(skillState).reduce((sum, d) => sum + d.rejected.length, 0)
+  const totalDecisions = Object.values(skillState).reduce((sum, d) => sum + d.decisions.length, 0)
+  const totalRejected = Object.values(skillState).reduce((sum, d) => sum + d.rejectedValues.length, 0)
   const totalRules = Object.values(skillState).reduce((sum, d) => sum + d.rules.length, 0)
 
   // Auto-transition to review when training completes
@@ -1029,7 +1111,7 @@ export default function TrainingLoopSpike() {
           </div>
           <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">Training Complete</h2>
           <p className="text-sm text-gray-500 dark:text-gray-400">
-            {totalApproved} approved, {totalRejected} rejected, {totalRules} rules derived.
+            {totalDecisions} decisions, {totalRules} rules derived.
           </p>
         </div>
 
@@ -1158,16 +1240,16 @@ export default function TrainingLoopSpike() {
         <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl p-4">
           <div className="grid grid-cols-3 gap-4 text-center">
             <div>
-              <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">{totalApproved + totalRejected}</p>
-              <p className="text-xs text-gray-400">Signals</p>
+              <p className="text-2xl font-bold text-green-600 dark:text-green-400">{totalDecisions}</p>
+              <p className="text-xs text-gray-400">Decisions</p>
             </div>
             <div>
-              <p className="text-2xl font-bold text-green-600 dark:text-green-400">{totalApproved}</p>
-              <p className="text-xs text-gray-400">Approved</p>
+              <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">{totalRules}</p>
+              <p className="text-xs text-gray-400">Rules</p>
             </div>
             <div>
-              <p className="text-2xl font-bold text-red-600 dark:text-red-400">{totalRejected}</p>
-              <p className="text-xs text-gray-400">Rejected</p>
+              <p className="text-2xl font-bold text-gray-400">{totalRejected}</p>
+              <p className="text-xs text-gray-400">Filtered</p>
             </div>
           </div>
         </div>
