@@ -49,3 +49,7 @@ next-env.d.ts
 
 # Claude Code local overrides (personal, not committed)
 .claude/settings.local.json
+
+# Offline queue — created by scripts/sb when Supabase is unreachable (e.g. sandbox proxy)
+# Flush with: scripts/sb sync
+.local/

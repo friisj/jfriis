@@ -9,13 +9,20 @@
 #   scripts/sb create <table> '<json>'             Insert row(s) — supports array for bulk
 #   scripts/sb update <table> <id> '<json>'        Patch a row by UUID
 #   scripts/sb delete <table> <id>                 Delete a row by UUID
+#   scripts/sb sync                                Flush offline queue to Supabase
 #
 # Sources .env.local for NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY.
+#
+# Offline behaviour (e.g. sandbox egress proxy blocks Supabase):
+#   Write ops (create/update/delete) are queued to .local/sb-queue.jsonl.
+#   Read ops (tables/query/get) fail immediately with a clear error.
+#   Run `scripts/sb sync` when back online to flush the queue.
 
 set -euo pipefail
 
 # --- Load credentials ---
-ENV_FILE="${ENV_FILE:-$(cd "$(dirname "$0")/.." && pwd)/.env.local}"
+REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+ENV_FILE="${ENV_FILE:-$REPO_ROOT/.env.local}"
 if [[ ! -f "$ENV_FILE" ]]; then
   echo "Error: $ENV_FILE not found" >&2; exit 1
 fi
@@ -30,12 +37,42 @@ if [[ -z "$SB_URL" || -z "$SB_KEY" ]]; then
 fi
 
 API="$SB_URL/rest/v1"
+QUEUE_FILE="$REPO_ROOT/.local/sb-queue.jsonl"
 
-# --- Helpers ---
 auth_headers=(
   -H "apikey: $SB_KEY"
   -H "Authorization: Bearer $SB_KEY"
 )
+
+# --- Connectivity check ---
+# Returns 0 if Supabase is reachable, 1 if blocked/offline.
+is_sb_reachable() {
+  curl -sf --connect-timeout 3 -o /dev/null \
+    "${auth_headers[@]}" "$API/" 2>/dev/null
+}
+
+# --- Offline queue ---
+gen_uuid() {
+  python3 -c "import uuid; print(str(uuid.uuid4()))"
+}
+
+queue_write() {
+  local op="$1" table="$2" data="${3:-}" row_id="${4:-}"
+  mkdir -p "$(dirname "$QUEUE_FILE")"
+  python3 - "$op" "$table" "$data" "$row_id" <<'PYEOF' >> "$QUEUE_FILE"
+import json, sys
+from datetime import datetime, timezone
+op, table, data, row_id = sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4]
+entry = {
+  "timestamp": datetime.now(timezone.utc).isoformat(),
+  "op": op,
+  "table": table,
+  "data": json.loads(data) if data else None,
+  "id": row_id or None,
+}
+print(json.dumps(entry))
+PYEOF
+}
 
 cmd="${1:-help}"
 shift || true
@@ -43,7 +80,10 @@ shift || true
 case "$cmd" in
 
   tables)
-    # Query the PostgREST OpenAPI spec for table names
+    if ! is_sb_reachable; then
+      echo "Error: Supabase unreachable (proxy blocked or offline). Read ops require a live connection." >&2
+      exit 1
+    fi
     curl -sf "${auth_headers[@]}" "$API/" \
       | python3 -c "import sys,json; d=json.load(sys.stdin); print('\n'.join(sorted(d.get('paths',{}).keys())))" \
       | sed 's|^/||' | grep -v '^$'
@@ -54,12 +94,20 @@ case "$cmd" in
     qs="${2:-}"
     url="$API/$table"
     [[ -n "$qs" ]] && url="$url?$qs"
+    if ! is_sb_reachable; then
+      echo "Error: Supabase unreachable (proxy blocked or offline). Read ops require a live connection." >&2
+      exit 1
+    fi
     curl -sf "${auth_headers[@]}" "$url"
     ;;
 
   get)
     table="${1:?Usage: sb get <table> <id>}"
     id="${2:?Usage: sb get <table> <id>}"
+    if ! is_sb_reachable; then
+      echo "Error: Supabase unreachable (proxy blocked or offline). Read ops require a live connection." >&2
+      exit 1
+    fi
     curl -sf "${auth_headers[@]}" \
       -H "Accept: application/vnd.pgrst.object+json" \
       "$API/$table?id=eq.$id"
@@ -68,36 +116,126 @@ case "$cmd" in
   create)
     table="${1:?Usage: sb create <table> '<json>'}"
     data="${2:?Usage: sb create <table> '<json>'}"
-    curl -sf "${auth_headers[@]}" \
-      -H "Content-Type: application/json" \
-      -H "Prefer: return=representation" \
-      -X POST \
-      -d "$data" \
-      "$API/$table"
+    if ! is_sb_reachable; then
+      local_id=$(gen_uuid)
+      queue_write "create" "$table" "$data" "$local_id"
+      echo "[{\"id\":\"$local_id\",\"_queued\":true}]"
+      echo "[offline] Queued to .local/sb-queue.jsonl — run 'scripts/sb sync' when online" >&2
+    else
+      curl -sf "${auth_headers[@]}" \
+        -H "Content-Type: application/json" \
+        -H "Prefer: return=representation" \
+        -X POST \
+        -d "$data" \
+        "$API/$table"
+    fi
     ;;
 
   update)
     table="${1:?Usage: sb update <table> <id> '<json>'}"
     id="${2:?Usage: sb update <table> <id> '<json>'}"
     data="${3:?Usage: sb update <table> <id> '<json>'}"
-    curl -sf "${auth_headers[@]}" \
-      -H "Content-Type: application/json" \
-      -H "Prefer: return=representation" \
-      -X PATCH \
-      -d "$data" \
-      "$API/$table?id=eq.$id"
+    if ! is_sb_reachable; then
+      queue_write "update" "$table" "$data" "$id"
+      echo "[{\"id\":\"$id\",\"_queued\":true}]"
+      echo "[offline] Queued to .local/sb-queue.jsonl — run 'scripts/sb sync' when online" >&2
+    else
+      curl -sf "${auth_headers[@]}" \
+        -H "Content-Type: application/json" \
+        -H "Prefer: return=representation" \
+        -X PATCH \
+        -d "$data" \
+        "$API/$table?id=eq.$id"
+    fi
     ;;
 
   delete)
     table="${1:?Usage: sb delete <table> <id>}"
     id="${2:?Usage: sb delete <table> <id>}"
-    curl -sf "${auth_headers[@]}" \
-      -X DELETE \
-      "$API/$table?id=eq.$id"
+    if ! is_sb_reachable; then
+      queue_write "delete" "$table" "" "$id"
+      echo "[offline] Queued to .local/sb-queue.jsonl — run 'scripts/sb sync' when online" >&2
+    else
+      curl -sf "${auth_headers[@]}" \
+        -X DELETE \
+        "$API/$table?id=eq.$id"
+    fi
+    ;;
+
+  sync)
+    if [[ ! -f "$QUEUE_FILE" ]] || [[ ! -s "$QUEUE_FILE" ]]; then
+      echo "Nothing to sync — queue is empty."
+      exit 0
+    fi
+
+    if ! is_sb_reachable; then
+      echo "Error: Supabase still unreachable. Cannot sync." >&2
+      exit 1
+    fi
+
+    queue_count=$(wc -l < "$QUEUE_FILE")
+    echo "Syncing $queue_count queued operation(s)..."
+
+    tmp_failed=$(mktemp)
+    synced=0
+    failed=0
+
+    while IFS= read -r line; do
+      op=$(echo "$line"  | python3 -c "import sys,json; d=json.load(sys.stdin); print(d['op'])")
+      tbl=$(echo "$line" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d['table'])")
+      dat=$(echo "$line" | python3 -c "import sys,json; d=json.load(sys.stdin); print(json.dumps(d.get('data') or {}))")
+      rid=$(echo "$line" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('id') or '')")
+
+      ok=false
+      case "$op" in
+        create)
+          if curl -sf "${auth_headers[@]}" \
+            -H "Content-Type: application/json" \
+            -H "Prefer: return=representation" \
+            -X POST -d "$dat" "$API/$tbl" > /dev/null 2>&1; then
+            ok=true
+          fi
+          ;;
+        update)
+          if curl -sf "${auth_headers[@]}" \
+            -H "Content-Type: application/json" \
+            -H "Prefer: return=representation" \
+            -X PATCH -d "$dat" "$API/$tbl?id=eq.$rid" > /dev/null 2>&1; then
+            ok=true
+          fi
+          ;;
+        delete)
+          if curl -sf "${auth_headers[@]}" \
+            -X DELETE "$API/$tbl?id=eq.$rid" > /dev/null 2>&1; then
+            ok=true
+          fi
+          ;;
+      esac
+
+      if [[ "$ok" == "true" ]]; then
+        echo "  synced: $op $tbl${rid:+ ($rid)}"
+        synced=$((synced + 1))
+      else
+        echo "  failed: $op $tbl${rid:+ ($rid)}"
+        echo "$line" >> "$tmp_failed"
+        failed=$((failed + 1))
+      fi
+    done < "$QUEUE_FILE"
+
+    if [[ -s "$tmp_failed" ]]; then
+      cp "$tmp_failed" "$QUEUE_FILE"
+      echo ""
+      echo "Synced: $synced  Failed: $failed (failed ops remain in queue)"
+    else
+      rm -f "$QUEUE_FILE"
+      echo ""
+      echo "All $synced operation(s) synced. Queue cleared."
+    fi
+    rm -f "$tmp_failed"
     ;;
 
   help|*)
-    sed -n '3,12p' "$0"
+    sed -n '3,13p' "$0"
     ;;
 
 esac

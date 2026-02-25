@@ -48,7 +48,7 @@ scripts/sb create log_entries '{
 
 **Important**: If the slug already exists (duplicate key error), append a numeric suffix (e.g., `audio-visualizer-2`).
 
-Save the returned entry `id`.
+Save the returned entry `id`. Check whether `_queued` is `true` in the response — this means Supabase was unreachable (sandbox proxy) and the operation was queued to `.local/sb-queue.jsonl` for later sync.
 
 ### Step 3: Optional — Link to Context
 
@@ -72,7 +72,15 @@ If no obvious context, skip this step entirely. Speed is more important than com
 
 ### Step 4: Confirmation
 
-Print a brief confirmation:
+If the response has `_queued: true` (offline/sandbox):
+
+```
+Idea queued: "<title>"
+Stage: captured | Tags: <tags>
+Status: queued — run `scripts/sb sync` locally to push to DB
+```
+
+If the response was live (normal):
 
 ```
 Idea captured: "<title>"
@@ -92,4 +100,4 @@ That's it. Do not offer to elaborate, create studio projects, or do anything els
 - **Stage is always 'captured'.** Progression happens later in the /admin/ideas UI.
 - **Don't create drafts.** The initial content is stored directly in the log entry content field.
 - **Don't conflate with studio-log.** If the user's input has enough substance to argue from — an articulated insight, a pattern with examples, a commentary with a point of view — suggest `/studio-log` instead. Idea capture is for seeds; studio-log is for material ready to become prose.
-- **If scripts/sb is unavailable**, fall back to creating the entry via the Supabase client library by writing a small script, or inform the user and provide the SQL INSERT statement they can run manually.
+- **If scripts/sb is unavailable** (missing, `.env.local` absent, etc.), inform the user and provide the SQL INSERT statement they can run manually. This is different from the offline/proxy case — when Supabase is blocked by a sandbox proxy, `scripts/sb` handles it automatically by queuing to `.local/sb-queue.jsonl`.
