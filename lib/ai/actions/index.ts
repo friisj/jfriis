@@ -251,7 +251,7 @@ export async function executeAction<TInput, TOutput>(
         model: getModel(modelKey) as Parameters<typeof generateText>[0]['model'],
         system,
         messages: messages as ModelMessage[],
-        maxOutputTokens: 4000,
+        maxOutputTokens: 8000,
         temperature,
         abortSignal,
         ...(tools && { tools, maxSteps: 5 }),

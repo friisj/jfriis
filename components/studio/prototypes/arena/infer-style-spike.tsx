@@ -73,19 +73,23 @@ const BASE_SKILL: SkillState = {
   color: {
     decisions: [
       { id: 'base-c1', label: 'Primary', value: '#3B82F6', rationale: 'Standard blue', confidence: 'high', source: 'base' },
-      { id: 'base-c2', label: 'Background', value: '#FFFFFF', rationale: 'White background', confidence: 'high', source: 'base' },
-      { id: 'base-c3', label: 'Text', value: '#1F2937', rationale: 'Dark gray text', confidence: 'high', source: 'base' },
-      { id: 'base-c4', label: 'Muted', value: '#6B7280', rationale: 'Gray for secondary text', confidence: 'high', source: 'base' },
-      { id: 'base-c5', label: 'Border', value: '#E5E7EB', rationale: 'Light gray border', confidence: 'high', source: 'base' },
+      { id: 'base-c2', label: 'Accent', value: '#8B5CF6', rationale: 'Purple accent', confidence: 'high', source: 'base' },
+      { id: 'base-c3', label: 'Background', value: '#FFFFFF', rationale: 'White background', confidence: 'high', source: 'base' },
+      { id: 'base-c4', label: 'Text', value: '#1F2937', rationale: 'Dark gray text', confidence: 'high', source: 'base' },
+      { id: 'base-c5', label: 'Muted', value: '#6B7280', rationale: 'Gray for secondary text', confidence: 'high', source: 'base' },
+      { id: 'base-c6', label: 'Border', value: '#E5E7EB', rationale: 'Light gray border', confidence: 'high', source: 'base' },
     ],
     rules: [],
   },
   typography: {
     decisions: [
-      { id: 'base-t1', label: 'Font Family', value: 'system-ui, sans-serif', rationale: 'System default', confidence: 'high', source: 'base' },
-      { id: 'base-t2', label: 'Heading Size', value: '18px', rationale: 'Standard heading', confidence: 'high', source: 'base' },
-      { id: 'base-t3', label: 'Body Size', value: '14px', rationale: 'Standard body', confidence: 'high', source: 'base' },
-      { id: 'base-t4', label: 'Small Size', value: '12px', rationale: 'Standard small', confidence: 'high', source: 'base' },
+      { id: 'base-t1', label: 'Display Font', value: 'system-ui, sans-serif', rationale: 'System default for headings', confidence: 'high', source: 'base' },
+      { id: 'base-t2', label: 'Body Font', value: 'system-ui, sans-serif', rationale: 'System default for body', confidence: 'high', source: 'base' },
+      { id: 'base-t3', label: 'Heading Size', value: '18px', rationale: 'Standard heading', confidence: 'high', source: 'base' },
+      { id: 'base-t4', label: 'Body Size', value: '14px', rationale: 'Standard body', confidence: 'high', source: 'base' },
+      { id: 'base-t5', label: 'Small Size', value: '12px', rationale: 'Standard small', confidence: 'high', source: 'base' },
+      { id: 'base-t6', label: 'Heading Weight', value: '600', rationale: 'Semibold headings', confidence: 'high', source: 'base' },
+      { id: 'base-t7', label: 'Body Weight', value: '400', rationale: 'Normal body weight', confidence: 'high', source: 'base' },
     ],
     rules: [],
   },
@@ -108,6 +112,12 @@ function CanonicalCard({ skill, label }: { skill: SkillState; label: string }) {
   const t = Object.fromEntries(skill.typography.decisions.map(d => [d.label, d.value]))
   const s = Object.fromEntries(skill.spacing.decisions.map(d => [d.label, d.value]))
 
+  // Fall back to legacy "Font Family" if Display/Body Font not present
+  const displayFont = t['Display Font'] ?? t['Font Family'] ?? 'system-ui, sans-serif'
+  const bodyFont = t['Body Font'] ?? t['Font Family'] ?? 'system-ui, sans-serif'
+  const headingWeight = t['Heading Weight'] ?? '600'
+  const bodyWeight = t['Body Weight'] ?? '400'
+
   return (
     <div className="space-y-1">
       <span className="text-[10px] font-medium text-gray-400 uppercase tracking-wider">{label}</span>
@@ -117,34 +127,67 @@ function CanonicalCard({ skill, label }: { skill: SkillState; label: string }) {
           border: `1px solid ${c['Border'] ?? '#e5e7eb'}`,
           borderRadius: s['Border Radius'] ?? '8px',
           padding: s['Padding'] ?? '16px',
-          fontFamily: t['Font Family'] ?? 'system-ui, sans-serif',
           display: 'flex',
           flexDirection: 'column',
           gap: s['Gap'] ?? '12px',
         }}
       >
-        <div style={{ fontSize: t['Heading Size'] ?? '18px', fontWeight: 600, color: c['Text'] ?? '#1f2937' }}>
+        <div style={{
+          fontSize: t['Heading Size'] ?? '18px',
+          fontWeight: headingWeight,
+          fontFamily: displayFont,
+          color: c['Text'] ?? '#1f2937',
+        }}>
           Notification Title
         </div>
-        <div style={{ fontSize: t['Body Size'] ?? '14px', color: c['Muted'] ?? '#6b7280', lineHeight: 1.5 }}>
-          This is a sample notification card rendered with the current skill tokens. It tests color, typography, and spacing.
+        <div style={{
+          fontSize: t['Body Size'] ?? '14px',
+          fontWeight: bodyWeight,
+          fontFamily: bodyFont,
+          color: c['Muted'] ?? '#6b7280',
+          lineHeight: 1.5,
+        }}>
+          This is a sample notification card rendered with the current skill tokens. It tests color, typography, and spacing decisions.
         </div>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <span style={{ fontSize: t['Small Size'] ?? '12px', color: c['Muted'] ?? '#6b7280' }}>2 minutes ago</span>
-          <button
-            style={{
-              background: c['Primary'] ?? '#3b82f6',
-              color: '#fff',
-              border: 'none',
-              borderRadius: s['Border Radius'] ?? '8px',
-              padding: `${parseInt(s['Gap'] ?? '12') / 2}px ${s['Padding'] ?? '16px'}`,
-              fontSize: t['Body Size'] ?? '14px',
-              fontWeight: 500,
-              cursor: 'pointer',
-            }}
-          >
-            View
-          </button>
+          <span style={{
+            fontSize: t['Small Size'] ?? '12px',
+            fontFamily: bodyFont,
+            fontWeight: bodyWeight,
+            color: c['Muted'] ?? '#6b7280',
+          }}>2 minutes ago</span>
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <button
+              style={{
+                background: 'transparent',
+                color: c['Accent'] ?? c['Muted'] ?? '#6b7280',
+                border: `1px solid ${c['Border'] ?? '#e5e7eb'}`,
+                borderRadius: s['Border Radius'] ?? '8px',
+                padding: `${parseInt(s['Gap'] ?? '12') / 2}px ${parseInt(s['Padding'] ?? '16') / 1.5}px`,
+                fontSize: t['Body Size'] ?? '14px',
+                fontFamily: bodyFont,
+                fontWeight: '500',
+                cursor: 'pointer',
+              }}
+            >
+              Dismiss
+            </button>
+            <button
+              style={{
+                background: c['Primary'] ?? '#3b82f6',
+                color: '#fff',
+                border: 'none',
+                borderRadius: s['Border Radius'] ?? '8px',
+                padding: `${parseInt(s['Gap'] ?? '12') / 2}px ${s['Padding'] ?? '16px'}`,
+                fontSize: t['Body Size'] ?? '14px',
+                fontFamily: bodyFont,
+                fontWeight: '500',
+                cursor: 'pointer',
+              }}
+            >
+              View
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -156,11 +199,17 @@ function CanonicalForm({ skill, label }: { skill: SkillState; label: string }) {
   const t = Object.fromEntries(skill.typography.decisions.map(d => [d.label, d.value]))
   const s = Object.fromEntries(skill.spacing.decisions.map(d => [d.label, d.value]))
 
+  const displayFont = t['Display Font'] ?? t['Font Family'] ?? 'system-ui, sans-serif'
+  const bodyFont = t['Body Font'] ?? t['Font Family'] ?? 'system-ui, sans-serif'
+  const headingWeight = t['Heading Weight'] ?? '600'
+  const bodyWeight = t['Body Weight'] ?? '400'
+
   const inputStyle: React.CSSProperties = {
     width: '100%',
     padding: `${parseInt(s['Gap'] ?? '12') / 1.5}px ${parseInt(s['Padding'] ?? '16') / 1.5}px`,
     fontSize: t['Body Size'] ?? '14px',
-    fontFamily: t['Font Family'] ?? 'system-ui, sans-serif',
+    fontFamily: bodyFont,
+    fontWeight: bodyWeight,
     border: `1px solid ${c['Border'] ?? '#e5e7eb'}`,
     borderRadius: s['Border Radius'] ?? '8px',
     color: c['Text'] ?? '#1f2937',
@@ -171,7 +220,8 @@ function CanonicalForm({ skill, label }: { skill: SkillState; label: string }) {
 
   const labelStyle: React.CSSProperties = {
     fontSize: t['Small Size'] ?? '12px',
-    fontWeight: 500,
+    fontWeight: '500',
+    fontFamily: bodyFont,
     color: c['Text'] ?? '#1f2937',
     display: 'block',
     marginBottom: '4px',
@@ -186,22 +236,35 @@ function CanonicalForm({ skill, label }: { skill: SkillState; label: string }) {
           border: `1px solid ${c['Border'] ?? '#e5e7eb'}`,
           borderRadius: s['Border Radius'] ?? '8px',
           padding: s['Padding'] ?? '16px',
-          fontFamily: t['Font Family'] ?? 'system-ui, sans-serif',
           display: 'flex',
           flexDirection: 'column',
           gap: s['Gap'] ?? '12px',
         }}
       >
-        <div style={{ fontSize: t['Heading Size'] ?? '18px', fontWeight: 600, color: c['Text'] ?? '#1f2937' }}>
+        <div style={{
+          fontSize: t['Heading Size'] ?? '18px',
+          fontWeight: headingWeight,
+          fontFamily: displayFont,
+          color: c['Text'] ?? '#1f2937',
+        }}>
           Contact Form
         </div>
+        <p style={{
+          fontSize: t['Small Size'] ?? '12px',
+          fontFamily: bodyFont,
+          fontWeight: bodyWeight,
+          color: c['Accent'] ?? c['Muted'] ?? '#6b7280',
+          margin: 0,
+        }}>
+          Required fields marked with *
+        </p>
         <div style={{ display: 'flex', flexDirection: 'column', gap: s['Gap'] ?? '12px' }}>
           <div>
-            <label style={labelStyle}>Name</label>
+            <label style={labelStyle}>Name *</label>
             <input style={inputStyle} placeholder="Jane Doe" readOnly />
           </div>
           <div>
-            <label style={labelStyle}>Email</label>
+            <label style={labelStyle}>Email *</label>
             <input style={inputStyle} placeholder="jane@example.com" readOnly />
           </div>
           <div>
@@ -217,7 +280,8 @@ function CanonicalForm({ skill, label }: { skill: SkillState; label: string }) {
             borderRadius: s['Border Radius'] ?? '8px',
             padding: `${parseInt(s['Gap'] ?? '12') / 1.5}px ${s['Padding'] ?? '16px'}`,
             fontSize: t['Body Size'] ?? '14px',
-            fontWeight: 500,
+            fontFamily: bodyFont,
+            fontWeight: '500',
             cursor: 'pointer',
             width: '100%',
           }}
