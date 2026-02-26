@@ -31,9 +31,9 @@ export interface ModelConfig {
 export const models: Record<string, ModelConfig> = {
   // Anthropic Models (Claude 4.5/4.6 series)
   'claude-sonnet': {
-    id: 'claude-sonnet-4-6-20250514',
+    id: 'claude-sonnet-4-20250514',
     provider: 'anthropic',
-    name: 'Claude Sonnet 4.6',
+    name: 'Claude Sonnet 4',
     description: 'Best balance of capability and speed for most tasks',
     capabilities: ['reasoning', 'coding', 'creative', 'vision', 'structured'],
     contextWindow: 200000,
@@ -49,9 +49,9 @@ export const models: Record<string, ModelConfig> = {
     costTier: 'low',
   },
   'claude-opus': {
-    id: 'claude-opus-4-6-20250514',
+    id: 'claude-opus-4-20250514',
     provider: 'anthropic',
-    name: 'Claude Opus 4.6',
+    name: 'Claude Opus 4',
     description: 'Most capable model for complex reasoning',
     capabilities: ['reasoning', 'coding', 'creative', 'vision', 'long-context'],
     contextWindow: 200000,

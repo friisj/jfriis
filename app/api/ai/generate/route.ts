@@ -28,6 +28,7 @@ import '@/lib/ai/actions/verbivore-suggest-terms'
 import '@/lib/ai/actions/verbivore-analyze-split'
 import '@/lib/ai/actions/verbivore-enhance-style'
 import '@/lib/ai/actions/arena-eval-skill'
+import '@/lib/ai/actions/arena-infer-style'
 
 export async function POST(request: Request) {
   try {

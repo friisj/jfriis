@@ -26,10 +26,22 @@ export interface Action<TInput = unknown, TOutput = unknown> {
   inputSchema: z.ZodType<TInput>
   outputSchema: z.ZodType<TOutput>
 
-  // Prompt construction
+  // Prompt construction — use buildPrompt for text-only, buildMessages for multimodal
   buildPrompt: (input: TInput) => {
     system: string
     user: string
+  }
+
+  // Multimodal prompt construction (optional, overrides buildPrompt when present)
+  buildMessages?: (input: TInput) => {
+    system: string
+    messages: Array<{
+      role: 'user' | 'assistant'
+      content: Array<
+        | { type: 'text'; text: string }
+        | { type: 'image'; image: string; mediaType?: string }
+      >
+    }>
   }
 }
 

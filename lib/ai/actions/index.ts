@@ -4,7 +4,7 @@
  * Central registry for all AI actions and the executor that runs them.
  */
 
-import { generateText } from 'ai'
+import { generateText, type ModelMessage } from 'ai'
 import { getModel, models } from '../models'
 import { getAnthropic } from '../providers'
 import type {
@@ -98,12 +98,88 @@ function mapError(error: unknown): ActionError {
     }
   }
 
-  // Default to provider error
+  // Default to provider error — include real message in development
   return {
     code: 'provider_error',
-    message: 'AI service temporarily unavailable.',
+    message: process.env.NODE_ENV === 'development'
+      ? `Provider error: ${message}`
+      : 'AI service temporarily unavailable.',
     retryable: true,
   }
+}
+
+/**
+ * Parse raw LLM text into validated output
+ */
+function parseActionOutput<TOutput>(
+  actionId: string,
+  rawText: string,
+  outputSchema: import('zod').ZodType<TOutput>,
+): { success: true; data: TOutput } | { success: false; error: ActionError } {
+  let output: TOutput
+  try {
+    let jsonText = rawText.trim()
+
+    // Find first { and last } to extract JSON
+    const jsonStart = jsonText.indexOf('{')
+    const jsonEnd = jsonText.lastIndexOf('}')
+    if (jsonStart !== -1 && jsonEnd !== -1 && jsonEnd > jsonStart) {
+      jsonText = jsonText.slice(jsonStart, jsonEnd + 1)
+    }
+
+    // Handle markdown code fences
+    if (jsonText.startsWith('```json')) {
+      jsonText = jsonText.slice(7)
+    } else if (jsonText.startsWith('```')) {
+      jsonText = jsonText.slice(3)
+    }
+    if (jsonText.endsWith('```')) {
+      jsonText = jsonText.slice(0, -3)
+    }
+    jsonText = jsonText.trim()
+
+    output = JSON.parse(jsonText) as TOutput
+
+    // Post-process: Convert Anthropic <cite> tags to markdown footnotes
+    if (output && typeof output === 'object' && 'content' in output) {
+      const content = (output as { content: string }).content
+      if (content && typeof content === 'string' && content.includes('<cite')) {
+        let processed = content.replace(
+          /<cite\s+index="([^"]+)">([\s\S]*?)<\/cite>/g,
+          '$2[^$1]'
+        )
+        processed = processed.replace(/\[\^([^\]]+)\]\[\^/g, '[^$1][^')
+        ;(output as { content: string }).content = processed
+      }
+    }
+  } catch (parseError) {
+    console.warn('[ai:action] JSON parse failed, wrapping as content:', {
+      action: actionId,
+      rawText: rawText.substring(0, 200),
+      error: parseError instanceof Error ? parseError.message : 'Unknown',
+    })
+    output = { content: rawText } as TOutput
+  }
+
+  const outputResult = outputSchema.safeParse(output)
+  if (!outputResult.success) {
+    console.error('[ai:action] Output validation failed:', {
+      action: actionId,
+      rawText: rawText.substring(0, 500),
+      parsedOutput: output,
+      zodError: outputResult.error.format(),
+    })
+    return {
+      success: false,
+      error: {
+        code: 'validation_error',
+        message: 'Invalid response from AI',
+        retryable: true,
+      },
+    }
+  }
+
+  return { success: true, data: outputResult.data }
 }
 
 /**
@@ -159,9 +235,6 @@ export async function executeAction<TInput, TOutput>(
   const webSearchEnabled = inputData.webSearch === true
 
   try {
-    // Build prompt
-    const { system, user } = action.buildPrompt(inputResult.data)
-
     // Build tools config if web search is enabled
     // Web search only works with Anthropic models
     const modelConfig = models[modelKey]
@@ -170,88 +243,38 @@ export async function executeAction<TInput, TOutput>(
       ? { web_search: getAnthropic().tools.webSearch_20250305({ maxUses: 5 }) }
       : undefined
 
-    // Execute
-    const result = await generateText({
-      model: getModel(modelKey) as Parameters<typeof generateText>[0]['model'],
-      system,
-      prompt: user,
-      maxOutputTokens: 4000, // Increased for web search results
-      temperature,
-      abortSignal,
-      ...(tools && {
-        tools,
-        maxSteps: 5, // Allow model to process web search results and produce final answer
-      }),
-    })
-
-    // Parse output
-    let output: TOutput
-    try {
-      // Strip markdown code fences if present (common LLM behavior)
-      let jsonText = result.text.trim()
-
-      // When web search is used, model may output thinking text before JSON
-      // Find the first { and last } to extract just the JSON
-      const jsonStart = jsonText.indexOf('{')
-      const jsonEnd = jsonText.lastIndexOf('}')
-      if (jsonStart !== -1 && jsonEnd !== -1 && jsonEnd > jsonStart) {
-        jsonText = jsonText.slice(jsonStart, jsonEnd + 1)
-      }
-
-      // Also handle markdown code fences
-      if (jsonText.startsWith('```json')) {
-        jsonText = jsonText.slice(7) // Remove ```json
-      } else if (jsonText.startsWith('```')) {
-        jsonText = jsonText.slice(3) // Remove ```
-      }
-      if (jsonText.endsWith('```')) {
-        jsonText = jsonText.slice(0, -3) // Remove trailing ```
-      }
-      jsonText = jsonText.trim()
-
-      // Try to parse as JSON
-      output = JSON.parse(jsonText) as TOutput
-
-      // Post-process: Convert Anthropic <cite> tags to markdown footnotes if present
-      if (output && typeof output === 'object' && 'content' in output) {
-        const content = (output as { content: string }).content
-        if (content && typeof content === 'string' && content.includes('<cite')) {
-          // Convert <cite index="X">text</cite> to text[^X]
-          let processed = content.replace(
-            /<cite\s+index="([^"]+)">([\s\S]*?)<\/cite>/g,
-            '$2[^$1]'
-          )
-          // Clean up any double footnote markers
-          processed = processed.replace(/\[\^([^\]]+)\]\[\^/g, '[^$1][^')
-          ;(output as { content: string }).content = processed
-        }
-      }
-    } catch (parseError) {
-      // If not JSON, wrap in expected structure
-      console.warn('[ai:action] JSON parse failed, wrapping as content:', {
-        action: actionId,
-        rawText: result.text.substring(0, 200),
-        error: parseError instanceof Error ? parseError.message : 'Unknown',
+    // Execute — branch on buildMessages (multimodal) vs buildPrompt (text-only)
+    let result
+    if (action.buildMessages) {
+      const { system, messages } = action.buildMessages(inputResult.data)
+      result = await generateText({
+        model: getModel(modelKey) as Parameters<typeof generateText>[0]['model'],
+        system,
+        messages: messages as ModelMessage[],
+        maxOutputTokens: 4000,
+        temperature,
+        abortSignal,
+        ...(tools && { tools, maxSteps: 5 }),
       })
-      output = { content: result.text } as TOutput
+    } else {
+      const { system, user } = action.buildPrompt(inputResult.data)
+      result = await generateText({
+        model: getModel(modelKey) as Parameters<typeof generateText>[0]['model'],
+        system,
+        prompt: user,
+        maxOutputTokens: 4000,
+        temperature,
+        abortSignal,
+        ...(tools && { tools, maxSteps: 5 }),
+      })
     }
 
-    // Validate output
-    const outputResult = action.outputSchema.safeParse(output)
-    if (!outputResult.success) {
-      console.error('[ai:action] Output validation failed:', {
-        action: actionId,
-        rawText: result.text.substring(0, 500),
-        parsedOutput: output,
-        zodError: outputResult.error.format(),
-      })
+    // Parse and validate output
+    const parsed = parseActionOutput<TOutput>(actionId, result.text, action.outputSchema)
+    if (!parsed.success) {
       return {
         success: false,
-        error: {
-          code: 'validation_error',
-          message: 'Invalid response from AI',
-          retryable: true,
-        },
+        error: parsed.error,
         durationMs: Date.now() - startTime,
         model: modelKey,
         usage: {
@@ -269,7 +292,7 @@ export async function executeAction<TInput, TOutput>(
 
     return {
       success: true,
-      data: outputResult.data,
+      data: parsed.data,
       durationMs: Date.now() - startTime,
       model: modelKey,
       usage: {

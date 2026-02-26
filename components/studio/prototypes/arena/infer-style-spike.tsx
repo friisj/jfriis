@@ -400,6 +400,8 @@ export default function InferStyleSpike() {
   const [inputs, setInputs] = useState<StyleInput[]>([])
   const [inferredSkill, setInferredSkill] = useState<SkillState>(emptySkillState)
   const [inferring, setInferring] = useState(false)
+  const [inferProgress, setInferProgress] = useState<{ current: number; total: number; label: string } | null>(null)
+  const [inferError, setInferError] = useState<string | null>(null)
   const [results, setResults] = useState<InferenceResult[]>([])
 
   const handleAddInput = useCallback((input: StyleInput) => {
@@ -413,59 +415,103 @@ export default function InferStyleSpike() {
   const handleInfer = useCallback(async () => {
     if (inputs.length === 0) return
     setInferring(true)
+    setInferProgress({ current: 0, total: inputs.length, label: '' })
+    setInferError(null)
 
-    // TODO: Wire up to AI action that processes each input sequentially
-    // For now, simulate with a placeholder that shows the UI works
-    await new Promise(r => setTimeout(r, 1500))
+    let currentSkill: SkillState | undefined = undefined
+    // If we already have an inferred skill (adding more inputs), use it as starting point
+    const hasExisting = (['color', 'typography', 'spacing'] as const).some(
+      d => inferredSkill[d].decisions.length > 0
+    )
+    if (hasExisting) {
+      currentSkill = inferredSkill
+    }
 
-    // Placeholder: generate a mock inferred skill to demonstrate the comparison UI
-    setInferredSkill({
-      color: {
-        decisions: [
-          { id: 'inf-c1', label: 'Primary', value: '#7C3AED', rationale: 'Dominant purple detected across inputs', confidence: 'high', source: inputs[0]?.label ?? 'input' },
-          { id: 'inf-c2', label: 'Background', value: '#FAFAF9', rationale: 'Off-white warm background', confidence: 'medium', source: inputs[0]?.label ?? 'input' },
-          { id: 'inf-c3', label: 'Text', value: '#1C1917', rationale: 'Near-black text for contrast', confidence: 'high', source: inputs[0]?.label ?? 'input' },
-          { id: 'inf-c4', label: 'Muted', value: '#78716C', rationale: 'Stone gray for secondary text', confidence: 'medium', source: inputs[0]?.label ?? 'input' },
-          { id: 'inf-c5', label: 'Border', value: '#E7E5E4', rationale: 'Warm gray borders', confidence: 'medium', source: inputs[0]?.label ?? 'input' },
-        ],
-        rules: [
-          { id: 'inf-cr1', statement: 'Use warm neutrals, avoid cool grays', type: 'prefer', source: inputs[0]?.label ?? 'input' },
-        ],
-      },
-      typography: {
-        decisions: [
-          { id: 'inf-t1', label: 'Font Family', value: 'Georgia, serif', rationale: 'Serif font detected in headings', confidence: 'medium', source: inputs[0]?.label ?? 'input' },
-          { id: 'inf-t2', label: 'Heading Size', value: '20px', rationale: 'Larger heading scale', confidence: 'medium', source: inputs[0]?.label ?? 'input' },
-          { id: 'inf-t3', label: 'Body Size', value: '15px', rationale: 'Slightly larger body text', confidence: 'medium', source: inputs[0]?.label ?? 'input' },
-          { id: 'inf-t4', label: 'Small Size', value: '12px', rationale: 'Standard small text', confidence: 'high', source: inputs[0]?.label ?? 'input' },
-        ],
-        rules: [],
-      },
-      spacing: {
-        decisions: [
-          { id: 'inf-s1', label: 'Padding', value: '20px', rationale: 'Generous padding detected', confidence: 'medium', source: inputs[0]?.label ?? 'input' },
-          { id: 'inf-s2', label: 'Gap', value: '16px', rationale: 'Wider spacing between elements', confidence: 'medium', source: inputs[0]?.label ?? 'input' },
-          { id: 'inf-s3', label: 'Border Radius', value: '12px', rationale: 'Rounded corners throughout', confidence: 'high', source: inputs[0]?.label ?? 'input' },
-        ],
-        rules: [],
-      },
-    })
+    const newResults: InferenceResult[] = [...results]
+    const errors: string[] = []
 
-    setResults([{
-      inputId: inputs[0]?.id ?? '',
-      skillDelta: {},
-      summary: `Analyzed ${inputs.length} input(s). Detected warm color palette with purple primary, serif typography, and generous spacing.`,
-    }])
+    for (let i = 0; i < inputs.length; i++) {
+      const input = inputs[i]
+      setInferProgress({ current: i + 1, total: inputs.length, label: input.label })
+
+      try {
+        let inputContent = input.value
+
+        // For URL inputs, fetch HTML content first
+        if (input.type === 'url') {
+          const fetchRes = await fetch('/api/ai/fetch-url', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ url: input.value }),
+          })
+          const fetchData = await fetchRes.json()
+          if (!fetchRes.ok || !fetchData.content) {
+            errors.push(`${input.label}: ${fetchData.error ?? 'Failed to fetch'}`)
+            continue
+          }
+          inputContent = fetchData.content
+        }
+
+        // Call the AI action
+        const res = await fetch('/api/ai/generate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'arena-infer-style',
+            input: {
+              inputType: input.type,
+              inputLabel: input.label,
+              inputContent,
+              currentSkill,
+            },
+          }),
+        })
+
+        const result = await res.json()
+        if (!result.success || !result.data) {
+          errors.push(`${input.label}: ${result.error?.message ?? 'AI error'}`)
+          continue
+        }
+
+        const data = result.data as SkillState & { summary: string }
+        currentSkill = {
+          color: data.color,
+          typography: data.typography,
+          spacing: data.spacing,
+        }
+
+        newResults.push({
+          inputId: input.id,
+          skillDelta: {},
+          summary: data.summary,
+        })
+      } catch (err) {
+        errors.push(`${input.label}: ${err instanceof Error ? err.message : 'Unknown error'}`)
+      }
+    }
+
+    if (currentSkill) {
+      setInferredSkill(currentSkill)
+    }
+    setResults(newResults)
+    if (errors.length > 0) {
+      setInferError(`Failed on ${errors.length} input(s): ${errors.join('; ')}`)
+    }
 
     setInferring(false)
-    setPhase('review')
-  }, [inputs])
+    setInferProgress(null)
+    if (currentSkill) {
+      setPhase('review')
+    }
+  }, [inputs, inferredSkill, results])
 
   const handleReset = useCallback(() => {
     setPhase('collect')
     setInputs([])
     setInferredSkill(emptySkillState())
     setResults([])
+    setInferError(null)
+    setInferProgress(null)
   }, [])
 
   const totalDecisions = useMemo(() => {
@@ -548,14 +594,25 @@ export default function InferStyleSpike() {
           </div>
         </div>
 
-        <div className="flex justify-center">
+        {inferError && (
+          <div className="bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800 rounded-xl p-4">
+            <p className="text-sm text-red-700 dark:text-red-400">{inferError}</p>
+          </div>
+        )}
+
+        <div className="flex flex-col items-center gap-2">
           <button
             onClick={handleInfer}
             disabled={inputs.length === 0 || inferring}
             className="px-8 py-3 bg-purple-600 text-white font-medium rounded-xl hover:bg-purple-700 disabled:bg-gray-300 dark:disabled:bg-gray-700 disabled:cursor-not-allowed transition-colors text-sm"
           >
-            {inferring ? 'Analyzing...' : `Infer Style from ${inputs.length} Input${inputs.length !== 1 ? 's' : ''}`}
+            {inferring && inferProgress
+              ? `Analyzing ${inferProgress.current}/${inferProgress.total}: ${inferProgress.label}`
+              : `Infer Style from ${inputs.length} Input${inputs.length !== 1 ? 's' : ''}`}
           </button>
+          {inferring && (
+            <p className="text-xs text-gray-400">This may take a moment per input...</p>
+          )}
         </div>
       </div>
     )
