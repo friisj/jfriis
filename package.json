@@ -71,6 +71,7 @@
     "geist": "^1.5.1",
     "glfx": "^0.0.4",
     "google-auth-library": "^10.5.0",
+    "html-to-image": "^1.11.13",
     "html2canvas": "^1.4.1",
     "immer": "^11.1.4",
     "lucide-react": "^0.554.0",

@@ -51,6 +51,12 @@ const feedbackItemSchema = z.object({
   reason: z.string().optional(),
 })
 
+const annotationSchema = z.object({
+  hatKey: z.enum(['white', 'red', 'black', 'yellow', 'green', 'blue']),
+  screenshot: z.string(),
+  transcript: z.string(),
+})
+
 const inputSchema = z.object({
   currentSkill: z.object({
     color: dimensionSchema,
@@ -58,8 +64,10 @@ const inputSchema = z.object({
     spacing: dimensionSchema,
   }),
   feedback: z.array(feedbackItemSchema),
+  annotations: z.array(annotationSchema).default([]),
   notes: z.string(),
   iterationCount: z.number(),
+  model: z.string().optional(),
 })
 
 type RefineInput = z.infer<typeof inputSchema>
@@ -132,7 +140,23 @@ Output a single JSON object:
   "summary": "2-3 sentence summary of what changed and why"
 }
 
-Each decision: { label, value, rationale, confidence, source: "gym" }`
+Each decision: { label, value, rationale, confidence, source: "gym" }
+
+## Visual Annotations
+
+You may also receive annotated screenshots of the canonical components with voice transcripts.
+Each annotation has a De Bono hat type indicating the thinking mode:
+
+- White (factual): objective observations about values, measurements, specs
+- Red (emotional): gut feeling, aesthetic reaction — treat as soft signal
+- Black (critical): problems, risks, failures — high-priority issues to address
+- Yellow (positive): what works well — preserve these qualities
+- Green (creative): alternative ideas — consider but don't blindly apply
+- Blue (process): meta/priority notes — use to guide which changes matter most
+
+Weight annotations by hat type: Black and White observations are highest priority.
+Yellow observations identify constraints (preserve these aspects).
+Green offers options, not directives.`
 
 function buildMessages(input: RefineInput) {
   const dims = ['color', 'typography', 'spacing'] as const
@@ -175,9 +199,20 @@ ${input.notes || '(none)'}
 
 Output JSON only.`
 
+  const content: Array<{ type: 'text'; text: string } | { type: 'image'; image: string }> = [
+    { type: 'text', text },
+  ]
+
+  for (const ann of input.annotations) {
+    content.push(
+      { type: 'text', text: `[${ann.hatKey.toUpperCase()} HAT annotation]: ${ann.transcript}` },
+      { type: 'image', image: ann.screenshot },
+    )
+  }
+
   return {
     system: SYSTEM_PROMPT,
-    messages: [{ role: 'user' as const, content: [{ type: 'text' as const, text }] }],
+    messages: [{ role: 'user' as const, content }],
   }
 }
 

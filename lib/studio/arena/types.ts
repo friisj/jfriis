@@ -5,6 +5,16 @@
  * Used by infer-style-spike, figma-import-spike, and AI actions.
  */
 
+import type { DebonoHatKey } from './debono-hats'
+
+export interface ArenaAnnotation {
+  id: string
+  hatKey: DebonoHatKey
+  screenshot: string
+  transcript: string
+  timestamp: number
+}
+
 export interface SkillDecision {
   id: string
   label: string
