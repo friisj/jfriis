@@ -36,9 +36,9 @@ const dimensionSchema = z.object({
 })
 
 const inputSchema = z.object({
-  inputType: z.enum(['image', 'url']),
+  inputType: z.enum(['image', 'url', 'svg', 'css']),
   inputLabel: z.string(),
-  inputContent: z.string(), // base64 data URL for images, HTML text for URLs
+  inputContent: z.string(), // base64 data URL for images, HTML for URLs, SVG markup, or CSS text
   currentSkill: z
     .object({
       color: dimensionSchema,
@@ -191,6 +191,16 @@ function buildMessages(input: InferStyleInput) {
     content.push({
       type: 'text',
       text: `Analyze this screenshot (from "${input.inputLabel}") and extract design tokens + rules. Output JSON only.`,
+    })
+  } else if (input.inputType === 'svg') {
+    content.push({
+      type: 'text',
+      text: `Analyze the following SVG markup from "${input.inputLabel}". This is structured vector data — extract EXACT values from fill, stroke, font-family, font-size, font-weight, rx/ry attributes, and spacing/dimension values. These are ground truth values from the source file, not estimates. Prefer these over visual guesses.\n\n\`\`\`svg\n${input.inputContent}\n\`\`\`\n\nOutput JSON only.`,
+    })
+  } else if (input.inputType === 'css') {
+    content.push({
+      type: 'text',
+      text: `Analyze the following CSS from "${input.inputLabel}". This CSS was copied directly from a design tool (e.g. Figma Inspect) and contains exact design token values. Extract colors from color/background-color/border-color, typography from font-family/font-size/font-weight/line-height, and spacing from padding/margin/gap/border-radius. These are ground truth values — use them directly, do not estimate.\n\n\`\`\`css\n${input.inputContent}\n\`\`\`\n\nOutput JSON only.`,
     })
   } else {
     content.push({

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback, useMemo } from 'react'
+import { useState, useCallback, useMemo, useEffect } from 'react'
 
 /**
  * Infer Style Spike
@@ -47,14 +47,20 @@ interface SkillState {
   spacing: DimensionState
 }
 
-type InputType = 'url' | 'image'
+type InputType = 'url' | 'image' | 'svg' | 'css'
 
 interface StyleInput {
   id: string
   type: InputType
-  value: string // URL string or base64 data URL
+  value: string // URL string, base64 data URL, SVG markup, or CSS text
   label: string // user-friendly label
   addedAt: number
+}
+
+interface CustomFont {
+  name: string // font-family name (derived from filename)
+  dataUrl: string // base64 data URL of the font file
+  format: string // woff2, truetype, opentype
 }
 
 interface InferenceResult {
@@ -107,14 +113,14 @@ const BASE_SKILL: SkillState = {
 // Canonical components — parameterized by skill
 // ---------------------------------------------------------------------------
 
-function CanonicalCard({ skill, label }: { skill: SkillState; label: string }) {
+function CanonicalCard({ skill, label, fontOverrides }: { skill: SkillState; label: string; fontOverrides?: { display?: string; body?: string } }) {
   const c = Object.fromEntries(skill.color.decisions.map(d => [d.label, d.value]))
   const t = Object.fromEntries(skill.typography.decisions.map(d => [d.label, d.value]))
   const s = Object.fromEntries(skill.spacing.decisions.map(d => [d.label, d.value]))
 
-  // Fall back to legacy "Font Family" if Display/Body Font not present
-  const displayFont = t['Display Font'] ?? t['Font Family'] ?? 'system-ui, sans-serif'
-  const bodyFont = t['Body Font'] ?? t['Font Family'] ?? 'system-ui, sans-serif'
+  // Font overrides take precedence, then skill value, then fallback
+  const displayFont = fontOverrides?.display ?? t['Display Font'] ?? t['Font Family'] ?? 'system-ui, sans-serif'
+  const bodyFont = fontOverrides?.body ?? t['Body Font'] ?? t['Font Family'] ?? 'system-ui, sans-serif'
   const headingWeight = t['Heading Weight'] ?? '600'
   const bodyWeight = t['Body Weight'] ?? '400'
 
@@ -194,13 +200,13 @@ function CanonicalCard({ skill, label }: { skill: SkillState; label: string }) {
   )
 }
 
-function CanonicalForm({ skill, label }: { skill: SkillState; label: string }) {
+function CanonicalForm({ skill, label, fontOverrides }: { skill: SkillState; label: string; fontOverrides?: { display?: string; body?: string } }) {
   const c = Object.fromEntries(skill.color.decisions.map(d => [d.label, d.value]))
   const t = Object.fromEntries(skill.typography.decisions.map(d => [d.label, d.value]))
   const s = Object.fromEntries(skill.spacing.decisions.map(d => [d.label, d.value]))
 
-  const displayFont = t['Display Font'] ?? t['Font Family'] ?? 'system-ui, sans-serif'
-  const bodyFont = t['Body Font'] ?? t['Font Family'] ?? 'system-ui, sans-serif'
+  const displayFont = fontOverrides?.display ?? t['Display Font'] ?? t['Font Family'] ?? 'system-ui, sans-serif'
+  const bodyFont = fontOverrides?.body ?? t['Body Font'] ?? t['Font Family'] ?? 'system-ui, sans-serif'
   const headingWeight = t['Heading Weight'] ?? '600'
   const bodyWeight = t['Body Weight'] ?? '400'
 
@@ -293,13 +299,13 @@ function CanonicalForm({ skill, label }: { skill: SkillState; label: string }) {
   )
 }
 
-function CanonicalDashboard({ skill, label }: { skill: SkillState; label: string }) {
+function CanonicalDashboard({ skill, label, fontOverrides }: { skill: SkillState; label: string; fontOverrides?: { display?: string; body?: string } }) {
   const c = Object.fromEntries(skill.color.decisions.map(d => [d.label, d.value]))
   const t = Object.fromEntries(skill.typography.decisions.map(d => [d.label, d.value]))
   const s = Object.fromEntries(skill.spacing.decisions.map(d => [d.label, d.value]))
 
-  const displayFont = t['Display Font'] ?? t['Font Family'] ?? 'system-ui, sans-serif'
-  const bodyFont = t['Body Font'] ?? t['Font Family'] ?? 'system-ui, sans-serif'
+  const displayFont = fontOverrides?.display ?? t['Display Font'] ?? t['Font Family'] ?? 'system-ui, sans-serif'
+  const bodyFont = fontOverrides?.body ?? t['Body Font'] ?? t['Font Family'] ?? 'system-ui, sans-serif'
   const headingWeight = t['Heading Weight'] ?? '600'
   const bodyWeight = t['Body Weight'] ?? '400'
 
@@ -556,6 +562,7 @@ function InferredSkillPanel({ skill }: { skill: SkillState }) {
 
 function InputCollector({ onAdd }: { onAdd: (input: StyleInput) => void }) {
   const [url, setUrl] = useState('')
+  const [css, setCss] = useState('')
   const [dragging, setDragging] = useState(false)
 
   const handleAddUrl = () => {
@@ -570,11 +577,40 @@ function InputCollector({ onAdd }: { onAdd: (input: StyleInput) => void }) {
     setUrl('')
   }
 
-  const handleDrop = useCallback((e: React.DragEvent) => {
-    e.preventDefault()
-    setDragging(false)
-    const files = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith('image/'))
-    for (const file of files) {
+  const handleAddCss = () => {
+    if (!css.trim()) return
+    // Derive a short label from first property or fallback
+    const firstProp = css.match(/[\w-]+\s*:/)
+    const label = firstProp ? `CSS (${firstProp[0].replace(':', '').trim()}\u2026)` : 'Pasted CSS'
+    onAdd({
+      id: `css-${Date.now()}`,
+      type: 'css',
+      value: css.trim(),
+      label,
+      addedAt: Date.now(),
+    })
+    setCss('')
+  }
+
+  const handleFile = useCallback((file: File) => {
+    // SVG files → read as text
+    if (file.name.endsWith('.svg') || file.type === 'image/svg+xml') {
+      const reader = new FileReader()
+      reader.onload = () => {
+        onAdd({
+          id: `svg-${Date.now()}-${file.name}`,
+          type: 'svg',
+          value: reader.result as string,
+          label: file.name,
+          addedAt: Date.now(),
+        })
+      }
+      reader.readAsText(file)
+      return
+    }
+
+    // Image files → read as data URL
+    if (file.type.startsWith('image/')) {
       const reader = new FileReader()
       reader.onload = () => {
         onAdd({
@@ -589,23 +625,22 @@ function InputCollector({ onAdd }: { onAdd: (input: StyleInput) => void }) {
     }
   }, [onAdd])
 
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault()
+    setDragging(false)
+    const files = Array.from(e.dataTransfer.files).filter(
+      f => f.type.startsWith('image/') || f.name.endsWith('.svg')
+    )
+    for (const file of files) handleFile(file)
+  }, [handleFile])
+
   const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files ?? []).filter(f => f.type.startsWith('image/'))
-    for (const file of files) {
-      const reader = new FileReader()
-      reader.onload = () => {
-        onAdd({
-          id: `img-${Date.now()}-${file.name}`,
-          type: 'image',
-          value: reader.result as string,
-          label: file.name,
-          addedAt: Date.now(),
-        })
-      }
-      reader.readAsDataURL(file)
-    }
+    const files = Array.from(e.target.files ?? []).filter(
+      f => f.type.startsWith('image/') || f.name.endsWith('.svg')
+    )
+    for (const file of files) handleFile(file)
     e.target.value = ''
-  }, [onAdd])
+  }, [handleFile])
 
   return (
     <div className="space-y-4">
@@ -631,7 +666,29 @@ function InputCollector({ onAdd }: { onAdd: (input: StyleInput) => void }) {
         </div>
       </div>
 
-      {/* Image drop zone */}
+      {/* CSS paste */}
+      <div>
+        <label className="text-xs font-medium text-gray-600 dark:text-gray-400 block mb-1">
+          Paste CSS
+          <span className="font-normal text-gray-400 ml-1">from Figma Inspect or DevTools</span>
+        </label>
+        <textarea
+          value={css}
+          onChange={(e) => setCss(e.target.value)}
+          placeholder={'font-family: Inter, sans-serif;\nfont-size: 16px;\ncolor: #1a1a2e;\nborder-radius: 12px;'}
+          rows={4}
+          className="w-full px-3 py-2 text-xs font-mono border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-200 placeholder:text-gray-400 resize-none"
+        />
+        <button
+          onClick={handleAddCss}
+          disabled={!css.trim()}
+          className="mt-1 px-4 py-1.5 text-xs font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+        >
+          Add CSS
+        </button>
+      </div>
+
+      {/* Image / SVG drop zone */}
       <div
         onDragOver={(e) => { e.preventDefault(); setDragging(true) }}
         onDragLeave={() => setDragging(false)}
@@ -643,13 +700,13 @@ function InputCollector({ onAdd }: { onAdd: (input: StyleInput) => void }) {
         }`}
       >
         <p className="text-sm text-gray-500 dark:text-gray-400">
-          Drop screenshots here or{' '}
+          Drop screenshots or SVG files, or{' '}
           <label className="text-blue-600 hover:text-blue-700 cursor-pointer underline">
             browse
-            <input type="file" accept="image/*" multiple className="hidden" onChange={handleFileSelect} />
+            <input type="file" accept="image/*,.svg" multiple className="hidden" onChange={handleFileSelect} />
           </label>
         </p>
-        <p className="text-xs text-gray-400 mt-1">PNG, JPG, WebP</p>
+        <p className="text-xs text-gray-400 mt-1">PNG, JPG, WebP, SVG</p>
       </div>
     </div>
   )
@@ -675,6 +732,30 @@ export default function InferStyleSpike() {
   const [inferProgress, setInferProgress] = useState<{ current: number; total: number; label: string } | null>(null)
   const [inferError, setInferError] = useState<string | null>(null)
   const [results, setResults] = useState<InferenceResult[]>([])
+  const [fontDisplay, setFontDisplay] = useState<CustomFont | null>(null)
+  const [fontBody, setFontBody] = useState<CustomFont | null>(null)
+
+  // Inject @font-face rules for uploaded fonts
+  useEffect(() => {
+    const fonts = [fontDisplay, fontBody].filter(Boolean) as CustomFont[]
+    if (fonts.length === 0) return
+
+    const css = fonts.map(f =>
+      `@font-face { font-family: "${f.name}"; src: url(${f.dataUrl}) format("${f.format}"); font-display: swap; }`
+    ).join('\n')
+    const style = document.createElement('style')
+    style.setAttribute('data-infer-style-fonts', '')
+    style.textContent = css
+    document.head.appendChild(style)
+    return () => { style.remove() }
+  }, [fontDisplay, fontBody])
+
+  const fontOverrides = useMemo(() => {
+    const overrides: { display?: string; body?: string } = {}
+    if (fontDisplay) overrides.display = `"${fontDisplay.name}", system-ui, sans-serif`
+    if (fontBody) overrides.body = `"${fontBody.name}", system-ui, sans-serif`
+    return Object.keys(overrides).length > 0 ? overrides : undefined
+  }, [fontDisplay, fontBody])
 
   const handleAddInput = useCallback((input: StyleInput) => {
     setInputs(prev => [...prev, input])
@@ -682,6 +763,22 @@ export default function InferStyleSpike() {
 
   const handleRemoveInput = useCallback((id: string) => {
     setInputs(prev => prev.filter(i => i.id !== id))
+  }, [])
+
+  const handleFontUpload = useCallback((slot: 'display' | 'body', file: File) => {
+    const ext = file.name.split('.').pop()?.toLowerCase() ?? ''
+    const formatMap: Record<string, string> = { woff2: 'woff2', woff: 'woff', ttf: 'truetype', otf: 'opentype' }
+    const format = formatMap[ext] ?? 'truetype'
+    // Derive family name from filename: "Inter-Regular.woff2" → "Inter Regular"
+    const name = file.name.replace(/\.[^.]+$/, '').replace(/[-_]/g, ' ')
+
+    const reader = new FileReader()
+    reader.onload = () => {
+      const font: CustomFont = { name, dataUrl: reader.result as string, format }
+      if (slot === 'display') setFontDisplay(font)
+      else setFontBody(font)
+    }
+    reader.readAsDataURL(file)
   }, [])
 
   const handleInfer = useCallback(async () => {
@@ -708,9 +805,11 @@ export default function InferStyleSpike() {
 
       try {
         let inputContent = input.value
+        let inputType: 'image' | 'url' | 'svg' | 'css' = input.type
 
-        // For URL inputs, fetch HTML content first
+        // For URL inputs, fetch HTML content first (SVG/CSS/image go directly)
         if (input.type === 'url') {
+          inputType = 'url'
           const fetchRes = await fetch('/api/ai/fetch-url', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -731,7 +830,7 @@ export default function InferStyleSpike() {
           body: JSON.stringify({
             action: 'arena-infer-style',
             input: {
-              inputType: input.type,
+              inputType,
               inputLabel: input.label,
               inputContent,
               currentSkill,
@@ -784,6 +883,8 @@ export default function InferStyleSpike() {
     setResults([])
     setInferError(null)
     setInferProgress(null)
+    setFontDisplay(null)
+    setFontBody(null)
   }, [])
 
   const totalDecisions = useMemo(() => {
@@ -806,7 +907,7 @@ export default function InferStyleSpike() {
         <div className="text-center space-y-2">
           <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">Infer Style</h2>
           <p className="text-sm text-gray-500 dark:text-gray-400 max-w-lg mx-auto">
-            Add URLs and screenshots of interfaces whose style you want to capture.
+            Add screenshots, SVGs, CSS, or URLs of interfaces whose style you want to capture.
             The agent will analyze each input and build a design skill.
           </p>
         </div>
@@ -818,42 +919,97 @@ export default function InferStyleSpike() {
             <InputCollector onAdd={handleAddInput} />
           </div>
 
-          {/* Right: input list */}
-          <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl p-5">
-            <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
-              Added ({inputs.length})
-            </h3>
-            {inputs.length === 0 ? (
-              <p className="text-xs text-gray-400 italic">No inputs yet. Add a URL or drop a screenshot.</p>
-            ) : (
-              <div className="space-y-2">
-                {inputs.map(input => (
-                  <div key={input.id} className="flex items-center gap-3 p-2 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
-                    {input.type === 'image' ? (
-                      <img src={input.value} alt={input.label} className="w-10 h-10 rounded object-cover border border-gray-200 dark:border-gray-700" />
-                    ) : (
-                      <div className="w-10 h-10 rounded bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center text-blue-600 dark:text-blue-400">
-                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
-                        </svg>
+          {/* Right: input list + fonts */}
+          <div className="space-y-4">
+            <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl p-5">
+              <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
+                Added ({inputs.length})
+              </h3>
+              {inputs.length === 0 ? (
+                <p className="text-xs text-gray-400 italic">No inputs yet. Add a URL, paste CSS, or drop a screenshot.</p>
+              ) : (
+                <div className="space-y-2">
+                  {inputs.map(input => (
+                    <div key={input.id} className="flex items-center gap-3 p-2 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
+                      {input.type === 'image' ? (
+                        <img src={input.value} alt={input.label} className="w-10 h-10 rounded object-cover border border-gray-200 dark:border-gray-700" />
+                      ) : (
+                        <div className={`w-10 h-10 rounded flex items-center justify-center text-xs font-bold ${
+                          input.type === 'svg'
+                            ? 'bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400'
+                            : input.type === 'css'
+                            ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400'
+                            : 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400'
+                        }`}>
+                          {input.type === 'svg' ? 'SVG' : input.type === 'css' ? 'CSS' : (
+                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                            </svg>
+                          )}
+                        </div>
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-medium text-gray-700 dark:text-gray-300 truncate">{input.label}</p>
+                        <p className="text-[10px] text-gray-400">{input.type}</p>
                       </div>
-                    )}
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs font-medium text-gray-700 dark:text-gray-300 truncate">{input.label}</p>
-                      <p className="text-[10px] text-gray-400">{input.type}</p>
+                      <button
+                        onClick={() => handleRemoveInput(input.id)}
+                        className="text-gray-400 hover:text-red-500 transition-colors"
+                      >
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
                     </div>
-                    <button
-                      onClick={() => handleRemoveInput(input.id)}
-                      className="text-gray-400 hover:text-red-500 transition-colors"
-                    >
-                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                      </svg>
-                    </button>
-                  </div>
-                ))}
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Font uploads */}
+            <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl p-5">
+              <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">Fonts</h3>
+              <p className="text-[10px] text-gray-400 mb-3">Upload fonts to render in canonical components</p>
+              <div className="space-y-2">
+                {(['display', 'body'] as const).map(slot => {
+                  const font = slot === 'display' ? fontDisplay : fontBody
+                  return (
+                    <div key={slot} className="flex items-center gap-2">
+                      <span className="text-xs text-gray-500 w-14 capitalize">{slot}:</span>
+                      {font ? (
+                        <div className="flex items-center gap-2 flex-1">
+                          <span className="text-xs font-medium text-gray-700 dark:text-gray-300" style={{ fontFamily: `"${font.name}"` }}>
+                            {font.name}
+                          </span>
+                          <button
+                            onClick={() => slot === 'display' ? setFontDisplay(null) : setFontBody(null)}
+                            className="text-gray-400 hover:text-red-500 transition-colors"
+                          >
+                            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                          </button>
+                        </div>
+                      ) : (
+                        <label className="text-xs text-blue-600 hover:text-blue-700 cursor-pointer underline">
+                          Upload
+                          <input
+                            type="file"
+                            accept=".woff2,.woff,.ttf,.otf"
+                            className="hidden"
+                            onChange={(e) => {
+                              const file = e.target.files?.[0]
+                              if (file) handleFontUpload(slot, file)
+                              e.target.value = ''
+                            }}
+                          />
+                        </label>
+                      )}
+                    </div>
+                  )
+                })}
               </div>
-            )}
+            </div>
           </div>
         </div>
 
@@ -861,11 +1017,11 @@ export default function InferStyleSpike() {
         <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl p-5">
           <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-4">Canonical Components (Base Skill)</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <CanonicalCard skill={BASE_SKILL} label="Card" />
-            <CanonicalForm skill={BASE_SKILL} label="Form" />
+            <CanonicalCard skill={BASE_SKILL} label="Card" fontOverrides={fontOverrides} />
+            <CanonicalForm skill={BASE_SKILL} label="Form" fontOverrides={fontOverrides} />
           </div>
           <div className="mt-6">
-            <CanonicalDashboard skill={BASE_SKILL} label="Dashboard" />
+            <CanonicalDashboard skill={BASE_SKILL} label="Dashboard" fontOverrides={fontOverrides} />
           </div>
         </div>
 
@@ -963,7 +1119,7 @@ export default function InferStyleSpike() {
         <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-4">Card</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <CanonicalCard skill={BASE_SKILL} label="Base Skill" />
-          <CanonicalCard skill={inferredSkill} label="Inferred Skill" />
+          <CanonicalCard skill={inferredSkill} label="Inferred Skill" fontOverrides={fontOverrides} />
         </div>
       </div>
 
@@ -972,7 +1128,7 @@ export default function InferStyleSpike() {
         <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-4">Form</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <CanonicalForm skill={BASE_SKILL} label="Base Skill" />
-          <CanonicalForm skill={inferredSkill} label="Inferred Skill" />
+          <CanonicalForm skill={inferredSkill} label="Inferred Skill" fontOverrides={fontOverrides} />
         </div>
       </div>
 
@@ -981,7 +1137,7 @@ export default function InferStyleSpike() {
         <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-4">Dashboard</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <CanonicalDashboard skill={BASE_SKILL} label="Base Skill" />
-          <CanonicalDashboard skill={inferredSkill} label="Inferred Skill" />
+          <CanonicalDashboard skill={inferredSkill} label="Inferred Skill" fontOverrides={fontOverrides} />
         </div>
       </div>
 
