@@ -35,16 +35,19 @@ const extractedSpacingSchema = z.object({
 })
 
 const decisionSchema = z.object({
-  id: z.string(),
+  id: z.string().optional(),
   label: z.string(),
   value: z.string(),
   rationale: z.string(),
-  confidence: z.enum(['low', 'medium', 'high']),
-  source: z.string(),
-})
+  confidence: z.enum(['low', 'medium', 'high']).default('high'),
+  source: z.string().default('figma'),
+}).transform(d => ({
+  ...d,
+  id: d.id ?? `decision_${d.label.toLowerCase().replace(/\s+/g, '_')}`,
+}))
 
 const ruleSchema = z.object({
-  id: z.string(),
+  id: z.string().optional(),
   statement: z.string(),
   type: z.enum(['must', 'should', 'must-not', 'prefer']),
   source: z.string().optional(),
@@ -52,7 +55,13 @@ const ruleSchema = z.object({
 
 const dimensionSchema = z.object({
   decisions: z.array(decisionSchema),
-  rules: z.array(ruleSchema),
+  rules: z.array(ruleSchema).transform(rules =>
+    rules.map((r, i) => ({
+      ...r,
+      id: r.id ?? `rule_${i + 1}`,
+      source: r.source ?? 'figma',
+    }))
+  ),
 })
 
 const inputSchema = z.object({
