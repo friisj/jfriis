@@ -9,6 +9,7 @@ const registry: Record<string, React.ComponentType> = {
   'arena/infer-style-spike': dynamic(() => import('@/components/studio/prototypes/arena/infer-style-spike'), { ssr: false }),
   'arena/session-one-export-spike': dynamic(() => import('@/components/studio/prototypes/arena/session-one-export-spike'), { ssr: false }),
   'arena/skill-authoring-spike': dynamic(() => import('@/components/studio/prototypes/arena/skill-authoring-spike'), { ssr: false }),
+  'arena/skill-gym-spike': dynamic(() => import('@/components/studio/prototypes/arena/skill-gym-spike'), { ssr: false }),
   'arena/training-loop-spike': dynamic(() => import('@/components/studio/prototypes/arena/training-loop-spike'), { ssr: false }),
   'putt/physics-engine': dynamic(() => import('@/components/studio/prototypes/putt/physics-engine'), { ssr: false }),
   'putt/green-outline': dynamic(() => import('@/components/studio/prototypes/putt/green-outline'), { ssr: false }),

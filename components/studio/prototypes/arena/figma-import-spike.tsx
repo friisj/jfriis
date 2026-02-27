@@ -8,6 +8,7 @@ import type { ExtractedTokens } from '@/lib/studio/arena/figma-extractor'
 import { extractTokens } from '@/lib/studio/arena/figma-extractor'
 import { CanonicalCard, CanonicalForm, CanonicalDashboard } from './shared/canonical-components'
 import { InferredSkillPanel } from './shared/skill-panel'
+import { SkillGym } from './shared/skill-gym'
 
 /**
  * Figma Import Spike
@@ -25,7 +26,7 @@ import { InferredSkillPanel } from './shared/skill-panel'
 // Types
 // ---------------------------------------------------------------------------
 
-type Phase = 'input' | 'extracting' | 'review' | 'compare'
+type Phase = 'input' | 'extracting' | 'review' | 'compare' | 'gym'
 
 interface ParsedUrl {
   url: string
@@ -544,6 +545,21 @@ export default function FigmaImportSpike() {
   }
 
   // ---------------------------------------------------------------------------
+  // Gym phase
+  // ---------------------------------------------------------------------------
+
+  if (phase === 'gym') {
+    return (
+      <SkillGym
+        skill={classifiedSkill}
+        onSkillUpdate={(refined) => setClassifiedSkill(refined)}
+        onBack={() => setPhase('compare')}
+        fontOverrides={fontOverrides}
+      />
+    )
+  }
+
+  // ---------------------------------------------------------------------------
   // Compare phase
   // ---------------------------------------------------------------------------
 
@@ -615,6 +631,12 @@ export default function FigmaImportSpike() {
       </div>
 
       <div className="flex gap-3 justify-center">
+        <button
+          onClick={() => setPhase('gym')}
+          className="px-8 py-3 bg-purple-600 text-white font-medium rounded-xl hover:bg-purple-700 transition-colors text-sm"
+        >
+          Refine in Gym
+        </button>
         <button
           onClick={() => setPhase('review')}
           className="px-6 py-3 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 font-medium rounded-xl hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors text-sm"
