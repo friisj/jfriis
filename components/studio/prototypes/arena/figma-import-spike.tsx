@@ -35,7 +35,8 @@ interface ParsedUrl {
 }
 
 interface CustomFont {
-  name: string
+  name: string       // Display name (e.g. "RM Neue VF")
+  scopedName: string // Scoped @font-face name (e.g. "__fi__RM Neue VF") — only used in CSS
   dataUrl: string
   format: string
 }
@@ -170,13 +171,14 @@ export default function FigmaImportSpike() {
   const [fontBody, setFontBody] = useState<CustomFont | null>(null)
   const [fontMono, setFontMono] = useState<CustomFont | null>(null)
 
-  // Inject @font-face rules
+  // Inject @font-face rules using scoped names to prevent font leaking
+  // into base skill components or other page elements
   useEffect(() => {
     const fonts = [fontDisplay, fontBody, fontMono].filter(Boolean) as CustomFont[]
     if (fonts.length === 0) return
 
     const css = fonts.map(f =>
-      `@font-face { font-family: "${f.name}"; src: url(${f.dataUrl}) format("${f.format}"); font-display: swap; }`
+      `@font-face { font-family: "${f.scopedName}"; src: url(${f.dataUrl}) format("${f.format}"); font-display: swap; }`
     ).join('\n')
     const style = document.createElement('style')
     style.setAttribute('data-figma-import-fonts', '')
@@ -185,11 +187,12 @@ export default function FigmaImportSpike() {
     return () => { style.remove() }
   }, [fontDisplay, fontBody, fontMono])
 
+  // fontOverrides use scoped names — only applied to Figma Import components
   const fontOverrides = useMemo(() => {
     const overrides: { display?: string; body?: string; mono?: string } = {}
-    if (fontDisplay) overrides.display = `"${fontDisplay.name}", system-ui, sans-serif`
-    if (fontBody) overrides.body = `"${fontBody.name}", system-ui, sans-serif`
-    if (fontMono) overrides.mono = `"${fontMono.name}", ui-monospace, monospace`
+    if (fontDisplay) overrides.display = `"${fontDisplay.scopedName}", system-ui, sans-serif`
+    if (fontBody) overrides.body = `"${fontBody.scopedName}", system-ui, sans-serif`
+    if (fontMono) overrides.mono = `"${fontMono.scopedName}", ui-monospace, monospace`
     return Object.keys(overrides).length > 0 ? overrides : undefined
   }, [fontDisplay, fontBody, fontMono])
 
@@ -209,7 +212,12 @@ export default function FigmaImportSpike() {
 
     const reader = new FileReader()
     reader.onload = () => {
-      const font: CustomFont = { name, dataUrl: reader.result as string, format }
+      const font: CustomFont = {
+        name,
+        scopedName: `__fi__${name}`,
+        dataUrl: reader.result as string,
+        format,
+      }
       if (slot === 'display') setFontDisplay(font)
       else if (slot === 'body') setFontBody(font)
       else setFontMono(font)
