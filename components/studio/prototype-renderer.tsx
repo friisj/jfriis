@@ -5,6 +5,7 @@ import dynamic from 'next/dynamic'
 const registry: Record<string, React.ComponentType> = {
   'arena/agent-compliance-spike': dynamic(() => import('@/components/studio/prototypes/arena/agent-compliance-spike'), { ssr: false }),
   'arena/feedback-fidelity-spike': dynamic(() => import('@/components/studio/prototypes/arena/feedback-fidelity-spike'), { ssr: false }),
+  'arena/figma-import-spike': dynamic(() => import('@/components/studio/prototypes/arena/figma-import-spike'), { ssr: false }),
   'arena/infer-style-spike': dynamic(() => import('@/components/studio/prototypes/arena/infer-style-spike'), { ssr: false }),
   'arena/session-one-export-spike': dynamic(() => import('@/components/studio/prototypes/arena/session-one-export-spike'), { ssr: false }),
   'arena/skill-authoring-spike': dynamic(() => import('@/components/studio/prototypes/arena/skill-authoring-spike'), { ssr: false }),

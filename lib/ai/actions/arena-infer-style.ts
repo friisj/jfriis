@@ -11,6 +11,7 @@
 import { z } from 'zod'
 import { registerAction } from './index'
 import type { Action } from './types'
+import { DECISION_LABELS } from '@/lib/studio/arena/types'
 
 // --- Schemas ---
 
@@ -58,18 +59,6 @@ const outputSchema = z.object({
 })
 
 type InferStyleOutput = z.infer<typeof outputSchema>
-
-// --- Decision labels that must match the canonical components ---
-
-const DECISION_LABELS = {
-  color: ['Primary', 'Accent', 'Background', 'Text', 'Muted', 'Border'],
-  typography: [
-    'Display Font', 'Body Font', 'Mono Font',
-    'Heading Size', 'Body Size', 'Small Size',
-    'Heading Weight', 'Body Weight',
-  ],
-  spacing: ['Padding', 'Gap', 'Border Radius'],
-}
 
 // --- Prompt construction ---
 
@@ -234,5 +223,5 @@ const arenaInferStyleAction: Action<InferStyleInput, InferStyleOutput> = {
 
 registerAction(arenaInferStyleAction)
 
-export { arenaInferStyleAction, DECISION_LABELS }
+export { arenaInferStyleAction }
 export type { InferStyleInput, InferStyleOutput }

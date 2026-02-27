@@ -29,6 +29,7 @@ import '@/lib/ai/actions/verbivore-analyze-split'
 import '@/lib/ai/actions/verbivore-enhance-style'
 import '@/lib/ai/actions/arena-eval-skill'
 import '@/lib/ai/actions/arena-infer-style'
+import '@/lib/ai/actions/arena-classify-figma-tokens'
 
 export async function POST(request: Request) {
   try {
