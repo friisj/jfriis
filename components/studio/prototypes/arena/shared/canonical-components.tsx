@@ -13,10 +13,58 @@ interface CanonicalProps {
   fontOverrides?: { display?: string; body?: string; mono?: string }
 }
 
+/**
+ * Parse a CSS-like value to a number (strips 'px' suffix).
+ * Falls back to the provided default if parsing fails.
+ */
+function px(value: string | undefined, fallback: number): number {
+  if (!value) return fallback
+  const n = parseFloat(value)
+  return isNaN(n) ? fallback : n
+}
+
+/** Clamp a value between min and max */
+function clamp(val: number, min: number, max: number): number {
+  return Math.min(Math.max(val, min), max)
+}
+
+/**
+ * Normalize skill values for web-scale canonical component rendering.
+ * Figma designs may be mobile-scale (32px headings, 60px border-radius)
+ * which look broken at web comparison size. This clamps to reasonable ranges.
+ */
+function normalizeForDisplay(skill: SkillState) {
+  const t = Object.fromEntries(skill.typography.decisions.map(d => [d.label, d.value]))
+  const s = Object.fromEntries(skill.spacing.decisions.map(d => [d.label, d.value]))
+
+  const headingSize = clamp(px(t['Heading Size'], 18), 14, 28)
+  const bodySize = clamp(px(t['Body Size'], 14), 11, 18)
+  const smallSize = clamp(px(t['Small Size'], 12), 9, 14)
+  const padding = clamp(px(s['Padding'], 16), 6, 32)
+  const gap = clamp(px(s['Gap'], 12), 4, 24)
+  const borderRadius = clamp(px(s['Border Radius'], 8), 0, 20)
+
+  return {
+    headingSize: `${headingSize}px`,
+    bodySize: `${bodySize}px`,
+    smallSize: `${smallSize}px`,
+    padding: `${padding}px`,
+    gap: `${gap}px`,
+    borderRadius: `${borderRadius}px`,
+    // Derived values for sub-element sizing
+    inputPadY: `${Math.round(gap / 1.5)}px`,
+    inputPadX: `${Math.round(padding / 1.5)}px`,
+    buttonPadY: `${Math.round(gap / 1.5)}px`,
+    halfRadius: `${Math.max(Math.round(borderRadius / 2), 2)}px`,
+    panelPadding: `${Math.round(padding * 0.75)}px`,
+    barGap: `${Math.max(Math.round(gap / 3), 3)}px`,
+  }
+}
+
 export function CanonicalCard({ skill, label, fontOverrides }: CanonicalProps) {
   const c = Object.fromEntries(skill.color.decisions.map(d => [d.label, d.value]))
   const t = Object.fromEntries(skill.typography.decisions.map(d => [d.label, d.value]))
-  const s = Object.fromEntries(skill.spacing.decisions.map(d => [d.label, d.value]))
+  const n = normalizeForDisplay(skill)
 
   const displayFont = fontOverrides?.display ?? t['Display Font'] ?? t['Font Family'] ?? 'system-ui, sans-serif'
   const bodyFont = fontOverrides?.body ?? t['Body Font'] ?? t['Font Family'] ?? 'system-ui, sans-serif'
@@ -30,15 +78,15 @@ export function CanonicalCard({ skill, label, fontOverrides }: CanonicalProps) {
         style={{
           background: c['Background'] ?? '#fff',
           border: `1px solid ${c['Border'] ?? '#e5e7eb'}`,
-          borderRadius: s['Border Radius'] ?? '8px',
-          padding: s['Padding'] ?? '16px',
+          borderRadius: n.borderRadius,
+          padding: n.padding,
           display: 'flex',
           flexDirection: 'column',
-          gap: s['Gap'] ?? '12px',
+          gap: n.gap,
         }}
       >
         <div style={{
-          fontSize: t['Heading Size'] ?? '18px',
+          fontSize: n.headingSize,
           fontWeight: headingWeight,
           fontFamily: displayFont,
           color: c['Text'] ?? '#1f2937',
@@ -46,7 +94,7 @@ export function CanonicalCard({ skill, label, fontOverrides }: CanonicalProps) {
           Notification Title
         </div>
         <div style={{
-          fontSize: t['Body Size'] ?? '14px',
+          fontSize: n.bodySize,
           fontWeight: bodyWeight,
           fontFamily: bodyFont,
           color: c['Muted'] ?? '#6b7280',
@@ -56,7 +104,7 @@ export function CanonicalCard({ skill, label, fontOverrides }: CanonicalProps) {
         </div>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <span style={{
-            fontSize: t['Small Size'] ?? '12px',
+            fontSize: n.smallSize,
             fontFamily: bodyFont,
             fontWeight: bodyWeight,
             color: c['Muted'] ?? '#6b7280',
@@ -67,9 +115,9 @@ export function CanonicalCard({ skill, label, fontOverrides }: CanonicalProps) {
                 background: 'transparent',
                 color: c['Accent'] ?? c['Muted'] ?? '#6b7280',
                 border: `1px solid ${c['Border'] ?? '#e5e7eb'}`,
-                borderRadius: s['Border Radius'] ?? '8px',
-                padding: `${parseInt(s['Gap'] ?? '12') / 2}px ${parseInt(s['Padding'] ?? '16') / 1.5}px`,
-                fontSize: t['Body Size'] ?? '14px',
+                borderRadius: n.borderRadius,
+                padding: `${n.buttonPadY} ${n.inputPadX}`,
+                fontSize: n.bodySize,
                 fontFamily: bodyFont,
                 fontWeight: '500',
                 cursor: 'pointer',
@@ -82,9 +130,9 @@ export function CanonicalCard({ skill, label, fontOverrides }: CanonicalProps) {
                 background: c['Primary'] ?? '#3b82f6',
                 color: '#fff',
                 border: 'none',
-                borderRadius: s['Border Radius'] ?? '8px',
-                padding: `${parseInt(s['Gap'] ?? '12') / 2}px ${s['Padding'] ?? '16px'}`,
-                fontSize: t['Body Size'] ?? '14px',
+                borderRadius: n.borderRadius,
+                padding: `${n.buttonPadY} ${n.padding}`,
+                fontSize: n.bodySize,
                 fontFamily: bodyFont,
                 fontWeight: '500',
                 cursor: 'pointer',
@@ -102,7 +150,7 @@ export function CanonicalCard({ skill, label, fontOverrides }: CanonicalProps) {
 export function CanonicalForm({ skill, label, fontOverrides }: CanonicalProps) {
   const c = Object.fromEntries(skill.color.decisions.map(d => [d.label, d.value]))
   const t = Object.fromEntries(skill.typography.decisions.map(d => [d.label, d.value]))
-  const s = Object.fromEntries(skill.spacing.decisions.map(d => [d.label, d.value]))
+  const n = normalizeForDisplay(skill)
 
   const displayFont = fontOverrides?.display ?? t['Display Font'] ?? t['Font Family'] ?? 'system-ui, sans-serif'
   const bodyFont = fontOverrides?.body ?? t['Body Font'] ?? t['Font Family'] ?? 'system-ui, sans-serif'
@@ -111,12 +159,12 @@ export function CanonicalForm({ skill, label, fontOverrides }: CanonicalProps) {
 
   const inputStyle: React.CSSProperties = {
     width: '100%',
-    padding: `${parseInt(s['Gap'] ?? '12') / 1.5}px ${parseInt(s['Padding'] ?? '16') / 1.5}px`,
-    fontSize: t['Body Size'] ?? '14px',
+    padding: `${n.inputPadY} ${n.inputPadX}`,
+    fontSize: n.bodySize,
     fontFamily: bodyFont,
     fontWeight: bodyWeight,
     border: `1px solid ${c['Border'] ?? '#e5e7eb'}`,
-    borderRadius: s['Border Radius'] ?? '8px',
+    borderRadius: n.borderRadius,
     color: c['Text'] ?? '#1f2937',
     background: c['Background'] ?? '#fff',
     outline: 'none',
@@ -124,7 +172,7 @@ export function CanonicalForm({ skill, label, fontOverrides }: CanonicalProps) {
   }
 
   const labelStyle: React.CSSProperties = {
-    fontSize: t['Small Size'] ?? '12px',
+    fontSize: n.smallSize,
     fontWeight: '500',
     fontFamily: bodyFont,
     color: c['Text'] ?? '#1f2937',
@@ -139,15 +187,15 @@ export function CanonicalForm({ skill, label, fontOverrides }: CanonicalProps) {
         style={{
           background: c['Background'] ?? '#fff',
           border: `1px solid ${c['Border'] ?? '#e5e7eb'}`,
-          borderRadius: s['Border Radius'] ?? '8px',
-          padding: s['Padding'] ?? '16px',
+          borderRadius: n.borderRadius,
+          padding: n.padding,
           display: 'flex',
           flexDirection: 'column',
-          gap: s['Gap'] ?? '12px',
+          gap: n.gap,
         }}
       >
         <div style={{
-          fontSize: t['Heading Size'] ?? '18px',
+          fontSize: n.headingSize,
           fontWeight: headingWeight,
           fontFamily: displayFont,
           color: c['Text'] ?? '#1f2937',
@@ -155,7 +203,7 @@ export function CanonicalForm({ skill, label, fontOverrides }: CanonicalProps) {
           Contact Form
         </div>
         <p style={{
-          fontSize: t['Small Size'] ?? '12px',
+          fontSize: n.smallSize,
           fontFamily: bodyFont,
           fontWeight: bodyWeight,
           color: c['Accent'] ?? c['Muted'] ?? '#6b7280',
@@ -163,7 +211,7 @@ export function CanonicalForm({ skill, label, fontOverrides }: CanonicalProps) {
         }}>
           Required fields marked with *
         </p>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: s['Gap'] ?? '12px' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: n.gap }}>
           <div>
             <label style={labelStyle}>Name *</label>
             <input style={inputStyle} placeholder="Jane Doe" readOnly />
@@ -182,9 +230,9 @@ export function CanonicalForm({ skill, label, fontOverrides }: CanonicalProps) {
             background: c['Primary'] ?? '#3b82f6',
             color: '#fff',
             border: 'none',
-            borderRadius: s['Border Radius'] ?? '8px',
-            padding: `${parseInt(s['Gap'] ?? '12') / 1.5}px ${s['Padding'] ?? '16px'}`,
-            fontSize: t['Body Size'] ?? '14px',
+            borderRadius: n.borderRadius,
+            padding: `${n.buttonPadY} ${n.padding}`,
+            fontSize: n.bodySize,
             fontFamily: bodyFont,
             fontWeight: '500',
             cursor: 'pointer',
@@ -201,7 +249,7 @@ export function CanonicalForm({ skill, label, fontOverrides }: CanonicalProps) {
 export function CanonicalDashboard({ skill, label, fontOverrides }: CanonicalProps) {
   const c = Object.fromEntries(skill.color.decisions.map(d => [d.label, d.value]))
   const t = Object.fromEntries(skill.typography.decisions.map(d => [d.label, d.value]))
-  const s = Object.fromEntries(skill.spacing.decisions.map(d => [d.label, d.value]))
+  const n = normalizeForDisplay(skill)
 
   const displayFont = fontOverrides?.display ?? t['Display Font'] ?? t['Font Family'] ?? 'system-ui, sans-serif'
   const bodyFont = fontOverrides?.body ?? t['Body Font'] ?? t['Font Family'] ?? 'system-ui, sans-serif'
@@ -215,9 +263,6 @@ export function CanonicalDashboard({ skill, label, fontOverrides }: CanonicalPro
   const accent = c['Accent'] ?? c['Muted'] ?? '#8b5cf6'
   const text = c['Text'] ?? '#1f2937'
   const muted = c['Muted'] ?? '#6b7280'
-  const radius = s['Border Radius'] ?? '8px'
-  const padding = s['Padding'] ?? '16px'
-  const gap = s['Gap'] ?? '12px'
 
   const barData = [65, 42, 88, 55, 73, 38, 81]
   const barLabels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
@@ -235,8 +280,8 @@ export function CanonicalDashboard({ skill, label, fontOverrides }: CanonicalPro
   const panelStyle: React.CSSProperties = {
     background: bg,
     border: `1px solid ${border}`,
-    borderRadius: radius,
-    padding,
+    borderRadius: n.borderRadius,
+    padding: n.padding,
   }
 
   return (
@@ -245,16 +290,16 @@ export function CanonicalDashboard({ skill, label, fontOverrides }: CanonicalPro
       <div style={{
         background: bg,
         border: `1px solid ${border}`,
-        borderRadius: radius,
-        padding,
+        borderRadius: n.borderRadius,
+        padding: n.padding,
         display: 'flex',
         flexDirection: 'column',
-        gap,
+        gap: n.gap,
       }}>
         {/* Header */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
           <div style={{
-            fontSize: t['Heading Size'] ?? '18px',
+            fontSize: n.headingSize,
             fontWeight: headingWeight,
             fontFamily: displayFont,
             color: text,
@@ -262,7 +307,7 @@ export function CanonicalDashboard({ skill, label, fontOverrides }: CanonicalPro
             Weekly Overview
           </div>
           <span style={{
-            fontSize: t['Small Size'] ?? '12px',
+            fontSize: n.smallSize,
             fontFamily: bodyFont,
             fontWeight: bodyWeight,
             color: muted,
@@ -272,15 +317,15 @@ export function CanonicalDashboard({ skill, label, fontOverrides }: CanonicalPro
         </div>
 
         {/* KPI row */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: n.gap }}>
           {[
             { label: 'Visitors', value: '2,847', delta: '+12.4%', up: true },
             { label: 'Conversions', value: '184', delta: '+8.1%', up: true },
             { label: 'Bounce Rate', value: '34.2%', delta: '-2.3%', up: false },
           ].map((kpi) => (
-            <div key={kpi.label} style={{ ...panelStyle, padding: `${parseInt(padding) * 0.75}px` }}>
+            <div key={kpi.label} style={{ ...panelStyle, padding: n.panelPadding }}>
               <div style={{
-                fontSize: t['Small Size'] ?? '12px',
+                fontSize: n.smallSize,
                 fontFamily: bodyFont,
                 fontWeight: bodyWeight,
                 color: muted,
@@ -289,7 +334,7 @@ export function CanonicalDashboard({ skill, label, fontOverrides }: CanonicalPro
                 {kpi.label}
               </div>
               <div style={{
-                fontSize: t['Heading Size'] ?? '18px',
+                fontSize: n.headingSize,
                 fontWeight: headingWeight,
                 fontFamily: monoFont,
                 color: text,
@@ -297,7 +342,7 @@ export function CanonicalDashboard({ skill, label, fontOverrides }: CanonicalPro
                 {kpi.value}
               </div>
               <div style={{
-                fontSize: t['Small Size'] ?? '12px',
+                fontSize: n.smallSize,
                 fontFamily: monoFont,
                 fontWeight: '500',
                 color: kpi.up ? primary : accent,
@@ -310,22 +355,22 @@ export function CanonicalDashboard({ skill, label, fontOverrides }: CanonicalPro
         </div>
 
         {/* Bottom row: bar chart + sparkline */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr', gap }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr', gap: n.gap }}>
           {/* Bar chart */}
-          <div style={{ ...panelStyle, padding: `${parseInt(padding) * 0.75}px` }}>
+          <div style={{ ...panelStyle, padding: n.panelPadding }}>
             <div style={{
-              fontSize: t['Small Size'] ?? '12px',
+              fontSize: n.smallSize,
               fontFamily: bodyFont,
               fontWeight: '500',
               color: text,
-              marginBottom: gap,
+              marginBottom: n.gap,
             }}>
               Daily Sessions
             </div>
             <div style={{
               display: 'flex',
               alignItems: 'flex-end',
-              gap: `${Math.max(parseInt(gap) / 3, 3)}px`,
+              gap: n.barGap,
               height: '80px',
             }}>
               {barData.map((val, i) => (
@@ -334,7 +379,7 @@ export function CanonicalDashboard({ skill, label, fontOverrides }: CanonicalPro
                     width: '100%',
                     height: `${(val / maxBar) * 100}%`,
                     background: i % 2 === 0 ? primary : accent,
-                    borderRadius: `${Math.max(parseInt(radius) / 2, 2)}px ${Math.max(parseInt(radius) / 2, 2)}px 0 0`,
+                    borderRadius: `${n.halfRadius} ${n.halfRadius} 0 0`,
                     opacity: 0.85,
                     minHeight: '4px',
                   }} />
@@ -351,10 +396,10 @@ export function CanonicalDashboard({ skill, label, fontOverrides }: CanonicalPro
           </div>
 
           {/* Sparkline + trend */}
-          <div style={{ ...panelStyle, padding: `${parseInt(padding) * 0.75}px`, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+          <div style={{ ...panelStyle, padding: n.panelPadding, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
             <div>
               <div style={{
-                fontSize: t['Small Size'] ?? '12px',
+                fontSize: n.smallSize,
                 fontFamily: bodyFont,
                 fontWeight: '500',
                 color: text,
@@ -363,7 +408,7 @@ export function CanonicalDashboard({ skill, label, fontOverrides }: CanonicalPro
                 Revenue Trend
               </div>
               <div style={{
-                fontSize: t['Heading Size'] ?? '18px',
+                fontSize: n.headingSize,
                 fontWeight: headingWeight,
                 fontFamily: monoFont,
                 color: text,
@@ -391,7 +436,7 @@ export function CanonicalDashboard({ skill, label, fontOverrides }: CanonicalPro
               />
             </svg>
             <div style={{
-              fontSize: t['Small Size'] ?? '12px',
+              fontSize: n.smallSize,
               fontFamily: bodyFont,
               fontWeight: bodyWeight,
               color: muted,

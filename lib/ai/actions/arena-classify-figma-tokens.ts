@@ -69,6 +69,7 @@ const inputSchema = z.object({
   fonts: z.array(extractedFontSchema),
   spacing: z.array(extractedSpacingSchema),
   frameNames: z.array(z.string()),
+  rootBackgrounds: z.array(z.string()).optional(),
 })
 
 type ClassifyInput = z.infer<typeof inputSchema>
@@ -86,7 +87,7 @@ type ClassifyOutput = z.infer<typeof outputSchema>
 
 const SYSTEM_PROMPT = `You are a design system analyst. You receive EXACT values extracted from a Figma file — hex colors, font families, font sizes, weights, padding, gap, and corner radius values with frequency counts.
 
-Your job is to CLASSIFY these values into semantic roles and generate design rules. Do NOT modify or estimate values — use them exactly as provided.
+Your job is to CLASSIFY these values into semantic roles and generate design rules.
 
 ## Decision Labels
 
@@ -103,30 +104,45 @@ ${DECISION_LABELS.spacing.map(l => `- "${l}"`).join('\n')}
 
 ## Classification Signals
 
-Use these signals to assign semantic roles:
+### Colors — Background Detection (CRITICAL)
 
-**Colors:**
-- Most frequent fill color is likely Background
-- Darkest high-frequency fill is likely Text
-- Medium gray fills/strokes are likely Muted or Border
-- Saturated colors with lower frequency are likely Primary or Accent
-- Stroke colors are often Border
-- Node names containing "button", "cta", "link" suggest Primary usage
+**Root frame backgrounds are the strongest signal.** If root backgrounds are provided, they ARE the Background color. Do NOT override this with frequency-based guessing.
 
-**Fonts:**
+- If root backgrounds are dark (#000-#333): this is a DARK THEME. Background = root fill, Text = white/light color.
+- If root backgrounds are light (#EEE-#FFF): this is a LIGHT THEME. Background = root fill, Text = dark color.
+- Frequency alone is NOT reliable for Background — nested elements with different fills often outnumber the root background.
+
+**After Background is assigned:**
+- Text: the high-contrast color opposite to Background (dark bg → light text, light bg → dark text)
+- Muted: a mid-tone gray or desaturated color
+- Border: stroke colors, or subtle gray fills on separators
+- Primary: the most saturated/vibrant color — often used on buttons, CTAs, links
+- Accent: a secondary saturated color, or if only one saturated color exists, a tonal variation
+
+### Fonts
 - The most common font family at larger sizes → Display Font
 - The most common font family at body sizes → Body Font
 - Monospace fonts → Mono Font (if none found, use "ui-monospace, monospace")
-- Largest common size → Heading Size
-- Most frequent mid-range size → Body Size
-- Smallest common size → Small Size
-- Weight at heading sizes → Heading Weight
-- Weight at body sizes → Body Weight
+- Largest common size → Heading Size (use exact value with "px" suffix)
+- Most frequent mid-range size → Body Size (use exact value with "px" suffix)
+- Smallest common size → Small Size (use exact value with "px" suffix)
+- Weight at heading sizes → Heading Weight (number as string, e.g. "600")
+- Weight at body sizes → Body Weight (number as string, e.g. "400")
 
-**Spacing:**
-- Most frequent padding value → Padding
-- Most frequent gap value → Gap
-- Most frequent corner-radius → Border Radius
+### Spacing
+- Most frequent padding value → Padding (use exact value with "px" suffix)
+- Most frequent gap value → Gap (use exact value with "px" suffix)
+- Most frequent corner-radius → Border Radius (use exact value with "px" suffix)
+
+## Value Format
+
+- **Colors**: exact hex values from extraction (e.g. "#1A1A2E")
+- **Font families**: exact family name strings (e.g. "RM Neue VF")
+- **Font sizes**: exact pixel values with "px" suffix (e.g. "16px")
+- **Font weights**: number as string (e.g. "600")
+- **Spacing values**: exact pixel values with "px" suffix (e.g. "16px")
+
+Use the EXACT values from the extraction. Do not modify, round, or substitute them.
 
 ## Rules
 
@@ -147,9 +163,7 @@ Output a single JSON object:
   "summary": "2-3 sentence description of the visual style"
 }
 
-Each decision: { id, label, value, rationale, confidence: "high" (exact values), source: "figma" }
-
-IMPORTANT: Use the EXACT hex values, font families, sizes, and spacing values provided. Do not round, modify, or substitute them.`
+Each decision: { label, value, rationale, confidence: "high", source: "figma" }`
 
 function buildMessages(input: ClassifyInput) {
   const colorSummary = input.colors.slice(0, 20).map(c =>
@@ -164,8 +178,12 @@ function buildMessages(input: ClassifyInput) {
     `${s.type}: ${s.value}px (${s.count}x)`
   ).join('\n')
 
-  const text = `Classify these exact Figma design tokens into semantic roles.
+  const rootBgSection = input.rootBackgrounds && input.rootBackgrounds.length > 0
+    ? `\n## Root Frame Backgrounds (STRONGEST signal for Background color)\n${input.rootBackgrounds.join(', ')}\n`
+    : ''
 
+  const text = `Classify these exact Figma design tokens into semantic roles.
+${rootBgSection}
 ## Extracted Colors (${input.colors.length} unique)
 ${colorSummary || 'None found'}
 

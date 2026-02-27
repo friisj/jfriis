@@ -262,6 +262,7 @@ export default function FigmaImportSpike() {
             fonts: tokens.fonts,
             spacing: tokens.spacing,
             frameNames: tokens.frameNames,
+            rootBackgrounds: tokens.rootBackgrounds,
           },
         }),
       })
