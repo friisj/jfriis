@@ -91,6 +91,7 @@ const BASE_SKILL: SkillState = {
     decisions: [
       { id: 'base-t1', label: 'Display Font', value: 'system-ui, sans-serif', rationale: 'System default for headings', confidence: 'high', source: 'base' },
       { id: 'base-t2', label: 'Body Font', value: 'system-ui, sans-serif', rationale: 'System default for body', confidence: 'high', source: 'base' },
+      { id: 'base-t2m', label: 'Mono Font', value: 'ui-monospace, monospace', rationale: 'System monospace for data', confidence: 'high', source: 'base' },
       { id: 'base-t3', label: 'Heading Size', value: '18px', rationale: 'Standard heading', confidence: 'high', source: 'base' },
       { id: 'base-t4', label: 'Body Size', value: '14px', rationale: 'Standard body', confidence: 'high', source: 'base' },
       { id: 'base-t5', label: 'Small Size', value: '12px', rationale: 'Standard small', confidence: 'high', source: 'base' },
@@ -113,7 +114,7 @@ const BASE_SKILL: SkillState = {
 // Canonical components — parameterized by skill
 // ---------------------------------------------------------------------------
 
-function CanonicalCard({ skill, label, fontOverrides }: { skill: SkillState; label: string; fontOverrides?: { display?: string; body?: string } }) {
+function CanonicalCard({ skill, label, fontOverrides }: { skill: SkillState; label: string; fontOverrides?: { display?: string; body?: string; mono?: string } }) {
   const c = Object.fromEntries(skill.color.decisions.map(d => [d.label, d.value]))
   const t = Object.fromEntries(skill.typography.decisions.map(d => [d.label, d.value]))
   const s = Object.fromEntries(skill.spacing.decisions.map(d => [d.label, d.value]))
@@ -200,7 +201,7 @@ function CanonicalCard({ skill, label, fontOverrides }: { skill: SkillState; lab
   )
 }
 
-function CanonicalForm({ skill, label, fontOverrides }: { skill: SkillState; label: string; fontOverrides?: { display?: string; body?: string } }) {
+function CanonicalForm({ skill, label, fontOverrides }: { skill: SkillState; label: string; fontOverrides?: { display?: string; body?: string; mono?: string } }) {
   const c = Object.fromEntries(skill.color.decisions.map(d => [d.label, d.value]))
   const t = Object.fromEntries(skill.typography.decisions.map(d => [d.label, d.value]))
   const s = Object.fromEntries(skill.spacing.decisions.map(d => [d.label, d.value]))
@@ -299,13 +300,14 @@ function CanonicalForm({ skill, label, fontOverrides }: { skill: SkillState; lab
   )
 }
 
-function CanonicalDashboard({ skill, label, fontOverrides }: { skill: SkillState; label: string; fontOverrides?: { display?: string; body?: string } }) {
+function CanonicalDashboard({ skill, label, fontOverrides }: { skill: SkillState; label: string; fontOverrides?: { display?: string; body?: string; mono?: string } }) {
   const c = Object.fromEntries(skill.color.decisions.map(d => [d.label, d.value]))
   const t = Object.fromEntries(skill.typography.decisions.map(d => [d.label, d.value]))
   const s = Object.fromEntries(skill.spacing.decisions.map(d => [d.label, d.value]))
 
   const displayFont = fontOverrides?.display ?? t['Display Font'] ?? t['Font Family'] ?? 'system-ui, sans-serif'
   const bodyFont = fontOverrides?.body ?? t['Body Font'] ?? t['Font Family'] ?? 'system-ui, sans-serif'
+  const monoFont = fontOverrides?.mono ?? t['Mono Font'] ?? 'ui-monospace, monospace'
   const headingWeight = t['Heading Weight'] ?? '600'
   const bodyWeight = t['Body Weight'] ?? '400'
 
@@ -392,14 +394,14 @@ function CanonicalDashboard({ skill, label, fontOverrides }: { skill: SkillState
               <div style={{
                 fontSize: t['Heading Size'] ?? '18px',
                 fontWeight: headingWeight,
-                fontFamily: displayFont,
+                fontFamily: monoFont,
                 color: text,
               }}>
                 {kpi.value}
               </div>
               <div style={{
                 fontSize: t['Small Size'] ?? '12px',
-                fontFamily: bodyFont,
+                fontFamily: monoFont,
                 fontWeight: '500',
                 color: kpi.up ? primary : accent,
                 marginTop: '2px',
@@ -466,7 +468,7 @@ function CanonicalDashboard({ skill, label, fontOverrides }: { skill: SkillState
               <div style={{
                 fontSize: t['Heading Size'] ?? '18px',
                 fontWeight: headingWeight,
-                fontFamily: displayFont,
+                fontFamily: monoFont,
                 color: text,
               }}>
                 $12,430
@@ -734,10 +736,11 @@ export default function InferStyleSpike() {
   const [results, setResults] = useState<InferenceResult[]>([])
   const [fontDisplay, setFontDisplay] = useState<CustomFont | null>(null)
   const [fontBody, setFontBody] = useState<CustomFont | null>(null)
+  const [fontMono, setFontMono] = useState<CustomFont | null>(null)
 
   // Inject @font-face rules for uploaded fonts
   useEffect(() => {
-    const fonts = [fontDisplay, fontBody].filter(Boolean) as CustomFont[]
+    const fonts = [fontDisplay, fontBody, fontMono].filter(Boolean) as CustomFont[]
     if (fonts.length === 0) return
 
     const css = fonts.map(f =>
@@ -748,14 +751,15 @@ export default function InferStyleSpike() {
     style.textContent = css
     document.head.appendChild(style)
     return () => { style.remove() }
-  }, [fontDisplay, fontBody])
+  }, [fontDisplay, fontBody, fontMono])
 
   const fontOverrides = useMemo(() => {
-    const overrides: { display?: string; body?: string } = {}
+    const overrides: { display?: string; body?: string; mono?: string } = {}
     if (fontDisplay) overrides.display = `"${fontDisplay.name}", system-ui, sans-serif`
     if (fontBody) overrides.body = `"${fontBody.name}", system-ui, sans-serif`
+    if (fontMono) overrides.mono = `"${fontMono.name}", ui-monospace, monospace`
     return Object.keys(overrides).length > 0 ? overrides : undefined
-  }, [fontDisplay, fontBody])
+  }, [fontDisplay, fontBody, fontMono])
 
   const handleAddInput = useCallback((input: StyleInput) => {
     setInputs(prev => [...prev, input])
@@ -765,7 +769,7 @@ export default function InferStyleSpike() {
     setInputs(prev => prev.filter(i => i.id !== id))
   }, [])
 
-  const handleFontUpload = useCallback((slot: 'display' | 'body', file: File) => {
+  const handleFontUpload = useCallback((slot: 'display' | 'body' | 'mono', file: File) => {
     const ext = file.name.split('.').pop()?.toLowerCase() ?? ''
     const formatMap: Record<string, string> = { woff2: 'woff2', woff: 'woff', ttf: 'truetype', otf: 'opentype' }
     const format = formatMap[ext] ?? 'truetype'
@@ -776,7 +780,8 @@ export default function InferStyleSpike() {
     reader.onload = () => {
       const font: CustomFont = { name, dataUrl: reader.result as string, format }
       if (slot === 'display') setFontDisplay(font)
-      else setFontBody(font)
+      else if (slot === 'body') setFontBody(font)
+      else setFontMono(font)
     }
     reader.readAsDataURL(file)
   }, [])
@@ -885,6 +890,7 @@ export default function InferStyleSpike() {
     setInferProgress(null)
     setFontDisplay(null)
     setFontBody(null)
+    setFontMono(null)
   }, [])
 
   const totalDecisions = useMemo(() => {
@@ -971,8 +977,13 @@ export default function InferStyleSpike() {
               <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">Fonts</h3>
               <p className="text-[10px] text-gray-400 mb-3">Upload fonts to render in canonical components</p>
               <div className="space-y-2">
-                {(['display', 'body'] as const).map(slot => {
-                  const font = slot === 'display' ? fontDisplay : fontBody
+                {(['display', 'body', 'mono'] as const).map(slot => {
+                  const font = slot === 'display' ? fontDisplay : slot === 'body' ? fontBody : fontMono
+                  const clearFont = () => {
+                    if (slot === 'display') setFontDisplay(null)
+                    else if (slot === 'body') setFontBody(null)
+                    else setFontMono(null)
+                  }
                   return (
                     <div key={slot} className="flex items-center gap-2">
                       <span className="text-xs text-gray-500 w-14 capitalize">{slot}:</span>
@@ -982,7 +993,7 @@ export default function InferStyleSpike() {
                             {font.name}
                           </span>
                           <button
-                            onClick={() => slot === 'display' ? setFontDisplay(null) : setFontBody(null)}
+                            onClick={clearFont}
                             className="text-gray-400 hover:text-red-500 transition-colors"
                           >
                             <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>

@@ -64,7 +64,7 @@ type InferStyleOutput = z.infer<typeof outputSchema>
 const DECISION_LABELS = {
   color: ['Primary', 'Accent', 'Background', 'Text', 'Muted', 'Border'],
   typography: [
-    'Display Font', 'Body Font',
+    'Display Font', 'Body Font', 'Mono Font',
     'Heading Size', 'Body Size', 'Small Size',
     'Heading Weight', 'Body Weight',
   ],
@@ -89,9 +89,10 @@ You MUST produce decisions with EXACTLY these labels:
 - "Muted" — secondary/de-emphasized text color (hex).
 - "Border" — border/divider/separator color (hex).
 
-### Typography (7 decisions)
+### Typography (8 decisions)
 - "Display Font" — the font family used for headings and display text (CSS value, e.g. "Georgia, serif"). Look for distinctive, characterful choices — serif vs sans-serif, geometric vs humanist, condensed vs extended.
 - "Body Font" — the font family used for body/paragraph text (CSS value). Often a more readable companion to the display font.
+- "Mono Font" — the monospace font used for data values, code, or tabular numbers (CSS value, e.g. "JetBrains Mono, monospace"). If no monospace is visible, use "ui-monospace, monospace".
 - "Heading Size" — heading/title font size (e.g. "20px").
 - "Body Size" — body text font size (e.g. "15px").
 - "Small Size" — small/caption/metadata font size (e.g. "12px").
