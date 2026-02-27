@@ -32,7 +32,8 @@ function parseFigmaUrl(url: string): FigmaParsedUrl | null {
     const nodeId = parsed.searchParams.get('node-id')
     if (!nodeId) return null
 
-    return { url, fileKey, nodeId }
+    // Figma URLs use hyphens (123-456) but the API uses colons (123:456)
+    return { url, fileKey, nodeId: nodeId.replace(/-/g, ':') }
   } catch {
     return null
   }
