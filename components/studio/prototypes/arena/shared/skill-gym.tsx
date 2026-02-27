@@ -374,6 +374,9 @@ export function SkillGym({ skill, onSkillUpdate, onBack, fontOverrides }: SkillG
   const [annotationTool, setAnnotationTool] = useState<AnnotationType | null>(null)
   const previewContainerRef = useRef<HTMLDivElement>(null)
 
+  // Canvas tab — show one canonical component at a time
+  const [activeCanvas, setActiveCanvas] = useState<'card' | 'form' | 'dashboard'>('card')
+
   // Annotation session state (explicit start → markup → optional record → done)
   const [isAnnotating, setIsAnnotating] = useState(false)
   const [canvasKey, setCanvasKey] = useState(0) // increment to reset canvas between annotations
@@ -690,12 +693,15 @@ export function SkillGym({ skill, onSkillUpdate, onBack, fontOverrides }: SkillG
   // Gym
   // -------------------------------------------------------------------------
 
+  const CANVAS_TABS = [
+    { key: 'card' as const, label: 'Card', Component: CanonicalCard },
+    { key: 'form' as const, label: 'Form', Component: CanonicalForm },
+    { key: 'dashboard' as const, label: 'Dashboard', Component: CanonicalDashboard },
+  ]
+
+  const activeCanvasTab = CANVAS_TABS.find(t => t.key === activeCanvas)!
   const canonicalPreview = (
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-      <CanonicalCard skill={skill} label="Card" fontOverrides={fontOverrides} />
-      <CanonicalForm skill={skill} label="Form" fontOverrides={fontOverrides} />
-      <CanonicalDashboard skill={skill} label="Dashboard" fontOverrides={fontOverrides} />
-    </div>
+    <activeCanvasTab.Component skill={skill} label={activeCanvasTab.label} fontOverrides={fontOverrides} />
   )
 
   return (
@@ -709,7 +715,25 @@ export function SkillGym({ skill, onSkillUpdate, onBack, fontOverrides }: SkillG
 
       {/* Canonical components preview / annotation canvas */}
       <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl p-6">
-        <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-4">Current Skill Preview</h3>
+        {/* Canvas component tabs */}
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">Current Skill Preview</h3>
+          <div className="flex gap-1">
+            {CANVAS_TABS.map(tab => (
+              <button
+                key={tab.key}
+                onClick={() => setActiveCanvas(tab.key)}
+                className={`px-3 py-1 rounded-lg text-xs font-medium transition-colors ${
+                  activeCanvas === tab.key
+                    ? 'bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900'
+                    : 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+        </div>
 
         {/* When annotating: show hat selector + tools + canvas */}
         {isAnnotating && (
