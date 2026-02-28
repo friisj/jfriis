@@ -11,12 +11,13 @@
  */
 
 import { useState, useCallback, useMemo, useRef, useEffect } from 'react'
-import type { SkillState, SkillDecision, ArenaAnnotation } from '@/lib/studio/arena/types'
+import type { SkillState, SkillDecision, ArenaAnnotation, AnnotationSegment } from '@/lib/studio/arena/types'
 import { DEBONO_HATS } from '@/lib/studio/arena/debono-hats'
 import type { DebonoHatKey } from '@/lib/studio/arena/debono-hats'
 import { CanonicalCard, CanonicalForm, CanonicalDashboard } from './canonical-components'
-import { UnifiedAnnotationCanvas } from '@/components/studio/chalk/annotation/UnifiedAnnotationCanvas'
-import type { AnnotationType } from '@/components/studio/chalk/annotation/UnifiedAnnotationCanvas'
+import { AnnotationEditor } from './annotation-editor'
+import type { AnnotationEditorHandle } from './annotation-editor'
+import { registerArenaGrabPlugin } from '@/lib/studio/arena/react-grab-plugin'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -61,20 +62,6 @@ function isHexColor(value: string): boolean {
 
 function countDecisions(skill: SkillState): number {
   return DIMENSIONS.reduce((sum, d) => sum + skill[d].decisions.length, 0)
-}
-
-/**
- * Capture the full preview (content + annotation marks) as a PNG data URL.
- * Uses html-to-image (SVG foreignObject) instead of html2canvas because
- * html2canvas can't parse Tailwind v4's OKLCH color functions.
- * foreignObject delegates to the browser's native CSS renderer, which handles OKLCH.
- */
-async function capturePreview(container: HTMLElement): Promise<string> {
-  const { toPng } = await import('html-to-image')
-  return toPng(container, {
-    backgroundColor: '#f9fafb',
-    pixelRatio: 1,
-  })
 }
 
 // ---------------------------------------------------------------------------
@@ -301,10 +288,9 @@ function ChangeDiffList({ previous, refined }: { previous: SkillState; refined: 
   )
 }
 
-function AnnotationQueue({ annotations, onRemove, onUpdateTranscript }: {
+function AnnotationQueue({ annotations, onRemove }: {
   annotations: ArenaAnnotation[]
   onRemove: (id: string) => void
-  onUpdateTranscript: (id: string, transcript: string) => void
 }) {
   if (annotations.length === 0) {
     return (
@@ -321,22 +307,21 @@ function AnnotationQueue({ annotations, onRemove, onUpdateTranscript }: {
         return (
           <div key={ann.id} className={`flex items-start gap-3 py-2.5 px-3 rounded-lg border ${hat?.borderColor ?? 'border-gray-100'} ${hat?.bgColor ?? ''}`}>
             <span className="text-base flex-shrink-0 mt-0.5" title={hat?.label}>{hat?.emoji}</span>
-            {ann.screenshot && (
-              /* eslint-disable-next-line @next/next/no-img-element */
-              <img
-                src={ann.screenshot}
-                alt={`Annotation ${ann.id}`}
-                className="w-16 h-16 object-cover rounded border border-gray-200 dark:border-gray-700 flex-shrink-0"
-              />
-            )}
             <div className="flex-1 min-w-0">
-              <textarea
-                value={ann.transcript}
-                onChange={(e) => onUpdateTranscript(ann.id, e.target.value)}
-                placeholder={hat?.placeholder ?? 'Describe what you see...'}
-                rows={2}
-                className="w-full px-2 py-1 text-xs border border-gray-200 dark:border-gray-700 rounded bg-white/80 dark:bg-gray-900/50 text-gray-800 dark:text-gray-200 placeholder:text-gray-400 resize-none"
-              />
+              <div className="text-xs text-gray-800 dark:text-gray-200 leading-relaxed">
+                {ann.segments.map((seg, i) =>
+                  seg.type === 'text' ? (
+                    <span key={i}>{seg.value}</span>
+                  ) : (
+                    <span
+                      key={i}
+                      className="inline-flex items-center gap-0.5 px-1.5 py-0.5 mx-0.5 rounded-full text-[11px] font-medium bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-700 align-baseline"
+                    >
+                      @ {seg.displayName}
+                    </span>
+                  )
+                )}
+              </div>
               <span className="text-[10px] text-gray-400 mt-0.5 block">{hat?.label}</span>
             </div>
             <button
@@ -371,24 +356,23 @@ export function SkillGym({ skill, onSkillUpdate, onBack, fontOverrides }: SkillG
   const [activeTab, setActiveTab] = useState<'decisions' | 'annotations'>('decisions')
   const [annotations, setAnnotations] = useState<ArenaAnnotation[]>([])
   const [activeHat, setActiveHat] = useState<DebonoHatKey>('white')
-  const [annotationTool, setAnnotationTool] = useState<AnnotationType | null>(null)
   const previewContainerRef = useRef<HTMLDivElement>(null)
 
   // Canvas tab — show one canonical component at a time
   const [activeCanvas, setActiveCanvas] = useState<'card' | 'form' | 'dashboard'>('card')
 
-  // Annotation session state (explicit start → markup → optional record → done)
+  // Annotation session state (explicit start → editor → optional record → done)
   const [isAnnotating, setIsAnnotating] = useState(false)
-  const [canvasKey, setCanvasKey] = useState(0) // increment to reset canvas between annotations
+  const [currentSegments, setCurrentSegments] = useState<AnnotationSegment[]>([])
+  const [isGrabActive, setIsGrabActive] = useState(false)
+  const editorRef = useRef<AnnotationEditorHandle>(null)
   const [isRecording, setIsRecording] = useState(false)
   const [isTranscribing, setIsTranscribing] = useState(false)
-  const [currentTranscript, setCurrentTranscript] = useState('')
   const mediaRecorderRef = useRef<MediaRecorder | null>(null)
   const audioChunksRef = useRef<Blob[]>([])
 
   const feedbackCount = useMemo(() => Object.keys(feedbackMap).length, [feedbackMap])
   const decisionCount = useMemo(() => countDecisions(skill), [skill])
-  const activeHatData = useMemo(() => DEBONO_HATS.find(h => h.key === activeHat)!, [activeHat])
 
   const handleFeedback = useCallback((dim: string, label: string, item: FeedbackItem | null) => {
     const key = feedbackKey(dim, label)
@@ -406,9 +390,7 @@ export function SkillGym({ skill, onSkillUpdate, onBack, fontOverrides }: SkillG
 
   const handleStartAnnotation = useCallback(() => {
     setIsAnnotating(true)
-    setAnnotationTool('rectangle')
-    setCurrentTranscript('')
-    setCanvasKey(k => k + 1) // fresh canvas
+    setCurrentSegments([])
   }, [])
 
   const handleStartRecording = useCallback(async () => {
@@ -462,7 +444,7 @@ export function SkillGym({ skill, onSkillUpdate, onBack, fontOverrides }: SkillG
       if (!res.ok) throw new Error(`Transcription API returned ${res.status}`)
       const data = await res.json()
       if (data.transcript) {
-        setCurrentTranscript(prev => prev ? `${prev} ${data.transcript}` : data.transcript)
+        editorRef.current?.appendTranscription(data.transcript)
       }
     } catch (err) {
       console.error('Transcription failed:', err)
@@ -471,33 +453,19 @@ export function SkillGym({ skill, onSkillUpdate, onBack, fontOverrides }: SkillG
     }
   }, [])
 
-  const handleFinishAnnotation = useCallback(async () => {
-    // Capture screenshot of the annotated preview
-    let screenshot = ''
-    const container = previewContainerRef.current
-    if (container) {
-      // Brief delay so the canvas renders any final marks
-      await new Promise(r => setTimeout(r, 100))
-      try {
-        screenshot = await capturePreview(container)
-      } catch (err) {
-        console.warn('Screenshot capture failed, continuing without image:', err)
-      }
-    }
-
+  const handleFinishAnnotation = useCallback(() => {
     const newAnnotation: ArenaAnnotation = {
       id: `ann_${Date.now()}`,
       hatKey: activeHat,
-      screenshot,
-      transcript: currentTranscript,
+      segments: currentSegments,
       timestamp: Date.now(),
     }
 
     setAnnotations(prev => [...prev, newAnnotation])
     setIsAnnotating(false)
-    setAnnotationTool(null)
-    setCurrentTranscript('')
-  }, [activeHat, currentTranscript])
+    setIsGrabActive(false)
+    setCurrentSegments([])
+  }, [activeHat, currentSegments])
 
   const handleCancelAnnotation = useCallback(() => {
     // Stop recording if active
@@ -509,8 +477,8 @@ export function SkillGym({ skill, onSkillUpdate, onBack, fontOverrides }: SkillG
     setIsAnnotating(false)
     setIsRecording(false)
     setIsTranscribing(false)
-    setAnnotationTool(null)
-    setCurrentTranscript('')
+    setIsGrabActive(false)
+    setCurrentSegments([])
   }, [])
 
   // Clean up recording on unmount
@@ -528,9 +496,17 @@ export function SkillGym({ skill, onSkillUpdate, onBack, fontOverrides }: SkillG
     setAnnotations(prev => prev.filter(a => a.id !== id))
   }, [])
 
-  const handleUpdateTranscript = useCallback((id: string, transcript: string) => {
-    setAnnotations(prev => prev.map(a => a.id === id ? { ...a, transcript } : a))
-  }, [])
+  // React Grab plugin lifecycle
+  useEffect(() => {
+    if (!isGrabActive) return
+    const unregister = registerArenaGrabPlugin({
+      containerRef: previewContainerRef,
+      onGrab: (segment) => editorRef.current?.insertGrabPill(segment),
+    })
+    const api = window.__REACT_GRAB__
+    api?.activate()
+    return () => { unregister(); api?.deactivate() }
+  }, [isGrabActive])
 
   const handleRefine = useCallback(async () => {
     if (feedbackCount === 0 && annotations.length === 0) return
@@ -549,12 +525,10 @@ export function SkillGym({ skill, onSkillUpdate, onBack, fontOverrides }: SkillG
             feedback: Object.values(feedbackMap),
             annotations: annotations.map(a => ({
               hatKey: a.hatKey,
-              screenshot: a.screenshot,
-              transcript: a.transcript,
+              segments: a.segments,
             })),
             notes,
             iterationCount: roundCount,
-            model: annotations.length > 0 ? 'claude-sonnet' : undefined,
           },
         }),
       })
@@ -735,122 +709,26 @@ export function SkillGym({ skill, onSkillUpdate, onBack, fontOverrides }: SkillG
           </div>
         </div>
 
-        {/* When annotating: show hat selector + tools + canvas */}
-        {isAnnotating && (
-          <>
-            {/* Hat selector */}
-            <div className="flex flex-wrap gap-1.5 mb-3">
-              {DEBONO_HATS.map(hat => (
-                <button
-                  key={hat.key}
-                  onClick={() => setActiveHat(hat.key)}
-                  className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium border transition-colors ${
-                    activeHat === hat.key
-                      ? `${hat.bgColor} ${hat.borderColor} ${hat.color}`
-                      : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-500 hover:border-gray-300'
-                  }`}
-                >
-                  <span>{hat.emoji}</span>
-                  <span>{hat.label.replace(' Hat', '')}</span>
-                </button>
-              ))}
-            </div>
-
-            {/* Annotation tools */}
-            <div className="flex items-center gap-2 mb-3">
-              {([
-                { tool: 'rectangle' as AnnotationType, label: 'Rectangle', icon: '\u25A1' },
-                { tool: 'freehand' as AnnotationType, label: 'Draw', icon: '\u270E' },
-                { tool: 'text' as AnnotationType, label: 'Text', icon: 'T' },
-              ]).map(({ tool, label, icon }) => (
-                <button
-                  key={tool}
-                  onClick={() => setAnnotationTool(annotationTool === tool ? null : tool)}
-                  className={`px-2.5 py-1 rounded text-xs font-medium border transition-colors ${
-                    annotationTool === tool
-                      ? 'bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 border-gray-900 dark:border-gray-100'
-                      : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:border-gray-300'
-                  }`}
-                  title={label}
-                >
-                  {icon}
-                </button>
-              ))}
-            </div>
-          </>
-        )}
-
         <div ref={previewContainerRef}>
-          {isAnnotating ? (
-            <UnifiedAnnotationCanvas
-              key={canvasKey}
-              tool={annotationTool}
-              voiceEnabled={false}
-              color={activeHatData.hexColor}
-            >
-              {canonicalPreview}
-            </UnifiedAnnotationCanvas>
-          ) : (
-            canonicalPreview
-          )}
+          {canonicalPreview}
         </div>
 
-        {/* Annotation session controls (below the preview) */}
+        {/* Annotation editor (below the preview) */}
         {isAnnotating && (
-          <div className="mt-4 space-y-3 border-t border-gray-100 dark:border-gray-800 pt-4">
-            {/* Voice recording */}
-            <div className="flex items-center gap-2">
-              {!isRecording ? (
-                <button
-                  onClick={handleStartRecording}
-                  disabled={isTranscribing}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:border-gray-300 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                >
-                  {'\uD83C\uDFA4'} Record Voice
-                </button>
-              ) : (
-                <button
-                  onClick={handleStopRecording}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border border-red-300 dark:border-red-800 bg-red-50 dark:bg-red-950/30 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-950/50 transition-colors"
-                >
-                  <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
-                  Stop Recording
-                </button>
-              )}
-              {isTranscribing && (
-                <span className="text-xs text-gray-400 flex items-center gap-1.5">
-                  <span className="w-3 h-3 border border-gray-400 border-t-transparent rounded-full animate-spin" />
-                  Transcribing...
-                </span>
-              )}
-            </div>
-
-            {/* Transcript editor */}
-            <textarea
-              value={currentTranscript}
-              onChange={(e) => setCurrentTranscript(e.target.value)}
-              placeholder={activeHatData.placeholder}
-              rows={2}
-              className="w-full px-3 py-2 text-xs border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-200 placeholder:text-gray-400 resize-none"
-            />
-
-            {/* Done / Cancel */}
-            <div className="flex items-center gap-2">
-              <button
-                onClick={handleFinishAnnotation}
-                disabled={isRecording || isTranscribing}
-                className="px-4 py-1.5 bg-purple-600 text-white text-xs font-medium rounded-lg hover:bg-purple-700 disabled:bg-gray-300 dark:disabled:bg-gray-700 disabled:cursor-not-allowed transition-colors"
-              >
-                Done
-              </button>
-              <button
-                onClick={handleCancelAnnotation}
-                className="px-4 py-1.5 text-xs text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
+          <AnnotationEditor
+            ref={editorRef}
+            hatKey={activeHat}
+            onHatChange={setActiveHat}
+            onSegmentsChange={setCurrentSegments}
+            isGrabActive={isGrabActive}
+            onToggleGrab={() => setIsGrabActive(g => !g)}
+            isRecording={isRecording}
+            isTranscribing={isTranscribing}
+            onStartRecording={handleStartRecording}
+            onStopRecording={handleStopRecording}
+            onDone={handleFinishAnnotation}
+            onCancel={handleCancelAnnotation}
+          />
         )}
       </div>
 
@@ -958,7 +836,7 @@ export function SkillGym({ skill, onSkillUpdate, onBack, fontOverrides }: SkillG
               </button>
             )}
           </div>
-          <AnnotationQueue annotations={annotations} onRemove={handleRemoveAnnotation} onUpdateTranscript={handleUpdateTranscript} />
+          <AnnotationQueue annotations={annotations} onRemove={handleRemoveAnnotation} />
         </div>
       )}
 

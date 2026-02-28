@@ -51,10 +51,21 @@ const feedbackItemSchema = z.object({
   reason: z.string().optional(),
 })
 
+const segmentSchema = z.discriminatedUnion('type', [
+  z.object({ type: z.literal('text'), value: z.string() }),
+  z.object({
+    type: z.literal('grab'),
+    componentName: z.string(),
+    filePath: z.string().nullable(),
+    lineNumber: z.number().nullable(),
+    displayName: z.string(),
+    elementTag: z.string(),
+  }),
+])
+
 const annotationSchema = z.object({
   hatKey: z.enum(['white', 'red', 'black', 'yellow', 'green', 'blue']),
-  screenshot: z.string(),
-  transcript: z.string(),
+  segments: z.array(segmentSchema),
 })
 
 const inputSchema = z.object({
@@ -67,7 +78,6 @@ const inputSchema = z.object({
   annotations: z.array(annotationSchema).default([]),
   notes: z.string(),
   iterationCount: z.number(),
-  model: z.string().optional(),
 })
 
 type RefineInput = z.infer<typeof inputSchema>
@@ -142,10 +152,12 @@ Output a single JSON object:
 
 Each decision: { label, value, rationale, confidence, source: "gym" }
 
-## Visual Annotations
+## Structured Annotations
 
-You may also receive annotated screenshots of the canonical components with voice transcripts.
-Each annotation has a De Bono hat type indicating the thinking mode:
+You may also receive structured annotations referencing specific UI elements.
+Each annotation has a De Bono hat type indicating the thinking mode, and contains
+interleaved text and grab references. Grab references use the format
+\`@ComponentName:line\` and identify specific React components in the canonical preview.
 
 - White (factual): objective observations about values, measurements, specs
 - Red (emotional): gut feeling, aesthetic reaction — treat as soft signal
@@ -158,7 +170,7 @@ Weight annotations by hat type: Black and White observations are highest priorit
 Yellow observations identify constraints (preserve these aspects).
 Green offers options, not directives.`
 
-function buildMessages(input: RefineInput) {
+function buildPrompt(input: RefineInput) {
   const dims = ['color', 'typography', 'spacing'] as const
 
   // Serialize current skill
@@ -183,7 +195,7 @@ function buildMessages(input: RefineInput) {
       }).join('\n')
     : '(no specific decision feedback)'
 
-  const text = `Refine this design skill based on user feedback. This is iteration ${input.iterationCount + 1}.
+  let user = `Refine this design skill based on user feedback. This is iteration ${input.iterationCount + 1}.
 
 ## Current Skill State
 
@@ -199,21 +211,18 @@ ${input.notes || '(none)'}
 
 Output JSON only.`
 
-  const content: Array<{ type: 'text'; text: string } | { type: 'image'; image: string }> = [
-    { type: 'text', text },
-  ]
-
-  for (const ann of input.annotations) {
-    content.push(
-      { type: 'text', text: `[${ann.hatKey.toUpperCase()} HAT annotation]: ${ann.transcript}` },
-      { type: 'image', image: ann.screenshot },
-    )
+  // Serialize annotations as structured text
+  if (input.annotations.length > 0) {
+    const annotationLines = input.annotations.map(ann => {
+      const serialized = ann.segments.map(seg =>
+        seg.type === 'text' ? seg.value : `@${seg.componentName}${seg.lineNumber ? ':' + seg.lineNumber : ''}`
+      ).join('')
+      return `[${ann.hatKey.toUpperCase()} HAT]: ${serialized}`
+    })
+    user += `\n\n## Annotations\n\n${annotationLines.join('\n')}`
   }
 
-  return {
-    system: SYSTEM_PROMPT,
-    messages: [{ role: 'user' as const, content }],
-  }
+  return { system: SYSTEM_PROMPT, user }
 }
 
 // --- Action registration ---
@@ -227,8 +236,7 @@ const arenaRefineSkillAction: Action<RefineInput, RefineOutput> = {
   model: 'claude-haiku',
   inputSchema,
   outputSchema,
-  buildPrompt: () => ({ system: '', user: '' }),
-  buildMessages,
+  buildPrompt,
 }
 
 registerAction(arenaRefineSkillAction)
