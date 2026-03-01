@@ -112,7 +112,7 @@ export default async function ProjectDetailPage({ params }: Props) {
                   </div>
                 ) : (
                   <p className="text-xs text-slate-400 dark:text-slate-500 italic">
-                    No skill assigned. Import from Figma to populate.
+                    No skill assigned
                   </p>
                 )}
               </div>
@@ -121,46 +121,48 @@ export default async function ProjectDetailPage({ params }: Props) {
         </div>
       </div>
 
-      {/* Project inputs summary */}
-      {project.inputs && (project.inputs.figma_links?.length > 0 || project.inputs.fonts?.length > 0 || project.inputs.images?.length > 0 || project.inputs.urls?.length > 0) && (
-        <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm p-5">
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="text-sm font-semibold text-slate-700 dark:text-slate-300">Inputs</h2>
-            <Link
-              href={`/apps/arena/projects/${project.id}/inputs`}
-              className="text-xs text-purple-600 hover:text-purple-700 font-medium"
-            >
-              Edit
-            </Link>
+      {/* Fonts & Inputs */}
+      <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm p-5">
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-sm font-semibold text-slate-700 dark:text-slate-300">Fonts &amp; Inputs</h2>
+          <Link
+            href={`/apps/arena/projects/${project.id}/inputs`}
+            className="text-xs text-purple-600 hover:text-purple-700 font-medium"
+          >
+            Edit
+          </Link>
+        </div>
+        {project.inputs?.fonts && project.inputs.fonts.length > 0 ? (
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-3">
+            {project.inputs.fonts.map((f) => (
+              <div key={f.role} className="bg-slate-50 dark:bg-slate-700/50 rounded-lg px-3 py-2">
+                <span className="text-[10px] uppercase tracking-wider text-slate-400 dark:text-slate-500">{f.role}</span>
+                <p className="text-sm font-medium text-slate-800 dark:text-slate-200">{f.family}</p>
+              </div>
+            ))}
           </div>
-          <div className="flex flex-wrap gap-4 text-xs text-slate-500 dark:text-slate-400">
-            {project.inputs.fonts?.length > 0 && (
-              <div>
-                <span className="font-medium text-slate-700 dark:text-slate-300">Fonts:</span>{' '}
-                {project.inputs.fonts.map(f => `${f.role}: ${f.family}`).join(', ')}
-              </div>
-            )}
+        ) : (
+          <p className="text-xs text-slate-400 dark:text-slate-500 italic mb-3">
+            No fonts configured.{' '}
+            <Link href={`/apps/arena/projects/${project.id}/inputs`} className="text-purple-600 hover:text-purple-700 not-italic">
+              Set fonts
+            </Link>
+          </p>
+        )}
+        {project.inputs && (project.inputs.figma_links?.length > 0 || project.inputs.images?.length > 0 || project.inputs.urls?.length > 0) && (
+          <div className="flex flex-wrap gap-4 text-xs text-slate-500 dark:text-slate-400 pt-2 border-t border-slate-100 dark:border-slate-700">
             {project.inputs.figma_links?.length > 0 && (
-              <div>
-                <span className="font-medium text-slate-700 dark:text-slate-300">Figma links:</span>{' '}
-                {project.inputs.figma_links.length}
-              </div>
+              <span>{project.inputs.figma_links.length} Figma link{project.inputs.figma_links.length !== 1 ? 's' : ''}</span>
             )}
             {project.inputs.images?.length > 0 && (
-              <div>
-                <span className="font-medium text-slate-700 dark:text-slate-300">Images:</span>{' '}
-                {project.inputs.images.length}
-              </div>
+              <span>{project.inputs.images.length} image{project.inputs.images.length !== 1 ? 's' : ''}</span>
             )}
             {project.inputs.urls?.length > 0 && (
-              <div>
-                <span className="font-medium text-slate-700 dark:text-slate-300">URLs:</span>{' '}
-                {project.inputs.urls.length}
-              </div>
+              <span>{project.inputs.urls.length} reference URL{project.inputs.urls.length !== 1 ? 's' : ''}</span>
             )}
           </div>
-        </div>
-      )}
+        )}
+      </div>
 
       {/* Project info */}
       {(project.figma_file_url || project.figma_file_key) && (
@@ -219,14 +221,23 @@ export default async function ProjectDetailPage({ params }: Props) {
       )}
 
       {skills.length === 0 && (
-        <div className="text-center py-12 bg-white dark:bg-slate-800 rounded-lg shadow-sm">
-          <p className="text-slate-500 dark:text-slate-400">No skills imported yet.</p>
-          <Link
-            href={`/apps/arena/projects/${project.id}/import`}
-            className="text-purple-600 hover:text-purple-700 text-sm mt-2 inline-block"
-          >
-            Import from Figma
-          </Link>
+        <div className="text-center py-12 bg-white dark:bg-slate-800 rounded-lg shadow-sm space-y-2">
+          <p className="text-slate-500 dark:text-slate-400">No skills yet.</p>
+          <div className="flex items-center justify-center gap-3 text-sm">
+            <Link
+              href={`/apps/arena/projects/${project.id}/import`}
+              className="text-purple-600 hover:text-purple-700"
+            >
+              Import from Figma
+            </Link>
+            <span className="text-slate-300 dark:text-slate-600">or</span>
+            <Link
+              href={`/apps/arena/skills?templates=1`}
+              className="text-purple-600 hover:text-purple-700"
+            >
+              Clone from templates
+            </Link>
+          </div>
         </div>
       )}
     </div>

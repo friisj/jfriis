@@ -77,12 +77,14 @@ export function FontSelector({ fontDisplay, fontBody, fontMono, onFontChange, av
   )
 }
 
-/** Hook to manage font state, load available fonts, and inject @font-face rules */
-export function useArenaFonts() {
+/** Hook to manage font state, load available fonts, and inject @font-face rules.
+ *  Pass `initialFonts` (e.g. from project.inputs.fonts) to auto-select once available fonts load. */
+export function useArenaFonts(initialFonts?: { role: string; family: string }[]) {
   const [availableFonts, setAvailableFonts] = useState<AvailableFonts | null>(null)
   const [fontDisplay, setFontDisplay] = useState<SelectedFont | null>(null)
   const [fontBody, setFontBody] = useState<SelectedFont | null>(null)
   const [fontMono, setFontMono] = useState<SelectedFont | null>(null)
+  const [didInit, setDidInit] = useState(false)
 
   // Fetch available fonts on mount
   useEffect(() => {
@@ -91,6 +93,27 @@ export function useArenaFonts() {
       .then(data => setAvailableFonts(data))
       .catch(err => console.error('Failed to load arena fonts:', err))
   }, [])
+
+  // Auto-select from initialFonts once available fonts are loaded
+  useEffect(() => {
+    if (didInit || !availableFonts || !initialFonts || initialFonts.length === 0) return
+    for (const init of initialFonts) {
+      const match = availableFonts.customFonts.find(
+        f => f.displayName === init.family || f.name === init.family
+      )
+      if (!match) continue
+      const selected: SelectedFont = {
+        name: match.name,
+        displayName: match.displayName,
+        scopedName: `__fi__${match.name}`,
+        files: match.files,
+      }
+      if (init.role === 'display') setFontDisplay(selected)
+      else if (init.role === 'body') setFontBody(selected)
+      else if (init.role === 'mono') setFontMono(selected)
+    }
+    setDidInit(true)
+  }, [availableFonts, initialFonts, didInit])
 
   // Inject @font-face rules
   useEffect(() => {

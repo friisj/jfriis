@@ -18,8 +18,8 @@ export function ProjectInputsClient({ project }: Props) {
   // Initialize from project.inputs
   const inputs = project.inputs ?? { figma_links: [], fonts: [], images: [], urls: [] }
 
-  // Font state
-  const { availableFonts, fontDisplay, fontBody, fontMono, handleFontChange } = useArenaFonts()
+  // Font state — initializes selectors from saved project fonts
+  const { availableFonts, fontDisplay, fontBody, fontMono, handleFontChange } = useArenaFonts(inputs.fonts)
 
   // Figma links
   const [figmaLinks, setFigmaLinks] = useState<string[]>(
@@ -84,20 +84,6 @@ export function ProjectInputsClient({ project }: Props) {
         onFontChange={handleFontChange}
         availableFonts={availableFonts}
       />
-
-      {/* Existing project font values (read-only display) */}
-      {inputs.fonts?.length > 0 && !fontDisplay && !fontBody && !fontMono && (
-        <div className="bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-lg p-4">
-          <p className="text-xs text-slate-500 dark:text-slate-400 mb-2">Current saved fonts (select above to change):</p>
-          <div className="flex gap-4 text-xs">
-            {inputs.fonts.map((f) => (
-              <span key={f.role} className="text-slate-700 dark:text-slate-300">
-                <span className="font-medium capitalize">{f.role}:</span> {f.family}
-              </span>
-            ))}
-          </div>
-        </div>
-      )}
 
       {/* Figma Links */}
       <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm p-5">
