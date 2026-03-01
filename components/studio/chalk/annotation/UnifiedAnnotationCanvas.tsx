@@ -40,6 +40,7 @@ interface UnifiedAnnotationCanvasProps {
   voiceEnabled?: boolean;
   onClearAll?: () => void;
   onSelectionChange?: (annotationId: string | null) => void;
+  color?: string;
 }
 
 export const UnifiedAnnotationCanvas = forwardRef<{ triggerCapture: () => void; deleteSelected: () => void }, UnifiedAnnotationCanvasProps>(function UnifiedAnnotationCanvas({
@@ -52,6 +53,7 @@ export const UnifiedAnnotationCanvas = forwardRef<{ triggerCapture: () => void; 
   voiceEnabled = false,
   onClearAll,
   onSelectionChange,
+  color: colorProp,
 }, ref) {
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -78,7 +80,7 @@ export const UnifiedAnnotationCanvas = forwardRef<{ triggerCapture: () => void; 
   const [hoveredId, setHoveredId] = useState<string | null>(null);
 
   // Drawing style
-  const [color] = useState("#FF0000");
+  const drawingColor = colorProp ?? "#FF0000";
   const [lineWidth] = useState(3);
 
   // Simplify freehand points using Douglas-Peucker algorithm
@@ -417,7 +419,7 @@ export const UnifiedAnnotationCanvas = forwardRef<{ triggerCapture: () => void; 
       const simplifiedPoints = simplifyPoints(currentPoints, 2);
       console.log(`[Canvas] Freehand simplified: ${currentPoints.length} → ${simplifiedPoints.length} points (${Math.round((1 - simplifiedPoints.length / currentPoints.length) * 100)}% reduction)`);
       newAnnotation.points = simplifiedPoints;
-      newAnnotation.color = color;
+      newAnnotation.color = drawingColor;
       newAnnotation.width = lineWidth;
     }
 
@@ -742,7 +744,7 @@ export const UnifiedAnnotationCanvas = forwardRef<{ triggerCapture: () => void; 
         currentBounds.height
       );
     } else if (tool === "freehand" && currentPoints.length > 1) {
-      ctx.strokeStyle = color;
+      ctx.strokeStyle = drawingColor;
       ctx.lineWidth = lineWidth;
       ctx.lineCap = "round";
       ctx.lineJoin = "round";
@@ -753,7 +755,7 @@ export const UnifiedAnnotationCanvas = forwardRef<{ triggerCapture: () => void; 
       }
       ctx.stroke();
     }
-  }, [annotations, currentBounds, currentPoints, selectedId, tool, color, lineWidth, showAnnotations]);
+  }, [annotations, currentBounds, currentPoints, selectedId, tool, drawingColor, lineWidth, showAnnotations]);
 
   const hoveredAnnotation = annotations.find((a) => a.id === hoveredId);
 
@@ -785,7 +787,6 @@ export const UnifiedAnnotationCanvas = forwardRef<{ triggerCapture: () => void; 
 
       {/* Text input overlay */}
       {(() => {
-        console.log("[Canvas Render] isEditingText:", isEditingText, "textPosition:", textPosition);
         return isEditingText && textPosition && (
           <div
             className="absolute z-40 bg-white rounded-lg shadow-2xl border-2 border-blue-500 p-1"

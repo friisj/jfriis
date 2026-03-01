@@ -8,6 +8,7 @@ import type { ExtractedTokens } from '@/lib/studio/arena/figma-extractor'
 import { extractTokens } from '@/lib/studio/arena/figma-extractor'
 import { CanonicalCard, CanonicalForm, CanonicalDashboard } from './shared/canonical-components'
 import { InferredSkillPanel } from './shared/skill-panel'
+import { SkillGym } from './shared/skill-gym'
 
 /**
  * Figma Import Spike
@@ -25,7 +26,7 @@ import { InferredSkillPanel } from './shared/skill-panel'
 // Types
 // ---------------------------------------------------------------------------
 
-type Phase = 'input' | 'extracting' | 'review' | 'compare'
+type Phase = 'input' | 'extracting' | 'review' | 'compare' | 'gym'
 
 interface ParsedUrl {
   url: string
@@ -35,7 +36,8 @@ interface ParsedUrl {
 }
 
 interface CustomFont {
-  name: string
+  name: string       // Display name (e.g. "RM Neue VF")
+  scopedName: string // Scoped @font-face name (e.g. "__fi__RM Neue VF") — only used in CSS
   dataUrl: string
   format: string
 }
@@ -170,13 +172,14 @@ export default function FigmaImportSpike() {
   const [fontBody, setFontBody] = useState<CustomFont | null>(null)
   const [fontMono, setFontMono] = useState<CustomFont | null>(null)
 
-  // Inject @font-face rules
+  // Inject @font-face rules using scoped names to prevent font leaking
+  // into base skill components or other page elements
   useEffect(() => {
     const fonts = [fontDisplay, fontBody, fontMono].filter(Boolean) as CustomFont[]
     if (fonts.length === 0) return
 
     const css = fonts.map(f =>
-      `@font-face { font-family: "${f.name}"; src: url(${f.dataUrl}) format("${f.format}"); font-display: swap; }`
+      `@font-face { font-family: "${f.scopedName}"; src: url(${f.dataUrl}) format("${f.format}"); font-display: swap; }`
     ).join('\n')
     const style = document.createElement('style')
     style.setAttribute('data-figma-import-fonts', '')
@@ -185,11 +188,12 @@ export default function FigmaImportSpike() {
     return () => { style.remove() }
   }, [fontDisplay, fontBody, fontMono])
 
+  // fontOverrides use scoped names — only applied to Figma Import components
   const fontOverrides = useMemo(() => {
     const overrides: { display?: string; body?: string; mono?: string } = {}
-    if (fontDisplay) overrides.display = `"${fontDisplay.name}", system-ui, sans-serif`
-    if (fontBody) overrides.body = `"${fontBody.name}", system-ui, sans-serif`
-    if (fontMono) overrides.mono = `"${fontMono.name}", ui-monospace, monospace`
+    if (fontDisplay) overrides.display = `"${fontDisplay.scopedName}", system-ui, sans-serif`
+    if (fontBody) overrides.body = `"${fontBody.scopedName}", system-ui, sans-serif`
+    if (fontMono) overrides.mono = `"${fontMono.scopedName}", ui-monospace, monospace`
     return Object.keys(overrides).length > 0 ? overrides : undefined
   }, [fontDisplay, fontBody, fontMono])
 
@@ -209,7 +213,12 @@ export default function FigmaImportSpike() {
 
     const reader = new FileReader()
     reader.onload = () => {
-      const font: CustomFont = { name, dataUrl: reader.result as string, format }
+      const font: CustomFont = {
+        name,
+        scopedName: `__fi__${name}`,
+        dataUrl: reader.result as string,
+        format,
+      }
       if (slot === 'display') setFontDisplay(font)
       else if (slot === 'body') setFontBody(font)
       else setFontMono(font)
@@ -262,6 +271,7 @@ export default function FigmaImportSpike() {
             fonts: tokens.fonts,
             spacing: tokens.spacing,
             frameNames: tokens.frameNames,
+            rootBackgrounds: tokens.rootBackgrounds,
           },
         }),
       })
@@ -535,6 +545,21 @@ export default function FigmaImportSpike() {
   }
 
   // ---------------------------------------------------------------------------
+  // Gym phase
+  // ---------------------------------------------------------------------------
+
+  if (phase === 'gym') {
+    return (
+      <SkillGym
+        skill={classifiedSkill}
+        onSkillUpdate={(refined) => setClassifiedSkill(refined)}
+        onBack={() => setPhase('compare')}
+        fontOverrides={fontOverrides}
+      />
+    )
+  }
+
+  // ---------------------------------------------------------------------------
   // Compare phase
   // ---------------------------------------------------------------------------
 
@@ -606,6 +631,12 @@ export default function FigmaImportSpike() {
       </div>
 
       <div className="flex gap-3 justify-center">
+        <button
+          onClick={() => setPhase('gym')}
+          className="px-8 py-3 bg-purple-600 text-white font-medium rounded-xl hover:bg-purple-700 transition-colors text-sm"
+        >
+          Refine in Gym
+        </button>
         <button
           onClick={() => setPhase('review')}
           className="px-6 py-3 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 font-medium rounded-xl hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors text-sm"

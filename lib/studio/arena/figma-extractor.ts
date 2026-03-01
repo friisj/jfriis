@@ -36,6 +36,8 @@ export interface ExtractedTokens {
   fonts: ExtractedFont[]
   spacing: ExtractedSpacing[]
   frameNames: string[]
+  /** Fill colors from the root-level frame nodes — strong signal for Background */
+  rootBackgrounds: string[]
 }
 
 // ---------------------------------------------------------------------------
@@ -111,6 +113,7 @@ interface Accumulators {
   fonts: Map<string, { family: string; size: number; weight: number; count: number; nodeNames: Set<string> }>
   spacing: Map<string, { type: ExtractedSpacing['type']; value: number; count: number }>
   frameNames: Set<string>
+  rootBackgrounds: string[]
 }
 
 function createAccumulators(): Accumulators {
@@ -119,6 +122,7 @@ function createAccumulators(): Accumulators {
     fonts: new Map(),
     spacing: new Map(),
     frameNames: new Set(),
+    rootBackgrounds: [],
   }
 }
 
@@ -276,7 +280,17 @@ export function extractTokens(nodes: Array<{ data: object }>): ExtractedTokens {
   const acc = createAccumulators()
 
   for (const node of nodes) {
-    walkNode(node.data as FigmaNode, acc)
+    const figmaNode = node.data as FigmaNode
+    // Capture root frame backgrounds as a strong signal for the Background color
+    if (figmaNode.fills) {
+      for (const paint of figmaNode.fills) {
+        if (paint.visible === false) continue
+        if (paint.type === 'SOLID' && paint.color && paint.color.a >= 0.5) {
+          acc.rootBackgrounds.push(rgbaToHex(paint.color))
+        }
+      }
+    }
+    walkNode(figmaNode, acc)
   }
 
   // Convert maps to sorted arrays
@@ -292,6 +306,8 @@ export function extractTokens(nodes: Array<{ data: object }>): ExtractedTokens {
     .sort((a, b) => b.count - a.count)
 
   const frameNames = Array.from(acc.frameNames)
+  // Deduplicate root backgrounds preserving order
+  const rootBackgrounds = [...new Set(acc.rootBackgrounds)]
 
-  return { colors, fonts, spacing, frameNames }
+  return { colors, fonts, spacing, frameNames, rootBackgrounds }
 }

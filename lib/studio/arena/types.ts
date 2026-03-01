@@ -5,6 +5,28 @@
  * Used by infer-style-spike, figma-import-spike, and AI actions.
  */
 
+import type { DebonoHatKey } from './debono-hats'
+
+export interface GrabSegment {
+  type: 'grab'
+  componentName: string
+  filePath: string | null
+  lineNumber: number | null
+  displayName: string      // pill label, e.g. "CanonicalCard:128"
+  elementTag: string       // "div", "button", etc.
+}
+
+export type AnnotationSegment =
+  | { type: 'text'; value: string }
+  | GrabSegment
+
+export interface ArenaAnnotation {
+  id: string
+  hatKey: DebonoHatKey
+  segments: AnnotationSegment[]
+  timestamp: number
+}
+
 export interface SkillDecision {
   id: string
   label: string

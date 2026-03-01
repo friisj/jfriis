@@ -64,10 +64,10 @@ ALTER TRIGGER update_evidence_updated_at ON feedback
 -- 7. RENAME RLS POLICIES
 -- ============================================================================
 
-ALTER POLICY "Public read access to evidence"  ON feedback RENAME TO "Public read access to feedback";
-ALTER POLICY "Admin insert access to evidence" ON feedback RENAME TO "Admin insert access to feedback";
-ALTER POLICY "Admin update access to evidence" ON feedback RENAME TO "Admin update access to feedback";
-ALTER POLICY "Admin delete access to evidence" ON feedback RENAME TO "Admin delete access to feedback";
+ALTER POLICY "Public read access to evidence"        ON feedback RENAME TO "Public read access to feedback";
+ALTER POLICY "Authenticated insert access to evidence" ON feedback RENAME TO "Authenticated insert access to feedback";
+ALTER POLICY "Authenticated update access to evidence" ON feedback RENAME TO "Authenticated update access to feedback";
+ALTER POLICY "Authenticated delete access to evidence" ON feedback RENAME TO "Authenticated delete access to feedback";
 
 -- ============================================================================
 -- 8. ADD INDEX FOR hat_type
