@@ -1,19 +1,17 @@
-import { getLuvCharacterServer, getLuvConversationsServer } from '@/lib/luv-server';
-import { ChatInterface } from '../components/chat-interface';
+import { getLuvConversationsServer } from '@/lib/luv-server';
+import { ConversationHistory } from '../components/conversation-history';
 
 export default async function LuvChatPage() {
-  const [character, conversations] = await Promise.all([
-    getLuvCharacterServer(),
-    getLuvConversationsServer(),
-  ]);
+  const conversations = await getLuvConversationsServer();
 
   return (
     <div className="container px-4 py-8">
-      <h1 className="text-2xl font-bold mb-6">Chat Sandbox</h1>
-      <ChatInterface
-        soulData={character?.soul_data ?? {}}
-        savedConversations={conversations}
-      />
+      <h1 className="text-2xl font-bold mb-2">Conversations</h1>
+      <p className="text-sm text-muted-foreground mb-6">
+        Saved chat sessions. Use the sidebar chat (bottom-right) to start new
+        conversations from any panel.
+      </p>
+      <ConversationHistory conversations={conversations} />
     </div>
   );
 }
