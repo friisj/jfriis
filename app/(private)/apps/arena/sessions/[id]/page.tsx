@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
-import { getSession, getSessionIterations, getSessionFeedback, getSessionAnnotations } from '@/lib/studio/arena/queries'
+import { getSession, getSessionIterations, getSessionFeedback, getSessionAnnotations, getProjectAssembly, getSessionComponents } from '@/lib/studio/arena/queries'
 import { SessionActiveClient } from './session-active-client'
 import { SessionReviewClient } from './session-review-client'
 
@@ -15,7 +15,12 @@ export default async function SessionDetailPage({ params }: Props) {
 
   // Active session → show gym UI
   if (session.status === 'active') {
-    return <SessionActiveClient session={session} />
+    // Load project assembly and session components in parallel
+    const [assembly, sessionComponents] = await Promise.all([
+      session.project_id ? getProjectAssembly(session.project_id) : Promise.resolve([]),
+      getSessionComponents(id),
+    ])
+    return <SessionActiveClient session={session} assembly={assembly} sessionComponents={sessionComponents} />
   }
 
   // Completed/abandoned → show round-by-round review

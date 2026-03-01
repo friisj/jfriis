@@ -7,6 +7,12 @@ const statusColors: Record<string, string> = {
   abandoned: 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400',
 }
 
+const dimensionColors: Record<string, string> = {
+  color: 'bg-rose-100 dark:bg-rose-900/30 text-rose-700 dark:text-rose-400',
+  typography: 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400',
+  spacing: 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400',
+}
+
 interface SessionCardProps {
   session: ArenaSessionWithSkills
 }
@@ -20,10 +26,20 @@ export function SessionCard({ session }: SessionCardProps) {
       <h3 className="text-base font-semibold text-slate-900 dark:text-slate-100">
         {session.input_skill?.name ?? 'Unknown Skill'}
       </h3>
-      <div className="flex items-center gap-3 mt-2 text-xs text-slate-500 dark:text-slate-400">
+      {session.project && (
+        <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+          {session.project.name}
+        </p>
+      )}
+      <div className="flex items-center gap-2 mt-2 text-xs text-slate-500 dark:text-slate-400 flex-wrap">
         <span className={`px-2 py-0.5 rounded ${statusColors[session.status] ?? statusColors.abandoned}`}>
           {session.status}
         </span>
+        {session.target_dimension && (
+          <span className={`px-2 py-0.5 rounded ${dimensionColors[session.target_dimension] ?? ''}`}>
+            {session.target_dimension}
+          </span>
+        )}
         <span>{session.round_count} round{session.round_count !== 1 ? 's' : ''}</span>
         <span>{new Date(session.updated_at).toLocaleDateString()}</span>
       </div>

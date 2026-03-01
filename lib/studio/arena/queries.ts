@@ -9,7 +9,11 @@ import type {
   ArenaSessionAnnotation,
   ArenaSessionFeedback,
   ArenaSessionIteration,
+  ArenaProjectAssembly,
+  ArenaProjectAssemblyWithSkill,
+  ArenaTestComponent,
 } from './db-types'
+import type { SkillDimension } from './types'
 
 // Arena tables aren't in the generated Supabase types yet.
 // This helper provides an untyped client for arena table access.
@@ -80,12 +84,63 @@ export async function deleteProject(id: string): Promise<void> {
 }
 
 // =============================================================================
+// PROJECT ASSEMBLY
+// =============================================================================
+
+export async function getProjectAssembly(projectId: string): Promise<ArenaProjectAssemblyWithSkill[]> {
+  const supabase = await arenaClient()
+  const { data, error } = await supabase
+    .from('arena_project_assembly')
+    .select('*, skill:arena_skills(*)')
+    .eq('project_id', projectId)
+    .order('dimension')
+  if (error) throw error
+  return (data ?? []).map((row) => ({
+    ...(row as unknown as ArenaProjectAssembly),
+    skill: (row.skill as unknown as ArenaSkill) ?? null,
+  })) as ArenaProjectAssemblyWithSkill[]
+}
+
+export async function setAssemblySkill(
+  projectId: string,
+  dimension: SkillDimension,
+  skillId: string
+): Promise<ArenaProjectAssembly> {
+  const supabase = await arenaClient()
+  const { data, error } = await supabase
+    .from('arena_project_assembly')
+    .upsert(
+      { project_id: projectId, dimension, skill_id: skillId, updated_at: new Date().toISOString() },
+      { onConflict: 'project_id,dimension' }
+    )
+    .select()
+    .single()
+  if (error) throw error
+  return data as unknown as ArenaProjectAssembly
+}
+
+export async function removeAssemblySlot(
+  projectId: string,
+  dimension: SkillDimension
+): Promise<void> {
+  const supabase = await arenaClient()
+  const { error } = await supabase
+    .from('arena_project_assembly')
+    .delete()
+    .eq('project_id', projectId)
+    .eq('dimension', dimension)
+  if (error) throw error
+}
+
+// =============================================================================
 // SKILLS
 // =============================================================================
 
 export async function getSkills(filter?: {
   source?: string
   project_id?: string
+  dimension?: SkillDimension
+  is_template?: boolean
 }): Promise<ArenaSkill[]> {
   const supabase = await arenaClient()
   let query = supabase
@@ -95,6 +150,8 @@ export async function getSkills(filter?: {
 
   if (filter?.source) query = query.eq('source', filter.source)
   if (filter?.project_id) query = query.eq('project_id', filter.project_id)
+  if (filter?.dimension) query = query.eq('dimension', filter.dimension)
+  if (filter?.is_template !== undefined) query = query.eq('is_template', filter.is_template)
 
   const { data, error } = await query
   if (error) throw error
@@ -153,8 +210,11 @@ export async function createSkill(skill: {
   name: string
   state: Record<string, unknown>
   source: 'figma' | 'manual' | 'refined' | 'base'
+  dimension?: SkillDimension
   parent_skill_id?: string
   project_id?: string
+  is_template?: boolean
+  template_description?: string
 }): Promise<ArenaSkill> {
   const supabase = await arenaClient()
   const { data, error } = await supabase
@@ -182,7 +242,7 @@ export async function getSessions(filter?: {
   const supabase = await arenaClient()
   let query = supabase
     .from('arena_sessions')
-    .select('*, input_skill:arena_skills!arena_sessions_input_skill_id_fkey(*), output_skill:arena_skills!arena_sessions_output_skill_id_fkey(*)')
+    .select('*, input_skill:arena_skills!arena_sessions_input_skill_id_fkey(*), output_skill:arena_skills!arena_sessions_output_skill_id_fkey(*), project:arena_projects!arena_sessions_project_id_fkey(*)')
     .order('updated_at', { ascending: false })
 
   if (filter?.status) query = query.eq('status', filter.status)
@@ -193,6 +253,7 @@ export async function getSessions(filter?: {
     ...(row as unknown as ArenaSession),
     input_skill: (row.input_skill as unknown as ArenaSkill) ?? null,
     output_skill: (row.output_skill as unknown as ArenaSkill) ?? null,
+    project: (row.project as unknown as ArenaProject) ?? null,
   })) as ArenaSessionWithSkills[]
 }
 
@@ -213,12 +274,23 @@ export async function getSession(id: string): Promise<ArenaSessionWithSkills | n
 
 export async function createSession(session: {
   input_skill_id: string
+  project_id?: string
+  target_dimension?: SkillDimension
+  config?: Record<string, unknown>
   notes?: string
 }): Promise<ArenaSession> {
   const supabase = await arenaClient()
   const { data, error } = await supabase
     .from('arena_sessions')
-    .insert({ ...session, status: 'active', round_count: 0 })
+    .insert({
+      input_skill_id: session.input_skill_id,
+      project_id: session.project_id ?? null,
+      target_dimension: session.target_dimension ?? null,
+      config: session.config ?? {},
+      status: 'active',
+      round_count: 0,
+      notes: session.notes ?? null,
+    })
     .select()
     .single()
   if (error) throw error
@@ -280,6 +352,60 @@ export async function getSessionAnnotations(sessionId: string, round?: number): 
   const { data, error } = await query
   if (error) throw error
   return (data ?? []) as unknown as ArenaSessionAnnotation[]
+}
+
+// =============================================================================
+// TEST COMPONENTS
+// =============================================================================
+
+export async function getTestComponents(filter?: {
+  category?: string
+  is_default?: boolean
+}): Promise<ArenaTestComponent[]> {
+  const supabase = await arenaClient()
+  let query = supabase
+    .from('arena_test_components')
+    .select('*')
+    .order('name')
+
+  if (filter?.category) query = query.eq('category', filter.category)
+  if (filter?.is_default !== undefined) query = query.eq('is_default', filter.is_default)
+
+  const { data, error } = await query
+  if (error) throw error
+  return (data ?? []) as unknown as ArenaTestComponent[]
+}
+
+export async function getSessionComponents(sessionId: string): Promise<ArenaTestComponent[]> {
+  const supabase = await arenaClient()
+  const { data, error } = await supabase
+    .from('arena_session_components')
+    .select('component:arena_test_components(*)')
+    .eq('session_id', sessionId)
+  if (error) throw error
+  return (data ?? []).map((row) => row.component as unknown as ArenaTestComponent)
+}
+
+export async function setSessionComponents(
+  sessionId: string,
+  componentIds: string[]
+): Promise<void> {
+  const supabase = await arenaClient()
+  // Clear existing
+  const { error: delError } = await supabase
+    .from('arena_session_components')
+    .delete()
+    .eq('session_id', sessionId)
+  if (delError) throw delError
+
+  // Insert new
+  if (componentIds.length > 0) {
+    const rows = componentIds.map((component_id) => ({ session_id: sessionId, component_id }))
+    const { error: insError } = await supabase
+      .from('arena_session_components')
+      .insert(rows)
+    if (insError) throw insError
+  }
 }
 
 // =============================================================================

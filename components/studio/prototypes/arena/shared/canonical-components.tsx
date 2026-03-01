@@ -7,11 +7,13 @@
 
 import type { SkillState } from '@/lib/studio/arena/types'
 
-interface CanonicalProps {
+export interface CanonicalProps {
   skill: SkillState
   label: string
   fontOverrides?: { display?: string; body?: string; mono?: string }
 }
+
+export type CanonicalComponentType = React.ComponentType<CanonicalProps>
 
 /**
  * Parse a CSS-like value to a number (strips 'px' suffix).
@@ -449,4 +451,11 @@ export function CanonicalDashboard({ skill, label, fontOverrides }: CanonicalPro
       </div>
     </div>
   )
+}
+
+/** Registry mapping component_key → component. Used for dynamic test component resolution. */
+export const COMPONENT_REGISTRY: Record<string, CanonicalComponentType> = {
+  CanonicalCard,
+  CanonicalForm,
+  CanonicalDashboard,
 }

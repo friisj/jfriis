@@ -54,6 +54,21 @@ export interface SkillState {
   spacing: DimensionState
 }
 
+/** Per-dimension skill state — what's stored in DB for dimension-scoped skills */
+export type DimensionSkillState = DimensionState
+
+/** The three composable skill dimensions */
+export type SkillDimension = 'color' | 'typography' | 'spacing'
+
+export const SKILL_DIMENSIONS: SkillDimension[] = ['color', 'typography', 'spacing']
+
+/** Compose per-dimension skills into a full SkillState */
+export function assembleSkillState(
+  skills: Record<SkillDimension, DimensionState>
+): SkillState {
+  return { color: skills.color, typography: skills.typography, spacing: skills.spacing }
+}
+
 /** Decision labels that must match the canonical components */
 export const DECISION_LABELS = {
   color: ['Primary', 'Accent', 'Background', 'Text', 'Muted', 'Border'],

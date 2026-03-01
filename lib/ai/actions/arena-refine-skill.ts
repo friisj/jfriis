@@ -78,6 +78,7 @@ const inputSchema = z.object({
   annotations: z.array(annotationSchema).default([]),
   notes: z.string(),
   iterationCount: z.number(),
+  targetDimension: z.enum(['color', 'typography', 'spacing']).optional(),
 })
 
 type RefineInput = z.infer<typeof inputSchema>
@@ -195,7 +196,14 @@ function buildPrompt(input: RefineInput) {
       }).join('\n')
     : '(no specific decision feedback)'
 
-  let user = `Refine this design skill based on user feedback. This is iteration ${input.iterationCount + 1}.
+  let user = ''
+
+  // Scope refinement to a single dimension when specified
+  if (input.targetDimension) {
+    user += `**IMPORTANT: This refinement targets the "${input.targetDimension}" dimension ONLY. You MUST modify only ${input.targetDimension} decisions and rules. Copy the other two dimensions EXACTLY from the input — do not change any values, rationales, confidence levels, or rules in the non-target dimensions.**\n\n`
+  }
+
+  user += `Refine this design skill based on user feedback. This is iteration ${input.iterationCount + 1}.
 
 ## Current Skill State
 

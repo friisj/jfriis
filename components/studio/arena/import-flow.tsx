@@ -11,7 +11,8 @@ import { ExtractedTokensPanel } from './extracted-tokens-panel'
 import { SkillCompareView } from './skill-compare-view'
 import { InferredSkillPanel } from '@/components/studio/prototypes/arena/shared/skill-panel'
 import { BASE_SKILL } from '@/lib/studio/arena/base-skill'
-import { saveImportedSkill } from '@/lib/studio/arena/actions'
+import { saveImportedSkill, updateProjectInputs } from '@/lib/studio/arena/actions'
+import type { ArenaProjectInputs } from '@/lib/studio/arena/db-types'
 
 type Phase = 'input' | 'extracting' | 'review' | 'compare' | 'saved'
 
@@ -128,15 +129,34 @@ export function ImportFlow({ projectId, projectName, onComplete }: ImportFlowPro
         source: 'figma',
         project_id: projectId,
       })
-      setSavedSkillId(result.id)
+
+      // Also persist selected fonts to project inputs
+      if (projectId && (fontDisplay || fontBody || fontMono)) {
+        const fonts: ArenaProjectInputs['fonts'] = []
+        if (fontDisplay) fonts.push({ role: 'display', family: fontDisplay.displayName })
+        if (fontBody) fonts.push({ role: 'body', family: fontBody.displayName })
+        if (fontMono) fonts.push({ role: 'mono', family: fontMono.displayName })
+        if (fonts.length > 0) {
+          await updateProjectInputs(projectId, {
+            figma_links: [],
+            fonts,
+            images: [],
+            urls: [],
+          }).catch(err => console.error('Failed to persist fonts to project inputs:', err))
+        }
+      }
+
+      // saveImportedSkill now returns { id, dimensionSkillIds } for per-dimension skills
+      const primaryId = typeof result.id === 'string' ? result.id : String(result.id)
+      setSavedSkillId(primaryId)
       setPhase('saved')
-      onComplete?.(result.id)
+      onComplete?.(primaryId)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to save skill')
     } finally {
       setSaving(false)
     }
-  }, [classifiedSkill, projectId, projectName, onComplete])
+  }, [classifiedSkill, projectId, projectName, onComplete, fontDisplay, fontBody, fontMono])
 
   const handleReset = useCallback(() => {
     setPhase('input')
@@ -268,10 +288,17 @@ export function ImportFlow({ projectId, projectName, onComplete }: ImportFlowPro
           </div>
           <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">Skill Saved</h2>
           <p className="text-sm text-gray-500 dark:text-gray-400">
-            The design skill has been persisted to the database.
+            3 per-dimension skills created (color, typography, spacing){projectId ? ' and project assembly updated' : ''}.
           </p>
           <div className="flex gap-3">
-            {savedSkillId && (
+            {projectId ? (
+              <a
+                href={`/apps/arena/projects/${projectId}`}
+                className="px-6 py-3 bg-purple-600 text-white font-medium rounded-xl hover:bg-purple-700 transition-colors text-sm"
+              >
+                View Project Assembly
+              </a>
+            ) : savedSkillId && (
               <a
                 href={`/apps/arena/skills/${savedSkillId}`}
                 className="px-6 py-3 bg-purple-600 text-white font-medium rounded-xl hover:bg-purple-700 transition-colors text-sm"

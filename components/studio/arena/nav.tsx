@@ -7,6 +7,7 @@ const navItems = [
   { href: '/apps/arena', label: 'Dashboard', exact: true },
   { href: '/apps/arena/projects', label: 'Projects' },
   { href: '/apps/arena/skills', label: 'Skills' },
+  { href: '/apps/arena/components', label: 'Components' },
   { href: '/apps/arena/sessions', label: 'Sessions' },
 ]
 

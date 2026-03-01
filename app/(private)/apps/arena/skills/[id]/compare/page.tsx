@@ -3,6 +3,18 @@ import Link from 'next/link'
 import { getSkill } from '@/lib/studio/arena/queries'
 import { BASE_SKILL } from '@/lib/studio/arena/base-skill'
 import { CompareClient } from './compare-client'
+import type { SkillState, DimensionState } from '@/lib/studio/arena/types'
+import { emptySkillState } from '@/lib/studio/arena/types'
+
+function toFullState(state: SkillState | DimensionState | null, dimension: string | null): SkillState {
+  if (!state) return BASE_SKILL
+  if (!('decisions' in state)) return state as SkillState
+  const full = emptySkillState()
+  if (dimension === 'color' || dimension === 'typography' || dimension === 'spacing') {
+    full[dimension] = state as DimensionState
+  }
+  return full
+}
 
 interface Props {
   params: Promise<{ id: string }>
@@ -41,8 +53,8 @@ export default async function SkillComparePage({ params, searchParams }: Props) 
       </div>
 
       <CompareClient
-        baseSkill={compareSkill?.state ?? BASE_SKILL}
-        compareSkill={skill.state}
+        baseSkill={toFullState(compareSkill?.state ?? null, compareSkill?.dimension ?? null) ?? BASE_SKILL}
+        compareSkill={toFullState(skill.state, skill.dimension)}
         baseLabel={compareLabel}
         compareLabel={skill.name}
       />

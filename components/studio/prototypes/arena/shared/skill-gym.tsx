@@ -11,7 +11,7 @@
  */
 
 import { useState, useCallback, useMemo, useRef, useEffect } from 'react'
-import type { SkillState, SkillDecision, ArenaAnnotation, AnnotationSegment } from '@/lib/studio/arena/types'
+import type { SkillState, SkillDecision, ArenaAnnotation, AnnotationSegment, SkillDimension } from '@/lib/studio/arena/types'
 import { DEBONO_HATS } from '@/lib/studio/arena/debono-hats'
 import type { DebonoHatKey } from '@/lib/studio/arena/debono-hats'
 import { CanonicalCard, CanonicalForm, CanonicalDashboard } from './canonical-components'
@@ -27,7 +27,7 @@ type GymPhase = 'gym' | 'refining' | 'review'
 
 type FeedbackAction = 'approve' | 'adjust' | 'flag'
 
-interface FeedbackItem {
+export interface GymFeedbackItem {
   dimension: 'color' | 'typography' | 'spacing'
   label: string
   action: FeedbackAction
@@ -35,15 +35,31 @@ interface FeedbackItem {
   reason?: string
 }
 
+export interface GymRoundData {
+  feedback: GymFeedbackItem[]
+  annotations: ArenaAnnotation[]
+  notes: string
+}
+
+export interface CanvasTabDef {
+  key: string
+  label: string
+  Component: React.ComponentType<{ skill: SkillState; label: string; fontOverrides?: { display?: string; body?: string; mono?: string } }>
+}
+
 export interface SkillGymProps {
   /** Current skill to refine */
   skill: SkillState
   /** Called when user accepts a refinement — parent should update its skill state */
-  onSkillUpdate: (refined: SkillState) => void
+  onSkillUpdate: (refined: SkillState, roundData: GymRoundData) => void
   /** Back to previous view */
   onBack: () => void
   /** Optional font overrides for canonical rendering */
   fontOverrides?: { display?: string; body?: string; mono?: string }
+  /** When set, only show decisions for this dimension */
+  targetDimension?: SkillDimension | null
+  /** Custom test components to show in canvas tabs (falls back to defaults) */
+  testComponents?: CanvasTabDef[]
 }
 
 // ---------------------------------------------------------------------------
@@ -85,8 +101,8 @@ function DecisionRow({
 }: {
   decision: SkillDecision
   dimension: string
-  feedback: FeedbackItem | undefined
-  onFeedback: (item: FeedbackItem | null) => void
+  feedback: GymFeedbackItem | undefined
+  onFeedback: (item: GymFeedbackItem | null) => void
 }) {
   const [editValue, setEditValue] = useState(feedback?.newValue ?? decision.value)
   const [editReason, setEditReason] = useState(feedback?.reason ?? '')
@@ -342,10 +358,10 @@ function AnnotationQueue({ annotations, onRemove }: {
 // Main SkillGym component
 // ---------------------------------------------------------------------------
 
-export function SkillGym({ skill, onSkillUpdate, onBack, fontOverrides }: SkillGymProps) {
+export function SkillGym({ skill, onSkillUpdate, onBack, fontOverrides, targetDimension, testComponents }: SkillGymProps) {
   const [phase, setPhase] = useState<GymPhase>('gym')
   const [roundCount, setRoundCount] = useState(0)
-  const [feedbackMap, setFeedbackMap] = useState<Record<string, FeedbackItem>>({})
+  const [feedbackMap, setFeedbackMap] = useState<Record<string, GymFeedbackItem>>({})
   const [notes, setNotes] = useState('')
   const [previousSkill, setPreviousSkill] = useState<SkillState | null>(null)
   const [refinedSkill, setRefinedSkill] = useState<SkillState | null>(null)
@@ -359,7 +375,7 @@ export function SkillGym({ skill, onSkillUpdate, onBack, fontOverrides }: SkillG
   const previewContainerRef = useRef<HTMLDivElement>(null)
 
   // Canvas tab — show one canonical component at a time
-  const [activeCanvas, setActiveCanvas] = useState<'card' | 'form' | 'dashboard'>('card')
+  const [activeCanvas, setActiveCanvas] = useState<string>('card')
 
   // Annotation session state (explicit start → editor → optional record → done)
   const [isAnnotating, setIsAnnotating] = useState(false)
@@ -371,10 +387,18 @@ export function SkillGym({ skill, onSkillUpdate, onBack, fontOverrides }: SkillG
   const mediaRecorderRef = useRef<MediaRecorder | null>(null)
   const audioChunksRef = useRef<Blob[]>([])
 
-  const feedbackCount = useMemo(() => Object.keys(feedbackMap).length, [feedbackMap])
-  const decisionCount = useMemo(() => countDecisions(skill), [skill])
+  const visibleDimensions = useMemo(
+    () => targetDimension ? [targetDimension] as const : DIMENSIONS,
+    [targetDimension]
+  )
+  const feedbackCount = useMemo(() => {
+    return Object.values(feedbackMap).filter(f => (visibleDimensions as readonly string[]).includes(f.dimension)).length
+  }, [feedbackMap, visibleDimensions])
+  const decisionCount = useMemo(() => {
+    return visibleDimensions.reduce((sum, d) => sum + skill[d].decisions.length, 0)
+  }, [skill, visibleDimensions])
 
-  const handleFeedback = useCallback((dim: string, label: string, item: FeedbackItem | null) => {
+  const handleFeedback = useCallback((dim: string, label: string, item: GymFeedbackItem | null) => {
     const key = feedbackKey(dim, label)
     setFeedbackMap(prev => {
       if (item === null) {
@@ -514,6 +538,11 @@ export function SkillGym({ skill, onSkillUpdate, onBack, fontOverrides }: SkillG
     setPhase('refining')
     setError(null)
 
+    // Filter feedback to target dimension when scoped
+    const scopedFeedback = targetDimension
+      ? Object.values(feedbackMap).filter(f => f.dimension === targetDimension)
+      : Object.values(feedbackMap)
+
     try {
       const res = await fetch('/api/ai/generate', {
         method: 'POST',
@@ -522,13 +551,14 @@ export function SkillGym({ skill, onSkillUpdate, onBack, fontOverrides }: SkillG
           action: 'arena-refine-skill',
           input: {
             currentSkill: skill,
-            feedback: Object.values(feedbackMap),
+            feedback: scopedFeedback,
             annotations: annotations.map(a => ({
               hatKey: a.hatKey,
               segments: a.segments,
             })),
             notes,
             iterationCount: roundCount,
+            targetDimension: targetDimension ?? undefined,
           },
         }),
       })
@@ -551,11 +581,15 @@ export function SkillGym({ skill, onSkillUpdate, onBack, fontOverrides }: SkillG
       setError(err instanceof Error ? err.message : 'Unknown error')
       setPhase('gym')
     }
-  }, [skill, feedbackMap, annotations, notes, roundCount, feedbackCount])
+  }, [skill, feedbackMap, annotations, notes, roundCount, feedbackCount, targetDimension])
 
   const handleAccept = useCallback(() => {
     if (!refinedSkill) return
-    onSkillUpdate(refinedSkill)
+    onSkillUpdate(refinedSkill, {
+      feedback: Object.values(feedbackMap),
+      annotations,
+      notes,
+    })
     setPreviousSkill(null)
     setRefinedSkill(null)
     setRefineSummary('')
@@ -565,7 +599,7 @@ export function SkillGym({ skill, onSkillUpdate, onBack, fontOverrides }: SkillG
     setAnnotations([])
     setActiveTab('decisions')
     setPhase('gym')
-  }, [refinedSkill, onSkillUpdate])
+  }, [refinedSkill, onSkillUpdate, feedbackMap, annotations, notes])
 
   const handleReject = useCallback(() => {
     setRefinedSkill(null)
@@ -582,6 +616,14 @@ export function SkillGym({ skill, onSkillUpdate, onBack, fontOverrides }: SkillG
     a.click()
     URL.revokeObjectURL(url)
   }, [roundCount])
+
+  // Canvas tab definitions — computed before early returns so all phases can reference them
+  const DEFAULT_CANVAS_TABS: CanvasTabDef[] = useMemo(() => [
+    { key: 'card', label: 'Card', Component: CanonicalCard },
+    { key: 'form', label: 'Form', Component: CanonicalForm },
+    { key: 'dashboard', label: 'Dashboard', Component: CanonicalDashboard },
+  ], [])
+  const effectiveTabs = testComponents ?? DEFAULT_CANVAS_TABS
 
   // -------------------------------------------------------------------------
   // Refining (loading)
@@ -625,11 +667,7 @@ export function SkillGym({ skill, onSkillUpdate, onBack, fontOverrides }: SkillG
         </div>
 
         {/* Side-by-side canonical components */}
-        {[
-          { label: 'Card', Component: CanonicalCard },
-          { label: 'Form', Component: CanonicalForm },
-          { label: 'Dashboard', Component: CanonicalDashboard },
-        ].map(({ label, Component }) => (
+        {effectiveTabs.map(({ label, Component }) => (
           <div key={label} className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl p-6">
             <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-4">{label}</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -667,13 +705,7 @@ export function SkillGym({ skill, onSkillUpdate, onBack, fontOverrides }: SkillG
   // Gym
   // -------------------------------------------------------------------------
 
-  const CANVAS_TABS = [
-    { key: 'card' as const, label: 'Card', Component: CanonicalCard },
-    { key: 'form' as const, label: 'Form', Component: CanonicalForm },
-    { key: 'dashboard' as const, label: 'Dashboard', Component: CanonicalDashboard },
-  ]
-
-  const activeCanvasTab = CANVAS_TABS.find(t => t.key === activeCanvas)!
+  const activeCanvasTab = effectiveTabs.find(t => t.key === activeCanvas) ?? effectiveTabs[0]
   const canonicalPreview = (
     <activeCanvasTab.Component skill={skill} label={activeCanvasTab.label} fontOverrides={fontOverrides} />
   )
@@ -693,7 +725,7 @@ export function SkillGym({ skill, onSkillUpdate, onBack, fontOverrides }: SkillG
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">Current Skill Preview</h3>
           <div className="flex gap-1">
-            {CANVAS_TABS.map(tab => (
+            {effectiveTabs.map(tab => (
               <button
                 key={tab.key}
                 onClick={() => setActiveCanvas(tab.key)}
@@ -760,7 +792,7 @@ export function SkillGym({ skill, onSkillUpdate, onBack, fontOverrides }: SkillG
       {activeTab === 'decisions' ? (
         <>
           {/* Per-dimension feedback sections */}
-          {DIMENSIONS.map(dim => {
+          {visibleDimensions.map(dim => {
             const state = skill[dim]
             if (state.decisions.length === 0) return null
 

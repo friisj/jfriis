@@ -1,34 +1,112 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import type { ArenaSessionWithSkills } from '@/lib/studio/arena/db-types'
-import type { SkillState } from '@/lib/studio/arena/types'
+import type { ArenaSessionWithSkills, ArenaProjectAssemblyWithSkill } from '@/lib/studio/arena/db-types'
+import type { SkillState, DimensionState, SkillDimension } from '@/lib/studio/arena/types'
+import { SKILL_DIMENSIONS, assembleSkillState, emptySkillState } from '@/lib/studio/arena/types'
 import { SkillGym } from '@/components/studio/prototypes/arena/shared/skill-gym'
+import type { GymRoundData, CanvasTabDef } from '@/components/studio/prototypes/arena/shared/skill-gym'
+import type { ArenaTestComponent } from '@/lib/studio/arena/db-types'
+import { COMPONENT_REGISTRY } from '@/components/studio/prototypes/arena/shared/canonical-components'
 import { completeGymRound, acceptRefinement, abandonSession } from '@/lib/studio/arena/actions'
 
 interface SessionActiveClientProps {
   session: ArenaSessionWithSkills
+  assembly?: ArenaProjectAssemblyWithSkill[]
+  sessionComponents?: ArenaTestComponent[]
 }
 
-export function SessionActiveClient({ session }: SessionActiveClientProps) {
+/** Build the control SkillState from the project assembly */
+function buildControlFromAssembly(
+  assembly: ArenaProjectAssemblyWithSkill[]
+): SkillState {
+  const dims: Record<SkillDimension, DimensionState> = {
+    color: { decisions: [], rules: [] },
+    typography: { decisions: [], rules: [] },
+    spacing: { decisions: [], rules: [] },
+  }
+  for (const entry of assembly) {
+    if (entry.skill?.state && entry.dimension) {
+      const state = entry.skill.state
+      // Per-dimension skills store DimensionState directly
+      if ('decisions' in state) {
+        dims[entry.dimension] = state as DimensionState
+      } else if (entry.dimension in state) {
+        // Legacy monolithic skill — extract the dimension
+        dims[entry.dimension] = (state as SkillState)[entry.dimension]
+      }
+    }
+  }
+  return assembleSkillState(dims)
+}
+
+export function SessionActiveClient({ session, assembly = [], sessionComponents = [] }: SessionActiveClientProps) {
   const router = useRouter()
-  const [currentSkill, setCurrentSkill] = useState<SkillState>(
-    session.input_skill?.state ?? { color: { decisions: [], rules: [] }, typography: { decisions: [], rules: [] }, spacing: { decisions: [], rules: [] } }
-  )
+  const targetDimension = session.target_dimension as SkillDimension | null
+
+  // Build control skill from assembly (or fall back to input skill state)
+  const controlSkill = useMemo(() => {
+    if (assembly.length > 0) {
+      return buildControlFromAssembly(assembly)
+    }
+    return session.input_skill?.state as SkillState | undefined ?? emptySkillState()
+  }, [assembly, session.input_skill?.state])
+
+  // The current working skill starts from the input skill's state.
+  // For per-dimension sessions, the gym still works with a full SkillState
+  // but only the target dimension will be refined.
+  const initialSkill = useMemo((): SkillState => {
+    if (targetDimension && session.input_skill?.state) {
+      const inputState = session.input_skill.state
+      // Per-dimension skill: compose it into the control assembly
+      const assembled = { ...controlSkill }
+      if ('decisions' in inputState) {
+        // DimensionState — slot it into the target dimension
+        assembled[targetDimension] = inputState as DimensionState
+      } else {
+        // Full SkillState — take the target dimension
+        assembled[targetDimension] = (inputState as SkillState)[targetDimension]
+      }
+      return assembled
+    }
+    return (session.input_skill?.state as SkillState | undefined) ?? emptySkillState()
+  }, [targetDimension, session.input_skill?.state, controlSkill])
+
+  const [currentSkill, setCurrentSkill] = useState<SkillState>(initialSkill)
   const [round, setRound] = useState(session.round_count + 1)
   const [finishing, setFinishing] = useState(false)
   const [abandoning, setAbandoning] = useState(false)
 
-  const handleSkillUpdate = useCallback(async (refined: SkillState) => {
-    // Persist the round
+  // Build canvas tabs from session test components
+  const gymComponents = useMemo((): CanvasTabDef[] | undefined => {
+    if (sessionComponents.length === 0) return undefined
+    const tabs: CanvasTabDef[] = []
+    for (const comp of sessionComponents) {
+      const Component = COMPONENT_REGISTRY[comp.component_key]
+      if (Component) {
+        tabs.push({ key: comp.slug, label: comp.name, Component })
+      }
+    }
+    return tabs.length > 0 ? tabs : undefined
+  }, [sessionComponents])
+
+  const handleSkillUpdate = useCallback(async (refined: SkillState, roundData: GymRoundData) => {
     try {
+      // Map GymFeedbackItem.label → decision_label for DB shape
+      const dbFeedback = roundData.feedback.map((f) => ({
+        dimension: f.dimension,
+        decision_label: f.label,
+        action: f.action,
+        new_value: f.newValue,
+        reason: f.reason,
+      }))
       await completeGymRound({
         session_id: session.id,
         round,
-        feedback: [], // Feedback is captured internally by SkillGym — we persist the snapshot
-        annotations: [],
+        feedback: dbFeedback,
+        annotations: roundData.annotations,
         skill_state: refined,
       })
       setCurrentSkill(refined)
@@ -64,6 +142,10 @@ export function SessionActiveClient({ session }: SessionActiveClientProps) {
     }
   }, [session.id, router])
 
+  const dimensionLabel = targetDimension
+    ? targetDimension.charAt(0).toUpperCase() + targetDimension.slice(1)
+    : null
+
   return (
     <div className="space-y-4">
       {/* Session header */}
@@ -76,6 +158,12 @@ export function SessionActiveClient({ session }: SessionActiveClientProps) {
           <h1 className="text-lg font-bold text-slate-900 dark:text-slate-100">
             {session.input_skill?.name ?? 'Session'} — Round {round}
           </h1>
+          {dimensionLabel && (
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+              Targeting: <span className="font-medium">{dimensionLabel}</span>
+              {session.project_id && ' (control from project assembly)'}
+            </p>
+          )}
         </div>
         <div className="flex gap-2">
           <button
@@ -100,6 +188,8 @@ export function SessionActiveClient({ session }: SessionActiveClientProps) {
         skill={currentSkill}
         onSkillUpdate={handleSkillUpdate}
         onBack={() => router.push('/apps/arena/sessions')}
+        targetDimension={targetDimension}
+        testComponents={gymComponents}
       />
     </div>
   )
