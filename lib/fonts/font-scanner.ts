@@ -94,9 +94,9 @@ function parseFamilyName(filename: string, folderName: string): string {
     .replace(/\.(woff2?|ttf|otf)$/g, '')
     .replace(/-(extraleicht|leicht|buch|kraftig|halbfett|dreiviertelfett|fett|extrafett)/g, '')
 
-  // Handle special cases
-  if (baseName.includes('mono')) return `${folderName}-mono`
-  if (baseName.includes('breit')) return `${folderName}-breit`
+  // Handle special cases — use folder prefix when available, otherwise baseName is already correct
+  if (baseName.includes('mono')) return folderName ? `${folderName}-mono` : baseName
+  if (baseName.includes('breit')) return folderName ? `${folderName}-breit` : baseName
 
   return baseName || folderName
 }
@@ -108,61 +108,68 @@ function getDisplayName(familyName: string): string {
     .join(' ')
 }
 
-export async function scanFontsDirectory(fontsPath: string): Promise<FontFamily[]> {
+export async function scanFontsDirectory(fontsPath: string, urlPrefix = '/fonts'): Promise<FontFamily[]> {
   const families = new Map<string, FontFamily>()
 
+  function addFontFile(file: string, urlPath: string, folderName: string) {
+    const ext = path.extname(file).toLowerCase()
+    if (!['.woff2', '.woff', '.ttf', '.otf'].includes(ext)) return
+
+    const format = ext.slice(1) as 'woff2' | 'woff' | 'ttf' | 'otf'
+    const familyName = parseFamilyName(file, folderName)
+    const weight = parseWeight(file)
+    const style = parseStyle(file)
+
+    const fontFile: FontFile = {
+      filename: file,
+      path: urlPath,
+      family: familyName,
+      weight,
+      style,
+      format
+    }
+
+    if (!families.has(familyName)) {
+      families.set(familyName, {
+        name: familyName,
+        displayName: getDisplayName(familyName),
+        files: [],
+        availableWeights: [],
+        hasItalic: false,
+        isVariable: false
+      })
+    }
+
+    const family = families.get(familyName)!
+    family.files.push(fontFile)
+
+    if (!family.availableWeights.includes(weight)) {
+      family.availableWeights.push(weight)
+    }
+
+    if (style === 'italic') {
+      family.hasItalic = true
+    }
+  }
+
   try {
-    const folders = fs.readdirSync(fontsPath)
+    const entries = fs.readdirSync(fontsPath)
 
-    for (const folder of folders) {
-      if (folder.startsWith('.')) continue
+    for (const entry of entries) {
+      if (entry.startsWith('.')) continue
 
-      const folderPath = path.join(fontsPath, folder)
-      const stat = fs.statSync(folderPath)
+      const entryPath = path.join(fontsPath, entry)
+      const stat = fs.statSync(entryPath)
 
-      if (!stat.isDirectory()) continue
-
-      const files = fs.readdirSync(folderPath)
-
-      for (const file of files) {
-        const ext = path.extname(file).toLowerCase()
-        if (!['.woff2', '.woff', '.ttf', '.otf'].includes(ext)) continue
-
-        const format = ext.slice(1) as 'woff2' | 'woff' | 'ttf' | 'otf'
-        const familyName = parseFamilyName(file, folder)
-        const weight = parseWeight(file)
-        const style = parseStyle(file)
-
-        const fontFile: FontFile = {
-          filename: file,
-          path: `/fonts/${folder}/${file}`,
-          family: familyName,
-          weight,
-          style,
-          format
+      if (stat.isDirectory()) {
+        // Scan files inside subdirectory
+        const files = fs.readdirSync(entryPath)
+        for (const file of files) {
+          addFontFile(file, `${urlPrefix}/${entry}/${file}`, entry)
         }
-
-        if (!families.has(familyName)) {
-          families.set(familyName, {
-            name: familyName,
-            displayName: getDisplayName(familyName),
-            files: [],
-            availableWeights: [],
-            hasItalic: false,
-            isVariable: false // We'll detect this if needed
-          })
-        }
-
-        const family = families.get(familyName)!
-        family.files.push(fontFile)
-
-        if (!family.availableWeights.includes(weight)) {
-          family.availableWeights.push(weight)
-        }
-
-        if (style === 'italic') {
-          family.hasItalic = true
-        }
+      } else {
+        // Root-level font file — derive family from filename alone
+        addFontFile(entry, `${urlPrefix}/${entry}`, '')
       }
     }
 
