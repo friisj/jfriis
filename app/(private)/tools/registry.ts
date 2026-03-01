@@ -40,6 +40,13 @@ export const toolsRegistry: ToolRegistryEntry[] = [
     cover: '/images/tools/cog-cover.jpg',
     visible: true,
   },
+  {
+    id: 'luv',
+    title: 'Luv',
+    description: 'Parametric character engine',
+    path: '/luv',
+    visible: true,
+  },
   // Example hidden tool (in development)
   // {
   //   id: 'fitness',
