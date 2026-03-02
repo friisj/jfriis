@@ -12,8 +12,9 @@ import type {
   ArenaProjectAssembly,
   ArenaProjectAssemblyWithSkill,
   ArenaTestComponent,
+  ArenaProjectTheme,
 } from './db-types'
-import type { SkillTier } from './types'
+import type { SkillTier, ProjectTheme, TokenMap } from './types'
 
 // Arena tables aren't in the generated Supabase types yet.
 // This helper provides an untyped client for arena table access.
@@ -409,6 +410,60 @@ export async function setSessionComponents(
       .insert(rows)
     if (insError) throw insError
   }
+}
+
+// =============================================================================
+// PROJECT THEMES
+// =============================================================================
+
+export async function getProjectThemes(
+  projectId: string,
+  platform?: string
+): Promise<ProjectTheme> {
+  const supabase = await arenaClient()
+  let query = supabase
+    .from('arena_project_themes')
+    .select('*')
+    .eq('project_id', projectId)
+
+  if (platform) query = query.eq('platform', platform)
+  else query = query.eq('platform', 'tailwind')
+
+  const { data, error } = await query
+  if (error) throw error
+
+  const theme: ProjectTheme = {}
+  for (const row of (data ?? []) as unknown as ArenaProjectTheme[]) {
+    theme[row.dimension] = { tokens: row.tokens, source: row.source }
+  }
+  return theme
+}
+
+export async function upsertProjectTheme(
+  projectId: string,
+  dimension: string,
+  platform: string,
+  tokens: TokenMap,
+  source: string
+): Promise<ArenaProjectTheme> {
+  const supabase = await arenaClient()
+  const { data, error } = await supabase
+    .from('arena_project_themes')
+    .upsert(
+      {
+        project_id: projectId,
+        dimension,
+        platform,
+        tokens,
+        source,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: 'project_id,dimension,platform' }
+    )
+    .select()
+    .single()
+  if (error) throw error
+  return data as unknown as ArenaProjectTheme
 }
 
 // =============================================================================

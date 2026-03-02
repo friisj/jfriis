@@ -16,6 +16,7 @@ const decisionSchema = z.object({
   label: z.string(),
   value: z.string(),
   rationale: z.string(),
+  intent: z.string().optional(),
   confidence: z.enum(['low', 'medium', 'high']).default('high'),
   source: z.string().default('gym'),
 }).transform(d => ({
@@ -82,8 +83,11 @@ const outputDimensionSchema = z.object({
   rules: z.array(ruleSchema),
 })
 
+const themeUpdatesSchema = z.record(z.string(), z.record(z.string(), z.string())).optional()
+
 const outputSchema = z.object({
   summary: z.string(),
+  theme_updates: themeUpdatesSchema,
 }).catchall(outputDimensionSchema)
 
 type RefineOutput = z.infer<typeof outputSchema>
@@ -94,15 +98,26 @@ const BASE_SYSTEM_PROMPT = `You are a design system refinement assistant. You re
 
 Your job is to produce a REFINED SkillState that incorporates the user's feedback precisely.
 
+## Two-Layer Model
+
+Each decision has two channels:
+- **Intent** (qualitative): The design philosophy — what the token *means*. Expressed in the "intent" field.
+- **Token value** (quantitative): The CSS/design token — what the token *looks like*. Expressed in the "value" field.
+
+When refining:
+- Annotations and general notes primarily refine **intent** fields and rules (the skill layer).
+- Token feedback (approve/adjust/flag) primarily produces **token corrections** (the theme layer).
+- Always update both the decision "value" field AND produce a "theme_updates" object for backward compatibility.
+
 ## Feedback Actions
 
 Each feedback item targets a specific decision by dimension + label:
 
-- **approve**: The user confirms this value is correct. Keep value EXACTLY as-is. Set confidence to "high".
-- **adjust**: The user provides a new value. Use their newValue EXACTLY. Set rationale to "User adjusted from [old] to [new]: [reason]". Set confidence to "high".
-- **flag**: The user flags this decision as problematic with a reason. You should propose a BETTER value based on the user's reason and the overall design context. Set confidence to "medium". Set rationale to explain your proposal referencing the user's concern.
+- **approve**: The user confirms this value is correct. Keep value EXACTLY as-is. Set confidence to "high". Preserve intent if present.
+- **adjust**: The user provides a new value. Use their newValue EXACTLY. Set rationale to "User adjusted from [old] to [new]: [reason]". Set confidence to "high". Refine intent if the adjustment reveals a philosophical shift.
+- **flag**: The user flags this decision as problematic with a reason. You should propose a BETTER value based on the user's reason and the overall design context. Set confidence to "medium". Set rationale to explain your proposal referencing the user's concern. Update intent to reflect the new direction.
 
-Decisions with NO feedback: keep value, rationale, confidence, and source exactly as they were.
+Decisions with NO feedback: keep value, rationale, intent, confidence, and source exactly as they were.
 
 ## Rules
 
@@ -139,13 +154,18 @@ ${decisionLabelsSection}
 
 ## Output Format
 
-Output a single JSON object with one key per dimension plus "summary":
+Output a single JSON object with one key per dimension, plus "theme_updates" and "summary":
 {
 ${dims.map(d => `  "${d}": { "decisions": [...], "rules": [...] }`).join(',\n')},
+  "theme_updates": {
+${dims.map(d => `    "${d}": { "Label": "value", ... }`).join(',\n')}
+  },
   "summary": "2-3 sentence summary of what changed and why"
 }
 
-Each decision: { label, value, rationale, confidence, source: "gym" }
+Each decision: { label, value, rationale, intent (optional), confidence, source: "gym" }
+
+The "theme_updates" object contains token corrections per dimension. For each dimension, include a flat object mapping decision labels to their corrected values. Only include entries that changed (adjusted or flagged decisions). Omit dimensions with no token changes.
 
 ## Structured Annotations
 
@@ -168,9 +188,11 @@ Green offers options, not directives.`
   // Serialize current skill
   const skillSummary = dims.map(dim => {
     const state = input.currentSkill[dim]
-    const decisions = state.decisions.map(d =>
-      `  ${d.label}: ${d.value} [${d.confidence}] — ${d.rationale}`
-    ).join('\n')
+    const decisions = state.decisions.map(d => {
+      let line = `  ${d.label}: ${d.value} [${d.confidence}] — ${d.rationale}`
+      if (d.intent) line += `\n    Intent: ${d.intent}`
+      return line
+    }).join('\n')
     const rules = state.rules.map(r =>
       `  ${r.type}: ${r.statement}`
     ).join('\n')

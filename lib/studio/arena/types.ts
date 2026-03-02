@@ -32,6 +32,7 @@ export interface SkillDecision {
   label: string
   value: string
   rationale: string
+  intent?: string
   confidence: 'low' | 'medium' | 'high'
   source: string
 }
@@ -107,6 +108,59 @@ export const DECISION_LABELS = {
   ],
   spacing: ['Padding', 'Gap', 'Border Radius'],
 } as const
+
+// =============================================================================
+// Theme Layer Types
+// =============================================================================
+
+/** Flat label → value map for a single dimension's tokens */
+export type TokenMap = Record<string, string>
+
+/** A dimension's theme entry: tokens + provenance */
+export interface DimensionTheme {
+  tokens: TokenMap
+  source: string
+}
+
+/** Full project theme: dimension name → DimensionTheme */
+export type ProjectTheme = Record<string, DimensionTheme>
+
+/**
+ * Maps dimension names to the CSS/design token categories they govern.
+ * Used for documentation and validation — not authoritative for rendering.
+ */
+export const DIMENSION_CONFIG_SECTIONS: Record<string, string[]> = {
+  color: ['colors', 'backgroundColor', 'borderColor', 'textColor'],
+  typography: ['fontFamily', 'fontSize', 'fontWeight'],
+  spacing: ['padding', 'gap', 'borderRadius', 'margin'],
+}
+
+/** Extract a flat TokenMap from a DimensionState's decisions */
+export function extractTokensFromDimension(state: DimensionState): TokenMap {
+  const tokens: TokenMap = {}
+  for (const d of state.decisions) {
+    tokens[d.label] = d.value
+  }
+  return tokens
+}
+
+/**
+ * Resolve render tokens by merging skill decision values with theme tokens.
+ * Theme tokens win when present (they represent the latest corrections).
+ * Falls back to skill decision values when no theme exists.
+ */
+export function resolveRenderTokens(
+  skill: SkillState,
+  theme?: ProjectTheme
+): Record<string, TokenMap> {
+  const result: Record<string, TokenMap> = {}
+  for (const dim of Object.keys(skill)) {
+    const base = extractTokensFromDimension(skill[dim])
+    const themeTokens = theme?.[dim]?.tokens
+    result[dim] = themeTokens ? { ...base, ...themeTokens } : base
+  }
+  return result
+}
 
 /** Returns a SkillState with empty entries for the 3 core dimensions */
 export function emptySkillState(): SkillState {

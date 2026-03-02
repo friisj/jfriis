@@ -4,7 +4,7 @@ import { useState, useCallback, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import type { ArenaSessionWithSkills, ArenaProjectAssemblyWithSkill } from '@/lib/studio/arena/db-types'
-import type { SkillState, DimensionState } from '@/lib/studio/arena/types'
+import type { SkillState, DimensionState, ProjectTheme } from '@/lib/studio/arena/types'
 import { CORE_DIMENSIONS, assembleSkillState, emptySkillState } from '@/lib/studio/arena/types'
 import { SkillGym } from '@/components/studio/prototypes/arena/shared/skill-gym'
 import type { GymRoundData, CanvasTabDef } from '@/components/studio/prototypes/arena/shared/skill-gym'
@@ -16,6 +16,7 @@ interface SessionActiveClientProps {
   session: ArenaSessionWithSkills
   assembly?: ArenaProjectAssemblyWithSkill[]
   sessionComponents?: ArenaTestComponent[]
+  theme?: ProjectTheme
 }
 
 /** Build the control SkillState from the project assembly */
@@ -42,7 +43,7 @@ function buildControlFromAssembly(
   return assembleSkillState(dims)
 }
 
-export function SessionActiveClient({ session, assembly = [], sessionComponents = [] }: SessionActiveClientProps) {
+export function SessionActiveClient({ session, assembly = [], sessionComponents = [], theme }: SessionActiveClientProps) {
   const router = useRouter()
   const targetDimension = session.target_dimension
 
@@ -108,6 +109,7 @@ export function SessionActiveClient({ session, assembly = [], sessionComponents 
         feedback: dbFeedback,
         annotations: roundData.annotations,
         skill_state: refined,
+        theme_updates: roundData.theme_updates,
       })
       setCurrentSkill(refined)
       setRound((r) => r + 1)
@@ -203,6 +205,7 @@ export function SessionActiveClient({ session, assembly = [], sessionComponents 
         onBack={() => router.push(session.project_id ? `/apps/arena/projects/${session.project_id}` : '/apps/arena')}
         targetDimension={targetDimension}
         testComponents={gymComponents}
+        theme={theme}
       />
     </div>
   )

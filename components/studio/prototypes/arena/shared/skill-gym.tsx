@@ -11,7 +11,7 @@
  */
 
 import { useState, useCallback, useMemo, useRef, useEffect } from 'react'
-import type { SkillState, SkillDecision, ArenaAnnotation, AnnotationSegment } from '@/lib/studio/arena/types'
+import type { SkillState, SkillDecision, ArenaAnnotation, AnnotationSegment, TokenMap, ProjectTheme } from '@/lib/studio/arena/types'
 import { DEBONO_HATS } from '@/lib/studio/arena/debono-hats'
 import type { DebonoHatKey } from '@/lib/studio/arena/debono-hats'
 import { CanonicalCard, CanonicalForm, CanonicalDashboard } from './canonical-components'
@@ -39,12 +39,13 @@ export interface GymRoundData {
   feedback: GymFeedbackItem[]
   annotations: ArenaAnnotation[]
   notes: string
+  theme_updates?: Record<string, TokenMap>
 }
 
 export interface CanvasTabDef {
   key: string
   label: string
-  Component: React.ComponentType<{ skill: SkillState; label: string; fontOverrides?: { display?: string; body?: string; mono?: string } }>
+  Component: React.ComponentType<{ skill: SkillState; label: string; fontOverrides?: { display?: string; body?: string; mono?: string }; theme?: ProjectTheme }>
 }
 
 export interface SkillGymProps {
@@ -60,6 +61,8 @@ export interface SkillGymProps {
   targetDimension?: string | null
   /** Custom test components to show in canvas tabs (falls back to defaults) */
   testComponents?: CanvasTabDef[]
+  /** Optional theme tokens — when present, canonical components render from theme (theme wins over skill values) */
+  theme?: ProjectTheme
 }
 
 // ---------------------------------------------------------------------------
@@ -210,6 +213,13 @@ function DecisionRow({
         </div>
       </div>
 
+      {/* Intent (qualitative design philosophy) */}
+      {decision.intent && (
+        <p className="mt-1 ml-6 text-[10px] text-gray-400 dark:text-gray-500 italic leading-relaxed">
+          {decision.intent}
+        </p>
+      )}
+
       {/* Inline adjust editor */}
       {mode === 'adjust' && !feedback?.action && (
         <div className="mt-2 ml-6 flex items-center gap-2">
@@ -352,7 +362,7 @@ function AnnotationQueue({ annotations, onRemove }: {
 // Main SkillGym component
 // ---------------------------------------------------------------------------
 
-export function SkillGym({ skill, onSkillUpdate, onBack, fontOverrides, targetDimension, testComponents }: SkillGymProps) {
+export function SkillGym({ skill, onSkillUpdate, onBack, fontOverrides, targetDimension, testComponents, theme }: SkillGymProps) {
   const [phase, setPhase] = useState<GymPhase>('gym')
   const [roundCount, setRoundCount] = useState(0)
   const [feedbackMap, setFeedbackMap] = useState<Record<string, GymFeedbackItem>>({})
@@ -360,10 +370,11 @@ export function SkillGym({ skill, onSkillUpdate, onBack, fontOverrides, targetDi
   const [previousSkill, setPreviousSkill] = useState<SkillState | null>(null)
   const [refinedSkill, setRefinedSkill] = useState<SkillState | null>(null)
   const [refineSummary, setRefineSummary] = useState('')
+  const [refineThemeUpdates, setRefineThemeUpdates] = useState<Record<string, TokenMap> | undefined>(undefined)
   const [error, setError] = useState<string | null>(null)
 
   // Annotation state
-  const [activeTab, setActiveTab] = useState<'decisions' | 'annotations'>('decisions')
+  const [activeTab, setActiveTab] = useState<'tokens' | 'annotations'>('tokens')
   const [annotations, setAnnotations] = useState<ArenaAnnotation[]>([])
   const [activeHat, setActiveHat] = useState<DebonoHatKey>('white')
   const previewContainerRef = useRef<HTMLDivElement>(null)
@@ -564,11 +575,12 @@ export function SkillGym({ skill, onSkillUpdate, onBack, fontOverrides, targetDi
         throw new Error(data.error?.message ?? 'Refinement failed')
       }
 
-      const result = data.data as SkillState & { summary: string }
-      const { summary: _summary, ...refinedDims } = result
+      const result = data.data as SkillState & { summary: string; theme_updates?: Record<string, TokenMap> }
+      const { summary: resultSummary, theme_updates: resultThemeUpdates, ...refinedDims } = result
       setPreviousSkill(skill)
       setRefinedSkill(refinedDims)
-      setRefineSummary(result.summary)
+      setRefineSummary(resultSummary)
+      setRefineThemeUpdates(resultThemeUpdates)
       setPhase('review')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unknown error')
@@ -582,17 +594,19 @@ export function SkillGym({ skill, onSkillUpdate, onBack, fontOverrides, targetDi
       feedback: Object.values(feedbackMap),
       annotations,
       notes,
+      theme_updates: refineThemeUpdates,
     })
     setPreviousSkill(null)
     setRefinedSkill(null)
     setRefineSummary('')
+    setRefineThemeUpdates(undefined)
     setRoundCount(r => r + 1)
     setFeedbackMap({})
     setNotes('')
     setAnnotations([])
-    setActiveTab('decisions')
+    setActiveTab('tokens')
     setPhase('gym')
-  }, [refinedSkill, onSkillUpdate, feedbackMap, annotations, notes])
+  }, [refinedSkill, onSkillUpdate, feedbackMap, annotations, notes, refineThemeUpdates])
 
   const handleReject = useCallback(() => {
     setRefinedSkill(null)
@@ -664,8 +678,8 @@ export function SkillGym({ skill, onSkillUpdate, onBack, fontOverrides, targetDi
           <div key={label} className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl p-6">
             <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-4">{label}</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <Component skill={previousSkill} label="Previous" fontOverrides={fontOverrides} />
-              <Component skill={refinedSkill} label="Refined" fontOverrides={fontOverrides} />
+              <Component skill={previousSkill} label="Previous" fontOverrides={fontOverrides} theme={theme} />
+              <Component skill={refinedSkill} label="Refined" fontOverrides={fontOverrides} theme={theme} />
             </div>
           </div>
         ))}
@@ -700,7 +714,7 @@ export function SkillGym({ skill, onSkillUpdate, onBack, fontOverrides, targetDi
 
   const activeCanvasTab = effectiveTabs.find(t => t.key === activeCanvas) ?? effectiveTabs[0]
   const canonicalPreview = (
-    <activeCanvasTab.Component skill={skill} label={activeCanvasTab.label} fontOverrides={fontOverrides} />
+    <activeCanvasTab.Component skill={skill} label={activeCanvasTab.label} fontOverrides={fontOverrides} theme={theme} />
   )
 
   return (
@@ -760,14 +774,14 @@ export function SkillGym({ skill, onSkillUpdate, onBack, fontOverrides, targetDi
       {/* Tab bar */}
       <div className="flex border-b border-gray-200 dark:border-gray-700">
         <button
-          onClick={() => setActiveTab('decisions')}
+          onClick={() => setActiveTab('tokens')}
           className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
-            activeTab === 'decisions'
+            activeTab === 'tokens'
               ? 'border-purple-600 text-purple-700 dark:text-purple-400'
               : 'border-transparent text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
           }`}
         >
-          Decisions
+          Tokens
         </button>
         <button
           onClick={() => setActiveTab('annotations')}
@@ -782,7 +796,7 @@ export function SkillGym({ skill, onSkillUpdate, onBack, fontOverrides, targetDi
       </div>
 
       {/* Tab content */}
-      {activeTab === 'decisions' ? (
+      {activeTab === 'tokens' ? (
         <>
           {/* Per-dimension feedback sections */}
           {visibleDimensions.map(dim => {

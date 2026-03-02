@@ -5,12 +5,14 @@
  * Used for base vs. inferred skill comparison across all Arena spikes.
  */
 
-import type { SkillState } from '@/lib/studio/arena/types'
+import type { SkillState, ProjectTheme } from '@/lib/studio/arena/types'
+import { resolveRenderTokens } from '@/lib/studio/arena/types'
 
 export interface CanonicalProps {
   skill: SkillState
   label: string
   fontOverrides?: { display?: string; body?: string; mono?: string }
+  theme?: ProjectTheme
 }
 
 export type CanonicalComponentType = React.ComponentType<CanonicalProps>
@@ -35,9 +37,10 @@ function clamp(val: number, min: number, max: number): number {
  * Figma designs may be mobile-scale (32px headings, 60px border-radius)
  * which look broken at web comparison size. This clamps to reasonable ranges.
  */
-function normalizeForDisplay(skill: SkillState) {
-  const t = Object.fromEntries((skill.typography?.decisions ?? []).map(d => [d.label, d.value]))
-  const s = Object.fromEntries((skill.spacing?.decisions ?? []).map(d => [d.label, d.value]))
+function normalizeForDisplay(skill: SkillState, theme?: ProjectTheme) {
+  const resolved = resolveRenderTokens(skill, theme)
+  const t = resolved['typography'] ?? {}
+  const s = resolved['spacing'] ?? {}
 
   const headingSize = clamp(px(t['Heading Size'], 18), 14, 28)
   const bodySize = clamp(px(t['Body Size'], 14), 11, 18)
@@ -63,10 +66,11 @@ function normalizeForDisplay(skill: SkillState) {
   }
 }
 
-export function CanonicalCard({ skill, label, fontOverrides }: CanonicalProps) {
-  const c = Object.fromEntries((skill.color?.decisions ?? []).map(d => [d.label, d.value]))
-  const t = Object.fromEntries((skill.typography?.decisions ?? []).map(d => [d.label, d.value]))
-  const n = normalizeForDisplay(skill)
+export function CanonicalCard({ skill, label, fontOverrides, theme }: CanonicalProps) {
+  const resolved = resolveRenderTokens(skill, theme)
+  const c = resolved['color'] ?? {}
+  const t = resolved['typography'] ?? {}
+  const n = normalizeForDisplay(skill, theme)
 
   const displayFont = fontOverrides?.display ?? t['Display Font'] ?? t['Font Family'] ?? 'system-ui, sans-serif'
   const bodyFont = fontOverrides?.body ?? t['Body Font'] ?? t['Font Family'] ?? 'system-ui, sans-serif'
@@ -149,10 +153,11 @@ export function CanonicalCard({ skill, label, fontOverrides }: CanonicalProps) {
   )
 }
 
-export function CanonicalForm({ skill, label, fontOverrides }: CanonicalProps) {
-  const c = Object.fromEntries((skill.color?.decisions ?? []).map(d => [d.label, d.value]))
-  const t = Object.fromEntries((skill.typography?.decisions ?? []).map(d => [d.label, d.value]))
-  const n = normalizeForDisplay(skill)
+export function CanonicalForm({ skill, label, fontOverrides, theme }: CanonicalProps) {
+  const resolved = resolveRenderTokens(skill, theme)
+  const c = resolved['color'] ?? {}
+  const t = resolved['typography'] ?? {}
+  const n = normalizeForDisplay(skill, theme)
 
   const displayFont = fontOverrides?.display ?? t['Display Font'] ?? t['Font Family'] ?? 'system-ui, sans-serif'
   const bodyFont = fontOverrides?.body ?? t['Body Font'] ?? t['Font Family'] ?? 'system-ui, sans-serif'
@@ -248,10 +253,11 @@ export function CanonicalForm({ skill, label, fontOverrides }: CanonicalProps) {
   )
 }
 
-export function CanonicalDashboard({ skill, label, fontOverrides }: CanonicalProps) {
-  const c = Object.fromEntries((skill.color?.decisions ?? []).map(d => [d.label, d.value]))
-  const t = Object.fromEntries((skill.typography?.decisions ?? []).map(d => [d.label, d.value]))
-  const n = normalizeForDisplay(skill)
+export function CanonicalDashboard({ skill, label, fontOverrides, theme }: CanonicalProps) {
+  const resolved = resolveRenderTokens(skill, theme)
+  const c = resolved['color'] ?? {}
+  const t = resolved['typography'] ?? {}
+  const n = normalizeForDisplay(skill, theme)
 
   const displayFont = fontOverrides?.display ?? t['Display Font'] ?? t['Font Family'] ?? 'system-ui, sans-serif'
   const bodyFont = fontOverrides?.body ?? t['Body Font'] ?? t['Font Family'] ?? 'system-ui, sans-serif'
