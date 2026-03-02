@@ -1,5 +1,44 @@
+'use client';
+
+import { useEffect } from 'react';
 import { AdminRoute } from '@/components/auth/protected-route';
+import { usePrivateHeader } from '@/components/layout/private-header-context';
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
+
+const navLinks = [
+  { href: '/tools/sampler', label: 'Collections' },
+  { href: '/tools/sampler/sounds', label: 'Sounds' },
+];
+
+function SamplerHeaderActions() {
+  const { setActions } = usePrivateHeader();
+  const pathname = usePathname();
+
+  useEffect(() => {
+    setActions(
+      <nav className="flex items-center h-10">
+        {navLinks.map((link) => (
+          <Link
+            key={link.href}
+            href={link.href}
+            className={`flex items-center h-10 px-3 text-xs font-medium transition-colors border-l border-border ${
+              pathname === link.href
+                ? 'text-foreground bg-accent'
+                : 'text-muted-foreground hover:text-foreground hover:bg-accent'
+            }`}
+          >
+            {link.label}
+          </Link>
+        ))}
+      </nav>
+    );
+
+    return () => setActions(null);
+  }, [pathname, setActions]);
+
+  return null;
+}
 
 export default function SamplerLayout({
   children,
@@ -8,31 +47,7 @@ export default function SamplerLayout({
 }) {
   return (
     <AdminRoute>
-      <div className="border-b">
-        <div className="container flex h-14 items-center gap-6 px-4">
-          <Link
-            href="/tools"
-            className="text-sm text-muted-foreground hover:text-foreground transition-colors"
-          >
-            &larr; Tools
-          </Link>
-          <span className="font-semibold">Sampler</span>
-          <nav className="flex gap-4 ml-auto">
-            <Link
-              href="/tools/sampler"
-              className="text-sm text-muted-foreground hover:text-foreground transition-colors"
-            >
-              Dashboard
-            </Link>
-            <Link
-              href="/tools/sampler/sounds"
-              className="text-sm text-muted-foreground hover:text-foreground transition-colors"
-            >
-              Sounds
-            </Link>
-          </nav>
-        </div>
-      </div>
+      <SamplerHeaderActions />
       {children}
     </AdminRoute>
   );
