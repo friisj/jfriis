@@ -1,6 +1,7 @@
 import { getSoundsServer } from '@/lib/sampler-server';
 import { Badge } from '@/components/ui/badge';
 import { SoundForm } from '../components/sound-form';
+import { SoundPreview } from '../components/sound-preview';
 
 export default async function SoundsPage() {
   const sounds = await getSoundsServer();
@@ -29,6 +30,7 @@ export default async function SoundsPage() {
           <table className="w-full">
             <thead>
               <tr className="border-b text-left text-sm text-muted-foreground">
+                <th className="p-3 font-medium w-10"></th>
                 <th className="p-3 font-medium">Name</th>
                 <th className="p-3 font-medium">Type</th>
                 <th className="p-3 font-medium">Duration</th>
@@ -38,6 +40,9 @@ export default async function SoundsPage() {
             <tbody>
               {sounds.map((sound) => (
                 <tr key={sound.id} className="border-b last:border-0 hover:bg-muted/50">
+                  <td className="p-3">
+                    <SoundPreview audioUrl={sound.audio_url} />
+                  </td>
                   <td className="p-3 font-medium">{sound.name}</td>
                   <td className="p-3">
                     <Badge variant="secondary">{sound.type}</Badge>
