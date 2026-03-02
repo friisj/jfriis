@@ -1,66 +1,44 @@
 import Link from 'next/link'
-import { getArenaCounts } from '@/lib/studio/arena/queries'
+import { getProjects } from '@/lib/studio/arena/queries'
+import { ProjectCard } from '@/components/studio/arena/project-card'
 
-export default async function ArenaDashboard() {
-  const counts = await getArenaCounts()
+export default async function ArenaProjectsPage() {
+  const projects = await getProjects()
 
   return (
-    <div className="max-w-7xl mx-auto space-y-8">
-      <div>
-        <h1 className="text-3xl font-bold text-slate-900 dark:text-slate-100">Arena</h1>
-        <p className="text-slate-600 dark:text-slate-400 mt-1">
-          Design skill extraction, refinement, and training
-        </p>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm p-6">
-          <div className="text-2xl font-bold text-blue-600">{counts.projects}</div>
-          <div className="text-sm text-slate-600 dark:text-slate-400">Projects</div>
+    <div className="max-w-7xl mx-auto space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">Projects</h1>
+          <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">
+            Source design systems and Figma files
+          </p>
         </div>
-        <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm p-6">
-          <div className="text-2xl font-bold text-purple-600">{counts.skills}</div>
-          <div className="text-sm text-slate-600 dark:text-slate-400">Skills</div>
-        </div>
-        <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm p-6">
-          <div className="text-2xl font-bold text-green-600">{counts.sessions}</div>
-          <div className="text-sm text-slate-600 dark:text-slate-400">Sessions</div>
-        </div>
-        <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm p-6">
-          <div className="text-2xl font-bold text-orange-600">{counts.activeSessions}</div>
-          <div className="text-sm text-slate-600 dark:text-slate-400">Active Sessions</div>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <Link
           href="/apps/arena/projects/new"
-          className="bg-white dark:bg-slate-800 rounded-lg shadow-sm p-6 hover:shadow-md transition-shadow"
+          className="px-4 py-2 bg-purple-600 text-white text-sm font-medium rounded-lg hover:bg-purple-700 transition-colors"
         >
-          <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">New Project</h3>
-          <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">
-            Add a Figma file or design system as an import source
-          </p>
-        </Link>
-        <Link
-          href="/apps/arena/skills"
-          className="bg-white dark:bg-slate-800 rounded-lg shadow-sm p-6 hover:shadow-md transition-shadow"
-        >
-          <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Browse Skills</h3>
-          <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">
-            View all extracted and refined design skills
-          </p>
-        </Link>
-        <Link
-          href="/apps/arena/sessions/new"
-          className="bg-white dark:bg-slate-800 rounded-lg shadow-sm p-6 hover:shadow-md transition-shadow"
-        >
-          <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">New Session</h3>
-          <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">
-            Start a gym session to refine a skill with AI feedback
-          </p>
+          New Project
         </Link>
       </div>
+
+      {projects.length === 0 ? (
+        <div className="text-center py-16">
+          <p className="text-slate-500 dark:text-slate-400">No projects yet.</p>
+          <Link
+            href="/apps/arena/projects/new"
+            className="text-purple-600 hover:text-purple-700 text-sm mt-2 inline-block"
+          >
+            Create your first project
+          </Link>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {projects.map((project) => (
+            <ProjectCard key={project.id} project={project} />
+          ))}
+        </div>
+      )}
     </div>
   )
 }
