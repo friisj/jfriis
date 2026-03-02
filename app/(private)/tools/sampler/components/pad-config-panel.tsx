@@ -14,6 +14,7 @@ import {
 import { updatePad } from '@/lib/sampler';
 import { EffectsChain } from './effects-chain';
 import { SoundLibraryPicker } from './sound-library-picker';
+import { SoundGenerator } from './sound-generator';
 import type { PadWithSound, PadEffects, PadType, SamplerSound } from '@/lib/types/sampler';
 
 interface PadConfigPanelProps {
@@ -24,6 +25,7 @@ interface PadConfigPanelProps {
 
 export function PadConfigPanel({ pad, onPadUpdated, onEffectsChange }: PadConfigPanelProps) {
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [generatorOpen, setGeneratorOpen] = useState(false);
   const [saving, setSaving] = useState(false);
 
   const save = useCallback(
@@ -94,7 +96,15 @@ export function PadConfigPanel({ pad, onPadUpdated, onEffectsChange }: PadConfig
             className="flex-1"
             onClick={() => setPickerOpen(true)}
           >
-            {pad.sound ? 'Change Sound' : 'Assign Sound'}
+            {pad.sound ? 'Change' : 'Assign'}
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            className="flex-1"
+            onClick={() => setGeneratorOpen(!generatorOpen)}
+          >
+            Generate
           </Button>
           {pad.sound && (
             <Button
@@ -107,6 +117,16 @@ export function PadConfigPanel({ pad, onPadUpdated, onEffectsChange }: PadConfig
             </Button>
           )}
         </div>
+        {generatorOpen && (
+          <div className="border rounded-md p-3 mt-2">
+            <SoundGenerator
+              onGenerated={(sound) => {
+                handleSoundSelect(sound);
+                setGeneratorOpen(false);
+              }}
+            />
+          </div>
+        )}
       </div>
 
       {/* Label */}

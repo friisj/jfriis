@@ -17,13 +17,7 @@ export default async function CollectionPage({ params }: PageProps) {
   }
 
   return (
-    <div className="container py-6">
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold">{collection.name}</h1>
-        {collection.description && (
-          <p className="text-muted-foreground mt-1">{collection.description}</p>
-        )}
-      </div>
+    <div className="flex-1 flex flex-col p-4 min-h-0">
       <CollectionGrid collection={collection} />
     </div>
   );
