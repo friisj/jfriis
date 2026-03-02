@@ -15,6 +15,7 @@ import { updatePad } from '@/lib/sampler';
 import { EffectsChain } from './effects-chain';
 import { SoundLibraryPicker } from './sound-library-picker';
 import { SoundGenerator } from './sound-generator';
+import { SoundSynthesizer } from './sound-synthesizer';
 import type { PadWithSound, PadEffects, PadType, SamplerSound } from '@/lib/types/sampler';
 
 interface PadConfigPanelProps {
@@ -25,7 +26,7 @@ interface PadConfigPanelProps {
 
 export function PadConfigPanel({ pad, onPadUpdated, onEffectsChange }: PadConfigPanelProps) {
   const [pickerOpen, setPickerOpen] = useState(false);
-  const [generatorOpen, setGeneratorOpen] = useState(false);
+  const [generatorOpen, setGeneratorOpen] = useState<'elevenlabs' | 'synth' | null>(null);
   const [saving, setSaving] = useState(false);
 
   const save = useCallback(
@@ -102,9 +103,17 @@ export function PadConfigPanel({ pad, onPadUpdated, onEffectsChange }: PadConfig
             variant="outline"
             size="sm"
             className="flex-1"
-            onClick={() => setGeneratorOpen(!generatorOpen)}
+            onClick={() => setGeneratorOpen(generatorOpen === 'elevenlabs' ? null : 'elevenlabs')}
           >
             Generate
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            className="flex-1"
+            onClick={() => setGeneratorOpen(generatorOpen === 'synth' ? null : 'synth')}
+          >
+            Synth
           </Button>
           {pad.sound && (
             <Button
@@ -117,12 +126,22 @@ export function PadConfigPanel({ pad, onPadUpdated, onEffectsChange }: PadConfig
             </Button>
           )}
         </div>
-        {generatorOpen && (
+        {generatorOpen === 'elevenlabs' && (
           <div className="border rounded-md p-3 mt-2">
             <SoundGenerator
               onGenerated={(sound) => {
                 handleSoundSelect(sound);
-                setGeneratorOpen(false);
+                setGeneratorOpen(null);
+              }}
+            />
+          </div>
+        )}
+        {generatorOpen === 'synth' && (
+          <div className="border rounded-md p-3 mt-2">
+            <SoundSynthesizer
+              onGenerated={(sound) => {
+                handleSoundSelect(sound);
+                setGeneratorOpen(null);
               }}
             />
           </div>
