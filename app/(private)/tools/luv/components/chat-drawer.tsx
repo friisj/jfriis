@@ -3,12 +3,8 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { MessageSquare, X, ChevronDown } from 'lucide-react';
-import { composeSoulSystemPrompt } from '@/lib/luv-prompt-composer';
-import {
-  createLuvConversation,
-  createLuvMessage,
-} from '@/lib/luv';
+import { ChevronDown } from 'lucide-react';
+import { createLuvConversation, createLuvMessage } from '@/lib/luv';
 import type { LuvSoulData } from '@/lib/types/luv';
 
 interface ChatMessage {
@@ -24,19 +20,12 @@ const MODEL_OPTIONS = [
   { key: 'gemini-flash', label: 'Gemini' },
 ];
 
-interface ChatSidebarProps {
-  open: boolean;
-  onToggle: () => void;
+interface ChatDrawerProps {
   soulData: LuvSoulData;
   soulLoaded: boolean;
 }
 
-export function ChatSidebar({
-  open,
-  onToggle,
-  soulData,
-  soulLoaded,
-}: ChatSidebarProps) {
+export function ChatDrawer({ soulData, soulLoaded }: ChatDrawerProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
   const [streaming, setStreaming] = useState(false);
@@ -53,8 +42,8 @@ export function ChatSidebar({
   }, [messages, scrollToBottom]);
 
   useEffect(() => {
-    if (open) textareaRef.current?.focus();
-  }, [open]);
+    textareaRef.current?.focus();
+  }, []);
 
   const handleSend = async () => {
     const trimmed = input.trim();
@@ -160,52 +149,22 @@ export function ChatSidebar({
     setInput('');
   };
 
-  // Collapsed: floating toggle button
-  if (!open) {
-    return (
-      <button
-        type="button"
-        onClick={onToggle}
-        className="fixed bottom-6 right-6 z-40 flex items-center justify-center w-12 h-12 rounded-full bg-primary text-primary-foreground shadow-lg hover:bg-primary/90 transition-colors"
-        title="Open chat"
-      >
-        <MessageSquare className="size-5" />
-        {messages.length > 0 && (
-          <span className="absolute -top-1 -right-1 w-5 h-5 bg-destructive text-destructive-foreground rounded-full text-[10px] flex items-center justify-center">
-            {messages.length}
-          </span>
-        )}
-      </button>
-    );
-  }
-
-  // Expanded: sidebar panel
   return (
-    <div className="w-[380px] shrink-0 border-l flex flex-col bg-background">
+    <div className="flex flex-col h-full relative">
       {/* Header */}
       <div className="flex items-center justify-between h-10 px-3 border-b shrink-0">
         <span className="text-xs font-medium">Chat</span>
-        <div className="flex items-center gap-1">
-          <select
-            value={modelKey}
-            onChange={(e) => setModelKey(e.target.value)}
-            className="text-xs rounded border bg-background px-1.5 py-0.5"
-          >
-            {MODEL_OPTIONS.map((opt) => (
-              <option key={opt.key} value={opt.key}>
-                {opt.label}
-              </option>
-            ))}
-          </select>
-          <button
-            type="button"
-            onClick={onToggle}
-            className="p-1 rounded hover:bg-accent transition-colors"
-            title="Close chat"
-          >
-            <X className="size-3.5" />
-          </button>
-        </div>
+        <select
+          value={modelKey}
+          onChange={(e) => setModelKey(e.target.value)}
+          className="text-xs rounded border bg-background px-1.5 py-0.5"
+        >
+          {MODEL_OPTIONS.map((opt) => (
+            <option key={opt.key} value={opt.key}>
+              {opt.label}
+            </option>
+          ))}
+        </select>
       </div>
 
       {/* Messages */}

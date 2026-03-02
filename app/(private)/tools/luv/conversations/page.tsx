@@ -8,8 +8,8 @@ export default async function LuvChatPage() {
     <div className="container px-4 py-8">
       <h1 className="text-2xl font-bold mb-2">Conversations</h1>
       <p className="text-sm text-muted-foreground mb-6">
-        Saved chat sessions. Use the sidebar chat (bottom-right) to start new
-        conversations from any panel.
+        Saved chat sessions. Use the chat drawer to start new conversations
+        from any page.
       </p>
       <ConversationHistory conversations={conversations} />
     </div>

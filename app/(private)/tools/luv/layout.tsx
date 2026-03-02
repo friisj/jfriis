@@ -3,54 +3,27 @@
 import { useEffect, useState } from 'react';
 import { AdminRoute } from '@/components/auth/protected-route';
 import { usePrivateHeader } from '@/components/layout/private-header-context';
-import Link from 'next/link';
-import { usePathname } from 'next/navigation';
-import { ChatSidebar } from './components/chat-sidebar';
+import {
+  ResizablePanelGroup,
+  ResizablePanel,
+  ResizableHandle,
+} from '@/components/ui/resizable';
 import { getLuvCharacter } from '@/lib/luv';
 import type { LuvSoulData } from '@/lib/types/luv';
+import { LuvToolbar } from './components/luv-toolbar';
+import { LuvContextNav } from './components/luv-context-nav';
+import { ChatDrawer } from './components/chat-drawer';
 
-const navLinks = [
-  { href: '/tools/luv', label: 'Dashboard' },
-  { href: '/tools/luv/soul', label: 'Soul' },
-  { href: '/tools/luv/chassis', label: 'Chassis' },
-  { href: '/tools/luv/prompt-matrix', label: 'Prompts' },
-  { href: '/tools/luv/media-lab', label: 'Media' },
-  { href: '/tools/luv/training', label: 'Training' },
-];
-
-function LuvHeaderActions() {
-  const { setActions } = usePrivateHeader();
-  const pathname = usePathname();
-
-  useEffect(() => {
-    setActions(
-      <nav className="flex items-center h-10">
-        {navLinks.map((link) => (
-          <Link
-            key={link.href}
-            href={link.href}
-            className={`flex items-center h-10 px-3 text-xs font-medium transition-colors border-l border-border ${
-              pathname === link.href
-                ? 'text-foreground bg-accent'
-                : 'text-muted-foreground hover:text-foreground hover:bg-accent'
-            }`}
-          >
-            {link.label}
-          </Link>
-        ))}
-      </nav>
-    );
-
-    return () => setActions(null);
-  }, [pathname, setActions]);
-
-  return null;
-}
-
-function LuvContent({ children }: { children: React.ReactNode }) {
+function LuvShell({ children }: { children: React.ReactNode }) {
+  const { setHidden } = usePrivateHeader();
   const [chatOpen, setChatOpen] = useState(false);
   const [soulData, setSoulData] = useState<LuvSoulData>({});
   const [soulLoaded, setSoulLoaded] = useState(false);
+
+  useEffect(() => {
+    setHidden(true);
+    return () => setHidden(false);
+  }, [setHidden]);
 
   useEffect(() => {
     getLuvCharacter().then((char) => {
@@ -60,29 +33,31 @@ function LuvContent({ children }: { children: React.ReactNode }) {
   }, []);
 
   return (
-    <>
-      <LuvHeaderActions />
-      <div className="flex flex-1 min-h-0">
-        <div className="flex-1 overflow-y-auto">{children}</div>
-        <ChatSidebar
-          open={chatOpen}
-          onToggle={() => setChatOpen(!chatOpen)}
-          soulData={soulData}
-          soulLoaded={soulLoaded}
-        />
-      </div>
-    </>
+    <div className="flex flex-col h-screen">
+      <LuvToolbar chatOpen={chatOpen} onChatToggle={() => setChatOpen((o) => !o)} />
+      <ResizablePanelGroup direction="horizontal" className="flex-1">
+        <ResizablePanel defaultSize={15} minSize={10} collapsible>
+          <LuvContextNav />
+        </ResizablePanel>
+        <ResizableHandle />
+        <ResizablePanel>{children}</ResizablePanel>
+        {chatOpen && (
+          <>
+            <ResizableHandle withHandle />
+            <ResizablePanel defaultSize={30} minSize={20}>
+              <ChatDrawer soulData={soulData} soulLoaded={soulLoaded} />
+            </ResizablePanel>
+          </>
+        )}
+      </ResizablePanelGroup>
+    </div>
   );
 }
 
-export default function LuvLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function LuvLayout({ children }: { children: React.ReactNode }) {
   return (
     <AdminRoute>
-      <LuvContent>{children}</LuvContent>
+      <LuvShell>{children}</LuvShell>
     </AdminRoute>
   );
 }
