@@ -47,6 +47,13 @@ export const toolsRegistry: ToolRegistryEntry[] = [
     path: '/luv',
     visible: true,
   },
+  {
+    id: 'sampler',
+    title: 'Sampler',
+    description: 'Sound effects MPC',
+    path: '/sampler',
+    visible: true,
+  },
   // Example hidden tool (in development)
   // {
   //   id: 'fitness',
