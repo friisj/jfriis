@@ -34,8 +34,21 @@ export default async function SessionDetailPage({ params }: Props) {
     <div className="max-w-7xl mx-auto space-y-6">
       <div>
         <div className="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400 mb-1">
-          <Link href="/apps/arena/sessions" className="hover:text-slate-700 dark:hover:text-slate-200">Sessions</Link>
-          <span>/</span>
+          {session.project_id ? (
+            <>
+              <Link href={`/apps/arena/projects/${session.project_id}`} className="hover:text-slate-700 dark:hover:text-slate-200">
+                {session.project?.name ?? 'Project'}
+              </Link>
+              <span>/</span>
+            </>
+          ) : (
+            <>
+              <Link href="/apps/arena" className="hover:text-slate-700 dark:hover:text-slate-200">
+                Projects
+              </Link>
+              <span>/</span>
+            </>
+          )}
         </div>
         <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">
           {session.input_skill?.name ?? 'Session'} — {session.status}

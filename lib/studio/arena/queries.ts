@@ -238,6 +238,7 @@ export async function deleteSkill(id: string): Promise<void> {
 
 export async function getSessions(filter?: {
   status?: string
+  project_id?: string
 }): Promise<ArenaSessionWithSkills[]> {
   const supabase = await arenaClient()
   let query = supabase
@@ -246,6 +247,7 @@ export async function getSessions(filter?: {
     .order('updated_at', { ascending: false })
 
   if (filter?.status) query = query.eq('status', filter.status)
+  if (filter?.project_id) query = query.eq('project_id', filter.project_id)
 
   const { data, error } = await query
   if (error) throw error
@@ -261,7 +263,7 @@ export async function getSession(id: string): Promise<ArenaSessionWithSkills | n
   const supabase = await arenaClient()
   const { data, error } = await supabase
     .from('arena_sessions')
-    .select('*, input_skill:arena_skills!arena_sessions_input_skill_id_fkey(*), output_skill:arena_skills!arena_sessions_output_skill_id_fkey(*)')
+    .select('*, input_skill:arena_skills!arena_sessions_input_skill_id_fkey(*), output_skill:arena_skills!arena_sessions_output_skill_id_fkey(*), project:arena_projects!arena_sessions_project_id_fkey(*)')
     .eq('id', id)
     .single()
   if (error) return null
@@ -269,6 +271,7 @@ export async function getSession(id: string): Promise<ArenaSessionWithSkills | n
     ...(data as unknown as ArenaSession),
     input_skill: (data.input_skill as unknown as ArenaSkill) ?? null,
     output_skill: (data.output_skill as unknown as ArenaSkill) ?? null,
+    project: (data.project as unknown as ArenaProject) ?? null,
   } as ArenaSessionWithSkills
 }
 
