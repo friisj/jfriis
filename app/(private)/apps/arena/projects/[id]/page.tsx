@@ -1,8 +1,7 @@
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
-import { getProject, getSkills, getProjectAssembly, getSessions } from '@/lib/studio/arena/queries'
+import { getProject, getSkills, getProjectAssembly } from '@/lib/studio/arena/queries'
 import { SkillCard } from '@/components/studio/arena/skill-card'
-import { SessionCard } from '@/components/studio/arena/session-card'
 import { CORE_DIMENSIONS } from '@/lib/studio/arena/types'
 import type { ArenaProjectAssemblyWithSkill } from '@/lib/studio/arena/db-types'
 import { FoundationSection } from './foundation-section'
@@ -27,11 +26,10 @@ const DEFAULT_DIM_COLOR = 'bg-slate-50 dark:bg-slate-950/20 border-slate-200 dar
 
 export default async function ProjectDetailPage({ params }: Props) {
   const { id } = await params
-  const [project, skills, assembly, sessions] = await Promise.all([
+  const [project, skills, assembly] = await Promise.all([
     getProject(id),
     getSkills({ project_id: id }),
     getProjectAssembly(id),
-    getSessions({ project_id: id }),
   ])
 
   if (!project) notFound()
@@ -55,7 +53,7 @@ export default async function ProjectDetailPage({ params }: Props) {
       <div className="flex items-center justify-between">
         <div>
           <div className="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400 mb-1">
-            <Link href="/apps/arena" className="hover:text-slate-700 dark:hover:text-slate-200">
+            <Link href="/apps/arena/projects" className="hover:text-slate-700 dark:hover:text-slate-200">
               Projects
             </Link>
             <span>/</span>
@@ -136,38 +134,6 @@ export default async function ProjectDetailPage({ params }: Props) {
             )
           })}
         </div>
-      </div>
-
-      {/* Sessions */}
-      <div>
-        <div className="flex items-center justify-between mb-3">
-          <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
-            Sessions{sessions.length > 0 ? ` (${sessions.length})` : ''}
-          </h2>
-          <Link
-            href={`/apps/arena/sessions/new?project=${project.id}`}
-            className="px-3 py-1.5 bg-purple-600 text-white text-xs font-medium rounded-lg hover:bg-purple-700 transition-colors"
-          >
-            New Session
-          </Link>
-        </div>
-        {sessions.length === 0 ? (
-          <div className="text-center py-8 bg-white dark:bg-slate-800 rounded-lg shadow-sm">
-            <p className="text-sm text-slate-500 dark:text-slate-400">No sessions yet.</p>
-            <Link
-              href={`/apps/arena/sessions/new?project=${project.id}`}
-              className="text-purple-600 hover:text-purple-700 text-sm mt-1 inline-block"
-            >
-              Start a refinement session
-            </Link>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {sessions.map((session) => (
-              <SessionCard key={session.id} session={session} />
-            ))}
-          </div>
-        )}
       </div>
 
       {/* Foundation */}
@@ -284,7 +250,7 @@ export default async function ProjectDetailPage({ params }: Props) {
             </Link>
             <span className="text-slate-300 dark:text-slate-600">or</span>
             <Link
-              href="/apps/arena/templates"
+              href={`/apps/arena/skills?templates=1`}
               className="text-purple-600 hover:text-purple-700"
             >
               Clone from templates

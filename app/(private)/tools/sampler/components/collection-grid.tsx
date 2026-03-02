@@ -109,16 +109,15 @@ export function CollectionGrid({ collection }: CollectionGridProps) {
   const selectedPad = pads.find((p) => p.id === selectedPadId) ?? null;
 
   return (
-    <div className="flex gap-6 h-full">
+    <div className="flex gap-4 flex-1 min-h-0">
       {/* Grid */}
-      <div className="flex-1">
-        <div
-          className="grid gap-2 aspect-square max-w-2xl"
-          style={{
-            gridTemplateRows: `repeat(${collection.grid_rows}, 1fr)`,
-            gridTemplateColumns: `repeat(${collection.grid_cols}, 1fr)`,
-          }}
-        >
+      <div
+        className="flex-1 grid gap-2 min-h-0"
+        style={{
+          gridTemplateRows: `repeat(${collection.grid_rows}, 1fr)`,
+          gridTemplateColumns: `repeat(${collection.grid_cols}, 1fr)`,
+        }}
+      >
           {pads.map((pad) => (
             <Pad
               key={pad.id}
@@ -129,7 +128,6 @@ export function CollectionGrid({ collection }: CollectionGridProps) {
               onSelect={(p) => setSelectedPadId(p.id === selectedPadId ? null : p.id)}
             />
           ))}
-        </div>
       </div>
 
       {/* Config Panel */}

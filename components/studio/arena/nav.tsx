@@ -4,9 +4,11 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 
 const navItems = [
-  { href: '/apps/arena', label: 'Projects', exact: true },
-  { href: '/apps/arena/templates', label: 'Templates' },
+  { href: '/apps/arena', label: 'Dashboard', exact: true },
+  { href: '/apps/arena/projects', label: 'Projects' },
+  { href: '/apps/arena/skills', label: 'Skills' },
   { href: '/apps/arena/components', label: 'Components' },
+  { href: '/apps/arena/sessions', label: 'Sessions' },
 ]
 
 export function ArenaNav() {

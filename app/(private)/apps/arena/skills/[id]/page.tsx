@@ -17,19 +17,9 @@ export default async function SkillDetailPage({ params }: Props) {
       <div className="flex items-center justify-between">
         <div>
           <div className="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400 mb-1">
-            {skill.tier === 'template' ? (
-              <Link href="/apps/arena/templates" className="hover:text-slate-700 dark:hover:text-slate-200">
-                Templates
-              </Link>
-            ) : skill.project ? (
-              <Link href={`/apps/arena/projects/${skill.project.id}`} className="hover:text-slate-700 dark:hover:text-slate-200">
-                {skill.project.name}
-              </Link>
-            ) : (
-              <Link href="/apps/arena" className="hover:text-slate-700 dark:hover:text-slate-200">
-                Skills
-              </Link>
-            )}
+            <Link href="/apps/arena/skills" className="hover:text-slate-700 dark:hover:text-slate-200">
+              Skills
+            </Link>
             <span>/</span>
           </div>
           <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">{skill.name}</h1>

@@ -72,7 +72,7 @@ export default async function NewSessionPage({ searchParams }: Props) {
           <p className="text-slate-500 dark:text-slate-400">No skills available.</p>
           <p className="text-sm text-slate-400 mt-1">Import a skill from Figma first.</p>
           <Link
-            href="/apps/arena"
+            href="/apps/arena/projects"
             className="text-purple-600 hover:text-purple-700 text-sm mt-2 inline-block"
           >
             Go to Projects
@@ -201,7 +201,7 @@ export default async function NewSessionPage({ searchParams }: Props) {
               Start Session
             </button>
             <Link
-              href={preselectedProjectId ? `/apps/arena/projects/${preselectedProjectId}` : '/apps/arena'}
+              href="/apps/arena/sessions"
               className="px-6 py-2 bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 text-sm font-medium rounded-lg hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors"
             >
               Cancel
