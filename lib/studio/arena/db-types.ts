@@ -1,4 +1,4 @@
-import type { SkillState, DimensionState, AnnotationSegment, SkillDimension } from './types'
+import type { SkillState, DimensionState, AnnotationSegment, SkillTier, FoundationBrief, ProjectConfig } from './types'
 
 // =============================================================================
 // arena_projects
@@ -19,6 +19,9 @@ export interface ArenaProject {
   figma_file_key: string | null
   figma_file_url: string | null
   inputs: ArenaProjectInputs
+  substrate: string | null
+  foundation: FoundationBrief | null
+  config: ProjectConfig
   metadata: Record<string, unknown>
   created_at: string
   updated_at: string
@@ -37,8 +40,8 @@ export interface ArenaSkill {
   id: string
   name: string
   state: SkillState | DimensionState
-  source: 'figma' | 'manual' | 'refined' | 'base'
-  dimension: SkillDimension | null
+  tier: SkillTier
+  dimension: string | null
   parent_skill_id: string | null
   project_id: string | null
   is_template: boolean
@@ -59,6 +62,8 @@ export type ArenaSkillInsert = Omit<ArenaSkill, 'id' | 'created_at' | 'updated_a
   template_description?: string
 }
 
+export type { FoundationBrief, ProjectConfig } from './types'
+
 // =============================================================================
 // arena_sessions
 // =============================================================================
@@ -68,7 +73,7 @@ export interface ArenaSession {
   input_skill_id: string
   output_skill_id: string | null
   project_id: string | null
-  target_dimension: SkillDimension | null
+  target_dimension: string | null
   config: Record<string, unknown>
   status: 'active' | 'completed' | 'abandoned'
   round_count: number
@@ -110,7 +115,7 @@ export interface ArenaSessionFeedback {
   id: string
   session_id: string
   round: number
-  dimension: 'color' | 'typography' | 'spacing'
+  dimension: string
   decision_label: string
   action: 'approve' | 'adjust' | 'flag'
   new_value: string | null
@@ -138,7 +143,7 @@ export interface ArenaSessionIteration {
 export interface ArenaProjectAssembly {
   id: string
   project_id: string
-  dimension: SkillDimension
+  dimension: string
   skill_id: string
   created_at: string
   updated_at: string

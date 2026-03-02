@@ -4,8 +4,8 @@ import { useState, useCallback, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import type { ArenaSessionWithSkills, ArenaProjectAssemblyWithSkill } from '@/lib/studio/arena/db-types'
-import type { SkillState, DimensionState, SkillDimension } from '@/lib/studio/arena/types'
-import { SKILL_DIMENSIONS, assembleSkillState, emptySkillState } from '@/lib/studio/arena/types'
+import type { SkillState, DimensionState } from '@/lib/studio/arena/types'
+import { CORE_DIMENSIONS, assembleSkillState, emptySkillState } from '@/lib/studio/arena/types'
 import { SkillGym } from '@/components/studio/prototypes/arena/shared/skill-gym'
 import type { GymRoundData, CanvasTabDef } from '@/components/studio/prototypes/arena/shared/skill-gym'
 import type { ArenaTestComponent } from '@/lib/studio/arena/db-types'
@@ -22,10 +22,10 @@ interface SessionActiveClientProps {
 function buildControlFromAssembly(
   assembly: ArenaProjectAssemblyWithSkill[]
 ): SkillState {
-  const dims: Record<SkillDimension, DimensionState> = {
-    color: { decisions: [], rules: [] },
-    typography: { decisions: [], rules: [] },
-    spacing: { decisions: [], rules: [] },
+  const dims: Record<string, DimensionState> = {}
+  // Initialize with empty states for core dimensions
+  for (const d of CORE_DIMENSIONS) {
+    dims[d] = { decisions: [], rules: [] }
   }
   for (const entry of assembly) {
     if (entry.skill?.state && entry.dimension) {
@@ -44,7 +44,7 @@ function buildControlFromAssembly(
 
 export function SessionActiveClient({ session, assembly = [], sessionComponents = [] }: SessionActiveClientProps) {
   const router = useRouter()
-  const targetDimension = session.target_dimension as SkillDimension | null
+  const targetDimension = session.target_dimension
 
   // Build control skill from assembly (or fall back to input skill state)
   const controlSkill = useMemo(() => {

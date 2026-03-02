@@ -25,7 +25,7 @@ export default async function SkillDetailPage({ params }: Props) {
           <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">{skill.name}</h1>
           <div className="flex items-center gap-3 mt-1 text-sm text-slate-500 dark:text-slate-400">
             <span className="bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400 px-2 py-0.5 rounded text-xs">
-              {skill.source}
+              {skill.tier}
             </span>
             <span>Created {new Date(skill.created_at).toLocaleDateString()}</span>
           </div>

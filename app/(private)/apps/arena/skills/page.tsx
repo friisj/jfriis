@@ -4,15 +4,15 @@ import { SkillCard } from '@/components/studio/arena/skill-card'
 import { SeedTemplatesButton } from '@/components/studio/arena/seed-templates-button'
 
 interface Props {
-  searchParams: Promise<{ source?: string; project_id?: string; templates?: string }>
+  searchParams: Promise<{ tier?: string; project_id?: string; templates?: string }>
 }
 
 export default async function SkillsPage({ searchParams }: Props) {
-  const { source, project_id, templates } = await searchParams
+  const { tier, project_id, templates } = await searchParams
   const showTemplates = templates === '1'
 
   const skills = await getSkills({
-    source: source || undefined,
+    tier: tier || undefined,
     project_id: project_id || undefined,
     is_template: showTemplates ? true : undefined,
   })
@@ -21,7 +21,7 @@ export default async function SkillsPage({ searchParams }: Props) {
   const templateSkills = showTemplates ? skills : await getSkills({ is_template: true })
   const hasTemplates = templateSkills.length > 0
 
-  const sources = ['figma', 'manual', 'refined', 'base'] as const
+  const tiers = ['template', 'project', 'refined'] as const
 
   return (
     <div className="max-w-7xl mx-auto space-y-6">
@@ -39,24 +39,24 @@ export default async function SkillsPage({ searchParams }: Props) {
         <Link
           href="/apps/arena/skills"
           className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
-            !source && !showTemplates
+            !tier && !showTemplates
               ? 'bg-slate-200 dark:bg-slate-700 text-slate-900 dark:text-slate-100'
               : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700/50'
           }`}
         >
           All
         </Link>
-        {sources.map((s) => (
+        {tiers.map((t) => (
           <Link
-            key={s}
-            href={`/apps/arena/skills?source=${s}`}
+            key={t}
+            href={`/apps/arena/skills?tier=${t}`}
             className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors capitalize ${
-              source === s
+              tier === t
                 ? 'bg-slate-200 dark:bg-slate-700 text-slate-900 dark:text-slate-100'
                 : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700/50'
             }`}
           >
-            {s}
+            {t}
           </Link>
         ))}
         <span className="w-px h-5 bg-slate-200 dark:bg-slate-700" />

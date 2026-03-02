@@ -8,11 +8,13 @@ interface TokenDiffProps {
 }
 
 export function TokenDiff({ baseSkill, compareSkill }: TokenDiffProps) {
+  const allDimensions = [...new Set([...Object.keys(baseSkill), ...Object.keys(compareSkill)])]
+
   return (
     <div className="space-y-1">
-      {(['color', 'typography', 'spacing'] as const).map(dim => {
-        const baseDecs = baseSkill[dim].decisions
-        const cmpDecs = compareSkill[dim].decisions
+      {allDimensions.map(dim => {
+        const baseDecs = baseSkill[dim]?.decisions ?? []
+        const cmpDecs = compareSkill[dim]?.decisions ?? []
         return baseDecs.map(bd => {
           const cmp = cmpDecs.find(d => d.label === bd.label)
           const changed = cmp && cmp.value !== bd.value

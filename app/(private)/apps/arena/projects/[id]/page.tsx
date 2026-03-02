@@ -2,8 +2,9 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { getProject, getSkills, getProjectAssembly } from '@/lib/studio/arena/queries'
 import { SkillCard } from '@/components/studio/arena/skill-card'
-import { SKILL_DIMENSIONS } from '@/lib/studio/arena/types'
+import { CORE_DIMENSIONS } from '@/lib/studio/arena/types'
 import type { ArenaProjectAssemblyWithSkill } from '@/lib/studio/arena/db-types'
+import { FoundationSection } from './foundation-section'
 
 interface Props {
   params: Promise<{ id: string }>
@@ -21,6 +22,8 @@ const DIMENSION_COLORS: Record<string, string> = {
   spacing: 'bg-amber-50 dark:bg-amber-950/20 border-amber-200 dark:border-amber-800',
 }
 
+const DEFAULT_DIM_COLOR = 'bg-slate-50 dark:bg-slate-950/20 border-slate-200 dark:border-slate-800'
+
 export default async function ProjectDetailPage({ params }: Props) {
   const { id } = await params
   const [project, skills, assembly] = await Promise.all([
@@ -30,6 +33,11 @@ export default async function ProjectDetailPage({ params }: Props) {
   ])
 
   if (!project) notFound()
+
+  // Determine active dimensions from project config, falling back to core
+  const projectDimensions = project.config?.dimensions
+    ? Object.keys(project.config.dimensions)
+    : CORE_DIMENSIONS
 
   const assemblyByDimension: Record<string, ArenaProjectAssemblyWithSkill | undefined> = {}
   for (const entry of assembly) {
@@ -50,7 +58,14 @@ export default async function ProjectDetailPage({ params }: Props) {
             </Link>
             <span>/</span>
           </div>
-          <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">{project.name}</h1>
+          <div className="flex items-center gap-2">
+            <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">{project.name}</h1>
+            {project.substrate && (
+              <span className="px-2 py-0.5 rounded text-xs bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400">
+                {project.substrate}
+              </span>
+            )}
+          </div>
           {project.description && (
             <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">{project.description}</p>
           )}
@@ -77,18 +92,18 @@ export default async function ProjectDetailPage({ params }: Props) {
         <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">
           One active skill per dimension composes the project&apos;s design system.
         </p>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-          {SKILL_DIMENSIONS.map((dim) => {
+        <div className={`grid grid-cols-1 ${projectDimensions.length <= 3 ? 'md:grid-cols-3' : 'md:grid-cols-2 lg:grid-cols-3'} gap-3`}>
+          {projectDimensions.map((dim) => {
             const entry = assemblyByDimension[dim]
             const skill = entry?.skill
             return (
               <div
                 key={dim}
-                className={`rounded-lg border p-4 ${DIMENSION_COLORS[dim]}`}
+                className={`rounded-lg border p-4 ${DIMENSION_COLORS[dim] ?? DEFAULT_DIM_COLOR}`}
               >
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-xs font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">
-                    {DIMENSION_LABELS[dim]}
+                    {DIMENSION_LABELS[dim] ?? dim.charAt(0).toUpperCase() + dim.slice(1)}
                   </span>
                   {skill && (
                     <Link
@@ -105,7 +120,7 @@ export default async function ProjectDetailPage({ params }: Props) {
                       {skill.name}
                     </p>
                     <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                      {skill.source} &middot; {typeof skill.state === 'object' && 'decisions' in skill.state
+                      {skill.tier} &middot; {typeof skill.state === 'object' && 'decisions' in skill.state
                         ? `${(skill.state as { decisions: unknown[] }).decisions.length} decisions`
                         : 'composite'}
                     </p>
@@ -120,6 +135,9 @@ export default async function ProjectDetailPage({ params }: Props) {
           })}
         </div>
       </div>
+
+      {/* Foundation */}
+      <FoundationSection project={project} />
 
       {/* Fonts & Inputs */}
       <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm p-5">

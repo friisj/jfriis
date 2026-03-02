@@ -8,8 +8,8 @@
 import type { SkillState } from '@/lib/studio/arena/types'
 
 export function InferredSkillPanel({ skill }: { skill: SkillState }) {
-  const dims: (keyof SkillState)[] = ['color', 'typography', 'spacing']
-  const hasAny = dims.some(d => skill[d].decisions.length > 0)
+  const dims = Object.keys(skill)
+  const hasAny = dims.some(d => skill[d]?.decisions?.length > 0)
 
   if (!hasAny) {
     return (

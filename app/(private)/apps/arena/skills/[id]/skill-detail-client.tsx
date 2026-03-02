@@ -18,7 +18,7 @@ function toFullSkillState(state: SkillState | DimensionState, dimension: string 
   }
   // Per-dimension: slot into an empty shell
   const full = emptySkillState()
-  if (dimension === 'color' || dimension === 'typography' || dimension === 'spacing') {
+  if (dimension) {
     full[dimension] = state as DimensionState
   }
   return full

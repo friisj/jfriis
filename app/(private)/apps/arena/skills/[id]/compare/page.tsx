@@ -10,7 +10,7 @@ function toFullState(state: SkillState | DimensionState | null, dimension: strin
   if (!state) return BASE_SKILL
   if (!('decisions' in state)) return state as SkillState
   const full = emptySkillState()
-  if (dimension === 'color' || dimension === 'typography' || dimension === 'spacing') {
+  if (dimension) {
     full[dimension] = state as DimensionState
   }
   return full

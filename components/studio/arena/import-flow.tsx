@@ -37,14 +37,14 @@ export function ImportFlow({ projectId, projectName, onComplete }: ImportFlowPro
   const { availableFonts, fontDisplay, fontBody, fontMono, fontOverrides, handleFontChange } = useArenaFonts()
 
   const totalDecisions = useMemo(() => {
-    return (['color', 'typography', 'spacing'] as const).reduce(
-      (sum, d) => sum + classifiedSkill[d].decisions.length, 0
+    return Object.keys(classifiedSkill).reduce(
+      (sum, d) => sum + (classifiedSkill[d]?.decisions?.length ?? 0), 0
     )
   }, [classifiedSkill])
 
   const totalRules = useMemo(() => {
-    return (['color', 'typography', 'spacing'] as const).reduce(
-      (sum, d) => sum + classifiedSkill[d].rules.length, 0
+    return Object.keys(classifiedSkill).reduce(
+      (sum, d) => sum + (classifiedSkill[d]?.rules?.length ?? 0), 0
     )
   }, [classifiedSkill])
 
@@ -96,7 +96,8 @@ export function ImportFlow({ projectId, projectName, onComplete }: ImportFlowPro
       }
 
       const result = classifyData.data as SkillState & { summary: string }
-      setClassifiedSkill({ color: result.color, typography: result.typography, spacing: result.spacing })
+      const { summary: _summary, ...skillDims } = result
+      setClassifiedSkill(skillDims)
       setSummary(result.summary)
 
       if (fetchData.errors?.length > 0 || fetchData.invalidUrls?.length > 0) {
@@ -126,7 +127,7 @@ export function ImportFlow({ projectId, projectName, onComplete }: ImportFlowPro
       const result = await saveImportedSkill({
         name,
         state: classifiedSkill,
-        source: 'figma',
+        tier: 'project',
         project_id: projectId,
       })
 

@@ -13,7 +13,7 @@ import type {
   ArenaProjectAssemblyWithSkill,
   ArenaTestComponent,
 } from './db-types'
-import type { SkillDimension } from './types'
+import type { SkillTier } from './types'
 
 // Arena tables aren't in the generated Supabase types yet.
 // This helper provides an untyped client for arena table access.
@@ -103,7 +103,7 @@ export async function getProjectAssembly(projectId: string): Promise<ArenaProjec
 
 export async function setAssemblySkill(
   projectId: string,
-  dimension: SkillDimension,
+  dimension: string,
   skillId: string
 ): Promise<ArenaProjectAssembly> {
   const supabase = await arenaClient()
@@ -121,7 +121,7 @@ export async function setAssemblySkill(
 
 export async function removeAssemblySlot(
   projectId: string,
-  dimension: SkillDimension
+  dimension: string
 ): Promise<void> {
   const supabase = await arenaClient()
   const { error } = await supabase
@@ -137,9 +137,9 @@ export async function removeAssemblySlot(
 // =============================================================================
 
 export async function getSkills(filter?: {
-  source?: string
+  tier?: string
   project_id?: string
-  dimension?: SkillDimension
+  dimension?: string
   is_template?: boolean
 }): Promise<ArenaSkill[]> {
   const supabase = await arenaClient()
@@ -148,7 +148,7 @@ export async function getSkills(filter?: {
     .select('*')
     .order('updated_at', { ascending: false })
 
-  if (filter?.source) query = query.eq('source', filter.source)
+  if (filter?.tier) query = query.eq('tier', filter.tier)
   if (filter?.project_id) query = query.eq('project_id', filter.project_id)
   if (filter?.dimension) query = query.eq('dimension', filter.dimension)
   if (filter?.is_template !== undefined) query = query.eq('is_template', filter.is_template)
@@ -209,8 +209,8 @@ export async function getSkillWithLineage(id: string): Promise<ArenaSkillWithLin
 export async function createSkill(skill: {
   name: string
   state: Record<string, unknown>
-  source: 'figma' | 'manual' | 'refined' | 'base'
-  dimension?: SkillDimension
+  tier: SkillTier
+  dimension?: string
   parent_skill_id?: string
   project_id?: string
   is_template?: boolean
@@ -275,7 +275,7 @@ export async function getSession(id: string): Promise<ArenaSessionWithSkills | n
 export async function createSession(session: {
   input_skill_id: string
   project_id?: string
-  target_dimension?: SkillDimension
+  target_dimension?: string
   config?: Record<string, unknown>
   notes?: string
 }): Promise<ArenaSession> {

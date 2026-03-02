@@ -25,7 +25,7 @@ export function SeedTemplatesButton() {
       <div>
         <h3 className="text-sm font-semibold text-purple-800 dark:text-purple-300">No templates yet</h3>
         <p className="text-xs text-purple-600 dark:text-purple-400 mt-0.5">
-          Seed the base skill as 3 per-dimension templates to use as starting points.
+          Seed the base skill as per-dimension templates to use as starting points.
         </p>
       </div>
       <button

@@ -11,7 +11,7 @@
  */
 
 import { useState, useCallback, useMemo, useRef, useEffect } from 'react'
-import type { SkillState, SkillDecision, ArenaAnnotation, AnnotationSegment, SkillDimension } from '@/lib/studio/arena/types'
+import type { SkillState, SkillDecision, ArenaAnnotation, AnnotationSegment } from '@/lib/studio/arena/types'
 import { DEBONO_HATS } from '@/lib/studio/arena/debono-hats'
 import type { DebonoHatKey } from '@/lib/studio/arena/debono-hats'
 import { CanonicalCard, CanonicalForm, CanonicalDashboard } from './canonical-components'
@@ -28,7 +28,7 @@ type GymPhase = 'gym' | 'refining' | 'review'
 type FeedbackAction = 'approve' | 'adjust' | 'flag'
 
 export interface GymFeedbackItem {
-  dimension: 'color' | 'typography' | 'spacing'
+  dimension: string
   label: string
   action: FeedbackAction
   newValue?: string
@@ -57,7 +57,7 @@ export interface SkillGymProps {
   /** Optional font overrides for canonical rendering */
   fontOverrides?: { display?: string; body?: string; mono?: string }
   /** When set, only show decisions for this dimension */
-  targetDimension?: SkillDimension | null
+  targetDimension?: string | null
   /** Custom test components to show in canvas tabs (falls back to defaults) */
   testComponents?: CanvasTabDef[]
 }
@@ -66,18 +66,12 @@ export interface SkillGymProps {
 // Constants & Helpers
 // ---------------------------------------------------------------------------
 
-const DIMENSIONS = ['color', 'typography', 'spacing'] as const
-
 function feedbackKey(dim: string, label: string) {
   return `${dim}:${label}`
 }
 
 function isHexColor(value: string): boolean {
   return /^#[0-9a-fA-F]{3,8}$/.test(value)
-}
-
-function countDecisions(skill: SkillState): number {
-  return DIMENSIONS.reduce((sum, d) => sum + skill[d].decisions.length, 0)
 }
 
 // ---------------------------------------------------------------------------
@@ -110,12 +104,11 @@ function DecisionRow({
     feedback?.action === 'adjust' ? 'adjust' : feedback?.action === 'flag' ? 'flag' : 'view'
   )
 
-  const dim = dimension as 'color' | 'typography' | 'spacing'
-  const isColor = dim === 'color' && isHexColor(decision.value)
+  const isColor = dimension === 'color' && isHexColor(decision.value)
 
   const handleApprove = () => {
     setMode('view')
-    onFeedback({ dimension: dim, label: decision.label, action: 'approve' })
+    onFeedback({ dimension, label: decision.label, action: 'approve' })
   }
 
   const handleStartAdjust = () => {
@@ -125,7 +118,7 @@ function DecisionRow({
 
   const handleConfirmAdjust = () => {
     if (editValue.trim() && editValue !== decision.value) {
-      onFeedback({ dimension: dim, label: decision.label, action: 'adjust', newValue: editValue.trim(), reason: editReason || undefined })
+      onFeedback({ dimension, label: decision.label, action: 'adjust', newValue: editValue.trim(), reason: editReason || undefined })
       setMode('view')
     }
   }
@@ -137,7 +130,7 @@ function DecisionRow({
 
   const handleConfirmFlag = () => {
     if (editReason.trim()) {
-      onFeedback({ dimension: dim, label: decision.label, action: 'flag', reason: editReason.trim() })
+      onFeedback({ dimension, label: decision.label, action: 'flag', reason: editReason.trim() })
       setMode('view')
     }
   }
@@ -269,9 +262,10 @@ function DecisionRow({
 function ChangeDiffList({ previous, refined }: { previous: SkillState; refined: SkillState }) {
   const changes: { dim: string; label: string; oldVal: string; newVal: string }[] = []
 
-  for (const dim of DIMENSIONS) {
+  for (const dim of Object.keys(refined)) {
+    if (!refined[dim]?.decisions) continue
     for (const rd of refined[dim].decisions) {
-      const pd = previous[dim].decisions.find(d => d.label === rd.label)
+      const pd = previous[dim]?.decisions?.find(d => d.label === rd.label)
       if (pd && pd.value !== rd.value) {
         changes.push({ dim, label: rd.label, oldVal: pd.value, newVal: rd.value })
       }
@@ -388,14 +382,16 @@ export function SkillGym({ skill, onSkillUpdate, onBack, fontOverrides, targetDi
   const audioChunksRef = useRef<Blob[]>([])
 
   const visibleDimensions = useMemo(
-    () => targetDimension ? [targetDimension] as const : DIMENSIONS,
-    [targetDimension]
+    () => targetDimension
+      ? [targetDimension]
+      : Object.keys(skill).filter(d => skill[d]?.decisions?.length > 0),
+    [targetDimension, skill]
   )
   const feedbackCount = useMemo(() => {
-    return Object.values(feedbackMap).filter(f => (visibleDimensions as readonly string[]).includes(f.dimension)).length
+    return Object.values(feedbackMap).filter(f => visibleDimensions.includes(f.dimension)).length
   }, [feedbackMap, visibleDimensions])
   const decisionCount = useMemo(() => {
-    return visibleDimensions.reduce((sum, d) => sum + skill[d].decisions.length, 0)
+    return visibleDimensions.reduce((sum, d) => sum + (skill[d]?.decisions?.length ?? 0), 0)
   }, [skill, visibleDimensions])
 
   const handleFeedback = useCallback((dim: string, label: string, item: GymFeedbackItem | null) => {
@@ -569,12 +565,9 @@ export function SkillGym({ skill, onSkillUpdate, onBack, fontOverrides, targetDi
       }
 
       const result = data.data as SkillState & { summary: string }
+      const { summary: _summary, ...refinedDims } = result
       setPreviousSkill(skill)
-      setRefinedSkill({
-        color: result.color,
-        typography: result.typography,
-        spacing: result.spacing,
-      })
+      setRefinedSkill(refinedDims)
       setRefineSummary(result.summary)
       setPhase('review')
     } catch (err) {

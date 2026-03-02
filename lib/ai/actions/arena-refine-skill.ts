@@ -9,8 +9,6 @@
 import { z } from 'zod'
 import { registerAction } from './index'
 import type { Action } from './types'
-import { DECISION_LABELS } from '@/lib/studio/arena/types'
-
 // --- Schemas ---
 
 const decisionSchema = z.object({
@@ -44,7 +42,7 @@ const dimensionSchema = z.object({
 })
 
 const feedbackItemSchema = z.object({
-  dimension: z.enum(['color', 'typography', 'spacing']),
+  dimension: z.string(),
   label: z.string(),
   action: z.enum(['approve', 'adjust', 'flag']),
   newValue: z.string().optional(),
@@ -69,16 +67,12 @@ const annotationSchema = z.object({
 })
 
 const inputSchema = z.object({
-  currentSkill: z.object({
-    color: dimensionSchema,
-    typography: dimensionSchema,
-    spacing: dimensionSchema,
-  }),
+  currentSkill: z.record(z.string(), dimensionSchema),
   feedback: z.array(feedbackItemSchema),
   annotations: z.array(annotationSchema).default([]),
   notes: z.string(),
   iterationCount: z.number(),
-  targetDimension: z.enum(['color', 'typography', 'spacing']).optional(),
+  targetDimension: z.string().optional(),
 })
 
 type RefineInput = z.infer<typeof inputSchema>
@@ -89,17 +83,14 @@ const outputDimensionSchema = z.object({
 })
 
 const outputSchema = z.object({
-  color: outputDimensionSchema,
-  typography: outputDimensionSchema,
-  spacing: outputDimensionSchema,
   summary: z.string(),
-})
+}).catchall(outputDimensionSchema)
 
 type RefineOutput = z.infer<typeof outputSchema>
 
 // --- Prompt ---
 
-const SYSTEM_PROMPT = `You are a design system refinement assistant. You receive a SkillState (design decisions and rules across color, typography, and spacing) along with structured user feedback on individual decisions.
+const BASE_SYSTEM_PROMPT = `You are a design system refinement assistant. You receive a SkillState (design decisions and rules across one or more dimensions) along with structured user feedback on individual decisions.
 
 Your job is to produce a REFINED SkillState that incorporates the user's feedback precisely.
 
@@ -113,25 +104,30 @@ Each feedback item targets a specific decision by dimension + label:
 
 Decisions with NO feedback: keep value, rationale, confidence, and source exactly as they were.
 
-## Decision Labels
-
-You MUST produce decisions with EXACTLY these labels:
-
-### Color (${DECISION_LABELS.color.length} decisions)
-${DECISION_LABELS.color.map(l => `- "${l}"`).join('\n')}
-
-### Typography (${DECISION_LABELS.typography.length} decisions)
-${DECISION_LABELS.typography.map(l => `- "${l}"`).join('\n')}
-
-### Spacing (${DECISION_LABELS.spacing.length} decisions)
-${DECISION_LABELS.spacing.map(l => `- "${l}"`).join('\n')}
-
 ## Rules
 
 - Preserve all existing rules unless they contradict the feedback.
 - If feedback corroborates an existing rule, strengthen it (should -> must, prefer -> should).
 - Add new rules ONLY if the general notes or feedback patterns clearly warrant them.
-- Each iteration should produce FEWER changes than the last (convergence).
+- Each iteration should produce FEWER changes than the last (convergence).`
+
+function buildPrompt(input: RefineInput) {
+  const dims = Object.keys(input.currentSkill)
+
+  // Build dynamic decision labels section for system prompt
+  const decisionLabelsSection = dims.map(dim => {
+    const state = input.currentSkill[dim]
+    const labels = state.decisions.map(d => d.label)
+    return `### ${dim.charAt(0).toUpperCase() + dim.slice(1)} (${labels.length} decisions)\n${labels.map(l => `- "${l}"`).join('\n')}`
+  }).join('\n\n')
+
+  const systemPrompt = `${BASE_SYSTEM_PROMPT}
+
+## Decision Labels
+
+You MUST produce decisions with EXACTLY these labels for each dimension:
+
+${decisionLabelsSection}
 
 ## Value Format
 
@@ -143,11 +139,9 @@ ${DECISION_LABELS.spacing.map(l => `- "${l}"`).join('\n')}
 
 ## Output Format
 
-Output a single JSON object:
+Output a single JSON object with one key per dimension plus "summary":
 {
-  "color": { "decisions": [...], "rules": [...] },
-  "typography": { "decisions": [...], "rules": [...] },
-  "spacing": { "decisions": [...], "rules": [...] },
+${dims.map(d => `  "${d}": { "decisions": [...], "rules": [...] }`).join(',\n')},
   "summary": "2-3 sentence summary of what changed and why"
 }
 
@@ -170,9 +164,6 @@ interleaved text and grab references. Grab references use the format
 Weight annotations by hat type: Black and White observations are highest priority.
 Yellow observations identify constraints (preserve these aspects).
 Green offers options, not directives.`
-
-function buildPrompt(input: RefineInput) {
-  const dims = ['color', 'typography', 'spacing'] as const
 
   // Serialize current skill
   const skillSummary = dims.map(dim => {
@@ -230,7 +221,7 @@ Output JSON only.`
     user += `\n\n## Annotations\n\n${annotationLines.join('\n')}`
   }
 
-  return { system: SYSTEM_PROMPT, user }
+  return { system: systemPrompt, user }
 }
 
 // --- Action registration ---

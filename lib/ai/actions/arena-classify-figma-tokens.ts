@@ -75,11 +75,8 @@ const inputSchema = z.object({
 type ClassifyInput = z.infer<typeof inputSchema>
 
 const outputSchema = z.object({
-  color: dimensionSchema,
-  typography: dimensionSchema,
-  spacing: dimensionSchema,
   summary: z.string(),
-})
+}).catchall(dimensionSchema)
 
 type ClassifyOutput = z.infer<typeof outputSchema>
 

@@ -2,21 +2,20 @@ import Link from 'next/link'
 import type { ArenaSkill } from '@/lib/studio/arena/db-types'
 import type { SkillState, DimensionState } from '@/lib/studio/arena/types'
 
-const sourceColors: Record<string, string> = {
-  figma: 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400',
-  manual: 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400',
+const tierColors: Record<string, string> = {
+  template: 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400',
+  project: 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400',
   refined: 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400',
-  base: 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400',
 }
 
 function getDecisionCount(state: SkillState | DimensionState): number {
-  if ('decisions' in state) {
-    // Per-dimension DimensionState
-    return state.decisions.length
+  // DimensionState has an array at .decisions; SkillState has DimensionState objects as values
+  if (Array.isArray((state as DimensionState).decisions)) {
+    return (state as DimensionState).decisions.length
   }
-  // Full SkillState
-  return (['color', 'typography', 'spacing'] as const).reduce(
-    (sum, d) => sum + ((state as SkillState)[d]?.decisions?.length ?? 0), 0
+  // Full SkillState — iterate all dimensions
+  return Object.values(state).reduce(
+    (sum, dim) => sum + (dim?.decisions?.length ?? 0), 0
   )
 }
 
@@ -36,8 +35,8 @@ export function SkillCard({ skill }: SkillCardProps) {
         {skill.name}
       </h3>
       <div className="flex items-center gap-3 mt-2 text-xs text-slate-500 dark:text-slate-400 flex-wrap">
-        <span className={`px-2 py-0.5 rounded ${sourceColors[skill.source] ?? sourceColors.base}`}>
-          {skill.source}
+        <span className={`px-2 py-0.5 rounded ${tierColors[skill.tier] ?? tierColors.template}`}>
+          {skill.tier}
         </span>
         {skill.dimension && (
           <span className="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300">

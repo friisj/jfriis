@@ -2,7 +2,7 @@ import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { getSkills, getProjects, getProjectAssembly, getTestComponents } from '@/lib/studio/arena/queries'
 import { createSessionAction } from '@/lib/studio/arena/actions'
-import type { SkillDimension } from '@/lib/studio/arena/types'
+import { CORE_DIMENSIONS } from '@/lib/studio/arena/types'
 
 interface Props {
   searchParams: Promise<{ skill?: string; project?: string; dimension?: string }>
@@ -16,12 +16,19 @@ export default async function NewSessionPage({ searchParams }: Props) {
     getTestComponents(),
   ])
 
-  // If project is preselected, load its assembly to find the target skill
+  // If project is preselected, load its assembly to find the target skill and get config
   let preselectedAssemblySkillId: string | undefined
-  if (preselectedProjectId && preselectedDimension) {
-    const assembly = await getProjectAssembly(preselectedProjectId)
-    const match = assembly.find((a) => a.dimension === preselectedDimension)
-    preselectedAssemblySkillId = match?.skill_id
+  let projectDimensions: string[] = CORE_DIMENSIONS
+  if (preselectedProjectId) {
+    const preselectedProject = projects.find((p) => p.id === preselectedProjectId)
+    if (preselectedProject?.config?.dimensions) {
+      projectDimensions = Object.keys(preselectedProject.config.dimensions)
+    }
+    if (preselectedDimension) {
+      const assembly = await getProjectAssembly(preselectedProjectId)
+      const match = assembly.find((a) => a.dimension === preselectedDimension)
+      preselectedAssemblySkillId = match?.skill_id
+    }
   }
 
   const effectiveSkillId = preselectedSkillId ?? preselectedAssemblySkillId
@@ -44,7 +51,7 @@ export default async function NewSessionPage({ searchParams }: Props) {
     const session = await createSessionAction({
       input_skill_id: skillId,
       project_id: projectId || undefined,
-      target_dimension: (targetDimension as SkillDimension) || undefined,
+      target_dimension: targetDimension || undefined,
       component_ids: componentIds.length > 0 ? componentIds : undefined,
       notes,
     })
@@ -102,10 +109,10 @@ export default async function NewSessionPage({ searchParams }: Props) {
               defaultValue={preselectedDimension ?? ''}
               className="w-full px-3 py-2 text-sm border border-slate-200 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200"
             >
-              <option value="">All dimensions (legacy)</option>
-              <option value="color">Color</option>
-              <option value="typography">Typography</option>
-              <option value="spacing">Spacing</option>
+              <option value="">All dimensions</option>
+              {projectDimensions.map((dim) => (
+                <option key={dim} value={dim}>{dim.charAt(0).toUpperCase() + dim.slice(1)}</option>
+              ))}
             </select>
             <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">
               Targeting a single dimension creates a focused control vs variant experiment.
@@ -129,7 +136,7 @@ export default async function NewSessionPage({ searchParams }: Props) {
                 <optgroup label="Dimension Skills">
                   {dimensionSkills.map((skill) => (
                     <option key={skill.id} value={skill.id}>
-                      {skill.name} ({skill.dimension} &middot; {skill.source})
+                      {skill.name} ({skill.dimension} &middot; {skill.tier})
                     </option>
                   ))}
                 </optgroup>
@@ -138,7 +145,7 @@ export default async function NewSessionPage({ searchParams }: Props) {
                 <optgroup label="Legacy (Monolithic)">
                   {legacySkills.map((skill) => (
                     <option key={skill.id} value={skill.id}>
-                      {skill.name} ({skill.source})
+                      {skill.name} ({skill.tier})
                     </option>
                   ))}
                 </optgroup>
