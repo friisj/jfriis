@@ -16,6 +16,7 @@ export function SoundGenerator({ onGenerated }: SoundGeneratorProps) {
   const [duration, setDuration] = useState(2);
   const [influence, setInfluence] = useState(0.3);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
 
   async function handleGenerate() {
@@ -23,6 +24,7 @@ export function SoundGenerator({ onGenerated }: SoundGeneratorProps) {
 
     setLoading(true);
     setPreviewUrl(null);
+    setError(null);
     try {
       const res = await fetch('/api/sampler/generate', {
         method: 'POST',
@@ -35,15 +37,22 @@ export function SoundGenerator({ onGenerated }: SoundGeneratorProps) {
       });
 
       if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.error || 'Generation failed');
+        let message = 'Generation failed';
+        try {
+          const err = await res.json();
+          message = err.error || message;
+        } catch {
+          message = `Generation failed (${res.status})`;
+        }
+        setError(message);
+        return;
       }
 
       const sound: SamplerSound = await res.json();
       if (sound.audio_url) setPreviewUrl(sound.audio_url);
       onGenerated(sound);
     } catch (err) {
-      console.error('Generation failed:', err);
+      setError(err instanceof Error ? err.message : 'Generation failed');
     } finally {
       setLoading(false);
     }
@@ -83,6 +92,10 @@ export function SoundGenerator({ onGenerated }: SoundGeneratorProps) {
           step={0.1}
         />
       </div>
+
+      {error && (
+        <p className="text-sm text-destructive">{error}</p>
+      )}
 
       {previewUrl && (
         <audio controls src={previewUrl} className="w-full" />
