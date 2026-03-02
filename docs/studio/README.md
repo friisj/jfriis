@@ -267,6 +267,36 @@ Arena applies reinforcement learning patterns to design system creation. Users t
 
 ---
 
+### Cue
+**Status**: Phase 2 (Prototype) — Foundation scaffolded, building core features
+**Location**: `/app/(private)/apps/cue/` + `/docs/studio/cue/`
+**Focus**: Personal social intelligence tool — Pulse (RSS digest) and Brief (AI conversation prep)
+
+**Current State**:
+- ✅ DB schema (8 tables, `cue_` prefix, admin-only RLS)
+- ✅ Studio project seed (hypotheses, experiments, genesis log entry)
+- ✅ Routing skeleton (`/apps/cue` — dashboard, pulse, contacts, profile, briefs)
+- ✅ `lib/studio/cue/` layer (types, queries, actions)
+- ⏳ Phase 2: Profile editor, contact CRUD, topic seeding
+
+**Concept**:
+Two-part tool. **Pulse**: fetches RSS sources, scores each item against a weighted interest profile via Claude Haiku, and surfaces the most relevant daily content. **Brief**: before a meeting, computes topic overlap between the user and a specific contact, selects relevant Pulse items as source material, and generates 3-5 talking points via Claude Sonnet. The same topic graph powers both features.
+
+**Hypotheses**:
+1. Relevance-scored RSS digest can replace manual feed curation (70% relevant items target)
+2. Topic overlap + recent Pulse items produces genuinely useful talking points in < 10 seconds
+
+**Next Steps**:
+1. Seed `cue_topics` (~20 topics)
+2. Build ProfileForm (topic weight sliders) and ContactForm
+3. Wire up contact CRUD and setContactTopics server actions
+4. Begin Phase 3: RSS fetcher + pulse scoring pipeline
+
+**Documents**: `/docs/studio/cue/` (README.md, exploration/definitions.md, exploration/research.md)
+**Routes**: `/apps/cue` (dashboard, pulse, contacts, profile)
+
+---
+
 ## Future Studio Projects
 
 ### Ideas Under Consideration
