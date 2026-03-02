@@ -3,8 +3,8 @@
 import { createClient } from '@/lib/supabase-server'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { revalidatePath } from 'next/cache'
-import type { SkillState, ArenaAnnotation, SkillTier, ProjectConfig } from './types'
-import { CORE_DIMENSIONS } from './types'
+import type { SkillState, ArenaAnnotation, SkillTier, ProjectConfig, TokenMap } from './types'
+import { CORE_DIMENSIONS, extractTokensFromDimension } from './types'
 import { BASE_SKILL } from './base-skill'
 import type { ArenaProjectInputs } from './db-types'
 
@@ -114,9 +114,10 @@ export async function saveImportedSkill(input: {
     dimensionSkillIds[dim] = data.id
   }
 
-  // If project_id provided, set up the project assembly
+  // If project_id provided, set up the project assembly and seed theme rows
   if (input.project_id) {
     for (const dim of dimensions) {
+      // Set assembly slot
       const { error } = await supabase
         .from('arena_project_assembly')
         .upsert(
@@ -129,6 +130,25 @@ export async function saveImportedSkill(input: {
           { onConflict: 'project_id,dimension' }
         )
       if (error) throw error
+
+      // Seed theme layer with token values extracted from the skill
+      const tokens = extractTokensFromDimension(input.state[dim])
+      if (Object.keys(tokens).length > 0) {
+        const { error: themeErr } = await supabase
+          .from('arena_project_themes')
+          .upsert(
+            {
+              project_id: input.project_id,
+              dimension: dim,
+              platform: 'tailwind',
+              tokens,
+              source: tier === 'project' ? 'import' : tier,
+              updated_at: new Date().toISOString(),
+            },
+            { onConflict: 'project_id,dimension,platform' }
+          )
+        if (themeErr) throw themeErr
+      }
     }
   }
 
@@ -164,6 +184,7 @@ export async function completeGymRound(input: {
   annotations: ArenaAnnotation[]
   skill_state: SkillState
   ai_summary?: string
+  theme_updates?: Record<string, TokenMap>
 }) {
   const supabase = await arenaClient()
 
@@ -215,6 +236,47 @@ export async function completeGymRound(input: {
     .update({ round_count: input.round })
     .eq('id', input.session_id)
   if (sessError) throw sessError
+
+  // Persist theme corrections if session has a project and theme_updates exist
+  if (input.theme_updates) {
+    const { data: session } = await supabase
+      .from('arena_sessions')
+      .select('project_id')
+      .eq('id', input.session_id)
+      .single()
+
+    if (session?.project_id) {
+      for (const [dim, tokens] of Object.entries(input.theme_updates)) {
+        if (Object.keys(tokens).length === 0) continue
+
+        // Merge with existing theme tokens (additive)
+        const { data: existing } = await supabase
+          .from('arena_project_themes')
+          .select('tokens')
+          .eq('project_id', session.project_id)
+          .eq('dimension', dim)
+          .eq('platform', 'tailwind')
+          .single()
+
+        const mergedTokens = { ...(existing?.tokens as TokenMap ?? {}), ...tokens }
+
+        const { error: themeErr } = await supabase
+          .from('arena_project_themes')
+          .upsert(
+            {
+              project_id: session.project_id,
+              dimension: dim,
+              platform: 'tailwind',
+              tokens: mergedTokens,
+              source: 'gym',
+              updated_at: new Date().toISOString(),
+            },
+            { onConflict: 'project_id,dimension,platform' }
+          )
+        if (themeErr) throw themeErr
+      }
+    }
+  }
 
   revalidatePath('/apps/arena')
 }

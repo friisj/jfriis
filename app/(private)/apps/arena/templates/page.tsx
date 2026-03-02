@@ -28,27 +28,38 @@ function getDimensionState(skill: ArenaSkill): DimensionState {
 function DecisionRow({ decision, dimension }: { decision: SkillDecision; dimension: string | null }) {
   const showSwatch = dimension === 'color' && isColorValue(decision.value)
   return (
-    <tr className="border-t border-slate-100 dark:border-slate-700/50">
-      <td className="py-1.5 pr-3 text-sm font-medium text-slate-700 dark:text-slate-300 whitespace-nowrap">
-        {decision.label}
-      </td>
-      <td className="py-1.5 pr-3">
-        <span className="inline-flex items-center gap-1.5">
-          {showSwatch && (
-            <span
-              className="inline-block w-3.5 h-3.5 rounded border border-slate-200 dark:border-slate-600 flex-shrink-0"
-              style={{ backgroundColor: decision.value }}
-            />
-          )}
-          <code className="text-xs bg-slate-100 dark:bg-slate-700 px-1.5 py-0.5 rounded text-slate-700 dark:text-slate-300">
-            {decision.value}
-          </code>
-        </span>
-      </td>
-      <td className="py-1.5 text-xs text-slate-500 dark:text-slate-400">
-        {decision.rationale}
-      </td>
-    </tr>
+    <>
+      <tr className="border-t border-slate-100 dark:border-slate-700/50">
+        <td className="py-1.5 pr-3 text-sm font-medium text-slate-700 dark:text-slate-300 whitespace-nowrap">
+          {decision.label}
+        </td>
+        <td className="py-1.5 pr-3">
+          <span className="inline-flex items-center gap-1.5">
+            {showSwatch && (
+              <span
+                className="inline-block w-3.5 h-3.5 rounded border border-slate-200 dark:border-slate-600 flex-shrink-0"
+                style={{ backgroundColor: decision.value }}
+              />
+            )}
+            <code className="text-xs bg-slate-100 dark:bg-slate-700 px-1.5 py-0.5 rounded text-slate-700 dark:text-slate-300">
+              {decision.value}
+            </code>
+          </span>
+        </td>
+        <td className="py-1.5 text-xs text-slate-500 dark:text-slate-400">
+          {decision.rationale}
+        </td>
+      </tr>
+      {decision.intent && (
+        <tr>
+          <td colSpan={3} className="pb-1.5 pt-0">
+            <p className="text-[11px] text-slate-400 dark:text-slate-500 italic pl-1">
+              {decision.intent}
+            </p>
+          </td>
+        </tr>
+      )}
+    </>
   )
 }
 

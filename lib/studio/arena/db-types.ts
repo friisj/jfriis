@@ -1,4 +1,4 @@
-import type { SkillState, DimensionState, AnnotationSegment, SkillTier, FoundationBrief, ProjectConfig } from './types'
+import type { SkillState, DimensionState, AnnotationSegment, SkillTier, FoundationBrief, ProjectConfig, TokenMap } from './types'
 
 // =============================================================================
 // arena_projects
@@ -167,6 +167,21 @@ export interface ArenaTestComponent {
   is_default: boolean
   metadata: Record<string, unknown>
   created_at: string
+}
+
+// =============================================================================
+// arena_project_themes
+// =============================================================================
+
+export interface ArenaProjectTheme {
+  id: string
+  project_id: string
+  dimension: string
+  platform: string
+  tokens: TokenMap
+  source: string
+  created_at: string
+  updated_at: string
 }
 
 // =============================================================================

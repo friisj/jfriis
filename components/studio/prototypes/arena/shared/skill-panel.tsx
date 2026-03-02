@@ -28,11 +28,16 @@ export function InferredSkillPanel({ skill }: { skill: SkillState }) {
           <div key={dim} className="space-y-1">
             <h4 className="text-xs font-medium text-gray-700 dark:text-gray-300 capitalize">{dim}</h4>
             {state.decisions.map(d => (
-              <div key={d.id} className="flex items-center gap-2 text-xs">
-                <span className="text-green-500 flex-shrink-0">+</span>
-                <span className="font-medium text-gray-600 dark:text-gray-400">{d.label}:</span>
-                <code className="text-[10px] bg-gray-100 dark:bg-gray-800 px-1 rounded">{d.value}</code>
-                <span className="text-gray-400 text-[10px]">[{d.confidence}]</span>
+              <div key={d.id}>
+                <div className="flex items-center gap-2 text-xs">
+                  <span className="text-green-500 flex-shrink-0">+</span>
+                  <span className="font-medium text-gray-600 dark:text-gray-400">{d.label}:</span>
+                  <code className="text-[10px] bg-gray-100 dark:bg-gray-800 px-1 rounded">{d.value}</code>
+                  <span className="text-gray-400 text-[10px]">[{d.confidence}]</span>
+                </div>
+                {d.intent && (
+                  <p className="ml-4 mt-0.5 text-[10px] text-gray-400 dark:text-gray-500 italic">{d.intent}</p>
+                )}
               </div>
             ))}
             {state.rules.map(r => (
