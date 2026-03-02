@@ -2,12 +2,15 @@
  * SamplerEngine: Web Audio API playback engine
  *
  * Manages buffer loading, per-pad effects chains, and playback.
- * No external dependencies — raw Web Audio API only.
+ * Supports two sound modes:
+ *   - Buffer playback (file/generated): raw Web Audio API
+ *   - Procedural (Tone.js): renders ToneSynthConfig JSON via Tone.js
  *
  * Effects chain per pad: Source -> Gain -> EQ -> Delay -> Reverb -> Master
  */
 
 import type { PadEffects, PadWithSound } from './types/sampler';
+import type { ToneSynthConfig } from './sampler-synth';
 
 interface PadNodes {
   source: AudioBufferSourceNode | null;
@@ -29,6 +32,7 @@ export class SamplerEngine {
   private buffers: Map<string, AudioBuffer> = new Map();
   private padNodes: Map<string, PadNodes> = new Map();
   private activeSources: Map<string, AudioBufferSourceNode> = new Map();
+  private activeProceduralStops: Map<string, () => void> = new Map();
 
   private ensureContext(): AudioContext {
     if (!this.ctx) {
@@ -183,7 +187,15 @@ export class SamplerEngine {
    * Trigger a pad (play its sound)
    */
   trigger(pad: PadWithSound): void {
-    if (!pad.sound?.audio_url) return;
+    if (!pad.sound) return;
+
+    // Procedural sounds use Tone.js rendering
+    if (pad.sound.type === 'procedural') {
+      this.triggerProcedural(pad);
+      return;
+    }
+
+    if (!pad.sound.audio_url) return;
 
     const ctx = this.ensureContext();
     const buffer = this.buffers.get(pad.sound.audio_url);
@@ -224,9 +236,35 @@ export class SamplerEngine {
   }
 
   /**
+   * Trigger a procedural sound via Tone.js
+   */
+  private async triggerProcedural(pad: PadWithSound): Promise<void> {
+    const config = pad.sound?.source_config as ToneSynthConfig | undefined;
+    if (!config?.notes) return;
+
+    this.stop(pad.id);
+
+    try {
+      const { renderSynthConfig, ensureToneStarted } = await import('./sampler-synth');
+      await ensureToneStarted();
+
+      const { stop } = renderSynthConfig(config);
+      this.activeProceduralStops.set(pad.id, stop);
+
+      // Auto-cleanup after duration
+      setTimeout(() => {
+        this.activeProceduralStops.delete(pad.id);
+      }, (config.duration + 1) * 1000);
+    } catch (err) {
+      console.warn('Failed to trigger procedural sound:', err);
+    }
+  }
+
+  /**
    * Stop a specific pad
    */
   stop(padId: string): void {
+    // Stop buffer source
     const source = this.activeSources.get(padId);
     if (source) {
       try {
@@ -236,13 +274,24 @@ export class SamplerEngine {
       }
       this.activeSources.delete(padId);
     }
+
+    // Stop procedural (Tone.js) source
+    const proceduralStop = this.activeProceduralStops.get(padId);
+    if (proceduralStop) {
+      try {
+        proceduralStop();
+      } catch {
+        // Already disposed
+      }
+      this.activeProceduralStops.delete(padId);
+    }
   }
 
   /**
    * Check if a pad is currently playing
    */
   isPlaying(padId: string): boolean {
-    return this.activeSources.has(padId);
+    return this.activeSources.has(padId) || this.activeProceduralStops.has(padId);
   }
 
   /**
@@ -315,6 +364,12 @@ export class SamplerEngine {
       try { source.stop(); } catch { /* noop */ }
     });
     this.activeSources.clear();
+
+    this.activeProceduralStops.forEach((stop) => {
+      try { stop(); } catch { /* noop */ }
+    });
+    this.activeProceduralStops.clear();
+
     this.padNodes.clear();
     this.buffers.clear();
 
