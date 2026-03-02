@@ -15,7 +15,7 @@ export async function POST(request: Request) {
   try {
     const { user, error: authError } = await requireAuth();
     if (!user || authError) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return NextResponse.json({ error: 'Unauthorized', detail: authError }, { status: 401 });
     }
 
     const rateLimitResult = await checkAIRateLimit(user.id);
@@ -62,9 +62,18 @@ export async function POST(request: Request) {
     if (!elResponse.ok) {
       const errText = await elResponse.text();
       console.error('[sampler:generate] ElevenLabs error:', errText);
+      let message = 'Sound generation failed';
+      try {
+        const parsed = JSON.parse(errText);
+        if (parsed?.detail?.status === 'missing_permissions') {
+          message = 'ElevenLabs API key missing sound_generation permission';
+        } else if (parsed?.detail?.message) {
+          message = parsed.detail.message;
+        }
+      } catch { /* use default message */ }
       return NextResponse.json(
-        { error: 'Sound generation failed' },
-        { status: elResponse.status }
+        { error: message },
+        { status: 502 }
       );
     }
 
