@@ -40,6 +40,13 @@ export const toolsRegistry: ToolRegistryEntry[] = [
     cover: '/images/tools/cog-cover.jpg',
     visible: true,
   },
+  {
+    id: 'sampler',
+    title: 'Sampler',
+    description: 'Sound effects MPC',
+    path: '/sampler',
+    visible: true,
+  },
   // Example hidden tool (in development)
   // {
   //   id: 'fitness',
