@@ -7,11 +7,13 @@
 
 import type { SkillState } from '@/lib/studio/arena/types'
 
-interface CanonicalProps {
+export interface CanonicalProps {
   skill: SkillState
   label: string
   fontOverrides?: { display?: string; body?: string; mono?: string }
 }
+
+export type CanonicalComponentType = React.ComponentType<CanonicalProps>
 
 /**
  * Parse a CSS-like value to a number (strips 'px' suffix).
@@ -34,8 +36,8 @@ function clamp(val: number, min: number, max: number): number {
  * which look broken at web comparison size. This clamps to reasonable ranges.
  */
 function normalizeForDisplay(skill: SkillState) {
-  const t = Object.fromEntries(skill.typography.decisions.map(d => [d.label, d.value]))
-  const s = Object.fromEntries(skill.spacing.decisions.map(d => [d.label, d.value]))
+  const t = Object.fromEntries((skill.typography?.decisions ?? []).map(d => [d.label, d.value]))
+  const s = Object.fromEntries((skill.spacing?.decisions ?? []).map(d => [d.label, d.value]))
 
   const headingSize = clamp(px(t['Heading Size'], 18), 14, 28)
   const bodySize = clamp(px(t['Body Size'], 14), 11, 18)
@@ -62,8 +64,8 @@ function normalizeForDisplay(skill: SkillState) {
 }
 
 export function CanonicalCard({ skill, label, fontOverrides }: CanonicalProps) {
-  const c = Object.fromEntries(skill.color.decisions.map(d => [d.label, d.value]))
-  const t = Object.fromEntries(skill.typography.decisions.map(d => [d.label, d.value]))
+  const c = Object.fromEntries((skill.color?.decisions ?? []).map(d => [d.label, d.value]))
+  const t = Object.fromEntries((skill.typography?.decisions ?? []).map(d => [d.label, d.value]))
   const n = normalizeForDisplay(skill)
 
   const displayFont = fontOverrides?.display ?? t['Display Font'] ?? t['Font Family'] ?? 'system-ui, sans-serif'
@@ -148,8 +150,8 @@ export function CanonicalCard({ skill, label, fontOverrides }: CanonicalProps) {
 }
 
 export function CanonicalForm({ skill, label, fontOverrides }: CanonicalProps) {
-  const c = Object.fromEntries(skill.color.decisions.map(d => [d.label, d.value]))
-  const t = Object.fromEntries(skill.typography.decisions.map(d => [d.label, d.value]))
+  const c = Object.fromEntries((skill.color?.decisions ?? []).map(d => [d.label, d.value]))
+  const t = Object.fromEntries((skill.typography?.decisions ?? []).map(d => [d.label, d.value]))
   const n = normalizeForDisplay(skill)
 
   const displayFont = fontOverrides?.display ?? t['Display Font'] ?? t['Font Family'] ?? 'system-ui, sans-serif'
@@ -247,8 +249,8 @@ export function CanonicalForm({ skill, label, fontOverrides }: CanonicalProps) {
 }
 
 export function CanonicalDashboard({ skill, label, fontOverrides }: CanonicalProps) {
-  const c = Object.fromEntries(skill.color.decisions.map(d => [d.label, d.value]))
-  const t = Object.fromEntries(skill.typography.decisions.map(d => [d.label, d.value]))
+  const c = Object.fromEntries((skill.color?.decisions ?? []).map(d => [d.label, d.value]))
+  const t = Object.fromEntries((skill.typography?.decisions ?? []).map(d => [d.label, d.value]))
   const n = normalizeForDisplay(skill)
 
   const displayFont = fontOverrides?.display ?? t['Display Font'] ?? t['Font Family'] ?? 'system-ui, sans-serif'
@@ -449,4 +451,11 @@ export function CanonicalDashboard({ skill, label, fontOverrides }: CanonicalPro
       </div>
     </div>
   )
+}
+
+/** Registry mapping component_key → component. Used for dynamic test component resolution. */
+export const COMPONENT_REGISTRY: Record<string, CanonicalComponentType> = {
+  CanonicalCard,
+  CanonicalForm,
+  CanonicalDashboard,
 }

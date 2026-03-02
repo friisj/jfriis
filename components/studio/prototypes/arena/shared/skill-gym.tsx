@@ -27,30 +27,44 @@ type GymPhase = 'gym' | 'refining' | 'review'
 
 type FeedbackAction = 'approve' | 'adjust' | 'flag'
 
-interface FeedbackItem {
-  dimension: 'color' | 'typography' | 'spacing'
+export interface GymFeedbackItem {
+  dimension: string
   label: string
   action: FeedbackAction
   newValue?: string
   reason?: string
 }
 
+export interface GymRoundData {
+  feedback: GymFeedbackItem[]
+  annotations: ArenaAnnotation[]
+  notes: string
+}
+
+export interface CanvasTabDef {
+  key: string
+  label: string
+  Component: React.ComponentType<{ skill: SkillState; label: string; fontOverrides?: { display?: string; body?: string; mono?: string } }>
+}
+
 export interface SkillGymProps {
   /** Current skill to refine */
   skill: SkillState
   /** Called when user accepts a refinement — parent should update its skill state */
-  onSkillUpdate: (refined: SkillState) => void
+  onSkillUpdate: (refined: SkillState, roundData: GymRoundData) => void
   /** Back to previous view */
   onBack: () => void
   /** Optional font overrides for canonical rendering */
   fontOverrides?: { display?: string; body?: string; mono?: string }
+  /** When set, only show decisions for this dimension */
+  targetDimension?: string | null
+  /** Custom test components to show in canvas tabs (falls back to defaults) */
+  testComponents?: CanvasTabDef[]
 }
 
 // ---------------------------------------------------------------------------
 // Constants & Helpers
 // ---------------------------------------------------------------------------
-
-const DIMENSIONS = ['color', 'typography', 'spacing'] as const
 
 function feedbackKey(dim: string, label: string) {
   return `${dim}:${label}`
@@ -58,10 +72,6 @@ function feedbackKey(dim: string, label: string) {
 
 function isHexColor(value: string): boolean {
   return /^#[0-9a-fA-F]{3,8}$/.test(value)
-}
-
-function countDecisions(skill: SkillState): number {
-  return DIMENSIONS.reduce((sum, d) => sum + skill[d].decisions.length, 0)
 }
 
 // ---------------------------------------------------------------------------
@@ -85,8 +95,8 @@ function DecisionRow({
 }: {
   decision: SkillDecision
   dimension: string
-  feedback: FeedbackItem | undefined
-  onFeedback: (item: FeedbackItem | null) => void
+  feedback: GymFeedbackItem | undefined
+  onFeedback: (item: GymFeedbackItem | null) => void
 }) {
   const [editValue, setEditValue] = useState(feedback?.newValue ?? decision.value)
   const [editReason, setEditReason] = useState(feedback?.reason ?? '')
@@ -94,12 +104,11 @@ function DecisionRow({
     feedback?.action === 'adjust' ? 'adjust' : feedback?.action === 'flag' ? 'flag' : 'view'
   )
 
-  const dim = dimension as 'color' | 'typography' | 'spacing'
-  const isColor = dim === 'color' && isHexColor(decision.value)
+  const isColor = dimension === 'color' && isHexColor(decision.value)
 
   const handleApprove = () => {
     setMode('view')
-    onFeedback({ dimension: dim, label: decision.label, action: 'approve' })
+    onFeedback({ dimension, label: decision.label, action: 'approve' })
   }
 
   const handleStartAdjust = () => {
@@ -109,7 +118,7 @@ function DecisionRow({
 
   const handleConfirmAdjust = () => {
     if (editValue.trim() && editValue !== decision.value) {
-      onFeedback({ dimension: dim, label: decision.label, action: 'adjust', newValue: editValue.trim(), reason: editReason || undefined })
+      onFeedback({ dimension, label: decision.label, action: 'adjust', newValue: editValue.trim(), reason: editReason || undefined })
       setMode('view')
     }
   }
@@ -121,7 +130,7 @@ function DecisionRow({
 
   const handleConfirmFlag = () => {
     if (editReason.trim()) {
-      onFeedback({ dimension: dim, label: decision.label, action: 'flag', reason: editReason.trim() })
+      onFeedback({ dimension, label: decision.label, action: 'flag', reason: editReason.trim() })
       setMode('view')
     }
   }
@@ -253,9 +262,10 @@ function DecisionRow({
 function ChangeDiffList({ previous, refined }: { previous: SkillState; refined: SkillState }) {
   const changes: { dim: string; label: string; oldVal: string; newVal: string }[] = []
 
-  for (const dim of DIMENSIONS) {
+  for (const dim of Object.keys(refined)) {
+    if (!refined[dim]?.decisions) continue
     for (const rd of refined[dim].decisions) {
-      const pd = previous[dim].decisions.find(d => d.label === rd.label)
+      const pd = previous[dim]?.decisions?.find(d => d.label === rd.label)
       if (pd && pd.value !== rd.value) {
         changes.push({ dim, label: rd.label, oldVal: pd.value, newVal: rd.value })
       }
@@ -342,10 +352,10 @@ function AnnotationQueue({ annotations, onRemove }: {
 // Main SkillGym component
 // ---------------------------------------------------------------------------
 
-export function SkillGym({ skill, onSkillUpdate, onBack, fontOverrides }: SkillGymProps) {
+export function SkillGym({ skill, onSkillUpdate, onBack, fontOverrides, targetDimension, testComponents }: SkillGymProps) {
   const [phase, setPhase] = useState<GymPhase>('gym')
   const [roundCount, setRoundCount] = useState(0)
-  const [feedbackMap, setFeedbackMap] = useState<Record<string, FeedbackItem>>({})
+  const [feedbackMap, setFeedbackMap] = useState<Record<string, GymFeedbackItem>>({})
   const [notes, setNotes] = useState('')
   const [previousSkill, setPreviousSkill] = useState<SkillState | null>(null)
   const [refinedSkill, setRefinedSkill] = useState<SkillState | null>(null)
@@ -359,7 +369,7 @@ export function SkillGym({ skill, onSkillUpdate, onBack, fontOverrides }: SkillG
   const previewContainerRef = useRef<HTMLDivElement>(null)
 
   // Canvas tab — show one canonical component at a time
-  const [activeCanvas, setActiveCanvas] = useState<'card' | 'form' | 'dashboard'>('card')
+  const [activeCanvas, setActiveCanvas] = useState<string>('card')
 
   // Annotation session state (explicit start → editor → optional record → done)
   const [isAnnotating, setIsAnnotating] = useState(false)
@@ -371,10 +381,20 @@ export function SkillGym({ skill, onSkillUpdate, onBack, fontOverrides }: SkillG
   const mediaRecorderRef = useRef<MediaRecorder | null>(null)
   const audioChunksRef = useRef<Blob[]>([])
 
-  const feedbackCount = useMemo(() => Object.keys(feedbackMap).length, [feedbackMap])
-  const decisionCount = useMemo(() => countDecisions(skill), [skill])
+  const visibleDimensions = useMemo(
+    () => targetDimension
+      ? [targetDimension]
+      : Object.keys(skill).filter(d => skill[d]?.decisions?.length > 0),
+    [targetDimension, skill]
+  )
+  const feedbackCount = useMemo(() => {
+    return Object.values(feedbackMap).filter(f => visibleDimensions.includes(f.dimension)).length
+  }, [feedbackMap, visibleDimensions])
+  const decisionCount = useMemo(() => {
+    return visibleDimensions.reduce((sum, d) => sum + (skill[d]?.decisions?.length ?? 0), 0)
+  }, [skill, visibleDimensions])
 
-  const handleFeedback = useCallback((dim: string, label: string, item: FeedbackItem | null) => {
+  const handleFeedback = useCallback((dim: string, label: string, item: GymFeedbackItem | null) => {
     const key = feedbackKey(dim, label)
     setFeedbackMap(prev => {
       if (item === null) {
@@ -514,6 +534,11 @@ export function SkillGym({ skill, onSkillUpdate, onBack, fontOverrides }: SkillG
     setPhase('refining')
     setError(null)
 
+    // Filter feedback to target dimension when scoped
+    const scopedFeedback = targetDimension
+      ? Object.values(feedbackMap).filter(f => f.dimension === targetDimension)
+      : Object.values(feedbackMap)
+
     try {
       const res = await fetch('/api/ai/generate', {
         method: 'POST',
@@ -522,13 +547,14 @@ export function SkillGym({ skill, onSkillUpdate, onBack, fontOverrides }: SkillG
           action: 'arena-refine-skill',
           input: {
             currentSkill: skill,
-            feedback: Object.values(feedbackMap),
+            feedback: scopedFeedback,
             annotations: annotations.map(a => ({
               hatKey: a.hatKey,
               segments: a.segments,
             })),
             notes,
             iterationCount: roundCount,
+            targetDimension: targetDimension ?? undefined,
           },
         }),
       })
@@ -539,23 +565,24 @@ export function SkillGym({ skill, onSkillUpdate, onBack, fontOverrides }: SkillG
       }
 
       const result = data.data as SkillState & { summary: string }
+      const { summary: _summary, ...refinedDims } = result
       setPreviousSkill(skill)
-      setRefinedSkill({
-        color: result.color,
-        typography: result.typography,
-        spacing: result.spacing,
-      })
+      setRefinedSkill(refinedDims)
       setRefineSummary(result.summary)
       setPhase('review')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unknown error')
       setPhase('gym')
     }
-  }, [skill, feedbackMap, annotations, notes, roundCount, feedbackCount])
+  }, [skill, feedbackMap, annotations, notes, roundCount, feedbackCount, targetDimension])
 
   const handleAccept = useCallback(() => {
     if (!refinedSkill) return
-    onSkillUpdate(refinedSkill)
+    onSkillUpdate(refinedSkill, {
+      feedback: Object.values(feedbackMap),
+      annotations,
+      notes,
+    })
     setPreviousSkill(null)
     setRefinedSkill(null)
     setRefineSummary('')
@@ -565,7 +592,7 @@ export function SkillGym({ skill, onSkillUpdate, onBack, fontOverrides }: SkillG
     setAnnotations([])
     setActiveTab('decisions')
     setPhase('gym')
-  }, [refinedSkill, onSkillUpdate])
+  }, [refinedSkill, onSkillUpdate, feedbackMap, annotations, notes])
 
   const handleReject = useCallback(() => {
     setRefinedSkill(null)
@@ -582,6 +609,14 @@ export function SkillGym({ skill, onSkillUpdate, onBack, fontOverrides }: SkillG
     a.click()
     URL.revokeObjectURL(url)
   }, [roundCount])
+
+  // Canvas tab definitions — computed before early returns so all phases can reference them
+  const DEFAULT_CANVAS_TABS: CanvasTabDef[] = useMemo(() => [
+    { key: 'card', label: 'Card', Component: CanonicalCard },
+    { key: 'form', label: 'Form', Component: CanonicalForm },
+    { key: 'dashboard', label: 'Dashboard', Component: CanonicalDashboard },
+  ], [])
+  const effectiveTabs = testComponents ?? DEFAULT_CANVAS_TABS
 
   // -------------------------------------------------------------------------
   // Refining (loading)
@@ -625,11 +660,7 @@ export function SkillGym({ skill, onSkillUpdate, onBack, fontOverrides }: SkillG
         </div>
 
         {/* Side-by-side canonical components */}
-        {[
-          { label: 'Card', Component: CanonicalCard },
-          { label: 'Form', Component: CanonicalForm },
-          { label: 'Dashboard', Component: CanonicalDashboard },
-        ].map(({ label, Component }) => (
+        {effectiveTabs.map(({ label, Component }) => (
           <div key={label} className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl p-6">
             <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-4">{label}</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -667,13 +698,7 @@ export function SkillGym({ skill, onSkillUpdate, onBack, fontOverrides }: SkillG
   // Gym
   // -------------------------------------------------------------------------
 
-  const CANVAS_TABS = [
-    { key: 'card' as const, label: 'Card', Component: CanonicalCard },
-    { key: 'form' as const, label: 'Form', Component: CanonicalForm },
-    { key: 'dashboard' as const, label: 'Dashboard', Component: CanonicalDashboard },
-  ]
-
-  const activeCanvasTab = CANVAS_TABS.find(t => t.key === activeCanvas)!
+  const activeCanvasTab = effectiveTabs.find(t => t.key === activeCanvas) ?? effectiveTabs[0]
   const canonicalPreview = (
     <activeCanvasTab.Component skill={skill} label={activeCanvasTab.label} fontOverrides={fontOverrides} />
   )
@@ -693,7 +718,7 @@ export function SkillGym({ skill, onSkillUpdate, onBack, fontOverrides }: SkillG
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">Current Skill Preview</h3>
           <div className="flex gap-1">
-            {CANVAS_TABS.map(tab => (
+            {effectiveTabs.map(tab => (
               <button
                 key={tab.key}
                 onClick={() => setActiveCanvas(tab.key)}
@@ -760,7 +785,7 @@ export function SkillGym({ skill, onSkillUpdate, onBack, fontOverrides }: SkillG
       {activeTab === 'decisions' ? (
         <>
           {/* Per-dimension feedback sections */}
-          {DIMENSIONS.map(dim => {
+          {visibleDimensions.map(dim => {
             const state = skill[dim]
             if (state.decisions.length === 0) return null
 

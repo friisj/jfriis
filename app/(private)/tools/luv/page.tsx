@@ -59,7 +59,7 @@ export default async function LuvDashboard() {
         .filter(Boolean)
         .join(', ') || 'not configured',
     },
-    { title: 'Chat', href: '/tools/luv/chat', stats: 'Sandbox' },
+    { title: 'Conversations', href: '/tools/luv/chat', stats: 'History' },
     { title: 'Prompts', href: '/tools/luv/prompt-matrix', stats: 'Templates' },
     { title: 'Media', href: '/tools/luv/media-lab', stats: 'Generations' },
     { title: 'Training', href: '/tools/luv/training', stats: 'LoRA sets' },

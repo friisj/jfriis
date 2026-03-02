@@ -35,11 +35,16 @@ interface ParsedUrl {
   valid: boolean
 }
 
-interface CustomFont {
-  name: string       // Display name (e.g. "RM Neue VF")
-  scopedName: string // Scoped @font-face name (e.g. "__fi__RM Neue VF") — only used in CSS
-  dataUrl: string
-  format: string
+interface SelectedFont {
+  name: string           // Family name from scanner (e.g. "inter")
+  displayName: string    // Display name (e.g. "Inter")
+  scopedName: string     // Scoped @font-face name (e.g. "__fi__inter")
+  files: { path: string; weight: number; style: string; format: string }[]
+}
+
+interface AvailableFonts {
+  customFonts: { name: string; displayName: string; files: { path: string; weight: number; style: string; format: string }[] }[]
+  systemFonts: { name: string; displayName: string; stack: string }[]
 }
 
 // ---------------------------------------------------------------------------
@@ -167,19 +172,30 @@ export default function FigmaImportSpike() {
   const [progress, setProgress] = useState('')
   const [error, setError] = useState<string | null>(null)
 
-  // Font upload state
-  const [fontDisplay, setFontDisplay] = useState<CustomFont | null>(null)
-  const [fontBody, setFontBody] = useState<CustomFont | null>(null)
-  const [fontMono, setFontMono] = useState<CustomFont | null>(null)
+  // Font selector state
+  const [availableFonts, setAvailableFonts] = useState<AvailableFonts | null>(null)
+  const [fontDisplay, setFontDisplay] = useState<SelectedFont | null>(null)
+  const [fontBody, setFontBody] = useState<SelectedFont | null>(null)
+  const [fontMono, setFontMono] = useState<SelectedFont | null>(null)
+
+  // Fetch available fonts from arena directory on mount
+  useEffect(() => {
+    fetch('/api/arena/fonts')
+      .then(res => res.json())
+      .then(data => setAvailableFonts(data))
+      .catch(err => console.error('Failed to load arena fonts:', err))
+  }, [])
 
   // Inject @font-face rules using scoped names to prevent font leaking
   // into base skill components or other page elements
   useEffect(() => {
-    const fonts = [fontDisplay, fontBody, fontMono].filter(Boolean) as CustomFont[]
+    const fonts = [fontDisplay, fontBody, fontMono].filter(Boolean) as SelectedFont[]
     if (fonts.length === 0) return
 
-    const css = fonts.map(f =>
-      `@font-face { font-family: "${f.scopedName}"; src: url(${f.dataUrl}) format("${f.format}"); font-display: swap; }`
+    const css = fonts.flatMap(f =>
+      f.files.map(file =>
+        `@font-face { font-family: "${f.scopedName}"; src: url(${file.path}) format("${file.format}"); font-weight: ${file.weight}; font-style: ${file.style}; font-display: swap; }`
+      )
     ).join('\n')
     const style = document.createElement('style')
     style.setAttribute('data-figma-import-fonts', '')
@@ -205,26 +221,25 @@ export default function FigmaImportSpike() {
 
   const validUrls = useMemo(() => parsedUrls.filter(p => p.valid), [parsedUrls])
 
-  const handleFontUpload = useCallback((slot: 'display' | 'body' | 'mono', file: File) => {
-    const ext = file.name.split('.').pop()?.toLowerCase() ?? ''
-    const formatMap: Record<string, string> = { woff2: 'woff2', woff: 'woff', ttf: 'truetype', otf: 'opentype' }
-    const format = formatMap[ext] ?? 'truetype'
-    const name = file.name.replace(/\.[^.]+$/, '').replace(/[-_]/g, ' ')
-
-    const reader = new FileReader()
-    reader.onload = () => {
-      const font: CustomFont = {
-        name,
-        scopedName: `__fi__${name}`,
-        dataUrl: reader.result as string,
-        format,
-      }
-      if (slot === 'display') setFontDisplay(font)
-      else if (slot === 'body') setFontBody(font)
-      else setFontMono(font)
+  const handleFontSelect = useCallback((slot: 'display' | 'body' | 'mono', familyName: string) => {
+    if (!familyName || !availableFonts) {
+      if (slot === 'display') setFontDisplay(null)
+      else if (slot === 'body') setFontBody(null)
+      else setFontMono(null)
+      return
     }
-    reader.readAsDataURL(file)
-  }, [])
+    const family = availableFonts.customFonts.find(f => f.name === familyName)
+    if (!family) return
+    const selected: SelectedFont = {
+      name: family.name,
+      displayName: family.displayName,
+      scopedName: `__fi__${family.name}`,
+      files: family.files,
+    }
+    if (slot === 'display') setFontDisplay(selected)
+    else if (slot === 'body') setFontBody(selected)
+    else setFontMono(selected)
+  }, [availableFonts])
 
   const handleExtractAndClassify = useCallback(async () => {
     if (validUrls.length === 0) return
@@ -384,52 +399,39 @@ export default function FigmaImportSpike() {
             )}
           </div>
 
-          {/* Right: font uploads */}
+          {/* Right: font selector */}
           <div className="space-y-4">
             <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl p-5">
               <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">Fonts</h3>
-              <p className="text-[10px] text-gray-400 mb-3">Upload fonts to render in canonical component comparisons</p>
+              <p className="text-[10px] text-gray-400 mb-3">
+                Select fonts from <code className="text-[10px]">public/fonts/arena/</code> for canonical component comparisons
+              </p>
               <div className="space-y-2">
                 {(['display', 'body', 'mono'] as const).map(slot => {
                   const font = slot === 'display' ? fontDisplay : slot === 'body' ? fontBody : fontMono
-                  const clearFont = () => {
-                    if (slot === 'display') setFontDisplay(null)
-                    else if (slot === 'body') setFontBody(null)
-                    else setFontMono(null)
-                  }
                   return (
                     <div key={slot} className="flex items-center gap-2">
                       <span className="text-xs text-gray-500 w-14 capitalize">{slot}:</span>
-                      {font ? (
-                        <div className="flex items-center gap-2 flex-1">
-                          <span className="text-xs font-medium text-gray-700 dark:text-gray-300" style={{ fontFamily: `"${font.name}"` }}>
-                            {font.name}
-                          </span>
-                          <button onClick={clearFont} className="text-gray-400 hover:text-red-500 transition-colors">
-                            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                            </svg>
-                          </button>
-                        </div>
-                      ) : (
-                        <label className="text-xs text-blue-600 hover:text-blue-700 cursor-pointer underline">
-                          Upload
-                          <input
-                            type="file"
-                            accept=".woff2,.woff,.ttf,.otf"
-                            className="hidden"
-                            onChange={(e) => {
-                              const file = e.target.files?.[0]
-                              if (file) handleFontUpload(slot, file)
-                              e.target.value = ''
-                            }}
-                          />
-                        </label>
-                      )}
+                      <select
+                        value={font?.name ?? ''}
+                        onChange={(e) => handleFontSelect(slot, e.target.value)}
+                        className="flex-1 text-xs px-2 py-1.5 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-200"
+                        style={font ? { fontFamily: `"${font.scopedName}", system-ui, sans-serif` } : undefined}
+                      >
+                        <option value="">None</option>
+                        {availableFonts?.customFonts.map(f => (
+                          <option key={f.name} value={f.name}>{f.displayName}</option>
+                        ))}
+                      </select>
                     </div>
                   )
                 })}
               </div>
+              {availableFonts && availableFonts.customFonts.length === 0 && (
+                <p className="text-[10px] text-gray-400 mt-2">
+                  No fonts found. Add font folders to <code className="text-[10px]">public/fonts/arena/</code>.
+                </p>
+              )}
             </div>
 
             {/* Method comparison */}

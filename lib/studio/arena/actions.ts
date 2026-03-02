@@ -1,0 +1,519 @@
+'use server'
+
+import { createClient } from '@/lib/supabase-server'
+import type { SupabaseClient } from '@supabase/supabase-js'
+import { revalidatePath } from 'next/cache'
+import type { SkillState, ArenaAnnotation, SkillTier, ProjectConfig } from './types'
+import { CORE_DIMENSIONS } from './types'
+import { BASE_SKILL } from './base-skill'
+import type { ArenaProjectInputs } from './db-types'
+
+// Arena tables aren't in the generated Supabase types yet.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function arenaClient(): Promise<SupabaseClient<any, 'public', any>> {
+  return await createClient() as any // eslint-disable-line @typescript-eslint/no-explicit-any
+}
+
+function generateSlug(name: string): string {
+  return name
+    .toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, '')
+    .replace(/\s+/g, '-')
+    .replace(/-+/g, '-')
+    .trim()
+    .replace(/^-|-$/g, '')
+    .substring(0, 100)
+}
+
+// =============================================================================
+// PROJECTS
+// =============================================================================
+
+export async function createProjectAction(formData: FormData) {
+  const name = formData.get('name') as string
+  const description = (formData.get('description') as string) || null
+  const figmaFileUrl = (formData.get('figma_file_url') as string) || null
+  const figmaFileKey = (formData.get('figma_file_key') as string) || null
+  const substrate = (formData.get('substrate') as string) || null
+
+  // Parse dimension config from form
+  const dimensionKeys = (formData.getAll('dimensions') as string[])
+  const config: ProjectConfig = { dimensions: {} }
+  for (const dim of dimensionKeys) {
+    const scope = (formData.get(`scope_${dim}`) as string) || 'basic'
+    config.dimensions[dim] = { scope: scope as 'basic' | 'advanced' }
+  }
+  // Default to core dimensions if none selected
+  if (Object.keys(config.dimensions).length === 0) {
+    for (const dim of CORE_DIMENSIONS) {
+      config.dimensions[dim] = { scope: 'basic' }
+    }
+  }
+
+  if (!name?.trim()) throw new Error('Name is required')
+
+  const supabase = await arenaClient()
+  const { data, error } = await supabase
+    .from('arena_projects')
+    .insert({
+      name: name.trim(),
+      slug: generateSlug(name),
+      description,
+      figma_file_url: figmaFileUrl,
+      figma_file_key: figmaFileKey,
+      substrate,
+      config: config as unknown as Record<string, unknown>,
+      metadata: {},
+    })
+    .select()
+    .single()
+
+  if (error) throw error
+  revalidatePath('/apps/arena')
+  return data
+}
+
+export async function deleteProjectAction(id: string) {
+  const supabase = await arenaClient()
+  const { error } = await supabase.from('arena_projects').delete().eq('id', id)
+  if (error) throw error
+  revalidatePath('/apps/arena')
+}
+
+// =============================================================================
+// SKILLS — composite mutations
+// =============================================================================
+
+export async function saveImportedSkill(input: {
+  name: string
+  state: SkillState
+  tier?: SkillTier
+  project_id?: string
+  parent_skill_id?: string
+}) {
+  const supabase = await arenaClient()
+  const tier = input.tier ?? 'project'
+  const dimensions = Object.keys(input.state)
+
+  // Create one per-dimension skill for each dimension
+  const dimensionSkillIds: Record<string, string> = {}
+  for (const dim of dimensions) {
+    const { data, error } = await supabase
+      .from('arena_skills')
+      .insert({
+        name: `${input.name} — ${dim}`,
+        state: input.state[dim] as unknown as Record<string, unknown>,
+        tier,
+        dimension: dim,
+        project_id: input.project_id ?? null,
+        parent_skill_id: input.parent_skill_id ?? null,
+      })
+      .select()
+      .single()
+    if (error) throw error
+    dimensionSkillIds[dim] = data.id
+  }
+
+  // If project_id provided, set up the project assembly
+  if (input.project_id) {
+    for (const dim of dimensions) {
+      const { error } = await supabase
+        .from('arena_project_assembly')
+        .upsert(
+          {
+            project_id: input.project_id,
+            dimension: dim,
+            skill_id: dimensionSkillIds[dim],
+            updated_at: new Date().toISOString(),
+          },
+          { onConflict: 'project_id,dimension' }
+        )
+      if (error) throw error
+    }
+  }
+
+  revalidatePath('/apps/arena')
+  // Return the first dimension skill id as the "primary" result
+  const firstDim = dimensions[0]
+  return { id: dimensionSkillIds[firstDim], dimensionSkillIds }
+}
+
+export async function deleteSkillAction(id: string) {
+  const supabase = await arenaClient()
+  const { error } = await supabase.from('arena_skills').delete().eq('id', id)
+  if (error) throw error
+  revalidatePath('/apps/arena')
+}
+
+// =============================================================================
+// SESSIONS — gym persistence
+// =============================================================================
+
+interface FeedbackItem {
+  dimension: string
+  decision_label: string
+  action: 'approve' | 'adjust' | 'flag'
+  new_value?: string
+  reason?: string
+}
+
+export async function completeGymRound(input: {
+  session_id: string
+  round: number
+  feedback: FeedbackItem[]
+  annotations: ArenaAnnotation[]
+  skill_state: SkillState
+  ai_summary?: string
+}) {
+  const supabase = await arenaClient()
+
+  // Insert feedback rows
+  if (input.feedback.length > 0) {
+    const feedbackRows = input.feedback.map((f) => ({
+      session_id: input.session_id,
+      round: input.round,
+      dimension: f.dimension,
+      decision_label: f.decision_label,
+      action: f.action,
+      new_value: f.new_value ?? null,
+      reason: f.reason ?? null,
+    }))
+    const { error: fbError } = await supabase
+      .from('arena_session_feedback')
+      .insert(feedbackRows)
+    if (fbError) throw fbError
+  }
+
+  // Insert annotation rows
+  if (input.annotations.length > 0) {
+    const annotationRows = input.annotations.map((a) => ({
+      session_id: input.session_id,
+      round: input.round,
+      hat_key: a.hatKey,
+      segments: a.segments,
+    }))
+    const { error: annError } = await supabase
+      .from('arena_session_annotations')
+      .insert(annotationRows)
+    if (annError) throw annError
+  }
+
+  // Insert iteration snapshot
+  const { error: itError } = await supabase
+    .from('arena_session_iterations')
+    .insert({
+      session_id: input.session_id,
+      round: input.round,
+      skill_state: input.skill_state as unknown as Record<string, unknown>,
+      ai_summary: input.ai_summary ?? null,
+    })
+  if (itError) throw itError
+
+  // Update session round count
+  const { error: sessError } = await supabase
+    .from('arena_sessions')
+    .update({ round_count: input.round })
+    .eq('id', input.session_id)
+  if (sessError) throw sessError
+
+  revalidatePath('/apps/arena')
+}
+
+export async function acceptRefinement(input: {
+  session_id: string
+  final_skill_state: SkillState
+  input_skill_name: string
+}) {
+  const supabase = await arenaClient()
+
+  // Get the session to find input_skill_id, project_id, target_dimension
+  const { data: session, error: sessErr } = await supabase
+    .from('arena_sessions')
+    .select('input_skill_id, project_id, target_dimension')
+    .eq('id', input.session_id)
+    .single()
+  if (sessErr || !session) throw new Error('Session not found')
+
+  const targetDim = session.target_dimension as string | null
+
+  // Create output skill — per-dimension if session targets a dimension, otherwise full
+  const outputState = targetDim
+    ? input.final_skill_state[targetDim]
+    : input.final_skill_state
+  const { data: outputSkill, error: skillErr } = await supabase
+    .from('arena_skills')
+    .insert({
+      name: `${input.input_skill_name} (refined)`,
+      state: outputState as unknown as Record<string, unknown>,
+      tier: 'refined',
+      dimension: targetDim ?? null,
+      parent_skill_id: session.input_skill_id,
+      project_id: session.project_id ?? null,
+    })
+    .select()
+    .single()
+  if (skillErr) throw skillErr
+
+  // Complete the session
+  const { error: updateErr } = await supabase
+    .from('arena_sessions')
+    .update({
+      output_skill_id: outputSkill.id,
+      status: 'completed',
+    })
+    .eq('id', input.session_id)
+  if (updateErr) throw updateErr
+
+  // Update project assembly if session targets a project + dimension
+  if (session.project_id && targetDim) {
+    const { error: asmErr } = await supabase
+      .from('arena_project_assembly')
+      .upsert(
+        {
+          project_id: session.project_id,
+          dimension: targetDim,
+          skill_id: outputSkill.id,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: 'project_id,dimension' }
+      )
+    if (asmErr) throw asmErr
+  }
+
+  revalidatePath('/apps/arena')
+  return outputSkill
+}
+
+export async function abandonSession(sessionId: string) {
+  const supabase = await arenaClient()
+  const { error } = await supabase
+    .from('arena_sessions')
+    .update({ status: 'abandoned' })
+    .eq('id', sessionId)
+  if (error) throw error
+  revalidatePath('/apps/arena')
+}
+
+export async function createSessionAction(input: {
+  input_skill_id: string
+  project_id?: string
+  target_dimension?: string
+  config?: Record<string, unknown>
+  component_ids?: string[]
+  notes?: string
+}) {
+  const supabase = await arenaClient()
+  const { data, error } = await supabase
+    .from('arena_sessions')
+    .insert({
+      input_skill_id: input.input_skill_id,
+      project_id: input.project_id ?? null,
+      target_dimension: input.target_dimension ?? null,
+      config: input.config ?? {},
+      status: 'active',
+      round_count: 0,
+      notes: input.notes ?? null,
+    })
+    .select()
+    .single()
+  if (error) throw error
+
+  // Link selected test components
+  if (input.component_ids && input.component_ids.length > 0) {
+    const rows = input.component_ids.map((component_id) => ({
+      session_id: data.id,
+      component_id,
+    }))
+    const { error: compErr } = await supabase
+      .from('arena_session_components')
+      .insert(rows)
+    if (compErr) throw compErr
+  }
+
+  revalidatePath('/apps/arena')
+  return data
+}
+
+// =============================================================================
+// TEMPLATES
+// =============================================================================
+
+export async function seedBaseTemplates() {
+  const supabase = await arenaClient()
+
+  // Idempotent: check if base templates already exist
+  const { data: existing } = await supabase
+    .from('arena_skills')
+    .select('id')
+    .eq('is_template', true)
+    .eq('tier', 'template')
+    .limit(1)
+  if (existing && existing.length > 0) return { seeded: false, message: 'Base templates already exist' }
+
+  const templateIds: Record<string, string> = {}
+  for (const dim of CORE_DIMENSIONS) {
+    const { data, error } = await supabase
+      .from('arena_skills')
+      .insert({
+        name: `Base — ${dim.charAt(0).toUpperCase() + dim.slice(1)}`,
+        state: BASE_SKILL[dim] as unknown as Record<string, unknown>,
+        tier: 'template',
+        dimension: dim,
+        project_id: null,
+        parent_skill_id: null,
+        is_template: true,
+        template_description: `Default ${dim} decisions from the Arena base skill.`,
+      })
+      .select()
+      .single()
+    if (error) throw error
+    templateIds[dim] = data.id
+  }
+
+  revalidatePath('/apps/arena')
+  return { seeded: true, templateIds }
+}
+
+export async function cloneTemplateToProject(templateId: string, projectId: string) {
+  const supabase = await arenaClient()
+
+  // Get template
+  const { data: template, error: tErr } = await supabase
+    .from('arena_skills')
+    .select('*')
+    .eq('id', templateId)
+    .single()
+  if (tErr || !template) throw new Error('Template not found')
+
+  // Create clone
+  const { data: clone, error: cErr } = await supabase
+    .from('arena_skills')
+    .insert({
+      name: `${template.name} (clone)`,
+      state: template.state,
+      tier: 'project',
+      dimension: template.dimension,
+      project_id: projectId,
+      parent_skill_id: templateId,
+      is_template: false,
+    })
+    .select()
+    .single()
+  if (cErr) throw cErr
+
+  // Set project assembly if dimension is set
+  if (template.dimension) {
+    const { error: aErr } = await supabase
+      .from('arena_project_assembly')
+      .upsert(
+        {
+          project_id: projectId,
+          dimension: template.dimension,
+          skill_id: clone.id,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: 'project_id,dimension' }
+      )
+    if (aErr) throw aErr
+  }
+
+  revalidatePath('/apps/arena')
+  return clone
+}
+
+// =============================================================================
+// TEST COMPONENTS — mutations
+// =============================================================================
+
+export async function createTestComponent(input: {
+  name: string
+  slug: string
+  component_key: string
+  category: string
+  description?: string
+  is_default?: boolean
+}) {
+  const supabase = await arenaClient()
+  const { data, error } = await supabase
+    .from('arena_test_components')
+    .insert({
+      name: input.name,
+      slug: input.slug,
+      component_key: input.component_key,
+      category: input.category,
+      description: input.description ?? null,
+      is_default: input.is_default ?? false,
+      metadata: {},
+    })
+    .select()
+    .single()
+  if (error) throw error
+  revalidatePath('/apps/arena')
+  return data
+}
+
+export async function deleteTestComponent(id: string) {
+  const supabase = await arenaClient()
+  const { error } = await supabase.from('arena_test_components').delete().eq('id', id)
+  if (error) throw error
+  revalidatePath('/apps/arena')
+}
+
+// =============================================================================
+// PROJECT INPUTS
+// =============================================================================
+
+export async function updateProjectInputs(projectId: string, inputs: ArenaProjectInputs) {
+  const supabase = await arenaClient()
+  const { error } = await supabase
+    .from('arena_projects')
+    .update({ inputs: inputs as unknown as Record<string, unknown> })
+    .eq('id', projectId)
+  if (error) throw error
+  revalidatePath('/apps/arena')
+}
+
+// =============================================================================
+// FOUNDATION GENERATION
+// =============================================================================
+
+export async function generateFoundation(projectId: string) {
+  const supabase = await arenaClient()
+
+  // Get the project
+  const { data: project, error: projErr } = await supabase
+    .from('arena_projects')
+    .select('*')
+    .eq('id', projectId)
+    .single()
+  if (projErr || !project) throw new Error('Project not found')
+
+  // Use the AI action system via the executeAction helper
+  const { executeAction } = await import('@/lib/ai/actions')
+  await import('@/lib/ai/actions/arena-generate-foundation')
+
+  const result = await executeAction('arena-generate-foundation', {
+    substrate: project.substrate,
+    inputs: project.inputs,
+    config: project.config,
+  })
+
+  if (!result.success) {
+    throw new Error(result.error?.message ?? 'Foundation generation failed')
+  }
+
+  const foundation = {
+    ...(result.data as Record<string, unknown>),
+    generated_at: new Date().toISOString(),
+  }
+
+  // Store foundation on project
+  const { error: updateErr } = await supabase
+    .from('arena_projects')
+    .update({ foundation: foundation as unknown as Record<string, unknown> })
+    .eq('id', projectId)
+  if (updateErr) throw updateErr
+
+  revalidatePath('/apps/arena')
+  return foundation
+}
