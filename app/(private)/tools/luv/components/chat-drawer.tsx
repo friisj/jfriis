@@ -8,13 +8,12 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { ChevronDown, ChevronRight } from 'lucide-react';
+import { ChevronDown } from 'lucide-react';
 import { createLuvConversation, createLuvMessage } from '@/lib/luv';
-import { composeSoulSystemPrompt } from '@/lib/luv-prompt-composer';
 import type { LuvSoulData } from '@/lib/types/luv';
-import { cn } from '@/lib/utils';
 import { ToolCallCard } from './tool-call-card';
 import { ProposalCard } from './proposal-card';
+import { CompositionPreview } from './composition-preview';
 
 const MODEL_OPTIONS = [
   { key: 'claude-sonnet', label: 'Sonnet' },
@@ -143,8 +142,8 @@ export function ChatDrawer({ soulData, soulLoaded }: ChatDrawerProps) {
         </select>
       </div>
 
-      {/* System Prompt Preview */}
-      <SystemPromptPreview
+      {/* Composition Preview */}
+      <CompositionPreview
         soulData={soulData}
         open={promptOpen}
         onToggle={() => setPromptOpen(!promptOpen)}
@@ -313,42 +312,6 @@ function MessageBubble({
           return null;
         })}
       </div>
-    </div>
-  );
-}
-
-function SystemPromptPreview({
-  soulData,
-  open,
-  onToggle,
-}: {
-  soulData: LuvSoulData;
-  open: boolean;
-  onToggle: () => void;
-}) {
-  const prompt = composeSoulSystemPrompt(soulData);
-  const tokenEstimate = Math.ceil(prompt.length / 4);
-
-  return (
-    <div className="border-b shrink-0">
-      <button
-        type="button"
-        onClick={onToggle}
-        className="flex items-center gap-1 w-full px-3 py-1.5 text-[10px] text-muted-foreground hover:text-foreground transition-colors"
-      >
-        <ChevronRight
-          className={cn('size-3 transition-transform', open && 'rotate-90')}
-        />
-        <span>System Prompt</span>
-        <span className="ml-auto tabular-nums">{tokenEstimate} tokens</span>
-      </button>
-      {open && (
-        <div className="px-3 pb-2 max-h-48 overflow-auto">
-          <pre className="text-[10px] text-muted-foreground whitespace-pre-wrap font-mono leading-relaxed">
-            {prompt}
-          </pre>
-        </div>
-      )}
     </div>
   );
 }
