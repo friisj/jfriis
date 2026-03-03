@@ -1,4 +1,3 @@
-import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { getTemplateThemes } from '@/lib/studio/arena/queries'
 import { ThemeEditor } from '@/components/studio/arena/theme-editor'
@@ -25,26 +24,13 @@ export default async function ThemeDetailPage({ params }: Props) {
   const platform = themes[0].platform
 
   return (
-    <div className="max-w-7xl mx-auto space-y-6">
-      <div>
-        <div className="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400 mb-1">
-          <Link href="/apps/arena/themes" className="hover:text-slate-700 dark:hover:text-slate-200">
-            Themes
-          </Link>
-          <span>/</span>
-        </div>
-        <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">{name}</h1>
-        <div className="flex items-center gap-3 mt-1 text-sm text-slate-500 dark:text-slate-400">
-          <span>{platform}</span>
-          <span>{themes.length} {themes.length === 1 ? 'dimension' : 'dimensions'}</span>
-        </div>
-      </div>
-
+    <div className="-m-6 flex flex-col h-[calc(100vh-3.5rem)]">
       <ThemeEditor
         initialTokens={initialTokens}
         themeName={name}
         scope={{ skillId, projectId }}
         platform={platform}
+        dimensionCount={themes.length}
       />
     </div>
   )

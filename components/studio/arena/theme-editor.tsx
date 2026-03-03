@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useCallback, useMemo } from 'react'
+import Link from 'next/link'
 import { OklchPicker } from '@/components/studio/oklch-picker'
 import {
   CanonicalCard,
@@ -25,6 +26,7 @@ interface ThemeEditorProps {
   /** Either skill_id or project_id — used to target upsertTheme correctly */
   scope: { skillId?: string; projectId?: string }
   platform: string
+  dimensionCount: number
 }
 
 type ExpandedPickers = Record<string, boolean>
@@ -69,7 +71,9 @@ function isLetterSpacingLabel(label: string) {
 
 // ─── Component ───────────────────────────────────────────────────────────────
 
-export function ThemeEditor({ initialTokens, themeName, scope, platform }: ThemeEditorProps) {
+type PreviewComponent = 'card' | 'form' | 'dashboard'
+
+export function ThemeEditor({ initialTokens, themeName, scope, platform, dimensionCount }: ThemeEditorProps) {
   const [tokens, setTokens] = useState<Record<string, TokenMap>>(initialTokens)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
@@ -77,6 +81,7 @@ export function ThemeEditor({ initialTokens, themeName, scope, platform }: Theme
   const [typeScaleOpen, setTypeScaleOpen] = useState(false)
   const [typeScaleBase, setTypeScaleBase] = useState(16)
   const [typeScaleRatio, setTypeScaleRatio] = useState(1.25)
+  const [activePreview, setActivePreview] = useState<PreviewComponent>('card')
 
   const { availableFonts, fontOverrides, handleFontChange, fontDisplay, fontBody, fontMono } = useArenaFonts()
 
@@ -437,104 +442,159 @@ export function ThemeEditor({ initialTokens, themeName, scope, platform }: Theme
 
   // ─── Render ─────────────────────────────────────────────────────────────
 
+  const PREVIEW_TABS: { key: PreviewComponent; label: string }[] = [
+    { key: 'card', label: 'Card' },
+    { key: 'form', label: 'Form' },
+    { key: 'dashboard', label: 'Dashboard' },
+  ]
+
   return (
-    <div className="flex gap-6 items-start">
-      {/* LEFT: Editor */}
-      <div className="w-[400px] shrink-0 space-y-6 overflow-y-auto max-h-[calc(100vh-160px)] pr-2">
-        {/* Color */}
-        <section>
-          <h2 className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-3">Color</h2>
-          <div className="space-y-3">
-            {COLOR_LABELS.map(label => renderColorRow(label))}
-          </div>
-        </section>
+    <>
+    {/* Header bar */}
+    <div className="flex items-center gap-3 px-4 py-2 border-b border-slate-200 dark:border-slate-700 shrink-0">
+      <div className="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400">
+        <Link href="/apps/arena/themes" className="hover:text-slate-700 dark:hover:text-slate-200">
+          Themes
+        </Link>
+        <span>/</span>
+        <span className="font-medium text-slate-900 dark:text-slate-100">{themeName}</span>
+      </div>
+      <span className="text-xs text-slate-400">{platform}</span>
+      <span className="text-xs text-slate-400">{dimensionCount} {dimensionCount === 1 ? 'dimension' : 'dimensions'}</span>
+      <div className="ml-auto flex items-center gap-1">
+        {PREVIEW_TABS.map(tab => (
+          <button
+            key={tab.key}
+            type="button"
+            onClick={() => setActivePreview(tab.key)}
+            className={`px-2.5 py-1 text-xs font-medium rounded-md transition-colors ${
+              activePreview === tab.key
+                ? 'bg-slate-100 dark:bg-slate-700 text-slate-900 dark:text-slate-100'
+                : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
+            }`}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+    </div>
 
-        {/* Typography */}
-        <section>
-          <h2 className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-3">Typography</h2>
-          {/* Type Scale Generator */}
-          <div className="mb-3">
-            <button
-              type="button"
-              onClick={() => setTypeScaleOpen(o => !o)}
-              className="flex items-center gap-1.5 text-xs font-medium text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors"
-            >
-              <span className="text-[10px]">{typeScaleOpen ? '\u25BC' : '\u25B6'}</span>
-              Type Scale Generator
-            </button>
-            {typeScaleOpen && (
-              <div className="mt-2 p-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 space-y-2">
-                <div className="flex items-center gap-2">
-                  <label className="text-xs font-medium text-slate-600 dark:text-slate-400 w-16 shrink-0">Base</label>
-                  <input
-                    type="number"
-                    min={10}
-                    max={24}
-                    step={1}
-                    value={typeScaleBase}
-                    onChange={(ev) => setTypeScaleBase(Number(ev.target.value) || 16)}
-                    className="w-16 text-xs font-mono px-2 py-1 rounded border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200"
-                  />
-                  <span className="text-xs text-slate-400">px</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <label className="text-xs font-medium text-slate-600 dark:text-slate-400 w-16 shrink-0">Ratio</label>
-                  <select
-                    value={typeScaleRatio}
-                    onChange={(ev) => setTypeScaleRatio(Number(ev.target.value))}
-                    className="flex-1 text-xs px-2 py-1 rounded border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200"
-                  >
-                    {TYPE_SCALE_RATIOS.map(r => (
-                      <option key={r.value} value={r.value}>{r.label} ({r.value})</option>
-                    ))}
-                  </select>
-                </div>
-                <div className="flex items-center justify-between pt-1">
-                  <span className="text-[10px] text-slate-400">
-                    {Math.round(typeScaleBase / typeScaleRatio)}px / {typeScaleBase}px / {Math.round(typeScaleBase * typeScaleRatio * typeScaleRatio)}px
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => applyTypeScale(typeScaleBase, typeScaleRatio)}
-                    className="text-xs font-medium text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
-                  >
-                    Apply
-                  </button>
-                </div>
+    <div className="flex flex-1 min-h-0">
+      {/* LEFT: Sidebar */}
+      <div className="w-[340px] shrink-0 flex flex-col border-r border-slate-200 dark:border-slate-700">
+        <div className="flex-1 overflow-y-auto p-4 space-y-1">
+          {/* Color */}
+          <details open className="group">
+            <summary className="flex items-center gap-1.5 cursor-pointer select-none py-2 text-sm font-semibold text-slate-700 dark:text-slate-300 [&::-webkit-details-marker]:hidden">
+              <span className="text-[10px] text-slate-400 transition-transform group-open:rotate-90">&#x25B6;</span>
+              Color
+            </summary>
+            <div className="space-y-3 pb-4">
+              {COLOR_LABELS.map(label => renderColorRow(label))}
+            </div>
+          </details>
+
+          {/* Typography */}
+          <details open className="group">
+            <summary className="flex items-center gap-1.5 cursor-pointer select-none py-2 text-sm font-semibold text-slate-700 dark:text-slate-300 [&::-webkit-details-marker]:hidden">
+              <span className="text-[10px] text-slate-400 transition-transform group-open:rotate-90">&#x25B6;</span>
+              Typography
+            </summary>
+            <div className="pb-4">
+              {/* Type Scale Generator */}
+              <div className="mb-3">
+                <button
+                  type="button"
+                  onClick={() => setTypeScaleOpen(o => !o)}
+                  className="flex items-center gap-1.5 text-xs font-medium text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors"
+                >
+                  <span className="text-[10px]">{typeScaleOpen ? '\u25BC' : '\u25B6'}</span>
+                  Type Scale Generator
+                </button>
+                {typeScaleOpen && (
+                  <div className="mt-2 p-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 space-y-2">
+                    <div className="flex items-center gap-2">
+                      <label className="text-xs font-medium text-slate-600 dark:text-slate-400 w-16 shrink-0">Base</label>
+                      <input
+                        type="number"
+                        min={10}
+                        max={24}
+                        step={1}
+                        value={typeScaleBase}
+                        onChange={(ev) => setTypeScaleBase(Number(ev.target.value) || 16)}
+                        className="w-16 text-xs font-mono px-2 py-1 rounded border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200"
+                      />
+                      <span className="text-xs text-slate-400">px</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <label className="text-xs font-medium text-slate-600 dark:text-slate-400 w-16 shrink-0">Ratio</label>
+                      <select
+                        value={typeScaleRatio}
+                        onChange={(ev) => setTypeScaleRatio(Number(ev.target.value))}
+                        className="flex-1 text-xs px-2 py-1 rounded border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200"
+                      >
+                        {TYPE_SCALE_RATIOS.map(r => (
+                          <option key={r.value} value={r.value}>{r.label} ({r.value})</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="flex items-center justify-between pt-1">
+                      <span className="text-[10px] text-slate-400">
+                        {Math.round(typeScaleBase / typeScaleRatio)}px / {typeScaleBase}px / {Math.round(typeScaleBase * typeScaleRatio * typeScaleRatio)}px
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => applyTypeScale(typeScaleBase, typeScaleRatio)}
+                        className="text-xs font-medium text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
+                      >
+                        Apply
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
-            )}
-          </div>
-          <div className="space-y-3">
-            {TYPOGRAPHY_LABELS.map(label => renderTypographyRow(label))}
-          </div>
-        </section>
+              <div className="space-y-3">
+                {TYPOGRAPHY_LABELS.map(label => renderTypographyRow(label))}
+              </div>
+            </div>
+          </details>
 
-        {/* Spacing */}
-        <section>
-          <h2 className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-3">Spacing</h2>
-          <div className="space-y-3">
-            {SPACING_LABELS.map(label => renderSpacingRow(label))}
-          </div>
-        </section>
+          {/* Spacing */}
+          <details open className="group">
+            <summary className="flex items-center gap-1.5 cursor-pointer select-none py-2 text-sm font-semibold text-slate-700 dark:text-slate-300 [&::-webkit-details-marker]:hidden">
+              <span className="text-[10px] text-slate-400 transition-transform group-open:rotate-90">&#x25B6;</span>
+              Spacing
+            </summary>
+            <div className="space-y-3 pb-4">
+              {SPACING_LABELS.map(label => renderSpacingRow(label))}
+            </div>
+          </details>
 
-        {/* Elevation */}
-        <section>
-          <h2 className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-3">Elevation</h2>
-          <div className="space-y-3">
-            {ELEVATION_LABELS.map(label => renderElevationRow(label))}
-          </div>
-        </section>
+          {/* Elevation */}
+          <details open className="group">
+            <summary className="flex items-center gap-1.5 cursor-pointer select-none py-2 text-sm font-semibold text-slate-700 dark:text-slate-300 [&::-webkit-details-marker]:hidden">
+              <span className="text-[10px] text-slate-400 transition-transform group-open:rotate-90">&#x25B6;</span>
+              Elevation
+            </summary>
+            <div className="space-y-3 pb-4">
+              {ELEVATION_LABELS.map(label => renderElevationRow(label))}
+            </div>
+          </details>
 
-        {/* Radius */}
-        <section>
-          <h2 className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-3">Radius</h2>
-          <div className="space-y-3">
-            {RADIUS_LABELS.map(label => renderRadiusRow(label))}
-          </div>
-        </section>
+          {/* Radius */}
+          <details open className="group">
+            <summary className="flex items-center gap-1.5 cursor-pointer select-none py-2 text-sm font-semibold text-slate-700 dark:text-slate-300 [&::-webkit-details-marker]:hidden">
+              <span className="text-[10px] text-slate-400 transition-transform group-open:rotate-90">&#x25B6;</span>
+              Radius
+            </summary>
+            <div className="space-y-3 pb-4">
+              {RADIUS_LABELS.map(label => renderRadiusRow(label))}
+            </div>
+          </details>
+        </div>
 
-        {/* Save */}
-        <div className="sticky bottom-0 bg-white dark:bg-slate-950 pt-3 pb-1 border-t border-slate-200 dark:border-slate-700">
+        {/* Pinned save bar */}
+        <div className="shrink-0 p-3 border-t border-slate-200 dark:border-slate-700">
           <button
             onClick={handleSave}
             disabled={saving}
@@ -545,31 +605,39 @@ export function ThemeEditor({ initialTokens, themeName, scope, platform }: Theme
         </div>
       </div>
 
-      {/* RIGHT: Live Preview */}
-      <div className="flex-1 min-w-0 sticky top-4">
-        <h2 className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-3">Preview</h2>
-        <div className="space-y-4 p-4 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/30">
-          <CanonicalCard
-            skill={previewSkill}
-            theme={previewTheme}
-            label="Card"
-            fontOverrides={fontOverrides}
-          />
-          <CanonicalForm
-            skill={previewSkill}
-            theme={previewTheme}
-            label="Form"
-            fontOverrides={fontOverrides}
-          />
-          <CanonicalDashboard
-            skill={previewSkill}
-            theme={previewTheme}
-            label="Dashboard"
-            fontOverrides={fontOverrides}
-          />
+      {/* RIGHT: Canvas */}
+      <div className="flex-1 flex flex-col min-w-0">
+        <div className="flex-1 flex items-center justify-center bg-slate-100 dark:bg-slate-900 overflow-auto p-8">
+          <div className={activePreview === 'dashboard' ? 'w-full max-w-2xl' : 'w-full max-w-lg'}>
+            {activePreview === 'card' && (
+              <CanonicalCard
+                skill={previewSkill}
+                theme={previewTheme}
+                label="Card"
+                fontOverrides={fontOverrides}
+              />
+            )}
+            {activePreview === 'form' && (
+              <CanonicalForm
+                skill={previewSkill}
+                theme={previewTheme}
+                label="Form"
+                fontOverrides={fontOverrides}
+              />
+            )}
+            {activePreview === 'dashboard' && (
+              <CanonicalDashboard
+                skill={previewSkill}
+                theme={previewTheme}
+                label="Dashboard"
+                fontOverrides={fontOverrides}
+              />
+            )}
+          </div>
         </div>
       </div>
     </div>
+    </>
   )
 }
 
