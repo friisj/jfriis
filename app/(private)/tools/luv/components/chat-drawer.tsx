@@ -9,6 +9,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { ChevronDown } from 'lucide-react';
 import { createLuvConversation, createLuvMessage } from '@/lib/luv';
 import type { LuvSoulData } from '@/lib/types/luv';
+import { ToolCallCard } from './tool-call-card';
+import { ProposalCard } from './proposal-card';
 
 const MODEL_OPTIONS = [
   { key: 'claude-sonnet', label: 'Sonnet' },
@@ -17,6 +19,13 @@ const MODEL_OPTIONS = [
   { key: 'gpt-4o', label: 'GPT-4o' },
   { key: 'gemini-flash', label: 'Gemini' },
 ];
+
+const READ_TOOLS = new Set([
+  'read_soul',
+  'read_chassis',
+  'list_references',
+  'list_prompt_templates',
+]);
 
 interface ChatDrawerProps {
   soulData: LuvSoulData;
@@ -141,32 +150,14 @@ export function ChatDrawer({ soulData, soulLoaded }: ChatDrawerProps) {
             Chat with Luv while you work.
           </p>
         )}
-        {messages.map((msg) => {
-          const text = getMessageText(msg);
-          if (!text && msg.role !== 'assistant') return null;
-
-          return (
-            <div
-              key={msg.id}
-              className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
-            >
-              <div
-                className={`max-w-[85%] rounded-lg px-3 py-2 text-xs whitespace-pre-wrap ${
-                  msg.role === 'user'
-                    ? 'bg-primary text-primary-foreground'
-                    : 'bg-muted'
-                }`}
-              >
-                {text}
-                {isActive &&
-                  msg.id === messages[messages.length - 1]?.id &&
-                  msg.role === 'assistant' && (
-                    <span className="inline-block w-1 h-3 bg-current animate-pulse ml-0.5" />
-                  )}
-              </div>
-            </div>
-          );
-        })}
+        {messages.map((msg) => (
+          <MessageBubble
+            key={msg.id}
+            message={msg}
+            isLast={msg.id === messages[messages.length - 1]?.id}
+            isActive={isActive}
+          />
+        ))}
         <div ref={messagesEndRef} />
       </div>
 
@@ -217,6 +208,96 @@ export function ChatDrawer({ soulData, soulLoaded }: ChatDrawerProps) {
             </Button>
           </div>
         )}
+      </div>
+    </div>
+  );
+}
+
+function MessageBubble({
+  message,
+  isLast,
+  isActive,
+}: {
+  message: UIMessage;
+  isLast: boolean;
+  isActive: boolean;
+}) {
+  if (message.role === 'user') {
+    const text = getMessageText(message);
+    return (
+      <div className="flex justify-end">
+        <div className="max-w-[85%] rounded-lg px-3 py-2 text-xs whitespace-pre-wrap bg-primary text-primary-foreground">
+          {text}
+        </div>
+      </div>
+    );
+  }
+
+  // Assistant message — render parts
+  return (
+    <div className="flex justify-start">
+      <div className="max-w-[85%] space-y-1">
+        {message.parts.map((part, i) => {
+          if (part.type === 'text' && part.text) {
+            return (
+              <div
+                key={i}
+                className="rounded-lg px-3 py-2 text-xs whitespace-pre-wrap bg-muted"
+              >
+                {part.text}
+                {isActive && isLast && i === message.parts.length - 1 && (
+                  <span className="inline-block w-1 h-3 bg-current animate-pulse ml-0.5" />
+                )}
+              </div>
+            );
+          }
+
+          if (part.type === 'dynamic-tool') {
+            const toolName = part.toolName;
+            const output =
+              'output' in part ? part.output : undefined;
+
+            // Check if output is a proposal
+            if (
+              output &&
+              typeof output === 'object' &&
+              'type' in (output as Record<string, unknown>) &&
+              ((output as Record<string, unknown>).type === 'soul_change_proposal' ||
+                (output as Record<string, unknown>).type === 'chassis_change_proposal')
+            ) {
+              return (
+                <ProposalCard
+                  key={part.toolCallId}
+                  proposal={output as Parameters<typeof ProposalCard>[0]['proposal']}
+                />
+              );
+            }
+
+            // Read tool
+            if (READ_TOOLS.has(toolName)) {
+              return (
+                <ToolCallCard
+                  key={part.toolCallId}
+                  toolName={toolName}
+                  state={part.state}
+                  result={output}
+                />
+              );
+            }
+
+            // Fallback
+            return (
+              <ToolCallCard
+                key={part.toolCallId}
+                toolName={toolName}
+                state={part.state}
+                result={output}
+              />
+            );
+          }
+
+          return null;
+        })}
       </div>
     </div>
   );
