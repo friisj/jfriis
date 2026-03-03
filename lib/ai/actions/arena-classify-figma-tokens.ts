@@ -10,6 +10,7 @@ import { z } from 'zod'
 import { registerAction } from './index'
 import type { Action } from './types'
 import { DECISION_LABELS } from '@/lib/studio/arena/types'
+import { clusterColors } from '@/lib/studio/arena/figma-extractor'
 
 // --- Schemas ---
 
@@ -26,11 +27,23 @@ const extractedFontSchema = z.object({
   weight: z.number(),
   count: z.number(),
   nodeNames: z.array(z.string()),
+  lineHeightPx: z.number().optional(),
+  letterSpacing: z.number().optional(),
 })
 
 const extractedSpacingSchema = z.object({
   type: z.enum(['padding', 'gap', 'corner-radius']),
   value: z.number(),
+  count: z.number(),
+})
+
+const extractedShadowSchema = z.object({
+  type: z.enum(['drop', 'inner']),
+  offsetX: z.number(),
+  offsetY: z.number(),
+  blurRadius: z.number(),
+  spreadRadius: z.number(),
+  color: z.string(),
   count: z.number(),
 })
 
@@ -69,8 +82,14 @@ const inputSchema = z.object({
   colors: z.array(extractedColorSchema),
   fonts: z.array(extractedFontSchema),
   spacing: z.array(extractedSpacingSchema),
+  shadows: z.array(extractedShadowSchema).optional(),
   frameNames: z.array(z.string()),
   rootBackgrounds: z.array(z.string()).optional(),
+  fontOverrides: z.object({
+    display: z.string().optional(),
+    body: z.string().optional(),
+    mono: z.string().optional(),
+  }).optional(),
 })
 
 type ClassifyInput = z.infer<typeof inputSchema>
@@ -121,19 +140,30 @@ ${DECISION_LABELS.spacing.map(l => `- "${l}"`).join('\n')}
 - Accent: a secondary saturated color, or if only one saturated color exists, a tonal variation
 
 ### Fonts
-- The most common font family at larger sizes → Display Font
-- The most common font family at body sizes → Body Font
-- Monospace fonts → Mono Font (if none found, use "ui-monospace, monospace")
+Font families (Display Font, Body Font, Mono Font) are pre-determined by the user and provided as overrides. Do NOT classify font families from extraction data — only classify sizes, weights, line heights, and letter spacing.
+
 - Largest common size → Heading Size (use exact value with "px" suffix)
 - Most frequent mid-range size → Body Size (use exact value with "px" suffix)
 - Smallest common size → Small Size (use exact value with "px" suffix)
 - Weight at heading sizes → Heading Weight (number as string, e.g. "600")
 - Weight at body sizes → Body Weight (number as string, e.g. "400")
+- Line height at body sizes → Line Height (e.g. "1.5")
+- Line height at heading sizes → Heading Line Height (e.g. "1.2")
+- Letter spacing at body sizes → Letter Spacing (e.g. "0px")
+- Letter spacing at headings → Heading Letter Spacing (e.g. "-0.5px")
 
 ### Spacing
 - Most frequent padding value → Padding (use exact value with "px" suffix)
 - Most frequent gap value → Gap (use exact value with "px" suffix)
 - Most frequent corner-radius → Border Radius (use exact value with "px" suffix)
+
+### Elevation (from shadow data)
+If shadow data is provided, classify elevation levels:
+- No shadow or very subtle → None (value: "none")
+- Small offsets, low blur (1-4px) → Low (value: CSS box-shadow, e.g. "0 1px 3px rgba(0,0,0,0.1)")
+- Medium offsets, moderate blur (4-12px) → Medium (value: CSS box-shadow)
+- Large offsets, high blur (12px+) → High (value: CSS box-shadow)
+If no shadows are provided, omit the elevation dimension entirely.
 
 ## Value Format
 
@@ -175,32 +205,54 @@ The "intent" field describes the design philosophy for each token role (1-2 sent
 The "theme_tokens" object contains the exact extracted values per dimension.`
 
 function buildMessages(input: ClassifyInput) {
-  const colorSummary = input.colors.slice(0, 20).map(c =>
+  const clustered = clusterColors(input.colors)
+  const colorSummary = clustered.slice(0, 20).map(c =>
     `${c.hex} (${c.usage}, ${c.count}x, nodes: ${c.nodeNames.slice(0, 3).join(', ')}${c.nodeNames.length > 3 ? '...' : ''})`
   ).join('\n')
 
-  const fontSummary = input.fonts.slice(0, 15).map(f =>
-    `${f.family} ${f.size}px w${f.weight} (${f.count}x, nodes: ${f.nodeNames.slice(0, 3).join(', ')}${f.nodeNames.length > 3 ? '...' : ''})`
-  ).join('\n')
+  const fontSummary = input.fonts.slice(0, 15).map(f => {
+    let line = `${f.size}px w${f.weight}`
+    if (f.lineHeightPx) line += ` lh:${f.lineHeightPx}px`
+    if (f.letterSpacing) line += ` ls:${f.letterSpacing}px`
+    line += ` (${f.count}x, nodes: ${f.nodeNames.slice(0, 3).join(', ')}${f.nodeNames.length > 3 ? '...' : ''})`
+    return line
+  }).join('\n')
 
   const spacingSummary = input.spacing.slice(0, 15).map(s =>
     `${s.type}: ${s.value}px (${s.count}x)`
   ).join('\n')
 
+  const shadowSummary = input.shadows?.slice(0, 10).map(s =>
+    `${s.type}: offset(${s.offsetX},${s.offsetY}) blur:${s.blurRadius}px spread:${s.spreadRadius}px ${s.color} (${s.count}x)`
+  ).join('\n') ?? ''
+
   const rootBgSection = input.rootBackgrounds && input.rootBackgrounds.length > 0
     ? `\n## Root Frame Backgrounds (STRONGEST signal for Background color)\n${input.rootBackgrounds.join(', ')}\n`
     : ''
 
+  const fontOverridesSection = input.fontOverrides
+    ? `\n## Font Overrides (pre-determined by user — do NOT override these)\n${
+        [
+          input.fontOverrides.display && `Display Font: ${input.fontOverrides.display}`,
+          input.fontOverrides.body && `Body Font: ${input.fontOverrides.body}`,
+          input.fontOverrides.mono && `Mono Font: ${input.fontOverrides.mono}`,
+        ].filter(Boolean).join('\n')
+      }\n`
+    : ''
+
   const text = `Classify these exact Figma design tokens into semantic roles.
-${rootBgSection}
-## Extracted Colors (${input.colors.length} unique)
+${rootBgSection}${fontOverridesSection}
+## Extracted Colors (${clustered.length} unique, clustered from ${input.colors.length})
 ${colorSummary || 'None found'}
 
-## Extracted Fonts (${input.fonts.length} unique)
+## Extracted Font Styles (${input.fonts.length} unique — sizes/weights only, families pre-determined)
 ${fontSummary || 'None found'}
 
 ## Extracted Spacing (${input.spacing.length} unique)
 ${spacingSummary || 'None found'}
+
+## Extracted Shadows (${input.shadows?.length ?? 0})
+${shadowSummary || 'None found'}
 
 ## Frame Names
 ${input.frameNames.join(', ') || 'None'}
@@ -221,7 +273,7 @@ const arenaClassifyFigmaTokensAction: Action<ClassifyInput, ClassifyOutput> = {
   description: 'Classify extracted Figma tokens into semantic design roles',
   entityTypes: ['studio_experiment'],
   taskType: 'classification',
-  model: 'claude-haiku',
+  model: 'claude-sonnet',
   inputSchema,
   outputSchema,
   buildPrompt: () => ({ system: '', user: '' }),

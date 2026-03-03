@@ -103,6 +103,42 @@ export function oklchToHex(l: number, c: number, h: number): string {
   return `#${toHex(r)}${toHex(g)}${toHex(b)}`
 }
 
+/** Oklab color (perceptually uniform, Cartesian — no hue wrapping) */
+export interface OklabColor {
+  L: number  // 0–1
+  a: number
+  b: number
+}
+
+/** Convert a hex color string to Oklab {L, a, b} */
+export function hexToOklab(hex: string): OklabColor {
+  const [r, g, b] = hexToRgb(hex)
+  const lr = srgbToLinear(r)
+  const lg = srgbToLinear(g)
+  const lb = srgbToLinear(b)
+
+  const l_ = 0.4122214708 * lr + 0.5363325363 * lg + 0.0514459929 * lb
+  const m_ = 0.2119034982 * lr + 0.6806995451 * lg + 0.1073969566 * lb
+  const s_ = 0.0883024619 * lr + 0.2220049174 * lg + 0.6696926158 * lb
+
+  const l3 = Math.cbrt(l_)
+  const m3 = Math.cbrt(m_)
+  const s3 = Math.cbrt(s_)
+
+  return {
+    L: 0.2104542553 * l3 + 0.7936177850 * m3 - 0.0040720468 * s3,
+    a: 1.9779984951 * l3 - 2.4285922050 * m3 + 0.4505937099 * s3,
+    b: 0.0259040371 * l3 + 0.7827717662 * m3 - 0.8086757660 * s3,
+  }
+}
+
+/** Euclidean distance between two hex colors in Oklab space (perceptually uniform) */
+export function oklabDistance(hex1: string, hex2: string): number {
+  const a = hexToOklab(hex1)
+  const b = hexToOklab(hex2)
+  return Math.sqrt((a.L - b.L) ** 2 + (a.a - b.a) ** 2 + (a.b - b.b) ** 2)
+}
+
 /** Check if a string looks like a valid hex color */
 export function isHexColor(s: string): boolean {
   return /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(s)

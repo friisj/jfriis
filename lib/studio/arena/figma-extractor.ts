@@ -23,6 +23,8 @@ export interface ExtractedFont {
   weight: number
   count: number
   nodeNames: string[]
+  lineHeightPx?: number
+  letterSpacing?: number
 }
 
 export interface ExtractedSpacing {
@@ -31,10 +33,21 @@ export interface ExtractedSpacing {
   count: number
 }
 
+export interface ExtractedShadow {
+  type: 'drop' | 'inner'
+  offsetX: number
+  offsetY: number
+  blurRadius: number
+  spreadRadius: number
+  color: string // hex
+  count: number
+}
+
 export interface ExtractedTokens {
   colors: ExtractedColor[]
   fonts: ExtractedFont[]
   spacing: ExtractedSpacing[]
+  shadows: ExtractedShadow[]
   frameNames: string[]
   /** Fill colors from the root-level frame nodes — strong signal for Background */
   rootBackgrounds: string[]
@@ -57,6 +70,15 @@ interface FigmaPaint {
   visible?: boolean
 }
 
+interface FigmaEffect {
+  type: string // 'DROP_SHADOW' | 'INNER_SHADOW' | 'LAYER_BLUR' | 'BACKGROUND_BLUR'
+  visible?: boolean
+  color?: FigmaColor
+  offset?: { x: number; y: number }
+  radius?: number
+  spread?: number
+}
+
 interface FigmaNode {
   id: string
   name: string
@@ -65,6 +87,8 @@ interface FigmaNode {
   // Paint properties
   fills?: FigmaPaint[]
   strokes?: FigmaPaint[]
+  // Effect properties
+  effects?: FigmaEffect[]
   // Text properties
   style?: {
     fontFamily?: string
@@ -73,6 +97,7 @@ interface FigmaNode {
     lineHeightPx?: number
     lineHeightPercent?: number
     lineHeightUnit?: string
+    letterSpacing?: number
   }
   // Layout properties (auto-layout frames)
   layoutMode?: string // 'HORIZONTAL' | 'VERTICAL' | 'NONE'
@@ -86,6 +111,8 @@ interface FigmaNode {
   cornerRadius?: number
   rectangleCornerRadii?: [number, number, number, number]
 }
+
+import { oklabDistance } from './color-utils'
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -110,8 +137,9 @@ function roundSpacing(value: number): number {
 
 interface Accumulators {
   colors: Map<string, { hex: string; count: number; nodeNames: Set<string>; usage: 'fill' | 'stroke' }>
-  fonts: Map<string, { family: string; size: number; weight: number; count: number; nodeNames: Set<string> }>
+  fonts: Map<string, { family: string; size: number; weight: number; count: number; nodeNames: Set<string>; lineHeightPx?: number; letterSpacing?: number }>
   spacing: Map<string, { type: ExtractedSpacing['type']; value: number; count: number }>
+  shadows: Map<string, ExtractedShadow>
   frameNames: Set<string>
   rootBackgrounds: string[]
 }
@@ -121,6 +149,7 @@ function createAccumulators(): Accumulators {
     colors: new Map(),
     fonts: new Map(),
     spacing: new Map(),
+    shadows: new Map(),
     frameNames: new Set(),
     rootBackgrounds: [],
   }
@@ -155,7 +184,7 @@ function extractPaints(
 function extractTextStyle(node: FigmaNode, acc: Accumulators) {
   if (node.type !== 'TEXT' || !node.style) return
 
-  const { fontFamily, fontSize, fontWeight } = node.style
+  const { fontFamily, fontSize, fontWeight, lineHeightPx, letterSpacing } = node.style
   if (!fontFamily || !fontSize) return
 
   const weight = fontWeight ?? 400
@@ -171,6 +200,8 @@ function extractTextStyle(node: FigmaNode, acc: Accumulators) {
       weight,
       count: 1,
       nodeNames: new Set([node.name]),
+      ...(lineHeightPx != null && lineHeightPx > 0 ? { lineHeightPx } : {}),
+      ...(letterSpacing != null && letterSpacing !== 0 ? { letterSpacing } : {}),
     })
   }
 }
@@ -249,6 +280,31 @@ function extractSpacing(node: FigmaNode, acc: Accumulators) {
   }
 }
 
+function extractShadows(node: FigmaNode, acc: Accumulators) {
+  if (!node.effects) return
+  for (const effect of node.effects) {
+    if (effect.visible === false) continue
+    const shadowType = effect.type === 'DROP_SHADOW' ? 'drop'
+      : effect.type === 'INNER_SHADOW' ? 'inner'
+      : null
+    if (!shadowType) continue
+
+    const offsetX = effect.offset?.x ?? 0
+    const offsetY = effect.offset?.y ?? 0
+    const blurRadius = effect.radius ?? 0
+    const spreadRadius = effect.spread ?? 0
+    const color = effect.color ? rgbaToHex(effect.color) : '#000000'
+
+    const key = `${shadowType}-${offsetX}-${offsetY}-${blurRadius}-${spreadRadius}-${color}`
+    const existing = acc.shadows.get(key)
+    if (existing) {
+      existing.count++
+    } else {
+      acc.shadows.set(key, { type: shadowType, offsetX, offsetY, blurRadius, spreadRadius, color, count: 1 })
+    }
+  }
+}
+
 function walkNode(node: FigmaNode, acc: Accumulators) {
   // Track top-level frame names
   if (node.type === 'FRAME' || node.type === 'COMPONENT' || node.type === 'INSTANCE') {
@@ -259,12 +315,52 @@ function walkNode(node: FigmaNode, acc: Accumulators) {
   extractPaints(node.strokes, 'stroke', node.name, acc)
   extractTextStyle(node, acc)
   extractSpacing(node, acc)
+  extractShadows(node, acc)
 
   if (node.children) {
     for (const child of node.children) {
       walkNode(child, acc)
     }
   }
+}
+
+// ---------------------------------------------------------------------------
+// Color clustering
+// ---------------------------------------------------------------------------
+
+/**
+ * Cluster near-duplicate colors in Oklab perceptual space.
+ * Greedy: sorted by count desc, merge if within threshold AND same usage.
+ * Merged entries sum counts and union nodeNames.
+ */
+export function clusterColors(
+  colors: ExtractedColor[],
+  threshold = 0.03,
+): ExtractedColor[] {
+  const sorted = [...colors].sort((a, b) => b.count - a.count)
+  const clusters: ExtractedColor[] = []
+
+  for (const color of sorted) {
+    let merged = false
+    for (const cluster of clusters) {
+      if (cluster.usage !== color.usage) continue
+      if (oklabDistance(cluster.hex, color.hex) < threshold) {
+        cluster.count += color.count
+        for (const name of color.nodeNames) {
+          if (!cluster.nodeNames.includes(name)) {
+            cluster.nodeNames.push(name)
+          }
+        }
+        merged = true
+        break
+      }
+    }
+    if (!merged) {
+      clusters.push({ ...color, nodeNames: [...color.nodeNames] })
+    }
+  }
+
+  return clusters
 }
 
 // ---------------------------------------------------------------------------
@@ -299,15 +395,23 @@ export function extractTokens(nodes: Array<{ data: object }>): ExtractedTokens {
     .sort((a, b) => b.count - a.count)
 
   const fonts: ExtractedFont[] = Array.from(acc.fonts.values())
-    .map(f => ({ family: f.family, size: f.size, weight: f.weight, count: f.count, nodeNames: Array.from(f.nodeNames) }))
+    .map(f => ({
+      family: f.family, size: f.size, weight: f.weight, count: f.count,
+      nodeNames: Array.from(f.nodeNames),
+      ...(f.lineHeightPx != null ? { lineHeightPx: f.lineHeightPx } : {}),
+      ...(f.letterSpacing != null ? { letterSpacing: f.letterSpacing } : {}),
+    }))
     .sort((a, b) => b.count - a.count)
 
   const spacing: ExtractedSpacing[] = Array.from(acc.spacing.values())
+    .sort((a, b) => b.count - a.count)
+
+  const shadows: ExtractedShadow[] = Array.from(acc.shadows.values())
     .sort((a, b) => b.count - a.count)
 
   const frameNames = Array.from(acc.frameNames)
   // Deduplicate root backgrounds preserving order
   const rootBackgrounds = [...new Set(acc.rootBackgrounds)]
 
-  return { colors, fonts, spacing, frameNames, rootBackgrounds }
+  return { colors, fonts, spacing, shadows, frameNames, rootBackgrounds }
 }

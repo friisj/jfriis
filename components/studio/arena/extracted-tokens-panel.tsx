@@ -19,7 +19,7 @@ export function ExtractedTokensPanel({ tokens }: ExtractedTokensPanelProps) {
         <div>
           <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">Raw Extracted Data</h3>
           <p className="text-xs text-gray-400 mt-0.5">
-            {tokens.colors.length} colors, {tokens.fonts.length} fonts, {tokens.spacing.length} spacing values
+            {tokens.colors.length} colors, {tokens.fonts.length} fonts, {tokens.spacing.length} spacing, {tokens.shadows?.length ?? 0} shadows
           </p>
         </div>
         <svg
@@ -57,6 +57,8 @@ export function ExtractedTokensPanel({ tokens }: ExtractedTokensPanelProps) {
                 <div key={i} className="flex items-center gap-2 text-xs">
                   <code className="text-[10px] bg-gray-100 dark:bg-gray-800 px-1 rounded">
                     {f.family} {f.size}px w{f.weight}
+                    {f.lineHeightPx ? ` lh:${f.lineHeightPx}px` : ''}
+                    {f.letterSpacing ? ` ls:${f.letterSpacing}px` : ''}
                   </code>
                   <span className="text-gray-400">({f.count}x)</span>
                 </div>
@@ -76,6 +78,26 @@ export function ExtractedTokensPanel({ tokens }: ExtractedTokensPanelProps) {
               ))}
             </div>
           </div>
+
+          {tokens.shadows && tokens.shadows.length > 0 && (
+            <div>
+              <h4 className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-2">Shadows ({tokens.shadows.length})</h4>
+              <div className="space-y-1">
+                {tokens.shadows.slice(0, 8).map((s, i) => (
+                  <div key={i} className="flex items-center gap-2 text-xs">
+                    <code className="text-[10px] bg-gray-100 dark:bg-gray-800 px-1 rounded">
+                      {s.type}: {s.offsetX},{s.offsetY} blur:{s.blurRadius} spread:{s.spreadRadius}
+                    </code>
+                    <div
+                      className="w-3 h-3 rounded border border-gray-200 dark:border-gray-700 flex-shrink-0"
+                      style={{ backgroundColor: s.color }}
+                    />
+                    <span className="text-gray-400">({s.count}x)</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {tokens.frameNames.length > 0 && (
             <div>

@@ -12,7 +12,10 @@ import { ExtractedTokensPanel } from './extracted-tokens-panel'
 import { CanonicalCard } from '@/components/studio/prototypes/arena/shared/canonical-components'
 import { saveThemeFromFigma } from '@/app/actions/arena'
 
-type Phase = 'input' | 'extracting' | 'review' | 'saved'
+import type { VerifyOutput } from '@/lib/ai/actions/arena-verify-theme-classification'
+
+type ReferenceImage = { dataUrl: string; label?: string }
+type Phase = 'input' | 'extracting' | 'review' | 'verifying' | 'saved'
 
 export function ThemeFromFigmaFlow() {
   const router = useRouter()
@@ -26,6 +29,9 @@ export function ThemeFromFigmaFlow() {
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const [savedName, setSavedName] = useState<string | null>(null)
+  const [referenceImages, setReferenceImages] = useState<ReferenceImage[]>([])
+  const [verifying, setVerifying] = useState(false)
+  const [verificationResult, setVerificationResult] = useState<VerifyOutput | null>(null)
 
   const { parsedUrls, validUrls } = useFigmaUrls(urlText)
   const { availableFonts, fontDisplay, fontBody, fontMono, fontOverrides, handleFontChange } = useArenaFonts()
@@ -73,8 +79,10 @@ export function ThemeFromFigmaFlow() {
             colors: tokens.colors,
             fonts: tokens.fonts,
             spacing: tokens.spacing,
+            shadows: tokens.shadows,
             frameNames: tokens.frameNames,
             rootBackgrounds: tokens.rootBackgrounds,
+            fontOverrides,
           },
         }),
       })
@@ -83,8 +91,19 @@ export function ThemeFromFigmaFlow() {
         throw new Error(classifyData.error?.message ?? 'Classification failed')
       }
 
-      const result = classifyData.data as SkillState & { summary: string }
-      const { summary: _summary, ...skillDims } = result
+      const result = classifyData.data as SkillState & { summary: string; theme_tokens?: Record<string, Record<string, string>> }
+      const { summary: _summary, theme_tokens, ...skillDims } = result
+
+      // Inject user-selected font families into theme_tokens
+      if (theme_tokens?.typography && fontOverrides) {
+        if (fontOverrides.display) theme_tokens.typography['Display Font'] = fontOverrides.display
+        if (fontOverrides.body) theme_tokens.typography['Body Font'] = fontOverrides.body
+        if (fontOverrides.mono) theme_tokens.typography['Mono Font'] = fontOverrides.mono
+      }
+      if (theme_tokens) {
+        (skillDims as Record<string, unknown>).theme_tokens = theme_tokens
+      }
+
       setClassifiedSkill(skillDims)
       setSummary(result.summary)
 
@@ -103,7 +122,7 @@ export function ThemeFromFigmaFlow() {
     } finally {
       setProgress('')
     }
-  }, [validUrls])
+  }, [validUrls, fontOverrides])
 
   const handleSave = useCallback(async () => {
     const name = themeName.trim()
@@ -135,7 +154,56 @@ export function ThemeFromFigmaFlow() {
     setError(null)
     setProgress('')
     setSavedName(null)
+    setReferenceImages([])
+    setVerificationResult(null)
   }, [])
+
+  const handleImageUpload = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files
+    if (!files) return
+    const remaining = 3 - referenceImages.length
+    const toProcess = Array.from(files).slice(0, remaining)
+    for (const file of toProcess) {
+      if (!file.type.startsWith('image/')) continue
+      const reader = new FileReader()
+      reader.onload = () => {
+        setReferenceImages(prev => {
+          if (prev.length >= 3) return prev
+          return [...prev, { dataUrl: reader.result as string, label: file.name }]
+        })
+      }
+      reader.readAsDataURL(file)
+    }
+    e.target.value = ''
+  }, [referenceImages.length])
+
+  const handleVerify = useCallback(async () => {
+    const themeTokens = (classifiedSkill as Record<string, unknown>).theme_tokens as Record<string, Record<string, string>> | undefined
+    if (!themeTokens || referenceImages.length === 0) return
+
+    setVerifying(true)
+    setPhase('verifying')
+    setError(null)
+    try {
+      const res = await fetch('/api/ai/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'arena-verify-theme-classification',
+          input: { themeTokens, summary, images: referenceImages },
+        }),
+      })
+      const data = await res.json()
+      if (!data.success || !data.data) {
+        throw new Error(data.error?.message ?? 'Verification failed')
+      }
+      setVerificationResult(data.data as VerifyOutput)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Verification failed')
+    } finally {
+      setVerifying(false)
+    }
+  }, [classifiedSkill, referenceImages, summary])
 
   // ---- Input phase ----
   if (phase === 'input') {
@@ -173,6 +241,46 @@ export function ThemeFromFigmaFlow() {
           />
         </div>
 
+        <div className="space-y-2">
+          <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">
+            Reference Screenshots (optional, max 3)
+          </label>
+          <p className="text-xs text-slate-400">Upload design screenshots to verify classification accuracy after extraction.</p>
+          <div className="flex items-center gap-3">
+            <label className="px-4 py-2 text-xs font-medium bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 rounded-lg cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors">
+              Choose Images
+              <input
+                type="file"
+                accept="image/*"
+                multiple
+                onChange={handleImageUpload}
+                className="hidden"
+                disabled={referenceImages.length >= 3}
+              />
+            </label>
+            {referenceImages.length > 0 && (
+              <div className="flex gap-2">
+                {referenceImages.map((img, i) => (
+                  <div key={i} className="relative group">
+                    <img
+                      src={img.dataUrl}
+                      alt={img.label ?? `Reference ${i + 1}`}
+                      className="w-12 h-12 object-cover rounded border border-slate-200 dark:border-slate-700"
+                    />
+                    <button
+                      onClick={() => setReferenceImages(prev => prev.filter((_, j) => j !== i))}
+                      className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white rounded-full text-[10px] leading-none flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                      aria-label={`Remove ${img.label ?? `image ${i + 1}`}`}
+                    >
+                      x
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
         {error && (
           <div className="bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800 rounded-xl p-4">
             <p className="text-sm text-red-700 dark:text-red-400">{error}</p>
@@ -207,8 +315,20 @@ export function ThemeFromFigmaFlow() {
     )
   }
 
-  // ---- Review phase ----
-  if (phase === 'review') {
+  // ---- Verifying phase ----
+  if (phase === 'verifying' && verifying) {
+    return (
+      <div className="max-w-4xl mx-auto">
+        <div className="flex flex-col items-center justify-center gap-4 py-20">
+          <div className="w-8 h-8 border-2 border-amber-600 border-t-transparent rounded-full animate-spin" />
+          <p className="text-sm text-slate-600 dark:text-slate-400">Verifying classification against reference images...</p>
+        </div>
+      </div>
+    )
+  }
+
+  // ---- Review phase (also handles post-verification) ----
+  if (phase === 'review' || phase === 'verifying') {
     return (
       <div className="max-w-4xl mx-auto space-y-6">
         <div className="text-center space-y-2">
@@ -242,6 +362,59 @@ export function ThemeFromFigmaFlow() {
             </div>
           </div>
         </div>
+
+        {referenceImages.length > 0 && !verificationResult && (
+          <div className="flex justify-center">
+            <button
+              onClick={handleVerify}
+              disabled={verifying}
+              className="px-6 py-2.5 bg-amber-600 text-white font-medium rounded-xl hover:bg-amber-700 disabled:bg-slate-300 transition-colors text-sm"
+            >
+              {verifying ? 'Verifying...' : `Verify with Vision (${referenceImages.length} image${referenceImages.length !== 1 ? 's' : ''})`}
+            </button>
+          </div>
+        )}
+
+        {verificationResult && (
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl p-5 space-y-3">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300">Vision Verification</h3>
+              <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
+                verificationResult.overallConfidence === 'high' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' :
+                verificationResult.overallConfidence === 'medium' ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' :
+                'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+              }`}>
+                {verificationResult.overallConfidence} confidence
+              </span>
+            </div>
+            <p className="text-xs text-slate-500 dark:text-slate-400">{verificationResult.notes}</p>
+            <div className="space-y-1.5">
+              {verificationResult.corrections.map((c, i) => (
+                <div key={i} className={`flex items-start gap-2 text-xs p-2 rounded-lg ${
+                  c.status === 'confirmed' ? 'bg-green-50 dark:bg-green-950/20' :
+                  c.status === 'flagged' ? 'bg-amber-50 dark:bg-amber-950/20' :
+                  'bg-slate-50 dark:bg-slate-800'
+                }`}>
+                  <span className={`flex-shrink-0 mt-0.5 ${
+                    c.status === 'confirmed' ? 'text-green-600' :
+                    c.status === 'flagged' ? 'text-amber-600' :
+                    'text-slate-400'
+                  }`}>
+                    {c.status === 'confirmed' ? '\u2713' : c.status === 'flagged' ? '!' : '?'}
+                  </span>
+                  <div className="min-w-0">
+                    <span className="font-medium text-slate-700 dark:text-slate-300">{c.dimension} / {c.label}</span>
+                    <span className="text-slate-500 dark:text-slate-400 ml-1">
+                      {c.currentValue}
+                      {c.suggestedValue && <> {'->'} <span className="font-medium text-amber-700 dark:text-amber-400">{c.suggestedValue}</span></>}
+                    </span>
+                    <p className="text-slate-400 mt-0.5">{c.explanation}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         <div className="space-y-2">
           <label htmlFor="theme-name-edit" className="block text-sm font-medium text-slate-700 dark:text-slate-300">
