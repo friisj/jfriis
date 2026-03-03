@@ -12,6 +12,11 @@ export interface RecordingResult {
 }
 
 export class TabRecorder {
+  static isSupported(): boolean {
+    return typeof navigator !== 'undefined'
+      && !!navigator.mediaDevices?.getDisplayMedia;
+  }
+
   private _state: RecorderState = 'idle';
   private mediaStream: MediaStream | null = null;
   private recorder: MediaRecorder | null = null;
@@ -41,8 +46,8 @@ export class TabRecorder {
     try {
       this.mediaStream = await navigator.mediaDevices.getDisplayMedia({
         audio: true,
-        video: false, // we only need audio — Chrome still captures video but we ignore it
-      } as DisplayMediaStreamOptions);
+        video: true, // video is required by spec; we stop the video track immediately
+      });
 
       // If user shared a screen but no audio track came through
       if (this.mediaStream.getAudioTracks().length === 0) {
