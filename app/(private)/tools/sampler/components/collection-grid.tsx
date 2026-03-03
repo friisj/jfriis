@@ -316,6 +316,17 @@ export function CollectionGrid({ collection }: CollectionGridProps) {
     );
   }
 
+  const getBuffer = useCallback(
+    (url: string): AudioBuffer | null => engineRef.current?.getBuffer(url) ?? null,
+    []
+  );
+
+  function handleSoundUpdated(sound: SamplerSound) {
+    setPads((prev) =>
+      prev.map((p) => (p.sound_id === sound.id ? { ...p, sound } : p))
+    );
+  }
+
   const selectedPad = pads.find((p) => p.id === selectedPadId) ?? null;
 
   return (
@@ -357,8 +368,10 @@ export function CollectionGrid({ collection }: CollectionGridProps) {
             <PadConfigPanel
               key={selectedPad.id}
               pad={selectedPad}
+              getBuffer={getBuffer}
               onPadUpdated={handlePadUpdated}
               onEffectsChange={handleEffectsChange}
+              onSoundUpdated={handleSoundUpdated}
               onClose={() => setSelectedPadId(null)}
             />
           </div>

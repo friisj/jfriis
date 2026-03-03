@@ -228,7 +228,22 @@ export class SamplerEngine {
       source.loop = true;
     }
 
-    source.start();
+    // Apply trim region
+    const trim = pad.effects.trim;
+    if (trim) {
+      const offsetSec = trim.startMs / 1000;
+      const durationSec = (trim.endMs - trim.startMs) / 1000;
+
+      if (source.loop) {
+        source.loopStart = offsetSec;
+        source.loopEnd = offsetSec + durationSec;
+        source.start(0, offsetSec);
+      } else {
+        source.start(0, offsetSec, durationSec);
+      }
+    } else {
+      source.start();
+    }
     this.activeSources.set(pad.id, source);
 
     // Clean up on end (non-looping, non-gate)
@@ -355,6 +370,13 @@ export class SamplerEngine {
     }
 
     // Pitch requires stopping and retriggering — handled at trigger level
+  }
+
+  /**
+   * Get a cached AudioBuffer by URL (for waveform visualization)
+   */
+  getBuffer(url: string): AudioBuffer | null {
+    return this.buffers.get(url) ?? null;
   }
 
   /**

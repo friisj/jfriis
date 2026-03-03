@@ -15,18 +15,21 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { X } from 'lucide-react';
 import { updatePad } from '@/lib/sampler';
 import { EffectsChain } from './effects-chain';
+import { SoundEditor } from './sound-editor';
 import { SoundLibraryPicker } from './sound-library-picker';
 import { SoundGenerateModal } from './sound-generate-modal';
-import type { PadWithSound, PadEffects, PadType, SamplerSound } from '@/lib/types/sampler';
+import type { PadWithSound, PadEffects, PadType, TrimConfig, SamplerSound } from '@/lib/types/sampler';
 
 interface PadConfigPanelProps {
   pad: PadWithSound;
+  getBuffer: (url: string) => AudioBuffer | null;
   onPadUpdated: (pad: PadWithSound) => void;
   onEffectsChange: (padId: string, effects: PadEffects) => void;
+  onSoundUpdated: (sound: SamplerSound) => void;
   onClose: () => void;
 }
 
-export function PadConfigPanel({ pad, onPadUpdated, onEffectsChange, onClose }: PadConfigPanelProps) {
+export function PadConfigPanel({ pad, getBuffer, onPadUpdated, onEffectsChange, onSoundUpdated, onClose }: PadConfigPanelProps) {
   const [pickerOpen, setPickerOpen] = useState(false);
   const [generateOpen, setGenerateOpen] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -75,6 +78,12 @@ export function PadConfigPanel({ pad, onPadUpdated, onEffectsChange, onClose }: 
     updatePad(pad.id, { effects }).catch(console.error);
   }
 
+  function handleTrimChange(trim: TrimConfig | undefined) {
+    const newEffects = { ...pad.effects, trim };
+    if (!trim) delete newEffects.trim;
+    handleEffectsChange(newEffects);
+  }
+
   return (
     <div className="flex flex-col h-full overflow-hidden">
       {/* Header — always visible */}
@@ -99,6 +108,7 @@ export function PadConfigPanel({ pad, onPadUpdated, onEffectsChange, onClose }: 
       <Tabs defaultValue="config" className="flex-1 min-h-0 flex flex-col px-4 pb-4">
         <TabsList className="w-full">
           <TabsTrigger value="config">Config</TabsTrigger>
+          <TabsTrigger value="sound">Sound</TabsTrigger>
           <TabsTrigger value="effects">Effects</TabsTrigger>
         </TabsList>
 
@@ -209,6 +219,15 @@ export function PadConfigPanel({ pad, onPadUpdated, onEffectsChange, onClose }: 
               </Button>
             </div>
           </div>
+        </TabsContent>
+
+        <TabsContent value="sound" className="overflow-y-auto pt-2">
+          <SoundEditor
+            pad={pad}
+            getBuffer={getBuffer}
+            onTrimChange={handleTrimChange}
+            onSoundUpdated={onSoundUpdated}
+          />
         </TabsContent>
 
         <TabsContent value="effects" className="overflow-y-auto pt-2">
