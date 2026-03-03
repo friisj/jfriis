@@ -18,6 +18,7 @@ import { EffectsChain } from './effects-chain';
 import { SoundEditor } from './sound-editor';
 import { SoundLibraryPicker } from './sound-library-picker';
 import { SoundGenerateModal } from './sound-generate-modal';
+import { SampleRecorder } from './sample-recorder';
 import type { PadWithSound, PadEffects, PadType, TrimConfig, SamplerSound } from '@/lib/types/sampler';
 
 interface PadConfigPanelProps {
@@ -32,6 +33,7 @@ interface PadConfigPanelProps {
 export function PadConfigPanel({ pad, getBuffer, onPadUpdated, onEffectsChange, onSoundUpdated, onClose }: PadConfigPanelProps) {
   const [pickerOpen, setPickerOpen] = useState(false);
   const [generateOpen, setGenerateOpen] = useState(false);
+  const [sampleOpen, setSampleOpen] = useState(false);
   const [saving, setSaving] = useState(false);
 
   const save = useCallback(
@@ -132,6 +134,14 @@ export function PadConfigPanel({ pad, getBuffer, onPadUpdated, onEffectsChange, 
                 onClick={() => setGenerateOpen(true)}
               >
                 Generate
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="flex-1"
+                onClick={() => setSampleOpen(true)}
+              >
+                Sample
               </Button>
               {pad.sound && (
                 <Button
@@ -246,6 +256,14 @@ export function PadConfigPanel({ pad, getBuffer, onPadUpdated, onEffectsChange, 
         onGenerated={(sound) => {
           handleSoundSelect(sound);
           setGenerateOpen(false);
+        }}
+      />
+      <SampleRecorder
+        open={sampleOpen}
+        onOpenChange={setSampleOpen}
+        onSampled={(sound) => {
+          handleSoundSelect(sound);
+          setSampleOpen(false);
         }}
       />
     </div>
