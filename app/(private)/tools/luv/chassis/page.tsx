@@ -1,11 +1,13 @@
 import { getLuvCharacterServer, getLuvReferencesServer } from '@/lib/luv-server';
+import { getChassisModulesServer } from '@/lib/luv-chassis-server';
 import { ChassisEditor } from '../components/chassis-editor';
 import { ReferenceGallery } from '../components/reference-gallery';
 
 export default async function LuvChassisPage() {
-  const [character, references] = await Promise.all([
+  const [character, references, modules] = await Promise.all([
     getLuvCharacterServer(),
     getLuvReferencesServer(),
+    getChassisModulesServer().catch(() => []),
   ]);
 
   return (
@@ -16,6 +18,7 @@ export default async function LuvChassisPage() {
           characterId={character?.id ?? null}
           initialChassisData={character?.chassis_data ?? {}}
           initialVersion={character?.version ?? 0}
+          modules={modules}
         />
       </div>
 
