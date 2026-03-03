@@ -4,6 +4,7 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
@@ -147,6 +148,9 @@ export function SampleRecorder({ open, onOpenChange, onSampled }: SampleRecorder
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Sample from Tab</DialogTitle>
+          <DialogDescription className="sr-only">
+            Record audio from a browser tab to create a sampler sound
+          </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
