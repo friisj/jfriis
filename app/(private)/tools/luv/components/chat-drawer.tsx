@@ -6,6 +6,8 @@ import { DefaultChatTransport } from 'ai';
 import type { UIMessage } from 'ai';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { ChevronDown } from 'lucide-react';
 import { createLuvConversation, createLuvMessage } from '@/lib/luv';
 import type { LuvSoulData } from '@/lib/types/luv';
@@ -242,9 +244,11 @@ function MessageBubble({
             return (
               <div
                 key={i}
-                className="rounded-lg px-3 py-2 text-xs whitespace-pre-wrap bg-muted"
+                className="rounded-lg px-3 py-2 text-xs bg-muted prose prose-sm dark:prose-invert prose-p:my-1 prose-ul:my-1 prose-ol:my-1 prose-li:my-0 prose-headings:my-1.5 prose-pre:my-1 max-w-none"
               >
-                {part.text}
+                <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                  {part.text}
+                </ReactMarkdown>
                 {isActive && isLast && i === message.parts.length - 1 && (
                   <span className="inline-block w-1 h-3 bg-current animate-pulse ml-0.5" />
                 )}
