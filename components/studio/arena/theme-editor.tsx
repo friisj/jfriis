@@ -32,8 +32,18 @@ type ExpandedPickers = Record<string, boolean>
 const COLOR_LABELS = DECISION_LABELS.color
 const TYPOGRAPHY_LABELS = DECISION_LABELS.typography
 const SPACING_LABELS = DECISION_LABELS.spacing
+const ELEVATION_LABELS = DECISION_LABELS.elevation
+const RADIUS_LABELS = DECISION_LABELS.radius
 
 const FONT_WEIGHT_OPTIONS = ['100', '200', '300', '400', '500', '600', '700', '800', '900']
+
+const TYPE_SCALE_RATIOS = [
+  { label: 'Minor Third', value: 1.2 },
+  { label: 'Major Third', value: 1.25 },
+  { label: 'Perfect Fourth', value: 1.333 },
+  { label: 'Augmented Fourth', value: 1.414 },
+  { label: 'Perfect Fifth', value: 1.5 },
+]
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -49,6 +59,14 @@ function isWeightLabel(label: string) {
   return label.endsWith('Weight')
 }
 
+function isLineHeightLabel(label: string) {
+  return label.includes('Line Height')
+}
+
+function isLetterSpacingLabel(label: string) {
+  return label.includes('Letter Spacing')
+}
+
 // ─── Component ───────────────────────────────────────────────────────────────
 
 export function ThemeEditor({ initialTokens, themeName, scope, platform }: ThemeEditorProps) {
@@ -56,6 +74,9 @@ export function ThemeEditor({ initialTokens, themeName, scope, platform }: Theme
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [expandedPickers, setExpandedPickers] = useState<ExpandedPickers>({})
+  const [typeScaleOpen, setTypeScaleOpen] = useState(false)
+  const [typeScaleBase, setTypeScaleBase] = useState(16)
+  const [typeScaleRatio, setTypeScaleRatio] = useState(1.25)
 
   const { availableFonts, fontOverrides, handleFontChange, fontDisplay, fontBody, fontMono } = useArenaFonts()
 
@@ -65,6 +86,21 @@ export function ThemeEditor({ initialTokens, themeName, scope, platform }: Theme
     setTokens(prev => ({
       ...prev,
       [dimension]: { ...prev[dimension], [label]: value },
+    }))
+    setSaved(false)
+  }, [])
+
+  const applyTypeScale = useCallback((base: number, ratio: number) => {
+    const small = Math.round(base / ratio)
+    const heading = Math.round(base * ratio * ratio)
+    setTokens(prev => ({
+      ...prev,
+      typography: {
+        ...prev['typography'],
+        'Small Size': `${small}px`,
+        'Body Size': `${base}px`,
+        'Heading Size': `${heading}px`,
+      },
     }))
     setSaved(false)
   }, [])
@@ -177,6 +213,53 @@ export function ThemeEditor({ initialTokens, themeName, scope, platform }: Theme
       )
     }
 
+    if (isLineHeightLabel(label)) {
+      const numVal = parseFloat(value) || 0
+      return (
+        <div key={label} className="flex items-center gap-2">
+          <label className="text-xs font-medium text-slate-600 dark:text-slate-400 w-28 shrink-0">
+            {label}
+          </label>
+          <input
+            type="number"
+            min={0.8}
+            max={2.5}
+            step={0.05}
+            value={numVal || ''}
+            onChange={(e) => updateToken('typography', label, e.target.value || '')}
+            className="w-20 text-xs font-mono px-2 py-1.5 rounded border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200"
+          />
+          <input
+            type="range"
+            min={0.8}
+            max={2.5}
+            step={0.05}
+            value={numVal || 1.5}
+            onChange={(e) => updateToken('typography', label, e.target.value)}
+            className="flex-1"
+          />
+        </div>
+      )
+    }
+
+    if (isLetterSpacingLabel(label)) {
+      return (
+        <div key={label} className="flex items-center gap-2">
+          <label className="text-xs font-medium text-slate-600 dark:text-slate-400 w-28 shrink-0">
+            {label}
+          </label>
+          <input
+            type="text"
+            value={value}
+            onChange={(e) => updateToken('typography', label, e.target.value)}
+            placeholder="0em"
+            className="flex-1 text-xs font-mono px-2 py-1.5 rounded border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200"
+          />
+          <span className="text-xs text-slate-400 shrink-0">em</span>
+        </div>
+      )
+    }
+
     if (isWeightLabel(label)) {
       return (
         <div key={label} className="flex items-center gap-2">
@@ -279,6 +362,79 @@ export function ThemeEditor({ initialTokens, themeName, scope, platform }: Theme
     )
   }
 
+  // ─── Elevation section ──────────────────────────────────────────────────
+
+  const elevationTokens = tokens['elevation'] ?? {}
+
+  function renderElevationRow(label: string) {
+    const value = elevationTokens[label] ?? ''
+
+    return (
+      <div key={label} className="flex items-center gap-2">
+        <label className="text-xs font-medium text-slate-600 dark:text-slate-400 w-28 shrink-0">
+          {label}
+        </label>
+        <div className="flex items-center gap-2 flex-1">
+          <input
+            type="text"
+            value={value}
+            onChange={(e) => updateToken('elevation', label, e.target.value)}
+            placeholder="0 1px 3px rgba(0,0,0,0.08)"
+            className="flex-1 text-xs font-mono px-2 py-1.5 rounded border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200"
+          />
+          <div
+            className="w-8 h-8 rounded bg-white dark:bg-slate-200 shrink-0 border border-slate-100"
+            style={{ boxShadow: value || 'none' }}
+            title={value || 'none'}
+          />
+        </div>
+      </div>
+    )
+  }
+
+  // ─── Radius section ────────────────────────────────────────────────────
+
+  const radiusTokens = tokens['radius'] ?? {}
+
+  function renderRadiusRow(label: string) {
+    const value = radiusTokens[label] ?? ''
+    const numVal = parseFloat(value) || 0
+
+    return (
+      <div key={label} className="flex items-center gap-2">
+        <label className="text-xs font-medium text-slate-600 dark:text-slate-400 w-28 shrink-0">
+          {label}
+        </label>
+        <input
+          type="number"
+          min={0}
+          max={label === 'Full' ? 9999 : 32}
+          step={1}
+          value={numVal || ''}
+          onChange={(e) => updateToken('radius', label, e.target.value ? `${e.target.value}px` : '')}
+          className="w-20 text-xs font-mono px-2 py-1.5 rounded border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200"
+        />
+        <span className="text-xs text-slate-400">px</span>
+        {label !== 'Full' && (
+          <input
+            type="range"
+            min={0}
+            max={32}
+            step={1}
+            value={numVal || 0}
+            onChange={(e) => updateToken('radius', label, `${e.target.value}px`)}
+            className="flex-1"
+          />
+        )}
+        <div
+          className="w-8 h-8 bg-slate-300 dark:bg-slate-600 shrink-0"
+          style={{ borderRadius: value || '0px' }}
+          title={value || '0px'}
+        />
+      </div>
+    )
+  }
+
   // ─── Render ─────────────────────────────────────────────────────────────
 
   return (
@@ -296,6 +452,58 @@ export function ThemeEditor({ initialTokens, themeName, scope, platform }: Theme
         {/* Typography */}
         <section>
           <h2 className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-3">Typography</h2>
+          {/* Type Scale Generator */}
+          <div className="mb-3">
+            <button
+              type="button"
+              onClick={() => setTypeScaleOpen(o => !o)}
+              className="flex items-center gap-1.5 text-xs font-medium text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors"
+            >
+              <span className="text-[10px]">{typeScaleOpen ? '\u25BC' : '\u25B6'}</span>
+              Type Scale Generator
+            </button>
+            {typeScaleOpen && (
+              <div className="mt-2 p-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 space-y-2">
+                <div className="flex items-center gap-2">
+                  <label className="text-xs font-medium text-slate-600 dark:text-slate-400 w-16 shrink-0">Base</label>
+                  <input
+                    type="number"
+                    min={10}
+                    max={24}
+                    step={1}
+                    value={typeScaleBase}
+                    onChange={(ev) => setTypeScaleBase(Number(ev.target.value) || 16)}
+                    className="w-16 text-xs font-mono px-2 py-1 rounded border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200"
+                  />
+                  <span className="text-xs text-slate-400">px</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <label className="text-xs font-medium text-slate-600 dark:text-slate-400 w-16 shrink-0">Ratio</label>
+                  <select
+                    value={typeScaleRatio}
+                    onChange={(ev) => setTypeScaleRatio(Number(ev.target.value))}
+                    className="flex-1 text-xs px-2 py-1 rounded border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200"
+                  >
+                    {TYPE_SCALE_RATIOS.map(r => (
+                      <option key={r.value} value={r.value}>{r.label} ({r.value})</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="flex items-center justify-between pt-1">
+                  <span className="text-[10px] text-slate-400">
+                    {Math.round(typeScaleBase / typeScaleRatio)}px / {typeScaleBase}px / {Math.round(typeScaleBase * typeScaleRatio * typeScaleRatio)}px
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => applyTypeScale(typeScaleBase, typeScaleRatio)}
+                    className="text-xs font-medium text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
+                  >
+                    Apply
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
           <div className="space-y-3">
             {TYPOGRAPHY_LABELS.map(label => renderTypographyRow(label))}
           </div>
@@ -306,6 +514,22 @@ export function ThemeEditor({ initialTokens, themeName, scope, platform }: Theme
           <h2 className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-3">Spacing</h2>
           <div className="space-y-3">
             {SPACING_LABELS.map(label => renderSpacingRow(label))}
+          </div>
+        </section>
+
+        {/* Elevation */}
+        <section>
+          <h2 className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-3">Elevation</h2>
+          <div className="space-y-3">
+            {ELEVATION_LABELS.map(label => renderElevationRow(label))}
+          </div>
+        </section>
+
+        {/* Radius */}
+        <section>
+          <h2 className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-3">Radius</h2>
+          <div className="space-y-3">
+            {RADIUS_LABELS.map(label => renderRadiusRow(label))}
           </div>
         </section>
 

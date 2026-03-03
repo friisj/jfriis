@@ -59,7 +59,7 @@ export type DimensionSkillState = DimensionState
 export type SkillDimension = string
 
 /** The three core dimensions (used as defaults; not authoritative — project config is) */
-export const CORE_DIMENSIONS: string[] = ['color', 'typography', 'spacing']
+export const CORE_DIMENSIONS: string[] = ['color', 'typography', 'spacing', 'elevation', 'radius']
 
 /** @deprecated Use CORE_DIMENSIONS instead */
 export const SKILL_DIMENSIONS = CORE_DIMENSIONS
@@ -100,13 +100,17 @@ export function assembleSkillState(
 
 /** Decision labels that must match the canonical components */
 export const DECISION_LABELS = {
-  color: ['Primary', 'Accent', 'Background', 'Text', 'Muted', 'Border'],
+  color: ['Primary', 'Secondary', 'Accent', 'Background', 'Card', 'Input', 'Text', 'Muted', 'Border', 'Destructive', 'Success'],
   typography: [
     'Display Font', 'Body Font', 'Mono Font',
     'Heading Size', 'Body Size', 'Small Size',
     'Heading Weight', 'Body Weight',
+    'Line Height', 'Heading Line Height',
+    'Letter Spacing', 'Heading Letter Spacing',
   ],
   spacing: ['Padding', 'Gap', 'Border Radius'],
+  elevation: ['None', 'Low', 'Medium', 'High'],
+  radius: ['Small', 'Medium', 'Large', 'Full'],
 } as const
 
 // =============================================================================
@@ -133,6 +137,8 @@ export const DIMENSION_CONFIG_SECTIONS: Record<string, string[]> = {
   color: ['colors', 'backgroundColor', 'borderColor', 'textColor'],
   typography: ['fontFamily', 'fontSize', 'fontWeight'],
   spacing: ['padding', 'gap', 'borderRadius', 'margin'],
+  elevation: ['boxShadow'],
+  radius: ['borderRadius'],
 }
 
 /** Extract a flat TokenMap from a DimensionState's decisions (skips decisions without values) */
@@ -166,5 +172,7 @@ export function emptySkillState(): SkillState {
     color: { decisions: [], rules: [] },
     typography: { decisions: [], rules: [] },
     spacing: { decisions: [], rules: [] },
+    elevation: { decisions: [], rules: [] },
+    radius: { decisions: [], rules: [] },
   }
 }

@@ -412,23 +412,31 @@ export async function createSessionAction(input: {
 export async function seedBaseTemplates() {
   const supabase = await arenaClient()
 
-  // Idempotent: check if base templates already exist
+  // Dimension-aware: check which dimensions already have template skills
   const { data: existing } = await supabase
     .from('arena_skills')
-    .select('id')
+    .select('dimension')
     .eq('is_template', true)
     .eq('tier', 'template')
-    .limit(1)
-  if (existing && existing.length > 0) return { seeded: false, message: 'Base templates already exist' }
+
+  const existingDims = new Set((existing ?? []).map((s: { dimension: string }) => s.dimension))
+  const missingDims = CORE_DIMENSIONS.filter(dim => !existingDims.has(dim))
+
+  if (missingDims.length === 0) {
+    return { seeded: false, message: 'All base templates already exist' }
+  }
 
   const templateIds: Record<string, string> = {}
-  for (const dim of CORE_DIMENSIONS) {
+  for (const dim of missingDims) {
+    const dimState = BASE_SKILL[dim]
+    if (!dimState) continue
+
     // Create the template skill (intent-only, no token values)
     const { data, error } = await supabase
       .from('arena_skills')
       .insert({
         name: `Base — ${dim.charAt(0).toUpperCase() + dim.slice(1)}`,
-        state: BASE_SKILL[dim] as unknown as Record<string, unknown>,
+        state: dimState as unknown as Record<string, unknown>,
         tier: 'template',
         dimension: dim,
         project_id: null,
