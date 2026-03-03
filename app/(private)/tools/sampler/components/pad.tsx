@@ -28,15 +28,16 @@ export function Pad({ pad, isPlaying, isSelected, onTrigger, onRelease, onSelect
         <button
           type="button"
           className={cn(
-            'relative rounded-lg border-2 transition-all select-none',
+            'relative rounded-lg border m-1 transition-all select-none',
             'flex flex-col items-center justify-center gap-1 p-2',
             'touch-action-none cursor-pointer',
-            'active:scale-95 active:brightness-110',
+            "shadow-md",
+            'active:scale-98 active:brightness-98',
             hasSound
               ? 'bg-muted hover:bg-muted/80'
-              : 'bg-background border-dashed hover:bg-muted/30',
+              : 'bg-background hover:bg-muted/30',
             isSelected && 'ring-2 ring-primary ring-offset-2',
-            isPlaying && 'brightness-125 shadow-lg shadow-primary/20'
+            isPlaying && ''
           )}
           style={{
             backgroundColor: pad.color || undefined,
