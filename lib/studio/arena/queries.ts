@@ -482,26 +482,63 @@ export async function upsertTheme(input: {
   source: string
 }): Promise<ArenaTheme> {
   const supabase = await arenaClient()
-  const { data, error } = await supabase
+  const projectId = input.project_id ?? null
+  const skillId = input.skill_id ?? null
+  const name = input.name ?? 'default'
+
+  // Find existing row matching the composite unique constraint
+  let query = supabase
     .from('arena_themes')
-    .upsert(
-      {
-        project_id: input.project_id ?? null,
-        skill_id: input.skill_id ?? null,
-        dimension: input.dimension,
-        platform: input.platform,
-        name: input.name ?? 'default',
+    .select('id')
+    .eq('dimension', input.dimension)
+    .eq('platform', input.platform)
+    .eq('name', name)
+
+  if (projectId) {
+    query = query.eq('project_id', projectId)
+  } else {
+    query = query.is('project_id', null)
+  }
+  if (skillId) {
+    query = query.eq('skill_id', skillId)
+  } else {
+    query = query.is('skill_id', null)
+  }
+
+  const { data: existing } = await query.maybeSingle()
+
+  if (existing) {
+    // Update existing row
+    const { data, error } = await supabase
+      .from('arena_themes')
+      .update({
         tokens: input.tokens,
         source: input.source,
         updated_at: new Date().toISOString(),
-      },
-      // Use the composite unique index for conflict resolution
-      { onConflict: 'idx_arena_themes_unique', ignoreDuplicates: false }
-    )
-    .select()
-    .single()
-  if (error) throw error
-  return data as unknown as ArenaTheme
+      })
+      .eq('id', existing.id)
+      .select()
+      .single()
+    if (error) throw error
+    return data as unknown as ArenaTheme
+  } else {
+    // Insert new row
+    const { data, error } = await supabase
+      .from('arena_themes')
+      .insert({
+        project_id: projectId,
+        skill_id: skillId,
+        dimension: input.dimension,
+        platform: input.platform,
+        name,
+        tokens: input.tokens,
+        source: input.source,
+      })
+      .select()
+      .single()
+    if (error) throw error
+    return data as unknown as ArenaTheme
+  }
 }
 
 // =============================================================================
