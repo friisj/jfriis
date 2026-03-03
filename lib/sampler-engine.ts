@@ -244,11 +244,20 @@ export class SamplerEngine {
 
     this.stop(pad.id);
 
+    const ctx = this.ensureContext();
+
+    // Build effects chain so pad effects (volume, EQ, reverb, delay) apply
+    let nodes = this.padNodes.get(pad.id);
+    if (!nodes) {
+      nodes = this.buildPadNodes(pad.id, pad.effects);
+    }
+
     try {
       const { renderSynthConfig, ensureToneStarted } = await import('./sampler-synth');
-      await ensureToneStarted();
+      await ensureToneStarted(ctx);
 
-      const { stop } = renderSynthConfig(config);
+      // Route Tone.js output through the pad's Web Audio effects chain
+      const { stop } = renderSynthConfig(config, nodes.gain);
       this.activeProceduralStops.set(pad.id, stop);
 
       // Auto-cleanup after duration

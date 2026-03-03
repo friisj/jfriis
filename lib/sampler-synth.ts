@@ -211,11 +211,17 @@ export function renderSynthConfig(
   const effects = (config.effects ?? []).map(createEffect);
   const synth = createSynth(config);
 
-  // Chain: synth -> effects -> destination
+  // Chain: synth -> effects -> destination (pad effects chain or default output)
+  const target = destination ?? Tone.getDestination();
   if (effects.length > 0) {
-    (synth as Tone.ToneAudioNode).chain(...effects, destination ? Tone.getContext().createGain() : Tone.getDestination());
+    (synth as Tone.ToneAudioNode).chain(
+      ...effects,
+      target as unknown as Tone.ToneAudioNode,
+    );
   } else {
-    (synth as Tone.ToneAudioNode).toDestination();
+    (synth as Tone.ToneAudioNode).connect(
+      target as unknown as Tone.ToneAudioNode,
+    );
   }
 
   // Schedule notes
@@ -252,9 +258,17 @@ export function renderSynthConfig(
 }
 
 /**
- * Start Tone.js audio context (must be called from user gesture)
+ * Start Tone.js audio context (must be called from user gesture).
+ * Optionally accepts an AudioContext to share with the sampler engine,
+ * ensuring Tone.js nodes can connect to Web Audio effects chains.
  */
-export async function ensureToneStarted(): Promise<void> {
+let contextShared = false;
+
+export async function ensureToneStarted(ctx?: AudioContext): Promise<void> {
+  if (ctx && !contextShared) {
+    Tone.setContext(ctx);
+    contextShared = true;
+  }
   if (Tone.getContext().state !== 'running') {
     await Tone.start();
   }
