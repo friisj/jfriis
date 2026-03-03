@@ -172,3 +172,29 @@ export interface PadWithSound extends SamplerPad {
 export interface CollectionWithPads extends SamplerCollection {
   pads: PadWithSound[];
 }
+
+// ============================================================================
+// Batch Generation
+// ============================================================================
+
+export type GenerationMethod = 'elevenlabs' | 'synth';
+
+export interface BatchPrompt {
+  index: number;
+  prompt: string;
+  label?: string;
+}
+
+export interface BatchSpec {
+  collectionId: string;
+  method: GenerationMethod;
+  prompts: BatchPrompt[];
+}
+
+export type BatchItemStatus = 'pending' | 'generating' | 'done' | 'error';
+
+export interface BatchItem extends BatchPrompt {
+  status: BatchItemStatus;
+  soundId?: string;
+  error?: string;
+}
