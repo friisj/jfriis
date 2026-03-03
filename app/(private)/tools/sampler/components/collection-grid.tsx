@@ -359,6 +359,7 @@ export function CollectionGrid({ collection }: CollectionGridProps) {
               pad={selectedPad}
               onPadUpdated={handlePadUpdated}
               onEffectsChange={handleEffectsChange}
+              onClose={() => setSelectedPadId(null)}
             />
           </div>
         )}
