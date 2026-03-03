@@ -140,21 +140,35 @@ export async function saveImportedSkill(input: {
       // Seed theme layer with token values extracted from the original skill state
       const tokens = extractTokensFromDimension(input.state[dim])
       if (Object.keys(tokens).length > 0) {
-        const { error: themeErr } = await supabase
+        const { data: existingTheme } = await supabase
           .from('arena_themes')
-          .upsert(
-            {
+          .select('id')
+          .eq('project_id', input.project_id)
+          .is('skill_id', null)
+          .eq('dimension', dim)
+          .eq('platform', 'tailwind')
+          .eq('name', 'default')
+          .maybeSingle()
+
+        if (existingTheme) {
+          const { error: themeErr } = await supabase
+            .from('arena_themes')
+            .update({ tokens, source: tier === 'project' ? 'import' : tier, updated_at: new Date().toISOString() })
+            .eq('id', existingTheme.id)
+          if (themeErr) throw themeErr
+        } else {
+          const { error: themeErr } = await supabase
+            .from('arena_themes')
+            .insert({
               project_id: input.project_id,
               dimension: dim,
               platform: 'tailwind',
               name: 'default',
               tokens,
               source: tier === 'project' ? 'import' : tier,
-              updated_at: new Date().toISOString(),
-            },
-            { onConflict: 'idx_arena_themes_unique', ignoreDuplicates: false }
-          )
-        if (themeErr) throw themeErr
+            })
+          if (themeErr) throw themeErr
+        }
       }
     }
   }
@@ -267,10 +281,27 @@ export async function completeGymRound(input: {
 
         const mergedTokens = { ...(existing?.tokens as TokenMap ?? {}), ...tokens }
 
-        const { error: themeErr } = await supabase
+        // Find existing theme row for this project+dimension
+        const { data: existingTheme } = await supabase
           .from('arena_themes')
-          .upsert(
-            {
+          .select('id')
+          .eq('project_id', session.project_id)
+          .is('skill_id', null)
+          .eq('dimension', dim)
+          .eq('platform', 'tailwind')
+          .eq('name', 'default')
+          .maybeSingle()
+
+        if (existingTheme) {
+          const { error: themeErr } = await supabase
+            .from('arena_themes')
+            .update({ tokens: mergedTokens, source: 'gym', updated_at: new Date().toISOString() })
+            .eq('id', existingTheme.id)
+          if (themeErr) throw themeErr
+        } else {
+          const { error: themeErr } = await supabase
+            .from('arena_themes')
+            .insert({
               project_id: session.project_id,
               skill_id: null,
               dimension: dim,
@@ -278,11 +309,9 @@ export async function completeGymRound(input: {
               name: 'default',
               tokens: mergedTokens,
               source: 'gym',
-              updated_at: new Date().toISOString(),
-            },
-            { onConflict: 'idx_arena_themes_unique', ignoreDuplicates: false }
-          )
-        if (themeErr) throw themeErr
+            })
+          if (themeErr) throw themeErr
+        }
       }
     }
   }
