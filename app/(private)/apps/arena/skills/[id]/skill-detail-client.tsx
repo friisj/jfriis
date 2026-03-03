@@ -1,13 +1,14 @@
 'use client'
 
-import type { ArenaSkillWithLineage } from '@/lib/studio/arena/db-types'
-import type { SkillState, DimensionState } from '@/lib/studio/arena/types'
+import type { ArenaSkillWithLineage, ArenaTheme } from '@/lib/studio/arena/db-types'
+import type { SkillState, DimensionState, ProjectTheme } from '@/lib/studio/arena/types'
 import { emptySkillState } from '@/lib/studio/arena/types'
 import { InferredSkillPanel } from '@/components/studio/prototypes/arena/shared/skill-panel'
 import { CanonicalCard, CanonicalForm, CanonicalDashboard } from '@/components/studio/prototypes/arena/shared/canonical-components'
 
 interface SkillDetailClientProps {
   skill: ArenaSkillWithLineage
+  themes?: ArenaTheme[]
 }
 
 /** Convert a per-dimension or monolithic skill state to a full SkillState for preview */
@@ -24,9 +25,17 @@ function toFullSkillState(state: SkillState | DimensionState, dimension: string 
   return full
 }
 
-export function SkillDetailClient({ skill }: SkillDetailClientProps) {
+export function SkillDetailClient({ skill, themes }: SkillDetailClientProps) {
   const fullState = toFullSkillState(skill.state, skill.dimension)
   const isDimension = skill.dimension !== null
+
+  // Build ProjectTheme from theme rows
+  const projectTheme: ProjectTheme | undefined = themes && themes.length > 0
+    ? themes.reduce<ProjectTheme>((acc, t) => {
+        acc[t.dimension] = { tokens: t.tokens, source: t.source }
+        return acc
+      }, {})
+    : undefined
 
   return (
     <div className="space-y-6">
@@ -51,15 +60,15 @@ export function SkillDetailClient({ skill }: SkillDetailClientProps) {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div>
             <h3 className="text-xs text-slate-500 dark:text-slate-400 mb-2">Card</h3>
-            <CanonicalCard skill={fullState} label={skill.name} />
+            <CanonicalCard skill={fullState} label={skill.name} theme={projectTheme} />
           </div>
           <div>
             <h3 className="text-xs text-slate-500 dark:text-slate-400 mb-2">Form</h3>
-            <CanonicalForm skill={fullState} label={skill.name} />
+            <CanonicalForm skill={fullState} label={skill.name} theme={projectTheme} />
           </div>
           <div>
             <h3 className="text-xs text-slate-500 dark:text-slate-400 mb-2">Dashboard</h3>
-            <CanonicalDashboard skill={fullState} label={skill.name} />
+            <CanonicalDashboard skill={fullState} label={skill.name} theme={projectTheme} />
           </div>
         </div>
       </div>

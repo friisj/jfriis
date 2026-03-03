@@ -30,7 +30,7 @@ export interface ArenaAnnotation {
 export interface SkillDecision {
   id: string
   label: string
-  value: string
+  value?: string
   rationale: string
   intent?: string
   confidence: 'low' | 'medium' | 'high'
@@ -135,19 +135,19 @@ export const DIMENSION_CONFIG_SECTIONS: Record<string, string[]> = {
   spacing: ['padding', 'gap', 'borderRadius', 'margin'],
 }
 
-/** Extract a flat TokenMap from a DimensionState's decisions */
+/** Extract a flat TokenMap from a DimensionState's decisions (skips decisions without values) */
 export function extractTokensFromDimension(state: DimensionState): TokenMap {
   const tokens: TokenMap = {}
   for (const d of state.decisions) {
-    tokens[d.label] = d.value
+    if (d.value != null) tokens[d.label] = d.value
   }
   return tokens
 }
 
 /**
- * Resolve render tokens by merging skill decision values with theme tokens.
- * Theme tokens win when present (they represent the latest corrections).
- * Falls back to skill decision values when no theme exists.
+ * Resolve render tokens from the theme layer.
+ * Theme is the sole source of token values — skill decisions are qualitative only.
+ * Returns empty TokenMap per dimension when no theme exists.
  */
 export function resolveRenderTokens(
   skill: SkillState,
@@ -155,9 +155,7 @@ export function resolveRenderTokens(
 ): Record<string, TokenMap> {
   const result: Record<string, TokenMap> = {}
   for (const dim of Object.keys(skill)) {
-    const base = extractTokensFromDimension(skill[dim])
-    const themeTokens = theme?.[dim]?.tokens
-    result[dim] = themeTokens ? { ...base, ...themeTokens } : base
+    result[dim] = theme?.[dim]?.tokens ?? {}
   }
   return result
 }

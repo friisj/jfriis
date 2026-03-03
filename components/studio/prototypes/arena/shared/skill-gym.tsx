@@ -12,6 +12,7 @@
 
 import { useState, useCallback, useMemo, useRef, useEffect } from 'react'
 import type { SkillState, SkillDecision, ArenaAnnotation, AnnotationSegment, TokenMap, ProjectTheme } from '@/lib/studio/arena/types'
+import { resolveRenderTokens } from '@/lib/studio/arena/types'
 import { DEBONO_HATS } from '@/lib/studio/arena/debono-hats'
 import type { DebonoHatKey } from '@/lib/studio/arena/debono-hats'
 import { CanonicalCard, CanonicalForm, CanonicalDashboard } from './canonical-components'
@@ -95,19 +96,26 @@ function DecisionRow({
   dimension,
   feedback,
   onFeedback,
+  themeValue,
 }: {
   decision: SkillDecision
   dimension: string
   feedback: GymFeedbackItem | undefined
   onFeedback: (item: GymFeedbackItem | null) => void
+  /** Token value from the theme layer (if available) */
+  themeValue?: string
 }) {
-  const [editValue, setEditValue] = useState(feedback?.newValue ?? decision.value)
+  // Display value: theme token takes precedence, then decision.value (legacy), then absent
+  const displayValue = themeValue ?? decision.value
+  const hasValue = displayValue != null
+
+  const [editValue, setEditValue] = useState(feedback?.newValue ?? displayValue ?? '')
   const [editReason, setEditReason] = useState(feedback?.reason ?? '')
   const [mode, setMode] = useState<'view' | 'adjust' | 'flag'>(
     feedback?.action === 'adjust' ? 'adjust' : feedback?.action === 'flag' ? 'flag' : 'view'
   )
 
-  const isColor = dimension === 'color' && isHexColor(decision.value)
+  const isColor = dimension === 'color' && hasValue && isHexColor(displayValue!)
 
   const handleApprove = () => {
     setMode('view')
@@ -116,11 +124,11 @@ function DecisionRow({
 
   const handleStartAdjust = () => {
     setMode('adjust')
-    setEditValue(decision.value)
+    setEditValue(displayValue ?? '')
   }
 
   const handleConfirmAdjust = () => {
-    if (editValue.trim() && editValue !== decision.value) {
+    if (editValue.trim() && editValue !== displayValue) {
       onFeedback({ dimension, label: decision.label, action: 'adjust', newValue: editValue.trim(), reason: editReason || undefined })
       setMode('view')
     }
@@ -140,7 +148,7 @@ function DecisionRow({
 
   const handleClear = () => {
     setMode('view')
-    setEditValue(decision.value)
+    setEditValue(displayValue ?? '')
     setEditReason('')
     onFeedback(null)
   }
@@ -163,10 +171,16 @@ function DecisionRow({
 
         <span className="text-xs font-medium text-gray-700 dark:text-gray-300 w-28 flex-shrink-0">{decision.label}</span>
         <div className="flex items-center gap-1.5 flex-1 min-w-0">
-          {isColor && <ColorSwatch hex={decision.value} />}
-          <code className="text-[11px] bg-gray-100 dark:bg-gray-800 px-1.5 py-0.5 rounded truncate">
-            {decision.value}
-          </code>
+          {hasValue ? (
+            <>
+              {isColor && <ColorSwatch hex={displayValue!} />}
+              <code className="text-[11px] bg-gray-100 dark:bg-gray-800 px-1.5 py-0.5 rounded truncate">
+                {displayValue}
+              </code>
+            </>
+          ) : (
+            <span className="text-[11px] text-gray-400 italic">no token</span>
+          )}
           {feedback?.action === 'adjust' && feedback.newValue && (
             <>
               <span className="text-gray-400 text-xs">{'\u2192'}</span>
@@ -269,41 +283,67 @@ function DecisionRow({
   )
 }
 
-function ChangeDiffList({ previous, refined }: { previous: SkillState; refined: SkillState }) {
-  const changes: { dim: string; label: string; oldVal: string; newVal: string }[] = []
+function ChangeDiffList({ previous, refined, themeUpdates }: { previous: SkillState; refined: SkillState; themeUpdates?: Record<string, TokenMap> }) {
+  const intentChanges: { dim: string; label: string; oldIntent: string; newIntent: string }[] = []
+  const tokenChanges: { dim: string; label: string; oldVal: string; newVal: string }[] = []
 
+  // Detect intent changes between previous and refined skill
   for (const dim of Object.keys(refined)) {
     if (!refined[dim]?.decisions) continue
     for (const rd of refined[dim].decisions) {
       const pd = previous[dim]?.decisions?.find(d => d.label === rd.label)
-      if (pd && pd.value !== rd.value) {
-        changes.push({ dim, label: rd.label, oldVal: pd.value, newVal: rd.value })
+      if (pd && pd.intent !== rd.intent && rd.intent) {
+        intentChanges.push({ dim, label: rd.label, oldIntent: pd.intent ?? '', newIntent: rd.intent })
       }
     }
   }
 
-  if (changes.length === 0) {
-    return <p className="text-xs text-gray-400 italic">No value changes from previous skill.</p>
+  // Detect token changes from theme_updates
+  if (themeUpdates) {
+    for (const [dim, tokens] of Object.entries(themeUpdates)) {
+      for (const [label, newVal] of Object.entries(tokens)) {
+        tokenChanges.push({ dim, label, oldVal: '', newVal })
+      }
+    }
+  }
+
+  if (intentChanges.length === 0 && tokenChanges.length === 0) {
+    return <p className="text-xs text-gray-400 italic">No changes from previous skill.</p>
   }
 
   return (
-    <div className="space-y-1">
-      {changes.map((ch, i) => (
-        <div key={i} className="flex items-center gap-2 text-xs">
-          <span className="text-amber-500 flex-shrink-0">{'\u0394'}</span>
-          <span className="text-gray-500 w-16 capitalize">{ch.dim}</span>
-          <span className="font-medium text-gray-600 dark:text-gray-400 w-28">{ch.label}</span>
-          <div className="flex items-center gap-1">
-            {isHexColor(ch.oldVal) && <ColorSwatch hex={ch.oldVal} />}
-            <code className="text-[10px] bg-gray-100 dark:bg-gray-800 px-1 rounded">{ch.oldVal}</code>
-          </div>
-          <span className="text-gray-400">{'\u2192'}</span>
-          <div className="flex items-center gap-1">
-            {isHexColor(ch.newVal) && <ColorSwatch hex={ch.newVal} />}
-            <code className="text-[10px] bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400 px-1 rounded">{ch.newVal}</code>
-          </div>
+    <div className="space-y-2">
+      {tokenChanges.length > 0 && (
+        <div className="space-y-1">
+          <span className="text-[10px] text-gray-400 uppercase tracking-wider">Token Corrections</span>
+          {tokenChanges.map((ch, i) => (
+            <div key={`t-${i}`} className="flex items-center gap-2 text-xs">
+              <span className="text-amber-500 flex-shrink-0">{'\u0394'}</span>
+              <span className="text-gray-500 w-16 capitalize">{ch.dim}</span>
+              <span className="font-medium text-gray-600 dark:text-gray-400 w-28">{ch.label}</span>
+              <div className="flex items-center gap-1">
+                {isHexColor(ch.newVal) && <ColorSwatch hex={ch.newVal} />}
+                <code className="text-[10px] bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400 px-1 rounded">{ch.newVal}</code>
+              </div>
+            </div>
+          ))}
         </div>
-      ))}
+      )}
+      {intentChanges.length > 0 && (
+        <div className="space-y-1">
+          <span className="text-[10px] text-gray-400 uppercase tracking-wider">Intent Refinements</span>
+          {intentChanges.map((ch, i) => (
+            <div key={`i-${i}`} className="text-xs space-y-0.5">
+              <div className="flex items-center gap-2">
+                <span className="text-blue-500 flex-shrink-0">{'\u270E'}</span>
+                <span className="text-gray-500 w-16 capitalize">{ch.dim}</span>
+                <span className="font-medium text-gray-600 dark:text-gray-400">{ch.label}</span>
+              </div>
+              <p className="ml-6 text-[10px] text-gray-500 dark:text-gray-400 italic">{ch.newIntent}</p>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   )
 }
@@ -670,7 +710,7 @@ export function SkillGym({ skill, onSkillUpdate, onBack, fontOverrides, targetDi
 
         <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl p-5">
           <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">Changes</h3>
-          <ChangeDiffList previous={previousSkill} refined={refinedSkill} />
+          <ChangeDiffList previous={previousSkill} refined={refinedSkill} themeUpdates={refineThemeUpdates} />
         </div>
 
         {/* Side-by-side canonical components */}
@@ -816,15 +856,20 @@ export function SkillGym({ skill, onSkillUpdate, onBack, fontOverrides, targetDi
                   </span>
                 </div>
                 <div className="space-y-1">
-                  {state.decisions.map(decision => (
-                    <DecisionRow
-                      key={decision.id}
-                      decision={decision}
-                      dimension={dim}
-                      feedback={feedbackMap[feedbackKey(dim, decision.label)]}
-                      onFeedback={(item) => handleFeedback(dim, decision.label, item)}
-                    />
-                  ))}
+                  {state.decisions.map(decision => {
+                    const resolvedTokens = resolveRenderTokens(skill, theme)
+                    const themeVal = resolvedTokens[dim]?.[decision.label]
+                    return (
+                      <DecisionRow
+                        key={decision.id}
+                        decision={decision}
+                        dimension={dim}
+                        feedback={feedbackMap[feedbackKey(dim, decision.label)]}
+                        onFeedback={(item) => handleFeedback(dim, decision.label, item)}
+                        themeValue={themeVal}
+                      />
+                    )
+                  })}
                 </div>
 
                 {state.rules.length > 0 && (

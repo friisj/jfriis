@@ -21,7 +21,7 @@ CREATE INDEX idx_arena_project_themes_project ON arena_project_themes(project_id
 -- Auto-update updated_at on change
 CREATE TRIGGER arena_project_themes_updated_at
   BEFORE UPDATE ON arena_project_themes
-  FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 -- RLS: admin-only access (matches other arena tables)
 ALTER TABLE arena_project_themes ENABLE ROW LEVEL SECURITY;

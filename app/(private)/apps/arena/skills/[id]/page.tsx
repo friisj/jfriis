@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
-import { getSkillWithLineage } from '@/lib/studio/arena/queries'
+import { getSkillWithLineage, getThemesForSkill, getProjectThemes } from '@/lib/studio/arena/queries'
 import { SkillDetailClient } from './skill-detail-client'
 
 interface Props {
@@ -11,6 +11,20 @@ export default async function SkillDetailPage({ params }: Props) {
   const { id } = await params
   const skill = await getSkillWithLineage(id)
   if (!skill) notFound()
+
+  // Load associated themes: skill-linked (templates) or project-scoped
+  const themes = skill.is_template
+    ? await getThemesForSkill(id)
+    : skill.project_id
+      ? await (async () => {
+          const pt = await getProjectThemes(skill.project_id!)
+          return Object.entries(pt).map(([dim, { tokens, source }]) => ({
+            id: '', project_id: skill.project_id, skill_id: null, dimension: dim,
+            platform: 'tailwind', name: 'default', tokens, source,
+            created_at: '', updated_at: '',
+          }))
+        })()
+      : []
 
   return (
     <div className="max-w-7xl mx-auto space-y-6">
@@ -106,7 +120,7 @@ export default async function SkillDetailPage({ params }: Props) {
       )}
 
       {/* Skill state + canonical previews */}
-      <SkillDetailClient skill={skill} />
+      <SkillDetailClient skill={skill} themes={themes} />
     </div>
   )
 }

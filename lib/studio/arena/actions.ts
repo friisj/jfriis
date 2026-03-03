@@ -5,7 +5,7 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import { revalidatePath } from 'next/cache'
 import type { SkillState, ArenaAnnotation, SkillTier, ProjectConfig, TokenMap } from './types'
 import { CORE_DIMENSIONS, extractTokensFromDimension } from './types'
-import { BASE_SKILL } from './base-skill'
+import { BASE_SKILL, BASE_THEME_TOKENS } from './base-skill'
 import type { ArenaProjectInputs } from './db-types'
 
 // Arena tables aren't in the generated Supabase types yet.
@@ -96,13 +96,19 @@ export async function saveImportedSkill(input: {
   const dimensions = Object.keys(input.state)
 
   // Create one per-dimension skill for each dimension
+  // Strip token values from decisions — they go into the theme layer
   const dimensionSkillIds: Record<string, string> = {}
   for (const dim of dimensions) {
+    const dimState = input.state[dim]
+    const strippedDecisions = dimState.decisions.map(d => {
+      const { value: _value, ...rest } = d
+      return rest
+    })
     const { data, error } = await supabase
       .from('arena_skills')
       .insert({
         name: `${input.name} — ${dim}`,
-        state: input.state[dim] as unknown as Record<string, unknown>,
+        state: { decisions: strippedDecisions, rules: dimState.rules } as unknown as Record<string, unknown>,
         tier,
         dimension: dim,
         project_id: input.project_id ?? null,
@@ -131,21 +137,22 @@ export async function saveImportedSkill(input: {
         )
       if (error) throw error
 
-      // Seed theme layer with token values extracted from the skill
+      // Seed theme layer with token values extracted from the original skill state
       const tokens = extractTokensFromDimension(input.state[dim])
       if (Object.keys(tokens).length > 0) {
         const { error: themeErr } = await supabase
-          .from('arena_project_themes')
+          .from('arena_themes')
           .upsert(
             {
               project_id: input.project_id,
               dimension: dim,
               platform: 'tailwind',
+              name: 'default',
               tokens,
               source: tier === 'project' ? 'import' : tier,
               updated_at: new Date().toISOString(),
             },
-            { onConflict: 'project_id,dimension,platform' }
+            { onConflict: 'idx_arena_themes_unique', ignoreDuplicates: false }
           )
         if (themeErr) throw themeErr
       }
@@ -251,7 +258,7 @@ export async function completeGymRound(input: {
 
         // Merge with existing theme tokens (additive)
         const { data: existing } = await supabase
-          .from('arena_project_themes')
+          .from('arena_themes')
           .select('tokens')
           .eq('project_id', session.project_id)
           .eq('dimension', dim)
@@ -261,17 +268,19 @@ export async function completeGymRound(input: {
         const mergedTokens = { ...(existing?.tokens as TokenMap ?? {}), ...tokens }
 
         const { error: themeErr } = await supabase
-          .from('arena_project_themes')
+          .from('arena_themes')
           .upsert(
             {
               project_id: session.project_id,
+              skill_id: null,
               dimension: dim,
               platform: 'tailwind',
+              name: 'default',
               tokens: mergedTokens,
               source: 'gym',
               updated_at: new Date().toISOString(),
             },
-            { onConflict: 'project_id,dimension,platform' }
+            { onConflict: 'idx_arena_themes_unique', ignoreDuplicates: false }
           )
         if (themeErr) throw themeErr
       }
@@ -414,6 +423,7 @@ export async function seedBaseTemplates() {
 
   const templateIds: Record<string, string> = {}
   for (const dim of CORE_DIMENSIONS) {
+    // Create the template skill (intent-only, no token values)
     const { data, error } = await supabase
       .from('arena_skills')
       .insert({
@@ -430,6 +440,23 @@ export async function seedBaseTemplates() {
       .single()
     if (error) throw error
     templateIds[dim] = data.id
+
+    // Create associated theme config with the default token values
+    const tokens = BASE_THEME_TOKENS[dim]
+    if (tokens && Object.keys(tokens).length > 0) {
+      const { error: themeErr } = await supabase
+        .from('arena_themes')
+        .insert({
+          skill_id: data.id,
+          project_id: null,
+          dimension: dim,
+          platform: 'tailwind',
+          name: 'default',
+          tokens,
+          source: 'base',
+        })
+      if (themeErr) throw themeErr
+    }
   }
 
   revalidatePath('/apps/arena')
@@ -477,6 +504,31 @@ export async function cloneTemplateToProject(templateId: string, projectId: stri
         { onConflict: 'project_id,dimension' }
       )
     if (aErr) throw aErr
+  }
+
+  // Clone associated theme configs from template into project-scoped rows
+  if (template.dimension) {
+    const { data: templateThemes } = await supabase
+      .from('arena_themes')
+      .select('*')
+      .eq('skill_id', templateId)
+
+    if (templateThemes && templateThemes.length > 0) {
+      for (const theme of templateThemes) {
+        const { error: thErr } = await supabase
+          .from('arena_themes')
+          .insert({
+            project_id: projectId,
+            skill_id: null,
+            dimension: theme.dimension,
+            platform: theme.platform,
+            name: theme.name,
+            tokens: theme.tokens,
+            source: 'template-clone',
+          })
+        if (thErr) throw thErr
+      }
+    }
   }
 
   revalidatePath('/apps/arena')

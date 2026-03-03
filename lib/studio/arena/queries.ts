@@ -12,7 +12,7 @@ import type {
   ArenaProjectAssembly,
   ArenaProjectAssemblyWithSkill,
   ArenaTestComponent,
-  ArenaProjectTheme,
+  ArenaTheme,
 } from './db-types'
 import type { SkillTier, ProjectTheme, TokenMap } from './types'
 
@@ -413,57 +413,85 @@ export async function setSessionComponents(
 }
 
 // =============================================================================
-// PROJECT THEMES
+// THEMES (formerly PROJECT THEMES)
 // =============================================================================
 
+/** Fetch raw theme rows with flexible filtering */
+export async function getThemes(opts: {
+  project_id?: string
+  skill_id?: string
+  platform?: string
+  name?: string
+}): Promise<ArenaTheme[]> {
+  const supabase = await arenaClient()
+  let query = supabase.from('arena_themes').select('*')
+
+  if (opts.project_id) query = query.eq('project_id', opts.project_id)
+  if (opts.skill_id) query = query.eq('skill_id', opts.skill_id)
+  if (opts.platform) query = query.eq('platform', opts.platform)
+  if (opts.name) query = query.eq('name', opts.name)
+
+  const { data, error } = await query.order('dimension')
+  if (error) throw error
+  return (data ?? []) as unknown as ArenaTheme[]
+}
+
+/** Convenience: get project themes as a ProjectTheme map */
 export async function getProjectThemes(
   projectId: string,
   platform?: string
 ): Promise<ProjectTheme> {
-  const supabase = await arenaClient()
-  let query = supabase
-    .from('arena_project_themes')
-    .select('*')
-    .eq('project_id', projectId)
-
-  if (platform) query = query.eq('platform', platform)
-  else query = query.eq('platform', 'tailwind')
-
-  const { data, error } = await query
-  if (error) throw error
+  const rows = await getThemes({
+    project_id: projectId,
+    platform: platform ?? 'tailwind',
+  })
 
   const theme: ProjectTheme = {}
-  for (const row of (data ?? []) as unknown as ArenaProjectTheme[]) {
+  for (const row of rows) {
     theme[row.dimension] = { tokens: row.tokens, source: row.source }
   }
   return theme
 }
 
-export async function upsertProjectTheme(
-  projectId: string,
-  dimension: string,
-  platform: string,
-  tokens: TokenMap,
+/** Fetch theme configs linked to a template skill */
+export async function getThemesForSkill(
+  skillId: string,
+  platform?: string
+): Promise<ArenaTheme[]> {
+  return getThemes({ skill_id: skillId, platform: platform ?? 'tailwind' })
+}
+
+/** Upsert a theme row — accepts either project_id or skill_id + name */
+export async function upsertTheme(input: {
+  project_id?: string
+  skill_id?: string
+  dimension: string
+  platform: string
+  name?: string
+  tokens: TokenMap
   source: string
-): Promise<ArenaProjectTheme> {
+}): Promise<ArenaTheme> {
   const supabase = await arenaClient()
   const { data, error } = await supabase
-    .from('arena_project_themes')
+    .from('arena_themes')
     .upsert(
       {
-        project_id: projectId,
-        dimension,
-        platform,
-        tokens,
-        source,
+        project_id: input.project_id ?? null,
+        skill_id: input.skill_id ?? null,
+        dimension: input.dimension,
+        platform: input.platform,
+        name: input.name ?? 'default',
+        tokens: input.tokens,
+        source: input.source,
         updated_at: new Date().toISOString(),
       },
-      { onConflict: 'project_id,dimension,platform' }
+      // Use the composite unique index for conflict resolution
+      { onConflict: 'idx_arena_themes_unique', ignoreDuplicates: false }
     )
     .select()
     .single()
   if (error) throw error
-  return data as unknown as ArenaProjectTheme
+  return data as unknown as ArenaTheme
 }
 
 // =============================================================================
