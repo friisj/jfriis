@@ -6,6 +6,7 @@ import { usePathname } from 'next/navigation'
 const navItems = [
   { href: '/apps/arena', label: 'Projects', exact: true },
   { href: '/apps/arena/templates', label: 'Templates' },
+  { href: '/apps/arena/themes', label: 'Themes' },
   { href: '/apps/arena/components', label: 'Components' },
 ]
 
