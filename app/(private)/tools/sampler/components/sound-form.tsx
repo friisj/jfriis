@@ -16,6 +16,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { createSound, uploadAudio } from '@/lib/sampler';
 import { SoundGenerator } from './sound-generator';
 import { SoundSynthesizer } from './sound-synthesizer';
+import type { SamplerSound } from '@/lib/types/sampler';
 
 export function SoundForm() {
   const router = useRouter();
@@ -53,7 +54,7 @@ export function SoundForm() {
     }
   }
 
-  function handleGenerated() {
+  function handleGenerated(_sound: SamplerSound) {
     setOpen(false);
     router.refresh();
   }
@@ -71,7 +72,6 @@ export function SoundForm() {
           <TabsList className="w-full">
             <TabsTrigger value="upload" className="flex-1">Upload</TabsTrigger>
             <TabsTrigger value="generate" className="flex-1">Generate</TabsTrigger>
-            <TabsTrigger value="synth" className="flex-1">Synth</TabsTrigger>
           </TabsList>
 
           <TabsContent value="upload">
@@ -105,11 +105,18 @@ export function SoundForm() {
           </TabsContent>
 
           <TabsContent value="generate" className="pt-4">
-            <SoundGenerator onGenerated={handleGenerated} />
-          </TabsContent>
-
-          <TabsContent value="synth" className="pt-4">
-            <SoundSynthesizer onGenerated={handleGenerated} />
+            <Tabs defaultValue="elevenlabs">
+              <TabsList className="w-full">
+                <TabsTrigger value="elevenlabs" className="flex-1">ElevenLabs</TabsTrigger>
+                <TabsTrigger value="synth" className="flex-1">Synth</TabsTrigger>
+              </TabsList>
+              <TabsContent value="elevenlabs" className="pt-4">
+                <SoundGenerator onGenerated={handleGenerated} />
+              </TabsContent>
+              <TabsContent value="synth" className="pt-4">
+                <SoundSynthesizer onGenerated={handleGenerated} />
+              </TabsContent>
+            </Tabs>
           </TabsContent>
         </Tabs>
       </DialogContent>
