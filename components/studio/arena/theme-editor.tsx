@@ -13,7 +13,7 @@ import {
   type TokenMap,
   type ProjectTheme,
 } from '@/lib/studio/arena/types'
-import { upsertTheme } from '@/lib/studio/arena/queries'
+import { saveTheme } from '@/app/actions/arena'
 import { hexToOklch, oklchToHex, isHexColor } from '@/lib/studio/arena/color-utils'
 import { useArenaFonts, type AvailableFonts } from '@/components/studio/arena/font-selector'
 
@@ -87,7 +87,7 @@ export function ThemeEditor({ initialTokens, themeName, scope, platform }: Theme
     setSaving(true)
     try {
       for (const [dim, toks] of Object.entries(tokens)) {
-        await upsertTheme({
+        await saveTheme({
           skill_id: scope.skillId,
           project_id: scope.projectId,
           dimension: dim,
