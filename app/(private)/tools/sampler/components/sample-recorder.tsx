@@ -4,6 +4,7 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
@@ -26,6 +27,7 @@ type Phase = 'idle' | 'recording' | 'preview' | 'saving';
 
 export function SampleRecorder({ open, onOpenChange, onSampled }: SampleRecorderProps) {
   const recorderRef = useRef<TabRecorder | null>(null);
+  const [supported] = useState(() => TabRecorder.isSupported());
   const [phase, setPhase] = useState<Phase>('idle');
   const [elapsed, setElapsed] = useState(0);
   const [result, setResult] = useState<RecordingResult | null>(null);
@@ -146,6 +148,9 @@ export function SampleRecorder({ open, onOpenChange, onSampled }: SampleRecorder
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Sample from Tab</DialogTitle>
+          <DialogDescription className="sr-only">
+            Record audio from a browser tab to create a sampler sound
+          </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
@@ -155,9 +160,15 @@ export function SampleRecorder({ open, onOpenChange, onSampled }: SampleRecorder
               <p className="text-sm text-muted-foreground">
                 Records audio from another browser tab. Your browser will ask which tab to capture.
               </p>
-              <Button onClick={handleStart} className="w-full">
-                Start Recording
-              </Button>
+              {supported ? (
+                <Button onClick={handleStart} className="w-full">
+                  Start Recording
+                </Button>
+              ) : (
+                <p className="text-sm text-destructive">
+                  Tab audio capture is not supported in this browser. Try Chrome or Edge.
+                </p>
+              )}
             </>
           )}
 
