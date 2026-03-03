@@ -32,6 +32,7 @@ import '@/lib/ai/actions/arena-infer-style'
 import '@/lib/ai/actions/arena-classify-figma-tokens'
 import '@/lib/ai/actions/arena-refine-skill'
 import '@/lib/ai/actions/arena-generate-foundation'
+import '@/lib/ai/actions/arena-verify-theme-classification'
 
 export async function POST(request: Request) {
   try {
