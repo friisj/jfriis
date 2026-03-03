@@ -82,6 +82,56 @@ export const listPromptTemplates = tool({
 });
 
 // ============================================================================
+// Chassis Module Read Tools
+// ============================================================================
+
+export const listChassisModules = tool({
+  description:
+    'List all chassis modules with their slug, name, category, and current version. Use this to discover available modules before reading or proposing changes.',
+  inputSchema: zodSchema(z.object({})),
+  execute: async () => {
+    const { getChassisModulesServer } = await import('./luv-chassis-server');
+    const modules = await getChassisModulesServer();
+    return {
+      modules: modules.map((m) => ({
+        id: m.id,
+        slug: m.slug,
+        name: m.name,
+        category: m.category,
+        description: m.description,
+        current_version: m.current_version,
+      })),
+    };
+  },
+});
+
+export const readChassisModule = tool({
+  description:
+    'Read a specific chassis module by slug (e.g. "eyes", "skin", "hair", "skeletal", "mouth", "nose", "body-proportions"). Returns all parameters for the module.',
+  inputSchema: zodSchema(
+    z.object({
+      slug: z.string().describe('Module slug (e.g. "eyes", "hair", "skin")'),
+    })
+  ),
+  execute: async ({ slug }) => {
+    const { getChassisModuleBySlugServer } = await import(
+      './luv-chassis-server'
+    );
+    const mod = await getChassisModuleBySlugServer(slug);
+    if (!mod) return { error: `Module "${slug}" not found` };
+    return {
+      id: mod.id,
+      slug: mod.slug,
+      name: mod.name,
+      category: mod.category,
+      description: mod.description,
+      current_version: mod.current_version,
+      parameters: mod.parameters,
+    };
+  },
+});
+
+// ============================================================================
 // Write Tools (return proposals, don't execute mutations)
 // ============================================================================
 
@@ -159,6 +209,43 @@ export const proposeChassisChange = tool({
   },
 });
 
+export const proposeModuleChange = tool({
+  description:
+    'Propose a parameter change to a chassis module. Returns a proposal that requires human approval. Use read_chassis_module first to see current values.',
+  inputSchema: zodSchema(
+    z.object({
+      moduleSlug: z
+        .string()
+        .describe('Module slug (e.g. "eyes", "hair", "skin")'),
+      parameterKey: z
+        .string()
+        .describe('Parameter key to change (e.g. "color", "shape")'),
+      proposedValue: z.unknown().describe('The new value to set'),
+      reason: z.string().describe('Why this change is being proposed'),
+    })
+  ),
+  execute: async ({ moduleSlug, parameterKey, proposedValue, reason }) => {
+    const { getChassisModuleBySlugServer } = await import(
+      './luv-chassis-server'
+    );
+    const mod = await getChassisModuleBySlugServer(moduleSlug);
+    if (!mod) return { error: `Module "${moduleSlug}" not found` };
+
+    const currentValue = mod.parameters[parameterKey];
+
+    return {
+      type: 'module_change_proposal' as const,
+      moduleId: mod.id,
+      moduleSlug: mod.slug,
+      moduleName: mod.name,
+      parameterKey,
+      currentValue,
+      proposedValue,
+      reason,
+    };
+  },
+});
+
 // ============================================================================
 // Tool Registry
 // ============================================================================
@@ -168,6 +255,9 @@ export const luvTools = {
   read_chassis: readChassis,
   list_references: listReferences,
   list_prompt_templates: listPromptTemplates,
+  list_chassis_modules: listChassisModules,
+  read_chassis_module: readChassisModule,
   propose_soul_change: proposeSoulChange,
   propose_chassis_change: proposeChassisChange,
+  propose_module_change: proposeModuleChange,
 };

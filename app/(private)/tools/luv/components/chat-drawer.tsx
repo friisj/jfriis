@@ -28,6 +28,8 @@ const READ_TOOLS = new Set([
   'read_chassis',
   'list_references',
   'list_prompt_templates',
+  'list_chassis_modules',
+  'read_chassis_module',
 ]);
 
 interface ChatDrawerProps {
@@ -276,7 +278,8 @@ function MessageBubble({
               typeof output === 'object' &&
               'type' in (output as Record<string, unknown>) &&
               ((output as Record<string, unknown>).type === 'soul_change_proposal' ||
-                (output as Record<string, unknown>).type === 'chassis_change_proposal')
+                (output as Record<string, unknown>).type === 'chassis_change_proposal' ||
+                (output as Record<string, unknown>).type === 'module_change_proposal')
             ) {
               return (
                 <ProposalCard

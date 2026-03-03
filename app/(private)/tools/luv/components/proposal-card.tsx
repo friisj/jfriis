@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Check, X } from 'lucide-react';
 
-interface ChangeProposal {
+interface SoulChassisProposal {
   type: 'soul_change_proposal' | 'chassis_change_proposal';
   characterId: string;
   field: string;
@@ -13,6 +13,19 @@ interface ChangeProposal {
   proposedValue: unknown;
   reason: string;
 }
+
+interface ModuleProposal {
+  type: 'module_change_proposal';
+  moduleId: string;
+  moduleSlug: string;
+  moduleName: string;
+  parameterKey: string;
+  currentValue: unknown;
+  proposedValue: unknown;
+  reason: string;
+}
+
+type ChangeProposal = SoulChassisProposal | ModuleProposal;
 
 interface ProposalCardProps {
   proposal: ChangeProposal;
@@ -46,14 +59,21 @@ export function ProposalCard({ proposal, onApplied }: ProposalCardProps) {
     setStatus('rejected');
   };
 
-  const isSoul = proposal.type === 'soul_change_proposal';
-  const label = isSoul ? 'Soul' : 'Chassis';
+  const isModule = proposal.type === 'module_change_proposal';
+  const label = isModule
+    ? `Module: ${proposal.moduleName}`
+    : proposal.type === 'soul_change_proposal'
+      ? 'Soul'
+      : 'Chassis';
+  const pathLabel = isModule
+    ? proposal.parameterKey
+    : (proposal as SoulChassisProposal).path;
 
   return (
     <div className="rounded border bg-amber-50 dark:bg-amber-950/30 text-xs my-1 overflow-hidden">
       <div className="px-2.5 py-2 space-y-1.5">
         <div className="font-medium">
-          Update {label}: {proposal.path}
+          Update {label}: {pathLabel}
         </div>
         <div className="text-muted-foreground">{proposal.reason}</div>
 
