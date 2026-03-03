@@ -59,16 +59,9 @@ export function Pad({ pad, isPlaying, isSelected, onTrigger, onRelease, onSelect
           aria-label={pad.label || pad.sound?.name || `Pad ${pad.row + 1},${pad.col + 1}`}
         >
           {hasSound ? (
-            <>
-              {pad.label && (
-                <span className="text-xs font-semibold truncate w-full text-center">
-                  {pad.label}
-                </span>
-              )}
-              <span className="text-[10px] text-muted-foreground truncate w-full text-center">
-                {pad.sound!.name}
-              </span>
-            </>
+            <span className="text-xs font-semibold w-full text-center line-clamp-1">
+              {pad.label || pad.sound!.name}
+            </span>
           ) : (
             <Plus className="w-4 h-4 text-muted-foreground" />
           )}
