@@ -17,12 +17,12 @@ function SamplerHeaderActions() {
 
   useEffect(() => {
     setActions(
-      <nav className="flex items-center h-10">
+      <nav className="flex items-center h-10 divide-x divide-border">
         {navLinks.map((link) => (
           <Link
             key={link.href}
             href={link.href}
-            className={`flex items-center h-10 px-3 text-xs font-medium transition-colors border-l border-border ${
+            className={`flex items-center h-10 px-3 text-xs font-medium transition-colors ${
               pathname === link.href
                 ? 'text-foreground bg-accent'
                 : 'text-muted-foreground hover:text-foreground hover:bg-accent'
