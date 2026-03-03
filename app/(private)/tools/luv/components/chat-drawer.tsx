@@ -8,9 +8,11 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { ChevronDown } from 'lucide-react';
+import { ChevronDown, ChevronRight } from 'lucide-react';
 import { createLuvConversation, createLuvMessage } from '@/lib/luv';
+import { composeSoulSystemPrompt } from '@/lib/luv-prompt-composer';
 import type { LuvSoulData } from '@/lib/types/luv';
+import { cn } from '@/lib/utils';
 import { ToolCallCard } from './tool-call-card';
 import { ProposalCard } from './proposal-card';
 
@@ -44,6 +46,7 @@ function getMessageText(msg: UIMessage): string {
 export function ChatDrawer({ soulData, soulLoaded }: ChatDrawerProps) {
   const [modelKey, setModelKey] = useState('claude-sonnet');
   const [input, setInput] = useState('');
+  const [promptOpen, setPromptOpen] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -139,6 +142,13 @@ export function ChatDrawer({ soulData, soulLoaded }: ChatDrawerProps) {
           ))}
         </select>
       </div>
+
+      {/* System Prompt Preview */}
+      <SystemPromptPreview
+        soulData={soulData}
+        open={promptOpen}
+        onToggle={() => setPromptOpen(!promptOpen)}
+      />
 
       {/* Messages */}
       <div className="flex-1 overflow-y-auto px-3 py-3 space-y-3 min-h-0">
@@ -303,6 +313,42 @@ function MessageBubble({
           return null;
         })}
       </div>
+    </div>
+  );
+}
+
+function SystemPromptPreview({
+  soulData,
+  open,
+  onToggle,
+}: {
+  soulData: LuvSoulData;
+  open: boolean;
+  onToggle: () => void;
+}) {
+  const prompt = composeSoulSystemPrompt(soulData);
+  const tokenEstimate = Math.ceil(prompt.length / 4);
+
+  return (
+    <div className="border-b shrink-0">
+      <button
+        type="button"
+        onClick={onToggle}
+        className="flex items-center gap-1 w-full px-3 py-1.5 text-[10px] text-muted-foreground hover:text-foreground transition-colors"
+      >
+        <ChevronRight
+          className={cn('size-3 transition-transform', open && 'rotate-90')}
+        />
+        <span>System Prompt</span>
+        <span className="ml-auto tabular-nums">{tokenEstimate} tokens</span>
+      </button>
+      {open && (
+        <div className="px-3 pb-2 max-h-48 overflow-auto">
+          <pre className="text-[10px] text-muted-foreground whitespace-pre-wrap font-mono leading-relaxed">
+            {prompt}
+          </pre>
+        </div>
+      )}
     </div>
   );
 }
