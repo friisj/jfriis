@@ -461,6 +461,16 @@ export async function getThemesForSkill(
   return getThemes({ skill_id: skillId, platform: platform ?? 'tailwind' })
 }
 
+/** Fetch all template-scoped themes (those with a skill_id), optionally filtered by name */
+export async function getTemplateThemes(name?: string): Promise<ArenaTheme[]> {
+  const supabase = await arenaClient()
+  let query = supabase.from('arena_themes').select('*').not('skill_id', 'is', null)
+  if (name) query = query.eq('name', name)
+  const { data, error } = await query.order('dimension')
+  if (error) throw error
+  return (data ?? []) as unknown as ArenaTheme[]
+}
+
 /** Upsert a theme row — accepts either project_id or skill_id + name */
 export async function upsertTheme(input: {
   project_id?: string
