@@ -26,6 +26,7 @@ type Phase = 'idle' | 'recording' | 'preview' | 'saving';
 
 export function SampleRecorder({ open, onOpenChange, onSampled }: SampleRecorderProps) {
   const recorderRef = useRef<TabRecorder | null>(null);
+  const [supported] = useState(() => TabRecorder.isSupported());
   const [phase, setPhase] = useState<Phase>('idle');
   const [elapsed, setElapsed] = useState(0);
   const [result, setResult] = useState<RecordingResult | null>(null);
@@ -155,9 +156,15 @@ export function SampleRecorder({ open, onOpenChange, onSampled }: SampleRecorder
               <p className="text-sm text-muted-foreground">
                 Records audio from another browser tab. Your browser will ask which tab to capture.
               </p>
-              <Button onClick={handleStart} className="w-full">
-                Start Recording
-              </Button>
+              {supported ? (
+                <Button onClick={handleStart} className="w-full">
+                  Start Recording
+                </Button>
+              ) : (
+                <p className="text-sm text-destructive">
+                  Tab audio capture is not supported in this browser. Try Chrome or Edge.
+                </p>
+              )}
             </>
           )}
 
