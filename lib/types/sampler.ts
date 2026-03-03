@@ -34,12 +34,18 @@ export interface DelayEffect {
   wet: number;      // 0-1
 }
 
+export interface TrimConfig {
+  startMs: number;
+  endMs: number;
+}
+
 export interface PadEffects {
   volume: number;  // 0-1
   pitch: number;   // semitones (-24 to 24)
   reverb?: ReverbEffect;
   eq?: EQEffect;
   delay?: DelayEffect;
+  trim?: TrimConfig;
 }
 
 export const DEFAULT_PAD_EFFECTS: PadEffects = {
