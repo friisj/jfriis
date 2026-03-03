@@ -1,16 +1,14 @@
 'use client';
 
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import { useChat } from '@ai-sdk/react';
+import { DefaultChatTransport } from 'ai';
+import type { UIMessage } from 'ai';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { ChevronDown } from 'lucide-react';
 import { createLuvConversation, createLuvMessage } from '@/lib/luv';
 import type { LuvSoulData } from '@/lib/types/luv';
-
-interface ChatMessage {
-  role: 'user' | 'assistant';
-  content: string;
-}
 
 const MODEL_OPTIONS = [
   { key: 'claude-sonnet', label: 'Sonnet' },
@@ -25,13 +23,33 @@ interface ChatDrawerProps {
   soulLoaded: boolean;
 }
 
+function getMessageText(msg: UIMessage): string {
+  return msg.parts
+    .filter((p): p is { type: 'text'; text: string } => p.type === 'text')
+    .map((p) => p.text)
+    .join('');
+}
+
 export function ChatDrawer({ soulData, soulLoaded }: ChatDrawerProps) {
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [input, setInput] = useState('');
-  const [streaming, setStreaming] = useState(false);
   const [modelKey, setModelKey] = useState('claude-sonnet');
+  const [input, setInput] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  const transport = useMemo(
+    () =>
+      new DefaultChatTransport({
+        api: '/api/luv/chat',
+        body: { modelKey },
+      }),
+    [modelKey]
+  );
+
+  const { messages, sendMessage, setMessages, status } = useChat({
+    transport,
+  });
+
+  const isActive = status === 'streaming' || status === 'submitted';
 
   const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -47,67 +65,9 @@ export function ChatDrawer({ soulData, soulLoaded }: ChatDrawerProps) {
 
   const handleSend = async () => {
     const trimmed = input.trim();
-    if (!trimmed || streaming) return;
-
-    const userMessage: ChatMessage = { role: 'user', content: trimmed };
-    const updatedMessages = [...messages, userMessage];
-    setMessages(updatedMessages);
+    if (!trimmed || isActive) return;
     setInput('');
-    setStreaming(true);
-
-    try {
-      const response = await fetch('/api/luv/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          messages: updatedMessages,
-          soulData,
-          modelKey,
-        }),
-      });
-
-      if (!response.ok) {
-        const err = await response.json().catch(() => ({}));
-        throw new Error(err.error || `HTTP ${response.status}`);
-      }
-
-      const reader = response.body?.getReader();
-      if (!reader) throw new Error('No response body');
-
-      const decoder = new TextDecoder();
-      let assistantContent = '';
-
-      setMessages((prev) => [...prev, { role: 'assistant', content: '' }]);
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        const chunk = decoder.decode(value, { stream: true });
-        assistantContent += chunk;
-
-        setMessages((prev) => {
-          const updated = [...prev];
-          updated[updated.length - 1] = {
-            role: 'assistant',
-            content: assistantContent,
-          };
-          return updated;
-        });
-      }
-    } catch (err) {
-      console.error('Chat error:', err);
-      setMessages((prev) => [
-        ...prev,
-        {
-          role: 'assistant',
-          content: `Error: ${err instanceof Error ? err.message : 'Failed to get response'}`,
-        },
-      ]);
-    } finally {
-      setStreaming(false);
-      textareaRef.current?.focus();
-    }
+    await sendMessage({ text: trimmed });
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -121,9 +81,9 @@ export function ChatDrawer({ soulData, soulLoaded }: ChatDrawerProps) {
     if (messages.length === 0) return;
     try {
       const firstUserMsg = messages.find((m) => m.role === 'user');
-      const title = firstUserMsg
-        ? firstUserMsg.content.slice(0, 60) +
-          (firstUserMsg.content.length > 60 ? '...' : '')
+      const firstText = firstUserMsg ? getMessageText(firstUserMsg) : '';
+      const title = firstText
+        ? firstText.slice(0, 60) + (firstText.length > 60 ? '...' : '')
         : 'Untitled conversation';
 
       const conversation = await createLuvConversation({
@@ -133,11 +93,13 @@ export function ChatDrawer({ soulData, soulLoaded }: ChatDrawerProps) {
       });
 
       for (const msg of messages) {
-        await createLuvMessage({
-          conversation_id: conversation.id,
-          role: msg.role,
-          content: msg.content,
-        });
+        if (msg.role === 'user' || msg.role === 'assistant') {
+          await createLuvMessage({
+            conversation_id: conversation.id,
+            role: msg.role,
+            content: getMessageText(msg),
+          });
+        }
       }
     } catch (err) {
       console.error('Failed to save conversation:', err);
@@ -179,27 +141,32 @@ export function ChatDrawer({ soulData, soulLoaded }: ChatDrawerProps) {
             Chat with Luv while you work.
           </p>
         )}
-        {messages.map((msg, i) => (
-          <div
-            key={i}
-            className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
-          >
+        {messages.map((msg) => {
+          const text = getMessageText(msg);
+          if (!text && msg.role !== 'assistant') return null;
+
+          return (
             <div
-              className={`max-w-[85%] rounded-lg px-3 py-2 text-xs whitespace-pre-wrap ${
-                msg.role === 'user'
-                  ? 'bg-primary text-primary-foreground'
-                  : 'bg-muted'
-              }`}
+              key={msg.id}
+              className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
             >
-              {msg.content}
-              {streaming &&
-                i === messages.length - 1 &&
-                msg.role === 'assistant' && (
-                  <span className="inline-block w-1 h-3 bg-current animate-pulse ml-0.5" />
-                )}
+              <div
+                className={`max-w-[85%] rounded-lg px-3 py-2 text-xs whitespace-pre-wrap ${
+                  msg.role === 'user'
+                    ? 'bg-primary text-primary-foreground'
+                    : 'bg-muted'
+                }`}
+              >
+                {text}
+                {isActive &&
+                  msg.id === messages[messages.length - 1]?.id &&
+                  msg.role === 'assistant' && (
+                    <span className="inline-block w-1 h-3 bg-current animate-pulse ml-0.5" />
+                  )}
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
         <div ref={messagesEndRef} />
       </div>
 
@@ -217,11 +184,11 @@ export function ChatDrawer({ soulData, soulLoaded }: ChatDrawerProps) {
             placeholder="Message Luv..."
             rows={2}
             className="resize-none text-xs"
-            disabled={streaming || !soulLoaded}
+            disabled={isActive || !soulLoaded}
           />
           <Button
             onClick={handleSend}
-            disabled={streaming || !input.trim() || !soulLoaded}
+            disabled={isActive || !input.trim() || !soulLoaded}
             size="sm"
             className="h-auto self-end"
           >
@@ -235,7 +202,7 @@ export function ChatDrawer({ soulData, soulLoaded }: ChatDrawerProps) {
               size="sm"
               className="h-6 text-[10px] px-1.5"
               onClick={handleClear}
-              disabled={streaming}
+              disabled={isActive}
             >
               Clear
             </Button>
@@ -244,7 +211,7 @@ export function ChatDrawer({ soulData, soulLoaded }: ChatDrawerProps) {
               size="sm"
               className="h-6 text-[10px] px-1.5"
               onClick={handleSaveConversation}
-              disabled={streaming}
+              disabled={isActive}
             >
               Save
             </Button>

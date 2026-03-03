@@ -5,6 +5,7 @@ import { checkAIRateLimit, getAIRateLimitHeaders } from '@/lib/ai/rate-limit';
 import { getModel } from '@/lib/ai/models';
 import { composeSoulSystemPrompt } from '@/lib/luv-prompt-composer';
 import type { LuvSoulData } from '@/lib/types/luv';
+import { getLuvCharacterServer } from '@/lib/luv-server';
 
 export async function POST(request: Request) {
   const { user, error } = await requireAuth();
@@ -23,11 +24,10 @@ export async function POST(request: Request) {
   const body = await request.json();
   const {
     messages,
-    soulData,
     modelKey = 'claude-sonnet',
   } = body as {
     messages: Array<{ role: 'user' | 'assistant'; content: string }>;
-    soulData: LuvSoulData;
+    soulData?: LuvSoulData;
     modelKey?: string;
   };
 
@@ -35,7 +35,10 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Messages required' }, { status: 400 });
   }
 
-  const systemPrompt = composeSoulSystemPrompt(soulData || {});
+  // Load soul from DB server-side (ignore client-sent soulData)
+  const character = await getLuvCharacterServer();
+  const soulData = character?.soul_data ?? {};
+  const systemPrompt = composeSoulSystemPrompt(soulData);
 
   const result = streamText({
     model: getModel(modelKey),
@@ -43,5 +46,5 @@ export async function POST(request: Request) {
     messages,
   });
 
-  return result.toTextStreamResponse();
+  return result.toUIMessageStreamResponse();
 }

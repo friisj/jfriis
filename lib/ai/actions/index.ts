@@ -4,7 +4,7 @@
  * Central registry for all AI actions and the executor that runs them.
  */
 
-import { generateText, type ModelMessage } from 'ai'
+import { generateText, type ModelMessage, type ToolSet } from 'ai'
 import { getModel, models } from '../models'
 import { getAnthropic } from '../providers'
 import type {
@@ -240,7 +240,7 @@ export async function executeAction<TInput, TOutput>(
     const modelConfig = models[modelKey]
     const isAnthropicModel = modelConfig?.provider === 'anthropic'
     const tools = webSearchEnabled && isAnthropicModel
-      ? { web_search: getAnthropic().tools.webSearch_20250305({ maxUses: 5 }) }
+      ? { web_search: getAnthropic().tools.webSearch_20250305({ maxUses: 5 }) } as ToolSet
       : undefined
 
     // Execute — branch on buildMessages (multimodal) vs buildPrompt (text-only)
