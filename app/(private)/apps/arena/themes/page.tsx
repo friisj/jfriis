@@ -26,11 +26,19 @@ export default async function ThemesPage() {
 
   return (
     <div className="max-w-7xl mx-auto space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">Themes</h1>
-        <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">
-          {grouped.length} {grouped.length === 1 ? 'theme' : 'themes'}
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">Themes</h1>
+          <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">
+            {grouped.length} {grouped.length === 1 ? 'theme' : 'themes'}
+          </p>
+        </div>
+        <Link
+          href="/apps/arena/themes/new"
+          className="px-4 py-2 bg-purple-600 text-white text-sm font-medium rounded-lg hover:bg-purple-700 transition-colors"
+        >
+          New Theme
+        </Link>
       </div>
 
       {grouped.length === 0 ? (
