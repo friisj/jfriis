@@ -34,27 +34,41 @@ export function CollectionGrid({ collection }: CollectionGridProps) {
 
   // Keyboard mapping
   useEffect(() => {
+    function findPadByKey(key: string): PadWithSound | undefined {
+      const keyIndex = KEY_MAP.indexOf(key.toLowerCase());
+      if (keyIndex === -1) return undefined;
+      const row = Math.floor(keyIndex / collection.grid_cols);
+      const col = keyIndex % collection.grid_cols;
+      if (row >= collection.grid_rows) return undefined;
+      return pads.find((p) => p.row === row && p.col === col);
+    }
+
     function handleKeyDown(e: KeyboardEvent) {
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
       if (e.repeat) return;
 
-      const keyIndex = KEY_MAP.indexOf(e.key.toLowerCase());
-      if (keyIndex === -1) return;
-
-      // Map key index to grid position (row-major order)
-      const row = Math.floor(keyIndex / collection.grid_cols);
-      const col = keyIndex % collection.grid_cols;
-      if (row >= collection.grid_rows) return;
-
-      const pad = pads.find((p) => p.row === row && p.col === col);
+      const pad = findPadByKey(e.key);
       if (pad?.sound) {
         e.preventDefault();
         triggerPad(pad);
       }
     }
 
+    function handleKeyUp(e: KeyboardEvent) {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+
+      const pad = findPadByKey(e.key);
+      if (pad?.sound) {
+        releasePad(pad);
+      }
+    }
+
     window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    window.addEventListener('keyup', handleKeyUp);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keyup', handleKeyUp);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pads, collection.grid_cols, collection.grid_rows]);
 
@@ -72,6 +86,27 @@ export function CollectionGrid({ collection }: CollectionGridProps) {
       return;
     }
 
+    // Choke group: stop other pads in the same group before triggering
+    if (pad.choke_group != null) {
+      setPads((current) => {
+        for (const other of current) {
+          if (
+            other.id !== pad.id &&
+            other.choke_group === pad.choke_group &&
+            engine.isPlaying(other.id)
+          ) {
+            engine.release(other.id);
+            setPlayingPads((prev) => {
+              const next = new Set(prev);
+              next.delete(other.id);
+              return next;
+            });
+          }
+        }
+        return current; // no mutation
+      });
+    }
+
     engine.trigger(pad);
     setPlayingPads((prev) => new Set(prev).add(pad.id));
 
@@ -86,6 +121,21 @@ export function CollectionGrid({ collection }: CollectionGridProps) {
         });
       }, Math.min(duration, 3000));
     }
+  }, []);
+
+  const releasePad = useCallback((pad: PadWithSound) => {
+    const engine = engineRef.current;
+    if (!engine) return;
+
+    // Only gate pads respond to release
+    if (pad.pad_type !== 'gate') return;
+
+    engine.release(pad.id);
+    setPlayingPads((prev) => {
+      const next = new Set(prev);
+      next.delete(pad.id);
+      return next;
+    });
   }, []);
 
   function handlePadUpdated(updatedPad: PadWithSound) {
@@ -125,6 +175,7 @@ export function CollectionGrid({ collection }: CollectionGridProps) {
               isPlaying={playingPads.has(pad.id)}
               isSelected={pad.id === selectedPadId}
               onTrigger={triggerPad}
+              onRelease={releasePad}
               onSelect={(p) => setSelectedPadId(p.id === selectedPadId ? null : p.id)}
             />
           ))}

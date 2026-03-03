@@ -145,8 +145,29 @@ export function PadConfigPanel({ pad, onPadUpdated, onEffectsChange }: PadConfig
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="trigger">Trigger (one-shot)</SelectItem>
+            <SelectItem value="gate">Gate (hold to play)</SelectItem>
             <SelectItem value="toggle">Toggle (on/off)</SelectItem>
             <SelectItem value="loop">Loop</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      {/* Choke Group */}
+      <div className="space-y-2">
+        <Label>Choke Group</Label>
+        <Select
+          value={pad.choke_group != null ? String(pad.choke_group) : 'none'}
+          onValueChange={(v) => save({ choke_group: v === 'none' ? null : Number(v) })}
+        >
+          <SelectTrigger>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="none">None</SelectItem>
+            <SelectItem value="1">Group 1</SelectItem>
+            <SelectItem value="2">Group 2</SelectItem>
+            <SelectItem value="3">Group 3</SelectItem>
+            <SelectItem value="4">Group 4</SelectItem>
           </SelectContent>
         </Select>
       </div>
