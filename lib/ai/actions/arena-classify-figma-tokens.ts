@@ -37,8 +37,9 @@ const extractedSpacingSchema = z.object({
 const decisionSchema = z.object({
   id: z.string().optional(),
   label: z.string(),
-  value: z.string(),
+  value: z.string().optional(),
   rationale: z.string(),
+  intent: z.string().optional(),
   confidence: z.enum(['low', 'medium', 'high']).default('high'),
   source: z.string().default('figma'),
 }).transform(d => ({
@@ -74,8 +75,11 @@ const inputSchema = z.object({
 
 type ClassifyInput = z.infer<typeof inputSchema>
 
+const themeTokensSchema = z.record(z.string(), z.record(z.string(), z.string())).optional()
+
 const outputSchema = z.object({
   summary: z.string(),
+  theme_tokens: themeTokensSchema,
 }).catchall(dimensionSchema)
 
 type ClassifyOutput = z.infer<typeof outputSchema>
@@ -152,15 +156,23 @@ Include exactly ONE aesthetic posture rule in the color dimension:
 
 ## Output Format
 
-Output a single JSON object:
+Output a single JSON object with decisions (qualitative) and theme_tokens (quantitative) separated:
 {
   "color": { "decisions": [...], "rules": [...] },
   "typography": { "decisions": [...], "rules": [...] },
   "spacing": { "decisions": [...], "rules": [...] },
+  "theme_tokens": {
+    "color": { "Primary": "#hex", "Accent": "#hex", ... },
+    "typography": { "Display Font": "family", "Body Size": "16px", ... },
+    "spacing": { "Padding": "16px", "Gap": "12px", ... }
+  },
   "summary": "2-3 sentence description of the visual style"
 }
 
-Each decision: { label, value, rationale, confidence: "high", source: "figma" }`
+Each decision: { label, rationale, intent, confidence: "high", source: "figma" }
+Do NOT include "value" in decisions — token values go exclusively into theme_tokens.
+The "intent" field describes the design philosophy for each token role (1-2 sentences).
+The "theme_tokens" object contains the exact extracted values per dimension.`
 
 function buildMessages(input: ClassifyInput) {
   const colorSummary = input.colors.slice(0, 20).map(c =>

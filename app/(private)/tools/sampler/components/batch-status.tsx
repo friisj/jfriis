@@ -20,7 +20,7 @@ export function BatchStatus({ items, onCancel, onDismiss }: BatchStatusProps) {
   const progress = total > 0 ? ((done + errors) / total) * 100 : 0;
 
   return (
-    <div className="border rounded-lg p-4 mb-4 bg-muted/30 space-y-3">
+    <div className="p-4 border-b bg-muted/30 space-y-3">
       <div className="flex items-center justify-between">
         <div className="text-sm font-medium">
           Batch Generation

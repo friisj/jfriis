@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
-import { getSkillWithLineage } from '@/lib/studio/arena/queries'
+import { getSkillWithLineage, getThemesForSkill, getProjectThemes } from '@/lib/studio/arena/queries'
 import { SkillDetailClient } from './skill-detail-client'
 
 interface Props {
@@ -12,14 +12,28 @@ export default async function SkillDetailPage({ params }: Props) {
   const skill = await getSkillWithLineage(id)
   if (!skill) notFound()
 
+  // Load associated themes: skill-linked (templates) or project-scoped
+  const themes = skill.is_template
+    ? await getThemesForSkill(id)
+    : skill.project_id
+      ? await (async () => {
+          const pt = await getProjectThemes(skill.project_id!)
+          return Object.entries(pt).map(([dim, { tokens, source }]) => ({
+            id: '', project_id: skill.project_id, skill_id: null, dimension: dim,
+            platform: 'tailwind', name: 'default', tokens, source,
+            created_at: '', updated_at: '',
+          }))
+        })()
+      : []
+
   return (
     <div className="max-w-7xl mx-auto space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <div className="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400 mb-1">
             {skill.tier === 'template' ? (
-              <Link href="/apps/arena/templates" className="hover:text-slate-700 dark:hover:text-slate-200">
-                Templates
+              <Link href="/apps/arena/skills" className="hover:text-slate-700 dark:hover:text-slate-200">
+                Skills
               </Link>
             ) : skill.project ? (
               <Link href={`/apps/arena/projects/${skill.project.id}`} className="hover:text-slate-700 dark:hover:text-slate-200">
@@ -106,7 +120,7 @@ export default async function SkillDetailPage({ params }: Props) {
       )}
 
       {/* Skill state + canonical previews */}
-      <SkillDetailClient skill={skill} />
+      <SkillDetailClient skill={skill} themes={themes} />
     </div>
   )
 }

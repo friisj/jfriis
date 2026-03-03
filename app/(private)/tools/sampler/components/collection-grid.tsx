@@ -345,7 +345,7 @@ export function CollectionGrid({ collection }: CollectionGridProps) {
       <div className="flex gap-4 flex-1 min-h-0">
         {/* Grid */}
         <div
-          className="flex-1 grid gap-2 min-h-0"
+          className="flex-1 grid min-h-0 p-1"
           style={{
             gridTemplateRows: `repeat(${gridRows}, 1fr)`,
             gridTemplateColumns: `repeat(${collection.grid_cols}, 1fr)`,

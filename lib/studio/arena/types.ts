@@ -30,7 +30,7 @@ export interface ArenaAnnotation {
 export interface SkillDecision {
   id: string
   label: string
-  value: string
+  value?: string
   rationale: string
   intent?: string
   confidence: 'low' | 'medium' | 'high'
@@ -59,7 +59,7 @@ export type DimensionSkillState = DimensionState
 export type SkillDimension = string
 
 /** The three core dimensions (used as defaults; not authoritative — project config is) */
-export const CORE_DIMENSIONS: string[] = ['color', 'typography', 'spacing']
+export const CORE_DIMENSIONS: string[] = ['color', 'typography', 'spacing', 'elevation', 'radius']
 
 /** @deprecated Use CORE_DIMENSIONS instead */
 export const SKILL_DIMENSIONS = CORE_DIMENSIONS
@@ -100,13 +100,17 @@ export function assembleSkillState(
 
 /** Decision labels that must match the canonical components */
 export const DECISION_LABELS = {
-  color: ['Primary', 'Accent', 'Background', 'Text', 'Muted', 'Border'],
+  color: ['Primary', 'Secondary', 'Accent', 'Background', 'Card', 'Input', 'Text', 'Muted', 'Border', 'Destructive', 'Success'],
   typography: [
     'Display Font', 'Body Font', 'Mono Font',
     'Heading Size', 'Body Size', 'Small Size',
     'Heading Weight', 'Body Weight',
+    'Line Height', 'Heading Line Height',
+    'Letter Spacing', 'Heading Letter Spacing',
   ],
   spacing: ['Padding', 'Gap', 'Border Radius'],
+  elevation: ['None', 'Low', 'Medium', 'High'],
+  radius: ['Small', 'Medium', 'Large', 'Full'],
 } as const
 
 // =============================================================================
@@ -133,21 +137,23 @@ export const DIMENSION_CONFIG_SECTIONS: Record<string, string[]> = {
   color: ['colors', 'backgroundColor', 'borderColor', 'textColor'],
   typography: ['fontFamily', 'fontSize', 'fontWeight'],
   spacing: ['padding', 'gap', 'borderRadius', 'margin'],
+  elevation: ['boxShadow'],
+  radius: ['borderRadius'],
 }
 
-/** Extract a flat TokenMap from a DimensionState's decisions */
+/** Extract a flat TokenMap from a DimensionState's decisions (skips decisions without values) */
 export function extractTokensFromDimension(state: DimensionState): TokenMap {
   const tokens: TokenMap = {}
   for (const d of state.decisions) {
-    tokens[d.label] = d.value
+    if (d.value != null) tokens[d.label] = d.value
   }
   return tokens
 }
 
 /**
- * Resolve render tokens by merging skill decision values with theme tokens.
- * Theme tokens win when present (they represent the latest corrections).
- * Falls back to skill decision values when no theme exists.
+ * Resolve render tokens from the theme layer.
+ * Theme is the sole source of token values — skill decisions are qualitative only.
+ * Returns empty TokenMap per dimension when no theme exists.
  */
 export function resolveRenderTokens(
   skill: SkillState,
@@ -155,9 +161,7 @@ export function resolveRenderTokens(
 ): Record<string, TokenMap> {
   const result: Record<string, TokenMap> = {}
   for (const dim of Object.keys(skill)) {
-    const base = extractTokensFromDimension(skill[dim])
-    const themeTokens = theme?.[dim]?.tokens
-    result[dim] = themeTokens ? { ...base, ...themeTokens } : base
+    result[dim] = theme?.[dim]?.tokens ?? {}
   }
   return result
 }
@@ -168,5 +172,7 @@ export function emptySkillState(): SkillState {
     color: { decisions: [], rules: [] },
     typography: { decisions: [], rules: [] },
     spacing: { decisions: [], rules: [] },
+    elevation: { decisions: [], rules: [] },
+    radius: { decisions: [], rules: [] },
   }
 }

@@ -32,7 +32,11 @@ export function InferredSkillPanel({ skill }: { skill: SkillState }) {
                 <div className="flex items-center gap-2 text-xs">
                   <span className="text-green-500 flex-shrink-0">+</span>
                   <span className="font-medium text-gray-600 dark:text-gray-400">{d.label}:</span>
-                  <code className="text-[10px] bg-gray-100 dark:bg-gray-800 px-1 rounded">{d.value}</code>
+                  {d.value ? (
+                    <code className="text-[10px] bg-gray-100 dark:bg-gray-800 px-1 rounded">{d.value}</code>
+                  ) : (
+                    <span className="text-[10px] text-gray-400 italic">intent-only</span>
+                  )}
                   <span className="text-gray-400 text-[10px]">[{d.confidence}]</span>
                 </div>
                 {d.intent && (

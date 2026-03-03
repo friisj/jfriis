@@ -170,19 +170,24 @@ export interface ArenaTestComponent {
 }
 
 // =============================================================================
-// arena_project_themes
+// arena_themes (formerly arena_project_themes)
 // =============================================================================
 
-export interface ArenaProjectTheme {
+export interface ArenaTheme {
   id: string
-  project_id: string
+  project_id: string | null
+  skill_id: string | null
   dimension: string
   platform: string
+  name: string
   tokens: TokenMap
   source: string
   created_at: string
   updated_at: string
 }
+
+/** @deprecated Use ArenaTheme instead */
+export type ArenaProjectTheme = ArenaTheme
 
 // =============================================================================
 // arena_session_components

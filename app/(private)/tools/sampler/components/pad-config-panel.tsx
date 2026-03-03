@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -13,15 +13,13 @@ import {
 } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { X } from 'lucide-react';
-import { updatePad, updateSound } from '@/lib/sampler';
+import { updatePad } from '@/lib/sampler';
 import { EffectsChain } from './effects-chain';
-import { Waveform } from './waveform';
-import { ADSREditor } from './adsr-editor';
+import { SoundEditor } from './sound-editor';
 import { SoundLibraryPicker } from './sound-library-picker';
 import { SoundGenerateModal } from './sound-generate-modal';
 import { SampleRecorder } from './sample-recorder';
 import type { PadWithSound, PadEffects, PadType, TrimConfig, SamplerSound } from '@/lib/types/sampler';
-import type { ToneSynthConfig, SynthEnvelope } from '@/lib/sampler-synth';
 
 interface PadConfigPanelProps {
   pad: PadWithSound;
@@ -37,52 +35,6 @@ export function PadConfigPanel({ pad, getBuffer, onPadUpdated, onEffectsChange, 
   const [generateOpen, setGenerateOpen] = useState(false);
   const [sampleOpen, setSampleOpen] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [proceduralBuffer, setProceduralBuffer] = useState<AudioBuffer | null>(null);
-  const [rendering, setRendering] = useState(false);
-
-  const sound = pad.sound;
-  const isProcedural = sound?.type === 'procedural';
-  const isBuffer = sound?.type === 'file' || sound?.type === 'generated';
-  const config = isProcedural ? (sound.source_config as unknown as ToneSynthConfig) : null;
-
-  // Offline render procedural sounds for visualization
-  useEffect(() => {
-    if (!isProcedural || !config?.notes) {
-      setProceduralBuffer(null);
-      return;
-    }
-
-    let cancelled = false;
-    setRendering(true);
-
-    import('@/lib/sampler-offline-render')
-      .then(({ renderProceduralToBuffer }) => renderProceduralToBuffer(config))
-      .then((buf) => {
-        if (!cancelled) setProceduralBuffer(buf);
-      })
-      .catch((err) => {
-        console.warn('Offline render failed:', err);
-      })
-      .finally(() => {
-        if (!cancelled) setRendering(false);
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [isProcedural, config]);
-
-  // Waveform buffer and trim calculations
-  const audioBuffer = isBuffer && sound?.audio_url
-    ? getBuffer(sound.audio_url)
-    : proceduralBuffer;
-  const bufferDurationMs = audioBuffer ? audioBuffer.duration * 1000 : 0;
-  const trimStart = pad.effects.trim && bufferDurationMs > 0
-    ? pad.effects.trim.startMs / bufferDurationMs
-    : 0;
-  const trimEnd = pad.effects.trim && bufferDurationMs > 0
-    ? pad.effects.trim.endMs / bufferDurationMs
-    : 1;
 
   const save = useCallback(
     async (updates: Record<string, unknown>) => {
@@ -128,36 +80,10 @@ export function PadConfigPanel({ pad, getBuffer, onPadUpdated, onEffectsChange, 
     updatePad(pad.id, { effects }).catch(console.error);
   }
 
-  function handleTrimUpdate(trim: TrimConfig | undefined) {
+  function handleTrimChange(trim: TrimConfig | undefined) {
     const newEffects = { ...pad.effects, trim };
     if (!trim) delete newEffects.trim;
     handleEffectsChange(newEffects);
-  }
-
-  function handleWaveformTrimChange(start: number, end: number) {
-    if (!audioBuffer) return;
-    const durationMs = audioBuffer.duration * 1000;
-    if (start < 0.005 && end > 0.995) {
-      handleTrimUpdate(undefined);
-    } else {
-      handleTrimUpdate({
-        startMs: Math.round(start * durationMs),
-        endMs: Math.round(end * durationMs),
-      });
-    }
-  }
-
-  async function handleEnvelopeChange(envelope: SynthEnvelope) {
-    if (!config || !sound) return;
-    const newConfig = { ...config, envelope };
-    try {
-      const updated = await updateSound(sound.id, {
-        source_config: newConfig as unknown as Record<string, unknown>,
-      });
-      onSoundUpdated(updated);
-    } catch (err) {
-      console.error('Failed to update envelope:', err);
-    }
   }
 
   return (
@@ -180,34 +106,11 @@ export function PadConfigPanel({ pad, getBuffer, onPadUpdated, onEffectsChange, 
         </Button>
       </div>
 
-      {/* Waveform — always visible when pad has sound */}
-      {sound && (
-        <div className="px-4 pb-2 space-y-1">
-          {rendering ? (
-            <div className="w-full h-20 rounded border border-border bg-muted/30 flex items-center justify-center">
-              <span className="text-xs text-muted-foreground">Rendering...</span>
-            </div>
-          ) : (
-            <Waveform
-              buffer={audioBuffer}
-              trimStart={trimStart}
-              trimEnd={trimEnd}
-              onTrimChange={isBuffer ? handleWaveformTrimChange : undefined}
-              editable={isBuffer}
-            />
-          )}
-          {isBuffer && pad.effects.trim && (
-            <p className="text-[10px] text-muted-foreground">
-              Trim: {pad.effects.trim.startMs}ms – {pad.effects.trim.endMs}ms
-            </p>
-          )}
-        </div>
-      )}
-
       {/* Tabs */}
       <Tabs defaultValue="config" className="flex-1 min-h-0 flex flex-col px-4 pb-4">
         <TabsList className="w-full">
           <TabsTrigger value="config">Config</TabsTrigger>
+          <TabsTrigger value="sound">Sound</TabsTrigger>
           <TabsTrigger value="effects">Effects</TabsTrigger>
         </TabsList>
 
@@ -328,13 +231,16 @@ export function PadConfigPanel({ pad, getBuffer, onPadUpdated, onEffectsChange, 
           </div>
         </TabsContent>
 
-        <TabsContent value="effects" className="overflow-y-auto space-y-4 pt-2">
-          {isProcedural && config?.envelope && (
-            <ADSREditor
-              envelope={config.envelope}
-              onChange={handleEnvelopeChange}
-            />
-          )}
+        <TabsContent value="sound" className="overflow-y-auto pt-2">
+          <SoundEditor
+            pad={pad}
+            getBuffer={getBuffer}
+            onTrimChange={handleTrimChange}
+            onSoundUpdated={onSoundUpdated}
+          />
+        </TabsContent>
+
+        <TabsContent value="effects" className="overflow-y-auto pt-2">
           <EffectsChain effects={pad.effects} onChange={handleEffectsChange} />
         </TabsContent>
       </Tabs>

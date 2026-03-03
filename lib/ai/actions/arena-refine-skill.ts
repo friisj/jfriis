@@ -14,7 +14,7 @@ import type { Action } from './types'
 const decisionSchema = z.object({
   id: z.string().optional(),
   label: z.string(),
-  value: z.string(),
+  value: z.string().optional(),
   rationale: z.string(),
   intent: z.string().optional(),
   confidence: z.enum(['low', 'medium', 'high']).default('high'),
@@ -100,24 +100,25 @@ Your job is to produce a REFINED SkillState that incorporates the user's feedbac
 
 ## Two-Layer Model
 
-Each decision has two channels:
-- **Intent** (qualitative): The design philosophy — what the token *means*. Expressed in the "intent" field.
-- **Token value** (quantitative): The CSS/design token — what the token *looks like*. Expressed in the "value" field.
+Skills are purely qualitative — they express design philosophy, not token values.
+
+- **Decisions** contain intent, rationale, confidence, and source. They do NOT contain token values.
+- **Token values** live in the theme layer, separate from the skill. Token corrections go exclusively into the "theme_updates" output.
 
 When refining:
-- Annotations and general notes primarily refine **intent** fields and rules (the skill layer).
-- Token feedback (approve/adjust/flag) primarily produces **token corrections** (the theme layer).
-- Always update both the decision "value" field AND produce a "theme_updates" object for backward compatibility.
+- Annotations and general notes refine **intent** fields and rules (the skill layer).
+- Token feedback (approve/adjust/flag) produces **token corrections** in "theme_updates" only.
+- Do NOT add "value" fields to decisions. Decisions are qualitative only.
 
 ## Feedback Actions
 
 Each feedback item targets a specific decision by dimension + label:
 
-- **approve**: The user confirms this value is correct. Keep value EXACTLY as-is. Set confidence to "high". Preserve intent if present.
-- **adjust**: The user provides a new value. Use their newValue EXACTLY. Set rationale to "User adjusted from [old] to [new]: [reason]". Set confidence to "high". Refine intent if the adjustment reveals a philosophical shift.
-- **flag**: The user flags this decision as problematic with a reason. You should propose a BETTER value based on the user's reason and the overall design context. Set confidence to "medium". Set rationale to explain your proposal referencing the user's concern. Update intent to reflect the new direction.
+- **approve**: The user confirms the token is correct. Preserve intent. Set confidence to "high". The approved token value goes into theme_updates to confirm it.
+- **adjust**: The user provides a new token value. Set rationale to reference the adjustment. Set confidence to "high". Refine intent if the adjustment reveals a philosophical shift. Put the new value in theme_updates.
+- **flag**: The user flags this decision as problematic with a reason. Update intent to reflect the concern. Set confidence to "medium". Set rationale to explain the revised direction. Propose a corrected token value in theme_updates.
 
-Decisions with NO feedback: keep value, rationale, intent, confidence, and source exactly as they were.
+Decisions with NO feedback: keep rationale, intent, confidence, and source exactly as they were.
 
 ## Rules
 
@@ -144,7 +145,7 @@ You MUST produce decisions with EXACTLY these labels for each dimension:
 
 ${decisionLabelsSection}
 
-## Value Format
+## Token Value Format (for theme_updates only)
 
 - **Colors**: hex values (e.g. "#1A1A2E")
 - **Font families**: family name strings (e.g. "Inter")
@@ -163,7 +164,8 @@ ${dims.map(d => `    "${d}": { "Label": "value", ... }`).join(',\n')}
   "summary": "2-3 sentence summary of what changed and why"
 }
 
-Each decision: { label, value, rationale, intent (optional), confidence, source: "gym" }
+Each decision: { label, rationale, intent, confidence, source: "gym" }
+Do NOT include "value" in decisions — token values go exclusively into theme_updates.
 
 The "theme_updates" object contains token corrections per dimension. For each dimension, include a flat object mapping decision labels to their corrected values. Only include entries that changed (adjusted or flagged decisions). Omit dimensions with no token changes.
 
@@ -189,7 +191,7 @@ Green offers options, not directives.`
   const skillSummary = dims.map(dim => {
     const state = input.currentSkill[dim]
     const decisions = state.decisions.map(d => {
-      let line = `  ${d.label}: ${d.value} [${d.confidence}] — ${d.rationale}`
+      let line = `  ${d.label}: [${d.confidence}] — ${d.rationale}`
       if (d.intent) line += `\n    Intent: ${d.intent}`
       return line
     }).join('\n')
