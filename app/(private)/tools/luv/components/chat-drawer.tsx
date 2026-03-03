@@ -1,16 +1,19 @@
 'use client';
 
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import { useChat } from '@ai-sdk/react';
+import { DefaultChatTransport } from 'ai';
+import type { UIMessage } from 'ai';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { ChevronDown } from 'lucide-react';
 import { createLuvConversation, createLuvMessage } from '@/lib/luv';
 import type { LuvSoulData } from '@/lib/types/luv';
-
-interface ChatMessage {
-  role: 'user' | 'assistant';
-  content: string;
-}
+import { ToolCallCard } from './tool-call-card';
+import { ProposalCard } from './proposal-card';
+import { CompositionPreview } from './composition-preview';
 
 const MODEL_OPTIONS = [
   { key: 'claude-sonnet', label: 'Sonnet' },
@@ -20,18 +23,48 @@ const MODEL_OPTIONS = [
   { key: 'gemini-flash', label: 'Gemini' },
 ];
 
+const READ_TOOLS = new Set([
+  'read_soul',
+  'read_chassis',
+  'list_references',
+  'list_prompt_templates',
+  'list_chassis_modules',
+  'read_chassis_module',
+]);
+
 interface ChatDrawerProps {
   soulData: LuvSoulData;
   soulLoaded: boolean;
 }
 
+function getMessageText(msg: UIMessage): string {
+  return msg.parts
+    .filter((p): p is { type: 'text'; text: string } => p.type === 'text')
+    .map((p) => p.text)
+    .join('');
+}
+
 export function ChatDrawer({ soulData, soulLoaded }: ChatDrawerProps) {
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [input, setInput] = useState('');
-  const [streaming, setStreaming] = useState(false);
   const [modelKey, setModelKey] = useState('claude-sonnet');
+  const [input, setInput] = useState('');
+  const [promptOpen, setPromptOpen] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  const transport = useMemo(
+    () =>
+      new DefaultChatTransport({
+        api: '/api/luv/chat',
+        body: { modelKey },
+      }),
+    [modelKey]
+  );
+
+  const { messages, sendMessage, setMessages, status } = useChat({
+    transport,
+  });
+
+  const isActive = status === 'streaming' || status === 'submitted';
 
   const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -47,67 +80,9 @@ export function ChatDrawer({ soulData, soulLoaded }: ChatDrawerProps) {
 
   const handleSend = async () => {
     const trimmed = input.trim();
-    if (!trimmed || streaming) return;
-
-    const userMessage: ChatMessage = { role: 'user', content: trimmed };
-    const updatedMessages = [...messages, userMessage];
-    setMessages(updatedMessages);
+    if (!trimmed || isActive) return;
     setInput('');
-    setStreaming(true);
-
-    try {
-      const response = await fetch('/api/luv/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          messages: updatedMessages,
-          soulData,
-          modelKey,
-        }),
-      });
-
-      if (!response.ok) {
-        const err = await response.json().catch(() => ({}));
-        throw new Error(err.error || `HTTP ${response.status}`);
-      }
-
-      const reader = response.body?.getReader();
-      if (!reader) throw new Error('No response body');
-
-      const decoder = new TextDecoder();
-      let assistantContent = '';
-
-      setMessages((prev) => [...prev, { role: 'assistant', content: '' }]);
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        const chunk = decoder.decode(value, { stream: true });
-        assistantContent += chunk;
-
-        setMessages((prev) => {
-          const updated = [...prev];
-          updated[updated.length - 1] = {
-            role: 'assistant',
-            content: assistantContent,
-          };
-          return updated;
-        });
-      }
-    } catch (err) {
-      console.error('Chat error:', err);
-      setMessages((prev) => [
-        ...prev,
-        {
-          role: 'assistant',
-          content: `Error: ${err instanceof Error ? err.message : 'Failed to get response'}`,
-        },
-      ]);
-    } finally {
-      setStreaming(false);
-      textareaRef.current?.focus();
-    }
+    await sendMessage({ text: trimmed });
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -121,9 +96,9 @@ export function ChatDrawer({ soulData, soulLoaded }: ChatDrawerProps) {
     if (messages.length === 0) return;
     try {
       const firstUserMsg = messages.find((m) => m.role === 'user');
-      const title = firstUserMsg
-        ? firstUserMsg.content.slice(0, 60) +
-          (firstUserMsg.content.length > 60 ? '...' : '')
+      const firstText = firstUserMsg ? getMessageText(firstUserMsg) : '';
+      const title = firstText
+        ? firstText.slice(0, 60) + (firstText.length > 60 ? '...' : '')
         : 'Untitled conversation';
 
       const conversation = await createLuvConversation({
@@ -133,11 +108,13 @@ export function ChatDrawer({ soulData, soulLoaded }: ChatDrawerProps) {
       });
 
       for (const msg of messages) {
-        await createLuvMessage({
-          conversation_id: conversation.id,
-          role: msg.role,
-          content: msg.content,
-        });
+        if (msg.role === 'user' || msg.role === 'assistant') {
+          await createLuvMessage({
+            conversation_id: conversation.id,
+            role: msg.role,
+            content: getMessageText(msg),
+          });
+        }
       }
     } catch (err) {
       console.error('Failed to save conversation:', err);
@@ -167,6 +144,13 @@ export function ChatDrawer({ soulData, soulLoaded }: ChatDrawerProps) {
         </select>
       </div>
 
+      {/* Composition Preview */}
+      <CompositionPreview
+        soulData={soulData}
+        open={promptOpen}
+        onToggle={() => setPromptOpen(!promptOpen)}
+      />
+
       {/* Messages */}
       <div className="flex-1 overflow-y-auto px-3 py-3 space-y-3 min-h-0">
         {!soulLoaded && (
@@ -179,26 +163,13 @@ export function ChatDrawer({ soulData, soulLoaded }: ChatDrawerProps) {
             Chat with Luv while you work.
           </p>
         )}
-        {messages.map((msg, i) => (
-          <div
-            key={i}
-            className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
-          >
-            <div
-              className={`max-w-[85%] rounded-lg px-3 py-2 text-xs whitespace-pre-wrap ${
-                msg.role === 'user'
-                  ? 'bg-primary text-primary-foreground'
-                  : 'bg-muted'
-              }`}
-            >
-              {msg.content}
-              {streaming &&
-                i === messages.length - 1 &&
-                msg.role === 'assistant' && (
-                  <span className="inline-block w-1 h-3 bg-current animate-pulse ml-0.5" />
-                )}
-            </div>
-          </div>
+        {messages.map((msg) => (
+          <MessageBubble
+            key={msg.id}
+            message={msg}
+            isLast={msg.id === messages[messages.length - 1]?.id}
+            isActive={isActive}
+          />
         ))}
         <div ref={messagesEndRef} />
       </div>
@@ -217,11 +188,11 @@ export function ChatDrawer({ soulData, soulLoaded }: ChatDrawerProps) {
             placeholder="Message Luv..."
             rows={2}
             className="resize-none text-xs"
-            disabled={streaming || !soulLoaded}
+            disabled={isActive || !soulLoaded}
           />
           <Button
             onClick={handleSend}
-            disabled={streaming || !input.trim() || !soulLoaded}
+            disabled={isActive || !input.trim() || !soulLoaded}
             size="sm"
             className="h-auto self-end"
           >
@@ -235,7 +206,7 @@ export function ChatDrawer({ soulData, soulLoaded }: ChatDrawerProps) {
               size="sm"
               className="h-6 text-[10px] px-1.5"
               onClick={handleClear}
-              disabled={streaming}
+              disabled={isActive}
             >
               Clear
             </Button>
@@ -244,12 +215,105 @@ export function ChatDrawer({ soulData, soulLoaded }: ChatDrawerProps) {
               size="sm"
               className="h-6 text-[10px] px-1.5"
               onClick={handleSaveConversation}
-              disabled={streaming}
+              disabled={isActive}
             >
               Save
             </Button>
           </div>
         )}
+      </div>
+    </div>
+  );
+}
+
+function MessageBubble({
+  message,
+  isLast,
+  isActive,
+}: {
+  message: UIMessage;
+  isLast: boolean;
+  isActive: boolean;
+}) {
+  if (message.role === 'user') {
+    const text = getMessageText(message);
+    return (
+      <div className="flex justify-end">
+        <div className="max-w-[85%] rounded-lg px-3 py-2 text-xs whitespace-pre-wrap bg-primary text-primary-foreground">
+          {text}
+        </div>
+      </div>
+    );
+  }
+
+  // Assistant message — render parts
+  return (
+    <div className="flex justify-start">
+      <div className="max-w-[85%] space-y-1">
+        {message.parts.map((part, i) => {
+          if (part.type === 'text' && part.text) {
+            return (
+              <div
+                key={i}
+                className="rounded-lg px-3 py-2 text-xs bg-muted prose prose-sm dark:prose-invert prose-p:my-1 prose-ul:my-1 prose-ol:my-1 prose-li:my-0 prose-headings:my-1.5 prose-pre:my-1 max-w-none"
+              >
+                <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                  {part.text}
+                </ReactMarkdown>
+                {isActive && isLast && i === message.parts.length - 1 && (
+                  <span className="inline-block w-1 h-3 bg-current animate-pulse ml-0.5" />
+                )}
+              </div>
+            );
+          }
+
+          if (part.type === 'dynamic-tool') {
+            const toolName = part.toolName;
+            const output =
+              'output' in part ? part.output : undefined;
+
+            // Check if output is a proposal
+            if (
+              output &&
+              typeof output === 'object' &&
+              'type' in (output as Record<string, unknown>) &&
+              ((output as Record<string, unknown>).type === 'soul_change_proposal' ||
+                (output as Record<string, unknown>).type === 'chassis_change_proposal' ||
+                (output as Record<string, unknown>).type === 'module_change_proposal')
+            ) {
+              return (
+                <ProposalCard
+                  key={part.toolCallId}
+                  proposal={output as Parameters<typeof ProposalCard>[0]['proposal']}
+                />
+              );
+            }
+
+            // Read tool
+            if (READ_TOOLS.has(toolName)) {
+              return (
+                <ToolCallCard
+                  key={part.toolCallId}
+                  toolName={toolName}
+                  state={part.state}
+                  result={output}
+                />
+              );
+            }
+
+            // Fallback
+            return (
+              <ToolCallCard
+                key={part.toolCallId}
+                toolName={toolName}
+                state={part.state}
+                result={output}
+              />
+            );
+          }
+
+          return null;
+        })}
       </div>
     </div>
   );

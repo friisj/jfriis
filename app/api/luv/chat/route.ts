@@ -4,7 +4,8 @@ import { requireAuth } from '@/lib/ai/auth';
 import { checkAIRateLimit, getAIRateLimitHeaders } from '@/lib/ai/rate-limit';
 import { getModel } from '@/lib/ai/models';
 import { composeSoulSystemPrompt } from '@/lib/luv-prompt-composer';
-import type { LuvSoulData } from '@/lib/types/luv';
+import { getLuvCharacterServer } from '@/lib/luv-server';
+import { luvTools } from '@/lib/luv-tools';
 
 export async function POST(request: Request) {
   const { user, error } = await requireAuth();
@@ -21,13 +22,8 @@ export async function POST(request: Request) {
   }
 
   const body = await request.json();
-  const {
-    messages,
-    soulData,
-    modelKey = 'claude-sonnet',
-  } = body as {
+  const { messages, modelKey = 'claude-sonnet' } = body as {
     messages: Array<{ role: 'user' | 'assistant'; content: string }>;
-    soulData: LuvSoulData;
     modelKey?: string;
   };
 
@@ -35,13 +31,17 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Messages required' }, { status: 400 });
   }
 
-  const systemPrompt = composeSoulSystemPrompt(soulData || {});
+  // Load soul from DB server-side
+  const character = await getLuvCharacterServer();
+  const soulData = character?.soul_data ?? {};
+  const systemPrompt = composeSoulSystemPrompt(soulData);
 
   const result = streamText({
     model: getModel(modelKey),
     system: systemPrompt,
     messages,
+    tools: luvTools,
   });
 
-  return result.toTextStreamResponse();
+  return result.toUIMessageStreamResponse();
 }

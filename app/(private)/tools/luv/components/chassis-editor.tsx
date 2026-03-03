@@ -9,97 +9,34 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { updateLuvCharacter, createLuvCharacter } from '@/lib/luv';
 import type { LuvChassisData } from '@/lib/types/luv';
+import type { LuvChassisModule } from '@/lib/types/luv-chassis';
+import { ModuleEditor } from './module-editor';
 
 interface ChassisEditorProps {
   characterId: string | null;
   initialChassisData: LuvChassisData;
   initialVersion: number;
+  modules: LuvChassisModule[];
 }
 
-function KeyValueEditor({
-  label,
-  data,
-  onChange,
-}: {
-  label: string;
-  data: Record<string, string>;
-  onChange: (data: Record<string, string>) => void;
-}) {
-  const [newKey, setNewKey] = useState('');
-  const [newValue, setNewValue] = useState('');
-
-  const addPair = () => {
-    const key = newKey.trim();
-    const value = newValue.trim();
-    if (!key || !value) return;
-    onChange({ ...data, [key]: value });
-    setNewKey('');
-    setNewValue('');
-  };
-
-  const removePair = (key: string) => {
-    const next = { ...data };
-    delete next[key];
-    onChange(next);
-  };
-
-  return (
-    <div className="space-y-3">
-      <Label>{label}</Label>
-      <div className="space-y-1">
-        {Object.entries(data).map(([key, value]) => (
-          <div key={key} className="flex items-center gap-2 text-sm">
-            <span className="font-medium min-w-[100px]">{key}:</span>
-            <span className="flex-1 text-muted-foreground">{value}</span>
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              className="h-6 w-6 p-0 text-destructive"
-              onClick={() => removePair(key)}
-            >
-              &times;
-            </Button>
-          </div>
-        ))}
-      </div>
-      <div className="flex gap-2">
-        <Input
-          value={newKey}
-          onChange={(e) => setNewKey(e.target.value)}
-          placeholder="Key"
-          className="flex-1"
-        />
-        <Input
-          value={newValue}
-          onChange={(e) => setNewValue(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') {
-              e.preventDefault();
-              addPair();
-            }
-          }}
-          placeholder="Value"
-          className="flex-1"
-        />
-        <Button type="button" variant="outline" size="sm" onClick={addPair}>
-          Add
-        </Button>
-      </div>
-    </div>
-  );
-}
+type ViewMode = 'modules' | 'legacy' | 'json';
 
 export function ChassisEditor({
   characterId,
   initialChassisData,
   initialVersion,
+  modules,
 }: ChassisEditorProps) {
   const [chassisData, setChassisData] =
     useState<LuvChassisData>(initialChassisData);
   const [saving, setSaving] = useState(false);
-  const [showJson, setShowJson] = useState(false);
+  const [viewMode, setViewMode] = useState<ViewMode>(
+    modules.length > 0 ? 'modules' : 'legacy'
+  );
   const [jsonText, setJsonText] = useState('');
+  const [selectedModuleId, setSelectedModuleId] = useState<string | null>(
+    modules[0]?.id ?? null
+  );
   const [featureInput, setFeatureInput] = useState('');
 
   const updateField = useCallback(
@@ -113,7 +50,7 @@ export function ChassisEditor({
     setSaving(true);
     try {
       let data = chassisData;
-      if (showJson) {
+      if (viewMode === 'json') {
         try {
           data = JSON.parse(jsonText);
         } catch {
@@ -142,25 +79,37 @@ export function ChassisEditor({
   };
 
   const toggleJson = () => {
-    if (!showJson) {
+    if (viewMode !== 'json') {
       setJsonText(JSON.stringify(chassisData, null, 2));
+      setViewMode('json');
     } else {
       try {
         setChassisData(JSON.parse(jsonText));
       } catch {
         // keep existing data if JSON is invalid
       }
+      setViewMode(modules.length > 0 ? 'modules' : 'legacy');
     }
-    setShowJson(!showJson);
   };
 
-  if (showJson) {
+  // Group modules by category
+  const categories = new Map<string, LuvChassisModule[]>();
+  for (const mod of modules) {
+    const cat = categories.get(mod.category) ?? [];
+    cat.push(mod);
+    categories.set(mod.category, cat);
+  }
+
+  const selectedModule = modules.find((m) => m.id === selectedModuleId);
+
+  // JSON editor
+  if (viewMode === 'json') {
     return (
       <div className="max-w-2xl space-y-4">
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-semibold">Raw JSON</h2>
           <Button variant="outline" size="sm" onClick={toggleJson}>
-            Switch to Form
+            Back
           </Button>
         </div>
         <Textarea
@@ -170,15 +119,98 @@ export function ChassisEditor({
           className="font-mono text-sm"
         />
         <Button onClick={handleSave} disabled={saving}>
-          {saving ? 'Saving...' : 'Save'}
+          {saving ? 'Saving...' : 'Save Legacy Data'}
         </Button>
       </div>
     );
   }
 
+  // Module editor
+  if (viewMode === 'modules' && modules.length > 0) {
+    return (
+      <div className="flex gap-6">
+        {/* Module list */}
+        <div className="w-48 shrink-0 space-y-4">
+          {Array.from(categories.entries()).map(([cat, mods]) => (
+            <div key={cat}>
+              <h4 className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider mb-1">
+                {cat}
+              </h4>
+              <div className="space-y-0.5">
+                {mods.map((mod) => (
+                  <button
+                    key={mod.id}
+                    type="button"
+                    onClick={() => setSelectedModuleId(mod.id)}
+                    className={`w-full text-left px-2 py-1.5 rounded text-xs transition-colors ${
+                      mod.id === selectedModuleId
+                        ? 'bg-accent font-medium'
+                        : 'hover:bg-muted'
+                    }`}
+                  >
+                    {mod.name}
+                    <Badge variant="outline" className="ml-1 text-[8px] px-1">
+                      v{mod.current_version}
+                    </Badge>
+                  </button>
+                ))}
+              </div>
+            </div>
+          ))}
+
+          <Separator />
+
+          <div className="space-y-1">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="w-full justify-start text-xs h-7"
+              onClick={() => setViewMode('legacy')}
+            >
+              Legacy Editor
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="w-full justify-start text-xs h-7"
+              onClick={toggleJson}
+            >
+              Raw JSON
+            </Button>
+          </div>
+        </div>
+
+        {/* Editor panel */}
+        <div className="flex-1 max-w-xl">
+          {selectedModule ? (
+            <ModuleEditor
+              key={selectedModule.id}
+              module={selectedModule}
+              onSaved={() => window.location.reload()}
+            />
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              Select a module to edit.
+            </p>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // Legacy key-value editor (fallback)
   return (
     <div className="max-w-2xl space-y-8">
-      <div className="flex justify-end">
+      <div className="flex justify-end gap-2">
+        {modules.length > 0 && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setViewMode('modules')}
+          >
+            Module Editor
+          </Button>
+        )}
         <Button variant="outline" size="sm" onClick={toggleJson}>
           Switch to JSON
         </Button>
@@ -294,6 +326,80 @@ export function ChassisEditor({
       <div>
         <Button onClick={handleSave} disabled={saving}>
           {saving ? 'Saving...' : 'Save'}
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+function KeyValueEditor({
+  label,
+  data,
+  onChange,
+}: {
+  label: string;
+  data: Record<string, string>;
+  onChange: (data: Record<string, string>) => void;
+}) {
+  const [newKey, setNewKey] = useState('');
+  const [newValue, setNewValue] = useState('');
+
+  const addPair = () => {
+    const key = newKey.trim();
+    const value = newValue.trim();
+    if (!key || !value) return;
+    onChange({ ...data, [key]: value });
+    setNewKey('');
+    setNewValue('');
+  };
+
+  const removePair = (key: string) => {
+    const next = { ...data };
+    delete next[key];
+    onChange(next);
+  };
+
+  return (
+    <div className="space-y-3">
+      <Label>{label}</Label>
+      <div className="space-y-1">
+        {Object.entries(data).map(([key, value]) => (
+          <div key={key} className="flex items-center gap-2 text-sm">
+            <span className="font-medium min-w-[100px]">{key}:</span>
+            <span className="flex-1 text-muted-foreground">{value}</span>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="h-6 w-6 p-0 text-destructive"
+              onClick={() => removePair(key)}
+            >
+              &times;
+            </Button>
+          </div>
+        ))}
+      </div>
+      <div className="flex gap-2">
+        <Input
+          value={newKey}
+          onChange={(e) => setNewKey(e.target.value)}
+          placeholder="Key"
+          className="flex-1"
+        />
+        <Input
+          value={newValue}
+          onChange={(e) => setNewValue(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              e.preventDefault();
+              addPair();
+            }
+          }}
+          placeholder="Value"
+          className="flex-1"
+        />
+        <Button type="button" variant="outline" size="sm" onClick={addPair}>
+          Add
         </Button>
       </div>
     </div>
