@@ -295,6 +295,45 @@ export async function initializeGrid(
 }
 
 // ============================================================================
+// Grid Expansion
+// ============================================================================
+
+/**
+ * Expand a collection grid by adding rows. Creates pad records for the new cells
+ * and updates the collection's grid_rows.
+ */
+export async function expandGrid(
+  collectionId: string,
+  currentRows: number,
+  cols: number,
+  additionalRows: number
+): Promise<SamplerPad[]> {
+  const padInputs = [];
+  for (let r = currentRows; r < currentRows + additionalRows; r++) {
+    for (let c = 0; c < cols; c++) {
+      padInputs.push({
+        collection_id: collectionId,
+        row: r,
+        col: c,
+        effects: { volume: 0.8, pitch: 0 },
+        pad_type: 'trigger',
+      });
+    }
+  }
+
+  const { data, error } = await (supabase as any)
+    .from('sampler_pads')
+    .insert(padInputs)
+    .select();
+
+  if (error) throw error;
+
+  await updateCollection(collectionId, { grid_rows: currentRows + additionalRows });
+
+  return data as SamplerPad[];
+}
+
+// ============================================================================
 // Storage Helpers
 // ============================================================================
 

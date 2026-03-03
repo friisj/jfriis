@@ -185,13 +185,14 @@ export class SamplerEngine {
 
   /**
    * Trigger a pad (play its sound)
+   * @param velocity 0-1 scaling factor for gain (default 1)
    */
-  trigger(pad: PadWithSound): void {
+  trigger(pad: PadWithSound, velocity: number = 1): void {
     if (!pad.sound) return;
 
     // Procedural sounds use Tone.js rendering
     if (pad.sound.type === 'procedural') {
-      this.triggerProcedural(pad);
+      this.triggerProcedural(pad, velocity);
       return;
     }
 
@@ -209,6 +210,9 @@ export class SamplerEngine {
       nodes = this.buildPadNodes(pad.id, pad.effects);
     }
 
+    // Apply velocity scaling to gain
+    nodes.gain.gain.value = pad.effects.volume * Math.max(0, Math.min(1, velocity));
+
     const source = ctx.createBufferSource();
     source.buffer = buffer;
 
@@ -219,16 +223,16 @@ export class SamplerEngine {
     // Connect source to pad's gain node (start of effects chain)
     source.connect(nodes.gain);
 
-    // Handle loop pads
-    if (pad.pad_type === 'loop') {
+    // Handle loop and gate pads (both sustain until stopped)
+    if (pad.pad_type === 'loop' || pad.pad_type === 'gate') {
       source.loop = true;
     }
 
     source.start();
     this.activeSources.set(pad.id, source);
 
-    // Clean up on end (non-looping)
-    if (pad.pad_type !== 'loop') {
+    // Clean up on end (non-looping, non-gate)
+    if (pad.pad_type !== 'loop' && pad.pad_type !== 'gate') {
       source.onended = () => {
         this.activeSources.delete(pad.id);
       };
@@ -237,18 +241,31 @@ export class SamplerEngine {
 
   /**
    * Trigger a procedural sound via Tone.js
+   * @param velocity 0-1 scaling factor for gain (default 1)
    */
-  private async triggerProcedural(pad: PadWithSound): Promise<void> {
+  private async triggerProcedural(pad: PadWithSound, velocity: number = 1): Promise<void> {
     const config = pad.sound?.source_config as ToneSynthConfig | undefined;
     if (!config?.notes) return;
 
     this.stop(pad.id);
 
+    const ctx = this.ensureContext();
+
+    // Build effects chain so pad effects (volume, EQ, reverb, delay) apply
+    let nodes = this.padNodes.get(pad.id);
+    if (!nodes) {
+      nodes = this.buildPadNodes(pad.id, pad.effects);
+    }
+
+    // Apply velocity scaling to gain
+    nodes.gain.gain.value = pad.effects.volume * Math.max(0, Math.min(1, velocity));
+
     try {
       const { renderSynthConfig, ensureToneStarted } = await import('./sampler-synth');
-      await ensureToneStarted();
+      await ensureToneStarted(ctx);
 
-      const { stop } = renderSynthConfig(config);
+      // Route Tone.js output through the pad's Web Audio effects chain
+      const { stop } = renderSynthConfig(config, nodes.gain);
       this.activeProceduralStops.set(pad.id, stop);
 
       // Auto-cleanup after duration
@@ -258,6 +275,30 @@ export class SamplerEngine {
     } catch (err) {
       console.warn('Failed to trigger procedural sound:', err);
     }
+  }
+
+  /**
+   * Release a pad with a short fade-out (for gate mode).
+   * Ramps gain to 0 over ~30ms then stops, avoiding clicks.
+   */
+  release(padId: string): void {
+    const nodes = this.padNodes.get(padId);
+    const source = this.activeSources.get(padId);
+    const proceduralStop = this.activeProceduralStops.get(padId);
+
+    if (!nodes || (!source && !proceduralStop)) return;
+
+    const ctx = this.ctx;
+    if (!ctx) return;
+
+    const fadeTime = 0.03; // 30ms fade-out
+    nodes.gain.gain.setValueAtTime(nodes.gain.gain.value, ctx.currentTime);
+    nodes.gain.gain.linearRampToValueAtTime(0, ctx.currentTime + fadeTime);
+
+    // Stop source after fade completes
+    setTimeout(() => {
+      this.stop(padId);
+    }, fadeTime * 1000 + 5);
   }
 
   /**

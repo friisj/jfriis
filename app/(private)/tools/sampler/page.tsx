@@ -1,6 +1,6 @@
 import { getCollectionsServer } from '@/lib/sampler-server';
-import Link from 'next/link';
 import { CollectionForm } from './components/collection-form';
+import { CollectionCardList } from './components/collection-card-list';
 
 export default async function SamplerPage() {
   const collections = await getCollectionsServer();
@@ -25,31 +25,7 @@ export default async function SamplerPage() {
           <CollectionForm />
         </div>
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {collections.map((collection) => (
-            <Link
-              key={collection.id}
-              href={`/tools/sampler/${collection.slug}`}
-              className="block border rounded-lg p-6 hover:bg-muted/50 transition-colors group"
-            >
-              <div
-                className="w-8 h-8 rounded mb-3"
-                style={{ backgroundColor: collection.color || '#6366f1' }}
-              />
-              <h2 className="text-lg font-semibold group-hover:underline">
-                {collection.name}
-              </h2>
-              {collection.description && (
-                <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
-                  {collection.description}
-                </p>
-              )}
-              <p className="text-xs text-muted-foreground mt-3">
-                {collection.grid_rows}&times;{collection.grid_cols} grid
-              </p>
-            </Link>
-          ))}
-        </div>
+        <CollectionCardList collections={collections} />
       )}
     </div>
   );

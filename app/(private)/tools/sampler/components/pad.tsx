@@ -15,10 +15,11 @@ interface PadProps {
   isPlaying: boolean;
   isSelected: boolean;
   onTrigger: (pad: PadWithSound) => void;
+  onRelease: (pad: PadWithSound) => void;
   onSelect: (pad: PadWithSound) => void;
 }
 
-export function Pad({ pad, isPlaying, isSelected, onTrigger, onSelect }: PadProps) {
+export function Pad({ pad, isPlaying, isSelected, onTrigger, onRelease, onSelect }: PadProps) {
   const hasSound = !!pad.sound;
 
   return (
@@ -45,7 +46,15 @@ export function Pad({ pad, isPlaying, isSelected, onTrigger, onSelect }: PadProp
           }}
           onPointerDown={(e) => {
             e.preventDefault();
+            (e.target as HTMLElement).setPointerCapture(e.pointerId);
             if (hasSound) onTrigger(pad);
+          }}
+          onPointerUp={(e) => {
+            (e.target as HTMLElement).releasePointerCapture(e.pointerId);
+            if (hasSound) onRelease(pad);
+          }}
+          onPointerLeave={() => {
+            if (hasSound) onRelease(pad);
           }}
           aria-label={pad.label || pad.sound?.name || `Pad ${pad.row + 1},${pad.col + 1}`}
         >

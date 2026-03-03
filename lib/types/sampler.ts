@@ -11,7 +11,7 @@
 // ============================================================================
 
 export type SoundType = 'file' | 'generated' | 'procedural';
-export type PadType = 'trigger' | 'toggle' | 'loop';
+export type PadType = 'trigger' | 'gate' | 'toggle' | 'loop';
 
 // ============================================================================
 // Effects
@@ -131,6 +131,7 @@ export interface SamplerPad {
   label: string | null;
   color: string | null;
   pad_type: PadType;
+  choke_group: number | null;
   created_at: string;
   updated_at: string;
 }
@@ -146,6 +147,7 @@ export type CreatePadInput = {
   label?: string;
   color?: string;
   pad_type?: PadType;
+  choke_group?: number;
 };
 
 export type UpdatePadInput = Partial<{
@@ -156,6 +158,7 @@ export type UpdatePadInput = Partial<{
   label: string | null;
   color: string | null;
   pad_type: PadType;
+  choke_group: number | null;
 }>;
 
 // ============================================================================
@@ -168,4 +171,30 @@ export interface PadWithSound extends SamplerPad {
 
 export interface CollectionWithPads extends SamplerCollection {
   pads: PadWithSound[];
+}
+
+// ============================================================================
+// Batch Generation
+// ============================================================================
+
+export type GenerationMethod = 'elevenlabs' | 'synth';
+
+export interface BatchPrompt {
+  index: number;
+  prompt: string;
+  label?: string;
+}
+
+export interface BatchSpec {
+  collectionId: string;
+  method: GenerationMethod;
+  prompts: BatchPrompt[];
+}
+
+export type BatchItemStatus = 'pending' | 'generating' | 'done' | 'error';
+
+export interface BatchItem extends BatchPrompt {
+  status: BatchItemStatus;
+  soundId?: string;
+  error?: string;
 }

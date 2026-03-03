@@ -14,8 +14,7 @@ import {
 import { updatePad } from '@/lib/sampler';
 import { EffectsChain } from './effects-chain';
 import { SoundLibraryPicker } from './sound-library-picker';
-import { SoundGenerator } from './sound-generator';
-import { SoundSynthesizer } from './sound-synthesizer';
+import { SoundGenerateModal } from './sound-generate-modal';
 import type { PadWithSound, PadEffects, PadType, SamplerSound } from '@/lib/types/sampler';
 
 interface PadConfigPanelProps {
@@ -26,7 +25,7 @@ interface PadConfigPanelProps {
 
 export function PadConfigPanel({ pad, onPadUpdated, onEffectsChange }: PadConfigPanelProps) {
   const [pickerOpen, setPickerOpen] = useState(false);
-  const [generatorOpen, setGeneratorOpen] = useState<'elevenlabs' | 'synth' | null>(null);
+  const [generateOpen, setGenerateOpen] = useState(false);
   const [saving, setSaving] = useState(false);
 
   const save = useCallback(
@@ -103,17 +102,9 @@ export function PadConfigPanel({ pad, onPadUpdated, onEffectsChange }: PadConfig
             variant="outline"
             size="sm"
             className="flex-1"
-            onClick={() => setGeneratorOpen(generatorOpen === 'elevenlabs' ? null : 'elevenlabs')}
+            onClick={() => setGenerateOpen(true)}
           >
             Generate
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            className="flex-1"
-            onClick={() => setGeneratorOpen(generatorOpen === 'synth' ? null : 'synth')}
-          >
-            Synth
           </Button>
           {pad.sound && (
             <Button
@@ -126,26 +117,6 @@ export function PadConfigPanel({ pad, onPadUpdated, onEffectsChange }: PadConfig
             </Button>
           )}
         </div>
-        {generatorOpen === 'elevenlabs' && (
-          <div className="border rounded-md p-3 mt-2">
-            <SoundGenerator
-              onGenerated={(sound) => {
-                handleSoundSelect(sound);
-                setGeneratorOpen(null);
-              }}
-            />
-          </div>
-        )}
-        {generatorOpen === 'synth' && (
-          <div className="border rounded-md p-3 mt-2">
-            <SoundSynthesizer
-              onGenerated={(sound) => {
-                handleSoundSelect(sound);
-                setGeneratorOpen(null);
-              }}
-            />
-          </div>
-        )}
       </div>
 
       {/* Label */}
@@ -174,8 +145,29 @@ export function PadConfigPanel({ pad, onPadUpdated, onEffectsChange }: PadConfig
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="trigger">Trigger (one-shot)</SelectItem>
+            <SelectItem value="gate">Gate (hold to play)</SelectItem>
             <SelectItem value="toggle">Toggle (on/off)</SelectItem>
             <SelectItem value="loop">Loop</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      {/* Choke Group */}
+      <div className="space-y-2">
+        <Label>Choke Group</Label>
+        <Select
+          value={pad.choke_group != null ? String(pad.choke_group) : 'none'}
+          onValueChange={(v) => save({ choke_group: v === 'none' ? null : Number(v) })}
+        >
+          <SelectTrigger>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="none">None</SelectItem>
+            <SelectItem value="1">Group 1</SelectItem>
+            <SelectItem value="2">Group 2</SelectItem>
+            <SelectItem value="3">Group 3</SelectItem>
+            <SelectItem value="4">Group 4</SelectItem>
           </SelectContent>
         </Select>
       </div>
@@ -208,6 +200,14 @@ export function PadConfigPanel({ pad, onPadUpdated, onEffectsChange }: PadConfig
         open={pickerOpen}
         onOpenChange={setPickerOpen}
         onSelect={handleSoundSelect}
+      />
+      <SoundGenerateModal
+        open={generateOpen}
+        onOpenChange={setGenerateOpen}
+        onGenerated={(sound) => {
+          handleSoundSelect(sound);
+          setGenerateOpen(false);
+        }}
       />
     </div>
   );
