@@ -488,6 +488,7 @@ export async function seedBaseTemplates() {
         .insert({
           skill_id: data.id,
           project_id: null,
+          is_template: true,
           dimension: dim,
           platform: 'tailwind',
           name: 'default',

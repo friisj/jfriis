@@ -19,8 +19,8 @@ export default async function SkillDetailPage({ params }: Props) {
       ? await (async () => {
           const pt = await getProjectThemes(skill.project_id!)
           return Object.entries(pt).map(([dim, { tokens, source }]) => ({
-            id: '', project_id: skill.project_id, skill_id: null, dimension: dim,
-            platform: 'tailwind', name: 'default', tokens, source,
+            id: '', project_id: skill.project_id, skill_id: null, is_template: false,
+            dimension: dim, platform: 'tailwind', name: 'default', tokens, source,
             created_at: '', updated_at: '',
           }))
         })()

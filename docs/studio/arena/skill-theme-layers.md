@@ -116,6 +116,25 @@ The two-layer separation unlocks multi-platform consistency:
 
 Same skill intent, different token expressions. Gym sessions reinforce the shared intent layer; token feedback corrects platform-specific values independently.
 
+## Independent Catalogs
+
+Skills and themes are two independent catalogs that compose at the project level. Neither depends on the other for existence:
+
+- **Skill templates** (`arena_skills` with `is_template = true`) — design philosophy archetypes. No token values.
+- **Theme templates** (`arena_themes` with `is_template = true`, both `project_id` and `skill_id` null) — reusable token sets. No skill association required.
+
+A project draws from both catalogs during setup: it clones a skill template for qualitative intent, and optionally selects a theme template for initial token values. The two catalogs evolve independently.
+
+### Promotion Loop
+
+Refined project artifacts can decompose back into catalog entries:
+
+1. A project refines its color skill through gym sessions → the mature skill can be promoted to a new skill template
+2. A project fine-tunes its theme tokens through manual editing → the polished tokens can be saved as a new theme template
+3. Future projects can select either or both, mixing skill philosophy from one source with token values from another
+
+This creates a flywheel: projects consume catalog entries, refine them, and contribute improved versions back.
+
 ## Validation: Skill–Theme Agreement
 
 With skills and themes as separate layers, we can test whether they agree:

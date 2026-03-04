@@ -47,7 +47,7 @@ export default async function ThemesPage() {
         <div className="text-center py-12">
           <p className="text-slate-500 dark:text-slate-400">No themes yet.</p>
           <p className="text-sm text-slate-400 dark:text-slate-500 mt-1">
-            Themes are created alongside template skills.
+            Create a theme from Figma or build one manually.
           </p>
         </div>
       ) : (

@@ -143,7 +143,7 @@ export function ThemeFromFigmaFlow() {
     setSaving(true)
     setError(null)
     try {
-      const result = await saveThemeFromFigma({ name, state: classifiedSkill, themeTokens })
+      const result = await saveThemeFromFigma({ name, themeTokens })
       setSavedName(result.name)
       setPhase('saved')
     } catch (err) {
@@ -151,7 +151,7 @@ export function ThemeFromFigmaFlow() {
     } finally {
       setSaving(false)
     }
-  }, [classifiedSkill, themeName, themeTokens])
+  }, [themeName, themeTokens])
 
   const handleReset = useCallback(() => {
     setPhase('input')
@@ -466,7 +466,7 @@ export function ThemeFromFigmaFlow() {
         </div>
         <h2 className="text-xl font-bold text-slate-900 dark:text-slate-100">Theme Saved</h2>
         <p className="text-sm text-slate-500 dark:text-slate-400">
-          &ldquo;{savedName}&rdquo; created with template skills and theme tokens.
+          &ldquo;{savedName}&rdquo; saved as a reusable template theme.
         </p>
         <div className="flex gap-3">
           <button

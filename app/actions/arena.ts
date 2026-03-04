@@ -1,20 +1,13 @@
 'use server'
 
-import { createClient } from '@/lib/supabase-server'
-import type { SupabaseClient } from '@supabase/supabase-js'
 import { revalidatePath } from 'next/cache'
 import { upsertTheme } from '@/lib/studio/arena/queries'
-import type { SkillState, TokenMap } from '@/lib/studio/arena/types'
-import { extractTokensFromDimension } from '@/lib/studio/arena/types'
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function arenaClient(): Promise<SupabaseClient<any, 'public', any>> {
-  return await createClient() as any // eslint-disable-line @typescript-eslint/no-explicit-any
-}
+import type { TokenMap } from '@/lib/studio/arena/types'
 
 export async function saveTheme(input: {
   project_id?: string
   skill_id?: string
+  is_template?: boolean
   dimension: string
   platform: string
   name: string
@@ -25,61 +18,30 @@ export async function saveTheme(input: {
 }
 
 /**
- * Create a standalone theme from Figma-extracted tokens.
- * Creates template-tier skills (one per dimension) and associated theme rows.
- * No project assembly — themes are standalone and appear in the themes list.
+ * Create independent template theme rows from Figma-extracted tokens.
+ * No skill creation — themes are standalone catalog entries.
  */
 export async function saveThemeFromFigma(input: {
   name: string
-  state: SkillState
-  themeTokens?: Record<string, Record<string, string>>
+  themeTokens: Record<string, Record<string, string>>
+  source?: string
 }): Promise<{ name: string }> {
-  const supabase = await arenaClient()
-  const dimensions = Object.keys(input.state)
+  const dimensions = Object.keys(input.themeTokens)
 
   for (const dim of dimensions) {
-    const dimState = input.state[dim]
-    if (!dimState?.decisions) continue
+    const tokens = input.themeTokens[dim]
+    if (!tokens || Object.keys(tokens).length === 0) continue
 
-    // Strip token values from decisions — they go into the theme layer
-    const strippedDecisions = dimState.decisions.map(d => {
-      const { value: _value, ...rest } = d
-      return rest
+    await upsertTheme({
+      project_id: undefined,
+      skill_id: undefined,
+      is_template: true,
+      dimension: dim,
+      platform: 'tailwind',
+      name: input.name,
+      tokens,
+      source: input.source ?? 'figma',
     })
-
-    // Create template-tier skill for this dimension
-    const { data: skill, error: skillErr } = await supabase
-      .from('arena_skills')
-      .insert({
-        name: `${input.name} — ${dim}`,
-        state: { decisions: strippedDecisions, rules: dimState.rules } as unknown as Record<string, unknown>,
-        tier: 'template',
-        dimension: dim,
-        project_id: null,
-        parent_skill_id: null,
-        is_template: true,
-        template_description: `Figma-imported ${dim} decisions for theme "${input.name}".`,
-      })
-      .select()
-      .single()
-    if (skillErr) throw skillErr
-
-    // Use pre-classified theme tokens if available, fall back to extracting from decisions
-    const tokens = input.themeTokens?.[dim] ?? extractTokensFromDimension(dimState)
-    if (Object.keys(tokens).length > 0) {
-      const { error: themeErr } = await supabase
-        .from('arena_themes')
-        .insert({
-          skill_id: skill.id,
-          project_id: null,
-          dimension: dim,
-          platform: 'tailwind',
-          name: input.name,
-          tokens,
-          source: 'figma',
-        })
-      if (themeErr) throw themeErr
-    }
   }
 
   revalidatePath('/apps/arena')
