@@ -1,5 +1,7 @@
 import { FontsClient } from './fonts-client'
 
+export const dynamic = 'force-dynamic'
+
 export default function FontsPage() {
   return (
     <div className="max-w-7xl mx-auto space-y-6">
