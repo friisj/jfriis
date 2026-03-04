@@ -1,8 +1,28 @@
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { createProjectAction } from '@/lib/studio/arena/actions'
+import { getTemplateThemes } from '@/lib/studio/arena/queries'
+import { CORE_DIMENSIONS, ALL_DIMENSIONS } from '@/lib/studio/arena/types'
 
-export default function NewProjectPage() {
+const DIMENSION_LABELS: Record<string, string> = {
+  color: 'Color',
+  typography: 'Typography',
+  spacing: 'Spacing',
+  elevation: 'Elevation',
+  radius: 'Radius',
+  density: 'Density',
+  motion: 'Motion',
+  iconography: 'Iconography',
+  voice: 'Voice & Tone',
+  presentation: 'Presentation',
+}
+
+const CORE_SET = new Set(CORE_DIMENSIONS)
+
+export default async function NewProjectPage() {
+  const templateThemes = await getTemplateThemes()
+  const themeNames = [...new Set(templateThemes.map((t) => t.name))]
+
   async function handleCreate(formData: FormData) {
     'use server'
     const project = await createProjectAction(formData)
@@ -14,7 +34,7 @@ export default function NewProjectPage() {
       <div>
         <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">New Project</h1>
         <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">
-          Configure a design system project with substrate and dimensions
+          Configure a design system project
         </p>
       </div>
 
@@ -46,85 +66,53 @@ export default function NewProjectPage() {
           />
         </div>
 
-        <div>
-          <label htmlFor="substrate" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
-            Substrate
-          </label>
-          <select
-            id="substrate"
-            name="substrate"
-            className="w-full px-3 py-2 text-sm border border-slate-200 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200"
-          >
-            <option value="">None</option>
-            <option value="minimal">Minimal</option>
-            <option value="brutalist">Brutalist</option>
-            <option value="maximalist">Maximalist</option>
-            <option value="organic">Organic</option>
-            <option value="corporate">Corporate</option>
-          </select>
-          <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">
-            The aesthetic foundation that shapes design principles and gap detection.
-          </p>
-        </div>
+        {themeNames.length > 0 && (
+          <div>
+            <label htmlFor="theme_template" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+              Theme Template
+            </label>
+            <select
+              id="theme_template"
+              name="theme_template"
+              className="w-full px-3 py-2 text-sm border border-slate-200 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200"
+            >
+              <option value="">None</option>
+              {themeNames.map((name) => (
+                <option key={name} value={name}>
+                  {name}
+                </option>
+              ))}
+            </select>
+            <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">
+              Token values to clone into the project as a starting point.
+            </p>
+          </div>
+        )}
 
         <fieldset>
           <legend className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-            Dimensions
+            Skills
           </legend>
           <div className="space-y-2">
-            {['color', 'typography', 'spacing'].map((dim) => (
-              <div key={dim} className="flex items-center gap-3">
-                <label className="flex items-center gap-2 text-sm flex-1">
-                  <input
-                    type="checkbox"
-                    name="dimensions"
-                    value={dim}
-                    defaultChecked
-                    className="rounded border-slate-300 dark:border-slate-600 text-purple-600 focus:ring-purple-500"
-                  />
-                  <span className="text-slate-800 dark:text-slate-200 capitalize">{dim}</span>
-                </label>
-                <select
-                  name={`scope_${dim}`}
-                  defaultValue="basic"
-                  className="px-2 py-1 text-xs border border-slate-200 dark:border-slate-600 rounded bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300"
-                >
-                  <option value="basic">Basic</option>
-                  <option value="advanced">Advanced</option>
-                </select>
-              </div>
+            {ALL_DIMENSIONS.map((dim) => (
+              <label key={dim} className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  name="dimensions"
+                  value={dim}
+                  defaultChecked={CORE_SET.has(dim)}
+                  className="rounded border-slate-300 dark:border-slate-600 text-purple-600 focus:ring-purple-500"
+                />
+                <span className="text-slate-800 dark:text-slate-200">
+                  {DIMENSION_LABELS[dim] ?? dim.charAt(0).toUpperCase() + dim.slice(1)}
+                </span>
+              </label>
             ))}
           </div>
           <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">
-            Select which dimensions to include. Scope controls decision granularity.
+            Select which skill dimensions to include.
           </p>
         </fieldset>
-
-        <div>
-          <label htmlFor="figma_file_url" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
-            Figma File URL (optional)
-          </label>
-          <input
-            id="figma_file_url"
-            name="figma_file_url"
-            type="url"
-            className="w-full px-3 py-2 text-sm border border-slate-200 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200"
-            placeholder="https://www.figma.com/design/..."
-          />
-        </div>
-
-        <div>
-          <label htmlFor="figma_file_key" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
-            Figma File Key (optional)
-          </label>
-          <input
-            id="figma_file_key"
-            name="figma_file_key"
-            type="text"
-            className="w-full px-3 py-2 text-sm border border-slate-200 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200"
-            placeholder="abc123..."
-          />
-        </div>
 
         <div className="flex gap-3 pt-2">
           <button
