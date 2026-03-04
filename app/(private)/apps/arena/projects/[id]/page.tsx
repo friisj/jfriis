@@ -215,8 +215,11 @@ export default async function ProjectDetailPage({ params }: Props) {
             </Link>
           </p>
         )}
-        {project.inputs && (project.inputs.figma_links?.length > 0 || project.inputs.images?.length > 0 || project.inputs.urls?.length > 0) && (
+        {project.inputs && (project.inputs.icon_library || project.inputs.figma_links?.length > 0 || project.inputs.images?.length > 0 || project.inputs.urls?.length > 0) && (
           <div className="flex flex-wrap gap-4 text-xs text-slate-500 dark:text-slate-400 pt-2 border-t border-slate-100 dark:border-slate-700">
+            {project.inputs.icon_library && (
+              <span>Icons: {project.inputs.icon_library === 'lucide' ? 'Lucide' : 'Phosphor'}</span>
+            )}
             {project.inputs.figma_links?.length > 0 && (
               <span>{project.inputs.figma_links.length} Figma link{project.inputs.figma_links.length !== 1 ? 's' : ''}</span>
             )}
