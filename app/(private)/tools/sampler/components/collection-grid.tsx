@@ -348,17 +348,7 @@ export function CollectionGrid({ collection }: CollectionGridProps) {
   const selectedPad = pads.find((p) => p.id === selectedPadId) ?? null;
 
   return (
-    <div className="border border-blue-500 flex-1 flex flex-col">
-      {/* Batch Status Banner */}
-    {batchItems && (
-      <BatchStatus
-        items={batchItems}
-        onCancel={cancelBatch}
-        onDismiss={dismissBatch}
-      />
-    )}
-
-
+    <div className="flex-1 flex flex-col">
       {/* Grid + Config via Resizable Panels */}
       <ResizablePanelGroup direction="horizontal" className="flex-1">
         <ResizablePanel minSize={40} className="flex">
