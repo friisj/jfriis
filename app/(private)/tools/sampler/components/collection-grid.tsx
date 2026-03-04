@@ -203,6 +203,25 @@ export function CollectionGrid({ collection }: CollectionGridProps) {
     setPlayingPads(new Set());
   }, []);
 
+  const togglePlaySelected = useCallback(() => {
+    const engine = engineRef.current;
+    if (!engine || !selectedPadId) return;
+    const pad = pads.find((p) => p.id === selectedPadId);
+    if (!pad?.sound) return;
+
+    if (engine.isPlaying(pad.id)) {
+      engine.stop(pad.id);
+      setPlayingPads((prev) => {
+        const next = new Set(prev);
+        next.delete(pad.id);
+        return next;
+      });
+    } else {
+      engine.trigger(pad);
+      setPlayingPads((prev) => new Set(prev).add(pad.id));
+    }
+  }, [selectedPadId, pads]);
+
   // Keyboard mapping
   useEffect(() => {
     function findPadByKey(key: string): PadWithSound | undefined {
@@ -215,11 +234,17 @@ export function CollectionGrid({ collection }: CollectionGridProps) {
     }
 
     function handleKeyDown(e: KeyboardEvent) {
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement || e.target instanceof HTMLSelectElement) return;
       if (e.repeat) return;
 
       if (e.key === 'Escape') {
         stopAll();
+        return;
+      }
+
+      if (e.key === ' ' && selectedPadId) {
+        e.preventDefault();
+        togglePlaySelected();
         return;
       }
 
@@ -246,7 +271,7 @@ export function CollectionGrid({ collection }: CollectionGridProps) {
       window.removeEventListener('keyup', handleKeyUp);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pads, collection.grid_cols, gridRows, stopAll]);
+  }, [pads, collection.grid_cols, gridRows, stopAll, selectedPadId, togglePlaySelected]);
 
   const triggerPad = useCallback((pad: PadWithSound) => {
     const engine = engineRef.current;
@@ -339,6 +364,11 @@ export function CollectionGrid({ collection }: CollectionGridProps) {
     []
   );
 
+  const getPlaybackPosition = useCallback(
+    (padId: string) => () => engineRef.current?.getPlaybackPosition(padId) ?? null,
+    []
+  );
+
   function handleSoundUpdated(sound: SamplerSound) {
     setPads((prev) =>
       prev.map((p) => (p.sound_id === sound.id ? { ...p, sound } : p))
@@ -403,6 +433,9 @@ export function CollectionGrid({ collection }: CollectionGridProps) {
                 onEffectsChange={handleEffectsChange}
                 onSoundUpdated={handleSoundUpdated}
                 onClose={() => setSelectedPadId(null)}
+                isPlaying={playingPads.has(selectedPad.id)}
+                onTogglePlay={togglePlaySelected}
+                getPlaybackPosition={getPlaybackPosition(selectedPad.id)}
               />
             </ResizablePanel>
           </>

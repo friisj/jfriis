@@ -8,6 +8,7 @@ interface WaveformProps {
   trimEnd?: number;   // 0-1 normalized
   onTrimChange?: (start: number, end: number) => void;
   editable?: boolean;
+  getPlaybackPosition?: () => number | null;
 }
 
 const HANDLE_WIDTH = 1;
@@ -22,6 +23,7 @@ export function Waveform({
   trimEnd = 1,
   onTrimChange,
   editable = true,
+  getPlaybackPosition,
 }: WaveformProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const dragRef = useRef<'start' | 'end' | null>(null);
@@ -31,6 +33,8 @@ export function Waveform({
     startOffset: 0,
   });
   const trimRef = useRef({ start: trimStart, end: trimEnd });
+  const playbackPosRef = useRef<number | null>(null);
+  const rafRef = useRef<number | null>(null);
 
   const [zoom, setZoom] = useState(1);
   const [viewOffset, setViewOffset] = useState(0);
@@ -133,7 +137,15 @@ export function Waveform({
       if (endPx >= -HANDLE_WIDTH && endPx <= w + HANDLE_WIDTH) {
         ctx.fillRect(endPx - HANDLE_WIDTH / 2, 0, HANDLE_WIDTH, waveH);
       }
+    }
 
+    // Draw playhead
+    if (playbackPosRef.current != null) {
+      const headPx = ((playbackPosRef.current - viewStart) / viewRange) * w;
+      if (headPx >= 0 && headPx <= w) {
+        ctx.fillStyle = 'rgba(239, 68, 68, 1)';
+        ctx.fillRect(Math.round(headPx), 0, 1, waveH);
+      }
     }
 
     // Draw minimap when zoomed
@@ -193,6 +205,46 @@ export function Waveform({
     observer.observe(canvas);
     return () => observer.disconnect();
   }, [draw]);
+
+  // Playhead animation loop
+  useEffect(() => {
+    if (!getPlaybackPosition) {
+      // Clear any lingering playhead
+      if (playbackPosRef.current != null) {
+        playbackPosRef.current = null;
+        draw();
+      }
+      return;
+    }
+
+    let running = true;
+    function tick() {
+      if (!running) return;
+      const pos = getPlaybackPosition!();
+      const prev = playbackPosRef.current;
+      playbackPosRef.current = pos;
+
+      // Redraw when position changes or transitions to/from null
+      if (pos !== prev) draw();
+
+      if (pos == null) {
+        running = false;
+        return;
+      }
+      rafRef.current = requestAnimationFrame(tick);
+    }
+
+    rafRef.current = requestAnimationFrame(tick);
+
+    return () => {
+      running = false;
+      if (rafRef.current != null) {
+        cancelAnimationFrame(rafRef.current);
+        rafRef.current = null;
+      }
+      playbackPosRef.current = null;
+    };
+  }, [getPlaybackPosition, draw]);
 
   // Convert pixel position to buffer-space (0-1)
   const pxToBuffer = useCallback(
