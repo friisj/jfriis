@@ -87,7 +87,17 @@ export function LuvContextNav() {
   if (activeSpace === 'stage') {
     return (
       <nav className="flex flex-col py-2">
-        <p className="px-3 py-2 text-xs text-muted-foreground">Coming soon</p>
+        <Link
+          href="/tools/luv/stage"
+          className={cn(
+            'px-3 py-1.5 text-xs transition-colors',
+            pathname === '/tools/luv/stage'
+              ? 'text-foreground font-medium bg-accent'
+              : 'text-muted-foreground hover:text-foreground hover:bg-accent/50',
+          )}
+        >
+          Scenes
+        </Link>
       </nav>
     );
   }
