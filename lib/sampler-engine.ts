@@ -9,8 +9,16 @@
  * Effects chain per pad: Source -> Gain -> EQ -> Delay -> Reverb -> Master
  */
 
-import type { PadEffects, PadWithSound } from './types/sampler';
+import type { PadEffects, PadWithSound, StutterRate } from './types/sampler';
 import type { ToneSynthConfig } from './sampler-synth';
+
+const STUTTER_MS: Record<StutterRate, number> = {
+  '1/2': 1000,
+  '1/4': 500,
+  '1/8': 250,
+  '1/16': 125,
+  '1/32': 62.5,
+};
 
 interface PadNodes {
   source: AudioBufferSourceNode | null;
@@ -51,6 +59,7 @@ export class SamplerEngine {
   private padNodes: Map<string, PadNodes> = new Map();
   private activeSources: Map<string, AudioBufferSourceNode> = new Map();
   private activeProceduralStops: Map<string, () => void> = new Map();
+  private stutterIntervals: Map<string, ReturnType<typeof setInterval>> = new Map();
   private playbackInfo = new Map<string, {
     ctxTime: number;
     offsetSec: number;
@@ -400,7 +409,7 @@ export class SamplerEngine {
    * Trigger a pad (play its sound)
    * @param velocity 0-1 scaling factor for gain (default 1)
    */
-  trigger(pad: PadWithSound, velocity: number = 1): void {
+  trigger(pad: PadWithSound, velocity: number = 1, isRetrigger: boolean = false): void {
     if (!pad.sound) return;
 
     // Procedural sounds use Tone.js rendering
@@ -490,6 +499,19 @@ export class SamplerEngine {
         this.playbackInfo.delete(pad.id);
       };
     }
+
+    // Stutter: retrigger at interval
+    if (pad.effects.stutter?.on && !isRetrigger) {
+      // Clear any existing stutter interval for this pad
+      const existing = this.stutterIntervals.get(pad.id);
+      if (existing) clearInterval(existing);
+
+      const ms = STUTTER_MS[pad.effects.stutter.rate];
+      const interval = setInterval(() => {
+        this.trigger(pad, velocity, true);
+      }, ms);
+      this.stutterIntervals.set(pad.id, interval);
+    }
   }
 
   /**
@@ -558,6 +580,13 @@ export class SamplerEngine {
    * Stop a specific pad
    */
   stop(padId: string): void {
+    // Clear stutter interval
+    const stutterInterval = this.stutterIntervals.get(padId);
+    if (stutterInterval) {
+      clearInterval(stutterInterval);
+      this.stutterIntervals.delete(padId);
+    }
+
     // Stop buffer source
     const source = this.activeSources.get(padId);
     if (source) {
@@ -586,6 +615,9 @@ export class SamplerEngine {
    * Stop all playing pads
    */
   stopAll(): void {
+    this.stutterIntervals.forEach((interval) => clearInterval(interval));
+    this.stutterIntervals.clear();
+
     this.activeSources.forEach((source) => {
       try { source.stop(); } catch { /* already stopped */ }
     });
@@ -741,6 +773,9 @@ export class SamplerEngine {
    * Dispose of all resources
    */
   dispose(): void {
+    this.stutterIntervals.forEach((interval) => clearInterval(interval));
+    this.stutterIntervals.clear();
+
     this.activeSources.forEach((source) => {
       try { source.stop(); } catch { /* noop */ }
     });

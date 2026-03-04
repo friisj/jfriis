@@ -42,6 +42,13 @@ export interface DelayEffect {
   wet: number;      // 0-1
 }
 
+export type StutterRate = '1/2' | '1/4' | '1/8' | '1/16' | '1/32';
+
+export interface StutterEffect {
+  on: boolean;
+  rate: StutterRate;
+}
+
 export interface VinylSimEffect {
   wow: number;      // 0–1 (slow pitch wobble depth)
   flutter: number;  // 0–1 (fast pitch wobble depth)
@@ -86,6 +93,7 @@ export interface PadEffects {
   pan?: PanEffect;
   vinylSim?: VinylSimEffect;
   reverse?: boolean;
+  stutter?: StutterEffect;
   delay?: DelayEffect;
   trim?: TrimConfig;
 }

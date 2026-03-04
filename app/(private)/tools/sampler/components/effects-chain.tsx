@@ -9,7 +9,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
-import type { FilterType, PadEffects } from '@/lib/types/sampler';
+import type { FilterType, PadEffects, StutterRate } from '@/lib/types/sampler';
 
 interface EffectsChainProps {
   effects: PadEffects;
@@ -63,6 +63,8 @@ function hzToSlider(hz: number): number {
 function formatHz(hz: number): string {
   return hz >= 1000 ? `${(hz / 1000).toFixed(1)}kHz` : `${Math.round(hz)}Hz`;
 }
+
+const STUTTER_RATES: StutterRate[] = ['1/2', '1/4', '1/8', '1/16', '1/32'];
 
 const FILTER_LABELS: Record<FilterType, string> = {
   off: 'Off',
@@ -410,6 +412,39 @@ export function EffectsChain({ effects, onChange }: EffectsChainProps) {
           checked={effects.reverse ?? false}
           onCheckedChange={(v) => update({ reverse: v })}
         />
+      </div>
+
+      {/* Stutter */}
+      <div className="space-y-2.5">
+        <div className="flex items-center justify-between">
+          <h5 className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">Stutter</h5>
+          <Switch
+            checked={effects.stutter?.on ?? false}
+            onCheckedChange={(v) =>
+              update({ stutter: { on: v, rate: effects.stutter?.rate ?? '1/8' } })
+            }
+          />
+        </div>
+        {effects.stutter?.on && (
+          <div className="flex items-center gap-3">
+            <span className="text-xs text-muted-foreground w-16 shrink-0">Rate</span>
+            <Select
+              value={effects.stutter?.rate ?? '1/8'}
+              onValueChange={(v) =>
+                update({ stutter: { on: true, rate: v as StutterRate } })
+              }
+            >
+              <SelectTrigger className="h-7 text-xs flex-1">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {STUTTER_RATES.map((r) => (
+                  <SelectItem key={r} value={r} className="text-xs">{r}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
       </div>
     </div>
   );
