@@ -12,6 +12,7 @@ const nextConfig: NextConfig = {
       bodySizeLimit: '10mb',
     },
   },
+  serverExternalPackages: ['@phosphor-icons/react'],
   webpack: (config, { isServer, webpack }) => {
     if (!isServer) {
       // ElevenLabs SDK imports node:child_process, node:events, node:stream

@@ -1,15 +1,6 @@
-'use client'
+import { IconsClient } from './icons-client'
 
-import dynamic from 'next/dynamic'
-
-const IconsClient = dynamic(() => import('./icons-client').then((m) => m.IconsClient), {
-  ssr: false,
-  loading: () => (
-    <div className="text-sm text-slate-400 dark:text-slate-500 py-8 text-center">
-      Loading icon libraries...
-    </div>
-  ),
-})
+export const dynamic = 'force-dynamic'
 
 export default function IconsPage() {
   return (
