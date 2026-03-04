@@ -3,6 +3,7 @@
 import { ModuleEditor } from './module-editor';
 import { ModuleMediaGallery } from './module-media-gallery';
 import { ModuleVersionHistory } from './module-version-history';
+import { ContextPackComposer } from './context-pack-composer';
 import { Separator } from '@/components/ui/separator';
 import { getSchema } from '@/lib/luv/chassis-schemas';
 import type { LuvChassisModule, LuvChassisModuleMedia } from '@/lib/types/luv-chassis';
@@ -36,6 +37,11 @@ export function ChassisModulePageClient({ module, allModules = [], initialMedia 
           />
         </>
       )}
+      <Separator className="my-8" />
+      <ContextPackComposer
+        module={module}
+        allModules={allModules}
+      />
       <Separator className="my-8" />
       <ModuleVersionHistory
         moduleId={module.id}
