@@ -17,6 +17,18 @@ set -e
 
 ENV_FILE=".env.local"
 
+# ── 0. Worktree: symlink .env.local from main repo ──────────────────────────
+#
+# Git worktrees don't copy untracked files. If we're in a worktree and
+# .env.local is missing, symlink it from the main working tree.
+
+if [[ ! -f "$ENV_FILE" ]]; then
+  MAIN_WORKTREE="$(git rev-parse --path-format=absolute --git-common-dir 2>/dev/null | sed 's|/\.git$||')"
+  if [[ -n "$MAIN_WORKTREE" && -f "$MAIN_WORKTREE/$ENV_FILE" && "$MAIN_WORKTREE" != "$(pwd)" ]]; then
+    ln -s "$MAIN_WORKTREE/$ENV_FILE" "$ENV_FILE"
+  fi
+fi
+
 if [[ ! -f "$ENV_FILE" ]]; then
   if [[ -n "$NEXT_PUBLIC_SUPABASE_URL" && -n "$NEXT_PUBLIC_SUPABASE_ANON_KEY" ]]; then
     # Cloud session: write .env.local from shell environment
