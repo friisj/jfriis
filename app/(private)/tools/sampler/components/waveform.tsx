@@ -336,17 +336,47 @@ export function Waveform({
     return 'default';
   })();
 
+  const handleZoomSlider = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const newZoom = parseFloat(e.target.value);
+      // Keep viewport centered when zooming via slider
+      const viewCenter = viewOffset + 0.5 / zoom;
+      const newOffset = clampOffset(viewCenter - 0.5 / newZoom, newZoom);
+      setZoom(newZoom);
+      setViewOffset(newOffset);
+    },
+    [zoom, viewOffset, clampOffset]
+  );
+
   return (
-    <canvas
-      ref={canvasRef}
-      className={`w-full rounded border border-border bg-muted/30 ${isZoomed ? 'h-24' : 'h-20'}`}
-      style={{ cursor: cursorStyle }}
-      onPointerDown={handlePointerDown}
-      onPointerMove={handlePointerMove}
-      onPointerUp={handlePointerUp}
-      onPointerCancel={handlePointerUp}
-      onWheel={handleWheel}
-      onDoubleClick={handleDoubleClick}
-    />
+    <div className="flex flex-col gap-1">
+      <canvas
+        ref={canvasRef}
+        className={`w-full rounded border border-border bg-muted/30 ${isZoomed ? 'h-24' : 'h-20'}`}
+        style={{ cursor: cursorStyle }}
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUp}
+        onPointerCancel={handlePointerUp}
+        onWheel={handleWheel}
+        onDoubleClick={handleDoubleClick}
+      />
+      {buffer && (
+        <div className="flex items-center gap-2 px-1">
+          <span className="text-[10px] text-muted-foreground w-8 shrink-0">
+            {zoom > 1 ? `${zoom.toFixed(0)}x` : '1x'}
+          </span>
+          <input
+            type="range"
+            min={MIN_ZOOM}
+            max={MAX_ZOOM}
+            step={0.25}
+            value={zoom}
+            onChange={handleZoomSlider}
+            className="w-full h-1 accent-indigo-500"
+          />
+        </div>
+      )}
+    </div>
   );
 }
