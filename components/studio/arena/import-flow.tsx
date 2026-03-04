@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useCallback, useMemo } from 'react'
-import type { SkillState } from '@/lib/studio/arena/types'
+import type { SkillState, ProjectTheme } from '@/lib/studio/arena/types'
 import { emptySkillState } from '@/lib/studio/arena/types'
 import type { ExtractedTokens } from '@/lib/studio/arena/figma-extractor'
 import { extractTokens } from '@/lib/studio/arena/figma-extractor'
@@ -37,6 +37,7 @@ export function ImportFlow({ projectId, projectName, onComplete }: ImportFlowPro
   const [referenceImages, setReferenceImages] = useState<ReferenceImage[]>([])
   const [verifying, setVerifying] = useState(false)
   const [verificationResult, setVerificationResult] = useState<VerifyOutput | null>(null)
+  const [themeTokens, setThemeTokens] = useState<Record<string, Record<string, string>>>({})
 
   const { parsedUrls, validUrls } = useFigmaUrls(urlText)
   const { availableFonts, fontDisplay, fontBody, fontMono, fontOverrides, handleFontChange } = useArenaFonts()
@@ -52,6 +53,15 @@ export function ImportFlow({ projectId, projectName, onComplete }: ImportFlowPro
       (sum, d) => sum + (classifiedSkill[d]?.rules?.length ?? 0), 0
     )
   }, [classifiedSkill])
+
+  // Convert flat theme_tokens to ProjectTheme for preview rendering
+  const previewTheme = useMemo<ProjectTheme>(() => {
+    const pt: ProjectTheme = {}
+    for (const [dim, tokens] of Object.entries(themeTokens)) {
+      pt[dim] = { tokens, source: 'figma' }
+    }
+    return pt
+  }, [themeTokens])
 
   const handleExtractAndClassify = useCallback(async () => {
     if (validUrls.length === 0) return
@@ -103,19 +113,18 @@ export function ImportFlow({ projectId, projectName, onComplete }: ImportFlowPro
       }
 
       const result = classifyData.data as SkillState & { summary: string; theme_tokens?: Record<string, Record<string, string>> }
-      const { summary: _summary, theme_tokens, ...skillDims } = result
+      const { summary: _summary, theme_tokens: tt, ...skillDims } = result
 
       // Inject user-selected font families into theme_tokens
-      if (theme_tokens?.typography && fontOverrides) {
-        if (fontOverrides.display) theme_tokens.typography['Display Font'] = fontOverrides.display
-        if (fontOverrides.body) theme_tokens.typography['Body Font'] = fontOverrides.body
-        if (fontOverrides.mono) theme_tokens.typography['Mono Font'] = fontOverrides.mono
-      }
-      if (theme_tokens) {
-        (skillDims as Record<string, unknown>).theme_tokens = theme_tokens
+      const mergedTokens = tt ?? {}
+      if (mergedTokens.typography && fontOverrides) {
+        if (fontOverrides.display) mergedTokens.typography['Display Font'] = fontOverrides.display
+        if (fontOverrides.body) mergedTokens.typography['Body Font'] = fontOverrides.body
+        if (fontOverrides.mono) mergedTokens.typography['Mono Font'] = fontOverrides.mono
       }
 
       setClassifiedSkill(skillDims)
+      setThemeTokens(mergedTokens)
       setSummary(result.summary)
 
       if (fetchData.errors?.length > 0 || fetchData.invalidUrls?.length > 0) {
@@ -147,6 +156,7 @@ export function ImportFlow({ projectId, projectName, onComplete }: ImportFlowPro
         state: classifiedSkill,
         tier: 'project',
         project_id: projectId,
+        themeTokens,
       })
 
       // Also persist selected fonts to project inputs
@@ -175,13 +185,14 @@ export function ImportFlow({ projectId, projectName, onComplete }: ImportFlowPro
     } finally {
       setSaving(false)
     }
-  }, [classifiedSkill, projectId, projectName, onComplete, fontDisplay, fontBody, fontMono])
+  }, [classifiedSkill, themeTokens, projectId, projectName, onComplete, fontDisplay, fontBody, fontMono])
 
   const handleReset = useCallback(() => {
     setPhase('input')
     setUrlText('')
     setExtractedTokens(null)
     setClassifiedSkill(emptySkillState())
+    setThemeTokens({})
     setSummary('')
     setError(null)
     setProgress('')
@@ -210,8 +221,7 @@ export function ImportFlow({ projectId, projectName, onComplete }: ImportFlowPro
   }, [referenceImages.length])
 
   const handleVerify = useCallback(async () => {
-    const themeTokens = (classifiedSkill as Record<string, unknown>).theme_tokens as Record<string, Record<string, string>> | undefined
-    if (!themeTokens || referenceImages.length === 0) return
+    if (Object.keys(themeTokens).length === 0 || referenceImages.length === 0) return
 
     setVerifying(true)
     setPhase('verifying')
@@ -235,7 +245,7 @@ export function ImportFlow({ projectId, projectName, onComplete }: ImportFlowPro
     } finally {
       setVerifying(false)
     }
-  }, [classifiedSkill, referenceImages, summary])
+  }, [themeTokens, referenceImages, summary])
 
   // ---- Input phase ----
   if (phase === 'input') {
@@ -507,6 +517,7 @@ export function ImportFlow({ projectId, projectName, onComplete }: ImportFlowPro
         baseLabel="Base Skill"
         compareLabel="Figma Import"
         fontOverrides={fontOverrides}
+        compareTheme={previewTheme}
       />
 
       <div className="flex gap-3 justify-center">

@@ -32,12 +32,14 @@ export async function saveTheme(input: {
 export async function saveThemeFromFigma(input: {
   name: string
   state: SkillState
+  themeTokens?: Record<string, Record<string, string>>
 }): Promise<{ name: string }> {
   const supabase = await arenaClient()
   const dimensions = Object.keys(input.state)
 
   for (const dim of dimensions) {
     const dimState = input.state[dim]
+    if (!dimState?.decisions) continue
 
     // Strip token values from decisions — they go into the theme layer
     const strippedDecisions = dimState.decisions.map(d => {
@@ -62,8 +64,8 @@ export async function saveThemeFromFigma(input: {
       .single()
     if (skillErr) throw skillErr
 
-    // Create theme row with token values, linked to the template skill
-    const tokens = extractTokensFromDimension(dimState)
+    // Use pre-classified theme tokens if available, fall back to extracting from decisions
+    const tokens = input.themeTokens?.[dim] ?? extractTokensFromDimension(dimState)
     if (Object.keys(tokens).length > 0) {
       const { error: themeErr } = await supabase
         .from('arena_themes')

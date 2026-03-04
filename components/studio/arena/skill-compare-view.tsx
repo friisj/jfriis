@@ -1,6 +1,6 @@
 'use client'
 
-import type { SkillState } from '@/lib/studio/arena/types'
+import type { SkillState, ProjectTheme } from '@/lib/studio/arena/types'
 import { CanonicalCard, CanonicalForm, CanonicalDashboard } from '@/components/studio/prototypes/arena/shared/canonical-components'
 import { TokenDiff } from './token-diff'
 
@@ -10,6 +10,7 @@ interface SkillCompareViewProps {
   baseLabel?: string
   compareLabel?: string
   fontOverrides?: { display?: string; body?: string; mono?: string }
+  compareTheme?: ProjectTheme
 }
 
 export function SkillCompareView({
@@ -18,6 +19,7 @@ export function SkillCompareView({
   baseLabel = 'Base',
   compareLabel = 'Compare',
   fontOverrides,
+  compareTheme,
 }: SkillCompareViewProps) {
   return (
     <div className="space-y-6">
@@ -26,7 +28,7 @@ export function SkillCompareView({
         <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-4">Card</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <CanonicalCard skill={baseSkill} label={baseLabel} />
-          <CanonicalCard skill={compareSkill} label={compareLabel} fontOverrides={fontOverrides} />
+          <CanonicalCard skill={compareSkill} label={compareLabel} fontOverrides={fontOverrides} theme={compareTheme} />
         </div>
       </div>
 
@@ -35,7 +37,7 @@ export function SkillCompareView({
         <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-4">Form</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <CanonicalForm skill={baseSkill} label={baseLabel} />
-          <CanonicalForm skill={compareSkill} label={compareLabel} fontOverrides={fontOverrides} />
+          <CanonicalForm skill={compareSkill} label={compareLabel} fontOverrides={fontOverrides} theme={compareTheme} />
         </div>
       </div>
 
@@ -44,7 +46,7 @@ export function SkillCompareView({
         <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-4">Dashboard</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <CanonicalDashboard skill={baseSkill} label={baseLabel} />
-          <CanonicalDashboard skill={compareSkill} label={compareLabel} fontOverrides={fontOverrides} />
+          <CanonicalDashboard skill={compareSkill} label={compareLabel} fontOverrides={fontOverrides} theme={compareTheme} />
         </div>
       </div>
 

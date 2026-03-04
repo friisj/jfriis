@@ -90,6 +90,7 @@ export async function saveImportedSkill(input: {
   tier?: SkillTier
   project_id?: string
   parent_skill_id?: string
+  themeTokens?: Record<string, Record<string, string>>
 }) {
   const supabase = await arenaClient()
   const tier = input.tier ?? 'project'
@@ -100,6 +101,7 @@ export async function saveImportedSkill(input: {
   const dimensionSkillIds: Record<string, string> = {}
   for (const dim of dimensions) {
     const dimState = input.state[dim]
+    if (!dimState?.decisions) continue
     const strippedDecisions = dimState.decisions.map(d => {
       const { value: _value, ...rest } = d
       return rest
@@ -137,8 +139,8 @@ export async function saveImportedSkill(input: {
         )
       if (error) throw error
 
-      // Seed theme layer with token values extracted from the original skill state
-      const tokens = extractTokensFromDimension(input.state[dim])
+      // Use pre-classified theme tokens if available, fall back to extracting from decisions
+      const tokens = input.themeTokens?.[dim] ?? extractTokensFromDimension(input.state[dim])
       if (Object.keys(tokens).length > 0) {
         const { data: existingTheme } = await supabase
           .from('arena_themes')

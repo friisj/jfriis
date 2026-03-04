@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
-import type { SkillState } from '@/lib/studio/arena/types'
+import type { SkillState, ProjectTheme } from '@/lib/studio/arena/types'
 import { emptySkillState } from '@/lib/studio/arena/types'
 import type { ExtractedTokens } from '@/lib/studio/arena/figma-extractor'
 import { extractTokens } from '@/lib/studio/arena/figma-extractor'
@@ -32,6 +32,7 @@ export function ThemeFromFigmaFlow() {
   const [referenceImages, setReferenceImages] = useState<ReferenceImage[]>([])
   const [verifying, setVerifying] = useState(false)
   const [verificationResult, setVerificationResult] = useState<VerifyOutput | null>(null)
+  const [themeTokens, setThemeTokens] = useState<Record<string, Record<string, string>>>({})
 
   const { parsedUrls, validUrls } = useFigmaUrls(urlText)
   const { availableFonts, fontDisplay, fontBody, fontMono, fontOverrides, handleFontChange } = useArenaFonts()
@@ -41,6 +42,15 @@ export function ThemeFromFigmaFlow() {
       (sum, d) => sum + (classifiedSkill[d]?.decisions?.length ?? 0), 0
     )
   }, [classifiedSkill])
+
+  // Convert flat theme_tokens to ProjectTheme for preview rendering
+  const previewTheme = useMemo<ProjectTheme>(() => {
+    const pt: ProjectTheme = {}
+    for (const [dim, tokens] of Object.entries(themeTokens)) {
+      pt[dim] = { tokens, source: 'figma' }
+    }
+    return pt
+  }, [themeTokens])
 
   const handleExtractAndClassify = useCallback(async () => {
     if (validUrls.length === 0) return
@@ -92,19 +102,18 @@ export function ThemeFromFigmaFlow() {
       }
 
       const result = classifyData.data as SkillState & { summary: string; theme_tokens?: Record<string, Record<string, string>> }
-      const { summary: _summary, theme_tokens, ...skillDims } = result
+      const { summary: _summary, theme_tokens: tt, ...skillDims } = result
 
       // Inject user-selected font families into theme_tokens
-      if (theme_tokens?.typography && fontOverrides) {
-        if (fontOverrides.display) theme_tokens.typography['Display Font'] = fontOverrides.display
-        if (fontOverrides.body) theme_tokens.typography['Body Font'] = fontOverrides.body
-        if (fontOverrides.mono) theme_tokens.typography['Mono Font'] = fontOverrides.mono
-      }
-      if (theme_tokens) {
-        (skillDims as Record<string, unknown>).theme_tokens = theme_tokens
+      const mergedTokens = tt ?? {}
+      if (mergedTokens.typography && fontOverrides) {
+        if (fontOverrides.display) mergedTokens.typography['Display Font'] = fontOverrides.display
+        if (fontOverrides.body) mergedTokens.typography['Body Font'] = fontOverrides.body
+        if (fontOverrides.mono) mergedTokens.typography['Mono Font'] = fontOverrides.mono
       }
 
       setClassifiedSkill(skillDims)
+      setThemeTokens(mergedTokens)
       setSummary(result.summary)
 
       if (fetchData.errors?.length > 0 || fetchData.invalidUrls?.length > 0) {
@@ -134,7 +143,7 @@ export function ThemeFromFigmaFlow() {
     setSaving(true)
     setError(null)
     try {
-      const result = await saveThemeFromFigma({ name, state: classifiedSkill })
+      const result = await saveThemeFromFigma({ name, state: classifiedSkill, themeTokens })
       setSavedName(result.name)
       setPhase('saved')
     } catch (err) {
@@ -142,7 +151,7 @@ export function ThemeFromFigmaFlow() {
     } finally {
       setSaving(false)
     }
-  }, [classifiedSkill, themeName])
+  }, [classifiedSkill, themeName, themeTokens])
 
   const handleReset = useCallback(() => {
     setPhase('input')
@@ -150,6 +159,7 @@ export function ThemeFromFigmaFlow() {
     setThemeName('')
     setExtractedTokens(null)
     setClassifiedSkill(emptySkillState())
+    setThemeTokens({})
     setSummary('')
     setError(null)
     setProgress('')
@@ -178,8 +188,7 @@ export function ThemeFromFigmaFlow() {
   }, [referenceImages.length])
 
   const handleVerify = useCallback(async () => {
-    const themeTokens = (classifiedSkill as Record<string, unknown>).theme_tokens as Record<string, Record<string, string>> | undefined
-    if (!themeTokens || referenceImages.length === 0) return
+    if (Object.keys(themeTokens).length === 0 || referenceImages.length === 0) return
 
     setVerifying(true)
     setPhase('verifying')
@@ -203,7 +212,7 @@ export function ThemeFromFigmaFlow() {
     } finally {
       setVerifying(false)
     }
-  }, [classifiedSkill, referenceImages, summary])
+  }, [themeTokens, referenceImages, summary])
 
   // ---- Input phase ----
   if (phase === 'input') {
@@ -358,7 +367,7 @@ export function ThemeFromFigmaFlow() {
           <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-3">Preview</h3>
           <div className="flex justify-center">
             <div className="w-80">
-              <CanonicalCard skill={classifiedSkill} label={themeName} fontOverrides={fontOverrides} />
+              <CanonicalCard skill={classifiedSkill} label={themeName} fontOverrides={fontOverrides} theme={previewTheme} />
             </div>
           </div>
         </div>
