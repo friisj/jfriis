@@ -1,3 +1,5 @@
+'use client'
+
 import dynamic from 'next/dynamic'
 
 const IconsClient = dynamic(() => import('./icons-client').then((m) => m.IconsClient), {
