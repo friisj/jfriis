@@ -260,6 +260,29 @@ export function EffectsChain({ effects, onChange }: EffectsChainProps) {
         />
       </div>
 
+      {/* Bitcrusher */}
+      <div className="space-y-2.5">
+        <h5 className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">Bitcrusher</h5>
+        <Row
+          label="Bit Depth"
+          value={effects.bitcrusher?.bitDepth ?? 16}
+          display={`${effects.bitcrusher?.bitDepth ?? 16}bit`}
+          min={1} max={16} step={1}
+          onChange={(v) =>
+            update({ bitcrusher: { bitDepth: v, rateReduction: effects.bitcrusher?.rateReduction ?? 1 } })
+          }
+        />
+        <Row
+          label="Rate Red."
+          value={effects.bitcrusher?.rateReduction ?? 1}
+          display={`${effects.bitcrusher?.rateReduction ?? 1}x`}
+          min={1} max={40} step={1}
+          onChange={(v) =>
+            update({ bitcrusher: { bitDepth: effects.bitcrusher?.bitDepth ?? 16, rateReduction: v } })
+          }
+        />
+      </div>
+
       {/* Reverb */}
       <div className="space-y-2.5">
         <h5 className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">Reverb</h5>

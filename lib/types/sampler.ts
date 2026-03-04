@@ -42,6 +42,11 @@ export interface DelayEffect {
   wet: number;      // 0-1
 }
 
+export interface BitcrusherEffect {
+  bitDepth: number;       // 1–16
+  rateReduction: number;  // 1–40
+}
+
 export interface DistortionEffect {
   drive: number;  // 0–100
   mix: number;    // 0–1 wet/dry
@@ -67,6 +72,7 @@ export interface PadEffects {
   eq?: EQEffect;
   compressor?: CompressorEffect;
   distortion?: DistortionEffect;
+  bitcrusher?: BitcrusherEffect;
   delay?: DelayEffect;
   trim?: TrimConfig;
 }

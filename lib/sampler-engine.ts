@@ -24,6 +24,8 @@ interface PadNodes {
   distortionWet: GainNode;
   distortionDry: GainNode;
   distortionMerge: GainNode;
+  bitcrusher: AudioWorkletNode | null;
+  bitcrusherBypass: GainNode;
   delay: DelayNode;
   delayFeedback: GainNode;
   delayWet: GainNode;
@@ -35,6 +37,7 @@ interface PadNodes {
 export class SamplerEngine {
   private ctx: AudioContext | null = null;
   private master: GainNode | null = null;
+  private workletReady = false;
   private buffers: Map<string, AudioBuffer> = new Map();
   private padNodes: Map<string, PadNodes> = new Map();
   private activeSources: Map<string, AudioBufferSourceNode> = new Map();
@@ -64,6 +67,20 @@ export class SamplerEngine {
   private getMaster(): GainNode {
     this.ensureContext();
     return this.master!;
+  }
+
+  /**
+   * Register AudioWorklet processors (bitcrusher)
+   */
+  private async registerWorklets(): Promise<void> {
+    if (this.workletReady) return;
+    const ctx = this.ensureContext();
+    try {
+      await ctx.audioWorklet.addModule('/worklets/bitcrusher-processor.js');
+      this.workletReady = true;
+    } catch (e) {
+      console.warn('AudioWorklet registration failed, bitcrusher will bypass:', e);
+    }
   }
 
   /**
@@ -158,6 +175,23 @@ export class SamplerEngine {
     distortionDry.gain.value = 1 - (distFx?.mix ?? 0);
     const distortionMerge = ctx.createGain();
 
+    // Bitcrusher (AudioWorklet with bypass fallback)
+    let bitcrusher: AudioWorkletNode | null = null;
+    const bitcrusherBypass = ctx.createGain();
+    if (this.workletReady) {
+      try {
+        bitcrusher = new AudioWorkletNode(ctx, 'bitcrusher-processor');
+        const crushFx = effects.bitcrusher;
+        const bdParam = bitcrusher.parameters.get('bitDepth');
+        const rrParam = bitcrusher.parameters.get('rateReduction');
+        if (bdParam) bdParam.value = crushFx?.bitDepth ?? 16;
+        if (rrParam) rrParam.value = crushFx?.rateReduction ?? 1;
+      } catch (e) {
+        console.warn('Failed to create bitcrusher worklet node:', e);
+        bitcrusher = null;
+      }
+    }
+
     // Delay (feedback loop)
     const delay = ctx.createDelay(5.0);
     delay.delayTime.value = effects.delay?.time ?? 0.25;
@@ -188,17 +222,21 @@ export class SamplerEngine {
     distortionShaper.connect(distortionWet);
     distortionWet.connect(distortionMerge);
 
-    // Dry path: DistortionMerge -> Dry -> Master
-    distortionMerge.connect(reverbDry);
+    // Bitcrusher (or bypass) after distortion
+    const crushOut = bitcrusher ?? bitcrusherBypass;
+    distortionMerge.connect(crushOut);
+
+    // Dry path: CrushOut -> Dry -> Master
+    crushOut.connect(reverbDry);
     reverbDry.connect(master);
 
-    // Reverb send: DistortionMerge -> Reverb -> ReverbWet -> Master
-    distortionMerge.connect(reverb);
+    // Reverb send: CrushOut -> Reverb -> ReverbWet -> Master
+    crushOut.connect(reverb);
     reverb.connect(reverbWet);
     reverbWet.connect(master);
 
-    // Delay send: DistortionMerge -> Delay -> DelayWet -> Master
-    distortionMerge.connect(delay);
+    // Delay send: CrushOut -> Delay -> DelayWet -> Master
+    crushOut.connect(delay);
     delay.connect(delayFeedback);
     delayFeedback.connect(delay); // feedback loop
     delay.connect(delayWet);
@@ -216,6 +254,8 @@ export class SamplerEngine {
       distortionWet,
       distortionDry,
       distortionMerge,
+      bitcrusher,
+      bitcrusherBypass,
       delay,
       delayFeedback,
       delayWet,
@@ -233,6 +273,7 @@ export class SamplerEngine {
    */
   async preload(pads: PadWithSound[]): Promise<void> {
     const ctx = this.ensureContext();
+    await this.registerWorklets();
 
     const loadPromises = pads
       .filter((pad) => pad.sound?.audio_url)
@@ -512,6 +553,14 @@ export class SamplerEngine {
     const distMix = effects.distortion?.mix ?? 0;
     nodes.distortionWet.gain.value = distMix;
     nodes.distortionDry.gain.value = 1 - distMix;
+
+    // Bitcrusher
+    if (nodes.bitcrusher) {
+      const bdParam = nodes.bitcrusher.parameters.get('bitDepth');
+      const rrParam = nodes.bitcrusher.parameters.get('rateReduction');
+      if (bdParam) bdParam.value = effects.bitcrusher?.bitDepth ?? 16;
+      if (rrParam) rrParam.value = effects.bitcrusher?.rateReduction ?? 1;
+    }
 
     nodes.delayWet.gain.value = effects.delay?.wet ?? 0;
     nodes.delayFeedback.gain.value = effects.delay?.feedback ?? 0;
