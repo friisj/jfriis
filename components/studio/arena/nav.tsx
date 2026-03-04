@@ -8,6 +8,8 @@ const navItems = [
   { href: '/apps/arena/skills', label: 'Skills' },
   { href: '/apps/arena/themes', label: 'Themes' },
   { href: '/apps/arena/components', label: 'Components' },
+  { href: '/apps/arena/fonts', label: 'Fonts' },
+  { href: '/apps/arena/icons', label: 'Icons' },
 ]
 
 export function ArenaNav() {
