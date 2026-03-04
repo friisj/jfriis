@@ -1,7 +1,6 @@
 import { getSoundsServer } from '@/lib/sampler-server';
-import { Badge } from '@/components/ui/badge';
 import { SoundForm } from '../components/sound-form';
-import { SoundPreview } from '../components/sound-preview';
+import { SoundsTable } from '../components/sounds-table';
 
 export default async function SoundsPage() {
   const sounds = await getSoundsServer();
@@ -26,46 +25,7 @@ export default async function SoundsPage() {
           <SoundForm />
         </div>
       ) : (
-        <div className="border rounded-lg">
-          <table className="w-full">
-            <thead>
-              <tr className="border-b text-left text-sm text-muted-foreground">
-                <th className="p-3 font-medium w-10"></th>
-                <th className="p-3 font-medium">Name</th>
-                <th className="p-3 font-medium">Type</th>
-                <th className="p-3 font-medium">Duration</th>
-                <th className="p-3 font-medium">Tags</th>
-              </tr>
-            </thead>
-            <tbody>
-              {sounds.map((sound) => (
-                <tr key={sound.id} className="border-b last:border-0 hover:bg-muted/50">
-                  <td className="p-3">
-                    <SoundPreview audioUrl={sound.audio_url} />
-                  </td>
-                  <td className="p-3 font-medium">{sound.name}</td>
-                  <td className="p-3">
-                    <Badge variant="secondary">{sound.type}</Badge>
-                  </td>
-                  <td className="p-3 text-sm text-muted-foreground">
-                    {sound.duration_ms
-                      ? `${(sound.duration_ms / 1000).toFixed(1)}s`
-                      : '—'}
-                  </td>
-                  <td className="p-3">
-                    <div className="flex gap-1 flex-wrap">
-                      {sound.tags.map((tag) => (
-                        <Badge key={tag} variant="outline" className="text-xs">
-                          {tag}
-                        </Badge>
-                      ))}
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <SoundsTable initialSounds={sounds} />
       )}
     </div>
   );
