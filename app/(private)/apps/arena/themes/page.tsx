@@ -2,6 +2,8 @@ import Link from 'next/link'
 import { getTemplateThemes } from '@/lib/studio/arena/queries'
 import type { ArenaTheme } from '@/lib/studio/arena/db-types'
 
+export const dynamic = 'force-dynamic'
+
 /** Group themes by name, collecting dimension count and color swatches */
 function groupThemes(themes: ArenaTheme[]) {
   const byName = new Map<string, ArenaTheme[]>()
