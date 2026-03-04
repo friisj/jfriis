@@ -11,7 +11,7 @@ interface WaveformProps {
 }
 
 const HANDLE_WIDTH = 6;
-const MIN_TRIM_FRACTION = 0.02; // minimum 2% of buffer
+const MIN_TRIM_FRACTION = 0.002; // minimum 0.2% of buffer (~10ms on a 5s clip)
 const MIN_ZOOM = 1;
 const MAX_ZOOM = 32;
 const MINIMAP_HEIGHT = 10;
@@ -352,7 +352,7 @@ export function Waveform({
     <div className="flex flex-col gap-1">
       <canvas
         ref={canvasRef}
-        className={`w-full rounded border border-border bg-muted/30 ${isZoomed ? 'h-24' : 'h-20'}`}
+        className={`w-full rounded border ${isZoomed ? 'h-24' : 'h-20'}`}
         style={{ cursor: cursorStyle }}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
