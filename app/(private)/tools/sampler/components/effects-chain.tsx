@@ -168,6 +168,75 @@ export function EffectsChain({ effects, onChange }: EffectsChainProps) {
         ))}
       </div>
 
+      {/* Compressor */}
+      <div className="space-y-2.5">
+        <h5 className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">Compressor</h5>
+        <Row
+          label="Threshold"
+          value={effects.compressor?.threshold ?? 0}
+          display={`${effects.compressor?.threshold ?? 0}dB`}
+          min={-60} max={0} step={1}
+          onChange={(v) =>
+            update({
+              compressor: {
+                threshold: v,
+                ratio: effects.compressor?.ratio ?? 1,
+                attack: effects.compressor?.attack ?? 0.003,
+                release: effects.compressor?.release ?? 0.25,
+              },
+            })
+          }
+        />
+        <Row
+          label="Ratio"
+          value={effects.compressor?.ratio ?? 1}
+          display={`${(effects.compressor?.ratio ?? 1).toFixed(1)}:1`}
+          min={1} max={20} step={0.5}
+          onChange={(v) =>
+            update({
+              compressor: {
+                threshold: effects.compressor?.threshold ?? 0,
+                ratio: v,
+                attack: effects.compressor?.attack ?? 0.003,
+                release: effects.compressor?.release ?? 0.25,
+              },
+            })
+          }
+        />
+        <Row
+          label="Attack"
+          value={effects.compressor?.attack ?? 0.003}
+          display={`${((effects.compressor?.attack ?? 0.003) * 1000).toFixed(0)}ms`}
+          min={0} max={1} step={0.001}
+          onChange={(v) =>
+            update({
+              compressor: {
+                threshold: effects.compressor?.threshold ?? 0,
+                ratio: effects.compressor?.ratio ?? 1,
+                attack: v,
+                release: effects.compressor?.release ?? 0.25,
+              },
+            })
+          }
+        />
+        <Row
+          label="Release"
+          value={effects.compressor?.release ?? 0.25}
+          display={`${((effects.compressor?.release ?? 0.25) * 1000).toFixed(0)}ms`}
+          min={0} max={1} step={0.001}
+          onChange={(v) =>
+            update({
+              compressor: {
+                threshold: effects.compressor?.threshold ?? 0,
+                ratio: effects.compressor?.ratio ?? 1,
+                attack: effects.compressor?.attack ?? 0.003,
+                release: v,
+              },
+            })
+          }
+        />
+      </div>
+
       {/* Reverb */}
       <div className="space-y-2.5">
         <h5 className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">Reverb</h5>

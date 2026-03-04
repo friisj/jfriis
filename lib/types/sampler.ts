@@ -42,6 +42,13 @@ export interface DelayEffect {
   wet: number;      // 0-1
 }
 
+export interface CompressorEffect {
+  threshold: number;  // -60 to 0 dB
+  ratio: number;      // 1–20
+  attack: number;     // 0–1 seconds
+  release: number;    // 0–1 seconds
+}
+
 export interface TrimConfig {
   startMs: number;
   endMs: number;
@@ -53,6 +60,7 @@ export interface PadEffects {
   filter?: FilterEffect;
   reverb?: ReverbEffect;
   eq?: EQEffect;
+  compressor?: CompressorEffect;
   delay?: DelayEffect;
   trim?: TrimConfig;
 }

@@ -19,6 +19,7 @@ interface PadNodes {
   eqLow: BiquadFilterNode;
   eqMid: BiquadFilterNode;
   eqHigh: BiquadFilterNode;
+  compressor: DynamicsCompressorNode;
   delay: DelayNode;
   delayFeedback: GainNode;
   delayWet: GainNode;
@@ -120,6 +121,14 @@ export class SamplerEngine {
     eqHigh.frequency.value = 3200;
     eqHigh.gain.value = effects.eq?.high ?? 0;
 
+    // Compressor — defaults to bypass (threshold 0, ratio 1)
+    const compressor = ctx.createDynamicsCompressor();
+    const compFx = effects.compressor;
+    compressor.threshold.value = compFx?.threshold ?? 0;
+    compressor.ratio.value = compFx?.ratio ?? 1;
+    compressor.attack.value = compFx?.attack ?? 0.003;
+    compressor.release.value = compFx?.release ?? 0.25;
+
     // Delay (feedback loop)
     const delay = ctx.createDelay(5.0);
     delay.delayTime.value = effects.delay?.time ?? 0.25;
@@ -136,23 +145,24 @@ export class SamplerEngine {
     const reverbDry = ctx.createGain();
     reverbDry.gain.value = 1.0;
 
-    // Wire: Gain -> Filter -> EQ Low -> EQ Mid -> EQ High -> ...
+    // Wire: Gain -> Filter -> EQ Low -> EQ Mid -> EQ High -> Compressor -> [sends]
     gain.connect(filter);
     filter.connect(eqLow);
     eqLow.connect(eqMid);
     eqMid.connect(eqHigh);
+    eqHigh.connect(compressor);
 
-    // Dry path: EQ High -> Dry -> Master
-    eqHigh.connect(reverbDry);
+    // Dry path: Compressor -> Dry -> Master
+    compressor.connect(reverbDry);
     reverbDry.connect(master);
 
-    // Reverb send: EQ High -> Reverb -> ReverbWet -> Master
-    eqHigh.connect(reverb);
+    // Reverb send: Compressor -> Reverb -> ReverbWet -> Master
+    compressor.connect(reverb);
     reverb.connect(reverbWet);
     reverbWet.connect(master);
 
-    // Delay send: EQ High -> Delay -> DelayWet -> Master
-    eqHigh.connect(delay);
+    // Delay send: Compressor -> Delay -> DelayWet -> Master
+    compressor.connect(delay);
     delay.connect(delayFeedback);
     delayFeedback.connect(delay); // feedback loop
     delay.connect(delayWet);
@@ -165,6 +175,7 @@ export class SamplerEngine {
       eqLow,
       eqMid,
       eqHigh,
+      compressor,
       delay,
       delayFeedback,
       delayWet,
@@ -449,6 +460,13 @@ export class SamplerEngine {
     nodes.eqLow.gain.value = effects.eq?.low ?? 0;
     nodes.eqMid.gain.value = effects.eq?.mid ?? 0;
     nodes.eqHigh.gain.value = effects.eq?.high ?? 0;
+
+    // Compressor
+    nodes.compressor.threshold.value = effects.compressor?.threshold ?? 0;
+    nodes.compressor.ratio.value = effects.compressor?.ratio ?? 1;
+    nodes.compressor.attack.value = effects.compressor?.attack ?? 0.003;
+    nodes.compressor.release.value = effects.compressor?.release ?? 0.25;
+
     nodes.delayWet.gain.value = effects.delay?.wet ?? 0;
     nodes.delayFeedback.gain.value = effects.delay?.feedback ?? 0;
     nodes.reverbWet.gain.value = effects.reverb?.wet ?? 0;
