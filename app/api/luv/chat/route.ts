@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { streamText } from 'ai';
+import { streamText, convertToModelMessages, type UIMessage } from 'ai';
 import { requireAuth } from '@/lib/ai/auth';
 import { checkAIRateLimit, getAIRateLimitHeaders } from '@/lib/ai/rate-limit';
 import { getModel } from '@/lib/ai/models';
@@ -23,7 +23,7 @@ export async function POST(request: Request) {
 
   const body = await request.json();
   const { messages, modelKey = 'claude-sonnet' } = body as {
-    messages: Array<{ role: 'user' | 'assistant'; content: string }>;
+    messages: UIMessage[];
     modelKey?: string;
   };
 
@@ -36,10 +36,13 @@ export async function POST(request: Request) {
   const soulData = character?.soul_data ?? {};
   const systemPrompt = composeSoulSystemPrompt(soulData);
 
+  // Convert UI-format messages (from useChat) to model-format messages (for streamText)
+  const modelMessages = await convertToModelMessages(messages);
+
   const result = streamText({
     model: getModel(modelKey),
     system: systemPrompt,
-    messages,
+    messages: modelMessages,
     tools: luvTools,
   });
 

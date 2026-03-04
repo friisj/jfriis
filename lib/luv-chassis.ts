@@ -46,11 +46,10 @@ export async function getChassisModuleBySlug(
     .from('luv_chassis_modules')
     .select('*')
     .eq('slug', slug)
-    .single();
+    .maybeSingle();
 
-  if (error && error.code === 'PGRST116') return null;
   if (error) throw error;
-  return data as LuvChassisModule;
+  return data as LuvChassisModule | null;
 }
 
 export async function createChassisModule(

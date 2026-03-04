@@ -28,11 +28,10 @@ export async function getLuvCharacterServer(): Promise<LuvCharacter | null> {
     .from('luv_character')
     .select('*')
     .limit(1)
-    .single();
+    .maybeSingle();
 
-  if (error && error.code === 'PGRST116') return null;
   if (error) throw error;
-  return data as LuvCharacter;
+  return data as LuvCharacter | null;
 }
 
 // ============================================================================

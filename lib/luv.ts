@@ -43,11 +43,10 @@ export async function getLuvCharacter(): Promise<LuvCharacter | null> {
     .from('luv_character')
     .select('*')
     .limit(1)
-    .single();
+    .maybeSingle();
 
-  if (error && error.code === 'PGRST116') return null; // no rows
   if (error) throw error;
-  return data as LuvCharacter;
+  return data as LuvCharacter | null;
 }
 
 export async function createLuvCharacter(): Promise<LuvCharacter> {
