@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -12,14 +12,27 @@ import {
   updateLuvTemplate,
   deleteLuvTemplate,
 } from '@/lib/luv';
+import {
+  buildTemplateContext,
+  renderTemplate,
+  getAvailableVariables,
+} from '@/lib/luv/template-engine';
 import type {
   LuvPromptTemplate,
   LuvPromptCategory,
   CreateLuvPromptTemplateInput,
+  LuvSoulData,
+  LuvChassisData,
+  LuvAestheticPreset,
 } from '@/lib/types/luv';
+import type { LuvChassisModule } from '@/lib/types/luv-chassis';
 
 interface PromptBuilderProps {
   initialTemplates: LuvPromptTemplate[];
+  soulData?: LuvSoulData;
+  chassisData?: LuvChassisData;
+  chassisModules?: LuvChassisModule[];
+  presets?: LuvAestheticPreset[];
 }
 
 const CATEGORIES: LuvPromptCategory[] = [
@@ -29,17 +42,37 @@ const CATEGORIES: LuvPromptCategory[] = [
   'style',
 ];
 
-export function PromptBuilder({ initialTemplates }: PromptBuilderProps) {
+export function PromptBuilder({
+  initialTemplates,
+  soulData,
+  chassisData,
+  chassisModules,
+  presets,
+}: PromptBuilderProps) {
   const [templates, setTemplates] = useState(initialTemplates);
   const [editing, setEditing] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [previewId, setPreviewId] = useState<string | null>(null);
+  const [showVars, setShowVars] = useState(false);
 
   // Form state
   const [formName, setFormName] = useState('');
   const [formCategory, setFormCategory] = useState<LuvPromptCategory>('chassis');
   const [formTemplate, setFormTemplate] = useState('');
   const [formParams, setFormParams] = useState('{}');
+
+  const templateContext = useMemo(
+    () => buildTemplateContext(soulData, chassisData, chassisModules, presets?.[0] ?? null),
+    [soulData, chassisData, chassisModules, presets],
+  );
+
+  const availableVars = useMemo(
+    () => getAvailableVariables(templateContext),
+    [templateContext],
+  );
+
+  const hasContext = availableVars.length > 0;
 
   const resetForm = () => {
     setFormName('');
@@ -108,6 +141,7 @@ export function PromptBuilder({ initialTemplates }: PromptBuilderProps) {
       await deleteLuvTemplate(id);
       setTemplates((prev) => prev.filter((t) => t.id !== id));
       if (editing === id) resetForm();
+      if (previewId === id) setPreviewId(null);
     } catch (err) {
       console.error('Failed to delete template:', err);
     }
@@ -124,17 +158,52 @@ export function PromptBuilder({ initialTemplates }: PromptBuilderProps) {
         <p className="text-sm text-muted-foreground">
           {templates.length} template{templates.length !== 1 && 's'}
         </p>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => {
-            resetForm();
-            setShowForm(!showForm);
-          }}
-        >
-          {showForm ? 'Cancel' : 'New Template'}
-        </Button>
+        <div className="flex gap-2">
+          {hasContext && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowVars(!showVars)}
+            >
+              {showVars ? 'Hide Variables' : 'Variables'}
+            </Button>
+          )}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              resetForm();
+              setShowForm(!showForm);
+            }}
+          >
+            {showForm ? 'Cancel' : 'New Template'}
+          </Button>
+        </div>
       </div>
+
+      {/* Available Variables Reference */}
+      {showVars && (
+        <div className="rounded-lg border p-4 space-y-2">
+          <h3 className="text-sm font-medium">Available Variables</h3>
+          <div className="max-h-48 overflow-y-auto">
+            <div className="flex flex-wrap gap-1">
+              {availableVars.map((v) => (
+                <code
+                  key={v}
+                  className="text-xs bg-muted px-1.5 py-0.5 rounded"
+                >
+                  {`{{${v}}}`}
+                </code>
+              ))}
+            </div>
+          </div>
+          {availableVars.length === 0 && (
+            <p className="text-xs text-muted-foreground">
+              No character data loaded. Variables will appear once soul/chassis data exists.
+            </p>
+          )}
+        </div>
+      )}
 
       {/* Form */}
       {showForm && (
@@ -211,38 +280,58 @@ export function PromptBuilder({ initialTemplates }: PromptBuilderProps) {
               </h3>
               <div className="space-y-2">
                 {items.map((t) => (
-                  <div
-                    key={t.id}
-                    className="flex items-start gap-3 rounded-md border p-3"
-                  >
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className="font-medium text-sm">{t.name}</span>
-                        <Badge variant="outline" className="text-xs">
-                          {t.category}
-                        </Badge>
+                  <div key={t.id} className="space-y-2">
+                    <div className="flex items-start gap-3 rounded-md border p-3">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium text-sm">{t.name}</span>
+                          <Badge variant="outline" className="text-xs">
+                            {t.category}
+                          </Badge>
+                        </div>
+                        <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
+                          {t.template}
+                        </p>
                       </div>
-                      <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
-                        {t.template}
-                      </p>
+                      <div className="flex gap-1 shrink-0">
+                        {hasContext && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() =>
+                              setPreviewId(previewId === t.id ? null : t.id)
+                            }
+                          >
+                            {previewId === t.id ? 'Hide' : 'Preview'}
+                          </Button>
+                        )}
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => startEdit(t)}
+                        >
+                          Edit
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-destructive"
+                          onClick={() => handleDelete(t.id)}
+                        >
+                          Delete
+                        </Button>
+                      </div>
                     </div>
-                    <div className="flex gap-1 shrink-0">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => startEdit(t)}
-                      >
-                        Edit
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="text-destructive"
-                        onClick={() => handleDelete(t.id)}
-                      >
-                        Delete
-                      </Button>
-                    </div>
+                    {previewId === t.id && (
+                      <div className="ml-3 rounded-md border border-dashed bg-muted/50 p-3">
+                        <p className="text-xs font-medium text-muted-foreground mb-1">
+                          Rendered preview
+                        </p>
+                        <p className="text-sm whitespace-pre-wrap">
+                          {renderTemplate(t.template, templateContext)}
+                        </p>
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>

@@ -3,7 +3,7 @@
  */
 
 import { createClient } from './supabase-server';
-import type { LuvChassisModule } from './types/luv-chassis';
+import type { LuvChassisModule, LuvChassisModuleMedia } from './types/luv-chassis';
 
 // NOTE: luv_chassis_* tables not in generated Supabase types
 
@@ -45,4 +45,18 @@ export async function getChassisModuleBySlugServer(
 
   if (error) throw error;
   return data as LuvChassisModule | null;
+}
+
+export async function getChassisModuleMediaServer(
+  moduleId: string
+): Promise<LuvChassisModuleMedia[]> {
+  const client = await createClient();
+  const { data, error } = await (client as any)
+    .from('luv_chassis_module_media')
+    .select('*')
+    .eq('module_id', moduleId)
+    .order('parameter_key', { ascending: true });
+
+  if (error) throw error;
+  return data as LuvChassisModuleMedia[];
 }

@@ -30,6 +30,7 @@ const pathToSpace: Record<string, Space> = {
   '/tools/luv/stage': 'stage',
   '/tools/luv/conversations': 'library',
   '/tools/luv/media': 'library',
+  '/tools/luv/presets': 'library',
   '/tools/luv/prompts': 'library',
   '/tools/luv/training': 'library',
 };

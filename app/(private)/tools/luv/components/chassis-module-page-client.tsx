@@ -1,18 +1,38 @@
 'use client';
 
 import { ModuleEditor } from './module-editor';
-import type { LuvChassisModule } from '@/lib/types/luv-chassis';
+import { ModuleMediaGallery } from './module-media-gallery';
+import { Separator } from '@/components/ui/separator';
+import { getSchema } from '@/lib/luv/chassis-schemas';
+import type { LuvChassisModule, LuvChassisModuleMedia } from '@/lib/types/luv-chassis';
 
 interface Props {
   module: LuvChassisModule;
+  initialMedia?: LuvChassisModuleMedia[];
 }
 
-export function ChassisModulePageClient({ module }: Props) {
+export function ChassisModulePageClient({ module, initialMedia = [] }: Props) {
+  const schema = getSchema(module.schema_key);
+  const parameterKeys = schema?.parameters.map((p) => p.key) ?? [];
+
   return (
-    <ModuleEditor
-      key={module.id}
-      module={module}
-      onSaved={() => window.location.reload()}
-    />
+    <>
+      <ModuleEditor
+        key={module.id}
+        module={module}
+        onSaved={() => window.location.reload()}
+      />
+      {parameterKeys.length > 0 && (
+        <>
+          <Separator className="my-8" />
+          <ModuleMediaGallery
+            moduleId={module.id}
+            moduleSlug={module.slug}
+            initialMedia={initialMedia}
+            parameterKeys={parameterKeys}
+          />
+        </>
+      )}
+    </>
   );
 }

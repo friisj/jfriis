@@ -1,5 +1,5 @@
 import { notFound } from 'next/navigation';
-import { getChassisModuleBySlugServer } from '@/lib/luv-chassis-server';
+import { getChassisModuleBySlugServer, getChassisModuleMediaServer } from '@/lib/luv-chassis-server';
 import { ChassisModulePageClient } from '../../components/chassis-module-page-client';
 
 interface Props {
@@ -14,9 +14,11 @@ export default async function ChassisModulePage({ params }: Props) {
     notFound();
   }
 
+  const media = await getChassisModuleMediaServer(chassisModule.id);
+
   return (
     <div className="container px-4 py-8 max-w-xl">
-      <ChassisModulePageClient module={chassisModule} />
+      <ChassisModulePageClient module={chassisModule} initialMedia={media} />
     </div>
   );
 }
