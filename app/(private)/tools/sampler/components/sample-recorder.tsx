@@ -110,8 +110,8 @@ export function SampleRecorder({ open, onOpenChange, onSampled }: SampleRecorder
     setError(null);
 
     try {
-      const fileName = `sample-${Date.now()}.webm`;
-      const file = new File([result.blob], fileName, { type: 'audio/webm;codecs=opus' });
+      const fileName = `sample-${Date.now()}.wav`;
+      const file = new File([result.blob], fileName, { type: 'audio/wav' });
       const audioUrl = await uploadAudio(file, `samples/${fileName}`);
 
       const durationMs = previewBuffer
