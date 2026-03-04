@@ -344,6 +344,21 @@ export class SamplerEngine {
   }
 
   /**
+   * Stop all playing pads
+   */
+  stopAll(): void {
+    this.activeSources.forEach((source) => {
+      try { source.stop(); } catch { /* already stopped */ }
+    });
+    this.activeSources.clear();
+
+    this.activeProceduralStops.forEach((stop) => {
+      try { stop(); } catch { /* already disposed */ }
+    });
+    this.activeProceduralStops.clear();
+  }
+
+  /**
    * Check if a pad is currently playing
    */
   isPlaying(padId: string): boolean {

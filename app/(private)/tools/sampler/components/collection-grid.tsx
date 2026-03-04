@@ -1,8 +1,14 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { Square } from 'lucide-react';
 import { SamplerEngine } from '@/lib/sampler-engine';
 import { updatePad, expandGrid } from '@/lib/sampler';
+import {
+  ResizablePanelGroup,
+  ResizablePanel,
+  ResizableHandle,
+} from '@/components/ui/resizable';
 import type {
   CollectionWithPads,
   PadWithSound,
@@ -192,6 +198,11 @@ export function CollectionGrid({ collection }: CollectionGridProps) {
     setBatchItems(null);
   }
 
+  const stopAll = useCallback(() => {
+    engineRef.current?.stopAll();
+    setPlayingPads(new Set());
+  }, []);
+
   // Keyboard mapping
   useEffect(() => {
     function findPadByKey(key: string): PadWithSound | undefined {
@@ -206,6 +217,11 @@ export function CollectionGrid({ collection }: CollectionGridProps) {
     function handleKeyDown(e: KeyboardEvent) {
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
       if (e.repeat) return;
+
+      if (e.key === 'Escape') {
+        stopAll();
+        return;
+      }
 
       const pad = findPadByKey(e.key);
       if (pad?.sound) {
@@ -230,7 +246,7 @@ export function CollectionGrid({ collection }: CollectionGridProps) {
       window.removeEventListener('keyup', handleKeyUp);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pads, collection.grid_cols, gridRows]);
+  }, [pads, collection.grid_cols, gridRows, stopAll]);
 
   const triggerPad = useCallback((pad: PadWithSound) => {
     const engine = engineRef.current;
@@ -342,42 +358,59 @@ export function CollectionGrid({ collection }: CollectionGridProps) {
         />
       )}
 
-      <div className="flex gap-4 flex-1 min-h-0">
-        {/* Grid */}
-        <div
-          className="flex-1 grid min-h-0 p-1"
-          style={{
-            gridTemplateRows: `repeat(${gridRows}, 1fr)`,
-            gridTemplateColumns: `repeat(${collection.grid_cols}, 1fr)`,
-          }}
-        >
-            {pads.map((pad) => (
-              <Pad
-                key={pad.id}
-                pad={pad}
-                isPlaying={playingPads.has(pad.id)}
-                isSelected={pad.id === selectedPadId}
-                onTrigger={triggerPad}
-                onRelease={releasePad}
-                onSelect={(p) => setSelectedPadId(p.id === selectedPadId ? null : p.id)}
-              />
-            ))}
+      <div className="flex flex-1 min-h-0">
+        {/* Global Controls Sidebar */}
+        <div className="w-10 shrink-0 flex flex-col items-center pt-1 gap-1">
+          <button
+            onClick={stopAll}
+            className="w-8 h-8 flex items-center justify-center rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+            title="Stop all (Esc)"
+          >
+            <Square className="size-4" />
+          </button>
         </div>
 
-        {/* Config Panel */}
-        {selectedPad && (
-          <div className="w-72 border-l shrink-0">
-            <PadConfigPanel
-              key={selectedPad.id}
-              pad={selectedPad}
-              getBuffer={getBuffer}
-              onPadUpdated={handlePadUpdated}
-              onEffectsChange={handleEffectsChange}
-              onSoundUpdated={handleSoundUpdated}
-              onClose={() => setSelectedPadId(null)}
-            />
-          </div>
-        )}
+        {/* Grid + Config via Resizable Panels */}
+        <ResizablePanelGroup direction="horizontal" className="flex-1">
+          <ResizablePanel minSize={40}>
+            <div
+              className="grid h-full p-1"
+              style={{
+                gridTemplateRows: `repeat(${gridRows}, 1fr)`,
+                gridTemplateColumns: `repeat(${collection.grid_cols}, 1fr)`,
+              }}
+            >
+              {pads.map((pad) => (
+                <Pad
+                  key={pad.id}
+                  pad={pad}
+                  isPlaying={playingPads.has(pad.id)}
+                  isSelected={pad.id === selectedPadId}
+                  onTrigger={triggerPad}
+                  onRelease={releasePad}
+                  onSelect={(p) => setSelectedPadId(p.id === selectedPadId ? null : p.id)}
+                />
+              ))}
+            </div>
+          </ResizablePanel>
+
+          {selectedPad && (
+            <>
+              <ResizableHandle withHandle />
+              <ResizablePanel defaultSize={25} minSize={15} maxSize={40}>
+                <PadConfigPanel
+                  key={selectedPad.id}
+                  pad={selectedPad}
+                  getBuffer={getBuffer}
+                  onPadUpdated={handlePadUpdated}
+                  onEffectsChange={handleEffectsChange}
+                  onSoundUpdated={handleSoundUpdated}
+                  onClose={() => setSelectedPadId(null)}
+                />
+              </ResizablePanel>
+            </>
+          )}
+        </ResizablePanelGroup>
       </div>
     </div>
   );
