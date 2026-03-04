@@ -42,8 +42,6 @@ function buildChassisGroup(): NavGroup {
     href: '/tools/luv/chassis',
     items: [
       ...moduleItems,
-      { href: '/tools/luv/chassis/references', label: 'References' },
-      { href: '/tools/luv/chassis/legacy', label: 'Legacy' },
     ],
   };
 }
