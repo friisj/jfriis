@@ -42,6 +42,11 @@ export interface DelayEffect {
   wet: number;      // 0-1
 }
 
+export interface DistortionEffect {
+  drive: number;  // 0–100
+  mix: number;    // 0–1 wet/dry
+}
+
 export interface CompressorEffect {
   threshold: number;  // -60 to 0 dB
   ratio: number;      // 1–20
@@ -61,6 +66,7 @@ export interface PadEffects {
   reverb?: ReverbEffect;
   eq?: EQEffect;
   compressor?: CompressorEffect;
+  distortion?: DistortionEffect;
   delay?: DelayEffect;
   trim?: TrimConfig;
 }

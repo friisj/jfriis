@@ -20,6 +20,10 @@ interface PadNodes {
   eqMid: BiquadFilterNode;
   eqHigh: BiquadFilterNode;
   compressor: DynamicsCompressorNode;
+  distortionShaper: WaveShaperNode;
+  distortionWet: GainNode;
+  distortionDry: GainNode;
+  distortionMerge: GainNode;
   delay: DelayNode;
   delayFeedback: GainNode;
   delayWet: GainNode;
@@ -60,6 +64,20 @@ export class SamplerEngine {
   private getMaster(): GainNode {
     this.ensureContext();
     return this.master!;
+  }
+
+  /**
+   * Sigmoid soft-clip distortion curve
+   */
+  private makeDistortionCurve(amount: number): Float32Array<ArrayBuffer> {
+    const samples = 44100;
+    const curve = new Float32Array(samples) as Float32Array<ArrayBuffer>;
+    const k = amount;
+    for (let i = 0; i < samples; i++) {
+      const x = (i * 2) / samples - 1;
+      curve[i] = k === 0 ? x : ((3 + k) * x * 20 * (Math.PI / 180)) / (Math.PI + k * Math.abs(x));
+    }
+    return curve;
   }
 
   /**
@@ -129,6 +147,17 @@ export class SamplerEngine {
     compressor.attack.value = compFx?.attack ?? 0.003;
     compressor.release.value = compFx?.release ?? 0.25;
 
+    // Distortion (parallel wet/dry)
+    const distortionShaper = ctx.createWaveShaper();
+    const distFx = effects.distortion;
+    distortionShaper.curve = this.makeDistortionCurve(distFx?.drive ?? 0);
+    distortionShaper.oversample = '4x';
+    const distortionWet = ctx.createGain();
+    distortionWet.gain.value = distFx?.mix ?? 0;
+    const distortionDry = ctx.createGain();
+    distortionDry.gain.value = 1 - (distFx?.mix ?? 0);
+    const distortionMerge = ctx.createGain();
+
     // Delay (feedback loop)
     const delay = ctx.createDelay(5.0);
     delay.delayTime.value = effects.delay?.time ?? 0.25;
@@ -152,17 +181,24 @@ export class SamplerEngine {
     eqMid.connect(eqHigh);
     eqHigh.connect(compressor);
 
-    // Dry path: Compressor -> Dry -> Master
-    compressor.connect(reverbDry);
+    // Distortion wet/dry parallel
+    compressor.connect(distortionDry);
+    distortionDry.connect(distortionMerge);
+    compressor.connect(distortionShaper);
+    distortionShaper.connect(distortionWet);
+    distortionWet.connect(distortionMerge);
+
+    // Dry path: DistortionMerge -> Dry -> Master
+    distortionMerge.connect(reverbDry);
     reverbDry.connect(master);
 
-    // Reverb send: Compressor -> Reverb -> ReverbWet -> Master
-    compressor.connect(reverb);
+    // Reverb send: DistortionMerge -> Reverb -> ReverbWet -> Master
+    distortionMerge.connect(reverb);
     reverb.connect(reverbWet);
     reverbWet.connect(master);
 
-    // Delay send: Compressor -> Delay -> DelayWet -> Master
-    compressor.connect(delay);
+    // Delay send: DistortionMerge -> Delay -> DelayWet -> Master
+    distortionMerge.connect(delay);
     delay.connect(delayFeedback);
     delayFeedback.connect(delay); // feedback loop
     delay.connect(delayWet);
@@ -176,6 +212,10 @@ export class SamplerEngine {
       eqMid,
       eqHigh,
       compressor,
+      distortionShaper,
+      distortionWet,
+      distortionDry,
+      distortionMerge,
       delay,
       delayFeedback,
       delayWet,
@@ -466,6 +506,12 @@ export class SamplerEngine {
     nodes.compressor.ratio.value = effects.compressor?.ratio ?? 1;
     nodes.compressor.attack.value = effects.compressor?.attack ?? 0.003;
     nodes.compressor.release.value = effects.compressor?.release ?? 0.25;
+
+    // Distortion
+    nodes.distortionShaper.curve = this.makeDistortionCurve(effects.distortion?.drive ?? 0);
+    const distMix = effects.distortion?.mix ?? 0;
+    nodes.distortionWet.gain.value = distMix;
+    nodes.distortionDry.gain.value = 1 - distMix;
 
     nodes.delayWet.gain.value = effects.delay?.wet ?? 0;
     nodes.delayFeedback.gain.value = effects.delay?.feedback ?? 0;

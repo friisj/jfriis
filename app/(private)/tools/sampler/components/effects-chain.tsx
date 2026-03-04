@@ -237,6 +237,29 @@ export function EffectsChain({ effects, onChange }: EffectsChainProps) {
         />
       </div>
 
+      {/* Distortion */}
+      <div className="space-y-2.5">
+        <h5 className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">Distortion</h5>
+        <Row
+          label="Drive"
+          value={effects.distortion?.drive ?? 0}
+          display={`${Math.round(effects.distortion?.drive ?? 0)}`}
+          min={0} max={100} step={1}
+          onChange={(v) =>
+            update({ distortion: { drive: v, mix: effects.distortion?.mix ?? 0 } })
+          }
+        />
+        <Row
+          label="Mix"
+          value={effects.distortion?.mix ?? 0}
+          display={`${Math.round((effects.distortion?.mix ?? 0) * 100)}%`}
+          min={0} max={1} step={0.01}
+          onChange={(v) =>
+            update({ distortion: { drive: effects.distortion?.drive ?? 0, mix: v } })
+          }
+        />
+      </div>
+
       {/* Reverb */}
       <div className="space-y-2.5">
         <h5 className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">Reverb</h5>
