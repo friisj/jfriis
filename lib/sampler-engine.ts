@@ -33,6 +33,14 @@ export class SamplerEngine {
   private padNodes: Map<string, PadNodes> = new Map();
   private activeSources: Map<string, AudioBufferSourceNode> = new Map();
   private activeProceduralStops: Map<string, () => void> = new Map();
+  private playbackInfo = new Map<string, {
+    ctxTime: number;
+    offsetSec: number;
+    durationSec: number;
+    bufferDuration: number;
+    rate: number;
+    loop: boolean;
+  }>();
 
   private ensureContext(): AudioContext {
     if (!this.ctx) {
@@ -246,10 +254,23 @@ export class SamplerEngine {
     }
     this.activeSources.set(pad.id, source);
 
+    // Track playback position
+    const trimOffset = trim ? trim.startMs / 1000 : 0;
+    const trimDuration = trim ? (trim.endMs - trim.startMs) / 1000 : buffer.duration;
+    this.playbackInfo.set(pad.id, {
+      ctxTime: ctx.currentTime,
+      offsetSec: trimOffset,
+      durationSec: trimDuration,
+      bufferDuration: buffer.duration,
+      rate: source.playbackRate.value,
+      loop: source.loop,
+    });
+
     // Clean up on end (non-looping, non-gate)
     if (pad.pad_type !== 'loop' && pad.pad_type !== 'gate') {
       source.onended = () => {
         this.activeSources.delete(pad.id);
+        this.playbackInfo.delete(pad.id);
       };
     }
   }
@@ -329,6 +350,7 @@ export class SamplerEngine {
         // Already stopped
       }
       this.activeSources.delete(padId);
+      this.playbackInfo.delete(padId);
     }
 
     // Stop procedural (Tone.js) source
@@ -351,6 +373,7 @@ export class SamplerEngine {
       try { source.stop(); } catch { /* already stopped */ }
     });
     this.activeSources.clear();
+    this.playbackInfo.clear();
 
     this.activeProceduralStops.forEach((stop) => {
       try { stop(); } catch { /* already disposed */ }
@@ -363,6 +386,27 @@ export class SamplerEngine {
    */
   isPlaying(padId: string): boolean {
     return this.activeSources.has(padId) || this.activeProceduralStops.has(padId);
+  }
+
+  /**
+   * Get normalized playback position (0-1) within the full buffer.
+   * Returns null if the pad is not playing.
+   */
+  getPlaybackPosition(padId: string): number | null {
+    const info = this.playbackInfo.get(padId);
+    if (!info || !this.ctx) return null;
+
+    const elapsed = (this.ctx.currentTime - info.ctxTime) * info.rate;
+    let position: number;
+
+    if (info.loop) {
+      position = info.offsetSec + (elapsed % info.durationSec);
+    } else {
+      if (elapsed >= info.durationSec) return null;
+      position = info.offsetSec + elapsed;
+    }
+
+    return position / info.bufferDuration;
   }
 
   /**
@@ -442,6 +486,7 @@ export class SamplerEngine {
       try { source.stop(); } catch { /* noop */ }
     });
     this.activeSources.clear();
+    this.playbackInfo.clear();
 
     this.activeProceduralStops.forEach((stop) => {
       try { stop(); } catch { /* noop */ }

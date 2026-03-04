@@ -20,6 +20,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import { Button } from '@/components/ui/button';
 import { Layers, Trash2 } from 'lucide-react';
 import { deleteCollection } from '@/lib/sampler';
 import type { SamplerCollection } from '@/lib/types/sampler';
@@ -48,8 +49,21 @@ export function CollectionCard({ collection, onBatchGenerate }: CollectionCardPr
         <ContextMenuTrigger asChild>
           <Link
             href={`/tools/sampler/${collection.slug}`}
-            className="block border rounded-lg p-6 hover:bg-muted/50 transition-colors group"
+            className="block border rounded-lg p-6 hover:bg-muted/50 transition-colors group relative"
           >
+            <Button
+              variant="ghost"
+              size="icon"
+              className="absolute top-2 right-2 h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setConfirmDelete(true);
+              }}
+              title="Delete collection"
+            >
+              <Trash2 className="size-3.5" />
+            </Button>
             <div
               className="w-8 h-8 rounded mb-3"
               style={{ backgroundColor: collection.color || '#6366f1' }}

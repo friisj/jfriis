@@ -8,10 +8,11 @@ interface WaveformProps {
   trimEnd?: number;   // 0-1 normalized
   onTrimChange?: (start: number, end: number) => void;
   editable?: boolean;
+  getPlaybackPosition?: () => number | null;
 }
 
-const HANDLE_WIDTH = 6;
-const MIN_TRIM_FRACTION = 0.02; // minimum 2% of buffer
+const HANDLE_WIDTH = 1;
+const MIN_TRIM_FRACTION = 0.002; // minimum 0.2% of buffer (~10ms on a 5s clip)
 const MIN_ZOOM = 1;
 const MAX_ZOOM = 32;
 const MINIMAP_HEIGHT = 10;
@@ -22,6 +23,7 @@ export function Waveform({
   trimEnd = 1,
   onTrimChange,
   editable = true,
+  getPlaybackPosition,
 }: WaveformProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const dragRef = useRef<'start' | 'end' | null>(null);
@@ -31,6 +33,8 @@ export function Waveform({
     startOffset: 0,
   });
   const trimRef = useRef({ start: trimStart, end: trimEnd });
+  const playbackPosRef = useRef<number | null>(null);
+  const rafRef = useRef<number | null>(null);
 
   const [zoom, setZoom] = useState(1);
   const [viewOffset, setViewOffset] = useState(0);
@@ -126,21 +130,21 @@ export function Waveform({
       if (dimEnd < w) ctx.fillRect(dimEnd, 0, w - dimEnd, waveH);
 
       // Handle bars (only draw if in viewport)
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+      ctx.fillStyle = 'rgba(239, 68, 68, 0.9)';
       if (startPx >= -HANDLE_WIDTH && startPx <= w + HANDLE_WIDTH) {
         ctx.fillRect(startPx - HANDLE_WIDTH / 2, 0, HANDLE_WIDTH, waveH);
       }
       if (endPx >= -HANDLE_WIDTH && endPx <= w + HANDLE_WIDTH) {
         ctx.fillRect(endPx - HANDLE_WIDTH / 2, 0, HANDLE_WIDTH, waveH);
       }
+    }
 
-      // Small grabber indicators
-      const handleY = waveH / 2;
-      ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
-      for (const hx of [startPx, endPx]) {
-        if (hx >= -HANDLE_WIDTH && hx <= w + HANDLE_WIDTH) {
-          ctx.fillRect(hx - 1, handleY - 6, 2, 12);
-        }
+    // Draw playhead
+    if (playbackPosRef.current != null) {
+      const headPx = ((playbackPosRef.current - viewStart) / viewRange) * w;
+      if (headPx >= 0 && headPx <= w) {
+        ctx.fillStyle = 'rgba(239, 68, 68, 1)';
+        ctx.fillRect(Math.round(headPx), 0, 1, waveH);
       }
     }
 
@@ -202,6 +206,46 @@ export function Waveform({
     return () => observer.disconnect();
   }, [draw]);
 
+  // Playhead animation loop
+  useEffect(() => {
+    if (!getPlaybackPosition) {
+      // Clear any lingering playhead
+      if (playbackPosRef.current != null) {
+        playbackPosRef.current = null;
+        draw();
+      }
+      return;
+    }
+
+    let running = true;
+    function tick() {
+      if (!running) return;
+      const pos = getPlaybackPosition!();
+      const prev = playbackPosRef.current;
+      playbackPosRef.current = pos;
+
+      // Redraw when position changes or transitions to/from null
+      if (pos !== prev) draw();
+
+      if (pos == null) {
+        running = false;
+        return;
+      }
+      rafRef.current = requestAnimationFrame(tick);
+    }
+
+    rafRef.current = requestAnimationFrame(tick);
+
+    return () => {
+      running = false;
+      if (rafRef.current != null) {
+        cancelAnimationFrame(rafRef.current);
+        rafRef.current = null;
+      }
+      playbackPosRef.current = null;
+    };
+  }, [getPlaybackPosition, draw]);
+
   // Convert pixel position to buffer-space (0-1)
   const pxToBuffer = useCallback(
     (e: React.PointerEvent | React.WheelEvent) => {
@@ -234,7 +278,7 @@ export function Waveform({
       if (!canvas) return;
       const rect = canvas.getBoundingClientRect();
       // Handle zone in buffer-space
-      const handleZone = (HANDLE_WIDTH * 2 / rect.width) * (1 / zoom);
+      const handleZone = (12 / rect.width) * (1 / zoom);
 
       // Determine which handle is being grabbed
       if (Math.abs(bufPos - start) < handleZone) {
@@ -336,17 +380,47 @@ export function Waveform({
     return 'default';
   })();
 
+  const handleZoomSlider = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const newZoom = parseFloat(e.target.value);
+      // Keep viewport centered when zooming via slider
+      const viewCenter = viewOffset + 0.5 / zoom;
+      const newOffset = clampOffset(viewCenter - 0.5 / newZoom, newZoom);
+      setZoom(newZoom);
+      setViewOffset(newOffset);
+    },
+    [zoom, viewOffset, clampOffset]
+  );
+
   return (
-    <canvas
-      ref={canvasRef}
-      className={`w-full rounded border border-border bg-muted/30 ${isZoomed ? 'h-24' : 'h-20'}`}
-      style={{ cursor: cursorStyle }}
-      onPointerDown={handlePointerDown}
-      onPointerMove={handlePointerMove}
-      onPointerUp={handlePointerUp}
-      onPointerCancel={handlePointerUp}
-      onWheel={handleWheel}
-      onDoubleClick={handleDoubleClick}
-    />
+    <div className="flex flex-col gap-1">
+      <canvas
+        ref={canvasRef}
+        className={`w-full rounded border ${isZoomed ? 'h-24' : 'h-20'}`}
+        style={{ cursor: cursorStyle }}
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUp}
+        onPointerCancel={handlePointerUp}
+        onWheel={handleWheel}
+        onDoubleClick={handleDoubleClick}
+      />
+      {buffer && (
+        <div className="flex items-center gap-2 px-1">
+          <span className="text-[10px] text-muted-foreground w-8 shrink-0">
+            {zoom > 1 ? `${zoom.toFixed(0)}x` : '1x'}
+          </span>
+          <input
+            type="range"
+            min={MIN_ZOOM}
+            max={MAX_ZOOM}
+            step={0.25}
+            value={zoom}
+            onChange={handleZoomSlider}
+            className="w-full h-1 accent-indigo-500"
+          />
+        </div>
+      )}
+    </div>
   );
 }

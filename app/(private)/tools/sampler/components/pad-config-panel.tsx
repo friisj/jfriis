@@ -12,7 +12,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { X } from 'lucide-react';
+import { X, Play, Square } from 'lucide-react';
 import { updatePad, updateSound } from '@/lib/sampler';
 import { EffectsChain } from './effects-chain';
 import { Waveform } from './waveform';
@@ -30,9 +30,12 @@ interface PadConfigPanelProps {
   onEffectsChange: (padId: string, effects: PadEffects) => void;
   onSoundUpdated: (sound: SamplerSound) => void;
   onClose: () => void;
+  isPlaying?: boolean;
+  onTogglePlay?: () => void;
+  getPlaybackPosition?: () => number | null;
 }
 
-export function PadConfigPanel({ pad, getBuffer, onPadUpdated, onEffectsChange, onSoundUpdated, onClose }: PadConfigPanelProps) {
+export function PadConfigPanel({ pad, getBuffer, onPadUpdated, onEffectsChange, onSoundUpdated, onClose, isPlaying, onTogglePlay, getPlaybackPosition }: PadConfigPanelProps) {
   const [pickerOpen, setPickerOpen] = useState(false);
   const [generateOpen, setGenerateOpen] = useState(false);
   const [sampleOpen, setSampleOpen] = useState(false);
@@ -194,13 +197,27 @@ export function PadConfigPanel({ pad, getBuffer, onPadUpdated, onEffectsChange, 
               trimEnd={trimEnd}
               onTrimChange={isBuffer ? handleWaveformTrimChange : undefined}
               editable={isBuffer}
+              getPlaybackPosition={getPlaybackPosition}
             />
           )}
-          {isBuffer && pad.effects.trim && (
-            <p className="text-[10px] text-muted-foreground">
-              Trim: {pad.effects.trim.startMs}ms – {pad.effects.trim.endMs}ms
-            </p>
-          )}
+          <div className="flex items-center gap-2">
+            {onTogglePlay && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="size-7 p-0"
+                onClick={onTogglePlay}
+              >
+                {isPlaying ? <Square className="size-3" /> : <Play className="size-3" />}
+                <span className="sr-only">{isPlaying ? 'Stop' : 'Play'}</span>
+              </Button>
+            )}
+            {isBuffer && pad.effects.trim && (
+              <p className="text-[10px] text-muted-foreground">
+                Trim: {pad.effects.trim.startMs}ms – {pad.effects.trim.endMs}ms
+              </p>
+            )}
+          </div>
         </div>
       )}
 
