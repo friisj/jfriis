@@ -37,6 +37,7 @@ export function ChassisModulePageClient({ module, initialMedia = [] }: Props) {
       <Separator className="my-8" />
       <ModuleVersionHistory
         moduleId={module.id}
+        moduleSchemaKey={module.schema_key}
         currentVersion={module.current_version}
         onRestored={() => window.location.reload()}
       />

@@ -8,21 +8,27 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from '@/components/ui/collapsible';
-import { ChevronDown, ChevronRight, RotateCcw } from 'lucide-react';
+import { ChevronDown, ChevronRight, RotateCcw, Plus, Minus, ArrowRight } from 'lucide-react';
 import { getModuleVersions, saveModuleWithVersion } from '@/lib/luv-chassis';
+import { diffParameters, formatDiffValue } from '@/lib/luv/param-diff';
+import type { ParamDiffEntry } from '@/lib/luv/param-diff';
+import { getSchema } from '@/lib/luv/chassis-schemas';
 import type { LuvChassisModuleVersion } from '@/lib/types/luv-chassis';
 
 interface ModuleVersionHistoryProps {
   moduleId: string;
+  moduleSchemaKey?: string;
   currentVersion: number;
   onRestored?: () => void;
 }
 
 export function ModuleVersionHistory({
   moduleId,
+  moduleSchemaKey,
   currentVersion,
   onRestored,
 }: ModuleVersionHistoryProps) {
+  const schema = moduleSchemaKey ? getSchema(moduleSchemaKey) : undefined;
   const [versions, setVersions] = useState<LuvChassisModuleVersion[]>([]);
   const [loading, setLoading] = useState(true);
   const [restoring, setRestoring] = useState<string | null>(null);
@@ -132,17 +138,98 @@ export function ModuleVersionHistory({
                   </div>
                 </div>
                 <CollapsibleContent>
-                  <div className="mt-2 pt-2 border-t">
-                    <pre className="text-[10px] text-muted-foreground font-mono whitespace-pre-wrap max-h-48 overflow-auto">
-                      {JSON.stringify(version.parameters, null, 2)}
-                    </pre>
-                  </div>
+                  <VersionDiff
+                    version={version}
+                    versions={versions}
+                    schemaParams={schema?.parameters}
+                  />
                 </CollapsibleContent>
               </div>
             </Collapsible>
           );
         })}
       </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+
+function VersionDiff({
+  version,
+  versions,
+  schemaParams,
+}: {
+  version: LuvChassisModuleVersion;
+  versions: LuvChassisModuleVersion[];
+  schemaParams?: import('@/lib/luv/chassis-schemas').ParameterDef[];
+}) {
+  // versions are sorted desc, so previous version is the next item
+  const idx = versions.findIndex((v) => v.id === version.id);
+  const prev = idx < versions.length - 1 ? versions[idx + 1] : null;
+
+  if (!prev) {
+    // First version — show all parameters as "initial"
+    return (
+      <div className="mt-2 pt-2 border-t text-[10px] text-muted-foreground">
+        <p className="italic mb-1">Initial version</p>
+        <pre className="font-mono whitespace-pre-wrap max-h-48 overflow-auto">
+          {JSON.stringify(version.parameters, null, 2)}
+        </pre>
+      </div>
+    );
+  }
+
+  const diffs = diffParameters(prev.parameters, version.parameters, schemaParams);
+
+  if (diffs.length === 0) {
+    return (
+      <div className="mt-2 pt-2 border-t text-[10px] text-muted-foreground italic">
+        No parameter changes from v{prev.version}
+      </div>
+    );
+  }
+
+  return (
+    <div className="mt-2 pt-2 border-t space-y-1">
+      {diffs.map((d) => (
+        <DiffRow key={d.key} diff={d} />
+      ))}
+    </div>
+  );
+}
+
+function DiffRow({ diff }: { diff: ParamDiffEntry }) {
+  const icon =
+    diff.type === 'added' ? (
+      <Plus className="h-2.5 w-2.5 text-green-500" />
+    ) : diff.type === 'removed' ? (
+      <Minus className="h-2.5 w-2.5 text-red-500" />
+    ) : (
+      <ArrowRight className="h-2.5 w-2.5 text-blue-500" />
+    );
+
+  return (
+    <div className="flex items-center gap-1.5 text-[10px]">
+      {icon}
+      <span className="font-medium">{diff.label}</span>
+      {diff.type === 'changed' && (
+        <>
+          <span className="text-muted-foreground line-through">
+            {formatDiffValue(diff.oldValue)}
+          </span>
+          <ArrowRight className="h-2 w-2 text-muted-foreground" />
+          <span>{formatDiffValue(diff.newValue)}</span>
+        </>
+      )}
+      {diff.type === 'added' && (
+        <span>{formatDiffValue(diff.newValue)}</span>
+      )}
+      {diff.type === 'removed' && (
+        <span className="text-muted-foreground line-through">
+          {formatDiffValue(diff.oldValue)}
+        </span>
+      )}
     </div>
   );
 }
