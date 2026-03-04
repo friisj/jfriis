@@ -96,3 +96,48 @@ export type UpdateContextPackInput = Partial<{
   corrections: CorrectionEntry[];
   status: 'draft' | 'active' | 'superseded';
 }>;
+
+// Studies
+
+export interface StudyFinding {
+  observation: string;
+  source?: string;
+  implications?: string;
+}
+
+export interface ParameterConstraint {
+  parameterKey: string;
+  value: unknown;
+  reason: string;
+}
+
+export interface LuvChassisStudy {
+  id: string;
+  module_id: string | null;
+  title: string;
+  slug: string;
+  focus_area: string;
+  findings: StudyFinding[];
+  parameter_constraints: Record<string, ParameterConstraint>;
+  status: 'in_progress' | 'completed';
+  created_at: string;
+  updated_at: string;
+}
+
+export type CreateStudyInput = {
+  title: string;
+  slug: string;
+  module_id?: string;
+  focus_area?: string;
+  findings?: StudyFinding[];
+  parameter_constraints?: Record<string, ParameterConstraint>;
+  status?: 'in_progress' | 'completed';
+};
+
+export type UpdateStudyInput = Partial<{
+  title: string;
+  focus_area: string;
+  findings: StudyFinding[];
+  parameter_constraints: Record<string, ParameterConstraint>;
+  status: 'in_progress' | 'completed';
+}>;

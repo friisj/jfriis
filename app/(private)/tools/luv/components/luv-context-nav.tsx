@@ -54,6 +54,7 @@ const libraryLinks: NavItem[] = [
   { href: '/tools/luv/media', label: 'Media' },
   { href: '/tools/luv/presets', label: 'Presets' },
   { href: '/tools/luv/prompts', label: 'Prompts' },
+  { href: '/tools/luv/studies', label: 'Studies' },
   { href: '/tools/luv/training', label: 'Training' },
 ];
 
@@ -66,6 +67,7 @@ const pathToSpace: Record<string, Space> = {
   '/tools/luv/media': 'library',
   '/tools/luv/presets': 'library',
   '/tools/luv/prompts': 'library',
+  '/tools/luv/studies': 'library',
   '/tools/luv/training': 'library',
 };
 

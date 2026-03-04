@@ -3,7 +3,7 @@
  */
 
 import { createClient } from './supabase-server';
-import type { LuvChassisModule, LuvChassisModuleMedia } from './types/luv-chassis';
+import type { LuvChassisModule, LuvChassisModuleMedia, LuvChassisStudy } from './types/luv-chassis';
 
 // NOTE: luv_chassis_* tables not in generated Supabase types
 
@@ -113,4 +113,33 @@ export async function getRecentChassisChangesServer(
       parameters: v.parameters,
     };
   });
+}
+
+// ============================================================================
+// Studies
+// ============================================================================
+
+export async function getStudiesServer(): Promise<LuvChassisStudy[]> {
+  const client = await createClient();
+  const { data, error } = await (client as any)
+    .from('luv_chassis_studies')
+    .select('*')
+    .order('updated_at', { ascending: false });
+
+  if (error) throw error;
+  return data as LuvChassisStudy[];
+}
+
+export async function getStudyBySlugServer(
+  slug: string
+): Promise<LuvChassisStudy | null> {
+  const client = await createClient();
+  const { data, error } = await (client as any)
+    .from('luv_chassis_studies')
+    .select('*')
+    .eq('slug', slug)
+    .maybeSingle();
+
+  if (error) throw error;
+  return data as LuvChassisStudy | null;
 }
