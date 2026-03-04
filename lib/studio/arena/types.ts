@@ -58,8 +58,14 @@ export type DimensionSkillState = DimensionState
 /** Skill dimension is now an open string (not restricted to 3) */
 export type SkillDimension = string
 
-/** The three core dimensions (used as defaults; not authoritative — project config is) */
+/** Token-bearing dimensions — default checked when creating new projects */
 export const CORE_DIMENSIONS: string[] = ['color', 'typography', 'spacing', 'elevation', 'radius']
+
+/** All dimensions including qualitative/policy dimensions */
+export const ALL_DIMENSIONS: string[] = [
+  'color', 'typography', 'spacing', 'elevation', 'radius',
+  'density', 'motion', 'iconography', 'voice', 'presentation',
+]
 
 /** @deprecated Use CORE_DIMENSIONS instead */
 export const SKILL_DIMENSIONS = CORE_DIMENSIONS
@@ -108,9 +114,14 @@ export const DECISION_LABELS = {
     'Line Height', 'Heading Line Height',
     'Letter Spacing', 'Heading Letter Spacing',
   ],
-  spacing: ['Padding', 'Gap', 'Border Radius'],
+  spacing: ['Padding', 'Gap', 'Section Spacing', 'Stack Gap', 'Inline Spacing'],
   elevation: ['None', 'Low', 'Medium', 'High'],
   radius: ['Small', 'Medium', 'Large', 'Full'],
+  density: ['Default Mode', 'Compact Mode', 'Spacious Mode', 'Density Scale Factor', 'Row Height', 'Touch Target Minimum'],
+  motion: ['Micro Transitions', 'State Transitions', 'Entrance Animations', 'Exit Animations', 'Choreography', 'Easing Standard'],
+  iconography: ['Stroke Weight', 'Size Grid', 'Corner Style', 'Optical Weight', 'Filled vs. Outlined', 'Metaphor Conventions'],
+  voice: ['Formality Level', 'Error Tone', 'Empty State Tone', 'Button & Action Labels', 'Confirmation & Success Tone', 'Help & Guidance Tone'],
+  presentation: ['Content-to-Chrome Ratio', 'Card vs. List Philosophy', 'Visual Weight Distribution', 'Progressive Disclosure', 'Chrome Style', 'Information Hierarchy Strategy'],
 } as const
 
 // =============================================================================
@@ -166,13 +177,11 @@ export function resolveRenderTokens(
   return result
 }
 
-/** Returns a SkillState with empty entries for the 3 core dimensions */
+/** Returns a SkillState with empty entries for all dimensions */
 export function emptySkillState(): SkillState {
-  return {
-    color: { decisions: [], rules: [] },
-    typography: { decisions: [], rules: [] },
-    spacing: { decisions: [], rules: [] },
-    elevation: { decisions: [], rules: [] },
-    radius: { decisions: [], rules: [] },
+  const state: SkillState = {}
+  for (const dim of ALL_DIMENSIONS) {
+    state[dim] = { decisions: [], rules: [] }
   }
+  return state
 }

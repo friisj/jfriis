@@ -15,12 +15,26 @@ const DIMENSION_LABELS: Record<string, string> = {
   color: 'Color',
   typography: 'Typography',
   spacing: 'Spacing',
+  elevation: 'Elevation',
+  radius: 'Radius',
+  density: 'Density',
+  motion: 'Motion',
+  iconography: 'Iconography',
+  voice: 'Voice & Tone',
+  presentation: 'Presentation',
 }
 
 const DIMENSION_COLORS: Record<string, string> = {
   color: 'bg-rose-50 dark:bg-rose-950/20 border-rose-200 dark:border-rose-800',
   typography: 'bg-blue-50 dark:bg-blue-950/20 border-blue-200 dark:border-blue-800',
   spacing: 'bg-amber-50 dark:bg-amber-950/20 border-amber-200 dark:border-amber-800',
+  elevation: 'bg-violet-50 dark:bg-violet-950/20 border-violet-200 dark:border-violet-800',
+  radius: 'bg-emerald-50 dark:bg-emerald-950/20 border-emerald-200 dark:border-emerald-800',
+  density: 'bg-cyan-50 dark:bg-cyan-950/20 border-cyan-200 dark:border-cyan-800',
+  motion: 'bg-orange-50 dark:bg-orange-950/20 border-orange-200 dark:border-orange-800',
+  iconography: 'bg-indigo-50 dark:bg-indigo-950/20 border-indigo-200 dark:border-indigo-800',
+  voice: 'bg-pink-50 dark:bg-pink-950/20 border-pink-200 dark:border-pink-800',
+  presentation: 'bg-teal-50 dark:bg-teal-950/20 border-teal-200 dark:border-teal-800',
 }
 
 const DEFAULT_DIM_COLOR = 'bg-slate-50 dark:bg-slate-950/20 border-slate-200 dark:border-slate-800'
