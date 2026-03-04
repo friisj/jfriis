@@ -177,6 +177,7 @@ export interface ArenaTheme {
   id: string
   project_id: string | null
   skill_id: string | null
+  is_template: boolean
   dimension: string
   platform: string
   name: string

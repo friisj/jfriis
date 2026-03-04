@@ -101,6 +101,19 @@ Templates are skill records with `is_template: true`, no `project_id`.
 
 The catalog evolves in one place — when new decisions are added to a dimension template, every future project can use them. Existing projects are unaffected (their config already scoped what they need).
 
+### Theme Templates (Catalog)
+
+Independent, reusable token sets that exist without any skill association. A theme template is a neutral token seed — e.g., "Material", "Basic Pro", "Brand Dark" — containing concrete values for one or more dimensions.
+
+Theme templates and skill templates are **two independent catalogs** that compose at the project level:
+
+- **Skill templates** define *design philosophy* (qualitative intent, rules, constraints)
+- **Theme templates** define *token values* (quantitative colors, sizes, spacing)
+
+A project can select from either catalog independently. Theme templates may originate from Figma imports, manual creation, or decomposition of refined project themes back into reusable catalog entries.
+
+Stored as: `arena_themes` rows with `is_template = true`, `project_id = null`, `skill_id = null`.
+
 ### Dimension Skills (Assembly)
 
 The working artifacts. One per dimension per project, composed into an assembly.

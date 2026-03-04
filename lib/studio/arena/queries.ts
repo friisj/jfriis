@@ -420,6 +420,7 @@ export async function setSessionComponents(
 export async function getThemes(opts: {
   project_id?: string
   skill_id?: string
+  is_template?: boolean
   platform?: string
   name?: string
 }): Promise<ArenaTheme[]> {
@@ -428,6 +429,7 @@ export async function getThemes(opts: {
 
   if (opts.project_id) query = query.eq('project_id', opts.project_id)
   if (opts.skill_id) query = query.eq('skill_id', opts.skill_id)
+  if (opts.is_template !== undefined) query = query.eq('is_template', opts.is_template)
   if (opts.platform) query = query.eq('platform', opts.platform)
   if (opts.name) query = query.eq('name', opts.name)
 
@@ -461,20 +463,21 @@ export async function getThemesForSkill(
   return getThemes({ skill_id: skillId, platform: platform ?? 'tailwind' })
 }
 
-/** Fetch all template-scoped themes (those with a skill_id), optionally filtered by name */
+/** Fetch all template themes, optionally filtered by name */
 export async function getTemplateThemes(name?: string): Promise<ArenaTheme[]> {
   const supabase = await arenaClient()
-  let query = supabase.from('arena_themes').select('*').not('skill_id', 'is', null)
+  let query = supabase.from('arena_themes').select('*').eq('is_template', true)
   if (name) query = query.eq('name', name)
   const { data, error } = await query.order('dimension')
   if (error) throw error
   return (data ?? []) as unknown as ArenaTheme[]
 }
 
-/** Upsert a theme row — accepts either project_id or skill_id + name */
+/** Upsert a theme row — accepts project_id, skill_id, or is_template */
 export async function upsertTheme(input: {
   project_id?: string
   skill_id?: string
+  is_template?: boolean
   dimension: string
   platform: string
   name?: string
@@ -528,6 +531,7 @@ export async function upsertTheme(input: {
       .insert({
         project_id: projectId,
         skill_id: skillId,
+        is_template: input.is_template ?? false,
         dimension: input.dimension,
         platform: input.platform,
         name,

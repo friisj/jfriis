@@ -25,6 +25,7 @@ interface ThemeEditorProps {
   themeName: string
   /** Either skill_id or project_id — used to target upsertTheme correctly */
   scope: { skillId?: string; projectId?: string }
+  isTemplate?: boolean
   platform: string
   dimensionCount: number
 }
@@ -73,7 +74,7 @@ function isLetterSpacingLabel(label: string) {
 
 type PreviewComponent = 'card' | 'form' | 'dashboard'
 
-export function ThemeEditor({ initialTokens, themeName, scope, platform, dimensionCount }: ThemeEditorProps) {
+export function ThemeEditor({ initialTokens, themeName, scope, isTemplate, platform, dimensionCount }: ThemeEditorProps) {
   const [tokens, setTokens] = useState<Record<string, TokenMap>>(initialTokens)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
@@ -131,6 +132,7 @@ export function ThemeEditor({ initialTokens, themeName, scope, platform, dimensi
         await saveTheme({
           skill_id: scope.skillId,
           project_id: scope.projectId,
+          is_template: isTemplate,
           dimension: dim,
           platform,
           name: themeName,

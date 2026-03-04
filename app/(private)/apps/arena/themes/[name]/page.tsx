@@ -18,9 +18,9 @@ export default async function ThemeDetailPage({ params }: Props) {
     initialTokens[row.dimension] = row.tokens
   }
 
-  // All rows share the same skill_id for template themes
   const skillId = themes[0].skill_id ?? undefined
   const projectId = themes[0].project_id ?? undefined
+  const isTemplate = themes[0].is_template
   const platform = themes[0].platform
 
   return (
@@ -29,6 +29,7 @@ export default async function ThemeDetailPage({ params }: Props) {
         initialTokens={initialTokens}
         themeName={name}
         scope={{ skillId, projectId }}
+        isTemplate={isTemplate}
         platform={platform}
         dimensionCount={themes.length}
       />
