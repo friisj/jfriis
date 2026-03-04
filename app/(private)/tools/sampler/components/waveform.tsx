@@ -10,7 +10,7 @@ interface WaveformProps {
   editable?: boolean;
 }
 
-const HANDLE_WIDTH = 6;
+const HANDLE_WIDTH = 1;
 const MIN_TRIM_FRACTION = 0.002; // minimum 0.2% of buffer (~10ms on a 5s clip)
 const MIN_ZOOM = 1;
 const MAX_ZOOM = 32;
@@ -126,7 +126,7 @@ export function Waveform({
       if (dimEnd < w) ctx.fillRect(dimEnd, 0, w - dimEnd, waveH);
 
       // Handle bars (only draw if in viewport)
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+      ctx.fillStyle = 'rgba(239, 68, 68, 0.9)';
       if (startPx >= -HANDLE_WIDTH && startPx <= w + HANDLE_WIDTH) {
         ctx.fillRect(startPx - HANDLE_WIDTH / 2, 0, HANDLE_WIDTH, waveH);
       }
@@ -134,14 +134,6 @@ export function Waveform({
         ctx.fillRect(endPx - HANDLE_WIDTH / 2, 0, HANDLE_WIDTH, waveH);
       }
 
-      // Small grabber indicators
-      const handleY = waveH / 2;
-      ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
-      for (const hx of [startPx, endPx]) {
-        if (hx >= -HANDLE_WIDTH && hx <= w + HANDLE_WIDTH) {
-          ctx.fillRect(hx - 1, handleY - 6, 2, 12);
-        }
-      }
     }
 
     // Draw minimap when zoomed
@@ -234,7 +226,7 @@ export function Waveform({
       if (!canvas) return;
       const rect = canvas.getBoundingClientRect();
       // Handle zone in buffer-space
-      const handleZone = (HANDLE_WIDTH * 2 / rect.width) * (1 / zoom);
+      const handleZone = (12 / rect.width) * (1 / zoom);
 
       // Determine which handle is being grabbed
       if (Math.abs(bufPos - start) < handleZone) {
