@@ -180,10 +180,12 @@ function renderControl(
       );
 
     case 'measurement': {
-      const mv = (value as MeasurementValue) ?? {
-        value: (param.default as MeasurementValue)?.value ?? param.min ?? 0,
-        unit: param.defaultUnit ?? param.units?.[0] ?? 'cm',
-      };
+      const mv: MeasurementValue = (value && typeof value === 'object' && 'value' in value)
+        ? (value as MeasurementValue)
+        : {
+          value: (param.default as MeasurementValue)?.value ?? param.min ?? 0,
+          unit: param.defaultUnit ?? param.units?.[0] ?? 'cm',
+        };
       const units = param.units ?? ['cm', 'in'];
       return (
         <div className="space-y-1.5">
@@ -233,7 +235,9 @@ function renderControl(
     }
 
     case 'ratio': {
-      const rv = (value as RatioValue) ?? { a: 0.5, b: 0.5 };
+      const rv: RatioValue = (value && typeof value === 'object' && 'a' in value)
+        ? (value as RatioValue)
+        : { a: 0.5, b: 0.5 };
       const labels = param.ratioLabels ?? ['A', 'B'];
       const total = (rv.a || 0) + (rv.b || 0);
       return (
@@ -264,7 +268,9 @@ function renderControl(
     }
 
     case 'constraint_range': {
-      const cr = (value as ConstraintRangeValue) ?? {
+      const cr: ConstraintRangeValue = (value && typeof value === 'object' && 'min' in value && 'max' in value)
+        ? (value as ConstraintRangeValue)
+        : {
         min: param.min ?? 0,
         max: param.max ?? 100,
       };
