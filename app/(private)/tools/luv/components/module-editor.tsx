@@ -71,9 +71,17 @@ export function ModuleEditor({ module, onSaved }: ModuleEditorProps) {
             <p className="text-xs text-muted-foreground">{schema.description}</p>
           )}
         </div>
-        <Badge variant="outline" className="text-[10px]">
-          v{module.current_version}
-        </Badge>
+        <button
+          onClick={() => {
+            document.getElementById('version-history')?.scrollIntoView({ behavior: 'smooth' });
+          }}
+          className="cursor-pointer"
+          title="View version history"
+        >
+          <Badge variant="outline" className="text-[10px] hover:bg-accent transition-colors">
+            v{module.current_version}
+          </Badge>
+        </button>
       </div>
 
       {TIER_ORDER.filter((t) => grouped.has(t)).map((tier) => (
