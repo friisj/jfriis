@@ -9,10 +9,11 @@ import type { LuvChassisModule, LuvChassisModuleMedia } from '@/lib/types/luv-ch
 
 interface Props {
   module: LuvChassisModule;
+  allModules?: LuvChassisModule[];
   initialMedia?: LuvChassisModuleMedia[];
 }
 
-export function ChassisModulePageClient({ module, initialMedia = [] }: Props) {
+export function ChassisModulePageClient({ module, allModules = [], initialMedia = [] }: Props) {
   const schema = getSchema(module.schema_key);
   const parameterKeys = schema?.parameters.map((p) => p.key) ?? [];
 
@@ -21,6 +22,7 @@ export function ChassisModulePageClient({ module, initialMedia = [] }: Props) {
       <ModuleEditor
         key={module.id}
         module={module}
+        allModules={allModules}
         onSaved={() => window.location.reload()}
       />
       {parameterKeys.length > 0 && (

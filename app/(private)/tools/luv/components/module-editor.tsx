@@ -1,16 +1,20 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { AlertTriangle } from 'lucide-react';
 import { getSchema } from '@/lib/luv/chassis-schemas';
 import type { ParameterDef, ParameterTier } from '@/lib/luv/chassis-schemas';
 import type { LuvChassisModule } from '@/lib/types/luv-chassis';
 import { saveModuleWithVersion } from '@/lib/luv-chassis';
+import { validateModuleConstraints } from '@/lib/luv/chassis-constraints';
+import type { ConstraintViolation } from '@/lib/luv/chassis-constraints';
 import { ParameterControl } from './parameter-control';
 
 interface ModuleEditorProps {
   module: LuvChassisModule;
+  allModules?: LuvChassisModule[];
   onSaved?: () => void;
 }
 
@@ -22,18 +26,26 @@ const TIER_LABELS: Record<ParameterTier, string> = {
   clinical: 'Clinical',
 };
 
-export function ModuleEditor({ module, onSaved }: ModuleEditorProps) {
+export function ModuleEditor({ module, allModules = [], onSaved }: ModuleEditorProps) {
   const schema = getSchema(module.schema_key);
   const [parameters, setParameters] = useState<Record<string, unknown>>(
     module.parameters
   );
   const [saving, setSaving] = useState(false);
+  const [violations, setViolations] = useState<ConstraintViolation[]>([]);
 
   const updateParam = useCallback((key: string, value: unknown) => {
     setParameters((prev) => ({ ...prev, [key]: value }));
   }, []);
 
   const handleSave = async () => {
+    // Run constraint validation before saving
+    if (allModules.length > 0) {
+      const result = validateModuleConstraints(module.slug, parameters, allModules);
+      setViolations(result.violations);
+      // Warnings don't block save, but we show them
+    }
+
     setSaving(true);
     try {
       await saveModuleWithVersion(module.id, parameters, 'Manual edit');
@@ -44,6 +56,16 @@ export function ModuleEditor({ module, onSaved }: ModuleEditorProps) {
       setSaving(false);
     }
   };
+
+  // Compute which parameter keys have constraint violations
+  const violatedParams = useMemo(() => {
+    const set = new Set<string>();
+    for (const v of violations) {
+      if (v.sourceModule === module.slug) set.add(v.sourceParam);
+      if (v.targetModule === module.slug) set.add(v.targetParam);
+    }
+    return set;
+  }, [violations, module.slug]);
 
   if (!schema) {
     return (
@@ -84,6 +106,17 @@ export function ModuleEditor({ module, onSaved }: ModuleEditorProps) {
         </button>
       </div>
 
+      {violations.length > 0 && (
+        <div className="rounded border border-yellow-500/30 bg-yellow-500/5 p-3 space-y-1">
+          {violations.map((v, i) => (
+            <div key={i} className="flex items-center gap-2 text-xs text-yellow-600 dark:text-yellow-400">
+              <AlertTriangle className="h-3 w-3 shrink-0" />
+              <span>{v.message}</span>
+            </div>
+          ))}
+        </div>
+      )}
+
       {TIER_ORDER.filter((t) => grouped.has(t)).map((tier) => (
         <section key={tier} className="space-y-3">
           <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
@@ -91,12 +124,16 @@ export function ModuleEditor({ module, onSaved }: ModuleEditorProps) {
           </h4>
           <div className="space-y-3">
             {grouped.get(tier)!.map((param) => (
-              <ParameterControl
+              <div
                 key={param.key}
-                param={param}
-                value={parameters[param.key]}
-                onChange={(v) => updateParam(param.key, v)}
-              />
+                className={violatedParams.has(param.key) ? 'rounded ring-1 ring-yellow-500/40 p-1.5 -m-1.5' : ''}
+              >
+                <ParameterControl
+                  param={param}
+                  value={parameters[param.key]}
+                  onChange={(v) => updateParam(param.key, v)}
+                />
+              </div>
             ))}
           </div>
         </section>
