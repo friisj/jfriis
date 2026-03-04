@@ -53,3 +53,46 @@ export type UpdateChassisModuleInput = Partial<{
   current_version: number;
   sequence: number;
 }>;
+
+// Context Packs
+
+export interface EvaluationCriterion {
+  parameterKey: string;
+  label: string;
+  expectedValue: string;
+  passed?: boolean;
+}
+
+export interface CorrectionEntry {
+  criterion: string;
+  observation: string;
+  correction: string;
+  created_at: string;
+}
+
+export interface LuvChassisContextPack {
+  id: string;
+  module_id: string;
+  version: number;
+  generation_prompt: string;
+  evaluation_criteria: EvaluationCriterion[];
+  corrections: CorrectionEntry[];
+  status: 'draft' | 'active' | 'superseded';
+  created_at: string;
+  updated_at: string;
+}
+
+export type CreateContextPackInput = {
+  module_id: string;
+  version: number;
+  generation_prompt: string;
+  evaluation_criteria?: EvaluationCriterion[];
+  status?: 'draft' | 'active' | 'superseded';
+};
+
+export type UpdateContextPackInput = Partial<{
+  generation_prompt: string;
+  evaluation_criteria: EvaluationCriterion[];
+  corrections: CorrectionEntry[];
+  status: 'draft' | 'active' | 'superseded';
+}>;

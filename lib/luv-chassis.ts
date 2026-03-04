@@ -7,8 +7,11 @@ import type {
   LuvChassisModule,
   LuvChassisModuleVersion,
   LuvChassisModuleMedia,
+  LuvChassisContextPack,
   CreateChassisModuleInput,
   UpdateChassisModuleInput,
+  CreateContextPackInput,
+  UpdateContextPackInput,
 } from './types/luv-chassis';
 
 // NOTE: luv_chassis_* tables not in generated Supabase types
@@ -205,4 +208,77 @@ export async function saveModuleWithVersion(
     parameters,
     current_version: newVersion,
   });
+}
+
+// ============================================================================
+// Context Packs
+// ============================================================================
+
+export async function getContextPacks(
+  moduleId: string
+): Promise<LuvChassisContextPack[]> {
+  const { data, error } = await (supabase as any)
+    .from('luv_chassis_context_packs')
+    .select('*')
+    .eq('module_id', moduleId)
+    .order('created_at', { ascending: false });
+
+  if (error) throw error;
+  return data as LuvChassisContextPack[];
+}
+
+export async function getContextPack(
+  id: string
+): Promise<LuvChassisContextPack> {
+  const { data, error } = await (supabase as any)
+    .from('luv_chassis_context_packs')
+    .select('*')
+    .eq('id', id)
+    .single();
+
+  if (error) throw error;
+  return data as LuvChassisContextPack;
+}
+
+export async function createContextPack(
+  input: CreateContextPackInput
+): Promise<LuvChassisContextPack> {
+  const { data, error } = await (supabase as any)
+    .from('luv_chassis_context_packs')
+    .insert({
+      module_id: input.module_id,
+      version: input.version,
+      generation_prompt: input.generation_prompt,
+      evaluation_criteria: input.evaluation_criteria ?? [],
+      status: input.status ?? 'draft',
+    })
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data as LuvChassisContextPack;
+}
+
+export async function updateContextPack(
+  id: string,
+  updates: UpdateContextPackInput
+): Promise<LuvChassisContextPack> {
+  const { data, error } = await (supabase as any)
+    .from('luv_chassis_context_packs')
+    .update(updates)
+    .eq('id', id)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data as LuvChassisContextPack;
+}
+
+export async function deleteContextPack(id: string): Promise<void> {
+  const { error } = await (supabase as any)
+    .from('luv_chassis_context_packs')
+    .delete()
+    .eq('id', id);
+
+  if (error) throw error;
 }
