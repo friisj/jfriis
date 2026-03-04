@@ -26,6 +26,7 @@ interface PadNodes {
   distortionMerge: GainNode;
   bitcrusher: AudioWorkletNode | null;
   bitcrusherBypass: GainNode;
+  panner: StereoPannerNode;
   delay: DelayNode;
   delayFeedback: GainNode;
   delayWet: GainNode;
@@ -192,6 +193,10 @@ export class SamplerEngine {
       }
     }
 
+    // Pan
+    const panner = ctx.createStereoPanner();
+    panner.pan.value = effects.pan?.pan ?? 0;
+
     // Delay (feedback loop)
     const delay = ctx.createDelay(5.0);
     delay.delayTime.value = effects.delay?.time ?? 0.25;
@@ -225,18 +230,19 @@ export class SamplerEngine {
     // Bitcrusher (or bypass) after distortion
     const crushOut = bitcrusher ?? bitcrusherBypass;
     distortionMerge.connect(crushOut);
+    crushOut.connect(panner);
 
-    // Dry path: CrushOut -> Dry -> Master
-    crushOut.connect(reverbDry);
+    // Dry path: Panner -> Dry -> Master
+    panner.connect(reverbDry);
     reverbDry.connect(master);
 
-    // Reverb send: CrushOut -> Reverb -> ReverbWet -> Master
-    crushOut.connect(reverb);
+    // Reverb send: Panner -> Reverb -> ReverbWet -> Master
+    panner.connect(reverb);
     reverb.connect(reverbWet);
     reverbWet.connect(master);
 
-    // Delay send: CrushOut -> Delay -> DelayWet -> Master
-    crushOut.connect(delay);
+    // Delay send: Panner -> Delay -> DelayWet -> Master
+    panner.connect(delay);
     delay.connect(delayFeedback);
     delayFeedback.connect(delay); // feedback loop
     delay.connect(delayWet);
@@ -256,6 +262,7 @@ export class SamplerEngine {
       distortionMerge,
       bitcrusher,
       bitcrusherBypass,
+      panner,
       delay,
       delayFeedback,
       delayWet,
@@ -561,6 +568,9 @@ export class SamplerEngine {
       if (bdParam) bdParam.value = effects.bitcrusher?.bitDepth ?? 16;
       if (rrParam) rrParam.value = effects.bitcrusher?.rateReduction ?? 1;
     }
+
+    // Pan
+    nodes.panner.pan.value = effects.pan?.pan ?? 0;
 
     nodes.delayWet.gain.value = effects.delay?.wet ?? 0;
     nodes.delayFeedback.gain.value = effects.delay?.feedback ?? 0;

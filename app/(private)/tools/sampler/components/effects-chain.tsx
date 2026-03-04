@@ -333,6 +333,24 @@ export function EffectsChain({ effects, onChange }: EffectsChainProps) {
           }
         />
       </div>
+
+      {/* Pan */}
+      <div className="space-y-2.5">
+        <h5 className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">Pan</h5>
+        <Row
+          label="Pan"
+          value={effects.pan?.pan ?? 0}
+          display={
+            (effects.pan?.pan ?? 0) < -0.01
+              ? `L${Math.round(Math.abs(effects.pan!.pan) * 100)}`
+              : (effects.pan?.pan ?? 0) > 0.01
+                ? `R${Math.round(effects.pan!.pan * 100)}`
+                : 'C'
+          }
+          min={-1} max={1} step={0.01}
+          onChange={(v) => update({ pan: { pan: v } })}
+        />
+      </div>
     </div>
   );
 }

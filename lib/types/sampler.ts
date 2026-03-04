@@ -42,6 +42,10 @@ export interface DelayEffect {
   wet: number;      // 0-1
 }
 
+export interface PanEffect {
+  pan: number;  // -1 (left) to +1 (right)
+}
+
 export interface BitcrusherEffect {
   bitDepth: number;       // 1–16
   rateReduction: number;  // 1–40
@@ -73,6 +77,7 @@ export interface PadEffects {
   compressor?: CompressorEffect;
   distortion?: DistortionEffect;
   bitcrusher?: BitcrusherEffect;
+  pan?: PanEffect;
   delay?: DelayEffect;
   trim?: TrimConfig;
 }
