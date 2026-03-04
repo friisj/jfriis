@@ -85,6 +85,7 @@ export interface PadEffects {
   bitcrusher?: BitcrusherEffect;
   pan?: PanEffect;
   vinylSim?: VinylSimEffect;
+  reverse?: boolean;
   delay?: DelayEffect;
   trim?: TrimConfig;
 }

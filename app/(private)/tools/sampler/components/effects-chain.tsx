@@ -8,6 +8,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { Switch } from '@/components/ui/switch';
 import type { FilterType, PadEffects } from '@/lib/types/sampler';
 
 interface EffectsChainProps {
@@ -399,6 +400,15 @@ export function EffectsChain({ effects, onChange }: EffectsChainProps) {
           }
           min={-1} max={1} step={0.01}
           onChange={(v) => update({ pan: { pan: v } })}
+        />
+      </div>
+
+      {/* Reverse */}
+      <div className="flex items-center justify-between">
+        <h5 className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">Reverse</h5>
+        <Switch
+          checked={effects.reverse ?? false}
+          onCheckedChange={(v) => update({ reverse: v })}
         />
       </div>
     </div>

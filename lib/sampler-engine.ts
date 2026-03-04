@@ -47,6 +47,7 @@ export class SamplerEngine {
   private master: GainNode | null = null;
   private workletReady = false;
   private buffers: Map<string, AudioBuffer> = new Map();
+  private reversedBuffers: Map<string, AudioBuffer> = new Map();
   private padNodes: Map<string, PadNodes> = new Map();
   private activeSources: Map<string, AudioBufferSourceNode> = new Map();
   private activeProceduralStops: Map<string, () => void> = new Map();
@@ -89,6 +90,30 @@ export class SamplerEngine {
     } catch (e) {
       console.warn('AudioWorklet registration failed, bitcrusher will bypass:', e);
     }
+  }
+
+  /**
+   * Create a reversed copy of an AudioBuffer (cached)
+   */
+  private reverseBuffer(original: AudioBuffer, url: string): AudioBuffer {
+    const cached = this.reversedBuffers.get(url);
+    if (cached) return cached;
+
+    const ctx = this.ensureContext();
+    const reversed = ctx.createBuffer(
+      original.numberOfChannels,
+      original.length,
+      original.sampleRate
+    );
+    for (let ch = 0; ch < original.numberOfChannels; ch++) {
+      const src = original.getChannelData(ch);
+      const dst = reversed.getChannelData(ch);
+      for (let i = 0; i < src.length; i++) {
+        dst[i] = src[src.length - 1 - i];
+      }
+    }
+    this.reversedBuffers.set(url, reversed);
+    return reversed;
   }
 
   /**
@@ -387,8 +412,13 @@ export class SamplerEngine {
     if (!pad.sound.audio_url) return;
 
     const ctx = this.ensureContext();
-    const buffer = this.buffers.get(pad.sound.audio_url);
-    if (!buffer) return;
+    const originalBuffer = this.buffers.get(pad.sound.audio_url);
+    if (!originalBuffer) return;
+
+    // Use reversed buffer if reverse effect is enabled
+    const buffer = pad.effects.reverse
+      ? this.reverseBuffer(originalBuffer, pad.sound.audio_url)
+      : originalBuffer;
 
     // Stop existing source for this pad (retrigger)
     this.stop(pad.id);
@@ -420,10 +450,13 @@ export class SamplerEngine {
       source.loop = true;
     }
 
-    // Apply trim region
+    // Apply trim region (flip offsets for reversed buffer)
     const trim = pad.effects.trim;
     if (trim) {
-      const offsetSec = trim.startMs / 1000;
+      const bufDurMs = buffer.duration * 1000;
+      const offsetSec = pad.effects.reverse
+        ? (bufDurMs - trim.endMs) / 1000
+        : trim.startMs / 1000;
       const durationSec = (trim.endMs - trim.startMs) / 1000;
 
       if (source.loop) {
@@ -728,6 +761,7 @@ export class SamplerEngine {
 
     this.padNodes.clear();
     this.buffers.clear();
+    this.reversedBuffers.clear();
 
     if (this.ctx) {
       this.ctx.close();
