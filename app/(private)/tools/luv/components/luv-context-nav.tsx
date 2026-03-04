@@ -50,8 +50,11 @@ const identityGroups: NavGroup[] = [soulGroup, buildChassisGroup()];
 
 const libraryLinks: NavItem[] = [
   { href: '/tools/luv/conversations', label: 'Conversations' },
+  { href: '/tools/luv/history', label: 'History' },
   { href: '/tools/luv/media', label: 'Media' },
+  { href: '/tools/luv/presets', label: 'Presets' },
   { href: '/tools/luv/prompts', label: 'Prompts' },
+  { href: '/tools/luv/studies', label: 'Studies' },
   { href: '/tools/luv/training', label: 'Training' },
 ];
 
@@ -60,8 +63,11 @@ const pathToSpace: Record<string, Space> = {
   '/tools/luv/chassis': 'identity',
   '/tools/luv/stage': 'stage',
   '/tools/luv/conversations': 'library',
+  '/tools/luv/history': 'library',
   '/tools/luv/media': 'library',
+  '/tools/luv/presets': 'library',
   '/tools/luv/prompts': 'library',
+  '/tools/luv/studies': 'library',
   '/tools/luv/training': 'library',
 };
 
@@ -81,7 +87,17 @@ export function LuvContextNav() {
   if (activeSpace === 'stage') {
     return (
       <nav className="flex flex-col py-2">
-        <p className="px-3 py-2 text-xs text-muted-foreground">Coming soon</p>
+        <Link
+          href="/tools/luv/stage"
+          className={cn(
+            'px-3 py-1.5 text-xs transition-colors',
+            pathname === '/tools/luv/stage'
+              ? 'text-foreground font-medium bg-accent'
+              : 'text-muted-foreground hover:text-foreground hover:bg-accent/50',
+          )}
+        >
+          Scenes
+        </Link>
       </nav>
     );
   }

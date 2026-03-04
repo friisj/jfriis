@@ -14,9 +14,14 @@ export type ParameterType =
   | 'enum'
   | 'boolean'
   | 'json'
-  | 'media_ref';
+  | 'media_ref'
+  | 'measurement'
+  | 'ratio'
+  | 'constraint_range';
 
 export type ParameterTier = 'basic' | 'intermediate' | 'advanced' | 'clinical';
+
+export type MeasurementUnit = 'cm' | 'in' | 'ratio' | 'degrees' | 'mm' | 'percent';
 
 export interface ParameterDef {
   key: string;
@@ -29,6 +34,12 @@ export interface ParameterDef {
   max?: number;
   step?: number;
   tier?: ParameterTier;
+  /** For 'measurement' type: allowed units */
+  units?: MeasurementUnit[];
+  /** For 'measurement' type: default unit */
+  defaultUnit?: MeasurementUnit;
+  /** For 'ratio' type: labels for the two linked values */
+  ratioLabels?: [string, string];
 }
 
 export interface ChassisSchema {

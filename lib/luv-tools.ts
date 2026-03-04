@@ -247,6 +247,120 @@ export const proposeModuleChange = tool({
 });
 
 // ============================================================================
+// Context Pack Tools
+// ============================================================================
+
+export const composeContextPack = tool({
+  description:
+    'Compose a context pack for a chassis module: generates a prompt template from current parameters and suggested evaluation criteria. Does NOT save — returns a proposal.',
+  inputSchema: zodSchema(
+    z.object({
+      moduleSlug: z
+        .string()
+        .describe('Module slug (e.g. "eyes", "hair", "skin")'),
+    })
+  ),
+  execute: async ({ moduleSlug }) => {
+    const { getChassisModuleBySlugServer } = await import('./luv-chassis-server');
+    const { getSchema } = await import('./luv/chassis-schemas');
+
+    const mod = await getChassisModuleBySlugServer(moduleSlug);
+    if (!mod) return { error: `Module "${moduleSlug}" not found` };
+
+    const schema = getSchema(mod.schema_key);
+    if (!schema) return { error: `Schema "${mod.schema_key}" not found` };
+
+    const promptLines = [`${schema.label} specifications:`];
+    const criteria = [];
+
+    for (const p of schema.parameters) {
+      const value = mod.parameters[p.key];
+      promptLines.push(`- ${p.label}: {{modules.${mod.slug}.${p.key}}}`);
+      if (value !== undefined && value !== null) {
+        criteria.push({
+          parameterKey: p.key,
+          label: p.label,
+          expectedValue: typeof value === 'object' ? JSON.stringify(value) : String(value),
+        });
+      }
+    }
+
+    return {
+      type: 'context_pack_proposal' as const,
+      moduleId: mod.id,
+      moduleSlug: mod.slug,
+      version: mod.current_version,
+      generationPrompt: promptLines.join('\n'),
+      evaluationCriteria: criteria,
+    };
+  },
+});
+
+export const evaluateGeneration = tool({
+  description:
+    'Evaluate a generated image against context pack criteria. Returns structured evaluation results with pass/fail per criterion.',
+  inputSchema: zodSchema(
+    z.object({
+      contextPackId: z.string().describe('Context pack ID to evaluate against'),
+      observations: z
+        .array(
+          z.object({
+            parameterKey: z.string(),
+            observed: z.string().describe('What was actually observed in the output'),
+            passed: z.boolean().describe('Whether the criterion was met'),
+            correction: z.string().optional().describe('Suggested fix if failed'),
+          })
+        )
+        .describe('Per-criterion observations from reviewing the output'),
+    })
+  ),
+  execute: async ({ contextPackId, observations }) => {
+    const { getContextPack } = await import('./luv-chassis');
+
+    let pack;
+    try {
+      pack = await getContextPack(contextPackId);
+    } catch {
+      return { error: 'Context pack not found' };
+    }
+
+    const results = pack.evaluation_criteria.map((criterion) => {
+      const obs = observations.find((o) => o.parameterKey === criterion.parameterKey);
+      return {
+        ...criterion,
+        passed: obs?.passed ?? undefined,
+        observed: obs?.observed ?? null,
+        correction: obs?.correction ?? null,
+      };
+    });
+
+    const passCount = results.filter((r) => r.passed === true).length;
+    const failCount = results.filter((r) => r.passed === false).length;
+
+    return {
+      type: 'evaluation_result' as const,
+      contextPackId: pack.id,
+      moduleId: pack.module_id,
+      version: pack.version,
+      results,
+      summary: {
+        total: results.length,
+        passed: passCount,
+        failed: failCount,
+        unreviewed: results.length - passCount - failCount,
+      },
+      corrections: results
+        .filter((r) => r.correction)
+        .map((r) => ({
+          criterion: r.label,
+          observation: r.observed,
+          correction: r.correction,
+        })),
+    };
+  },
+});
+
+// ============================================================================
 // Tool Registry
 // ============================================================================
 
@@ -260,4 +374,6 @@ export const luvTools = {
   propose_soul_change: proposeSoulChange,
   propose_chassis_change: proposeChassisChange,
   propose_module_change: proposeModuleChange,
+  compose_context_pack: composeContextPack,
+  evaluate_generation: evaluateGeneration,
 };
