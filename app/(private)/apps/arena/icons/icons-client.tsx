@@ -1,37 +1,50 @@
 'use client'
 
-import { useState, useMemo, useCallback } from 'react'
-import { icons as lucideIcons } from 'lucide-react'
-import * as PhosphorIcons from '@phosphor-icons/react'
+import { useState, useMemo, useCallback, useEffect } from 'react'
 
 type Tab = 'lucide' | 'phosphor'
-
-// Build Phosphor icon entries — filter to actual icon components (PascalCase, function)
-const phosphorEntries = Object.entries(PhosphorIcons).filter(
-  ([name, val]) => typeof val === 'function' && /^[A-Z]/.test(name) && name !== 'IconContext'
-) as [string, React.ComponentType<{ size?: number; className?: string }>][]
-
-const lucideEntries = Object.entries(lucideIcons) as [
-  string,
-  React.ComponentType<{ size?: number; className?: string }>,
-][]
+type IconEntry = [string, React.ComponentType<{ size?: number; className?: string }>]
 
 export function IconsClient() {
   const [tab, setTab] = useState<Tab>('lucide')
   const [search, setSearch] = useState('')
   const [copied, setCopied] = useState<string | null>(null)
+  const [lucideEntries, setLucideEntries] = useState<IconEntry[]>([])
+  const [phosphorEntries, setPhosphorEntries] = useState<IconEntry[]>([])
+  const [loading, setLoading] = useState(true)
+
+  // Lazy-load icon libraries to avoid polluting the webpack module graph
+  useEffect(() => {
+    import('lucide-react').then((mod) => {
+      const entries = Object.entries(mod.icons) as IconEntry[]
+      setLucideEntries(entries)
+      setLoading(false)
+    })
+  }, [])
+
+  useEffect(() => {
+    if (tab !== 'phosphor' || phosphorEntries.length > 0) return
+    setLoading(true)
+    import('@phosphor-icons/react').then((mod) => {
+      const entries = Object.entries(mod).filter(
+        ([name, val]) => typeof val === 'function' && /^[A-Z]/.test(name) && name !== 'IconContext'
+      ) as IconEntry[]
+      setPhosphorEntries(entries)
+      setLoading(false)
+    })
+  }, [tab, phosphorEntries.length])
 
   const filteredLucide = useMemo(() => {
     if (!search) return lucideEntries
     const q = search.toLowerCase()
     return lucideEntries.filter(([name]) => name.toLowerCase().includes(q))
-  }, [search])
+  }, [search, lucideEntries])
 
   const filteredPhosphor = useMemo(() => {
     if (!search) return phosphorEntries
     const q = search.toLowerCase()
     return phosphorEntries.filter(([name]) => name.toLowerCase().includes(q))
-  }, [search])
+  }, [search, phosphorEntries])
 
   const entries = tab === 'lucide' ? filteredLucide : filteredPhosphor
   const totalCount = tab === 'lucide' ? lucideEntries.length : phosphorEntries.length
@@ -73,7 +86,11 @@ export function IconsClient() {
       </div>
 
       {/* Grid */}
-      {entries.length === 0 ? (
+      {loading ? (
+        <div className="text-center py-8 text-sm text-slate-400 dark:text-slate-500">
+          Loading icons...
+        </div>
+      ) : entries.length === 0 ? (
         <div className="text-center py-8 text-sm text-slate-400 dark:text-slate-500">
           No icons match &ldquo;{search}&rdquo;
         </div>
@@ -104,6 +121,5 @@ export function IconsClient() {
 }
 
 function formatIconName(name: string): string {
-  // Convert PascalCase to kebab-like display: ArrowRight -> Arrow Right
   return name.replace(/([a-z])([A-Z])/g, '$1 $2').replace(/([A-Z]+)([A-Z][a-z])/g, '$1 $2')
 }
