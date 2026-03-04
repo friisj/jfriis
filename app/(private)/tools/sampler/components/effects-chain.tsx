@@ -1,5 +1,6 @@
 'use client';
 
+import { RotateCcw } from 'lucide-react';
 import { Slider } from '@/components/ui/slider';
 import {
   Select,
@@ -51,6 +52,24 @@ function Row({
   );
 }
 
+function SectionHeader({ label, onReset, active }: { label: string; onReset: () => void; active: boolean }) {
+  return (
+    <div className="flex items-center justify-between">
+      <h5 className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">{label}</h5>
+      {active && (
+        <button
+          type="button"
+          onClick={onReset}
+          className="text-muted-foreground/50 hover:text-muted-foreground transition-colors"
+          title={`Reset ${label}`}
+        >
+          <RotateCcw className="w-3 h-3" />
+        </button>
+      )}
+    </div>
+  );
+}
+
 /** Convert linear 0–1 slider to 20–20000 Hz (logarithmic) */
 function sliderToHz(v: number): number {
   return 20 * Math.pow(1000, v);
@@ -86,6 +105,7 @@ export function EffectsChain({ effects, onChange }: EffectsChainProps) {
     <div className="space-y-5">
       {/* Volume & Pitch */}
       <div className="space-y-2.5">
+        <SectionHeader label="Volume & Pitch" active={effects.volume !== 0.8 || effects.pitch !== 0} onReset={() => update({ volume: 0.8, pitch: 0 })} />
         <Row
           label="Volume"
           value={effects.volume}
@@ -104,7 +124,7 @@ export function EffectsChain({ effects, onChange }: EffectsChainProps) {
 
       {/* Filter */}
       <div className="space-y-2.5">
-        <h5 className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">Filter</h5>
+        <SectionHeader label="Filter" active={filterType !== 'off'} onReset={() => update({ filter: undefined })} />
         <div className="flex items-center gap-3">
           <span className="text-xs text-muted-foreground w-16 shrink-0">Type</span>
           <Select
@@ -149,7 +169,7 @@ export function EffectsChain({ effects, onChange }: EffectsChainProps) {
 
       {/* EQ */}
       <div className="space-y-2.5">
-        <h5 className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">EQ</h5>
+        <SectionHeader label="EQ" active={!!effects.eq && (effects.eq.low !== 0 || effects.eq.mid !== 0 || effects.eq.high !== 0)} onReset={() => update({ eq: undefined })} />
         {(['low', 'mid', 'high'] as const).map((band) => (
           <Row
             key={band}
@@ -173,7 +193,7 @@ export function EffectsChain({ effects, onChange }: EffectsChainProps) {
 
       {/* Compressor */}
       <div className="space-y-2.5">
-        <h5 className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">Compressor</h5>
+        <SectionHeader label="Compressor" active={!!effects.compressor && (effects.compressor.threshold !== 0 || effects.compressor.ratio !== 1)} onReset={() => update({ compressor: undefined })} />
         <Row
           label="Threshold"
           value={effects.compressor?.threshold ?? 0}
@@ -242,7 +262,7 @@ export function EffectsChain({ effects, onChange }: EffectsChainProps) {
 
       {/* Distortion */}
       <div className="space-y-2.5">
-        <h5 className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">Distortion</h5>
+        <SectionHeader label="Distortion" active={!!effects.distortion && (effects.distortion.drive !== 0 || effects.distortion.mix !== 0)} onReset={() => update({ distortion: undefined })} />
         <Row
           label="Drive"
           value={effects.distortion?.drive ?? 0}
@@ -265,7 +285,7 @@ export function EffectsChain({ effects, onChange }: EffectsChainProps) {
 
       {/* Bitcrusher */}
       <div className="space-y-2.5">
-        <h5 className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">Bitcrusher</h5>
+        <SectionHeader label="Bitcrusher" active={!!effects.bitcrusher && (effects.bitcrusher.bitDepth !== 16 || effects.bitcrusher.rateReduction !== 1)} onReset={() => update({ bitcrusher: undefined })} />
         <Row
           label="Bit Depth"
           value={effects.bitcrusher?.bitDepth ?? 16}
@@ -288,7 +308,7 @@ export function EffectsChain({ effects, onChange }: EffectsChainProps) {
 
       {/* Vinyl/Tape */}
       <div className="space-y-2.5">
-        <h5 className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">Vinyl / Tape</h5>
+        <SectionHeader label="Vinyl / Tape" active={!!effects.vinylSim && (effects.vinylSim.wow !== 0 || effects.vinylSim.flutter !== 0 || effects.vinylSim.noise !== 0)} onReset={() => update({ vinylSim: undefined })} />
         <Row
           label="Wow"
           value={effects.vinylSim?.wow ?? 0}
@@ -338,7 +358,7 @@ export function EffectsChain({ effects, onChange }: EffectsChainProps) {
 
       {/* Reverb */}
       <div className="space-y-2.5">
-        <h5 className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">Reverb</h5>
+        <SectionHeader label="Reverb" active={!!effects.reverb && effects.reverb.wet !== 0} onReset={() => update({ reverb: undefined })} />
         <Row
           label="Wet"
           value={effects.reverb?.wet ?? 0}
@@ -357,7 +377,7 @@ export function EffectsChain({ effects, onChange }: EffectsChainProps) {
 
       {/* Delay */}
       <div className="space-y-2.5">
-        <h5 className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">Delay</h5>
+        <SectionHeader label="Delay" active={!!effects.delay && effects.delay.wet !== 0} onReset={() => update({ delay: undefined })} />
         <Row
           label="Time"
           value={effects.delay?.time ?? 0.25}
@@ -389,7 +409,7 @@ export function EffectsChain({ effects, onChange }: EffectsChainProps) {
 
       {/* Pan */}
       <div className="space-y-2.5">
-        <h5 className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">Pan</h5>
+        <SectionHeader label="Pan" active={!!effects.pan && Math.abs(effects.pan.pan) > 0.01} onReset={() => update({ pan: undefined })} />
         <Row
           label="Pan"
           value={effects.pan?.pan ?? 0}
@@ -407,7 +427,19 @@ export function EffectsChain({ effects, onChange }: EffectsChainProps) {
 
       {/* Reverse */}
       <div className="flex items-center justify-between">
-        <h5 className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">Reverse</h5>
+        <div className="flex items-center gap-2">
+          <h5 className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">Reverse</h5>
+          {effects.reverse && (
+            <button
+              type="button"
+              onClick={() => update({ reverse: false })}
+              className="text-muted-foreground/50 hover:text-muted-foreground transition-colors"
+              title="Reset Reverse"
+            >
+              <RotateCcw className="w-3 h-3" />
+            </button>
+          )}
+        </div>
         <Switch
           checked={effects.reverse ?? false}
           onCheckedChange={(v) => update({ reverse: v })}
@@ -417,7 +449,19 @@ export function EffectsChain({ effects, onChange }: EffectsChainProps) {
       {/* Stutter */}
       <div className="space-y-2.5">
         <div className="flex items-center justify-between">
-          <h5 className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">Stutter</h5>
+          <div className="flex items-center gap-2">
+            <h5 className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">Stutter</h5>
+            {effects.stutter?.on && (
+              <button
+                type="button"
+                onClick={() => update({ stutter: undefined })}
+                className="text-muted-foreground/50 hover:text-muted-foreground transition-colors"
+                title="Reset Stutter"
+              >
+                <RotateCcw className="w-3 h-3" />
+              </button>
+            )}
+          </div>
           <Switch
             checked={effects.stutter?.on ?? false}
             onCheckedChange={(v) =>
