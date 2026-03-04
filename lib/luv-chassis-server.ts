@@ -60,3 +60,57 @@ export async function getChassisModuleMediaServer(
   if (error) throw error;
   return data as LuvChassisModuleMedia[];
 }
+
+export interface ChassisChangeEntry {
+  version_id: string;
+  module_id: string;
+  module_name: string;
+  module_slug: string;
+  version: number;
+  change_summary: string | null;
+  created_at: string;
+  parameters: Record<string, unknown>;
+}
+
+export async function getRecentChassisChangesServer(
+  limit = 50
+): Promise<ChassisChangeEntry[]> {
+  const client = await createClient();
+
+  // Fetch recent versions
+  const { data: versions, error: vErr } = await (client as any)
+    .from('luv_chassis_module_versions')
+    .select('id, module_id, version, parameters, change_summary, created_at')
+    .order('created_at', { ascending: false })
+    .limit(limit);
+
+  if (vErr) throw vErr;
+  if (!versions || versions.length === 0) return [];
+
+  // Fetch module names for joining
+  const moduleIds = [...new Set(versions.map((v: { module_id: string }) => v.module_id))];
+  const { data: modules, error: mErr } = await (client as any)
+    .from('luv_chassis_modules')
+    .select('id, name, slug')
+    .in('id', moduleIds);
+
+  if (mErr) throw mErr;
+
+  const moduleMap = new Map(
+    (modules ?? []).map((m: { id: string; name: string; slug: string }) => [m.id, m])
+  );
+
+  return versions.map((v: { id: string; module_id: string; version: number; parameters: Record<string, unknown>; change_summary: string | null; created_at: string }) => {
+    const mod = moduleMap.get(v.module_id) ?? { name: 'Unknown', slug: 'unknown' };
+    return {
+      version_id: v.id,
+      module_id: v.module_id,
+      module_name: (mod as { name: string }).name,
+      module_slug: (mod as { slug: string }).slug,
+      version: v.version,
+      change_summary: v.change_summary,
+      created_at: v.created_at,
+      parameters: v.parameters,
+    };
+  });
+}

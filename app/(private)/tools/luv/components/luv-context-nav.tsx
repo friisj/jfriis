@@ -50,6 +50,7 @@ const identityGroups: NavGroup[] = [soulGroup, buildChassisGroup()];
 
 const libraryLinks: NavItem[] = [
   { href: '/tools/luv/conversations', label: 'Conversations' },
+  { href: '/tools/luv/history', label: 'History' },
   { href: '/tools/luv/media', label: 'Media' },
   { href: '/tools/luv/presets', label: 'Presets' },
   { href: '/tools/luv/prompts', label: 'Prompts' },
@@ -61,6 +62,7 @@ const pathToSpace: Record<string, Space> = {
   '/tools/luv/chassis': 'identity',
   '/tools/luv/stage': 'stage',
   '/tools/luv/conversations': 'library',
+  '/tools/luv/history': 'library',
   '/tools/luv/media': 'library',
   '/tools/luv/presets': 'library',
   '/tools/luv/prompts': 'library',
