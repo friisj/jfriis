@@ -348,33 +348,39 @@ export function CollectionGrid({ collection }: CollectionGridProps) {
   const selectedPad = pads.find((p) => p.id === selectedPadId) ?? null;
 
   return (
-    <div className="flex flex-col flex-1 min-h-0">
+    <div className="border border-blue-500 flex-1 flex flex-col">
       {/* Batch Status Banner */}
-      {batchItems && (
-        <BatchStatus
-          items={batchItems}
-          onCancel={cancelBatch}
-          onDismiss={dismissBatch}
-        />
-      )}
+    {batchItems && (
+      <BatchStatus
+        items={batchItems}
+        onCancel={cancelBatch}
+        onDismiss={dismissBatch}
+      />
+    )}
 
-      <div className="flex flex-1 min-h-0">
-        {/* Global Controls Sidebar */}
-        <div className="w-10 shrink-0 flex flex-col items-center pt-1 gap-1">
-          <button
-            onClick={stopAll}
-            className="w-8 h-8 flex items-center justify-center rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
-            title="Stop all (Esc)"
-          >
-            <Square className="size-4" />
-          </button>
-        </div>
 
-        {/* Grid + Config via Resizable Panels */}
-        <ResizablePanelGroup direction="horizontal" className="flex-1">
-          <ResizablePanel minSize={40}>
+      {/* Grid + Config via Resizable Panels */}
+      <ResizablePanelGroup direction="horizontal" className="flex-1">
+        <ResizablePanel minSize={40} className="flex">
+          <div className="w-10 shrink-0 flex flex-col items-center pt-1 gap-1 border-r">
+            <button
+              onClick={stopAll}
+              className="w-8 h-8 flex items-center justify-center rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+              title="Stop all (Esc)"
+            >
+              <Square className="size-4" />
+            </button>
+          </div>
+          <div className="flex-1 h-full flex flex-col">
+            {batchItems && (
+              <BatchStatus
+                items={batchItems}
+                onCancel={cancelBatch}
+                onDismiss={dismissBatch}
+              />
+            )}
             <div
-              className="grid h-full p-1"
+              className="grid p-1 flex-1"
               style={{
                 gridTemplateRows: `repeat(${gridRows}, 1fr)`,
                 gridTemplateColumns: `repeat(${collection.grid_cols}, 1fr)`,
@@ -392,26 +398,26 @@ export function CollectionGrid({ collection }: CollectionGridProps) {
                 />
               ))}
             </div>
-          </ResizablePanel>
+          </div>
+        </ResizablePanel>
 
-          {selectedPad && (
-            <>
-              <ResizableHandle withHandle />
-              <ResizablePanel defaultSize={25} minSize={15} maxSize={40}>
-                <PadConfigPanel
-                  key={selectedPad.id}
-                  pad={selectedPad}
-                  getBuffer={getBuffer}
-                  onPadUpdated={handlePadUpdated}
-                  onEffectsChange={handleEffectsChange}
-                  onSoundUpdated={handleSoundUpdated}
-                  onClose={() => setSelectedPadId(null)}
-                />
-              </ResizablePanel>
-            </>
-          )}
-        </ResizablePanelGroup>
-      </div>
+        {selectedPad && (
+          <>
+            <ResizableHandle withHandle />
+            <ResizablePanel defaultSize={25} minSize={15} maxSize={40}>
+              <PadConfigPanel
+                key={selectedPad.id}
+                pad={selectedPad}
+                getBuffer={getBuffer}
+                onPadUpdated={handlePadUpdated}
+                onEffectsChange={handleEffectsChange}
+                onSoundUpdated={handleSoundUpdated}
+                onClose={() => setSelectedPadId(null)}
+              />
+            </ResizablePanel>
+          </>
+        )}
+      </ResizablePanelGroup>
     </div>
   );
 }
