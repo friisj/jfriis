@@ -42,6 +42,12 @@ export interface DelayEffect {
   wet: number;      // 0-1
 }
 
+export interface VinylSimEffect {
+  wow: number;      // 0–1 (slow pitch wobble depth)
+  flutter: number;  // 0–1 (fast pitch wobble depth)
+  noise: number;    // 0–1 (vinyl noise mix)
+}
+
 export interface PanEffect {
   pan: number;  // -1 (left) to +1 (right)
 }
@@ -78,6 +84,7 @@ export interface PadEffects {
   distortion?: DistortionEffect;
   bitcrusher?: BitcrusherEffect;
   pan?: PanEffect;
+  vinylSim?: VinylSimEffect;
   delay?: DelayEffect;
   trim?: TrimConfig;
 }

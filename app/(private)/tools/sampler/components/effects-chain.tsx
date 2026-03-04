@@ -283,6 +283,56 @@ export function EffectsChain({ effects, onChange }: EffectsChainProps) {
         />
       </div>
 
+      {/* Vinyl/Tape */}
+      <div className="space-y-2.5">
+        <h5 className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">Vinyl / Tape</h5>
+        <Row
+          label="Wow"
+          value={effects.vinylSim?.wow ?? 0}
+          display={`${Math.round((effects.vinylSim?.wow ?? 0) * 100)}%`}
+          min={0} max={1} step={0.01}
+          onChange={(v) =>
+            update({
+              vinylSim: {
+                wow: v,
+                flutter: effects.vinylSim?.flutter ?? 0,
+                noise: effects.vinylSim?.noise ?? 0,
+              },
+            })
+          }
+        />
+        <Row
+          label="Flutter"
+          value={effects.vinylSim?.flutter ?? 0}
+          display={`${Math.round((effects.vinylSim?.flutter ?? 0) * 100)}%`}
+          min={0} max={1} step={0.01}
+          onChange={(v) =>
+            update({
+              vinylSim: {
+                wow: effects.vinylSim?.wow ?? 0,
+                flutter: v,
+                noise: effects.vinylSim?.noise ?? 0,
+              },
+            })
+          }
+        />
+        <Row
+          label="Noise"
+          value={effects.vinylSim?.noise ?? 0}
+          display={`${Math.round((effects.vinylSim?.noise ?? 0) * 100)}%`}
+          min={0} max={1} step={0.01}
+          onChange={(v) =>
+            update({
+              vinylSim: {
+                wow: effects.vinylSim?.wow ?? 0,
+                flutter: effects.vinylSim?.flutter ?? 0,
+                noise: v,
+              },
+            })
+          }
+        />
+      </div>
+
       {/* Reverb */}
       <div className="space-y-2.5">
         <h5 className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">Reverb</h5>

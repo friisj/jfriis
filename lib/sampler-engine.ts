@@ -27,6 +27,13 @@ interface PadNodes {
   bitcrusher: AudioWorkletNode | null;
   bitcrusherBypass: GainNode;
   panner: StereoPannerNode;
+  vinylLfoWow: OscillatorNode;
+  vinylLfoWowGain: GainNode;
+  vinylLfoFlutter: OscillatorNode;
+  vinylLfoFlutterGain: GainNode;
+  vinylNoise: AudioBufferSourceNode;
+  vinylNoiseFilter: BiquadFilterNode;
+  vinylNoiseGain: GainNode;
   delay: DelayNode;
   delayFeedback: GainNode;
   delayWet: GainNode;
@@ -82,6 +89,20 @@ export class SamplerEngine {
     } catch (e) {
       console.warn('AudioWorklet registration failed, bitcrusher will bypass:', e);
     }
+  }
+
+  /**
+   * Create a looping white noise buffer (2 seconds)
+   */
+  private createWhiteNoiseBuffer(): AudioBuffer {
+    const ctx = this.ensureContext();
+    const length = ctx.sampleRate * 2;
+    const buffer = ctx.createBuffer(1, length, ctx.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < length; i++) {
+      data[i] = Math.random() * 2 - 1;
+    }
+    return buffer;
   }
 
   /**
@@ -197,6 +218,43 @@ export class SamplerEngine {
     const panner = ctx.createStereoPanner();
     panner.pan.value = effects.pan?.pan ?? 0;
 
+    // Vinyl/Tape simulation
+    const vinylFx = effects.vinylSim;
+
+    // Wow LFO (~0.5Hz slow pitch wobble)
+    const vinylLfoWow = ctx.createOscillator();
+    vinylLfoWow.type = 'sine';
+    vinylLfoWow.frequency.value = 0.5;
+    const vinylLfoWowGain = ctx.createGain();
+    vinylLfoWowGain.gain.value = (vinylFx?.wow ?? 0) * 15; // cents depth
+
+    // Flutter LFO (~6Hz fast pitch wobble)
+    const vinylLfoFlutter = ctx.createOscillator();
+    vinylLfoFlutter.type = 'sine';
+    vinylLfoFlutter.frequency.value = 6;
+    const vinylLfoFlutterGain = ctx.createGain();
+    vinylLfoFlutterGain.gain.value = (vinylFx?.flutter ?? 0) * 5; // cents depth
+
+    // Wire LFOs (connected to source.detune at trigger time)
+    vinylLfoWow.connect(vinylLfoWowGain);
+    vinylLfoFlutter.connect(vinylLfoFlutterGain);
+    vinylLfoWow.start();
+    vinylLfoFlutter.start();
+
+    // Vinyl noise (additive, mixed into panner)
+    const vinylNoise = ctx.createBufferSource();
+    vinylNoise.buffer = this.createWhiteNoiseBuffer();
+    vinylNoise.loop = true;
+    const vinylNoiseFilter = ctx.createBiquadFilter();
+    vinylNoiseFilter.type = 'lowpass';
+    vinylNoiseFilter.frequency.value = 1000;
+    const vinylNoiseGain = ctx.createGain();
+    vinylNoiseGain.gain.value = vinylFx?.noise ?? 0;
+    vinylNoise.connect(vinylNoiseFilter);
+    vinylNoiseFilter.connect(vinylNoiseGain);
+    vinylNoiseGain.connect(panner);
+    vinylNoise.start();
+
     // Delay (feedback loop)
     const delay = ctx.createDelay(5.0);
     delay.delayTime.value = effects.delay?.time ?? 0.25;
@@ -263,6 +321,13 @@ export class SamplerEngine {
       bitcrusher,
       bitcrusherBypass,
       panner,
+      vinylLfoWow,
+      vinylLfoWowGain,
+      vinylLfoFlutter,
+      vinylLfoFlutterGain,
+      vinylNoise,
+      vinylNoiseFilter,
+      vinylNoiseGain,
       delay,
       delayFeedback,
       delayWet,
@@ -345,6 +410,10 @@ export class SamplerEngine {
 
     // Connect source to pad's gain node (start of effects chain)
     source.connect(nodes.gain);
+
+    // Connect vinyl LFOs to source detune for wow/flutter
+    nodes.vinylLfoWowGain.connect(source.detune);
+    nodes.vinylLfoFlutterGain.connect(source.detune);
 
     // Handle loop and gate pads (both sustain until stopped)
     if (pad.pad_type === 'loop' || pad.pad_type === 'gate') {
@@ -572,6 +641,11 @@ export class SamplerEngine {
     // Pan
     nodes.panner.pan.value = effects.pan?.pan ?? 0;
 
+    // Vinyl/Tape
+    nodes.vinylLfoWowGain.gain.value = (effects.vinylSim?.wow ?? 0) * 15;
+    nodes.vinylLfoFlutterGain.gain.value = (effects.vinylSim?.flutter ?? 0) * 5;
+    nodes.vinylNoiseGain.gain.value = effects.vinylSim?.noise ?? 0;
+
     nodes.delayWet.gain.value = effects.delay?.wet ?? 0;
     nodes.delayFeedback.gain.value = effects.delay?.feedback ?? 0;
     nodes.reverbWet.gain.value = effects.reverb?.wet ?? 0;
@@ -644,6 +718,13 @@ export class SamplerEngine {
       try { stop(); } catch { /* noop */ }
     });
     this.activeProceduralStops.clear();
+
+    // Stop vinyl oscillators and noise sources
+    this.padNodes.forEach((nodes) => {
+      try { nodes.vinylLfoWow.stop(); } catch { /* noop */ }
+      try { nodes.vinylLfoFlutter.stop(); } catch { /* noop */ }
+      try { nodes.vinylNoise.stop(); } catch { /* noop */ }
+    });
 
     this.padNodes.clear();
     this.buffers.clear();
