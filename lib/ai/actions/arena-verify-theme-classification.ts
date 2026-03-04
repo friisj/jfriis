@@ -12,12 +12,12 @@ import type { Action } from './types'
 // --- Schemas ---
 
 const correctionSchema = z.object({
-  dimension: z.string(),
-  label: z.string(),
+  token: z.string(),
+  type: z.string(),
   currentValue: z.string(),
   suggestedValue: z.string().optional(),
   status: z.enum(['confirmed', 'flagged', 'uncertain']),
-  explanation: z.string(),
+  reason: z.string(),
 })
 
 const inputSchema = z.object({
@@ -68,12 +68,23 @@ Focus on the most important/visible tokens. You don't need to verify every singl
 3. Font sizes and weights
 4. Spacing values (if clearly visible)
 
-Output a single JSON object:
+Output a single JSON object with this exact structure:
 {
-  "corrections": [...],
+  "corrections": [
+    {
+      "token": "Primary",
+      "type": "color",
+      "currentValue": "#3b82f6",
+      "suggestedValue": "#2563eb",
+      "status": "flagged",
+      "reason": "The primary CTA buttons appear darker than the assigned value"
+    }
+  ],
   "overallConfidence": "low" | "medium" | "high",
   "notes": "Brief overall assessment of classification quality"
-}`
+}
+
+Each correction must have: token (role name), type (dimension: color/typography/spacing/elevation), currentValue, status (confirmed/flagged/uncertain), reason. Include suggestedValue only when flagged and you can identify the correct value.`
 
 function buildMessages(input: VerifyInput) {
   const content: Array<

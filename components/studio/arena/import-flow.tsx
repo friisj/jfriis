@@ -413,12 +413,12 @@ export function ImportFlow({ projectId, projectName, onComplete }: ImportFlowPro
                     {c.status === 'confirmed' ? '\u2713' : c.status === 'flagged' ? '!' : '?'}
                   </span>
                   <div className="min-w-0">
-                    <span className="font-medium text-gray-700 dark:text-gray-300">{c.dimension} / {c.label}</span>
+                    <span className="font-medium text-gray-700 dark:text-gray-300">{c.type} / {c.token}</span>
                     <span className="text-gray-500 dark:text-gray-400 ml-1">
                       {c.currentValue}
                       {c.suggestedValue && <> {'->'} <span className="font-medium text-amber-700 dark:text-amber-400">{c.suggestedValue}</span></>}
                     </span>
-                    <p className="text-gray-400 mt-0.5">{c.explanation}</p>
+                    <p className="text-gray-400 mt-0.5">{c.reason}</p>
                   </div>
                 </div>
               ))}

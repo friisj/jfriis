@@ -403,12 +403,12 @@ export function ThemeFromFigmaFlow() {
                     {c.status === 'confirmed' ? '\u2713' : c.status === 'flagged' ? '!' : '?'}
                   </span>
                   <div className="min-w-0">
-                    <span className="font-medium text-slate-700 dark:text-slate-300">{c.dimension} / {c.label}</span>
+                    <span className="font-medium text-slate-700 dark:text-slate-300">{c.type} / {c.token}</span>
                     <span className="text-slate-500 dark:text-slate-400 ml-1">
                       {c.currentValue}
                       {c.suggestedValue && <> {'->'} <span className="font-medium text-amber-700 dark:text-amber-400">{c.suggestedValue}</span></>}
                     </span>
-                    <p className="text-slate-400 mt-0.5">{c.explanation}</p>
+                    <p className="text-slate-400 mt-0.5">{c.reason}</p>
                   </div>
                 </div>
               ))}
