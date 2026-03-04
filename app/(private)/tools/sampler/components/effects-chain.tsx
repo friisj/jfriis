@@ -1,7 +1,14 @@
 'use client';
 
 import { Slider } from '@/components/ui/slider';
-import type { PadEffects } from '@/lib/types/sampler';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import type { FilterType, PadEffects } from '@/lib/types/sampler';
 
 interface EffectsChainProps {
   effects: PadEffects;
@@ -43,10 +50,34 @@ function Row({
   );
 }
 
+/** Convert linear 0–1 slider to 20–20000 Hz (logarithmic) */
+function sliderToHz(v: number): number {
+  return 20 * Math.pow(1000, v);
+}
+/** Convert Hz back to 0–1 slider value */
+function hzToSlider(hz: number): number {
+  return Math.log(hz / 20) / Math.log(1000);
+}
+/** Format Hz for display */
+function formatHz(hz: number): string {
+  return hz >= 1000 ? `${(hz / 1000).toFixed(1)}kHz` : `${Math.round(hz)}Hz`;
+}
+
+const FILTER_LABELS: Record<FilterType, string> = {
+  off: 'Off',
+  lowpass: 'Low Pass',
+  highpass: 'High Pass',
+  bandpass: 'Band Pass',
+};
+
 export function EffectsChain({ effects, onChange }: EffectsChainProps) {
   function update(partial: Partial<PadEffects>) {
     onChange({ ...effects, ...partial });
   }
+
+  const filterType = effects.filter?.type ?? 'off';
+  const filterCutoff = effects.filter?.cutoff ?? 20000;
+  const filterResonance = effects.filter?.resonance ?? 0.7071;
 
   return (
     <div className="space-y-5">
@@ -68,23 +99,49 @@ export function EffectsChain({ effects, onChange }: EffectsChainProps) {
         />
       </div>
 
-      {/* Reverb */}
+      {/* Filter */}
       <div className="space-y-2.5">
-        <h5 className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">Reverb</h5>
-        <Row
-          label="Wet"
-          value={effects.reverb?.wet ?? 0}
-          display={`${Math.round((effects.reverb?.wet ?? 0) * 100)}%`}
-          min={0} max={1} step={0.01}
-          onChange={(v) => update({ reverb: { wet: v, decay: effects.reverb?.decay ?? 1.5 } })}
-        />
-        <Row
-          label="Decay"
-          value={effects.reverb?.decay ?? 1.5}
-          display={`${(effects.reverb?.decay ?? 1.5).toFixed(1)}s`}
-          min={0.1} max={5} step={0.1}
-          onChange={(v) => update({ reverb: { decay: v, wet: effects.reverb?.wet ?? 0 } })}
-        />
+        <h5 className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">Filter</h5>
+        <div className="flex items-center gap-3">
+          <span className="text-xs text-muted-foreground w-16 shrink-0">Type</span>
+          <Select
+            value={filterType}
+            onValueChange={(v) =>
+              update({ filter: { type: v as FilterType, cutoff: filterCutoff, resonance: filterResonance } })
+            }
+          >
+            <SelectTrigger className="h-7 text-xs flex-1">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {(Object.keys(FILTER_LABELS) as FilterType[]).map((t) => (
+                <SelectItem key={t} value={t} className="text-xs">{FILTER_LABELS[t]}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        {filterType !== 'off' && (
+          <>
+            <Row
+              label="Cutoff"
+              value={hzToSlider(filterCutoff)}
+              display={formatHz(filterCutoff)}
+              min={0} max={1} step={0.001}
+              onChange={(v) =>
+                update({ filter: { type: filterType, cutoff: sliderToHz(v), resonance: filterResonance } })
+              }
+            />
+            <Row
+              label="Resonance"
+              value={filterResonance}
+              display={filterResonance.toFixed(1)}
+              min={0.1} max={20} step={0.1}
+              onChange={(v) =>
+                update({ filter: { type: filterType, cutoff: filterCutoff, resonance: v } })
+              }
+            />
+          </>
+        )}
       </div>
 
       {/* EQ */}
@@ -109,6 +166,25 @@ export function EffectsChain({ effects, onChange }: EffectsChainProps) {
             }
           />
         ))}
+      </div>
+
+      {/* Reverb */}
+      <div className="space-y-2.5">
+        <h5 className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">Reverb</h5>
+        <Row
+          label="Wet"
+          value={effects.reverb?.wet ?? 0}
+          display={`${Math.round((effects.reverb?.wet ?? 0) * 100)}%`}
+          min={0} max={1} step={0.01}
+          onChange={(v) => update({ reverb: { wet: v, decay: effects.reverb?.decay ?? 1.5 } })}
+        />
+        <Row
+          label="Decay"
+          value={effects.reverb?.decay ?? 1.5}
+          display={`${(effects.reverb?.decay ?? 1.5).toFixed(1)}s`}
+          min={0.1} max={5} step={0.1}
+          onChange={(v) => update({ reverb: { decay: v, wet: effects.reverb?.wet ?? 0 } })}
+        />
       </div>
 
       {/* Delay */}

@@ -15,6 +15,7 @@ import type { ToneSynthConfig } from './sampler-synth';
 interface PadNodes {
   source: AudioBufferSourceNode | null;
   gain: GainNode;
+  filter: BiquadFilterNode;
   eqLow: BiquadFilterNode;
   eqMid: BiquadFilterNode;
   eqHigh: BiquadFilterNode;
@@ -89,6 +90,19 @@ export class SamplerEngine {
     const gain = ctx.createGain();
     gain.gain.value = effects.volume;
 
+    // Filter (LP/HP/BP) — defaults to transparent lowpass at 20kHz
+    const filter = ctx.createBiquadFilter();
+    const filterFx = effects.filter;
+    if (filterFx && filterFx.type !== 'off') {
+      filter.type = filterFx.type;
+      filter.frequency.value = filterFx.cutoff;
+      filter.Q.value = filterFx.resonance;
+    } else {
+      filter.type = 'lowpass';
+      filter.frequency.value = 20000;
+      filter.Q.value = 0.7071;
+    }
+
     // 3-band EQ
     const eqLow = ctx.createBiquadFilter();
     eqLow.type = 'lowshelf';
@@ -122,8 +136,9 @@ export class SamplerEngine {
     const reverbDry = ctx.createGain();
     reverbDry.gain.value = 1.0;
 
-    // Wire: Gain -> EQ Low -> EQ Mid -> EQ High -> ...
-    gain.connect(eqLow);
+    // Wire: Gain -> Filter -> EQ Low -> EQ Mid -> EQ High -> ...
+    gain.connect(filter);
+    filter.connect(eqLow);
     eqLow.connect(eqMid);
     eqMid.connect(eqHigh);
 
@@ -146,6 +161,7 @@ export class SamplerEngine {
     const nodes: PadNodes = {
       source: null,
       gain,
+      filter,
       eqLow,
       eqMid,
       eqHigh,
@@ -417,6 +433,19 @@ export class SamplerEngine {
     if (!nodes) return;
 
     nodes.gain.gain.value = effects.volume;
+
+    // Filter
+    const filterFx = effects.filter;
+    if (filterFx && filterFx.type !== 'off') {
+      nodes.filter.type = filterFx.type;
+      nodes.filter.frequency.value = filterFx.cutoff;
+      nodes.filter.Q.value = filterFx.resonance;
+    } else {
+      nodes.filter.type = 'lowpass';
+      nodes.filter.frequency.value = 20000;
+      nodes.filter.Q.value = 0.7071;
+    }
+
     nodes.eqLow.gain.value = effects.eq?.low ?? 0;
     nodes.eqMid.gain.value = effects.eq?.mid ?? 0;
     nodes.eqHigh.gain.value = effects.eq?.high ?? 0;

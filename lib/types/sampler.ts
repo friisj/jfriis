@@ -17,6 +17,14 @@ export type PadType = 'trigger' | 'gate' | 'toggle' | 'loop';
 // Effects
 // ============================================================================
 
+export type FilterType = 'lowpass' | 'highpass' | 'bandpass' | 'off';
+
+export interface FilterEffect {
+  type: FilterType;
+  cutoff: number;      // 20–20000 Hz
+  resonance: number;   // Q: 0.1–20
+}
+
 export interface ReverbEffect {
   wet: number;   // 0-1
   decay: number; // seconds
@@ -42,6 +50,7 @@ export interface TrimConfig {
 export interface PadEffects {
   volume: number;  // 0-1
   pitch: number;   // semitones (-24 to 24)
+  filter?: FilterEffect;
   reverb?: ReverbEffect;
   eq?: EQEffect;
   delay?: DelayEffect;
