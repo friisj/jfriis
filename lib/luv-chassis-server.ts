@@ -84,6 +84,7 @@ export async function getRecentChassisChangesServer(
     .order('created_at', { ascending: false })
     .limit(limit);
 
+  if (vErr?.code === 'PGRST205') return []; // table not yet created
   if (vErr) throw vErr;
   if (!versions || versions.length === 0) return [];
 
@@ -126,6 +127,7 @@ export async function getStudiesServer(): Promise<LuvChassisStudy[]> {
     .select('*')
     .order('updated_at', { ascending: false });
 
+  if (error?.code === 'PGRST205') return []; // table not yet created
   if (error) throw error;
   return data as LuvChassisStudy[];
 }
@@ -140,6 +142,7 @@ export async function getStudyBySlugServer(
     .eq('slug', slug)
     .maybeSingle();
 
+  if (error?.code === 'PGRST205') return null; // table not yet created
   if (error) throw error;
   return data as LuvChassisStudy | null;
 }
@@ -155,6 +158,7 @@ export async function getStudiesForModuleServer(
     .eq('status', 'completed')
     .order('updated_at', { ascending: false });
 
+  if (error?.code === 'PGRST205') return []; // table not yet created
   if (error) throw error;
   return data as LuvChassisStudy[];
 }
