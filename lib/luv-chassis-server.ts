@@ -143,3 +143,18 @@ export async function getStudyBySlugServer(
   if (error) throw error;
   return data as LuvChassisStudy | null;
 }
+
+export async function getStudiesForModuleServer(
+  moduleId: string
+): Promise<LuvChassisStudy[]> {
+  const client = await createClient();
+  const { data, error } = await (client as any)
+    .from('luv_chassis_studies')
+    .select('*')
+    .eq('module_id', moduleId)
+    .eq('status', 'completed')
+    .order('updated_at', { ascending: false });
+
+  if (error) throw error;
+  return data as LuvChassisStudy[];
+}

@@ -1,20 +1,28 @@
 'use client';
 
 import { useState, useCallback, useMemo } from 'react';
+import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { AlertTriangle } from 'lucide-react';
+import { AlertTriangle, Lock } from 'lucide-react';
 import { getSchema } from '@/lib/luv/chassis-schemas';
 import type { ParameterDef, ParameterTier } from '@/lib/luv/chassis-schemas';
-import type { LuvChassisModule } from '@/lib/types/luv-chassis';
+import type { LuvChassisModule, ParameterConstraint } from '@/lib/types/luv-chassis';
 import { saveModuleWithVersion } from '@/lib/luv-chassis';
 import { validateModuleConstraints } from '@/lib/luv/chassis-constraints';
 import type { ConstraintViolation } from '@/lib/luv/chassis-constraints';
 import { ParameterControl } from './parameter-control';
 
+interface StudyLock {
+  studySlug: string;
+  studyTitle: string;
+  constraints: Record<string, ParameterConstraint>;
+}
+
 interface ModuleEditorProps {
   module: LuvChassisModule;
   allModules?: LuvChassisModule[];
+  studyLocks?: StudyLock[];
   onSaved?: () => void;
 }
 
@@ -26,13 +34,29 @@ const TIER_LABELS: Record<ParameterTier, string> = {
   clinical: 'Clinical',
 };
 
-export function ModuleEditor({ module, allModules = [], onSaved }: ModuleEditorProps) {
+export function ModuleEditor({ module, allModules = [], studyLocks = [], onSaved }: ModuleEditorProps) {
   const schema = getSchema(module.schema_key);
   const [parameters, setParameters] = useState<Record<string, unknown>>(
     module.parameters
   );
   const [saving, setSaving] = useState(false);
   const [violations, setViolations] = useState<ConstraintViolation[]>([]);
+
+  // Build a map of locked parameter keys → study info
+  const lockedParams = useMemo(() => {
+    const map = new Map<string, { value: unknown; reason: string; studySlug: string; studyTitle: string }>();
+    for (const lock of studyLocks) {
+      for (const [key, constraint] of Object.entries(lock.constraints)) {
+        map.set(key, {
+          value: constraint.value,
+          reason: constraint.reason,
+          studySlug: lock.studySlug,
+          studyTitle: lock.studyTitle,
+        });
+      }
+    }
+    return map;
+  }, [studyLocks]);
 
   const updateParam = useCallback((key: string, value: unknown) => {
     setParameters((prev) => ({ ...prev, [key]: value }));
@@ -43,7 +67,6 @@ export function ModuleEditor({ module, allModules = [], onSaved }: ModuleEditorP
     if (allModules.length > 0) {
       const result = validateModuleConstraints(module.slug, parameters, allModules);
       setViolations(result.violations);
-      // Warnings don't block save, but we show them
     }
 
     setSaving(true);
@@ -123,18 +146,46 @@ export function ModuleEditor({ module, allModules = [], onSaved }: ModuleEditorP
             {TIER_LABELS[tier]}
           </h4>
           <div className="space-y-3">
-            {grouped.get(tier)!.map((param) => (
-              <div
-                key={param.key}
-                className={violatedParams.has(param.key) ? 'rounded ring-1 ring-yellow-500/40 p-1.5 -m-1.5' : ''}
-              >
-                <ParameterControl
-                  param={param}
-                  value={parameters[param.key]}
-                  onChange={(v) => updateParam(param.key, v)}
-                />
-              </div>
-            ))}
+            {grouped.get(tier)!.map((param) => {
+              const lock = lockedParams.get(param.key);
+              const isLocked = !!lock;
+
+              return (
+                <div
+                  key={param.key}
+                  className={
+                    isLocked
+                      ? 'rounded ring-1 ring-blue-500/30 bg-blue-500/5 p-1.5 -m-1.5'
+                      : violatedParams.has(param.key)
+                        ? 'rounded ring-1 ring-yellow-500/40 p-1.5 -m-1.5'
+                        : ''
+                  }
+                >
+                  {isLocked && (
+                    <div className="flex items-center gap-1.5 mb-1 text-[10px] text-blue-600 dark:text-blue-400">
+                      <Lock className="h-2.5 w-2.5" />
+                      <span>
+                        Locked by{' '}
+                        <Link
+                          href={`/tools/luv/studies/${lock.studySlug}`}
+                          className="underline hover:text-blue-700"
+                        >
+                          {lock.studyTitle}
+                        </Link>
+                        {lock.reason && ` — ${lock.reason}`}
+                      </span>
+                    </div>
+                  )}
+                  <div className={isLocked ? 'opacity-60 pointer-events-none' : ''}>
+                    <ParameterControl
+                      param={param}
+                      value={isLocked ? lock.value : parameters[param.key]}
+                      onChange={(v) => updateParam(param.key, v)}
+                    />
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </section>
       ))}
