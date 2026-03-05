@@ -178,6 +178,7 @@ const arenaGenerateFoundationAction: Action<FoundationInput, FoundationOutput> =
   entityTypes: ['studio_experiment'],
   taskType: 'generation',
   model: 'claude-sonnet',
+  maxOutputTokens: 16000,
   inputSchema,
   outputSchema,
   buildPrompt,
