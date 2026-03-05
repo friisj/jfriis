@@ -9,7 +9,7 @@
  * Effects chain per pad: Source -> Gain -> EQ -> Delay -> Reverb -> Master
  */
 
-import type { PadEffects, PadWithSound, StutterRate } from './types/sampler';
+import type { PadEffects, PadWithSound, StutterRate, XYAxisParam, XYPadConfig } from './types/sampler';
 import type { ToneSynthConfig } from './sampler-synth';
 
 const STUTTER_MS: Record<StutterRate, number> = {
@@ -823,6 +823,81 @@ export class SamplerEngine {
     }
 
     // Pitch requires stopping and retriggering — handled at trigger level
+  }
+
+  /**
+   * Apply real-time XY modulation to a playing pad.
+   * x,y are 0–1 normalized. Maps each axis to a parameter.
+   */
+  modulateXY(padId: string, x: number, y: number, config: XYPadConfig | undefined, baseEffects: PadEffects): void {
+    if (!config?.enabled) return;
+    const nodes = this.padNodes.get(padId);
+    if (!nodes) return;
+
+    this.applyAxisModulation(padId, nodes, config.xAxis, x, baseEffects);
+    this.applyAxisModulation(padId, nodes, config.yAxis, y, baseEffects);
+  }
+
+  /**
+   * Reset modulation to base effect values after XY release.
+   */
+  resetModulation(padId: string, baseEffects: PadEffects): void {
+    const nodes = this.padNodes.get(padId);
+    if (!nodes) return;
+
+    // Reset pitch
+    const source = this.activeSources.get(padId);
+    if (source) {
+      const baseSemitones = baseEffects.pitch ?? 0;
+      source.playbackRate.value = Math.pow(2, baseSemitones / 12);
+    }
+
+    // Reset filter
+    const filterFx = baseEffects.filter;
+    if (filterFx && filterFx.type !== 'off') {
+      nodes.filter.type = filterFx.type;
+      nodes.filter.frequency.value = filterFx.cutoff;
+      nodes.filter.Q.value = filterFx.resonance;
+    } else {
+      nodes.filter.type = 'lowpass';
+      nodes.filter.frequency.value = 20000;
+      nodes.filter.Q.value = 0.7071;
+    }
+
+    // Reset pan
+    nodes.panner.pan.value = baseEffects.pan?.pan ?? 0;
+  }
+
+  private applyAxisModulation(padId: string, nodes: PadNodes, axis: XYAxisParam, normalized: number, baseEffects: PadEffects): void {
+    switch (axis) {
+      case 'pitch': {
+        const source = this.activeSources.get(padId);
+        if (!source) return;
+        const baseSemitones = baseEffects.pitch ?? 0;
+        const offset = (normalized - 0.5) * 24; // +/-12 semitones
+        source.playbackRate.value = Math.pow(2, (baseSemitones + offset) / 12);
+        break;
+      }
+      case 'filter_cutoff': {
+        // Log-scale map 0–1 to 20–20000 Hz
+        const minFreq = 20;
+        const maxFreq = 20000;
+        const freq = minFreq * Math.pow(maxFreq / minFreq, normalized);
+        const filterFx = baseEffects.filter;
+        if (!filterFx || filterFx.type === 'off') {
+          // Temporarily enable lowpass for audible modulation
+          nodes.filter.type = 'lowpass';
+          nodes.filter.Q.value = 2;
+        }
+        nodes.filter.frequency.value = freq;
+        break;
+      }
+      case 'pan': {
+        const panValue = (normalized - 0.5) * 2; // map 0–1 to -1–1
+        nodes.panner.pan.value = Math.max(-1, Math.min(1, panValue));
+        break;
+      }
+    }
   }
 
   /**

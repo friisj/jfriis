@@ -346,6 +346,11 @@ export function CollectionGrid({ collection }: CollectionGridProps) {
     const engine = engineRef.current;
     if (!engine) return;
 
+    // Reset XY modulation on release regardless of pad type
+    if (pad.effects.xyPad?.enabled) {
+      engine.resetModulation(pad.id, pad.effects);
+    }
+
     // Only gate pads respond to release
     if (pad.pad_type !== 'gate') return;
 
@@ -355,6 +360,14 @@ export function CollectionGrid({ collection }: CollectionGridProps) {
       next.delete(pad.id);
       return next;
     });
+  }, []);
+
+  const handleXYModulate = useCallback((pad: PadWithSound, x: number, y: number) => {
+    engineRef.current?.modulateXY(pad.id, x, y, pad.effects.xyPad, pad.effects);
+  }, []);
+
+  const handleXYRelease = useCallback((pad: PadWithSound) => {
+    engineRef.current?.resetModulation(pad.id, pad.effects);
   }, []);
 
   function handlePadUpdated(updatedPad: PadWithSound) {
@@ -628,6 +641,8 @@ export function CollectionGrid({ collection }: CollectionGridProps) {
                   onSample={(p) => startRecording(p.id)}
                   onGenerate={(p) => openGenerate(p.id)}
                   onStopRecording={() => stopRecording()}
+                  onXYModulate={handleXYModulate}
+                  onXYRelease={handleXYRelease}
                 />
               ))}
             </div>

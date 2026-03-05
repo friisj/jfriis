@@ -20,7 +20,8 @@ import { ADSREditor } from './adsr-editor';
 import { SoundLibraryPicker } from './sound-library-picker';
 import { SoundGenerateModal } from './sound-generate-modal';
 import { SampleRecorder } from './sample-recorder';
-import type { PadWithSound, PadEffects, PadType, TrimConfig, SamplerSound } from '@/lib/types/sampler';
+import { Switch } from '@/components/ui/switch';
+import type { PadWithSound, PadEffects, PadType, TrimConfig, SamplerSound, XYAxisParam, XYPadConfig } from '@/lib/types/sampler';
 import type { ToneSynthConfig, SynthEnvelope } from '@/lib/sampler-synth';
 
 interface PadConfigPanelProps {
@@ -346,6 +347,71 @@ export function PadConfigPanel({ pad, getBuffer, onPadUpdated, onEffectsChange, 
                 <SelectItem value="4">Group 4</SelectItem>
               </SelectContent>
             </Select>
+          </div>
+
+          {/* XY Pad */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <Label htmlFor="xy-pad-toggle">XY Pad</Label>
+              <Switch
+                id="xy-pad-toggle"
+                checked={pad.effects.xyPad?.enabled ?? false}
+                onCheckedChange={(checked) => {
+                  const xyPad: XYPadConfig = {
+                    enabled: checked,
+                    xAxis: pad.effects.xyPad?.xAxis ?? 'pitch',
+                    yAxis: pad.effects.xyPad?.yAxis ?? 'filter_cutoff',
+                  };
+                  handleEffectsChange({ ...pad.effects, xyPad });
+                }}
+              />
+            </div>
+            {pad.effects.xyPad?.enabled && (
+              <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-1">
+                  <Label className="text-xs text-muted-foreground">X Axis</Label>
+                  <Select
+                    value={pad.effects.xyPad.xAxis}
+                    onValueChange={(v: XYAxisParam) => {
+                      handleEffectsChange({
+                        ...pad.effects,
+                        xyPad: { ...pad.effects.xyPad!, xAxis: v },
+                      });
+                    }}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="pitch">Pitch Bend</SelectItem>
+                      <SelectItem value="filter_cutoff">Filter Cutoff</SelectItem>
+                      <SelectItem value="pan">Pan</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs text-muted-foreground">Y Axis</Label>
+                  <Select
+                    value={pad.effects.xyPad.yAxis}
+                    onValueChange={(v: XYAxisParam) => {
+                      handleEffectsChange({
+                        ...pad.effects,
+                        xyPad: { ...pad.effects.xyPad!, yAxis: v },
+                      });
+                    }}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="pitch">Pitch Bend</SelectItem>
+                      <SelectItem value="filter_cutoff">Filter Cutoff</SelectItem>
+                      <SelectItem value="pan">Pan</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Color */}

@@ -81,6 +81,14 @@ export interface TrimConfig {
   endMs: number;
 }
 
+export type XYAxisParam = 'pitch' | 'filter_cutoff' | 'pan';
+
+export interface XYPadConfig {
+  enabled: boolean;
+  xAxis: XYAxisParam;
+  yAxis: XYAxisParam;
+}
+
 export interface PadEffects {
   volume: number;  // 0-1
   pitch: number;   // semitones (-24 to 24)
@@ -96,6 +104,7 @@ export interface PadEffects {
   stutter?: StutterEffect;
   delay?: DelayEffect;
   trim?: TrimConfig;
+  xyPad?: XYPadConfig;
 }
 
 export const DEFAULT_PAD_EFFECTS: PadEffects = {

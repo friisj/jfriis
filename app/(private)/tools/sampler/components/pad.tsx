@@ -1,5 +1,6 @@
 'use client';
 
+import { useState, useRef, useCallback } from 'react';
 import { Plus, Settings, Volume2, Copy, Mic, Sparkles, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
@@ -32,20 +33,36 @@ interface PadProps {
   onSample?: (pad: PadWithSound) => void;
   onGenerate?: (pad: PadWithSound) => void;
   onStopRecording?: (pad: PadWithSound) => void;
+  onXYModulate?: (pad: PadWithSound, x: number, y: number) => void;
+  onXYRelease?: (pad: PadWithSound) => void;
 }
 
 export function Pad({
   pad, isPlaying, isSelected, recordingState, recordingElapsed, getPlaybackProgress,
   onTrigger, onRelease, onSelect, onDuplicate, onSample, onGenerate, onStopRecording,
+  onXYModulate, onXYRelease,
 }: PadProps) {
   const hasSound = !!pad.sound;
   const isRecording = recordingState === 'recording';
   const isSaving = recordingState === 'saving';
+  const xyEnabled = !!pad.effects.xyPad?.enabled && hasSound;
+  const [xyPos, setXyPos] = useState<{ x: number; y: number } | null>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+
+  const handlePointerMove = useCallback((e: React.PointerEvent) => {
+    if (!xyEnabled || !buttonRef.current) return;
+    const rect = buttonRef.current.getBoundingClientRect();
+    const x = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+    const y = Math.max(0, Math.min(1, 1 - (e.clientY - rect.top) / rect.height)); // invert Y
+    setXyPos({ x, y });
+    onXYModulate?.(pad, x, y);
+  }, [xyEnabled, pad, onXYModulate]);
 
   return (
     <ContextMenu>
       <ContextMenuTrigger asChild>
         <button
+          ref={buttonRef}
           type="button"
           className={cn(
             'relative rounded-lg border m-1 transition-all select-none',
@@ -78,11 +95,20 @@ export function Pad({
               onTrigger(pad);
             }
           }}
+          onPointerMove={handlePointerMove}
           onPointerUp={(e) => {
             (e.target as HTMLElement).releasePointerCapture(e.pointerId);
+            if (xyEnabled) {
+              onXYRelease?.(pad);
+              setXyPos(null);
+            }
             if (!recordingState && hasSound) onRelease(pad);
           }}
           onPointerLeave={() => {
+            if (xyEnabled) {
+              onXYRelease?.(pad);
+              setXyPos(null);
+            }
             if (!recordingState && hasSound) onRelease(pad);
           }}
           aria-label={
@@ -119,6 +145,16 @@ export function Pad({
             </span>
           ) : (
             <Plus className="w-4 h-4 text-muted-foreground" />
+          )}
+          {xyPos && (
+            <span
+              className="absolute w-1.5 h-1.5 rounded-full bg-white/70 pointer-events-none"
+              style={{
+                left: `${xyPos.x * 100}%`,
+                top: `${(1 - xyPos.y) * 100}%`,
+                transform: 'translate(-50%, -50%)',
+              }}
+            />
           )}
         </button>
       </ContextMenuTrigger>
