@@ -58,11 +58,13 @@ const inputSchema = z.object({
 
 type FoundationInput = z.infer<typeof inputSchema>
 
+// Output schema is deliberately permissive — AI output varies in shape.
+// Real validation happens when writing to DB in generateFoundation().
 const outputSchema = z.object({
-  skills: z.record(z.string(), dimensionStateSchema),
-  tokens: z.record(z.string(), z.record(z.string(), z.string())),
+  skills: z.record(z.string(), z.any()),
+  tokens: z.record(z.string(), z.any()),
   summary: z.string(),
-  gaps: z.array(gapSchema),
+  gaps: z.array(gapSchema).default([]),
 })
 
 type FoundationOutput = z.infer<typeof outputSchema>
