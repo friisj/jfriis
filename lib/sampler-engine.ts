@@ -182,6 +182,50 @@ export class SamplerEngine {
   }
 
   /**
+   * Disconnect and stop all nodes for a pad, allowing GC
+   */
+  private destroyPadNodes(nodes: PadNodes): void {
+    // Stop running sources
+    try { nodes.vinylLfoWow.stop(); } catch { /* already stopped */ }
+    try { nodes.vinylLfoFlutter.stop(); } catch { /* already stopped */ }
+    try { nodes.vinylNoise.stop(); } catch { /* already stopped */ }
+
+    // Disconnect every node to sever AudioContext references
+    const allNodes: (AudioNode | null)[] = [
+      nodes.source,
+      nodes.gain,
+      nodes.filter,
+      nodes.eqLow,
+      nodes.eqMid,
+      nodes.eqHigh,
+      nodes.compressor,
+      nodes.distortionShaper,
+      nodes.distortionWet,
+      nodes.distortionDry,
+      nodes.distortionMerge,
+      nodes.bitcrusher,
+      nodes.bitcrusherBypass,
+      nodes.panner,
+      nodes.vinylLfoWow,
+      nodes.vinylLfoWowGain,
+      nodes.vinylLfoFlutter,
+      nodes.vinylLfoFlutterGain,
+      nodes.vinylNoise,
+      nodes.vinylNoiseFilter,
+      nodes.vinylNoiseGain,
+      nodes.delay,
+      nodes.delayFeedback,
+      nodes.delayWet,
+      nodes.reverb,
+      nodes.reverbWet,
+      nodes.reverbDry,
+    ];
+    for (const node of allNodes) {
+      try { node?.disconnect(); } catch { /* already disconnected */ }
+    }
+  }
+
+  /**
    * Build effects chain nodes for a pad
    */
   private buildPadNodes(padId: string, effects: PadEffects): PadNodes {
@@ -408,9 +452,11 @@ export class SamplerEngine {
 
     await Promise.all(loadPromises);
 
-    // Build effects chains for all pads
+    // Build effects chains only for pads with sounds
     for (const pad of pads) {
-      this.buildPadNodes(pad.id, pad.effects);
+      if (pad.sound) {
+        this.buildPadNodes(pad.id, pad.effects);
+      }
     }
   }
 
@@ -796,13 +842,8 @@ export class SamplerEngine {
     });
     this.activeProceduralStops.clear();
 
-    // Stop vinyl oscillators and noise sources
-    this.padNodes.forEach((nodes) => {
-      try { nodes.vinylLfoWow.stop(); } catch { /* noop */ }
-      try { nodes.vinylLfoFlutter.stop(); } catch { /* noop */ }
-      try { nodes.vinylNoise.stop(); } catch { /* noop */ }
-    });
-
+    // Disconnect all pad node graphs for GC
+    this.padNodes.forEach((nodes) => this.destroyPadNodes(nodes));
     this.padNodes.clear();
     this.buffers.clear();
     this.reversedBuffers.clear();
