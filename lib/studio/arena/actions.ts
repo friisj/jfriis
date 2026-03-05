@@ -724,6 +724,7 @@ export async function updateProjectInputs(projectId: string, inputs: ArenaProjec
 // =============================================================================
 
 export async function generateFoundation(projectId: string) {
+  console.log('[arena:foundation] Starting generation for project:', projectId)
   const supabase = await arenaClient()
 
   // Get the project
@@ -733,12 +734,14 @@ export async function generateFoundation(projectId: string) {
     .eq('id', projectId)
     .single()
   if (projErr || !project) throw new Error('Project not found')
+  console.log('[arena:foundation] Project loaded:', project.name)
 
   // Gather current assembly skills and project themes
   const [assembly, projectTheme] = await Promise.all([
     getProjectAssembly(projectId),
     getProjectThemes(projectId),
   ])
+  console.log('[arena:foundation] Assembly entries:', assembly.length, 'Theme dimensions:', Object.keys(projectTheme).length)
 
   const dimensions = project.config?.dimensions
     ? Object.keys(project.config.dimensions)
@@ -759,11 +762,13 @@ export async function generateFoundation(projectId: string) {
       currentTokens[dim] = theme.tokens
     }
   }
+  console.log('[arena:foundation] Skills dimensions:', Object.keys(currentSkills).length, 'Token dimensions:', Object.keys(currentTokens).length)
 
   // Use the AI action system
   const { executeAction } = await import('@/lib/ai/actions')
   await import('@/lib/ai/actions/arena-generate-foundation')
 
+  console.log('[arena:foundation] Calling AI action...')
   const result = await executeAction('arena-generate-foundation', {
     description: project.description ?? null,
     inputs: project.inputs,
@@ -771,6 +776,7 @@ export async function generateFoundation(projectId: string) {
     currentSkills,
     currentTokens,
   })
+  console.log('[arena:foundation] AI result:', { success: result.success, model: result.model, durationMs: result.durationMs, error: result.error })
 
   if (!result.success) {
     throw new Error(result.error?.message ?? 'Foundation generation failed')

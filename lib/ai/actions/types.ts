@@ -21,6 +21,7 @@ export interface Action<TInput = unknown, TOutput = unknown> {
   // Model selection
   taskType: TaskType
   model?: string // Override default for task type
+  maxOutputTokens?: number // Override default (4000 text, 8000 multimodal)
 
   // Schemas for validation
   inputSchema: z.ZodType<TInput>
