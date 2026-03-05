@@ -1,7 +1,7 @@
 'use client';
 
-import { useId } from 'react';
-import { KnobHeadless } from 'react-knob-headless';
+import { useId, useCallback } from 'react';
+import { KnobHeadless, useKnobKeyboardControls } from 'react-knob-headless';
 
 interface EffectKnobProps {
   label: string;
@@ -47,7 +47,7 @@ export function EffectKnob({
   displayFn,
   mapTo01,
   mapFrom01,
-  size = 48,
+  size = 36,
 }: EffectKnobProps) {
   const id = useId();
   const norm = (mapTo01 ?? defaultMapTo01)(value, min, max);
@@ -55,19 +55,32 @@ export function EffectKnob({
 
   const cx = size / 2;
   const cy = size / 2;
-  const r = size / 2 - 4;
+  const outerR = size / 2 - 2;
+  const innerR = outerR - 5;
 
-  const trackPath = describeArc(cx, cy, r, START_ANGLE, START_ANGLE + SWEEP);
-  const valuePath = norm > 0.003 ? describeArc(cx, cy, r, START_ANGLE, endAngle) : '';
-  const dot = polarToXY(cx, cy, r, endAngle);
+  const trackPath = describeArc(cx, cy, outerR, START_ANGLE, START_ANGLE + SWEEP);
+  const valuePath = norm > 0.003 ? describeArc(cx, cy, outerR, START_ANGLE, endAngle) : '';
 
-  const roundFn = (v: number) => {
+  // Indicator line from inner edge to outer edge at current angle
+  const lineInner = polarToXY(cx, cy, innerR - 1, endAngle);
+  const lineOuter = polarToXY(cx, cy, outerR, endAngle);
+
+  const roundFn = useCallback((v: number) => {
     const rounded = Math.round(v / step) * step;
     return Math.min(max, Math.max(min, Number(rounded.toFixed(10))));
-  };
+  }, [step, min, max]);
+
+  const keyboardControls = useKnobKeyboardControls({
+    valueRaw: value,
+    valueMin: min,
+    valueMax: max,
+    step,
+    stepLarger: step * 10,
+    onValueRawChange: (v) => onChange(roundFn(v)),
+  });
 
   return (
-    <div className="flex flex-col items-center gap-0.5 w-14">
+    <div className="flex flex-col items-center gap-0.5 w-12">
       <span className="text-[10px] text-muted-foreground leading-tight truncate max-w-full">
         {label}
       </span>
@@ -84,17 +97,20 @@ export function EffectKnob({
         mapTo01={mapTo01}
         mapFrom01={mapFrom01}
         includeIntoTabOrder
-        className="relative cursor-grab active:cursor-grabbing touch-none"
+        className="relative cursor-grab active:cursor-grabbing touch-none rounded-full outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background"
         style={{ width: size, height: size }}
+        onKeyDown={keyboardControls.onKeyDown}
       >
-        <svg width={size} height={size} className="overflow-visible">
+        <svg width={size} height={size}>
+          {/* Filled center disc — grip affordance */}
+          <circle cx={cx} cy={cy} r={innerR} fill="currentColor" className="text-muted/60" />
           {/* Background arc */}
           <path
             d={trackPath}
             fill="none"
             stroke="currentColor"
-            className="text-muted-foreground/20"
-            strokeWidth={3}
+            className="text-muted-foreground/25"
+            strokeWidth={5}
             strokeLinecap="round"
           />
           {/* Value arc */}
@@ -104,17 +120,20 @@ export function EffectKnob({
               fill="none"
               stroke="currentColor"
               className="text-foreground"
-              strokeWidth={3}
+              strokeWidth={5}
               strokeLinecap="round"
             />
           )}
-          {/* Indicator dot */}
-          <circle
-            cx={dot.x}
-            cy={dot.y}
-            r={2.5}
-            fill="currentColor"
+          {/* Indicator line */}
+          <line
+            x1={lineInner.x}
+            y1={lineInner.y}
+            x2={lineOuter.x}
+            y2={lineOuter.y}
+            stroke="currentColor"
             className="text-foreground"
+            strokeWidth={2}
+            strokeLinecap="round"
           />
         </svg>
       </KnobHeadless>
