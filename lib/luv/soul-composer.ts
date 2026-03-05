@@ -6,15 +6,19 @@
  */
 
 import type { LuvSoulData } from '../types/luv';
-import type { SoulLayer, CompositionResult } from './soul-layers';
+import type { SoulLayer, CompositionResult, ChassisModuleSummary } from './soul-layers';
 import { LAYER_REGISTRY } from './soul-layers';
+
+export interface ComposeOptions {
+  chassisModuleSummaries?: ChassisModuleSummary[];
+}
 
 /**
  * Compose a system prompt from soul data using the layered pipeline.
  *
  * If `system_prompt_override` is set, a single Core Identity layer is returned.
  */
-export function composeLayers(soulData: LuvSoulData): CompositionResult {
+export function composeLayers(soulData: LuvSoulData, options?: ComposeOptions): CompositionResult {
   // Full override — bypass composition entirely
   if (soulData.system_prompt_override?.trim()) {
     const overrideLayer: SoulLayer = {
@@ -103,6 +107,34 @@ export function composeLayers(soulData: LuvSoulData): CompositionResult {
       priority: LAYER_REGISTRY.knowledge.priority,
       content: `You are skilled in: ${soulData.skills.join(', ')}.`,
       source: 'soul_data.skills',
+      enabled: true,
+    });
+  }
+
+  // Layer 4.5: Chassis Awareness
+  const summaries = options?.chassisModuleSummaries;
+  if (summaries && summaries.length > 0) {
+    const byCategory = new Map<string, string[]>();
+    for (const s of summaries) {
+      const cat = s.category || 'other';
+      if (!byCategory.has(cat)) byCategory.set(cat, []);
+      byCategory.get(cat)!.push(s.name);
+    }
+    const groups = [...byCategory.entries()]
+      .map(([cat, names]) => `${cat}: ${names.join(', ')}`)
+      .join('; ');
+
+    layers.push({
+      id: 'chassis_awareness',
+      type: 'chassis_awareness',
+      priority: LAYER_REGISTRY.chassis_awareness.priority,
+      content: [
+        `You have a physical form described by ${summaries.length} chassis modules (${groups}).`,
+        'Use read_chassis_module to see full parameter schema and current values for any module.',
+        'Use propose_module_change or propose_module_changes to suggest parameter updates.',
+        'When discussing your appearance, read the relevant module first so you can speak with specificity.',
+      ].join(' '),
+      source: 'chassis_modules',
       enabled: true,
     });
   }

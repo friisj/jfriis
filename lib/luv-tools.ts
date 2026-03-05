@@ -127,6 +127,7 @@ export const readChassisModule = tool({
       description: mod.description,
       current_version: mod.current_version,
       parameters: mod.parameters,
+      parameter_schema: mod.parameter_schema,
     };
   },
 });
@@ -246,6 +247,54 @@ export const proposeModuleChange = tool({
   },
 });
 
+export const proposeModuleChanges = tool({
+  description:
+    'Propose multiple parameter changes to a chassis module in one batch. More efficient than individual propose_module_change calls when updating several parameters at once. Returns a batch proposal that requires human approval.',
+  inputSchema: zodSchema(
+    z.object({
+      moduleSlug: z
+        .string()
+        .describe('Module slug (e.g. "eyes", "hair", "skin")'),
+      changes: z
+        .array(
+          z.object({
+            parameterKey: z.string().describe('Parameter key to change'),
+            proposedValue: z.unknown().describe('The new value to set'),
+            reason: z.string().describe('Why this parameter should change'),
+          })
+        )
+        .min(1)
+        .describe('List of parameter changes'),
+      overallReason: z
+        .string()
+        .describe('Overall reason for this batch of changes'),
+    })
+  ),
+  execute: async ({ moduleSlug, changes, overallReason }) => {
+    const { getChassisModuleBySlugServer } = await import(
+      './luv-chassis-server'
+    );
+    const mod = await getChassisModuleBySlugServer(moduleSlug);
+    if (!mod) return { error: `Module "${moduleSlug}" not found` };
+
+    const enrichedChanges = changes.map((c) => ({
+      parameterKey: c.parameterKey,
+      currentValue: mod.parameters[c.parameterKey],
+      proposedValue: c.proposedValue,
+      reason: c.reason,
+    }));
+
+    return {
+      type: 'batch_module_change_proposal' as const,
+      moduleId: mod.id,
+      moduleSlug: mod.slug,
+      moduleName: mod.name,
+      changes: enrichedChanges,
+      overallReason,
+    };
+  },
+});
+
 // ============================================================================
 // Context Pack Tools
 // ============================================================================
@@ -360,6 +409,199 @@ export const evaluateGeneration = tool({
 });
 
 // ============================================================================
+// Vision Tools (return multipart content via toModelOutput)
+// ============================================================================
+
+export const viewReferenceImage = tool({
+  description:
+    'View a reference image by its ID. Returns the image so you can see it and describe what you observe.',
+  inputSchema: zodSchema(
+    z.object({
+      referenceId: z.string().describe('Reference image ID (UUID)'),
+    })
+  ),
+  execute: async ({ referenceId }) => {
+    const { getLuvReferencesServer } = await import('./luv-server');
+    const refs = await getLuvReferencesServer();
+    const ref = refs.find((r) => r.id === referenceId);
+    if (!ref) return { error: `Reference "${referenceId}" not found` };
+    return {
+      id: ref.id,
+      type: ref.type,
+      description: ref.description,
+      tags: ref.tags,
+      storage_path: ref.storage_path,
+    };
+  },
+  toModelOutput: async ({ output }) => {
+    const result = output as { error?: string; storage_path?: string; description?: string; tags?: string[] };
+    if (result.error) return { type: 'text', value: result.error };
+
+    const { resolveImageAsBase64 } = await import('./luv-image-utils');
+    try {
+      const { base64, mediaType } = await resolveImageAsBase64(result.storage_path!);
+      return {
+        type: 'content',
+        value: [
+          { type: 'text' as const, text: `Reference image: ${result.description ?? 'no description'}. Tags: ${(result.tags ?? []).join(', ')}` },
+          { type: 'file-data' as const, data: base64, mediaType },
+        ],
+      };
+    } catch {
+      return { type: 'text', value: `Image exists but could not be loaded from storage.` };
+    }
+  },
+});
+
+export const viewModuleMedia = tool({
+  description:
+    'View media attached to a chassis module. Optionally filter by parameter key. Returns the first matching image.',
+  inputSchema: zodSchema(
+    z.object({
+      moduleSlug: z.string().describe('Module slug (e.g. "eyes", "hair")'),
+      parameterKey: z.string().optional().describe('Optional parameter key to filter media'),
+    })
+  ),
+  execute: async ({ moduleSlug, parameterKey }) => {
+    const { getChassisModuleBySlugServer, getChassisModuleMediaServer } = await import('./luv-chassis-server');
+    const mod = await getChassisModuleBySlugServer(moduleSlug);
+    if (!mod) return { error: `Module "${moduleSlug}" not found` };
+
+    let media = await getChassisModuleMediaServer(mod.id);
+    if (parameterKey) {
+      media = media.filter((m) => m.parameter_key === parameterKey);
+    }
+    if (media.length === 0) {
+      return { error: `No media found for module "${moduleSlug}"${parameterKey ? ` parameter "${parameterKey}"` : ''}` };
+    }
+
+    const item = media[0];
+    return {
+      moduleSlug: mod.slug,
+      moduleName: mod.name,
+      parameterKey: item.parameter_key,
+      description: item.description,
+      storage_path: item.storage_path,
+    };
+  },
+  toModelOutput: async ({ output }) => {
+    const result = output as { error?: string; storage_path?: string; moduleName?: string; parameterKey?: string; description?: string };
+    if (result.error) return { type: 'text', value: result.error };
+
+    const { resolveImageAsBase64 } = await import('./luv-image-utils');
+    try {
+      const { base64, mediaType } = await resolveImageAsBase64(result.storage_path!);
+      return {
+        type: 'content',
+        value: [
+          { type: 'text' as const, text: `Module media: ${result.moduleName} / ${result.parameterKey}. ${result.description ?? ''}` },
+          { type: 'file-data' as const, data: base64, mediaType },
+        ],
+      };
+    } catch {
+      return { type: 'text', value: `Media record exists but image could not be loaded from storage.` };
+    }
+  },
+});
+
+export const reviewChassisModule = tool({
+  description:
+    'Self-review tool: loads a chassis module\'s full parameters + schema AND an image (module media or canonical reference fallback) in one call. Use this to compare what you see in the image against the parametric configuration and propose corrections.',
+  inputSchema: zodSchema(
+    z.object({
+      moduleSlug: z.string().describe('Module slug (e.g. "eyes", "hair", "skin")'),
+      referenceId: z.string().optional().describe('Optional specific reference image ID. If omitted, tries module media then canonical reference.'),
+    })
+  ),
+  execute: async ({ moduleSlug, referenceId }) => {
+    const { getChassisModuleBySlugServer, getChassisModuleMediaServer } = await import('./luv-chassis-server');
+    const mod = await getChassisModuleBySlugServer(moduleSlug);
+    if (!mod) return { error: `Module "${moduleSlug}" not found` };
+
+    // Try to find an image: specific reference > module media > canonical reference
+    let storagePath: string | null = null;
+    let imageSource = '';
+
+    if (referenceId) {
+      const { getLuvReferencesServer } = await import('./luv-server');
+      const refs = await getLuvReferencesServer();
+      const ref = refs.find((r) => r.id === referenceId);
+      if (ref) {
+        storagePath = ref.storage_path;
+        imageSource = `reference: ${ref.description ?? ref.id}`;
+      }
+    }
+
+    if (!storagePath) {
+      const media = await getChassisModuleMediaServer(mod.id);
+      if (media.length > 0) {
+        storagePath = media[0].storage_path;
+        imageSource = `module media: ${media[0].parameter_key}`;
+      }
+    }
+
+    if (!storagePath) {
+      const { getLuvReferencesServer } = await import('./luv-server');
+      const refs = await getLuvReferencesServer();
+      const canonical = refs.find((r) => r.type === 'canonical');
+      if (canonical) {
+        storagePath = canonical.storage_path;
+        imageSource = `canonical reference: ${canonical.description ?? canonical.id}`;
+      }
+    }
+
+    return {
+      moduleSlug: mod.slug,
+      moduleName: mod.name,
+      category: mod.category,
+      description: mod.description,
+      parameters: mod.parameters,
+      parameter_schema: mod.parameter_schema,
+      current_version: mod.current_version,
+      storagePath,
+      imageSource,
+    };
+  },
+  toModelOutput: async ({ output }) => {
+    const result = output as {
+      error?: string;
+      moduleName?: string;
+      moduleSlug?: string;
+      parameters?: Record<string, unknown>;
+      parameter_schema?: unknown[];
+      storagePath?: string | null;
+      imageSource?: string;
+    };
+    if (result.error) return { type: 'text', value: result.error };
+
+    const textSummary = [
+      `Module: ${result.moduleName} (${result.moduleSlug})`,
+      `Parameters: ${JSON.stringify(result.parameters, null, 2)}`,
+      `Schema: ${JSON.stringify(result.parameter_schema, null, 2)}`,
+      result.storagePath ? `Image source: ${result.imageSource}` : 'No image available for visual comparison.',
+    ].join('\n\n');
+
+    if (!result.storagePath) {
+      return { type: 'text', value: textSummary };
+    }
+
+    const { resolveImageAsBase64 } = await import('./luv-image-utils');
+    try {
+      const { base64, mediaType } = await resolveImageAsBase64(result.storagePath);
+      return {
+        type: 'content',
+        value: [
+          { type: 'text' as const, text: textSummary },
+          { type: 'file-data' as const, data: base64, mediaType },
+        ],
+      };
+    } catch {
+      return { type: 'text', value: textSummary + '\n\n(Image could not be loaded from storage.)' };
+    }
+  },
+});
+
+// ============================================================================
 // Tool Registry
 // ============================================================================
 
@@ -373,6 +615,10 @@ export const luvTools = {
   propose_soul_change: proposeSoulChange,
   propose_chassis_change: proposeChassisChange,
   propose_module_change: proposeModuleChange,
+  propose_module_changes: proposeModuleChanges,
   compose_context_pack: composeContextPack,
   evaluate_generation: evaluateGeneration,
+  view_reference_image: viewReferenceImage,
+  view_module_media: viewModuleMedia,
+  review_chassis_module: reviewChassisModule,
 };

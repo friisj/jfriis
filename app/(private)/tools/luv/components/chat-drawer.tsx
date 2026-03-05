@@ -3,12 +3,12 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useChat } from '@ai-sdk/react';
 import { DefaultChatTransport } from 'ai';
-import type { UIMessage } from 'ai';
+import type { UIMessage, FileUIPart } from 'ai';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { ChevronDown } from 'lucide-react';
+import { ChevronDown, ImagePlus, X } from 'lucide-react';
 import { createLuvConversation, createLuvMessage } from '@/lib/luv';
 import type { LuvSoulData } from '@/lib/types/luv';
 import { ToolCallCard } from './tool-call-card';
@@ -16,11 +16,11 @@ import { ProposalCard } from './proposal-card';
 import { CompositionPreview } from './composition-preview';
 
 const MODEL_OPTIONS = [
-  { key: 'claude-sonnet', label: 'Sonnet' },
-  { key: 'claude-haiku', label: 'Haiku' },
-  { key: 'claude-opus', label: 'Opus' },
-  { key: 'gpt-4o', label: 'GPT-4o' },
-  { key: 'gemini-flash', label: 'Gemini' },
+  { key: 'claude-sonnet', label: 'Sonnet', vision: true },
+  { key: 'claude-haiku', label: 'Haiku', vision: true },
+  { key: 'claude-opus', label: 'Opus', vision: true },
+  { key: 'gpt-4o', label: 'GPT-4o', vision: true },
+  { key: 'gemini-flash', label: 'Gemini', vision: true },
 ];
 
 const READ_TOOLS = new Set([
@@ -30,6 +30,11 @@ const READ_TOOLS = new Set([
   'list_prompt_templates',
   'list_chassis_modules',
   'read_chassis_module',
+  'view_reference_image',
+  'view_module_media',
+  'review_chassis_module',
+  'compose_context_pack',
+  'evaluate_generation',
 ]);
 
 interface ChatDrawerProps {
@@ -47,9 +52,11 @@ function getMessageText(msg: UIMessage): string {
 export function ChatDrawer({ soulData, soulLoaded }: ChatDrawerProps) {
   const [modelKey, setModelKey] = useState('claude-sonnet');
   const [input, setInput] = useState('');
+  const [pendingFiles, setPendingFiles] = useState<FileUIPart[]>([]);
   const [promptOpen, setPromptOpen] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const transport = useMemo(
     () =>
@@ -78,11 +85,28 @@ export function ChatDrawer({ soulData, soulLoaded }: ChatDrawerProps) {
     textareaRef.current?.focus();
   }, []);
 
+  const addFilesFromFileList = useCallback((files: File[]) => {
+    for (const file of files) {
+      if (!file.type.startsWith('image/')) continue;
+      const reader = new FileReader();
+      reader.onload = () => {
+        const dataUrl = reader.result as string;
+        setPendingFiles((prev) => [
+          ...prev,
+          { type: 'file', mediaType: file.type, url: dataUrl, filename: file.name },
+        ]);
+      };
+      reader.readAsDataURL(file);
+    }
+  }, []);
+
   const handleSend = async () => {
     const trimmed = input.trim();
-    if (!trimmed || isActive) return;
+    if ((!trimmed && pendingFiles.length === 0) || isActive) return;
+    const files = pendingFiles.length > 0 ? [...pendingFiles] : undefined;
     setInput('');
-    await sendMessage({ text: trimmed });
+    setPendingFiles([]);
+    await sendMessage({ text: trimmed || ' ', files });
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -121,9 +145,35 @@ export function ChatDrawer({ soulData, soulLoaded }: ChatDrawerProps) {
     }
   };
 
+  const handlePaste = useCallback(
+    (e: React.ClipboardEvent) => {
+      const items = Array.from(e.clipboardData.items);
+      const imageItems = items.filter((item) => item.type.startsWith('image/'));
+      if (imageItems.length === 0) return;
+      e.preventDefault();
+      const files = imageItems
+        .map((item) => item.getAsFile())
+        .filter((f): f is File => f !== null);
+      addFilesFromFileList(files);
+    },
+    [addFilesFromFileList]
+  );
+
+  const handleDrop = useCallback(
+    (e: React.DragEvent) => {
+      e.preventDefault();
+      const files = Array.from(e.dataTransfer.files).filter((f) =>
+        f.type.startsWith('image/')
+      );
+      addFilesFromFileList(files);
+    },
+    [addFilesFromFileList]
+  );
+
   const handleClear = () => {
     setMessages([]);
     setInput('');
+    setPendingFiles([]);
   };
 
   return (
@@ -152,7 +202,11 @@ export function ChatDrawer({ soulData, soulLoaded }: ChatDrawerProps) {
       />
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto px-3 py-3 space-y-3 min-h-0">
+      <div
+        className="flex-1 overflow-y-auto px-3 py-3 space-y-3 min-h-0"
+        onDrop={handleDrop}
+        onDragOver={(e) => e.preventDefault()}
+      >
         {!soulLoaded && (
           <p className="text-xs text-muted-foreground text-center py-4">
             Loading...
@@ -179,12 +233,56 @@ export function ChatDrawer({ soulData, soulLoaded }: ChatDrawerProps) {
 
       {/* Input */}
       <div className="border-t px-3 py-2 shrink-0 space-y-1.5">
+        {/* Pending image thumbnails */}
+        {pendingFiles.length > 0 && (
+          <div className="flex gap-1.5 flex-wrap">
+            {pendingFiles.map((f, i) => (
+              <div key={i} className="relative group">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={f.url}
+                  alt={f.filename ?? 'Attached image'}
+                  className="h-12 w-12 object-cover rounded border"
+                />
+                <button
+                  type="button"
+                  onClick={() => setPendingFiles((prev) => prev.filter((_, j) => j !== i))}
+                  className="absolute -top-1 -right-1 bg-destructive text-destructive-foreground rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
+                >
+                  <X className="size-2.5" />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
         <div className="flex gap-1.5">
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            multiple
+            className="hidden"
+            onChange={(e) => {
+              if (e.target.files) addFilesFromFileList(Array.from(e.target.files));
+              e.target.value = '';
+            }}
+          />
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-auto self-end px-1.5 shrink-0"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={isActive || !soulLoaded}
+            title="Attach image"
+          >
+            <ImagePlus className="size-4" />
+          </Button>
           <Textarea
             ref={textareaRef}
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
+            onPaste={handlePaste}
             placeholder="Message Luv..."
             rows={2}
             className="resize-none text-xs"
@@ -192,7 +290,7 @@ export function ChatDrawer({ soulData, soulLoaded }: ChatDrawerProps) {
           />
           <Button
             onClick={handleSend}
-            disabled={isActive || !input.trim() || !soulLoaded}
+            disabled={isActive || (!input.trim() && pendingFiles.length === 0) || !soulLoaded}
             size="sm"
             className="h-auto self-end"
           >
@@ -237,9 +335,26 @@ function MessageBubble({
 }) {
   if (message.role === 'user') {
     const text = getMessageText(message);
+    const fileParts = message.parts.filter(
+      (p): p is { type: 'file'; mediaType: string; url: string; filename?: string } =>
+        p.type === 'file'
+    );
     return (
       <div className="flex justify-end">
         <div className="max-w-[85%] rounded-lg px-3 py-2 text-xs whitespace-pre-wrap bg-primary text-primary-foreground">
+          {fileParts.length > 0 && (
+            <div className="flex gap-1.5 flex-wrap mb-1.5">
+              {fileParts.map((f, i) => (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  key={i}
+                  src={f.url}
+                  alt={f.filename ?? 'User image'}
+                  className="max-h-48 rounded-lg object-contain"
+                />
+              ))}
+            </div>
+          )}
           {text}
         </div>
       </div>
@@ -279,7 +394,8 @@ function MessageBubble({
               'type' in (output as Record<string, unknown>) &&
               ((output as Record<string, unknown>).type === 'soul_change_proposal' ||
                 (output as Record<string, unknown>).type === 'chassis_change_proposal' ||
-                (output as Record<string, unknown>).type === 'module_change_proposal')
+                (output as Record<string, unknown>).type === 'module_change_proposal' ||
+                (output as Record<string, unknown>).type === 'batch_module_change_proposal')
             ) {
               return (
                 <ProposalCard

@@ -7,9 +7,10 @@
 
 import type { LuvSoulData } from './types/luv';
 import { composeLayers } from './luv/soul-composer';
+import type { ComposeOptions } from './luv/soul-composer';
 
 export { composeLayers };
 
-export function composeSoulSystemPrompt(soulData: LuvSoulData): string {
-  return composeLayers(soulData).prompt;
+export function composeSoulSystemPrompt(soulData: LuvSoulData, options?: ComposeOptions): string {
+  return composeLayers(soulData, options).prompt;
 }
