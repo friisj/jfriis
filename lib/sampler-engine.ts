@@ -57,6 +57,7 @@ export class SamplerEngine {
   private workletRegistrationAttempted = false;
   private buffers: Map<string, AudioBuffer> = new Map();
   private reversedBuffers: Map<string, AudioBuffer> = new Map();
+  private distortionCurveCache: Map<number, Float32Array<ArrayBuffer>> = new Map();
   private padNodes: Map<string, PadNodes> = new Map();
   private activeSources: Map<string, AudioBufferSourceNode> = new Map();
   private activeProceduralStops: Map<string, () => void> = new Map();
@@ -153,13 +154,18 @@ export class SamplerEngine {
    * Sigmoid soft-clip distortion curve
    */
   private makeDistortionCurve(amount: number): Float32Array<ArrayBuffer> {
-    const samples = 44100;
+    const key = Math.round(amount * 10) / 10;
+    const cached = this.distortionCurveCache.get(key);
+    if (cached) return cached;
+
+    const samples = 256;
     const curve = new Float32Array(samples) as Float32Array<ArrayBuffer>;
-    const k = amount;
+    const k = key;
     for (let i = 0; i < samples; i++) {
       const x = (i * 2) / samples - 1;
       curve[i] = k === 0 ? x : ((3 + k) * x * 20 * (Math.PI / 180)) / (Math.PI + k * Math.abs(x));
     }
+    this.distortionCurveCache.set(key, curve);
     return curve;
   }
 
@@ -847,6 +853,7 @@ export class SamplerEngine {
     this.padNodes.clear();
     this.buffers.clear();
     this.reversedBuffers.clear();
+    this.distortionCurveCache.clear();
 
     if (this.ctx) {
       this.ctx.close();
