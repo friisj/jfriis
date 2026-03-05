@@ -105,7 +105,7 @@ export function ChassisEditor({
   // JSON editor
   if (viewMode === 'json') {
     return (
-      <div className="max-w-2xl space-y-4">
+      <div className="space-y-4">
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-semibold">Raw JSON</h2>
           <Button variant="outline" size="sm" onClick={toggleJson}>
@@ -130,7 +130,7 @@ export function ChassisEditor({
     return (
       <div className="flex gap-6">
         {/* Module list */}
-        <div className="w-48 shrink-0 space-y-4">
+        <div className="border border-blue-500 shrink-0 space-y-4">
           {Array.from(categories.entries()).map(([cat, mods]) => (
             <div key={cat}>
               <h4 className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider mb-1">
@@ -181,7 +181,7 @@ export function ChassisEditor({
         </div>
 
         {/* Editor panel */}
-        <div className="flex-1 max-w-xl">
+        <div className="flex-1">
           {selectedModule ? (
             <ModuleEditor
               key={selectedModule.id}
@@ -200,7 +200,7 @@ export function ChassisEditor({
 
   // Legacy key-value editor (fallback)
   return (
-    <div className="max-w-2xl space-y-8">
+    <div className="space-y-8">
       <div className="flex justify-end gap-2">
         {modules.length > 0 && (
           <Button
