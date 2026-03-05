@@ -2,7 +2,6 @@
 
 import { RotateCcw } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { Slider } from '@/components/ui/slider';
 import {
   Select,
   SelectContent,
@@ -17,41 +16,6 @@ import type { FilterType, PadEffects, StutterRate } from '@/lib/types/sampler';
 interface EffectsChainProps {
   effects: PadEffects;
   onChange: (effects: PadEffects) => void;
-}
-
-function SliderRow({
-  label,
-  value,
-  display,
-  min,
-  max,
-  step,
-  onChange,
-}: {
-  label: string;
-  value: number;
-  display: string;
-  min: number;
-  max: number;
-  step: number;
-  onChange: (v: number) => void;
-}) {
-  return (
-    <div className="flex items-center gap-3">
-      <span className="text-xs text-muted-foreground w-16 shrink-0">{label}</span>
-      <Slider
-        value={[value]}
-        onValueChange={([v]) => onChange(v)}
-        min={min}
-        max={max}
-        step={step}
-        className="flex-1"
-      />
-      <span className="text-xs font-mono text-muted-foreground w-12 text-right shrink-0">
-        {display}
-      </span>
-    </div>
-  );
 }
 
 function SectionHeader({ label, onReset, active }: { label: string; onReset: () => void; active: boolean }) {
@@ -136,29 +100,27 @@ export function EffectsChain({ effects, onChange }: EffectsChainProps) {
   return (
     <div className="grid grid-cols-2 gap-2">
       {/* Volume & Pitch */}
-      <EffectCard className="col-span-2">
-        <SectionHeader
-          label="Volume & Pitch"
-          active={effects.volume !== 0.8 || effects.pitch !== 0}
-          onReset={() => update({ volume: 0.8, pitch: 0 })}
+      <EffectGroup
+        label="Volume & Pitch"
+        active={effects.volume !== 0.8 || effects.pitch !== 0}
+        onReset={() => update({ volume: 0.8, pitch: 0 })}
+        className="col-span-2"
+      >
+        <EffectKnob
+          label="Volume"
+          value={effects.volume}
+          min={0} max={1} step={0.01}
+          onChange={(v) => update({ volume: v })}
+          displayFn={(v) => `${Math.round(v * 100)}%`}
         />
-        <div className="flex flex-wrap gap-x-1 gap-y-2">
-          <EffectKnob
-            label="Volume"
-            value={effects.volume}
-            min={0} max={1} step={0.01}
-            onChange={(v) => update({ volume: v })}
-            displayFn={(v) => `${Math.round(v * 100)}%`}
-          />
-        </div>
-        <SliderRow
+        <EffectKnob
           label="Pitch"
           value={effects.pitch}
-          display={`${effects.pitch > 0 ? '+' : ''}${effects.pitch}st`}
           min={-24} max={24} step={1}
           onChange={(v) => update({ pitch: v })}
+          displayFn={(v) => `${v > 0 ? '+' : ''}${Math.round(v)}st`}
         />
-      </EffectCard>
+      </EffectGroup>
 
       {/* Filter */}
       <EffectCard className="col-span-2">
@@ -472,27 +434,24 @@ export function EffectsChain({ effects, onChange }: EffectsChainProps) {
         />
       </EffectGroup>
 
-      {/* Pan — keep as slider (L/R metaphor) */}
-      <EffectCard className="col-span-2">
-        <SectionHeader
-          label="Pan"
-          active={!!effects.pan && Math.abs(effects.pan.pan) > 0.01}
-          onReset={() => update({ pan: undefined })}
-        />
-        <SliderRow
+      {/* Pan */}
+      <EffectGroup
+        label="Pan"
+        active={!!effects.pan && Math.abs(effects.pan.pan) > 0.01}
+        onReset={() => update({ pan: undefined })}
+      >
+        <EffectKnob
           label="Pan"
           value={effects.pan?.pan ?? 0}
-          display={
-            (effects.pan?.pan ?? 0) < -0.01
-              ? `L${Math.round(Math.abs(effects.pan!.pan) * 100)}`
-              : (effects.pan?.pan ?? 0) > 0.01
-                ? `R${Math.round(effects.pan!.pan * 100)}`
-                : 'C'
-          }
           min={-1} max={1} step={0.01}
           onChange={(v) => update({ pan: { pan: v } })}
+          displayFn={(v) =>
+            v < -0.01 ? `L${Math.round(Math.abs(v) * 100)}`
+              : v > 0.01 ? `R${Math.round(v * 100)}`
+              : 'C'
+          }
         />
-      </EffectCard>
+      </EffectGroup>
 
       {/* Reverse — keep as switch */}
       <EffectCard>
