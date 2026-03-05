@@ -20,6 +20,8 @@ const STUTTER_MS: Record<StutterRate, number> = {
   '1/32': 62.5,
 };
 
+const MAX_STUTTER_DURATION = 30_000;
+
 interface PadNodes {
   source: AudioBufferSourceNode | null;
   gain: GainNode;
@@ -63,6 +65,7 @@ export class SamplerEngine {
   private activeSources: Map<string, AudioBufferSourceNode> = new Map();
   private activeProceduralStops: Map<string, () => void> = new Map();
   private stutterIntervals: Map<string, ReturnType<typeof setInterval>> = new Map();
+  private stutterTimeouts: Map<string, ReturnType<typeof setTimeout>> = new Map();
   private previewSource: AudioBufferSourceNode | null = null;
   private playbackInfo = new Map<string, {
     ctxTime: number;
@@ -564,17 +567,28 @@ export class SamplerEngine {
       };
     }
 
-    // Stutter: retrigger at interval
+    // Stutter: retrigger at interval (bounded to MAX_STUTTER_DURATION)
     if (pad.effects.stutter?.on && !isRetrigger) {
       // Clear any existing stutter interval for this pad
       const existing = this.stutterIntervals.get(pad.id);
       if (existing) clearInterval(existing);
+      const existingTimeout = this.stutterTimeouts.get(pad.id);
+      if (existingTimeout) clearTimeout(existingTimeout);
 
+      const padId = pad.id;
       const ms = STUTTER_MS[pad.effects.stutter.rate];
       const interval = setInterval(() => {
         this.trigger(pad, velocity, true);
       }, ms);
-      this.stutterIntervals.set(pad.id, interval);
+      this.stutterIntervals.set(padId, interval);
+
+      // Auto-clear stutter after max duration
+      const timeout = setTimeout(() => {
+        clearInterval(interval);
+        this.stutterIntervals.delete(padId);
+        this.stutterTimeouts.delete(padId);
+      }, MAX_STUTTER_DURATION);
+      this.stutterTimeouts.set(padId, timeout);
     }
   }
 
@@ -644,11 +658,16 @@ export class SamplerEngine {
    * Stop a specific pad
    */
   stop(padId: string): void {
-    // Clear stutter interval
+    // Clear stutter interval and timeout
     const stutterInterval = this.stutterIntervals.get(padId);
     if (stutterInterval) {
       clearInterval(stutterInterval);
       this.stutterIntervals.delete(padId);
+    }
+    const stutterTimeout = this.stutterTimeouts.get(padId);
+    if (stutterTimeout) {
+      clearTimeout(stutterTimeout);
+      this.stutterTimeouts.delete(padId);
     }
 
     // Stop buffer source
@@ -681,6 +700,8 @@ export class SamplerEngine {
   stopAll(): void {
     this.stutterIntervals.forEach((interval) => clearInterval(interval));
     this.stutterIntervals.clear();
+    this.stutterTimeouts.forEach((timeout) => clearTimeout(timeout));
+    this.stutterTimeouts.clear();
 
     this.activeSources.forEach((source) => {
       try { source.stop(); } catch { /* already stopped */ }
@@ -854,6 +875,8 @@ export class SamplerEngine {
   dispose(): void {
     this.stutterIntervals.forEach((interval) => clearInterval(interval));
     this.stutterIntervals.clear();
+    this.stutterTimeouts.forEach((timeout) => clearTimeout(timeout));
+    this.stutterTimeouts.clear();
 
     this.activeSources.forEach((source) => {
       try { source.stop(); } catch { /* noop */ }
