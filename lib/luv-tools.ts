@@ -543,10 +543,20 @@ export const reviewChassisModule = tool({
     if (!storagePath) {
       const { getLuvReferencesServer } = await import('./luv-server');
       const refs = await getLuvReferencesServer();
-      const canonical = refs.find((r) => r.type === 'canonical');
-      if (canonical) {
-        storagePath = canonical.storage_path;
-        imageSource = `canonical reference: ${canonical.description ?? canonical.id}`;
+      // Try tag-matched reference first (e.g. reference tagged "eyes" for eyes module)
+      const tagMatch = refs.find((r) =>
+        r.tags?.some((t) => t.toLowerCase() === moduleSlug.toLowerCase() || t.toLowerCase() === mod.category?.toLowerCase())
+      );
+      if (tagMatch) {
+        storagePath = tagMatch.storage_path;
+        imageSource = `tag-matched reference: ${tagMatch.description ?? tagMatch.id}`;
+      } else {
+        // Fall back to any canonical reference
+        const canonical = refs.find((r) => r.type === 'canonical');
+        if (canonical) {
+          storagePath = canonical.storage_path;
+          imageSource = `canonical reference: ${canonical.description ?? canonical.id}`;
+        }
       }
     }
 
