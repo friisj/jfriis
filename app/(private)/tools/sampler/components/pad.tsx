@@ -9,6 +9,15 @@ import {
   ContextMenuTrigger,
 } from '@/components/ui/context-menu';
 import type { PadWithSound } from '@/lib/types/sampler';
+import { BorderBeam } from './border-beam';
+
+function getEffectiveDurationMs(pad: PadWithSound): number {
+  const baseDuration = pad.effects.trim
+    ? pad.effects.trim.endMs - pad.effects.trim.startMs
+    : pad.sound?.duration_ms ?? 500;
+  const rate = Math.pow(2, (pad.effects.pitch ?? 0) / 12);
+  return baseDuration / rate;
+}
 
 function formatElapsed(ms: number) {
   const secs = Math.floor(ms / 1000);
@@ -89,6 +98,14 @@ export function Pad({
             : pad.label || pad.sound?.name || `Pad ${pad.row + 1},${pad.col + 1}`
           }
         >
+          {isPlaying && hasSound && (
+            <BorderBeam
+              duration={getEffectiveDurationMs(pad) / 1000}
+              colorFrom={pad.color ? `${pad.color}cc` : '#3b82f6'}
+              colorTo={pad.color ? `${pad.color}66` : '#8b5cf6'}
+              loop={pad.pad_type !== 'trigger'}
+            />
+          )}
           {isRecording ? (
             <div className="flex flex-col items-center gap-1">
               <span className="relative flex h-3 w-3">

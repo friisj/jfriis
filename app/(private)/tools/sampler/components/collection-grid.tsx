@@ -325,18 +325,20 @@ export function CollectionGrid({ collection }: CollectionGridProps) {
     engine.trigger(pad);
     setPlayingPads((prev) => new Set(prev).add(pad.id));
 
-    // For trigger pads, clear playing state after a short delay
+    // For trigger pads, clear playing state after effective playback duration
     if (pad.pad_type === 'trigger') {
       const trimDuration = pad.effects.trim
         ? pad.effects.trim.endMs - pad.effects.trim.startMs
         : pad.sound?.duration_ms ?? 500;
+      const rate = Math.pow(2, (pad.effects.pitch ?? 0) / 12);
+      const effectiveMs = trimDuration / rate;
       setTimeout(() => {
         setPlayingPads((prev) => {
           const next = new Set(prev);
           next.delete(pad.id);
           return next;
         });
-      }, Math.min(trimDuration, 3000));
+      }, Math.min(effectiveMs, 5000));
     }
   }, []);
 
