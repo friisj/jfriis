@@ -58,16 +58,19 @@ function SectionHeader({ label, onReset, active }: { label: string; onReset: () 
   return (
     <div className="flex items-center justify-between">
       <h5 className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">{label}</h5>
-      {active && (
-        <button
-          type="button"
-          onClick={onReset}
-          className="text-muted-foreground/50 hover:text-muted-foreground transition-colors"
-          title={`Reset ${label}`}
-        >
-          <RotateCcw className="w-3 h-3" />
-        </button>
-      )}
+      <button
+        type="button"
+        onClick={onReset}
+        className={cn(
+          'transition-colors',
+          active
+            ? 'text-muted-foreground/60 hover:text-muted-foreground'
+            : 'text-muted-foreground/20 hover:text-muted-foreground/40',
+        )}
+        title={`Reset ${label}`}
+      >
+        <RotateCcw className="w-3 h-3" />
+      </button>
     </div>
   );
 }
@@ -227,7 +230,7 @@ export function EffectsChain({ effects, onChange }: EffectsChainProps) {
                 },
               })
             }
-            displayFn={(v) => `${v > 0 ? '+' : ''}${v}dB`}
+            displayFn={(v) => { const r = Math.round(v * 2) / 2; return `${r > 0 ? '+' : ''}${r}dB`; }}
           />
         ))}
       </EffectGroup>
@@ -253,7 +256,7 @@ export function EffectsChain({ effects, onChange }: EffectsChainProps) {
               },
             })
           }
-          displayFn={(v) => `${v}dB`}
+          displayFn={(v) => `${Math.round(v)}dB`}
         />
         <EffectKnob
           label="Ratio"
@@ -496,16 +499,19 @@ export function EffectsChain({ effects, onChange }: EffectsChainProps) {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <h5 className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">Reverse</h5>
-            {effects.reverse && (
-              <button
-                type="button"
-                onClick={() => update({ reverse: false })}
-                className="text-muted-foreground/50 hover:text-muted-foreground transition-colors"
-                title="Reset Reverse"
-              >
-                <RotateCcw className="w-3 h-3" />
-              </button>
-            )}
+            <button
+              type="button"
+              onClick={() => update({ reverse: false })}
+              className={cn(
+                'transition-colors',
+                effects.reverse
+                  ? 'text-muted-foreground/60 hover:text-muted-foreground'
+                  : 'text-muted-foreground/20 hover:text-muted-foreground/40',
+              )}
+              title="Reset Reverse"
+            >
+              <RotateCcw className="w-3 h-3" />
+            </button>
           </div>
           <Switch
             checked={effects.reverse ?? false}
@@ -519,16 +525,19 @@ export function EffectsChain({ effects, onChange }: EffectsChainProps) {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <h5 className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">Stutter</h5>
-            {effects.stutter?.on && (
-              <button
-                type="button"
-                onClick={() => update({ stutter: undefined })}
-                className="text-muted-foreground/50 hover:text-muted-foreground transition-colors"
-                title="Reset Stutter"
-              >
-                <RotateCcw className="w-3 h-3" />
-              </button>
-            )}
+            <button
+              type="button"
+              onClick={() => update({ stutter: undefined })}
+              className={cn(
+                'transition-colors',
+                effects.stutter?.on
+                  ? 'text-muted-foreground/60 hover:text-muted-foreground'
+                  : 'text-muted-foreground/20 hover:text-muted-foreground/40',
+              )}
+              title="Reset Stutter"
+            >
+              <RotateCcw className="w-3 h-3" />
+            </button>
           </div>
           <Switch
             checked={effects.stutter?.on ?? false}

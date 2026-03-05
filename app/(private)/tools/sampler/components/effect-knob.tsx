@@ -2,6 +2,7 @@
 
 import { useId, useCallback } from 'react';
 import { KnobHeadless, useKnobKeyboardControls } from 'react-knob-headless';
+import { cn } from '@/lib/utils';
 
 interface EffectKnobProps {
   label: string;
@@ -25,14 +26,6 @@ function polarToXY(cx: number, cy: number, r: number, deg: number) {
   return { x: cx + r * Math.cos(rad), y: cy + r * Math.sin(rad) };
 }
 
-function describeArc(cx: number, cy: number, r: number, startDeg: number, endDeg: number) {
-  const start = polarToXY(cx, cy, r, startDeg);
-  const end = polarToXY(cx, cy, r, endDeg);
-  const sweep = endDeg - startDeg;
-  const largeArc = sweep > 180 ? 1 : 0;
-  return `M ${start.x} ${start.y} A ${r} ${r} 0 ${largeArc} 1 ${end.x} ${end.y}`;
-}
-
 function defaultMapTo01(x: number, min: number, max: number) {
   return (x - min) / (max - min);
 }
@@ -51,19 +44,14 @@ export function EffectKnob({
 }: EffectKnobProps) {
   const id = useId();
   const norm = (mapTo01 ?? defaultMapTo01)(value, min, max);
-  const endAngle = START_ANGLE + norm * SWEEP;
+  const angle = START_ANGLE + norm * SWEEP;
 
   const cx = size / 2;
   const cy = size / 2;
-  const outerR = size / 2 - 2;
-  const innerR = outerR - 5;
+  const r = size / 2 - 2;
 
-  const trackPath = describeArc(cx, cy, outerR, START_ANGLE, START_ANGLE + SWEEP);
-  const valuePath = norm > 0.003 ? describeArc(cx, cy, outerR, START_ANGLE, endAngle) : '';
-
-  // Indicator line from inner edge to outer edge at current angle
-  const lineInner = polarToXY(cx, cy, innerR - 1, endAngle);
-  const lineOuter = polarToXY(cx, cy, outerR, endAngle);
+  // Radial indicator line from center to edge
+  const lineEnd = polarToXY(cx, cy, r - 1, angle);
 
   const roundFn = useCallback((v: number) => {
     const rounded = Math.round(v / step) * step;
@@ -97,39 +85,29 @@ export function EffectKnob({
         mapTo01={mapTo01}
         mapFrom01={mapFrom01}
         includeIntoTabOrder
-        className="relative cursor-grab active:cursor-grabbing touch-none rounded-full outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background"
+        className={cn(
+          'relative cursor-grab active:cursor-grabbing touch-none rounded-full outline-none',
+          'focus-visible:ring-2 focus-visible:ring-ring',
+          '[&:focus-visible]:shadow-[0_0_0_3px_hsl(var(--ring)/0.4)]',
+        )}
         style={{ width: size, height: size }}
         onKeyDown={keyboardControls.onKeyDown}
       >
         <svg width={size} height={size}>
-          {/* Filled center disc — grip affordance */}
-          <circle cx={cx} cy={cy} r={innerR} fill="currentColor" className="text-muted/60" />
-          {/* Background arc */}
-          <path
-            d={trackPath}
-            fill="none"
-            stroke="currentColor"
-            className="text-muted-foreground/25"
-            strokeWidth={5}
-            strokeLinecap="round"
+          {/* Filled circle body */}
+          <circle
+            cx={cx}
+            cy={cy}
+            r={r}
+            fill="currentColor"
+            className="text-muted-foreground/20"
           />
-          {/* Value arc */}
-          {valuePath && (
-            <path
-              d={valuePath}
-              fill="none"
-              stroke="currentColor"
-              className="text-foreground"
-              strokeWidth={5}
-              strokeLinecap="round"
-            />
-          )}
-          {/* Indicator line */}
+          {/* Radial indicator line */}
           <line
-            x1={lineInner.x}
-            y1={lineInner.y}
-            x2={lineOuter.x}
-            y2={lineOuter.y}
+            x1={cx}
+            y1={cy}
+            x2={lineEnd.x}
+            y2={lineEnd.y}
             stroke="currentColor"
             className="text-foreground"
             strokeWidth={2}
