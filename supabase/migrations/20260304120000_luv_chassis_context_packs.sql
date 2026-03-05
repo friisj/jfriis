@@ -1,8 +1,11 @@
+-- Enable moddatetime extension for updated_at triggers
+CREATE EXTENSION IF NOT EXISTS moddatetime WITH SCHEMA extensions;
+
 -- Context Packs: bridge chassis modules to generation prompts and evaluation loops
 -- A context pack captures a module version's parameters as a generation prompt,
 -- defines evaluation criteria, and records corrections from the evaluation.
 
-CREATE TABLE luv_chassis_context_packs (
+CREATE TABLE IF NOT EXISTS luv_chassis_context_packs (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   module_id uuid NOT NULL REFERENCES luv_chassis_modules(id) ON DELETE CASCADE,
   version int NOT NULL,
@@ -15,9 +18,10 @@ CREATE TABLE luv_chassis_context_packs (
 );
 
 -- Index for looking up packs by module
-CREATE INDEX idx_context_packs_module ON luv_chassis_context_packs(module_id);
+CREATE INDEX IF NOT EXISTS idx_context_packs_module ON luv_chassis_context_packs(module_id);
 
 -- Updated-at trigger
+DROP TRIGGER IF EXISTS set_context_packs_updated_at ON luv_chassis_context_packs;
 CREATE TRIGGER set_context_packs_updated_at
   BEFORE UPDATE ON luv_chassis_context_packs
   FOR EACH ROW
@@ -26,18 +30,30 @@ CREATE TRIGGER set_context_packs_updated_at
 -- RLS: public read, admin-only write
 ALTER TABLE luv_chassis_context_packs ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "Public read context packs"
-  ON luv_chassis_context_packs FOR SELECT
-  USING (true);
+DO $$ BEGIN
+  CREATE POLICY "Public read context packs"
+    ON luv_chassis_context_packs FOR SELECT
+    USING (true);
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
-CREATE POLICY "Admin insert context packs"
-  ON luv_chassis_context_packs FOR INSERT
-  WITH CHECK (is_admin());
+DO $$ BEGIN
+  CREATE POLICY "Admin insert context packs"
+    ON luv_chassis_context_packs FOR INSERT
+    WITH CHECK (is_admin());
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
-CREATE POLICY "Admin update context packs"
-  ON luv_chassis_context_packs FOR UPDATE
-  USING (is_admin());
+DO $$ BEGIN
+  CREATE POLICY "Admin update context packs"
+    ON luv_chassis_context_packs FOR UPDATE
+    USING (is_admin());
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
-CREATE POLICY "Admin delete context packs"
-  ON luv_chassis_context_packs FOR DELETE
-  USING (is_admin());
+DO $$ BEGIN
+  CREATE POLICY "Admin delete context packs"
+    ON luv_chassis_context_packs FOR DELETE
+    USING (is_admin());
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
