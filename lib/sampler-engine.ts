@@ -743,6 +743,21 @@ export class SamplerEngine {
     return position / info.bufferDuration;
   }
 
+  /** Returns 0–1 progress through the current playback cycle. */
+  getPlaybackCycleProgress(padId: string): number | null {
+    const info = this.playbackInfo.get(padId);
+    if (!info || !this.ctx) return null;
+
+    const elapsed = (this.ctx.currentTime - info.ctxTime) * info.rate;
+
+    if (info.loop) {
+      return (elapsed % info.durationSec) / info.durationSec;
+    }
+
+    if (elapsed >= info.durationSec) return null;
+    return elapsed / info.durationSec;
+  }
+
   /**
    * Update effects for a pad in real time
    */

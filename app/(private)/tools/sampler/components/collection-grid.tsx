@@ -385,6 +385,11 @@ export function CollectionGrid({ collection }: CollectionGridProps) {
     []
   );
 
+  const getPlaybackCycleProgress = useCallback(
+    (padId: string) => () => engineRef.current?.getPlaybackCycleProgress(padId) ?? null,
+    []
+  );
+
   async function duplicatePad(source: PadWithSound) {
     // Find first empty pad in row-major order
     const sorted = [...pads].sort((a, b) => a.row - b.row || a.col - b.col);
@@ -615,6 +620,7 @@ export function CollectionGrid({ collection }: CollectionGridProps) {
                       : undefined
                   }
                   recordingElapsed={pad.id === recordingPadId ? recordingElapsed : undefined}
+                  getPlaybackProgress={getPlaybackCycleProgress(pad.id)}
                   onTrigger={triggerPad}
                   onRelease={releasePad}
                   onSelect={(p) => setSelectedPadId(p.id === selectedPadId ? null : p.id)}

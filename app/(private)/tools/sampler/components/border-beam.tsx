@@ -1,34 +1,33 @@
 'use client';
 
 import { useEffect } from 'react';
-import { motion, useMotionValue, useTransform, animate } from 'framer-motion';
+import { motion, useMotionValue, useTransform } from 'framer-motion';
 
 interface BorderBeamProps {
-  duration?: number;
+  getProgress: () => number | null;
   borderWidth?: number;
   colorFrom?: string;
   colorTo?: string;
-  loop?: boolean;
 }
 
 export function BorderBeam({
-  duration = 2,
+  getProgress,
   borderWidth = 2,
   colorFrom = '#3b82f6',
   colorTo = '#8b5cf6',
-  loop = true,
 }: BorderBeamProps) {
   const progress = useMotionValue(0);
 
   useEffect(() => {
-    const controls = animate(progress, 1, {
-      duration,
-      ease: 'linear',
-      repeat: loop ? Infinity : 0,
-      repeatType: 'loop',
-    });
-    return () => controls.stop();
-  }, [duration, loop, progress]);
+    let rafId: number;
+    function tick() {
+      const p = getProgress();
+      if (p != null) progress.set(p);
+      rafId = requestAnimationFrame(tick);
+    }
+    rafId = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(rafId);
+  }, [getProgress, progress]);
 
   const background = useTransform(progress, (v) => {
     const endAngle = v * 360;

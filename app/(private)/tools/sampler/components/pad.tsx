@@ -11,14 +11,6 @@ import {
 import type { PadWithSound } from '@/lib/types/sampler';
 import { BorderBeam } from './border-beam';
 
-function getEffectiveDurationMs(pad: PadWithSound): number {
-  const baseDuration = pad.effects.trim
-    ? pad.effects.trim.endMs - pad.effects.trim.startMs
-    : pad.sound?.duration_ms ?? 500;
-  const rate = Math.pow(2, (pad.effects.pitch ?? 0) / 12);
-  return baseDuration / rate;
-}
-
 function formatElapsed(ms: number) {
   const secs = Math.floor(ms / 1000);
   const mins = Math.floor(secs / 60);
@@ -32,6 +24,7 @@ interface PadProps {
   isSelected: boolean;
   recordingState?: 'recording' | 'saving';
   recordingElapsed?: number;
+  getPlaybackProgress: () => number | null;
   onTrigger: (pad: PadWithSound) => void;
   onRelease: (pad: PadWithSound) => void;
   onSelect: (pad: PadWithSound) => void;
@@ -42,7 +35,7 @@ interface PadProps {
 }
 
 export function Pad({
-  pad, isPlaying, isSelected, recordingState, recordingElapsed,
+  pad, isPlaying, isSelected, recordingState, recordingElapsed, getPlaybackProgress,
   onTrigger, onRelease, onSelect, onDuplicate, onSample, onGenerate, onStopRecording,
 }: PadProps) {
   const hasSound = !!pad.sound;
@@ -100,10 +93,9 @@ export function Pad({
         >
           {isPlaying && hasSound && (
             <BorderBeam
-              duration={getEffectiveDurationMs(pad) / 1000}
+              getProgress={getPlaybackProgress}
               colorFrom={pad.color ? `${pad.color}cc` : '#3b82f6'}
               colorTo={pad.color ? `${pad.color}66` : '#8b5cf6'}
-              loop={pad.pad_type !== 'trigger'}
             />
           )}
           {isRecording ? (
