@@ -681,7 +681,7 @@ export function SkillGym({ skill, onSkillUpdate, onBack, fontOverrides, targetDi
       <div className="max-w-4xl mx-auto p-8">
         <div className="flex flex-col items-center justify-center gap-4 py-20">
           <div className="w-8 h-8 border-2 border-purple-600 border-t-transparent rounded-full animate-spin" />
-          <p className="text-sm text-gray-600 dark:text-gray-400">Refining skill (round {roundCount + 1})...</p>
+          <p className="text-sm text-gray-600 dark:text-gray-400">Refining (round {roundCount + 1})...</p>
         </div>
       </div>
     )
@@ -759,11 +759,20 @@ export function SkillGym({ skill, onSkillUpdate, onBack, fontOverrides, targetDi
 
   return (
     <div className="max-w-5xl mx-auto p-8 space-y-6">
-      <div className="text-center space-y-2">
-        <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">Skill Gym</h2>
-        <p className="text-sm text-gray-500 dark:text-gray-400">
-          Round {roundCount + 1} — Review each decision: approve, adjust, or flag for AI review.
-        </p>
+      <div className="flex items-start justify-between">
+        <div className="space-y-1">
+          <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">Skill Gym</h2>
+          <p className="text-sm text-gray-500 dark:text-gray-400">
+            Round {roundCount + 1} — Review each decision: approve, adjust, or flag for AI review.
+          </p>
+        </div>
+        <button
+          onClick={handleRefine}
+          disabled={feedbackCount === 0 && annotations.length === 0}
+          className="px-6 py-2.5 bg-purple-600 text-white font-medium rounded-xl hover:bg-purple-700 disabled:bg-gray-300 dark:disabled:bg-gray-700 disabled:cursor-not-allowed transition-colors text-sm flex-shrink-0"
+        >
+          Refine (Round {roundCount + 1})
+        </button>
       </div>
 
       {/* Canonical components preview / annotation canvas */}
@@ -931,31 +940,22 @@ export function SkillGym({ skill, onSkillUpdate, onBack, fontOverrides, targetDi
       )}
 
       {/* Footer */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <button
-            onClick={onBack}
-            className="text-xs text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 underline"
-          >
-            Back to compare
-          </button>
-          <span className="text-xs text-gray-400">
-            {feedbackCount}/{decisionCount} decisions reviewed
-            {annotations.length > 0 ? ` + ${annotations.length} annotation${annotations.length !== 1 ? 's' : ''}` : ''}
-          </span>
-          <button
-            onClick={() => handleExport(skill)}
-            className="text-xs text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 underline"
-          >
-            Export current
-          </button>
-        </div>
+      <div className="flex items-center gap-4">
         <button
-          onClick={handleRefine}
-          disabled={feedbackCount === 0 && annotations.length === 0}
-          className="px-8 py-3 bg-purple-600 text-white font-medium rounded-xl hover:bg-purple-700 disabled:bg-gray-300 dark:disabled:bg-gray-700 disabled:cursor-not-allowed transition-colors text-sm"
+          onClick={onBack}
+          className="text-xs text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 underline"
         >
-          Refine Skill (Round {roundCount + 1})
+          Back to compare
+        </button>
+        <span className="text-xs text-gray-400">
+          {feedbackCount}/{decisionCount} decisions reviewed
+          {annotations.length > 0 ? ` + ${annotations.length} annotation${annotations.length !== 1 ? 's' : ''}` : ''}
+        </span>
+        <button
+          onClick={() => handleExport(skill)}
+          className="text-xs text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 underline"
+        >
+          Export current
         </button>
       </div>
     </div>
