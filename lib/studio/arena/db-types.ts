@@ -20,7 +20,6 @@ export interface ArenaProject {
   figma_file_key: string | null
   figma_file_url: string | null
   inputs: ArenaProjectInputs
-  substrate: string | null
   foundation: FoundationBrief | null
   config: ProjectConfig
   metadata: Record<string, unknown>

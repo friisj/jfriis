@@ -463,6 +463,20 @@ export async function getThemesForSkill(
   return getThemes({ skill_id: skillId, platform: platform ?? 'tailwind' })
 }
 
+/** Fetch template skills (is_template=true, tier='template'), optionally filtered by dimension */
+export async function getTemplateSkills(dimension?: string): Promise<ArenaSkill[]> {
+  const supabase = await arenaClient()
+  let query = supabase
+    .from('arena_skills')
+    .select('*')
+    .eq('is_template', true)
+    .eq('tier', 'template')
+  if (dimension) query = query.eq('dimension', dimension)
+  const { data, error } = await query.order('dimension')
+  if (error) throw error
+  return (data ?? []) as unknown as ArenaSkill[]
+}
+
 /** Fetch all template themes, optionally filtered by name */
 export async function getTemplateThemes(name?: string): Promise<ArenaTheme[]> {
   const supabase = await arenaClient()

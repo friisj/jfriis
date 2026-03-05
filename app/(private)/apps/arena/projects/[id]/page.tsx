@@ -76,14 +76,7 @@ export default async function ProjectDetailPage({ params }: Props) {
             </Link>
             <span>/</span>
           </div>
-          <div className="flex items-center gap-2">
-            <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">{project.name}</h1>
-            {project.substrate && (
-              <span className="px-2 py-0.5 rounded text-xs bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400">
-                {project.substrate}
-              </span>
-            )}
-          </div>
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">{project.name}</h1>
           {project.description && (
             <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">{project.description}</p>
           )}
