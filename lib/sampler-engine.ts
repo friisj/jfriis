@@ -54,6 +54,7 @@ export class SamplerEngine {
   private ctx: AudioContext | null = null;
   private master: GainNode | null = null;
   private workletReady = false;
+  private workletRegistrationAttempted = false;
   private buffers: Map<string, AudioBuffer> = new Map();
   private reversedBuffers: Map<string, AudioBuffer> = new Map();
   private padNodes: Map<string, PadNodes> = new Map();
@@ -79,6 +80,10 @@ export class SamplerEngine {
     if (this.ctx.state === 'suspended') {
       this.ctx.resume();
     }
+    // Lazily register worklets once the context is running
+    if (!this.workletRegistrationAttempted && this.ctx.state === 'running') {
+      this.registerWorklets();
+    }
     return this.ctx;
   }
 
@@ -91,16 +96,17 @@ export class SamplerEngine {
    * Register AudioWorklet processors (bitcrusher)
    */
   private async registerWorklets(): Promise<void> {
-    if (this.workletReady) return;
-    const ctx = this.ensureContext();
+    if (this.workletReady || this.workletRegistrationAttempted) return;
+    this.workletRegistrationAttempted = true;
     try {
+      const ctx = this.ctx!;
       await ctx.audioWorklet.addModule('/worklets/bitcrusher-processor.js');
       // Verify the processor is actually available
       const test = new AudioWorkletNode(ctx, 'bitcrusher-processor');
       test.disconnect();
       this.workletReady = true;
-    } catch (e) {
-      console.warn('AudioWorklet not available, bitcrusher will bypass:', e);
+    } catch {
+      // Worklet unavailable — bitcrusher will silently bypass
       this.workletReady = false;
     }
   }
@@ -383,7 +389,6 @@ export class SamplerEngine {
    */
   async preload(pads: PadWithSound[]): Promise<void> {
     const ctx = this.ensureContext();
-    await this.registerWorklets();
 
     const loadPromises = pads
       .filter((pad) => pad.sound?.audio_url)
