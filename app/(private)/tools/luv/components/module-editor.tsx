@@ -109,7 +109,7 @@ export function ModuleEditor({ module, allModules = [], studyLocks = [], onSaved
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h3 className="text-sm font-semibold">{module.name}</h3>
+          <h3 className="text-3xl font-semibold">{module.name}</h3>
           {module.description && (
             <p className="text-xs text-muted-foreground">{module.description}</p>
           )}
