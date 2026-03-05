@@ -1,51 +1,25 @@
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
-import { getProject, getSkills, getProjectAssembly, getSessions } from '@/lib/studio/arena/queries'
+import { getProject, getSkills, getProjectAssembly, getProjectThemes, getSkill, getSessions } from '@/lib/studio/arena/queries'
 import { SkillCard } from '@/components/studio/arena/skill-card'
 import { SessionCard } from '@/components/studio/arena/session-card'
 import { CORE_DIMENSIONS } from '@/lib/studio/arena/types'
-import type { ArenaProjectAssemblyWithSkill } from '@/lib/studio/arena/db-types'
+import type { ArenaProjectAssemblyWithSkill, ArenaSkill } from '@/lib/studio/arena/db-types'
 import { FoundationSection } from './foundation-section'
 import { InputsSection } from './inputs-section'
+import { AssemblySection } from './assembly-section'
 
 interface Props {
   params: Promise<{ id: string }>
 }
 
-const DIMENSION_LABELS: Record<string, string> = {
-  color: 'Color',
-  typography: 'Typography',
-  spacing: 'Spacing',
-  elevation: 'Elevation',
-  radius: 'Radius',
-  density: 'Density',
-  motion: 'Motion',
-  iconography: 'Iconography',
-  voice: 'Voice & Tone',
-  presentation: 'Presentation',
-}
-
-const DIMENSION_COLORS: Record<string, string> = {
-  color: 'bg-rose-50 dark:bg-rose-950/20 border-rose-200 dark:border-rose-800',
-  typography: 'bg-blue-50 dark:bg-blue-950/20 border-blue-200 dark:border-blue-800',
-  spacing: 'bg-amber-50 dark:bg-amber-950/20 border-amber-200 dark:border-amber-800',
-  elevation: 'bg-violet-50 dark:bg-violet-950/20 border-violet-200 dark:border-violet-800',
-  radius: 'bg-emerald-50 dark:bg-emerald-950/20 border-emerald-200 dark:border-emerald-800',
-  density: 'bg-cyan-50 dark:bg-cyan-950/20 border-cyan-200 dark:border-cyan-800',
-  motion: 'bg-orange-50 dark:bg-orange-950/20 border-orange-200 dark:border-orange-800',
-  iconography: 'bg-indigo-50 dark:bg-indigo-950/20 border-indigo-200 dark:border-indigo-800',
-  voice: 'bg-pink-50 dark:bg-pink-950/20 border-pink-200 dark:border-pink-800',
-  presentation: 'bg-teal-50 dark:bg-teal-950/20 border-teal-200 dark:border-teal-800',
-}
-
-const DEFAULT_DIM_COLOR = 'bg-slate-50 dark:bg-slate-950/20 border-slate-200 dark:border-slate-800'
-
 export default async function ProjectDetailPage({ params }: Props) {
   const { id } = await params
-  const [project, skills, assembly, sessions] = await Promise.all([
+  const [project, skills, assembly, projectThemes, sessions] = await Promise.all([
     getProject(id),
     getSkills({ project_id: id }),
     getProjectAssembly(id),
+    getProjectThemes(id),
     getSessions({ project_id: id }),
   ])
 
@@ -59,6 +33,18 @@ export default async function ProjectDetailPage({ params }: Props) {
   const assemblyByDimension: Record<string, ArenaProjectAssemblyWithSkill | undefined> = {}
   for (const entry of assembly) {
     assemblyByDimension[entry.dimension] = entry
+  }
+
+  // Fetch parent skills for diff support
+  const uniqueParentIds = [...new Set(
+    assembly
+      .map((e) => e.skill?.parent_skill_id)
+      .filter((id): id is string => !!id)
+  )]
+  const parentSkills = await Promise.all(uniqueParentIds.map(getSkill))
+  const parentSkillMap: Record<string, ArenaSkill> = {}
+  for (const ps of parentSkills) {
+    if (ps) parentSkillMap[ps.id] = ps
   }
 
   // Separate dimension skills from legacy monolithic skills
@@ -93,54 +79,13 @@ export default async function ProjectDetailPage({ params }: Props) {
       <InputsSection project={project} />
 
       {/* Skill Assembly */}
-      <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm p-5">
-        <h2 className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-3">Skill Assembly</h2>
-        <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">
-          One active skill per dimension composes the project&apos;s design system.
-        </p>
-        <div className={`grid grid-cols-1 ${projectDimensions.length <= 3 ? 'md:grid-cols-3' : 'md:grid-cols-2 lg:grid-cols-3'} gap-3`}>
-          {projectDimensions.map((dim) => {
-            const entry = assemblyByDimension[dim]
-            const skill = entry?.skill
-            return (
-              <div
-                key={dim}
-                className={`rounded-lg border p-4 ${DIMENSION_COLORS[dim] ?? DEFAULT_DIM_COLOR}`}
-              >
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">
-                    {DIMENSION_LABELS[dim] ?? dim.charAt(0).toUpperCase() + dim.slice(1)}
-                  </span>
-                  {skill && (
-                    <Link
-                      href={`/apps/arena/sessions/new?project=${project.id}&dimension=${dim}&skill=${skill.id}`}
-                      className="text-xs text-purple-600 hover:text-purple-700 font-medium"
-                    >
-                      Refine
-                    </Link>
-                  )}
-                </div>
-                {skill ? (
-                  <div>
-                    <p className="text-sm font-medium text-slate-800 dark:text-slate-200 truncate">
-                      {skill.name}
-                    </p>
-                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                      {skill.tier} &middot; {typeof skill.state === 'object' && 'decisions' in skill.state
-                        ? `${(skill.state as { decisions: unknown[] }).decisions.length} decisions`
-                        : 'composite'}
-                    </p>
-                  </div>
-                ) : (
-                  <p className="text-xs text-slate-400 dark:text-slate-500 italic">
-                    No skill assigned
-                  </p>
-                )}
-              </div>
-            )
-          })}
-        </div>
-      </div>
+      <AssemblySection
+        projectId={project.id}
+        dimensions={projectDimensions}
+        assemblyByDimension={assemblyByDimension}
+        parentSkillMap={parentSkillMap}
+        projectThemes={projectThemes}
+      />
 
       {/* Foundation */}
       <FoundationSection project={project} />
