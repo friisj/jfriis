@@ -95,9 +95,13 @@ export class SamplerEngine {
     const ctx = this.ensureContext();
     try {
       await ctx.audioWorklet.addModule('/worklets/bitcrusher-processor.js');
+      // Verify the processor is actually available
+      const test = new AudioWorkletNode(ctx, 'bitcrusher-processor');
+      test.disconnect();
       this.workletReady = true;
     } catch (e) {
-      console.warn('AudioWorklet registration failed, bitcrusher will bypass:', e);
+      console.warn('AudioWorklet not available, bitcrusher will bypass:', e);
+      this.workletReady = false;
     }
   }
 
