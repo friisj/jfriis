@@ -58,6 +58,7 @@ export class SamplerEngine {
   private buffers: Map<string, AudioBuffer> = new Map();
   private reversedBuffers: Map<string, AudioBuffer> = new Map();
   private distortionCurveCache: Map<number, Float32Array<ArrayBuffer>> = new Map();
+  private impulseCache: Map<number, AudioBuffer> = new Map();
   private padNodes: Map<string, PadNodes> = new Map();
   private activeSources: Map<string, AudioBufferSourceNode> = new Map();
   private activeProceduralStops: Map<string, () => void> = new Map();
@@ -173,9 +174,13 @@ export class SamplerEngine {
    * Create a programmatic impulse response for convolution reverb
    */
   private createImpulseResponse(decay: number = 1.5): AudioBuffer {
+    const key = Math.round(decay * 10) / 10;
+    const cached = this.impulseCache.get(key);
+    if (cached) return cached;
+
     const ctx = this.ensureContext();
     const sampleRate = ctx.sampleRate;
-    const length = sampleRate * Math.max(0.1, decay);
+    const length = sampleRate * Math.max(0.1, key);
     const impulse = ctx.createBuffer(2, length, sampleRate);
 
     for (let channel = 0; channel < 2; channel++) {
@@ -184,6 +189,7 @@ export class SamplerEngine {
         channelData[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / length, 2);
       }
     }
+    this.impulseCache.set(key, impulse);
     return impulse;
   }
 
@@ -775,6 +781,9 @@ export class SamplerEngine {
     nodes.delayWet.gain.value = effects.delay?.wet ?? 0;
     nodes.delayFeedback.gain.value = effects.delay?.feedback ?? 0;
     nodes.reverbWet.gain.value = effects.reverb?.wet ?? 0;
+    if (effects.reverb?.decay !== undefined) {
+      nodes.reverb.buffer = this.createImpulseResponse(effects.reverb.decay);
+    }
 
     if (effects.delay?.time !== undefined) {
       nodes.delay.delayTime.value = effects.delay.time;
@@ -854,6 +863,7 @@ export class SamplerEngine {
     this.buffers.clear();
     this.reversedBuffers.clear();
     this.distortionCurveCache.clear();
+    this.impulseCache.clear();
 
     if (this.ctx) {
       this.ctx.close();
