@@ -100,21 +100,23 @@ export default function LuvLayout({ children }: { children: React.ReactNode }) {
   return (
     <>
       <LuvHeaderActions chatOpen={chatOpen} onChatToggle={() => setChatOpen((o) => !o)} />
-      <ResizablePanelGroup direction="horizontal" className="flex-1">
-        <ResizablePanel defaultSize={15} minSize={10} collapsible>
-          <LuvContextNav />
-        </ResizablePanel>
-        <ResizableHandle />
-        <ResizablePanel>{children}</ResizablePanel>
-        {chatOpen && (
-          <>
-            <ResizableHandle withHandle />
-            <ResizablePanel defaultSize={30} minSize={20}>
-              <ChatDrawer soulData={soulData} soulLoaded={soulLoaded} />
-            </ResizablePanel>
-          </>
-        )}
-      </ResizablePanelGroup>
+      <div className="h-full">
+        <ResizablePanelGroup direction="horizontal" className="flex-1">
+          <ResizablePanel defaultSize={15} minSize={10} collapsible>
+            <LuvContextNav />
+          </ResizablePanel>
+          <ResizableHandle />
+          <ResizablePanel>{children}</ResizablePanel>
+          {chatOpen && (
+            <>
+              <ResizableHandle withHandle />
+              <ResizablePanel defaultSize={30} minSize={20}>
+                <ChatDrawer soulData={soulData} soulLoaded={soulLoaded} />
+              </ResizablePanel>
+            </>
+          )}
+        </ResizablePanelGroup>
+      </div>
     </>
   );
 }

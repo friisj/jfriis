@@ -19,10 +19,10 @@ export default async function LuvChassisPage() {
   }
 
   return (
-    <div className="container px-4 py-8 space-y-10">
-      <div className="max-w-2xl">
+    <div className="px-6 py-6 space-y-10 overflow-y-auto h-full">
+      <div className="">
         <div className="flex items-center justify-between mb-6">
-          <h1 className="text-2xl font-bold">Chassis</h1>
+          <h1 className="text-5xl font-bold">Chassis</h1>
           <ModuleCreator />
         </div>
 

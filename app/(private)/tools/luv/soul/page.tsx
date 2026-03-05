@@ -6,9 +6,9 @@ export default async function LuvSoulPage() {
   const soul = character?.soul_data ?? {};
 
   return (
-    <div className="container px-4 py-8 max-w-xl">
+    <div className="px-6 py-6 overflow-y-auto h-full">
       <div className="flex items-center gap-3 mb-6">
-        <h1 className="text-2xl font-bold">Soul</h1>
+        <h1 className="text-5xl font-bold">Soul</h1>
         {character && (
           <Badge variant="outline">v{character.version}</Badge>
         )}
