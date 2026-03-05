@@ -12,7 +12,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { X, Play, Square } from 'lucide-react';
+import { X, Play, Square, Scissors } from 'lucide-react';
 import { updatePad, updateSound } from '@/lib/sampler';
 import { EffectsChain } from './effects-chain';
 import { Waveform } from './waveform';
@@ -29,13 +29,14 @@ interface PadConfigPanelProps {
   onPadUpdated: (pad: PadWithSound) => void;
   onEffectsChange: (padId: string, effects: PadEffects) => void;
   onSoundUpdated: (sound: SamplerSound) => void;
+  onCropSound?: (padId: string) => void;
   onClose: () => void;
   isPlaying?: boolean;
   onTogglePlay?: () => void;
   getPlaybackPosition?: () => number | null;
 }
 
-export function PadConfigPanel({ pad, getBuffer, onPadUpdated, onEffectsChange, onSoundUpdated, onClose, isPlaying, onTogglePlay, getPlaybackPosition }: PadConfigPanelProps) {
+export function PadConfigPanel({ pad, getBuffer, onPadUpdated, onEffectsChange, onSoundUpdated, onCropSound, onClose, isPlaying, onTogglePlay, getPlaybackPosition }: PadConfigPanelProps) {
   const [pickerOpen, setPickerOpen] = useState(false);
   const [generateOpen, setGenerateOpen] = useState(false);
   const [sampleOpen, setSampleOpen] = useState(false);
@@ -223,9 +224,23 @@ export function PadConfigPanel({ pad, getBuffer, onPadUpdated, onEffectsChange, 
               </Button>
             )}
             {isBuffer && pad.effects.trim && (
-              <p className="text-[10px] text-muted-foreground">
-                Trim: {pad.effects.trim.startMs}ms – {pad.effects.trim.endMs}ms
-              </p>
+              <>
+                <p className="text-[10px] text-muted-foreground">
+                  Trim: {pad.effects.trim.startMs}ms – {pad.effects.trim.endMs}ms
+                </p>
+                {onCropSound && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-5 px-1.5 text-[10px] gap-1"
+                    onClick={() => onCropSound(pad.id)}
+                    title="Crop: bake trim into new sound file"
+                  >
+                    <Scissors className="size-3" />
+                    Crop
+                  </Button>
+                )}
+              </>
             )}
           </div>
         </div>

@@ -811,6 +811,27 @@ export class SamplerEngine {
   }
 
   /**
+   * Get trimmed channel data from a cached buffer.
+   * Returns sliced Float32Arrays and sample rate for WAV encoding.
+   */
+  getTrimmedChannels(url: string, startMs: number, endMs: number): { channels: Float32Array[]; sampleRate: number } | null {
+    const buffer = this.buffers.get(url);
+    if (!buffer) return null;
+
+    const sr = buffer.sampleRate;
+    const startSample = Math.round((startMs / 1000) * sr);
+    const endSample = Math.round((endMs / 1000) * sr);
+    const length = endSample - startSample;
+    if (length <= 0) return null;
+
+    const channels: Float32Array[] = [];
+    for (let ch = 0; ch < buffer.numberOfChannels; ch++) {
+      channels.push(buffer.getChannelData(ch).slice(startSample, endSample));
+    }
+    return { channels, sampleRate: sr };
+  }
+
+  /**
    * Get a cached AudioBuffer by URL (for waveform visualization)
    */
   getBuffer(url: string): AudioBuffer | null {

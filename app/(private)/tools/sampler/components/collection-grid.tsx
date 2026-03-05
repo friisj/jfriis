@@ -3,7 +3,8 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Square } from 'lucide-react';
 import { SamplerEngine } from '@/lib/sampler-engine';
-import { updatePad, expandGrid } from '@/lib/sampler';
+import { updatePad, expandGrid, uploadAudio, createSound } from '@/lib/sampler';
+import { encodeWav } from '@/lib/sampler-wav';
 import {
   ResizablePanelGroup,
   ResizablePanel,
@@ -401,6 +402,50 @@ export function CollectionGrid({ collection }: CollectionGridProps) {
     }
   }
 
+  async function cropSound(padId: string) {
+    const engine = engineRef.current;
+    if (!engine) return;
+
+    const pad = pads.find((p) => p.id === padId);
+    if (!pad?.sound?.audio_url || !pad.effects.trim) return;
+
+    const { trim } = pad.effects;
+    const result = engine.getTrimmedChannels(pad.sound.audio_url, trim.startMs, trim.endMs);
+    if (!result) return;
+
+    try {
+      const blob = encodeWav(result.channels, result.sampleRate);
+      const file = new File([blob], `${pad.sound.name}-cropped.wav`, { type: 'audio/wav' });
+      const path = `cropped/${Date.now()}-${file.name}`;
+      const audioUrl = await uploadAudio(file, path);
+      const durationMs = trim.endMs - trim.startMs;
+
+      const newSound = await createSound({
+        name: `${pad.sound.name} (cropped)`,
+        type: 'file',
+        audio_url: audioUrl,
+        duration_ms: durationMs,
+      });
+
+      const newEffects = { ...pad.effects };
+      delete newEffects.trim;
+
+      await updatePad(padId, { sound_id: newSound.id, effects: newEffects });
+
+      setPads((prev) =>
+        prev.map((p) =>
+          p.id === padId
+            ? { ...p, sound_id: newSound.id, sound: newSound, effects: newEffects }
+            : p
+        )
+      );
+
+      await engine.loadBuffer(audioUrl);
+    } catch (err) {
+      console.error('Failed to crop sound:', err);
+    }
+  }
+
   function handleSoundUpdated(sound: SamplerSound) {
     setPads((prev) =>
       prev.map((p) => (p.sound_id === sound.id ? { ...p, sound } : p))
@@ -465,6 +510,7 @@ export function CollectionGrid({ collection }: CollectionGridProps) {
                 onPadUpdated={handlePadUpdated}
                 onEffectsChange={handleEffectsChange}
                 onSoundUpdated={handleSoundUpdated}
+                onCropSound={cropSound}
                 onClose={() => setSelectedPadId(null)}
                 isPlaying={playingPads.has(selectedPad.id)}
                 onTogglePlay={togglePlaySelected}
