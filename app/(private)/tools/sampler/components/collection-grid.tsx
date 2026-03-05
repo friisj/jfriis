@@ -5,6 +5,7 @@ import { Square } from 'lucide-react';
 import { SamplerEngine } from '@/lib/sampler-engine';
 import { updatePad, expandGrid, uploadAudio, createSound } from '@/lib/sampler';
 import { encodeWav } from '@/lib/sampler-wav';
+import { TabRecorder } from '@/lib/sampler-recorder';
 import {
   ResizablePanelGroup,
   ResizablePanel,
@@ -21,6 +22,7 @@ import type {
 import { Pad } from './pad';
 import { PadConfigPanel } from './pad-config-panel';
 import { BatchStatus } from './batch-status';
+import { SoundGenerateModal } from './sound-generate-modal';
 
 // Keyboard mapping: number row + qwerty row for first 16 pads
 const KEY_MAP = '1234567890qwertyuiop';
@@ -37,6 +39,17 @@ export function CollectionGrid({ collection }: CollectionGridProps) {
   const [batchItems, setBatchItems] = useState<BatchItem[] | null>(null);
   const engineRef = useRef<SamplerEngine | null>(null);
   const abortRef = useRef<AbortController | null>(null);
+
+  // Inline recording state
+  const [recordingPadId, setRecordingPadId] = useState<string | null>(null);
+  const [recordingElapsed, setRecordingElapsed] = useState(0);
+  const [recordingSaving, setRecordingSaving] = useState(false);
+  const recorderRef = useRef<TabRecorder | null>(null);
+  const elapsedTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Generate-from-pad state
+  const [generatePadId, setGeneratePadId] = useState<string | null>(null);
+  const [generateOpen, setGenerateOpen] = useState(false);
 
   // Initialize engine and preload
   useEffect(() => {
@@ -402,6 +415,103 @@ export function CollectionGrid({ collection }: CollectionGridProps) {
     }
   }
 
+  // --- Inline recording ---
+  async function startRecording(padId: string) {
+    try {
+      if (!recorderRef.current) {
+        recorderRef.current = new TabRecorder();
+      }
+      const recorder = recorderRef.current;
+      recorder.reset();
+      await recorder.startRecording();
+      setRecordingPadId(padId);
+      setRecordingElapsed(0);
+      setRecordingSaving(false);
+      const start = Date.now();
+      elapsedTimerRef.current = setInterval(() => {
+        setRecordingElapsed(Date.now() - start);
+      }, 100);
+    } catch (err) {
+      console.error('Failed to start recording:', err);
+      setRecordingPadId(null);
+    }
+  }
+
+  async function stopRecording() {
+    if (elapsedTimerRef.current) {
+      clearInterval(elapsedTimerRef.current);
+      elapsedTimerRef.current = null;
+    }
+    const recorder = recorderRef.current;
+    const padId = recordingPadId;
+    if (!recorder || !padId) return;
+
+    try {
+      const result = await recorder.stopRecording();
+      setRecordingSaving(true);
+
+      const fileName = `sample-${Date.now()}.wav`;
+      const file = new File([result.blob], fileName, { type: 'audio/wav' });
+      const audioUrl = await uploadAudio(file, `samples/${fileName}`);
+
+      const sound = await createSound({
+        name: `Sample ${new Date().toLocaleTimeString()}`,
+        type: 'file',
+        audio_url: audioUrl,
+        duration_ms: result.durationMs,
+        tags: ['sampled'],
+        source_config: { source: 'tab-capture' },
+      });
+
+      await updatePad(padId, { sound_id: sound.id });
+
+      setPads((prev) =>
+        prev.map((p) =>
+          p.id === padId ? { ...p, sound_id: sound.id, sound } : p
+        )
+      );
+
+      if (sound.audio_url) {
+        engineRef.current?.loadBuffer(sound.audio_url);
+      }
+    } catch (err) {
+      console.error('Failed to save recording:', err);
+    } finally {
+      recorder.reset();
+      setRecordingPadId(null);
+      setRecordingElapsed(0);
+      setRecordingSaving(false);
+    }
+  }
+
+  // --- Generate from pad ---
+  function openGenerate(padId: string) {
+    setGeneratePadId(padId);
+    setGenerateOpen(true);
+  }
+
+  async function handleGeneratedForPad(sound: SamplerSound) {
+    const padId = generatePadId;
+    if (!padId) return;
+
+    try {
+      await updatePad(padId, { sound_id: sound.id });
+      setPads((prev) =>
+        prev.map((p) =>
+          p.id === padId ? { ...p, sound_id: sound.id, sound } : p
+        )
+      );
+      if (sound.audio_url) {
+        engineRef.current?.loadBuffer(sound.audio_url);
+      }
+    } catch (err) {
+      console.error('Failed to assign generated sound:', err);
+    }
+
+    setGeneratePadId(null);
+    setGenerateOpen(false);
+  }
+
   async function cropSound(padId: string) {
     const engine = engineRef.current;
     if (!engine) return;
@@ -476,6 +586,14 @@ export function CollectionGrid({ collection }: CollectionGridProps) {
                 onDismiss={dismissBatch}
               />
             )}
+            <SoundGenerateModal
+              open={generateOpen}
+              onOpenChange={(open) => {
+                setGenerateOpen(open);
+                if (!open) setGeneratePadId(null);
+              }}
+              onGenerated={handleGeneratedForPad}
+            />
             <div
               className="grid p-1 flex-1"
               style={{
@@ -489,10 +607,19 @@ export function CollectionGrid({ collection }: CollectionGridProps) {
                   pad={pad}
                   isPlaying={playingPads.has(pad.id)}
                   isSelected={pad.id === selectedPadId}
+                  recordingState={
+                    pad.id === recordingPadId
+                      ? recordingSaving ? 'saving' : 'recording'
+                      : undefined
+                  }
+                  recordingElapsed={pad.id === recordingPadId ? recordingElapsed : undefined}
                   onTrigger={triggerPad}
                   onRelease={releasePad}
                   onSelect={(p) => setSelectedPadId(p.id === selectedPadId ? null : p.id)}
                   onDuplicate={duplicatePad}
+                  onSample={(p) => startRecording(p.id)}
+                  onGenerate={(p) => openGenerate(p.id)}
+                  onStopRecording={() => stopRecording()}
                 />
               ))}
             </div>
