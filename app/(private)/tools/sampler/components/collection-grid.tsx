@@ -369,6 +369,38 @@ export function CollectionGrid({ collection }: CollectionGridProps) {
     []
   );
 
+  async function duplicatePad(source: PadWithSound) {
+    // Find first empty pad in row-major order
+    const sorted = [...pads].sort((a, b) => a.row - b.row || a.col - b.col);
+    const target = sorted.find((p) => !p.sound_id && p.id !== source.id);
+    if (!target) return;
+
+    try {
+      await updatePad(target.id, {
+        sound_id: source.sound_id,
+        effects: source.effects,
+        label: source.label,
+        color: source.color,
+        pad_type: source.pad_type,
+        choke_group: source.choke_group,
+      });
+
+      setPads((prev) =>
+        prev.map((p) =>
+          p.id === target.id
+            ? { ...p, sound_id: source.sound_id, sound: source.sound, effects: source.effects, label: source.label, color: source.color, pad_type: source.pad_type, choke_group: source.choke_group }
+            : p
+        )
+      );
+
+      if (source.sound?.audio_url) {
+        engineRef.current?.loadBuffer(source.sound.audio_url);
+      }
+    } catch (err) {
+      console.error('Failed to duplicate pad:', err);
+    }
+  }
+
   function handleSoundUpdated(sound: SamplerSound) {
     setPads((prev) =>
       prev.map((p) => (p.sound_id === sound.id ? { ...p, sound } : p))
@@ -415,6 +447,7 @@ export function CollectionGrid({ collection }: CollectionGridProps) {
                   onTrigger={triggerPad}
                   onRelease={releasePad}
                   onSelect={(p) => setSelectedPadId(p.id === selectedPadId ? null : p.id)}
+                  onDuplicate={duplicatePad}
                 />
               ))}
             </div>

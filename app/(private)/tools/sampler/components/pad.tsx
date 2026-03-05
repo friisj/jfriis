@@ -1,6 +1,6 @@
 'use client';
 
-import { Plus, Settings, Volume2, Trash2 } from 'lucide-react';
+import { Plus, Settings, Volume2, Copy } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
   ContextMenu,
@@ -17,9 +17,10 @@ interface PadProps {
   onTrigger: (pad: PadWithSound) => void;
   onRelease: (pad: PadWithSound) => void;
   onSelect: (pad: PadWithSound) => void;
+  onDuplicate?: (pad: PadWithSound) => void;
 }
 
-export function Pad({ pad, isPlaying, isSelected, onTrigger, onRelease, onSelect }: PadProps) {
+export function Pad({ pad, isPlaying, isSelected, onTrigger, onRelease, onSelect, onDuplicate }: PadProps) {
   const hasSound = !!pad.sound;
 
   return (
@@ -77,6 +78,12 @@ export function Pad({ pad, isPlaying, isSelected, onTrigger, onRelease, onSelect
           <ContextMenuItem onClick={() => onTrigger(pad)}>
             <Volume2 className="mr-2 h-4 w-4" />
             Play
+          </ContextMenuItem>
+        )}
+        {hasSound && onDuplicate && (
+          <ContextMenuItem onClick={() => onDuplicate(pad)}>
+            <Copy className="mr-2 h-4 w-4" />
+            Duplicate
           </ContextMenuItem>
         )}
         {!hasSound && (
