@@ -90,9 +90,9 @@ export interface FoundationGap {
   severity: 'low' | 'medium' | 'high'
 }
 
-/** Foundation brief generated from substrate + inputs */
+/** Foundation brief generated from project inputs + current skills/tokens */
 export interface FoundationBrief {
-  intent: string[]
+  summary: string
   gaps: FoundationGap[]
   generated_at: string
 }

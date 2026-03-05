@@ -3,10 +3,11 @@
 import { createClient } from '@/lib/supabase-server'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { revalidatePath } from 'next/cache'
-import type { SkillState, ArenaAnnotation, SkillTier, ProjectConfig, TokenMap } from './types'
+import type { SkillState, ArenaAnnotation, SkillTier, ProjectConfig, TokenMap, DimensionState } from './types'
 import { CORE_DIMENSIONS, extractTokensFromDimension } from './types'
 import { BASE_SKILL, BASE_THEME_TOKENS } from './base-skill'
 import type { ArenaProjectInputs } from './db-types'
+import { getTemplateSkills, getTemplateThemes, getProjectAssembly, getProjectThemes } from './queries'
 
 // Arena tables aren't in the generated Supabase types yet.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -66,6 +67,40 @@ export async function createProjectAction(formData: FormData) {
     .single()
 
   if (error) throw error
+
+  const projectId = data.id as string
+
+  // Clone base template skills for each selected dimension
+  const templateSkills = await getTemplateSkills()
+  const clonedDimensions = new Set<string>()
+  for (const templateSkill of templateSkills) {
+    if (templateSkill.dimension && config.dimensions[templateSkill.dimension]) {
+      await cloneTemplateToProject(templateSkill.id, projectId)
+      clonedDimensions.add(templateSkill.dimension)
+    }
+  }
+
+  // Clone theme template tokens if a theme template was selected
+  if (themeTemplate) {
+    const templateThemes = await getTemplateThemes(themeTemplate)
+    for (const theme of templateThemes) {
+      // Skip dimensions that already got themes from skill cloning
+      if (clonedDimensions.has(theme.dimension)) continue
+      const supabase2 = await arenaClient()
+      await supabase2
+        .from('arena_themes')
+        .insert({
+          project_id: projectId,
+          skill_id: null,
+          dimension: theme.dimension,
+          platform: theme.platform,
+          name: theme.name,
+          tokens: theme.tokens,
+          source: 'template-clone',
+        })
+    }
+  }
+
   revalidatePath('/apps/arena')
   return data
 }
@@ -640,26 +675,113 @@ export async function generateFoundation(projectId: string) {
     .single()
   if (projErr || !project) throw new Error('Project not found')
 
-  // Use the AI action system via the executeAction helper
+  // Gather current assembly skills and project themes
+  const [assembly, projectTheme] = await Promise.all([
+    getProjectAssembly(projectId),
+    getProjectThemes(projectId),
+  ])
+
+  const dimensions = project.config?.dimensions
+    ? Object.keys(project.config.dimensions)
+    : CORE_DIMENSIONS
+
+  // Build current skills map from assembly
+  const currentSkills: Record<string, DimensionState> = {}
+  for (const entry of assembly) {
+    if (entry.skill?.state && 'decisions' in entry.skill.state) {
+      currentSkills[entry.dimension] = entry.skill.state as DimensionState
+    }
+  }
+
+  // Build current tokens map from project themes
+  const currentTokens: Record<string, TokenMap> = {}
+  for (const [dim, theme] of Object.entries(projectTheme)) {
+    if (theme.tokens && Object.keys(theme.tokens).length > 0) {
+      currentTokens[dim] = theme.tokens
+    }
+  }
+
+  // Use the AI action system
   const { executeAction } = await import('@/lib/ai/actions')
   await import('@/lib/ai/actions/arena-generate-foundation')
 
   const result = await executeAction('arena-generate-foundation', {
-    substrate: project.substrate,
+    description: project.description ?? null,
     inputs: project.inputs,
-    config: project.config,
+    dimensions,
+    currentSkills,
+    currentTokens,
   })
 
   if (!result.success) {
     throw new Error(result.error?.message ?? 'Foundation generation failed')
   }
 
+  const output = result.data as {
+    skills: Record<string, DimensionState>
+    tokens: Record<string, TokenMap>
+    summary: string
+    gaps: Array<{ dimension: string; description: string; severity: string }>
+  }
+
+  // Write skills back: update each dimension's assembly skill state
+  for (const entry of assembly) {
+    const updatedState = output.skills[entry.dimension]
+    if (updatedState && entry.skill_id) {
+      const { error: skillErr } = await supabase
+        .from('arena_skills')
+        .update({
+          state: updatedState as unknown as Record<string, unknown>,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', entry.skill_id)
+      if (skillErr) throw skillErr
+    }
+  }
+
+  // Write tokens back: upsert project theme rows
+  for (const [dim, tokens] of Object.entries(output.tokens)) {
+    if (Object.keys(tokens).length === 0) continue
+
+    const { data: existing } = await supabase
+      .from('arena_themes')
+      .select('id')
+      .eq('project_id', projectId)
+      .is('skill_id', null)
+      .eq('dimension', dim)
+      .eq('platform', 'tailwind')
+      .eq('name', 'default')
+      .maybeSingle()
+
+    if (existing) {
+      const { error: themeErr } = await supabase
+        .from('arena_themes')
+        .update({ tokens, source: 'foundation', updated_at: new Date().toISOString() })
+        .eq('id', existing.id)
+      if (themeErr) throw themeErr
+    } else {
+      const { error: themeErr } = await supabase
+        .from('arena_themes')
+        .insert({
+          project_id: projectId,
+          skill_id: null,
+          dimension: dim,
+          platform: 'tailwind',
+          name: 'default',
+          tokens,
+          source: 'foundation',
+        })
+      if (themeErr) throw themeErr
+    }
+  }
+
+  // Store foundation brief on project
   const foundation = {
-    ...(result.data as Record<string, unknown>),
+    summary: output.summary,
+    gaps: output.gaps,
     generated_at: new Date().toISOString(),
   }
 
-  // Store foundation on project
   const { error: updateErr } = await supabase
     .from('arena_projects')
     .update({ foundation: foundation as unknown as Record<string, unknown> })
