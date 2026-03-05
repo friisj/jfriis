@@ -10,6 +10,13 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
+
+const FILTER_BUTTONS: { value: FilterType; label: string }[] = [
+  { value: 'off', label: 'Off' },
+  { value: 'lowpass', label: 'LP' },
+  { value: 'highpass', label: 'HP' },
+  { value: 'bandpass', label: 'BP' },
+];
 import { EffectKnob } from './effect-knob';
 import type { FilterType, PadEffects, StutterRate } from '@/lib/types/sampler';
 
@@ -81,13 +88,6 @@ function formatHz(hz: number): string {
 
 const STUTTER_RATES: StutterRate[] = ['1/2', '1/4', '1/8', '1/16', '1/32'];
 
-const FILTER_LABELS: Record<FilterType, string> = {
-  off: 'Off',
-  lowpass: 'Low Pass',
-  highpass: 'High Pass',
-  bandpass: 'Band Pass',
-};
-
 export function EffectsChain({ effects, onChange }: EffectsChainProps) {
   function update(partial: Partial<PadEffects>) {
     onChange({ ...effects, ...partial });
@@ -124,24 +124,29 @@ export function EffectsChain({ effects, onChange }: EffectsChainProps) {
 
       {/* Filter */}
       <EffectCard className="col-span-2">
-        <SectionHeader label="Filter" active={filterType !== 'off'} onReset={() => update({ filter: undefined })} />
-        <div className="flex items-center gap-3">
-          <span className="text-xs text-muted-foreground w-16 shrink-0">Type</span>
-          <Select
-            value={filterType}
-            onValueChange={(v) =>
-              update({ filter: { type: v as FilterType, cutoff: filterCutoff, resonance: filterResonance } })
-            }
-          >
-            <SelectTrigger className="h-7 text-xs flex-1">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {(Object.keys(FILTER_LABELS) as FilterType[]).map((t) => (
-                <SelectItem key={t} value={t} className="text-xs">{FILTER_LABELS[t]}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+        <div className="flex items-center justify-between">
+          <h5 className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">Filter</h5>
+          <div className="flex rounded-md overflow-hidden border border-border">
+            {FILTER_BUTTONS.map((btn) => (
+              <button
+                key={btn.value}
+                type="button"
+                onClick={() =>
+                  btn.value === 'off'
+                    ? update({ filter: undefined })
+                    : update({ filter: { type: btn.value, cutoff: filterCutoff, resonance: filterResonance } })
+                }
+                className={cn(
+                  'px-2 py-0.5 text-[10px] font-medium transition-colors',
+                  filterType === btn.value
+                    ? 'bg-foreground text-background'
+                    : 'text-muted-foreground hover:text-foreground hover:bg-muted',
+                )}
+              >
+                {btn.label}
+              </button>
+            ))}
+          </div>
         </div>
         {filterType !== 'off' && (
           <div className="flex flex-wrap gap-x-1 gap-y-2">
