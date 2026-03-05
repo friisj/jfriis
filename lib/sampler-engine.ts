@@ -63,6 +63,7 @@ export class SamplerEngine {
   private activeSources: Map<string, AudioBufferSourceNode> = new Map();
   private activeProceduralStops: Map<string, () => void> = new Map();
   private stutterIntervals: Map<string, ReturnType<typeof setInterval>> = new Map();
+  private previewSource: AudioBufferSourceNode | null = null;
   private playbackInfo = new Map<string, {
     ctxTime: number;
     offsetSec: number;
@@ -101,11 +102,7 @@ export class SamplerEngine {
     if (this.workletReady || this.workletRegistrationAttempted) return;
     this.workletRegistrationAttempted = true;
     try {
-      const ctx = this.ctx!;
-      await ctx.audioWorklet.addModule('/worklets/bitcrusher-processor.js');
-      // Verify the processor is actually available
-      const test = new AudioWorkletNode(ctx, 'bitcrusher-processor');
-      test.disconnect();
+      await this.ctx!.audioWorklet.addModule('/worklets/bitcrusher-processor.js');
       this.workletReady = true;
     } catch {
       // Worklet unavailable — bitcrusher will silently bypass
@@ -833,10 +830,22 @@ export class SamplerEngine {
     const buffer = this.buffers.get(url);
     if (!buffer) return;
 
+    // Stop and disconnect any existing preview
+    if (this.previewSource) {
+      try { this.previewSource.stop(); } catch { /* already stopped */ }
+      try { this.previewSource.disconnect(); } catch { /* noop */ }
+      this.previewSource = null;
+    }
+
     const source = ctx.createBufferSource();
     source.buffer = buffer;
     source.connect(this.getMaster());
+    source.onended = () => {
+      try { source.disconnect(); } catch { /* noop */ }
+      if (this.previewSource === source) this.previewSource = null;
+    };
     source.start();
+    this.previewSource = source;
   }
 
   /**
@@ -856,6 +865,13 @@ export class SamplerEngine {
       try { stop(); } catch { /* noop */ }
     });
     this.activeProceduralStops.clear();
+
+    // Stop preview source
+    if (this.previewSource) {
+      try { this.previewSource.stop(); } catch { /* noop */ }
+      try { this.previewSource.disconnect(); } catch { /* noop */ }
+      this.previewSource = null;
+    }
 
     // Disconnect all pad node graphs for GC
     this.padNodes.forEach((nodes) => this.destroyPadNodes(nodes));
