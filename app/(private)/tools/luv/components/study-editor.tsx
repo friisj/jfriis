@@ -22,7 +22,6 @@ import type {
   ParameterConstraint,
 } from '@/lib/types/luv-chassis';
 import type { LuvChassisModule } from '@/lib/types/luv-chassis';
-import { getSchema } from '@/lib/luv/chassis-schemas';
 
 interface StudyEditorProps {
   study?: LuvChassisStudy;
@@ -46,7 +45,7 @@ export function StudyEditor({ study, modules = [] }: StudyEditorProps) {
 
   // Selected module's schema for constraint editing
   const selectedModule = modules.find((m) => m.id === moduleId);
-  const schema = selectedModule ? getSchema(selectedModule.schema_key) : undefined;
+  const parameterSchema = selectedModule?.parameter_schema ?? [];
 
   const addFinding = () => {
     setFindings((prev) => [...prev, { observation: '', source: '', implications: '' }]);
@@ -63,8 +62,8 @@ export function StudyEditor({ study, modules = [] }: StudyEditorProps) {
   };
 
   const addConstraint = (paramKey: string) => {
-    if (!schema) return;
-    const param = schema.parameters.find((p) => p.key === paramKey);
+    if (parameterSchema.length === 0) return;
+    const param = parameterSchema.find((p) => p.key === paramKey);
     if (!param) return;
     setConstraints((prev) => ({
       ...prev,
@@ -156,12 +155,12 @@ export function StudyEditor({ study, modules = [] }: StudyEditorProps) {
         <div className="grid grid-cols-2 gap-3">
           <div className="space-y-1">
             <Label className="text-xs">Module (optional)</Label>
-            <Select value={moduleId} onValueChange={setModuleId}>
+            <Select value={moduleId || '__none__'} onValueChange={(v) => setModuleId(v === '__none__' ? '' : v)}>
               <SelectTrigger className="text-xs h-8">
                 <SelectValue placeholder="Cross-module" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="" className="text-xs">Cross-module</SelectItem>
+                <SelectItem value="__none__" className="text-xs">Cross-module</SelectItem>
                 {modules.map((m) => (
                   <SelectItem key={m.id} value={m.id} className="text-xs">
                     {m.name}
@@ -235,7 +234,7 @@ export function StudyEditor({ study, modules = [] }: StudyEditorProps) {
       </div>
 
       {/* Parameter Constraints */}
-      {schema && (
+      {parameterSchema.length > 0 && (
         <div className="space-y-2">
           <div className="flex items-center justify-between">
             <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
@@ -273,7 +272,7 @@ export function StudyEditor({ study, modules = [] }: StudyEditorProps) {
           ))}
 
           {/* Add constraint from available params */}
-          {schema.parameters
+          {parameterSchema
             .filter((p) => !(p.key in constraints))
             .length > 0 && (
             <Select onValueChange={addConstraint}>
@@ -281,7 +280,7 @@ export function StudyEditor({ study, modules = [] }: StudyEditorProps) {
                 <SelectValue placeholder="Lock parameter..." />
               </SelectTrigger>
               <SelectContent>
-                {schema.parameters
+                {parameterSchema
                   .filter((p) => !(p.key in constraints))
                   .map((p) => (
                     <SelectItem key={p.key} value={p.key} className="text-xs">

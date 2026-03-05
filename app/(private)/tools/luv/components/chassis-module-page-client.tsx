@@ -4,8 +4,8 @@ import { ModuleEditor } from './module-editor';
 import { ModuleMediaGallery } from './module-media-gallery';
 import { ModuleVersionHistory } from './module-version-history';
 import { ContextPackComposer } from './context-pack-composer';
+import { ModuleSchemaEditor } from './module-schema-editor';
 import { Separator } from '@/components/ui/separator';
-import { getSchema } from '@/lib/luv/chassis-schemas';
 import type { LuvChassisModule, LuvChassisModuleMedia, ParameterConstraint } from '@/lib/types/luv-chassis';
 
 interface StudyLock {
@@ -22,8 +22,7 @@ interface Props {
 }
 
 export function ChassisModulePageClient({ module, allModules = [], studyLocks = [], initialMedia = [] }: Props) {
-  const schema = getSchema(module.schema_key);
-  const parameterKeys = schema?.parameters.map((p) => p.key) ?? [];
+  const parameterKeys = (module.parameter_schema ?? []).map((p) => p.key);
 
   return (
     <>
@@ -46,6 +45,12 @@ export function ChassisModulePageClient({ module, allModules = [], studyLocks = 
         </>
       )}
       <Separator className="my-8" />
+      <ModuleSchemaEditor
+        moduleId={module.id}
+        parameterSchema={module.parameter_schema ?? []}
+        onSaved={() => window.location.reload()}
+      />
+      <Separator className="my-8" />
       <ContextPackComposer
         module={module}
         allModules={allModules}
@@ -53,7 +58,7 @@ export function ChassisModulePageClient({ module, allModules = [], studyLocks = 
       <Separator className="my-8" />
       <ModuleVersionHistory
         moduleId={module.id}
-        moduleSchemaKey={module.schema_key}
+        parameterSchema={module.parameter_schema}
         currentVersion={module.current_version}
         onRestored={() => window.location.reload()}
       />

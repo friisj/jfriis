@@ -5,9 +5,7 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { AlertTriangle, Lock } from 'lucide-react';
-import { getSchema } from '@/lib/luv/chassis-schemas';
-import type { ParameterDef, ParameterTier } from '@/lib/luv/chassis-schemas';
-import type { LuvChassisModule, ParameterConstraint } from '@/lib/types/luv-chassis';
+import type { ParameterDef, ParameterTier, LuvChassisModule, ParameterConstraint } from '@/lib/types/luv-chassis';
 import { saveModuleWithVersion } from '@/lib/luv-chassis';
 import { validateModuleConstraints } from '@/lib/luv/chassis-constraints';
 import type { ConstraintViolation } from '@/lib/luv/chassis-constraints';
@@ -35,7 +33,7 @@ const TIER_LABELS: Record<ParameterTier, string> = {
 };
 
 export function ModuleEditor({ module, allModules = [], studyLocks = [], onSaved }: ModuleEditorProps) {
-  const schema = getSchema(module.schema_key);
+  const parameterSchema = module.parameter_schema ?? [];
   const [parameters, setParameters] = useState<Record<string, unknown>>(
     module.parameters
   );
@@ -90,17 +88,17 @@ export function ModuleEditor({ module, allModules = [], studyLocks = [], onSaved
     return set;
   }, [violations, module.slug]);
 
-  if (!schema) {
+  if (parameterSchema.length === 0) {
     return (
       <div className="p-4 text-sm text-muted-foreground">
-        Unknown schema: {module.schema_key}
+        No parameters defined for this module.
       </div>
     );
   }
 
   // Group parameters by tier
   const grouped = new Map<ParameterTier, ParameterDef[]>();
-  for (const param of schema.parameters) {
+  for (const param of parameterSchema) {
     const tier = param.tier ?? 'basic';
     const group = grouped.get(tier) ?? [];
     group.push(param);
@@ -111,9 +109,9 @@ export function ModuleEditor({ module, allModules = [], studyLocks = [], onSaved
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h3 className="text-sm font-semibold">{schema.label}</h3>
-          {schema.description && (
-            <p className="text-xs text-muted-foreground">{schema.description}</p>
+          <h3 className="text-sm font-semibold">{module.name}</h3>
+          {module.description && (
+            <p className="text-xs text-muted-foreground">{module.description}</p>
           )}
         </div>
         <button

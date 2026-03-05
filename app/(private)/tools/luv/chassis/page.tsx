@@ -2,16 +2,14 @@ import Link from 'next/link';
 import { getChassisModulesServer } from '@/lib/luv-chassis-server';
 import { getLuvReferencesServer } from '@/lib/luv-server';
 import { Badge } from '@/components/ui/badge';
-import { getAllSchemas } from '@/lib/luv/chassis-schemas';
 import { ReferenceGallery } from '../components/reference-gallery';
+import { ModuleCreator } from '../components/module-creator';
 
 export default async function LuvChassisPage() {
   const [modules, references] = await Promise.all([
     getChassisModulesServer().catch(() => []),
     getLuvReferencesServer(),
   ]);
-  const schemas = getAllSchemas();
-
   // Group modules by category
   const categories = new Map<string, typeof modules>();
   for (const mod of modules) {
@@ -23,12 +21,14 @@ export default async function LuvChassisPage() {
   return (
     <div className="container px-4 py-8 space-y-10">
       <div className="max-w-2xl">
-        <h1 className="text-2xl font-bold mb-6">Chassis</h1>
+        <div className="flex items-center justify-between mb-6">
+          <h1 className="text-2xl font-bold">Chassis</h1>
+          <ModuleCreator />
+        </div>
 
         {modules.length === 0 ? (
           <p className="text-sm text-muted-foreground">
-            No modules configured. {schemas.length} schemas available in the
-            registry.
+            No modules configured yet.
           </p>
         ) : (
           <div className="space-y-6">

@@ -262,18 +262,17 @@ export const composeContextPack = tool({
   ),
   execute: async ({ moduleSlug }) => {
     const { getChassisModuleBySlugServer } = await import('./luv-chassis-server');
-    const { getSchema } = await import('./luv/chassis-schemas');
 
     const mod = await getChassisModuleBySlugServer(moduleSlug);
     if (!mod) return { error: `Module "${moduleSlug}" not found` };
 
-    const schema = getSchema(mod.schema_key);
-    if (!schema) return { error: `Schema "${mod.schema_key}" not found` };
+    const parameterSchema = mod.parameter_schema ?? [];
+    if (parameterSchema.length === 0) return { error: `Module "${moduleSlug}" has no parameter schema` };
 
-    const promptLines = [`${schema.label} specifications:`];
+    const promptLines = [`${mod.name} specifications:`];
     const criteria = [];
 
-    for (const p of schema.parameters) {
+    for (const p of parameterSchema) {
       const value = mod.parameters[p.key];
       promptLines.push(`- ${p.label}: {{modules.${mod.slug}.${p.key}}}`);
       if (value !== undefined && value !== null) {
