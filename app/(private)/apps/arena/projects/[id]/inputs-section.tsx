@@ -1,10 +1,11 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import type { ArenaProject, ArenaProjectInputs } from '@/lib/studio/arena/db-types'
 import { updateProjectInputs } from '@/lib/studio/arena/actions'
+import { supabase } from '@/lib/supabase'
 
 interface Props {
   project: ArenaProject
@@ -18,10 +19,12 @@ export function InputsSection({ project }: Props) {
   const [figmaLinks, setFigmaLinks] = useState<string[]>(inputs.figma_links?.map(l => l.url) ?? [])
   const [newFigmaLink, setNewFigmaLink] = useState('')
   const [images, setImages] = useState<string[]>(inputs.images ?? [])
-  const [newImage, setNewImage] = useState('')
+  const [uploading, setUploading] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
   const [urls, setUrls] = useState<string[]>(inputs.urls ?? [])
   const [newUrl, setNewUrl] = useState('')
   const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   const save = useCallback(async (patch: Partial<{
     figma_links: string[]
@@ -30,6 +33,7 @@ export function InputsSection({ project }: Props) {
     icon_library: string
   }>) => {
     setSaving(true)
+    setError(null)
     try {
       const fl = patch.figma_links ?? figmaLinks
       const im = patch.images ?? images
@@ -44,6 +48,8 @@ export function InputsSection({ project }: Props) {
       }
       await updateProjectInputs(project.id, newInputs)
       router.refresh()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to save')
     } finally {
       setSaving(false)
     }
@@ -63,12 +69,37 @@ export function InputsSection({ project }: Props) {
     save({ figma_links: next })
   }
 
-  function addImage() {
-    if (!newImage.trim()) return
-    const next = [...images, newImage.trim()]
-    setImages(next)
-    setNewImage('')
-    save({ images: next })
+  async function handleImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = e.target.files
+    if (!files || files.length === 0) return
+    setUploading(true)
+    setError(null)
+    try {
+      const newUrls: string[] = []
+      for (const file of Array.from(files)) {
+        if (!file.type.startsWith('image/')) continue
+        const safeName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_')
+        const path = `${project.id}/${Date.now()}_${safeName}`
+        const { error: uploadErr } = await supabase.storage
+          .from('arena-images')
+          .upload(path, file, { contentType: file.type, upsert: false })
+        if (uploadErr) throw uploadErr
+        const { data: { publicUrl } } = supabase.storage
+          .from('arena-images')
+          .getPublicUrl(path)
+        newUrls.push(publicUrl)
+      }
+      if (newUrls.length > 0) {
+        const next = [...images, ...newUrls]
+        setImages(next)
+        await save({ images: next })
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Upload failed')
+    } finally {
+      setUploading(false)
+      if (fileInputRef.current) fileInputRef.current.value = ''
+    }
   }
 
   function removeImage(index: number) {
@@ -168,25 +199,41 @@ export function InputsSection({ project }: Props) {
         {/* Images */}
         <div>
           <h3 className="text-xs font-semibold text-slate-600 dark:text-slate-400 mb-2">Images</h3>
-          <div className="space-y-1.5">
-            {images.map((img, i) => (
-              <div key={i} className="flex items-center gap-2">
-                <code className="flex-1 text-xs bg-slate-100 dark:bg-slate-700 px-2 py-1 rounded truncate">
-                  {img}
-                </code>
-                <button onClick={() => removeImage(i)} className={removeBtnClass}>Remove</button>
+          <div className="space-y-2">
+            {images.length > 0 && (
+              <div className="flex flex-wrap gap-2">
+                {images.map((img, i) => (
+                  <div key={i} className="relative group">
+                    <img
+                      src={img}
+                      alt={`Reference ${i + 1}`}
+                      className="w-16 h-16 object-cover rounded-lg border border-slate-200 dark:border-slate-600"
+                    />
+                    <button
+                      onClick={() => removeImage(i)}
+                      className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-red-500 text-white rounded-full text-xs leading-none opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
+                    >
+                      &times;
+                    </button>
+                  </div>
+                ))}
               </div>
-            ))}
-            <div className="flex gap-2">
-              <input
-                value={newImage}
-                onChange={(e) => setNewImage(e.target.value)}
-                placeholder="Image URL or path..."
-                className={inputClass}
-                onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addImage())}
-              />
-              <button onClick={addImage} className={addBtnClass}>Add</button>
-            </div>
+            )}
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              multiple
+              onChange={handleImageUpload}
+              className="hidden"
+            />
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              disabled={uploading}
+              className={`${addBtnClass} ${uploading ? 'opacity-50' : ''}`}
+            >
+              {uploading ? 'Uploading...' : 'Upload images'}
+            </button>
           </div>
         </div>
 
@@ -232,6 +279,10 @@ export function InputsSection({ project }: Props) {
           </div>
         </div>
       </div>
+
+      {error && (
+        <p className="text-xs text-red-600 dark:text-red-400 mt-3">{error}</p>
+      )}
     </div>
   )
 }
