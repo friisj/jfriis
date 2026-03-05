@@ -70,35 +70,30 @@ export async function createProjectAction(formData: FormData) {
 
   const projectId = data.id as string
 
-  // Clone base template skills for each selected dimension
+  // Clone base template skills for each selected dimension (skills only — no themes)
   const templateSkills = await getTemplateSkills()
-  const clonedDimensions = new Set<string>()
   for (const templateSkill of templateSkills) {
     if (templateSkill.dimension && config.dimensions[templateSkill.dimension]) {
       await cloneTemplateToProject(templateSkill.id, projectId)
-      clonedDimensions.add(templateSkill.dimension)
     }
   }
 
-  // Clone theme template tokens if a theme template was selected
-  if (themeTemplate) {
-    const templateThemes = await getTemplateThemes(themeTemplate)
-    for (const theme of templateThemes) {
-      // Skip dimensions that already got themes from skill cloning
-      if (clonedDimensions.has(theme.dimension)) continue
-      const supabase2 = await arenaClient()
-      await supabase2
-        .from('arena_themes')
-        .insert({
-          project_id: projectId,
-          skill_id: null,
-          dimension: theme.dimension,
-          platform: theme.platform,
-          name: theme.name,
-          tokens: theme.tokens,
-          source: 'template-clone',
-        })
-    }
+  // Clone theme tokens — from selected theme template, or from base 'default' templates
+  const themeSource = await getTemplateThemes(themeTemplate ?? 'default')
+  for (const theme of themeSource) {
+    if (!config.dimensions[theme.dimension]) continue
+    const supabase2 = await arenaClient()
+    await supabase2
+      .from('arena_themes')
+      .insert({
+        project_id: projectId,
+        skill_id: null,
+        dimension: theme.dimension,
+        platform: theme.platform,
+        name: theme.name,
+        tokens: theme.tokens,
+        source: 'template-clone',
+      })
   }
 
   revalidatePath('/apps/arena')
@@ -536,6 +531,95 @@ export async function seedBaseTemplates() {
   return { seeded: true, templateIds }
 }
 
+export async function updateBaseTemplates() {
+  const supabase = await arenaClient()
+
+  // Update template skills with latest BASE_SKILL state
+  const { data: templateSkills } = await supabase
+    .from('arena_skills')
+    .select('id, dimension')
+    .eq('is_template', true)
+    .eq('tier', 'template')
+  if (!templateSkills) return { updated: false, message: 'No template skills found' }
+
+  const skillUpdates: string[] = []
+  for (const skill of templateSkills) {
+    const dim = skill.dimension as string
+    const dimState = BASE_SKILL[dim]
+    if (!dimState) continue
+    const { error } = await supabase
+      .from('arena_skills')
+      .update({ state: dimState as unknown as Record<string, unknown>, updated_at: new Date().toISOString() })
+      .eq('id', skill.id)
+    if (error) throw error
+    skillUpdates.push(dim)
+  }
+
+  // Update template themes with latest BASE_THEME_TOKENS
+  const { data: templateThemes } = await supabase
+    .from('arena_themes')
+    .select('id, dimension, skill_id')
+    .eq('is_template', true)
+  if (!templateThemes) return { updated: true, skillUpdates, themeUpdates: [] }
+
+  const themeUpdates: string[] = []
+  for (const theme of templateThemes) {
+    const dim = theme.dimension as string
+    const tokens = BASE_THEME_TOKENS[dim]
+    if (!tokens) continue
+    const { error } = await supabase
+      .from('arena_themes')
+      .update({ tokens, updated_at: new Date().toISOString() })
+      .eq('id', theme.id)
+    if (error) throw error
+    themeUpdates.push(dim)
+  }
+
+  // Propagate to existing project clones:
+  // Update project skills that were cloned from templates (tier='project', parent_skill_id points to template)
+  const templateSkillIds = templateSkills.map(s => s.id as string)
+  if (templateSkillIds.length > 0) {
+    const { data: cloneSkills } = await supabase
+      .from('arena_skills')
+      .select('id, parent_skill_id, dimension')
+      .eq('tier', 'project')
+      .in('parent_skill_id', templateSkillIds)
+    if (cloneSkills) {
+      for (const clone of cloneSkills) {
+        const dim = clone.dimension as string
+        const dimState = BASE_SKILL[dim]
+        if (!dimState) continue
+        const { error } = await supabase
+          .from('arena_skills')
+          .update({ state: dimState as unknown as Record<string, unknown>, updated_at: new Date().toISOString() })
+          .eq('id', clone.id)
+        if (error) throw error
+      }
+    }
+  }
+
+  // Update project themes that were cloned from templates (source='template-clone')
+  const { data: cloneThemes } = await supabase
+    .from('arena_themes')
+    .select('id, dimension')
+    .eq('source', 'template-clone')
+  if (cloneThemes) {
+    for (const clone of cloneThemes) {
+      const dim = clone.dimension as string
+      const tokens = BASE_THEME_TOKENS[dim]
+      if (!tokens) continue
+      const { error } = await supabase
+        .from('arena_themes')
+        .update({ tokens, updated_at: new Date().toISOString() })
+        .eq('id', clone.id)
+      if (error) throw error
+    }
+  }
+
+  revalidatePath('/apps/arena')
+  return { updated: true, skillUpdates, themeUpdates }
+}
+
 export async function cloneTemplateToProject(templateId: string, projectId: string) {
   const supabase = await arenaClient()
 
@@ -577,31 +661,6 @@ export async function cloneTemplateToProject(templateId: string, projectId: stri
         { onConflict: 'project_id,dimension' }
       )
     if (aErr) throw aErr
-  }
-
-  // Clone associated theme configs from template into project-scoped rows
-  if (template.dimension) {
-    const { data: templateThemes } = await supabase
-      .from('arena_themes')
-      .select('*')
-      .eq('skill_id', templateId)
-
-    if (templateThemes && templateThemes.length > 0) {
-      for (const theme of templateThemes) {
-        const { error: thErr } = await supabase
-          .from('arena_themes')
-          .insert({
-            project_id: projectId,
-            skill_id: null,
-            dimension: theme.dimension,
-            platform: theme.platform,
-            name: theme.name,
-            tokens: theme.tokens,
-            source: 'template-clone',
-          })
-        if (thErr) throw thErr
-      }
-    }
   }
 
   revalidatePath('/apps/arena')

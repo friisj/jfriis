@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
-import { getProject, getSkills, getProjectAssembly, getProjectThemes, getSkill, getSessions } from '@/lib/studio/arena/queries'
+import { getProject, getSkills, getProjectAssembly, getProjectThemes, getTemplateThemes, getSkill, getSessions } from '@/lib/studio/arena/queries'
 import { SkillCard } from '@/components/studio/arena/skill-card'
 import { SessionCard } from '@/components/studio/arena/session-card'
 import { CORE_DIMENSIONS } from '@/lib/studio/arena/types'
@@ -15,11 +15,12 @@ interface Props {
 
 export default async function ProjectDetailPage({ params }: Props) {
   const { id } = await params
-  const [project, skills, assembly, projectThemes, sessions] = await Promise.all([
+  const [project, skills, assembly, projectThemes, templateThemeRows, sessions] = await Promise.all([
     getProject(id),
     getSkills({ project_id: id }),
     getProjectAssembly(id),
     getProjectThemes(id),
+    getTemplateThemes('default'),
     getSessions({ project_id: id }),
   ])
 
@@ -45,6 +46,12 @@ export default async function ProjectDetailPage({ params }: Props) {
   const parentSkillMap: Record<string, ArenaSkill> = {}
   for (const ps of parentSkills) {
     if (ps) parentSkillMap[ps.id] = ps
+  }
+
+  // Build template themes map for comparison
+  const templateThemes: Record<string, { tokens: Record<string, string>; source: string }> = {}
+  for (const row of templateThemeRows) {
+    templateThemes[row.dimension] = { tokens: row.tokens, source: row.source }
   }
 
   // Separate dimension skills from legacy monolithic skills
@@ -85,6 +92,7 @@ export default async function ProjectDetailPage({ params }: Props) {
         assemblyByDimension={assemblyByDimension}
         parentSkillMap={parentSkillMap}
         projectThemes={projectThemes}
+        templateThemes={templateThemes}
       />
 
       {/* Foundation */}
