@@ -12,31 +12,34 @@ import type { Action } from './types'
 
 // --- Schemas ---
 
+// Output schemas are intentionally lenient — AI may add extra fields or
+// use slightly different values. We validate shape, not exact content.
 const decisionSchema = z.object({
   id: z.string(),
   label: z.string(),
-  rationale: z.string(),
+  rationale: z.string().optional().default(''),
   intent: z.string().optional(),
-  confidence: z.enum(['low', 'medium', 'high']),
-  source: z.string(),
-})
+  value: z.string().optional(),
+  confidence: z.string().optional().default('medium'),
+  source: z.string().optional().default('foundation'),
+}).passthrough()
 
 const ruleSchema = z.object({
   id: z.string(),
   statement: z.string(),
-  type: z.enum(['must', 'should', 'must-not', 'prefer']),
-  source: z.string(),
-})
+  type: z.string().optional().default('should'),
+  source: z.string().optional().default('foundation'),
+}).passthrough()
 
 const dimensionStateSchema = z.object({
   decisions: z.array(decisionSchema),
-  rules: z.array(ruleSchema),
-})
+  rules: z.array(ruleSchema).default([]),
+}).passthrough()
 
 const gapSchema = z.object({
   dimension: z.string(),
   description: z.string(),
-  severity: z.enum(['low', 'medium', 'high']),
+  severity: z.string().default('medium'),
 })
 
 const inputSchema = z.object({
