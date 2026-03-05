@@ -88,7 +88,19 @@ const themeUpdatesSchema = z.record(z.string(), z.record(z.string(), z.string())
 const outputSchema = z.object({
   summary: z.string(),
   theme_updates: themeUpdatesSchema,
-}).catchall(outputDimensionSchema)
+}).catchall(z.any()).transform((data) => {
+  // Validate dimension keys (everything except summary/theme_updates) as dimension objects
+  const result: Record<string, unknown> = { summary: data.summary, theme_updates: data.theme_updates }
+  for (const [key, value] of Object.entries(data)) {
+    if (key === 'summary' || key === 'theme_updates') continue
+    const parsed = outputDimensionSchema.safeParse(value)
+    if (parsed.success) {
+      result[key] = parsed.data
+    }
+    // Silently drop non-dimension keys (e.g. "content" from post-processing)
+  }
+  return result
+})
 
 type RefineOutput = z.infer<typeof outputSchema>
 
@@ -128,14 +140,21 @@ Decisions with NO feedback: keep rationale, intent, confidence, and source exact
 - Each iteration should produce FEWER changes than the last (convergence).`
 
 function buildPrompt(input: RefineInput) {
-  const dims = Object.keys(input.currentSkill)
+  const allDims = Object.keys(input.currentSkill)
+  // When scoped to a target dimension, only include that dimension in prompt/output
+  const targetDim = input.targetDimension
+  const outputDims = targetDim ? [targetDim] : allDims
 
   // Build dynamic decision labels section for system prompt
-  const decisionLabelsSection = dims.map(dim => {
+  const decisionLabelsSection = outputDims.map(dim => {
     const state = input.currentSkill[dim]
     const labels = state.decisions.map(d => d.label)
     return `### ${dim.charAt(0).toUpperCase() + dim.slice(1)} (${labels.length} decisions)\n${labels.map(l => `- "${l}"`).join('\n')}`
   }).join('\n\n')
+
+  const scopeNote = targetDim
+    ? `\n\n## Scope\n\nThis refinement targets the "${targetDim}" dimension ONLY. Output ONLY "${targetDim}" decisions and rules. Do NOT include other dimensions in your response.`
+    : ''
 
   const systemPrompt = `${BASE_SYSTEM_PROMPT}
 
@@ -155,11 +174,11 @@ ${decisionLabelsSection}
 
 ## Output Format
 
-Output a single JSON object with one key per dimension, plus "theme_updates" and "summary":
+Output a single JSON object with ${targetDim ? `"${targetDim}"` : 'one key per dimension'}, plus "theme_updates" and "summary":
 {
-${dims.map(d => `  "${d}": { "decisions": [...], "rules": [...] }`).join(',\n')},
+${outputDims.map(d => `  "${d}": { "decisions": [...], "rules": [...] }`).join(',\n')},
   "theme_updates": {
-${dims.map(d => `    "${d}": { "Label": "value", ... }`).join(',\n')}
+${outputDims.map(d => `    "${d}": { "Label": "value", ... }`).join(',\n')}
   },
   "summary": "2-3 sentence summary of what changed and why"
 }
@@ -168,6 +187,10 @@ Each decision: { label, rationale, intent, confidence, source: "gym" }
 Do NOT include "value" in decisions — token values go exclusively into theme_updates.
 
 The "theme_updates" object contains token corrections per dimension. For each dimension, include a flat object mapping decision labels to their corrected values. Only include entries that changed (adjusted or flagged decisions). Omit dimensions with no token changes.
+
+## Brevity
+
+Keep intent fields concise (1-2 sentences max). Keep rationale to one sentence. Do NOT pad with filler or restate the obvious. Shorter = better.
 
 ## Structured Annotations
 
@@ -185,10 +208,10 @@ interleaved text and grab references. Grab references use the format
 
 Weight annotations by hat type: Black and White observations are highest priority.
 Yellow observations identify constraints (preserve these aspects).
-Green offers options, not directives.`
+Green offers options, not directives.${scopeNote}`
 
-  // Serialize current skill
-  const skillSummary = dims.map(dim => {
+  // Serialize current skill — only target dimension when scoped
+  const skillSummary = outputDims.map(dim => {
     const state = input.currentSkill[dim]
     const decisions = state.decisions.map(d => {
       let line = `  ${d.label}: [${d.confidence}] — ${d.rationale}`
@@ -211,14 +234,7 @@ Green offers options, not directives.`
       }).join('\n')
     : '(no specific decision feedback)'
 
-  let user = ''
-
-  // Scope refinement to a single dimension when specified
-  if (input.targetDimension) {
-    user += `**IMPORTANT: This refinement targets the "${input.targetDimension}" dimension ONLY. You MUST modify only ${input.targetDimension} decisions and rules. Copy the other two dimensions EXACTLY from the input — do not change any values, rationales, confidence levels, or rules in the non-target dimensions.**\n\n`
-  }
-
-  user += `Refine this design skill based on user feedback. This is iteration ${input.iterationCount + 1}.
+  let user = `Refine this design skill based on user feedback. This is iteration ${input.iterationCount + 1}.
 
 ## Current Skill State
 
@@ -257,6 +273,7 @@ const arenaRefineSkillAction: Action<RefineInput, RefineOutput> = {
   entityTypes: ['studio_experiment'],
   taskType: 'classification',
   model: 'claude-haiku',
+  maxOutputTokens: 8000,
   inputSchema,
   outputSchema,
   buildPrompt,
