@@ -1,6 +1,7 @@
 'use client';
 
 import { RotateCcw } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import { Slider } from '@/components/ui/slider';
 import {
   Select,
@@ -76,16 +77,26 @@ function EffectGroup({
   active,
   onReset,
   children,
+  className,
 }: {
   label: string;
   active: boolean;
   onReset: () => void;
   children: React.ReactNode;
+  className?: string;
 }) {
   return (
-    <div className="space-y-2">
+    <div className={cn('bg-muted/40 rounded-lg p-2.5 space-y-1.5', className)}>
       <SectionHeader label={label} active={active} onReset={onReset} />
       <div className="flex flex-wrap gap-x-1 gap-y-2">{children}</div>
+    </div>
+  );
+}
+
+function EffectCard({ children, className }: { children: React.ReactNode; className?: string }) {
+  return (
+    <div className={cn('bg-muted/40 rounded-lg p-2.5 space-y-1.5', className)}>
+      {children}
     </div>
   );
 }
@@ -120,9 +131,9 @@ export function EffectsChain({ effects, onChange }: EffectsChainProps) {
   const filterResonance = effects.filter?.resonance ?? 0.7071;
 
   return (
-    <div className="space-y-5">
+    <div className="grid grid-cols-2 gap-2">
       {/* Volume & Pitch */}
-      <div className="space-y-2">
+      <EffectCard className="col-span-2">
         <SectionHeader
           label="Volume & Pitch"
           active={effects.volume !== 0.8 || effects.pitch !== 0}
@@ -144,10 +155,10 @@ export function EffectsChain({ effects, onChange }: EffectsChainProps) {
           min={-24} max={24} step={1}
           onChange={(v) => update({ pitch: v })}
         />
-      </div>
+      </EffectCard>
 
       {/* Filter */}
-      <div className="space-y-2">
+      <EffectCard className="col-span-2">
         <SectionHeader label="Filter" active={filterType !== 'off'} onReset={() => update({ filter: undefined })} />
         <div className="flex items-center gap-3">
           <span className="text-xs text-muted-foreground w-16 shrink-0">Type</span>
@@ -191,13 +202,14 @@ export function EffectsChain({ effects, onChange }: EffectsChainProps) {
             />
           </div>
         )}
-      </div>
+      </EffectCard>
 
       {/* EQ */}
       <EffectGroup
         label="EQ"
         active={!!effects.eq && (effects.eq.low !== 0 || effects.eq.mid !== 0 || effects.eq.high !== 0)}
         onReset={() => update({ eq: undefined })}
+        className="col-span-2"
       >
         {(['low', 'mid', 'high'] as const).map((band) => (
           <EffectKnob
@@ -225,6 +237,7 @@ export function EffectsChain({ effects, onChange }: EffectsChainProps) {
         label="Compressor"
         active={!!effects.compressor && (effects.compressor.threshold !== 0 || effects.compressor.ratio !== 1)}
         onReset={() => update({ compressor: undefined })}
+        className="col-span-2"
       >
         <EffectKnob
           label="Thresh"
@@ -349,6 +362,7 @@ export function EffectsChain({ effects, onChange }: EffectsChainProps) {
         label="Vinyl / Tape"
         active={!!effects.vinylSim && (effects.vinylSim.wow !== 0 || effects.vinylSim.flutter !== 0 || effects.vinylSim.noise !== 0)}
         onReset={() => update({ vinylSim: undefined })}
+        className="col-span-2"
       >
         <EffectKnob
           label="Wow"
@@ -424,6 +438,7 @@ export function EffectsChain({ effects, onChange }: EffectsChainProps) {
         label="Delay"
         active={!!effects.delay && effects.delay.wet !== 0}
         onReset={() => update({ delay: undefined })}
+        className="col-span-2"
       >
         <EffectKnob
           label="Time"
@@ -455,7 +470,7 @@ export function EffectsChain({ effects, onChange }: EffectsChainProps) {
       </EffectGroup>
 
       {/* Pan — keep as slider (L/R metaphor) */}
-      <div className="space-y-2">
+      <EffectCard className="col-span-2">
         <SectionHeader
           label="Pan"
           active={!!effects.pan && Math.abs(effects.pan.pan) > 0.01}
@@ -474,31 +489,33 @@ export function EffectsChain({ effects, onChange }: EffectsChainProps) {
           min={-1} max={1} step={0.01}
           onChange={(v) => update({ pan: { pan: v } })}
         />
-      </div>
+      </EffectCard>
 
       {/* Reverse — keep as switch */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <h5 className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">Reverse</h5>
-          {effects.reverse && (
-            <button
-              type="button"
-              onClick={() => update({ reverse: false })}
-              className="text-muted-foreground/50 hover:text-muted-foreground transition-colors"
-              title="Reset Reverse"
-            >
-              <RotateCcw className="w-3 h-3" />
-            </button>
-          )}
+      <EffectCard>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <h5 className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">Reverse</h5>
+            {effects.reverse && (
+              <button
+                type="button"
+                onClick={() => update({ reverse: false })}
+                className="text-muted-foreground/50 hover:text-muted-foreground transition-colors"
+                title="Reset Reverse"
+              >
+                <RotateCcw className="w-3 h-3" />
+              </button>
+            )}
+          </div>
+          <Switch
+            checked={effects.reverse ?? false}
+            onCheckedChange={(v) => update({ reverse: v })}
+          />
         </div>
-        <Switch
-          checked={effects.reverse ?? false}
-          onCheckedChange={(v) => update({ reverse: v })}
-        />
-      </div>
+      </EffectCard>
 
       {/* Stutter — keep as switch + select */}
-      <div className="space-y-2">
+      <EffectCard>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <h5 className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">Stutter</h5>
@@ -540,7 +557,7 @@ export function EffectsChain({ effects, onChange }: EffectsChainProps) {
             </Select>
           </div>
         )}
-      </div>
+      </EffectCard>
     </div>
   );
 }
