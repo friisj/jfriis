@@ -818,6 +818,13 @@ export class SamplerEngine {
   }
 
   /**
+   * Evict a stale reversed buffer (call when a pad's sound changes)
+   */
+  clearReversedBuffer(url: string): void {
+    this.reversedBuffers.delete(url);
+  }
+
+  /**
    * Set master volume (0-1)
    */
   setMasterVolume(volume: number): void {

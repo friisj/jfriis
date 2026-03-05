@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -42,6 +42,13 @@ export function PadConfigPanel({ pad, getBuffer, onPadUpdated, onEffectsChange, 
   const [saving, setSaving] = useState(false);
   const [proceduralBuffer, setProceduralBuffer] = useState<AudioBuffer | null>(null);
   const [rendering, setRendering] = useState(false);
+
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Clean up debounce timer on unmount
+  useEffect(() => {
+    return () => { if (saveTimerRef.current) clearTimeout(saveTimerRef.current); };
+  }, []);
 
   const sound = pad.sound;
   const isProcedural = sound?.type === 'procedural';
@@ -127,8 +134,11 @@ export function PadConfigPanel({ pad, getBuffer, onPadUpdated, onEffectsChange, 
   }
 
   function handleEffectsChange(effects: PadEffects) {
-    onEffectsChange(pad.id, effects);
-    updatePad(pad.id, { effects }).catch(console.error);
+    onEffectsChange(pad.id, effects); // immediate audio update
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    saveTimerRef.current = setTimeout(() => {
+      updatePad(pad.id, { effects }).catch(console.error);
+    }, 500);
   }
 
   function handleTrimUpdate(trim: TrimConfig | undefined) {
