@@ -10,6 +10,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
+import { EffectKnob } from './effect-knob';
 import type { FilterType, PadEffects, StutterRate } from '@/lib/types/sampler';
 
 interface EffectsChainProps {
@@ -17,7 +18,7 @@ interface EffectsChainProps {
   onChange: (effects: PadEffects) => void;
 }
 
-function Row({
+function SliderRow({
   label,
   value,
   display,
@@ -70,17 +71,34 @@ function SectionHeader({ label, onReset, active }: { label: string; onReset: () 
   );
 }
 
-/** Convert linear 0–1 slider to 20–20000 Hz (logarithmic) */
-function sliderToHz(v: number): number {
-  return 20 * Math.pow(1000, v);
+function EffectGroup({
+  label,
+  active,
+  onReset,
+  children,
+}: {
+  label: string;
+  active: boolean;
+  onReset: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="space-y-2">
+      <SectionHeader label={label} active={active} onReset={onReset} />
+      <div className="flex flex-wrap gap-x-1 gap-y-2">{children}</div>
+    </div>
+  );
 }
-/** Convert Hz back to 0–1 slider value */
-function hzToSlider(hz: number): number {
-  return Math.log(hz / 20) / Math.log(1000);
+
+/** Log mapping for filter cutoff: 20–20000 Hz */
+function mapTo01Log(x: number, min: number, max: number) {
+  return Math.log(x / min) / Math.log(max / min);
 }
-/** Format Hz for display */
+function mapFrom01Log(x: number, min: number, max: number) {
+  return min * Math.pow(max / min, x);
+}
 function formatHz(hz: number): string {
-  return hz >= 1000 ? `${(hz / 1000).toFixed(1)}kHz` : `${Math.round(hz)}Hz`;
+  return hz >= 1000 ? `${(hz / 1000).toFixed(1)}k` : `${Math.round(hz)}Hz`;
 }
 
 const STUTTER_RATES: StutterRate[] = ['1/2', '1/4', '1/8', '1/16', '1/32'];
@@ -104,16 +122,22 @@ export function EffectsChain({ effects, onChange }: EffectsChainProps) {
   return (
     <div className="space-y-5">
       {/* Volume & Pitch */}
-      <div className="space-y-2.5">
-        <SectionHeader label="Volume & Pitch" active={effects.volume !== 0.8 || effects.pitch !== 0} onReset={() => update({ volume: 0.8, pitch: 0 })} />
-        <Row
-          label="Volume"
-          value={effects.volume}
-          display={`${Math.round(effects.volume * 100)}%`}
-          min={0} max={1} step={0.01}
-          onChange={(v) => update({ volume: v })}
+      <div className="space-y-2">
+        <SectionHeader
+          label="Volume & Pitch"
+          active={effects.volume !== 0.8 || effects.pitch !== 0}
+          onReset={() => update({ volume: 0.8, pitch: 0 })}
         />
-        <Row
+        <div className="flex flex-wrap gap-x-1 gap-y-2">
+          <EffectKnob
+            label="Volume"
+            value={effects.volume}
+            min={0} max={1} step={0.01}
+            onChange={(v) => update({ volume: v })}
+            displayFn={(v) => `${Math.round(v * 100)}%`}
+          />
+        </div>
+        <SliderRow
           label="Pitch"
           value={effects.pitch}
           display={`${effects.pitch > 0 ? '+' : ''}${effects.pitch}st`}
@@ -123,7 +147,7 @@ export function EffectsChain({ effects, onChange }: EffectsChainProps) {
       </div>
 
       {/* Filter */}
-      <div className="space-y-2.5">
+      <div className="space-y-2">
         <SectionHeader label="Filter" active={filterType !== 'off'} onReset={() => update({ filter: undefined })} />
         <div className="flex items-center gap-3">
           <span className="text-xs text-muted-foreground w-16 shrink-0">Type</span>
@@ -144,38 +168,42 @@ export function EffectsChain({ effects, onChange }: EffectsChainProps) {
           </Select>
         </div>
         {filterType !== 'off' && (
-          <>
-            <Row
+          <div className="flex flex-wrap gap-x-1 gap-y-2">
+            <EffectKnob
               label="Cutoff"
-              value={hzToSlider(filterCutoff)}
-              display={formatHz(filterCutoff)}
-              min={0} max={1} step={0.001}
+              value={filterCutoff}
+              min={20} max={20000} step={1}
               onChange={(v) =>
-                update({ filter: { type: filterType, cutoff: sliderToHz(v), resonance: filterResonance } })
+                update({ filter: { type: filterType, cutoff: v, resonance: filterResonance } })
               }
+              displayFn={formatHz}
+              mapTo01={mapTo01Log}
+              mapFrom01={mapFrom01Log}
             />
-            <Row
-              label="Resonance"
+            <EffectKnob
+              label="Reso"
               value={filterResonance}
-              display={filterResonance.toFixed(1)}
               min={0.1} max={20} step={0.1}
               onChange={(v) =>
                 update({ filter: { type: filterType, cutoff: filterCutoff, resonance: v } })
               }
+              displayFn={(v) => v.toFixed(1)}
             />
-          </>
+          </div>
         )}
       </div>
 
       {/* EQ */}
-      <div className="space-y-2.5">
-        <SectionHeader label="EQ" active={!!effects.eq && (effects.eq.low !== 0 || effects.eq.mid !== 0 || effects.eq.high !== 0)} onReset={() => update({ eq: undefined })} />
+      <EffectGroup
+        label="EQ"
+        active={!!effects.eq && (effects.eq.low !== 0 || effects.eq.mid !== 0 || effects.eq.high !== 0)}
+        onReset={() => update({ eq: undefined })}
+      >
         {(['low', 'mid', 'high'] as const).map((band) => (
-          <Row
+          <EffectKnob
             key={band}
             label={band.charAt(0).toUpperCase() + band.slice(1)}
             value={effects.eq?.[band] ?? 0}
-            display={`${(effects.eq?.[band] ?? 0) > 0 ? '+' : ''}${effects.eq?.[band] ?? 0}dB`}
             min={-12} max={12} step={0.5}
             onChange={(v) =>
               update({
@@ -187,17 +215,20 @@ export function EffectsChain({ effects, onChange }: EffectsChainProps) {
                 },
               })
             }
+            displayFn={(v) => `${v > 0 ? '+' : ''}${v}dB`}
           />
         ))}
-      </div>
+      </EffectGroup>
 
       {/* Compressor */}
-      <div className="space-y-2.5">
-        <SectionHeader label="Compressor" active={!!effects.compressor && (effects.compressor.threshold !== 0 || effects.compressor.ratio !== 1)} onReset={() => update({ compressor: undefined })} />
-        <Row
-          label="Threshold"
+      <EffectGroup
+        label="Compressor"
+        active={!!effects.compressor && (effects.compressor.threshold !== 0 || effects.compressor.ratio !== 1)}
+        onReset={() => update({ compressor: undefined })}
+      >
+        <EffectKnob
+          label="Thresh"
           value={effects.compressor?.threshold ?? 0}
-          display={`${effects.compressor?.threshold ?? 0}dB`}
           min={-60} max={0} step={1}
           onChange={(v) =>
             update({
@@ -209,11 +240,11 @@ export function EffectsChain({ effects, onChange }: EffectsChainProps) {
               },
             })
           }
+          displayFn={(v) => `${v}dB`}
         />
-        <Row
+        <EffectKnob
           label="Ratio"
           value={effects.compressor?.ratio ?? 1}
-          display={`${(effects.compressor?.ratio ?? 1).toFixed(1)}:1`}
           min={1} max={20} step={0.5}
           onChange={(v) =>
             update({
@@ -225,11 +256,11 @@ export function EffectsChain({ effects, onChange }: EffectsChainProps) {
               },
             })
           }
+          displayFn={(v) => `${v.toFixed(1)}:1`}
         />
-        <Row
+        <EffectKnob
           label="Attack"
           value={effects.compressor?.attack ?? 0.003}
-          display={`${((effects.compressor?.attack ?? 0.003) * 1000).toFixed(0)}ms`}
           min={0} max={1} step={0.001}
           onChange={(v) =>
             update({
@@ -241,11 +272,11 @@ export function EffectsChain({ effects, onChange }: EffectsChainProps) {
               },
             })
           }
+          displayFn={(v) => `${(v * 1000).toFixed(0)}ms`}
         />
-        <Row
+        <EffectKnob
           label="Release"
           value={effects.compressor?.release ?? 0.25}
-          display={`${((effects.compressor?.release ?? 0.25) * 1000).toFixed(0)}ms`}
           min={0} max={1} step={0.001}
           onChange={(v) =>
             update({
@@ -257,62 +288,71 @@ export function EffectsChain({ effects, onChange }: EffectsChainProps) {
               },
             })
           }
+          displayFn={(v) => `${(v * 1000).toFixed(0)}ms`}
         />
-      </div>
+      </EffectGroup>
 
       {/* Distortion */}
-      <div className="space-y-2.5">
-        <SectionHeader label="Distortion" active={!!effects.distortion && (effects.distortion.drive !== 0 || effects.distortion.mix !== 0)} onReset={() => update({ distortion: undefined })} />
-        <Row
+      <EffectGroup
+        label="Distortion"
+        active={!!effects.distortion && (effects.distortion.drive !== 0 || effects.distortion.mix !== 0)}
+        onReset={() => update({ distortion: undefined })}
+      >
+        <EffectKnob
           label="Drive"
           value={effects.distortion?.drive ?? 0}
-          display={`${Math.round(effects.distortion?.drive ?? 0)}`}
           min={0} max={100} step={1}
           onChange={(v) =>
             update({ distortion: { drive: v, mix: effects.distortion?.mix ?? 0 } })
           }
+          displayFn={(v) => `${Math.round(v)}`}
         />
-        <Row
+        <EffectKnob
           label="Mix"
           value={effects.distortion?.mix ?? 0}
-          display={`${Math.round((effects.distortion?.mix ?? 0) * 100)}%`}
           min={0} max={1} step={0.01}
           onChange={(v) =>
             update({ distortion: { drive: effects.distortion?.drive ?? 0, mix: v } })
           }
+          displayFn={(v) => `${Math.round(v * 100)}%`}
         />
-      </div>
+      </EffectGroup>
 
       {/* Bitcrusher */}
-      <div className="space-y-2.5">
-        <SectionHeader label="Bitcrusher" active={!!effects.bitcrusher && (effects.bitcrusher.bitDepth !== 16 || effects.bitcrusher.rateReduction !== 1)} onReset={() => update({ bitcrusher: undefined })} />
-        <Row
-          label="Bit Depth"
+      <EffectGroup
+        label="Bitcrusher"
+        active={!!effects.bitcrusher && (effects.bitcrusher.bitDepth !== 16 || effects.bitcrusher.rateReduction !== 1)}
+        onReset={() => update({ bitcrusher: undefined })}
+      >
+        <EffectKnob
+          label="Bits"
           value={effects.bitcrusher?.bitDepth ?? 16}
-          display={`${effects.bitcrusher?.bitDepth ?? 16}bit`}
           min={1} max={16} step={1}
           onChange={(v) =>
             update({ bitcrusher: { bitDepth: v, rateReduction: effects.bitcrusher?.rateReduction ?? 1 } })
           }
+          displayFn={(v) => `${v}bit`}
         />
-        <Row
-          label="Rate Red."
+        <EffectKnob
+          label="Rate"
           value={effects.bitcrusher?.rateReduction ?? 1}
-          display={`${effects.bitcrusher?.rateReduction ?? 1}x`}
           min={1} max={40} step={1}
           onChange={(v) =>
             update({ bitcrusher: { bitDepth: effects.bitcrusher?.bitDepth ?? 16, rateReduction: v } })
           }
+          displayFn={(v) => `${v}x`}
         />
-      </div>
+      </EffectGroup>
 
       {/* Vinyl/Tape */}
-      <div className="space-y-2.5">
-        <SectionHeader label="Vinyl / Tape" active={!!effects.vinylSim && (effects.vinylSim.wow !== 0 || effects.vinylSim.flutter !== 0 || effects.vinylSim.noise !== 0)} onReset={() => update({ vinylSim: undefined })} />
-        <Row
+      <EffectGroup
+        label="Vinyl / Tape"
+        active={!!effects.vinylSim && (effects.vinylSim.wow !== 0 || effects.vinylSim.flutter !== 0 || effects.vinylSim.noise !== 0)}
+        onReset={() => update({ vinylSim: undefined })}
+      >
+        <EffectKnob
           label="Wow"
           value={effects.vinylSim?.wow ?? 0}
-          display={`${Math.round((effects.vinylSim?.wow ?? 0) * 100)}%`}
           min={0} max={1} step={0.01}
           onChange={(v) =>
             update({
@@ -323,11 +363,11 @@ export function EffectsChain({ effects, onChange }: EffectsChainProps) {
               },
             })
           }
+          displayFn={(v) => `${Math.round(v * 100)}%`}
         />
-        <Row
+        <EffectKnob
           label="Flutter"
           value={effects.vinylSim?.flutter ?? 0}
-          display={`${Math.round((effects.vinylSim?.flutter ?? 0) * 100)}%`}
           min={0} max={1} step={0.01}
           onChange={(v) =>
             update({
@@ -338,11 +378,11 @@ export function EffectsChain({ effects, onChange }: EffectsChainProps) {
               },
             })
           }
+          displayFn={(v) => `${Math.round(v * 100)}%`}
         />
-        <Row
+        <EffectKnob
           label="Noise"
           value={effects.vinylSim?.noise ?? 0}
-          display={`${Math.round((effects.vinylSim?.noise ?? 0) * 100)}%`}
           min={0} max={1} step={0.01}
           onChange={(v) =>
             update({
@@ -353,64 +393,75 @@ export function EffectsChain({ effects, onChange }: EffectsChainProps) {
               },
             })
           }
+          displayFn={(v) => `${Math.round(v * 100)}%`}
         />
-      </div>
+      </EffectGroup>
 
       {/* Reverb */}
-      <div className="space-y-2.5">
-        <SectionHeader label="Reverb" active={!!effects.reverb && effects.reverb.wet !== 0} onReset={() => update({ reverb: undefined })} />
-        <Row
+      <EffectGroup
+        label="Reverb"
+        active={!!effects.reverb && effects.reverb.wet !== 0}
+        onReset={() => update({ reverb: undefined })}
+      >
+        <EffectKnob
           label="Wet"
           value={effects.reverb?.wet ?? 0}
-          display={`${Math.round((effects.reverb?.wet ?? 0) * 100)}%`}
           min={0} max={1} step={0.01}
           onChange={(v) => update({ reverb: { wet: v, decay: effects.reverb?.decay ?? 1.5 } })}
+          displayFn={(v) => `${Math.round(v * 100)}%`}
         />
-        <Row
+        <EffectKnob
           label="Decay"
           value={effects.reverb?.decay ?? 1.5}
-          display={`${(effects.reverb?.decay ?? 1.5).toFixed(1)}s`}
           min={0.1} max={5} step={0.1}
           onChange={(v) => update({ reverb: { decay: v, wet: effects.reverb?.wet ?? 0 } })}
+          displayFn={(v) => `${v.toFixed(1)}s`}
         />
-      </div>
+      </EffectGroup>
 
       {/* Delay */}
-      <div className="space-y-2.5">
-        <SectionHeader label="Delay" active={!!effects.delay && effects.delay.wet !== 0} onReset={() => update({ delay: undefined })} />
-        <Row
+      <EffectGroup
+        label="Delay"
+        active={!!effects.delay && effects.delay.wet !== 0}
+        onReset={() => update({ delay: undefined })}
+      >
+        <EffectKnob
           label="Time"
           value={effects.delay?.time ?? 0.25}
-          display={`${(effects.delay?.time ?? 0.25).toFixed(2)}s`}
           min={0.01} max={2} step={0.01}
           onChange={(v) =>
             update({ delay: { time: v, feedback: effects.delay?.feedback ?? 0, wet: effects.delay?.wet ?? 0 } })
           }
+          displayFn={(v) => `${(v * 1000).toFixed(0)}ms`}
         />
-        <Row
-          label="Feedback"
+        <EffectKnob
+          label="Fdbk"
           value={effects.delay?.feedback ?? 0}
-          display={`${Math.round((effects.delay?.feedback ?? 0) * 100)}%`}
           min={0} max={0.9} step={0.01}
           onChange={(v) =>
             update({ delay: { feedback: v, time: effects.delay?.time ?? 0.25, wet: effects.delay?.wet ?? 0 } })
           }
+          displayFn={(v) => `${Math.round(v * 100)}%`}
         />
-        <Row
+        <EffectKnob
           label="Wet"
           value={effects.delay?.wet ?? 0}
-          display={`${Math.round((effects.delay?.wet ?? 0) * 100)}%`}
           min={0} max={1} step={0.01}
           onChange={(v) =>
             update({ delay: { wet: v, time: effects.delay?.time ?? 0.25, feedback: effects.delay?.feedback ?? 0 } })
           }
+          displayFn={(v) => `${Math.round(v * 100)}%`}
         />
-      </div>
+      </EffectGroup>
 
-      {/* Pan */}
-      <div className="space-y-2.5">
-        <SectionHeader label="Pan" active={!!effects.pan && Math.abs(effects.pan.pan) > 0.01} onReset={() => update({ pan: undefined })} />
-        <Row
+      {/* Pan — keep as slider (L/R metaphor) */}
+      <div className="space-y-2">
+        <SectionHeader
+          label="Pan"
+          active={!!effects.pan && Math.abs(effects.pan.pan) > 0.01}
+          onReset={() => update({ pan: undefined })}
+        />
+        <SliderRow
           label="Pan"
           value={effects.pan?.pan ?? 0}
           display={
@@ -425,7 +476,7 @@ export function EffectsChain({ effects, onChange }: EffectsChainProps) {
         />
       </div>
 
-      {/* Reverse */}
+      {/* Reverse — keep as switch */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <h5 className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">Reverse</h5>
@@ -446,8 +497,8 @@ export function EffectsChain({ effects, onChange }: EffectsChainProps) {
         />
       </div>
 
-      {/* Stutter */}
-      <div className="space-y-2.5">
+      {/* Stutter — keep as switch + select */}
+      <div className="space-y-2">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <h5 className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">Stutter</h5>
