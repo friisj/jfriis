@@ -67,7 +67,7 @@ export function ChatDrawer({ soulData, soulLoaded }: ChatDrawerProps) {
     [modelKey]
   );
 
-  const { messages, sendMessage, setMessages, status } = useChat({
+  const { messages, sendMessage, setMessages, status, error } = useChat({
     transport,
   });
 
@@ -225,6 +225,12 @@ export function ChatDrawer({ soulData, soulLoaded }: ChatDrawerProps) {
             isActive={isActive}
           />
         ))}
+        {status === 'error' && error && (
+          <div className="rounded-lg px-3 py-2 text-xs bg-destructive/10 text-destructive border border-destructive/20">
+            <p className="font-medium">Error</p>
+            <p className="mt-0.5 opacity-80">{error.message}</p>
+          </div>
+        )}
         <div ref={messagesEndRef} />
       </div>
 

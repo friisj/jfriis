@@ -23,40 +23,46 @@ export async function POST(request: Request) {
     );
   }
 
-  const body = await request.json();
-  const { messages, modelKey = 'claude-sonnet' } = body as {
-    messages: UIMessage[];
-    modelKey?: string;
-  };
+  try {
+    const body = await request.json();
+    const { messages, modelKey = 'claude-sonnet' } = body as {
+      messages: UIMessage[];
+      modelKey?: string;
+    };
 
-  if (!messages || messages.length === 0) {
-    return NextResponse.json({ error: 'Messages required' }, { status: 400 });
+    if (!messages || messages.length === 0) {
+      return NextResponse.json({ error: 'Messages required' }, { status: 400 });
+    }
+
+    // Load soul + chassis modules server-side
+    const [character, chassisModules] = await Promise.all([
+      getLuvCharacterServer(),
+      getChassisModulesServer(),
+    ]);
+    const soulData = character?.soul_data ?? {};
+    const chassisModuleSummaries: ChassisModuleSummary[] = chassisModules.map((m) => ({
+      slug: m.slug,
+      name: m.name,
+      category: m.category,
+      paramCount: Object.keys(m.parameters ?? {}).length,
+    }));
+    const systemPrompt = composeSoulSystemPrompt(soulData, { chassisModuleSummaries });
+
+    // Convert UI-format messages (from useChat) to model-format messages (for streamText)
+    const modelMessages = await convertToModelMessages(messages);
+
+    const result = streamText({
+      model: getModel(modelKey),
+      system: systemPrompt,
+      messages: modelMessages,
+      tools: luvTools,
+      stopWhen: stepCountIs(5),
+    });
+
+    return result.toUIMessageStreamResponse();
+  } catch (err) {
+    console.error('[luv/chat] Error:', err);
+    const message = err instanceof Error ? err.message : 'Unknown error';
+    return NextResponse.json({ error: message }, { status: 500 });
   }
-
-  // Load soul + chassis modules server-side
-  const [character, chassisModules] = await Promise.all([
-    getLuvCharacterServer(),
-    getChassisModulesServer(),
-  ]);
-  const soulData = character?.soul_data ?? {};
-  const chassisModuleSummaries: ChassisModuleSummary[] = chassisModules.map((m) => ({
-    slug: m.slug,
-    name: m.name,
-    category: m.category,
-    paramCount: Object.keys(m.parameters ?? {}).length,
-  }));
-  const systemPrompt = composeSoulSystemPrompt(soulData, { chassisModuleSummaries });
-
-  // Convert UI-format messages (from useChat) to model-format messages (for streamText)
-  const modelMessages = await convertToModelMessages(messages);
-
-  const result = streamText({
-    model: getModel(modelKey),
-    system: systemPrompt,
-    messages: modelMessages,
-    tools: luvTools,
-    stopWhen: stepCountIs(5),
-  });
-
-  return result.toUIMessageStreamResponse();
 }
