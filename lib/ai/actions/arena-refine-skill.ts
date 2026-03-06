@@ -67,11 +67,20 @@ const annotationSchema = z.object({
   segments: z.array(segmentSchema),
 })
 
+const referenceSchema = z.object({
+  type: z.enum(['figma', 'image']),
+  url: z.string(),
+  imageUrl: z.string().optional(),
+  label: z.string(),
+  figmaNodeName: z.string().optional(),
+})
+
 const inputSchema = z.object({
   currentSkill: z.record(z.string(), dimensionSchema),
   currentThemeTokens: z.record(z.string(), z.record(z.string(), z.string())).optional(),
   feedback: z.array(feedbackItemSchema),
   annotations: z.array(annotationSchema).default([]),
+  references: z.array(referenceSchema).default([]),
   notes: z.string(),
   iterationCount: z.number(),
   targetDimension: z.string().optional(),
@@ -220,7 +229,18 @@ interleaved text and grab references. Grab references use the format
 
 Weight annotations by hat type: Black and White observations are highest priority.
 Yellow observations identify constraints (preserve these aspects).
-Green offers options, not directives.${scopeNote}`
+Green offers options, not directives.
+
+## Visual References
+
+You may receive reference images alongside the feedback. These are "like this" directional inputs — the user is showing you visual examples of the aesthetic, mood, or design patterns they want the system to move toward.
+
+When processing references:
+- Extract relevant design signals: color palette, spacing rhythm, density, typography feel, visual weight, elevation approach
+- Use the user's label for each reference to understand what specific aspect they want to draw from
+- References are directional, not prescriptive — incorporate their essence, don't copy them literally
+- Multiple references may provide complementary signals — synthesize, don't pick one over another
+- Reference signals should influence both intent fields (skill layer) and token corrections (theme_updates)${scopeNote}`
 
   // Serialize current skill — only target dimension when scoped
   const skillSummary = outputDims.map(dim => {
@@ -292,6 +312,46 @@ Output JSON only.`
   return { system: systemPrompt, user }
 }
 
+// --- Multimodal message builder (used when references have images) ---
+
+function buildMessages(input: RefineInput) {
+  const { system, user } = buildPrompt(input)
+
+  const content: Array<
+    | { type: 'text'; text: string }
+    | { type: 'image'; image: string }
+  > = []
+
+  // Add reference images
+  if (input.references.length > 0) {
+    // Text describing the references
+    const refDescriptions = input.references.map((ref, i) => {
+      const source = ref.type === 'figma'
+        ? `Figma node "${ref.figmaNodeName ?? 'unknown'}"`
+        : 'Uploaded image'
+      return `${i + 1}. [${source}] ${ref.label || '(no description)'}`
+    })
+    const referencesText = `\n\n## Visual References\n\n${refDescriptions.join('\n')}\n\nReference images follow:`
+
+    // Add image blocks for each reference that has an image URL
+    for (const ref of input.references) {
+      const imageUrl = ref.type === 'figma' ? ref.imageUrl : ref.url
+      if (imageUrl) {
+        content.push({ type: 'image', image: imageUrl })
+      }
+    }
+
+    content.push({ type: 'text', text: user + referencesText })
+  } else {
+    content.push({ type: 'text', text: user })
+  }
+
+  return {
+    system,
+    messages: [{ role: 'user' as const, content }],
+  }
+}
+
 // --- Action registration ---
 
 const arenaRefineSkillAction: Action<RefineInput, RefineOutput> = {
@@ -305,6 +365,7 @@ const arenaRefineSkillAction: Action<RefineInput, RefineOutput> = {
   inputSchema,
   outputSchema,
   buildPrompt,
+  buildMessages,
 }
 
 registerAction(arenaRefineSkillAction)

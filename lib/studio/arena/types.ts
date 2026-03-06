@@ -27,6 +27,15 @@ export interface ArenaAnnotation {
   timestamp: number
 }
 
+export interface ArenaReference {
+  id: string
+  type: 'figma' | 'image'
+  url: string
+  imageUrl?: string
+  label: string
+  figmaNodeName?: string
+}
+
 export interface SkillDecision {
   id: string
   label: string

@@ -3,7 +3,7 @@
 import { createClient } from '@/lib/supabase-server'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { revalidatePath } from 'next/cache'
-import type { SkillState, ArenaAnnotation, SkillTier, ProjectConfig, TokenMap, DimensionState } from './types'
+import type { SkillState, ArenaAnnotation, ArenaReference, SkillTier, ProjectConfig, TokenMap, DimensionState } from './types'
 import { CORE_DIMENSIONS, extractTokensFromDimension } from './types'
 import { BASE_SKILL, BASE_THEME_TOKENS } from './base-skill'
 import type { ArenaProjectInputs } from './db-types'
@@ -232,6 +232,7 @@ export async function completeGymRound(input: {
   round: number
   feedback: FeedbackItem[]
   annotations: ArenaAnnotation[]
+  references?: ArenaReference[]
   skill_state: SkillState
   ai_summary?: string
   theme_updates?: Record<string, TokenMap>
@@ -267,6 +268,23 @@ export async function completeGymRound(input: {
       .from('arena_session_annotations')
       .insert(annotationRows)
     if (annError) throw annError
+  }
+
+  // Insert reference rows
+  if (input.references && input.references.length > 0) {
+    const referenceRows = input.references.map((r) => ({
+      session_id: input.session_id,
+      round: input.round,
+      type: r.type,
+      url: r.url,
+      image_url: r.imageUrl ?? null,
+      label: r.label,
+      figma_node_name: r.figmaNodeName ?? null,
+    }))
+    const { error: refError } = await supabase
+      .from('arena_session_references')
+      .insert(referenceRows)
+    if (refError) throw refError
   }
 
   // Insert iteration snapshot

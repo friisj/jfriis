@@ -170,6 +170,7 @@ export function SessionActiveClient({ session, assembly = [], sessionComponents 
         round,
         feedback: dbFeedback,
         annotations: roundData.annotations,
+        references: roundData.references,
         skill_state: refined,
         theme_updates: roundData.theme_updates,
       })
