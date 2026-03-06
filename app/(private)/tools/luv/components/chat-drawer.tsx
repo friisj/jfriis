@@ -86,17 +86,62 @@ export function ChatDrawer({ soulData, soulLoaded }: ChatDrawerProps) {
   }, []);
 
   const addFilesFromFileList = useCallback((files: File[]) => {
+    // Anthropic API limit: 5MB base64. Base64 adds ~33% overhead,
+    // so we target ~3.5MB raw to stay safely under the limit.
+    const MAX_BASE64_BYTES = 5 * 1024 * 1024;
+    const MAX_DIMENSION = 2048;
+    const JPEG_QUALITY = 0.85;
+
     for (const file of files) {
       if (!file.type.startsWith('image/')) continue;
-      const reader = new FileReader();
-      reader.onload = () => {
-        const dataUrl = reader.result as string;
+
+      const img = new Image();
+      img.onload = () => {
+        URL.revokeObjectURL(img.src);
+
+        // Check if we need to resize: estimate base64 size from file size
+        const estimatedBase64 = file.size * 1.37; // base64 overhead + data URL prefix
+        const needsResize =
+          estimatedBase64 > MAX_BASE64_BYTES ||
+          img.width > MAX_DIMENSION ||
+          img.height > MAX_DIMENSION;
+
+        if (!needsResize) {
+          // Small enough — use original
+          const reader = new FileReader();
+          reader.onload = () => {
+            setPendingFiles((prev) => [
+              ...prev,
+              { type: 'file', mediaType: file.type, url: reader.result as string, filename: file.name },
+            ]);
+          };
+          reader.readAsDataURL(file);
+          return;
+        }
+
+        // Resize via canvas
+        let { width, height } = img;
+        if (width > MAX_DIMENSION || height > MAX_DIMENSION) {
+          const scale = MAX_DIMENSION / Math.max(width, height);
+          width = Math.round(width * scale);
+          height = Math.round(height * scale);
+        }
+
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return;
+        ctx.drawImage(img, 0, 0, width, height);
+
+        // Encode as JPEG for smaller size
+        const dataUrl = canvas.toDataURL('image/jpeg', JPEG_QUALITY);
         setPendingFiles((prev) => [
           ...prev,
-          { type: 'file', mediaType: file.type, url: dataUrl, filename: file.name },
+          { type: 'file', mediaType: 'image/jpeg', url: dataUrl, filename: file.name },
         ]);
       };
-      reader.readAsDataURL(file);
+      img.src = URL.createObjectURL(file);
     }
   }, []);
 
