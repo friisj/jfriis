@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { getLuvMessages, deleteLuvConversation } from '@/lib/luv';
 import type { LuvConversation, LuvMessage } from '@/lib/types/luv';
+import { useLuvChat } from './luv-chat-context';
 
 interface ConversationHistoryProps {
   conversations: LuvConversation[];
@@ -13,6 +14,7 @@ interface ConversationHistoryProps {
 export function ConversationHistory({
   conversations: initial,
 }: ConversationHistoryProps) {
+  const { resumeConversation } = useLuvChat();
   const [conversations, setConversations] = useState(initial);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [messages, setMessages] = useState<LuvMessage[]>([]);
@@ -81,14 +83,23 @@ export function ConversationHistory({
                 </span>
               </div>
             </button>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="text-destructive shrink-0"
-              onClick={() => handleDelete(conv.id)}
-            >
-              Delete
-            </Button>
+            <div className="flex gap-1 shrink-0">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => resumeConversation(conv.id)}
+              >
+                Resume
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-destructive"
+                onClick={() => handleDelete(conv.id)}
+              >
+                Delete
+              </Button>
+            </div>
           </div>
 
           {expanded === conv.id && (

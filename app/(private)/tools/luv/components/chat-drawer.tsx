@@ -9,8 +9,9 @@ import { Textarea } from '@/components/ui/textarea';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { ChevronDown, ImagePlus, X } from 'lucide-react';
-import { createLuvConversation, createLuvMessage } from '@/lib/luv';
+import { createLuvConversation, createLuvMessage, getLuvConversation, getLuvMessages } from '@/lib/luv';
 import type { LuvSoulData } from '@/lib/types/luv';
+import { useLuvChat } from './luv-chat-context';
 import { ToolCallCard } from './tool-call-card';
 import { ProposalCard } from './proposal-card';
 import { CompositionPreview } from './composition-preview';
@@ -52,7 +53,9 @@ function getMessageText(msg: UIMessage): string {
 }
 
 export function ChatDrawer({ soulData, soulLoaded }: ChatDrawerProps) {
+  const { activeConversationId, clearActiveConversation } = useLuvChat();
   const [modelKey, setModelKey] = useState('claude-sonnet');
+  const [resumedConversationId, setResumedConversationId] = useState<string | null>(null);
   const [input, setInput] = useState('');
   const [pendingFiles, setPendingFiles] = useState<FileUIPart[]>([]);
   const [promptOpen, setPromptOpen] = useState(false);
@@ -72,6 +75,38 @@ export function ChatDrawer({ soulData, soulLoaded }: ChatDrawerProps) {
   const { messages, sendMessage, setMessages, status, error } = useChat({
     transport,
   });
+
+  // Load conversation when activeConversationId changes
+  useEffect(() => {
+    if (!activeConversationId || activeConversationId === resumedConversationId) return;
+
+    let cancelled = false;
+    (async () => {
+      try {
+        const [conv, msgs] = await Promise.all([
+          getLuvConversation(activeConversationId),
+          getLuvMessages(activeConversationId),
+        ]);
+        if (cancelled) return;
+
+        setModelKey(conv.model);
+        setResumedConversationId(activeConversationId);
+
+        const uiMessages: UIMessage[] = msgs
+          .filter((m) => m.role === 'user' || m.role === 'assistant')
+          .map((m) => ({
+            id: m.id,
+            role: m.role as 'user' | 'assistant',
+            parts: [{ type: 'text' as const, text: m.content }],
+            createdAt: new Date(m.created_at),
+          }));
+        setMessages(uiMessages);
+      } catch (err) {
+        console.error('Failed to load conversation:', err);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [activeConversationId, resumedConversationId, setMessages]);
 
   const isActive = status === 'streaming' || status === 'submitted';
 
@@ -166,25 +201,42 @@ export function ChatDrawer({ soulData, soulLoaded }: ChatDrawerProps) {
   const handleSaveConversation = async () => {
     if (messages.length === 0) return;
     try {
-      const firstUserMsg = messages.find((m) => m.role === 'user');
-      const firstText = firstUserMsg ? getMessageText(firstUserMsg) : '';
-      const title = firstText
-        ? firstText.slice(0, 60) + (firstText.length > 60 ? '...' : '')
-        : 'Untitled conversation';
+      if (resumedConversationId) {
+        // Save new messages to existing conversation
+        const existingMsgs = await getLuvMessages(resumedConversationId);
+        const existingIds = new Set(existingMsgs.map((m) => m.id));
+        for (const msg of messages) {
+          if ((msg.role === 'user' || msg.role === 'assistant') && !existingIds.has(msg.id)) {
+            await createLuvMessage({
+              conversation_id: resumedConversationId,
+              role: msg.role,
+              content: getMessageText(msg),
+            });
+          }
+        }
+      } else {
+        const firstUserMsg = messages.find((m) => m.role === 'user');
+        const firstText = firstUserMsg ? getMessageText(firstUserMsg) : '';
+        const title = firstText
+          ? firstText.slice(0, 60) + (firstText.length > 60 ? '...' : '')
+          : 'Untitled conversation';
 
-      const conversation = await createLuvConversation({
-        title,
-        soul_snapshot: soulData,
-        model: modelKey,
-      });
+        const conversation = await createLuvConversation({
+          title,
+          soul_snapshot: soulData,
+          model: modelKey,
+        });
 
-      for (const msg of messages) {
-        if (msg.role === 'user' || msg.role === 'assistant') {
-          await createLuvMessage({
-            conversation_id: conversation.id,
-            role: msg.role,
-            content: getMessageText(msg),
-          });
+        setResumedConversationId(conversation.id);
+
+        for (const msg of messages) {
+          if (msg.role === 'user' || msg.role === 'assistant') {
+            await createLuvMessage({
+              conversation_id: conversation.id,
+              role: msg.role,
+              content: getMessageText(msg),
+            });
+          }
         }
       }
     } catch (err) {
@@ -221,6 +273,8 @@ export function ChatDrawer({ soulData, soulLoaded }: ChatDrawerProps) {
     setMessages([]);
     setInput('');
     setPendingFiles([]);
+    setResumedConversationId(null);
+    clearActiveConversation();
   };
 
   return (
