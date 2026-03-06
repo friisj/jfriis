@@ -290,3 +290,29 @@ export type CreateLuvMessageInput = {
   role: LuvMessageRole;
   content: string;
 };
+
+/**
+ * Memory — persistent fact learned across conversations
+ */
+export interface LuvMemory {
+  id: string;
+  content: string;
+  category: string;
+  source_conversation_id: string | null;
+  active: boolean;
+  created_at: string;
+  updated_at: string;
+  created_by: string | null;
+}
+
+export type CreateLuvMemoryInput = {
+  content: string;
+  category?: string;
+  source_conversation_id?: string;
+};
+
+export type UpdateLuvMemoryInput = Partial<{
+  content: string;
+  category: string;
+  active: boolean;
+}>;

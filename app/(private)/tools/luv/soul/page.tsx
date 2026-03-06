@@ -20,9 +20,11 @@ export default async function LuvSoulPage() {
         <Row
           label="Traits"
           value={
-            soul.personality?.traits?.length
+            Array.isArray(soul.personality?.traits) && soul.personality.traits.length
               ? soul.personality.traits.join(', ')
-              : undefined
+              : typeof soul.personality?.traits === 'string'
+                ? soul.personality.traits
+                : undefined
           }
         />
         <Row label="Tone" value={soul.voice?.tone} />
@@ -36,7 +38,11 @@ export default async function LuvSoulPage() {
         <Row
           label="Skills"
           value={
-            soul.skills?.length ? soul.skills.join(', ') : undefined
+            Array.isArray(soul.skills) && soul.skills.length
+              ? soul.skills.join(', ')
+              : typeof soul.skills === 'string'
+                ? soul.skills
+                : undefined
           }
         />
         <Row

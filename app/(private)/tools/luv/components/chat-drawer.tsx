@@ -35,6 +35,8 @@ const READ_TOOLS = new Set([
   'review_chassis_module',
   'compose_context_pack',
   'evaluate_generation',
+  'save_memory',
+  'list_memories',
 ]);
 
 interface ChatDrawerProps {

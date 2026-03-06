@@ -9,8 +9,14 @@ import type { LuvSoulData } from '../types/luv';
 import type { SoulLayer, CompositionResult, ChassisModuleSummary } from './soul-layers';
 import { LAYER_REGISTRY } from './soul-layers';
 
+export interface MemoryItem {
+  content: string;
+  category: string;
+}
+
 export interface ComposeOptions {
   chassisModuleSummaries?: ChassisModuleSummary[];
+  memories?: MemoryItem[];
 }
 
 /**
@@ -59,7 +65,7 @@ export function composeLayers(soulData: LuvSoulData, options?: ComposeOptions): 
     if (personality.temperament) {
       parts.push(`Your temperament is: ${personality.temperament}.`);
     }
-    if (personality.traits && personality.traits.length > 0) {
+    if (Array.isArray(personality.traits) && personality.traits.length > 0) {
       parts.push(
         `Your personality traits are: ${personality.traits.join(', ')}.`
       );
@@ -100,7 +106,7 @@ export function composeLayers(soulData: LuvSoulData, options?: ComposeOptions): 
   }
 
   // Layer 4: Knowledge (skills)
-  if (soulData.skills && soulData.skills.length > 0) {
+  if (Array.isArray(soulData.skills) && soulData.skills.length > 0) {
     layers.push({
       id: 'knowledge',
       type: 'knowledge',
@@ -168,7 +174,36 @@ export function composeLayers(soulData: LuvSoulData, options?: ComposeOptions): 
     });
   }
 
-  // Layer 7: Memory — not populated from soul_data yet (future: persistent memory store)
+  // Layer 7: Memory
+  const memories = options?.memories;
+  if (memories && memories.length > 0) {
+    const byCategory = new Map<string, string[]>();
+    for (const m of memories) {
+      const cat = m.category || 'general';
+      if (!byCategory.has(cat)) byCategory.set(cat, []);
+      byCategory.get(cat)!.push(m.content);
+    }
+
+    let memoryContent: string;
+    if (byCategory.size === 1) {
+      memoryContent = memories.map((m) => `- ${m.content}`).join('\n');
+    } else {
+      const sections: string[] = [];
+      for (const [cat, items] of byCategory) {
+        sections.push(`**${cat}**\n${items.map((c) => `- ${c}`).join('\n')}`);
+      }
+      memoryContent = sections.join('\n\n');
+    }
+
+    layers.push({
+      id: 'memory',
+      type: 'memory',
+      priority: LAYER_REGISTRY.memory.priority,
+      content: memoryContent,
+      source: 'luv_memories',
+      enabled: true,
+    });
+  }
 
   // Sort by priority, filter enabled
   const activeLayers = layers

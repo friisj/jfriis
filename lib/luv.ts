@@ -30,6 +30,9 @@ import type {
   UpdateLuvConversationInput,
   LuvMessage,
   CreateLuvMessageInput,
+  LuvMemory,
+  CreateLuvMemoryInput,
+  UpdateLuvMemoryInput,
 } from './types/luv';
 
 // NOTE: luv_* tables not in generated Supabase types - using type assertions
@@ -529,4 +532,66 @@ export async function createLuvMessage(
 
   if (error) throw error;
   return data as LuvMessage;
+}
+
+// ============================================================================
+// Memories
+// ============================================================================
+
+export async function getLuvMemories(
+  activeOnly = false
+): Promise<LuvMemory[]> {
+  let query = (supabase as any)
+    .from('luv_memories')
+    .select('*')
+    .order('created_at', { ascending: false });
+
+  if (activeOnly) {
+    query = query.eq('active', true);
+  }
+
+  const { data, error } = await query;
+  if (error) throw error;
+  return data as LuvMemory[];
+}
+
+export async function createLuvMemory(
+  input: CreateLuvMemoryInput
+): Promise<LuvMemory> {
+  const { data, error } = await (supabase as any)
+    .from('luv_memories')
+    .insert({
+      content: input.content,
+      category: input.category || 'general',
+      source_conversation_id: input.source_conversation_id || null,
+    })
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data as LuvMemory;
+}
+
+export async function updateLuvMemory(
+  id: string,
+  updates: UpdateLuvMemoryInput
+): Promise<LuvMemory> {
+  const { data, error } = await (supabase as any)
+    .from('luv_memories')
+    .update({ ...updates, updated_at: new Date().toISOString() })
+    .eq('id', id)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data as LuvMemory;
+}
+
+export async function deleteLuvMemory(id: string): Promise<void> {
+  const { error } = await (supabase as any)
+    .from('luv_memories')
+    .delete()
+    .eq('id', id);
+
+  if (error) throw error;
 }

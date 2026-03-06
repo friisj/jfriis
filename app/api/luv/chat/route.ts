@@ -4,7 +4,7 @@ import { requireAuth } from '@/lib/ai/auth';
 import { checkAIRateLimit, getAIRateLimitHeaders } from '@/lib/ai/rate-limit';
 import { getModel } from '@/lib/ai/models';
 import { composeSoulSystemPrompt } from '@/lib/luv-prompt-composer';
-import { getLuvCharacterServer } from '@/lib/luv-server';
+import { getLuvCharacterServer, getLuvMemoriesServer } from '@/lib/luv-server';
 import { getChassisModulesServer } from '@/lib/luv-chassis-server';
 import { luvTools } from '@/lib/luv-tools';
 import type { ChassisModuleSummary } from '@/lib/luv/soul-layers';
@@ -34,10 +34,11 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Messages required' }, { status: 400 });
     }
 
-    // Load soul + chassis modules server-side
-    const [character, chassisModules] = await Promise.all([
+    // Load soul + chassis modules + memories server-side
+    const [character, chassisModules, memories] = await Promise.all([
       getLuvCharacterServer(),
       getChassisModulesServer(),
+      getLuvMemoriesServer(true),
     ]);
     const soulData = character?.soul_data ?? {};
     const chassisModuleSummaries: ChassisModuleSummary[] = chassisModules.map((m) => ({
@@ -46,7 +47,14 @@ export async function POST(request: Request) {
       category: m.category,
       paramCount: Object.keys(m.parameters ?? {}).length,
     }));
-    const systemPrompt = composeSoulSystemPrompt(soulData, { chassisModuleSummaries });
+    const memoryItems = memories.map((m) => ({
+      content: m.content,
+      category: m.category,
+    }));
+    const systemPrompt = composeSoulSystemPrompt(soulData, {
+      chassisModuleSummaries,
+      memories: memoryItems,
+    });
 
     // Convert UI-format messages (from useChat) to model-format messages (for streamText)
     const modelMessages = await convertToModelMessages(messages);

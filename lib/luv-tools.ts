@@ -615,6 +615,65 @@ export const reviewChassisModule = tool({
 // Tool Registry
 // ============================================================================
 
+// ============================================================================
+// Memory Tools
+// ============================================================================
+
+export const listMemories = tool({
+  description:
+    'List all active memories. Use this to check what you already know before saving a duplicate.',
+  inputSchema: zodSchema(z.object({})),
+  execute: async () => {
+    const { getLuvMemoriesServer } = await import('./luv-server');
+    const memories = await getLuvMemoriesServer(true);
+    return {
+      memories: memories.map((m) => ({
+        id: m.id,
+        content: m.content,
+        category: m.category,
+        created_at: m.created_at,
+      })),
+    };
+  },
+});
+
+export const saveMemory = tool({
+  description:
+    'Save a fact to persistent memory. Use this when the user tells you something worth remembering across conversations — preferences, facts about them, important context. Memories persist forever until deactivated.',
+  inputSchema: zodSchema(
+    z.object({
+      content: z
+        .string()
+        .describe(
+          'The fact to remember, written as a clear standalone statement (e.g. "Jon\'s favorite color is blue")'
+        ),
+      category: z
+        .string()
+        .optional()
+        .describe(
+          'Category for organization (e.g. "preference", "fact", "context", "relationship"). Defaults to "general"'
+        ),
+    })
+  ),
+  execute: async ({ content, category }) => {
+    const { createLuvMemoryServer } = await import('./luv-server');
+    const memory = await createLuvMemoryServer({
+      content,
+      category: category || 'general',
+    });
+    return {
+      saved: true,
+      id: memory.id,
+      content: memory.content,
+      category: memory.category,
+    };
+  },
+});
+
+// ============================================================================
+// Tool Registry
+// ============================================================================
+
 export const luvTools = {
   read_soul: readSoul,
   read_chassis: readChassis,
@@ -631,4 +690,6 @@ export const luvTools = {
   view_reference_image: viewReferenceImage,
   view_module_media: viewModuleMedia,
   review_chassis_module: reviewChassisModule,
+  list_memories: listMemories,
+  save_memory: saveMemory,
 };
