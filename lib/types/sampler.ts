@@ -17,6 +17,14 @@ export type PadType = 'trigger' | 'gate' | 'toggle' | 'loop';
 // Effects
 // ============================================================================
 
+export type FilterType = 'lowpass' | 'highpass' | 'bandpass' | 'off';
+
+export interface FilterEffect {
+  type: FilterType;
+  cutoff: number;      // 20–20000 Hz
+  resonance: number;   // Q: 0.1–20
+}
+
 export interface ReverbEffect {
   wet: number;   // 0-1
   decay: number; // seconds
@@ -34,18 +42,69 @@ export interface DelayEffect {
   wet: number;      // 0-1
 }
 
+export type StutterRate = '1/2' | '1/4' | '1/8' | '1/16' | '1/32';
+
+export interface StutterEffect {
+  on: boolean;
+  rate: StutterRate;
+}
+
+export interface VinylSimEffect {
+  wow: number;      // 0–1 (slow pitch wobble depth)
+  flutter: number;  // 0–1 (fast pitch wobble depth)
+  noise: number;    // 0–1 (vinyl noise mix)
+}
+
+export interface PanEffect {
+  pan: number;  // -1 (left) to +1 (right)
+}
+
+export interface BitcrusherEffect {
+  bitDepth: number;       // 1–16
+  rateReduction: number;  // 1–40
+}
+
+export interface DistortionEffect {
+  drive: number;  // 0–100
+  mix: number;    // 0–1 wet/dry
+}
+
+export interface CompressorEffect {
+  threshold: number;  // -60 to 0 dB
+  ratio: number;      // 1–20
+  attack: number;     // 0–1 seconds
+  release: number;    // 0–1 seconds
+}
+
 export interface TrimConfig {
   startMs: number;
   endMs: number;
 }
 
+export type XYAxisParam = 'pitch' | 'filter_cutoff' | 'pan';
+
+export interface XYPadConfig {
+  enabled: boolean;
+  xAxis: XYAxisParam;
+  yAxis: XYAxisParam;
+}
+
 export interface PadEffects {
   volume: number;  // 0-1
   pitch: number;   // semitones (-24 to 24)
+  filter?: FilterEffect;
   reverb?: ReverbEffect;
   eq?: EQEffect;
+  compressor?: CompressorEffect;
+  distortion?: DistortionEffect;
+  bitcrusher?: BitcrusherEffect;
+  pan?: PanEffect;
+  vinylSim?: VinylSimEffect;
+  reverse?: boolean;
+  stutter?: StutterEffect;
   delay?: DelayEffect;
   trim?: TrimConfig;
+  xyPad?: XYPadConfig;
 }
 
 export const DEFAULT_PAD_EFFECTS: PadEffects = {
