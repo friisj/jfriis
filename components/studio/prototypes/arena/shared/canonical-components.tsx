@@ -32,6 +32,21 @@ function clamp(val: number, min: number, max: number): number {
   return Math.min(Math.max(val, min), max)
 }
 
+/** Return black or white text for best contrast against a hex background */
+function contrastText(hex: string | undefined): string {
+  if (!hex || !/^#[0-9a-fA-F]{3,8}$/.test(hex)) return '#fff'
+  let r: number, g: number, b: number
+  const h = hex.slice(1)
+  if (h.length === 3) {
+    r = parseInt(h[0] + h[0], 16); g = parseInt(h[1] + h[1], 16); b = parseInt(h[2] + h[2], 16)
+  } else {
+    r = parseInt(h.slice(0, 2), 16); g = parseInt(h.slice(2, 4), 16); b = parseInt(h.slice(4, 6), 16)
+  }
+  // Relative luminance (sRGB)
+  const lum = (0.299 * r + 0.587 * g + 0.114 * b) / 255
+  return lum > 0.5 ? '#000' : '#fff'
+}
+
 /**
  * Normalize skill values for web-scale canonical component rendering.
  * Figma designs may be mobile-scale (32px headings, 60px border-radius)
@@ -149,7 +164,7 @@ export function CanonicalCard({ skill, label, fontOverrides, theme }: CanonicalP
             <button
               style={{
                 background: c['Primary'] ?? '#3b82f6',
-                color: '#fff',
+                color: contrastText(c['Primary'] ?? '#3b82f6'),
                 border: 'none',
                 borderRadius: n.borderRadiusMedium,
                 padding: `${n.buttonPadY} ${n.padding}`,
@@ -260,7 +275,7 @@ export function CanonicalForm({ skill, label, fontOverrides, theme }: CanonicalP
         <button
           style={{
             background: c['Primary'] ?? '#3b82f6',
-            color: '#fff',
+            color: contrastText(c['Primary'] ?? '#3b82f6'),
             border: 'none',
             borderRadius: n.borderRadiusMedium,
             padding: `${n.buttonPadY} ${n.padding}`,

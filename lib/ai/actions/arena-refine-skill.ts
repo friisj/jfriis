@@ -69,6 +69,7 @@ const annotationSchema = z.object({
 
 const inputSchema = z.object({
   currentSkill: z.record(z.string(), dimensionSchema),
+  currentThemeTokens: z.record(z.string(), z.record(z.string(), z.string())).optional(),
   feedback: z.array(feedbackItemSchema),
   annotations: z.array(annotationSchema).default([]),
   notes: z.string(),
@@ -131,6 +132,17 @@ Each feedback item targets a specific decision by dimension + label:
 - **flag**: The user flags this decision as problematic with a reason. Update intent to reflect the concern. Set confidence to "medium". Set rationale to explain the revised direction. Propose a corrected token value in theme_updates.
 
 Decisions with NO feedback: keep rationale, intent, confidence, and source exactly as they were.
+
+## Cascading Changes
+
+When a token value changes, consider what OTHER tokens must also change to maintain system coherence:
+
+- If Primary becomes a light color (e.g. white), button text that sits ON Primary must become dark. Include a "Primary Text" or equivalent token correction.
+- If Background changes, verify that Text and Muted still have sufficient contrast.
+- Color changes can cascade to related tokens (e.g., changing Primary may require adjusting Secondary for harmony).
+- Always include cascading corrections in theme_updates — don't just change the requested token in isolation.
+
+Think about each token change as an edit to a connected system, not an isolated substitution.
 
 ## Rules
 
@@ -234,11 +246,27 @@ Green offers options, not directives.${scopeNote}`
       }).join('\n')
     : '(no specific decision feedback)'
 
+  // Serialize current theme tokens so the AI can see existing values and reason about cascading
+  let themeTokensSection = ''
+  if (input.currentThemeTokens) {
+    const relevantTokens = outputDims
+      .filter(dim => input.currentThemeTokens![dim])
+      .map(dim => {
+        const entries = Object.entries(input.currentThemeTokens![dim])
+          .map(([label, value]) => `  ${label}: ${value}`)
+          .join('\n')
+        return `### ${dim}\n${entries}`
+      }).join('\n\n')
+    if (relevantTokens) {
+      themeTokensSection = `\n\n## Current Theme Tokens\n\nThese are the current token values. When changing a token, consider what other tokens must change to maintain contrast and coherence.\n\n${relevantTokens}`
+    }
+  }
+
   let user = `Refine this design skill based on user feedback. This is iteration ${input.iterationCount + 1}.
 
 ## Current Skill State
 
-${skillSummary}
+${skillSummary}${themeTokensSection}
 
 ## User Feedback on Decisions
 

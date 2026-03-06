@@ -598,6 +598,9 @@ export function SkillGym({ skill, onSkillUpdate, onBack, fontOverrides, targetDi
           action: 'arena-refine-skill',
           input: {
             currentSkill: skill,
+            currentThemeTokens: theme ? Object.fromEntries(
+              Object.entries(theme).map(([dim, dt]) => [dim, dt.tokens])
+            ) : undefined,
             feedback: scopedFeedback,
             annotations: annotations.map(a => ({
               hatKey: a.hatKey,
@@ -617,8 +620,10 @@ export function SkillGym({ skill, onSkillUpdate, onBack, fontOverrides, targetDi
 
       const result = data.data as SkillState & { summary: string; theme_updates?: Record<string, TokenMap> }
       const { summary: resultSummary, theme_updates: resultThemeUpdates, ...refinedDims } = result
+      // Merge refined dimensions into the full skill (scoped responses only contain the target dimension)
+      const mergedSkill = { ...skill, ...refinedDims }
       setPreviousSkill(skill)
-      setRefinedSkill(refinedDims)
+      setRefinedSkill(mergedSkill)
       setRefineSummary(resultSummary)
       setRefineThemeUpdates(resultThemeUpdates)
       setPhase('review')
@@ -714,15 +719,24 @@ export function SkillGym({ skill, onSkillUpdate, onBack, fontOverrides, targetDi
         </div>
 
         {/* Side-by-side canonical components */}
-        {effectiveTabs.map(({ label, Component }) => (
-          <div key={label} className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl p-6">
-            <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-4">{label}</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <Component skill={previousSkill} label="Previous" fontOverrides={fontOverrides} theme={theme} />
-              <Component skill={refinedSkill} label="Refined" fontOverrides={fontOverrides} theme={theme} />
+        {effectiveTabs.map(({ label, Component }) => {
+          // Build a theme with refineThemeUpdates merged for the "Refined" preview
+          const refinedTheme = theme && refineThemeUpdates
+            ? Object.entries(refineThemeUpdates).reduce((acc, [dim, tokens]) => ({
+                ...acc,
+                [dim]: { ...acc[dim], tokens: { ...acc[dim]?.tokens, ...tokens }, source: acc[dim]?.source ?? 'refinement' },
+              }), { ...theme })
+            : theme
+          return (
+            <div key={label} className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl p-6">
+              <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-4">{label}</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <Component skill={previousSkill} label="Previous" fontOverrides={fontOverrides} theme={theme} />
+                <Component skill={refinedSkill} label="Refined" fontOverrides={fontOverrides} theme={refinedTheme} />
+              </div>
             </div>
-          </div>
-        ))}
+          )
+        })}
 
         <div className="flex gap-3 justify-center">
           <button
