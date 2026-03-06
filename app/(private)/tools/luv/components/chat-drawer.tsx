@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useChat } from '@ai-sdk/react';
-import { DefaultChatTransport } from 'ai';
+import { DefaultChatTransport, isToolUIPart, getToolName } from 'ai';
 import type { UIMessage, FileUIPart } from 'ai';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -433,10 +433,12 @@ function MessageBubble({
             );
           }
 
-          if (part.type === 'dynamic-tool') {
-            const toolName = part.toolName;
+          if (isToolUIPart(part)) {
+            const toolName = getToolName(part);
+            const toolCallId = part.toolCallId;
             const output =
               'output' in part ? part.output : undefined;
+            const state = part.state;
 
             // Check if output is a proposal
             if (
@@ -450,30 +452,18 @@ function MessageBubble({
             ) {
               return (
                 <ProposalCard
-                  key={part.toolCallId}
+                  key={toolCallId}
                   proposal={output as Parameters<typeof ProposalCard>[0]['proposal']}
                 />
               );
             }
 
-            // Read tool
-            if (READ_TOOLS.has(toolName)) {
-              return (
-                <ToolCallCard
-                  key={part.toolCallId}
-                  toolName={toolName}
-                  state={part.state}
-                  result={output}
-                />
-              );
-            }
-
-            // Fallback
+            // Read tool or fallback
             return (
               <ToolCallCard
-                key={part.toolCallId}
+                key={toolCallId}
                 toolName={toolName}
-                state={part.state}
+                state={state}
                 result={output}
               />
             );
