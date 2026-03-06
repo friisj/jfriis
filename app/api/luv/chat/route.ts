@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { streamText, convertToModelMessages, type UIMessage } from 'ai';
+import { streamText, convertToModelMessages, stepCountIs, type UIMessage } from 'ai';
 import { requireAuth } from '@/lib/ai/auth';
 import { checkAIRateLimit, getAIRateLimitHeaders } from '@/lib/ai/rate-limit';
 import { getModel } from '@/lib/ai/models';
@@ -55,6 +55,7 @@ export async function POST(request: Request) {
     system: systemPrompt,
     messages: modelMessages,
     tools: luvTools,
+    stopWhen: stepCountIs(5),
   });
 
   return result.toUIMessageStreamResponse();
