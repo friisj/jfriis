@@ -40,7 +40,9 @@ export function Waveform({
   const [viewOffset, setViewOffset] = useState(0);
 
   // Keep ref in sync with props
-  trimRef.current = { start: trimStart, end: trimEnd };
+  useEffect(() => {
+    trimRef.current = { start: trimStart, end: trimEnd };
+  }, [trimStart, trimEnd]);
 
   // Clamp viewOffset when zoom changes
   const clampOffset = useCallback(
