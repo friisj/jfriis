@@ -90,7 +90,7 @@ export function composeLayers(soulData: LuvSoulData, options?: ComposeOptions): 
     if (voice.formality) parts.push(`Formality: ${voice.formality}.`);
     if (voice.humor) parts.push(`Humor: ${voice.humor}.`);
     if (voice.warmth) parts.push(`Warmth: ${voice.warmth}.`);
-    if (voice.quirks && voice.quirks.length > 0) {
+    if (Array.isArray(voice.quirks) && voice.quirks.length > 0) {
       parts.push(`Speech quirks: ${voice.quirks.join(', ')}.`);
     }
     if (parts.length > 0) {
