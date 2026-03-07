@@ -1,10 +1,9 @@
 'use client';
 
-import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
-import { getChassisModules } from '@/lib/luv-chassis';
+import { getAllSchemas } from '@/lib/luv/chassis-schemas';
 
 type Space = 'identity' | 'stage' | 'library';
 
@@ -31,6 +30,24 @@ const soulGroup: NavGroup = {
     { href: '/tools/luv/soul/preview', label: 'Preview' },
   ],
 };
+
+function buildChassisGroup(): NavGroup {
+  const schemas = getAllSchemas();
+  const moduleItems: NavItem[] = schemas.map((s) => ({
+    href: `/tools/luv/chassis/${s.key}`,
+    label: s.label,
+  }));
+
+  return {
+    header: 'Chassis',
+    href: '/tools/luv/chassis',
+    items: [
+      ...moduleItems,
+    ],
+  };
+}
+
+const identityGroups: NavGroup[] = [soulGroup, buildChassisGroup()];
 
 const libraryLinks: NavItem[] = [
   { href: '/tools/luv/conversations', label: 'Conversations' },
@@ -69,25 +86,6 @@ function resolveSpace(pathname: string): Space {
 export function LuvContextNav() {
   const pathname = usePathname();
   const activeSpace = resolveSpace(pathname);
-
-  const [chassisItems, setChassisItems] = useState<NavItem[]>([]);
-
-  useEffect(() => {
-    getChassisModules().then((modules) => {
-      setChassisItems(modules.map((m) => ({
-        href: `/tools/luv/chassis/${m.slug}`,
-        label: m.name,
-      })));
-    }).catch(() => {});
-  }, []);
-
-  const chassisGroup: NavGroup = {
-    header: 'Chassis',
-    href: '/tools/luv/chassis',
-    items: chassisItems,
-  };
-
-  const identityGroups: NavGroup[] = [soulGroup, chassisGroup];
 
   if (activeSpace === 'stage') {
     return (

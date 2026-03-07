@@ -12,21 +12,23 @@ import { ChevronDown, ChevronRight, RotateCcw, Plus, Minus, ArrowRight } from 'l
 import { getModuleVersions, saveModuleWithVersion } from '@/lib/luv-chassis';
 import { diffParameters, formatDiffValue } from '@/lib/luv/param-diff';
 import type { ParamDiffEntry } from '@/lib/luv/param-diff';
-import type { ParameterDef, LuvChassisModuleVersion } from '@/lib/types/luv-chassis';
+import { getSchema } from '@/lib/luv/chassis-schemas';
+import type { LuvChassisModuleVersion } from '@/lib/types/luv-chassis';
 
 interface ModuleVersionHistoryProps {
   moduleId: string;
-  parameterSchema?: ParameterDef[];
+  moduleSchemaKey?: string;
   currentVersion: number;
   onRestored?: () => void;
 }
 
 export function ModuleVersionHistory({
   moduleId,
-  parameterSchema,
+  moduleSchemaKey,
   currentVersion,
   onRestored,
 }: ModuleVersionHistoryProps) {
+  const schema = moduleSchemaKey ? getSchema(moduleSchemaKey) : undefined;
   const [versions, setVersions] = useState<LuvChassisModuleVersion[]>([]);
   const [loading, setLoading] = useState(true);
   const [restoring, setRestoring] = useState<string | null>(null);
@@ -139,7 +141,7 @@ export function ModuleVersionHistory({
                   <VersionDiff
                     version={version}
                     versions={versions}
-                    schemaParams={parameterSchema}
+                    schemaParams={schema?.parameters}
                   />
                 </CollapsibleContent>
               </div>
@@ -160,7 +162,7 @@ function VersionDiff({
 }: {
   version: LuvChassisModuleVersion;
   versions: LuvChassisModuleVersion[];
-  schemaParams?: ParameterDef[];
+  schemaParams?: import('@/lib/luv/chassis-schemas').ParameterDef[];
 }) {
   // versions are sorted desc, so previous version is the next item
   const idx = versions.findIndex((v) => v.id === version.id);

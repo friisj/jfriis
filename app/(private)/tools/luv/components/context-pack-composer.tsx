@@ -6,6 +6,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
+import { getSchema } from '@/lib/luv/chassis-schemas';
 import { buildTemplateContext, renderTemplate } from '@/lib/luv/template-engine';
 import { createContextPack } from '@/lib/luv-chassis';
 import type { LuvChassisModule, EvaluationCriterion } from '@/lib/types/luv-chassis';
@@ -21,25 +22,26 @@ export function ContextPackComposer({
   allModules = [],
   onCreated,
 }: ContextPackComposerProps) {
-  const parameterSchema = module.parameter_schema ?? [];
+  const schema = getSchema(module.schema_key);
   const [saving, setSaving] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
 
   // Build default generation prompt from module parameters
   const defaultPrompt = useMemo(() => {
-    if (parameterSchema.length === 0) return '';
-    const lines: string[] = [`${module.name} specifications:`];
-    for (const p of parameterSchema) {
+    if (!schema) return '';
+    const lines: string[] = [`${schema.label} specifications:`];
+    for (const p of schema.parameters) {
       lines.push(`- ${p.label}: {{modules.${module.slug}.${p.key}}}`);
     }
     return lines.join('\n');
-  }, [parameterSchema, module.slug, module.name]);
+  }, [schema, module.slug]);
 
   const [prompt, setPrompt] = useState(defaultPrompt);
 
   // Build evaluation criteria from parameters
   const [criteria, setCriteria] = useState<EvaluationCriterion[]>(() => {
-    return parameterSchema.map((p) => ({
+    if (!schema) return [];
+    return schema.parameters.map((p) => ({
       parameterKey: p.key,
       label: p.label,
       expectedValue: formatParamValue(module.parameters[p.key]),
@@ -85,7 +87,7 @@ export function ContextPackComposer({
     }
   };
 
-  if (parameterSchema.length === 0) return null;
+  if (!schema) return null;
 
   return (
     <div className="space-y-4">

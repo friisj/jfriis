@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -12,7 +12,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { X, Play, Square } from 'lucide-react';
+import { X, Play, Square, Scissors } from 'lucide-react';
 import { updatePad, updateSound } from '@/lib/sampler';
 import { EffectsChain } from './effects-chain';
 import { Waveform } from './waveform';
@@ -20,7 +20,8 @@ import { ADSREditor } from './adsr-editor';
 import { SoundLibraryPicker } from './sound-library-picker';
 import { SoundGenerateModal } from './sound-generate-modal';
 import { SampleRecorder } from './sample-recorder';
-import type { PadWithSound, PadEffects, PadType, TrimConfig, SamplerSound } from '@/lib/types/sampler';
+import { Switch } from '@/components/ui/switch';
+import type { PadWithSound, PadEffects, PadType, TrimConfig, SamplerSound, XYAxisParam, XYPadConfig } from '@/lib/types/sampler';
 import type { ToneSynthConfig, SynthEnvelope } from '@/lib/sampler-synth';
 
 interface PadConfigPanelProps {
@@ -29,19 +30,27 @@ interface PadConfigPanelProps {
   onPadUpdated: (pad: PadWithSound) => void;
   onEffectsChange: (padId: string, effects: PadEffects) => void;
   onSoundUpdated: (sound: SamplerSound) => void;
+  onCropSound?: (padId: string) => void;
   onClose: () => void;
   isPlaying?: boolean;
   onTogglePlay?: () => void;
   getPlaybackPosition?: () => number | null;
 }
 
-export function PadConfigPanel({ pad, getBuffer, onPadUpdated, onEffectsChange, onSoundUpdated, onClose, isPlaying, onTogglePlay, getPlaybackPosition }: PadConfigPanelProps) {
+export function PadConfigPanel({ pad, getBuffer, onPadUpdated, onEffectsChange, onSoundUpdated, onCropSound, onClose, isPlaying, onTogglePlay, getPlaybackPosition }: PadConfigPanelProps) {
   const [pickerOpen, setPickerOpen] = useState(false);
   const [generateOpen, setGenerateOpen] = useState(false);
   const [sampleOpen, setSampleOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [proceduralBuffer, setProceduralBuffer] = useState<AudioBuffer | null>(null);
   const [rendering, setRendering] = useState(false);
+
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Clean up debounce timer on unmount
+  useEffect(() => {
+    return () => { if (saveTimerRef.current) clearTimeout(saveTimerRef.current); };
+  }, []);
 
   const sound = pad.sound;
   const isProcedural = sound?.type === 'procedural';
@@ -127,8 +136,11 @@ export function PadConfigPanel({ pad, getBuffer, onPadUpdated, onEffectsChange, 
   }
 
   function handleEffectsChange(effects: PadEffects) {
-    onEffectsChange(pad.id, effects);
-    updatePad(pad.id, { effects }).catch(console.error);
+    onEffectsChange(pad.id, effects); // immediate audio update
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    saveTimerRef.current = setTimeout(() => {
+      updatePad(pad.id, { effects }).catch(console.error);
+    }, 500);
   }
 
   function handleTrimUpdate(trim: TrimConfig | undefined) {
@@ -213,9 +225,23 @@ export function PadConfigPanel({ pad, getBuffer, onPadUpdated, onEffectsChange, 
               </Button>
             )}
             {isBuffer && pad.effects.trim && (
-              <p className="text-[10px] text-muted-foreground">
-                Trim: {pad.effects.trim.startMs}ms – {pad.effects.trim.endMs}ms
-              </p>
+              <>
+                <p className="text-[10px] text-muted-foreground">
+                  Trim: {pad.effects.trim.startMs}ms – {pad.effects.trim.endMs}ms
+                </p>
+                {onCropSound && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-5 px-1.5 text-[10px] gap-1"
+                    onClick={() => onCropSound(pad.id)}
+                    title="Crop: bake trim into new sound file"
+                  >
+                    <Scissors className="size-3" />
+                    Crop
+                  </Button>
+                )}
+              </>
             )}
           </div>
         </div>
@@ -321,6 +347,71 @@ export function PadConfigPanel({ pad, getBuffer, onPadUpdated, onEffectsChange, 
                 <SelectItem value="4">Group 4</SelectItem>
               </SelectContent>
             </Select>
+          </div>
+
+          {/* XY Pad */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <Label htmlFor="xy-pad-toggle">XY Pad</Label>
+              <Switch
+                id="xy-pad-toggle"
+                checked={pad.effects.xyPad?.enabled ?? false}
+                onCheckedChange={(checked) => {
+                  const xyPad: XYPadConfig = {
+                    enabled: checked,
+                    xAxis: pad.effects.xyPad?.xAxis ?? 'pitch',
+                    yAxis: pad.effects.xyPad?.yAxis ?? 'filter_cutoff',
+                  };
+                  handleEffectsChange({ ...pad.effects, xyPad });
+                }}
+              />
+            </div>
+            {pad.effects.xyPad?.enabled && (
+              <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-1">
+                  <Label className="text-xs text-muted-foreground">X Axis</Label>
+                  <Select
+                    value={pad.effects.xyPad.xAxis}
+                    onValueChange={(v: XYAxisParam) => {
+                      handleEffectsChange({
+                        ...pad.effects,
+                        xyPad: { ...pad.effects.xyPad!, xAxis: v },
+                      });
+                    }}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="pitch">Pitch Bend</SelectItem>
+                      <SelectItem value="filter_cutoff">Filter Cutoff</SelectItem>
+                      <SelectItem value="pan">Pan</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs text-muted-foreground">Y Axis</Label>
+                  <Select
+                    value={pad.effects.xyPad.yAxis}
+                    onValueChange={(v: XYAxisParam) => {
+                      handleEffectsChange({
+                        ...pad.effects,
+                        xyPad: { ...pad.effects.xyPad!, yAxis: v },
+                      });
+                    }}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="pitch">Pitch Bend</SelectItem>
+                      <SelectItem value="filter_cutoff">Filter Cutoff</SelectItem>
+                      <SelectItem value="pan">Pan</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Color */}

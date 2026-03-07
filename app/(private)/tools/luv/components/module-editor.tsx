@@ -5,12 +5,13 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { AlertTriangle, Lock } from 'lucide-react';
-import type { ParameterDef, ParameterTier, LuvChassisModule, ParameterConstraint } from '@/lib/types/luv-chassis';
+import { getSchema } from '@/lib/luv/chassis-schemas';
+import type { ParameterDef, ParameterTier } from '@/lib/luv/chassis-schemas';
+import type { LuvChassisModule, ParameterConstraint } from '@/lib/types/luv-chassis';
 import { saveModuleWithVersion } from '@/lib/luv-chassis';
 import { validateModuleConstraints } from '@/lib/luv/chassis-constraints';
 import type { ConstraintViolation } from '@/lib/luv/chassis-constraints';
 import { ParameterControl } from './parameter-control';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 interface StudyLock {
   studySlug: string;
@@ -34,7 +35,7 @@ const TIER_LABELS: Record<ParameterTier, string> = {
 };
 
 export function ModuleEditor({ module, allModules = [], studyLocks = [], onSaved }: ModuleEditorProps) {
-  const parameterSchema = module.parameter_schema ?? [];
+  const schema = getSchema(module.schema_key);
   const [parameters, setParameters] = useState<Record<string, unknown>>(
     module.parameters
   );
@@ -89,17 +90,17 @@ export function ModuleEditor({ module, allModules = [], studyLocks = [], onSaved
     return set;
   }, [violations, module.slug]);
 
-  if (parameterSchema.length === 0) {
+  if (!schema) {
     return (
       <div className="p-4 text-sm text-muted-foreground">
-        No parameters defined for this module.
+        Unknown schema: {module.schema_key}
       </div>
     );
   }
 
   // Group parameters by tier
   const grouped = new Map<ParameterTier, ParameterDef[]>();
-  for (const param of parameterSchema) {
+  for (const param of schema.parameters) {
     const tier = param.tier ?? 'basic';
     const group = grouped.get(tier) ?? [];
     group.push(param);
@@ -107,49 +108,25 @@ export function ModuleEditor({ module, allModules = [], studyLocks = [], onSaved
   }
 
   return (
-    <div className="space-y-0">
+    <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <div className="pt-6 px-6 pb-6 min-h-72 w-full flex flex-col justify-between">
-          <div className="flex items-start justify-start">
-            <div className="flex flex-col items-start justify-start space-y-3 ">
-              <h3 className="text-5xl font-semibold">{module.name}</h3>
-              <div className="flex items-baseline justify-start gap-2">
-                <button
-                  onClick={() => {
-                    document.getElementById('version-history')?.scrollIntoView({ behavior: 'smooth' });
-                  }}
-                  className="cursor-pointer"
-                  title="View version history"
-                >
-                  <Badge variant="outline" className="text-xs hover:bg-accent transition-colors">
-                    v{module.current_version}
-                  </Badge>
-                </button>
-                {module.description && (
-                  <p className="text-sm text-foreground">{module.description}</p>
-                )}
-              </div>
-            </div>
-
-            <div className="flex-1 flex items-start justify-end">
-              <Button onClick={handleSave} disabled={saving} size="sm">
-                {saving ? 'Saving...' : 'Save'}
-              </Button>
-            </div>
-          </div>
-
-          <div className="pt-2">
-            <Tabs>
-              <TabsList>
-                <TabsTrigger value="parameters">Parameters</TabsTrigger>
-                <TabsTrigger value="history">Media</TabsTrigger>
-                <TabsTrigger value="schema">Schema</TabsTrigger>
-                <TabsTrigger value="context">Context</TabsTrigger>
-                <TabsTrigger value="versions">Versions</TabsTrigger>
-              </TabsList>
-            </Tabs>
-          </div>
+        <div>
+          <h3 className="text-sm font-semibold">{schema.label}</h3>
+          {schema.description && (
+            <p className="text-xs text-muted-foreground">{schema.description}</p>
+          )}
         </div>
+        <button
+          onClick={() => {
+            document.getElementById('version-history')?.scrollIntoView({ behavior: 'smooth' });
+          }}
+          className="cursor-pointer"
+          title="View version history"
+        >
+          <Badge variant="outline" className="text-[10px] hover:bg-accent transition-colors">
+            v{module.current_version}
+          </Badge>
+        </button>
       </div>
 
       {violations.length > 0 && (
@@ -162,14 +139,13 @@ export function ModuleEditor({ module, allModules = [], studyLocks = [], onSaved
           ))}
         </div>
       )}
+
       {TIER_ORDER.filter((t) => grouped.has(t)).map((tier) => (
-        <section key={tier} className="bg-secondary space-y-0">
-          <div className="px-6 pb-4 pt-12 border-y border-y-border">
-            <h4 className="text-lg text-foreground font-semibold">
-              {TIER_LABELS[tier]}
-            </h4>
-          </div>
-          <div className="divide-y divide-y-border">
+        <section key={tier} className="space-y-3">
+          <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+            {TIER_LABELS[tier]}
+          </h4>
+          <div className="space-y-3">
             {grouped.get(tier)!.map((param) => {
               const lock = lockedParams.get(param.key);
               const isLocked = !!lock;
@@ -178,14 +154,12 @@ export function ModuleEditor({ module, allModules = [], studyLocks = [], onSaved
                 <div
                   key={param.key}
                   className={
-                    "flex justify-between divide-y divide-y-background"
-                    + (
                     isLocked
                       ? 'rounded ring-1 ring-blue-500/30 bg-blue-500/5 p-1.5 -m-1.5'
                       : violatedParams.has(param.key)
                         ? 'rounded ring-1 ring-yellow-500/40 p-1.5 -m-1.5'
                         : ''
-                    )}
+                  }
                 >
                   {isLocked && (
                     <div className="flex items-center gap-1.5 mb-1 text-[10px] text-blue-600 dark:text-blue-400">
@@ -202,7 +176,7 @@ export function ModuleEditor({ module, allModules = [], studyLocks = [], onSaved
                       </span>
                     </div>
                   )}
-                  <div className={isLocked ? 'opacity-60 pointer-events-none' : '' + "w-full bg-secondary px-6 py-4"}>
+                  <div className={isLocked ? 'opacity-60 pointer-events-none' : ''}>
                     <ParameterControl
                       param={param}
                       value={isLocked ? lock.value : parameters[param.key]}
@@ -215,6 +189,12 @@ export function ModuleEditor({ module, allModules = [], studyLocks = [], onSaved
           </div>
         </section>
       ))}
+
+      <div className="pt-2">
+        <Button onClick={handleSave} disabled={saving} size="sm">
+          {saving ? 'Saving...' : 'Save'}
+        </Button>
+      </div>
     </div>
   );
 }
