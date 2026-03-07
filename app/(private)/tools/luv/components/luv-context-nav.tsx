@@ -26,6 +26,7 @@ const soulGroup: NavGroup = {
     { href: '/tools/luv/soul/personality', label: 'Personality' },
     { href: '/tools/luv/soul/voice', label: 'Voice' },
     { href: '/tools/luv/soul/rules', label: 'Rules' },
+    { href: '/tools/luv/soul/facets', label: 'Facets' },
     { href: '/tools/luv/soul/overrides', label: 'Overrides' },
     { href: '/tools/luv/soul/preview', label: 'Preview' },
   ],

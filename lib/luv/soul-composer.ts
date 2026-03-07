@@ -5,8 +5,8 @@
  * prioritized layers, then joining them in order.
  */
 
-import type { LuvSoulData } from '../types/luv';
-import type { SoulLayer, CompositionResult, ChassisModuleSummary } from './soul-layers';
+import type { LuvSoulData, SoulFacet } from '../types/luv';
+import type { SoulLayer, SoulLayerType, CompositionResult, ChassisModuleSummary } from './soul-layers';
 import { LAYER_REGISTRY } from './soul-layers';
 
 export interface MemoryItem {
@@ -205,6 +205,34 @@ export function composeLayers(soulData: LuvSoulData, options?: ComposeOptions): 
     });
   }
 
+  // Append facets to their assigned layers (or create new layers for facet-only types)
+  if (Array.isArray(soulData.facets) && soulData.facets.length > 0) {
+    const facetsByLayer = new Map<string, SoulFacet[]>();
+    for (const facet of soulData.facets) {
+      if (!facetsByLayer.has(facet.layer)) facetsByLayer.set(facet.layer, []);
+      facetsByLayer.get(facet.layer)!.push(facet);
+    }
+
+    for (const [layerType, facets] of facetsByLayer) {
+      if (!(layerType in LAYER_REGISTRY)) continue;
+      const registryEntry = LAYER_REGISTRY[layerType as SoulLayerType];
+      const facetContent = facets.map(renderFacet).join('\n');
+      const existing = layers.find((l) => l.type === layerType);
+      if (existing) {
+        existing.content = existing.content + '\n' + facetContent;
+      } else {
+        layers.push({
+          id: `facets_${layerType}`,
+          type: layerType as SoulLayerType,
+          priority: registryEntry.priority,
+          content: facetContent,
+          source: 'soul_data.facets',
+          enabled: true,
+        });
+      }
+    }
+  }
+
   // Sort by priority, filter enabled
   const activeLayers = layers
     .filter((l) => l.enabled)
@@ -223,4 +251,25 @@ export function composeLayers(soulData: LuvSoulData, options?: ComposeOptions): 
     layers: activeLayers,
     tokenEstimate: Math.ceil(prompt.length / 4),
   };
+}
+
+function renderFacet(facet: SoulFacet): string {
+  switch (facet.type) {
+    case 'text':
+      return typeof facet.content === 'string' ? facet.content : String(facet.content);
+    case 'tags':
+      if (Array.isArray(facet.content)) {
+        return `Your ${facet.label}: ${facet.content.join(', ')}.`;
+      }
+      return '';
+    case 'key_value':
+      if (facet.content && typeof facet.content === 'object' && !Array.isArray(facet.content)) {
+        return Object.entries(facet.content as Record<string, string>)
+          .map(([k, v]) => `When facing ${k}: ${v}`)
+          .join('\n');
+      }
+      return '';
+    default:
+      return '';
+  }
 }

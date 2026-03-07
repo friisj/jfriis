@@ -671,6 +671,59 @@ export const saveMemory = tool({
 });
 
 // ============================================================================
+// Facet Tools
+// ============================================================================
+
+export const proposeFacetChange = tool({
+  description:
+    'Propose adding, updating, or removing a soul facet — a dynamic psychological dimension (e.g. values, emotional patterns, relational dynamics). Returns a proposal that requires human approval.',
+  inputSchema: zodSchema(
+    z.object({
+      action: z.enum(['add', 'update', 'remove']),
+      key: z.string().describe('Unique identifier for the facet (e.g. "values", "emotional_patterns")'),
+      label: z.string().optional().describe('Display name (required for add)'),
+      type: z.enum(['text', 'tags', 'key_value']).optional().describe('Content type (required for add)'),
+      layer: z.string().optional().describe('Which composition layer this feeds into (required for add)'),
+      content: z.unknown().optional().describe('Facet content — string for text, string[] for tags, Record<string,string> for key_value (required for add/update)'),
+      description: z.string().optional().describe('What this facet represents'),
+      reason: z.string().describe('Why this change is being proposed'),
+    })
+  ),
+  execute: async ({ action, key, label, type, layer, content, description, reason }) => {
+    const character = await getLuvCharacterServer();
+    if (!character) return { error: 'No character found' };
+
+    const facets = character.soul_data.facets ?? [];
+    const currentFacet = facets.find((f) => f.key === key);
+
+    if (action === 'add' && currentFacet) {
+      return { error: `Facet "${key}" already exists. Use action "update" instead.` };
+    }
+    if ((action === 'update' || action === 'remove') && !currentFacet) {
+      return { error: `Facet "${key}" not found. Use action "add" to create it.` };
+    }
+    if (action === 'add' && (!label || !type || !layer)) {
+      return { error: 'label, type, and layer are required when adding a facet.' };
+    }
+
+    const facet = action === 'add'
+      ? { key, label: label!, type: type!, layer: layer!, content, description }
+      : action === 'update'
+        ? { ...currentFacet!, ...(label !== undefined && { label }), ...(type !== undefined && { type }), ...(layer !== undefined && { layer }), ...(content !== undefined && { content }), ...(description !== undefined && { description }) }
+        : currentFacet!;
+
+    return {
+      type: 'facet_change_proposal' as const,
+      characterId: character.id,
+      action,
+      facet,
+      currentFacet: currentFacet ?? null,
+      reason,
+    };
+  },
+});
+
+// ============================================================================
 // Tool Registry
 // ============================================================================
 
@@ -692,4 +745,5 @@ export const luvTools = {
   review_chassis_module: reviewChassisModule,
   list_memories: listMemories,
   save_memory: saveMemory,
+  propose_facet_change: proposeFacetChange,
 };

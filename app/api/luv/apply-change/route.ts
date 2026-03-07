@@ -29,7 +29,21 @@ interface BatchModuleProposal {
   overallReason: string;
 }
 
-type ChangeProposal = SoulChassisProposal | ModuleProposal | BatchModuleProposal;
+interface FacetProposal {
+  type: 'facet_change_proposal';
+  characterId: string;
+  action: 'add' | 'update' | 'remove';
+  facet: {
+    key: string;
+    label: string;
+    type: 'text' | 'tags' | 'key_value';
+    layer: string;
+    content: unknown;
+    description?: string;
+  };
+}
+
+type ChangeProposal = SoulChassisProposal | ModuleProposal | BatchModuleProposal | FacetProposal;
 
 export async function POST(request: Request) {
   const { user, error } = await requireAuth();
@@ -165,6 +179,83 @@ export async function POST(request: Request) {
       success: true,
       moduleId,
       changedKeys,
+      version: newVersion,
+    });
+  }
+
+  // Facet change proposal — add/update/remove soul facets
+  if (proposal.type === 'facet_change_proposal') {
+    const { characterId, action, facet } = proposal as FacetProposal;
+    if (!characterId || !facet?.key) {
+      return NextResponse.json(
+        { error: 'Invalid facet proposal: missing characterId or facet key' },
+        { status: 400 }
+      );
+    }
+
+    const { data: character, error: fetchError } = await (supabase as any)
+      .from('luv_character')
+      .select('id, soul_data, version')
+      .eq('id', characterId)
+      .single();
+
+    if (fetchError || !character) {
+      return NextResponse.json(
+        { error: 'Character not found' },
+        { status: 404 }
+      );
+    }
+
+    const soulData = { ...(character.soul_data as Record<string, unknown>) };
+    const facets = Array.isArray(soulData.facets) ? [...(soulData.facets as Array<Record<string, unknown>>)] : [];
+
+    if (action === 'add') {
+      if (facets.some((f) => f.key === facet.key)) {
+        return NextResponse.json(
+          { error: `Facet "${facet.key}" already exists` },
+          { status: 409 }
+        );
+      }
+      facets.push(facet);
+    } else if (action === 'update') {
+      const idx = facets.findIndex((f) => f.key === facet.key);
+      if (idx === -1) {
+        return NextResponse.json(
+          { error: `Facet "${facet.key}" not found` },
+          { status: 404 }
+        );
+      }
+      facets[idx] = facet;
+    } else if (action === 'remove') {
+      const idx = facets.findIndex((f) => f.key === facet.key);
+      if (idx === -1) {
+        return NextResponse.json(
+          { error: `Facet "${facet.key}" not found` },
+          { status: 404 }
+        );
+      }
+      facets.splice(idx, 1);
+    }
+
+    soulData.facets = facets;
+    const newVersion = (character.version as number) + 1;
+
+    const { error: updateError } = await (supabase as any)
+      .from('luv_character')
+      .update({ soul_data: soulData, version: newVersion })
+      .eq('id', characterId);
+
+    if (updateError) {
+      return NextResponse.json(
+        { error: 'Failed to apply facet change' },
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json({
+      success: true,
+      action,
+      facetKey: facet.key,
       version: newVersion,
     });
   }

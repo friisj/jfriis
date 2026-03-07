@@ -39,7 +39,23 @@ interface BatchModuleProposal {
   overallReason: string;
 }
 
-type ChangeProposal = SoulChassisProposal | ModuleProposal | BatchModuleProposal;
+interface FacetProposal {
+  type: 'facet_change_proposal';
+  characterId: string;
+  action: 'add' | 'update' | 'remove';
+  facet: {
+    key: string;
+    label: string;
+    type: 'text' | 'tags' | 'key_value';
+    layer: string;
+    content: unknown;
+    description?: string;
+  };
+  currentFacet: FacetProposal['facet'] | null;
+  reason: string;
+}
+
+type ChangeProposal = SoulChassisProposal | ModuleProposal | BatchModuleProposal | FacetProposal;
 
 interface ProposalCardProps {
   proposal: ChangeProposal;
@@ -72,6 +88,67 @@ export function ProposalCard({ proposal, onApplied }: ProposalCardProps) {
   const handleReject = () => {
     setStatus('rejected');
   };
+
+  if (proposal.type === 'facet_change_proposal') {
+    const fp = proposal as FacetProposal;
+    const actionLabel = fp.action === 'add' ? 'Add Facet' : fp.action === 'update' ? 'Update Facet' : 'Remove Facet';
+    return (
+      <div className="rounded border bg-amber-50 dark:bg-amber-950/30 text-xs my-1 overflow-hidden">
+        <div className="px-2.5 py-2 space-y-1.5">
+          <div className="font-medium">
+            {actionLabel}: {fp.facet.label}
+          </div>
+          <div className="text-muted-foreground">{fp.reason}</div>
+
+          <div className="mt-1.5 space-y-1">
+            <div className="flex gap-2 text-[10px]">
+              <span className="text-muted-foreground">Type:</span>
+              <span>{fp.facet.type}</span>
+              <span className="text-muted-foreground ml-1">Layer:</span>
+              <span>{fp.facet.layer}</span>
+            </div>
+            {fp.facet.description && (
+              <div className="text-[10px] text-muted-foreground italic">{fp.facet.description}</div>
+            )}
+            {fp.action === 'update' && fp.currentFacet && (
+              <div className="grid grid-cols-2 gap-2 mt-1">
+                <div>
+                  <div className="text-[10px] font-medium text-muted-foreground mb-0.5">Current</div>
+                  <pre className="text-[10px] bg-muted rounded px-1.5 py-1 whitespace-pre-wrap break-all max-h-24 overflow-auto">
+                    {formatValue(fp.currentFacet.content)}
+                  </pre>
+                </div>
+                <div>
+                  <div className="text-[10px] font-medium text-muted-foreground mb-0.5">Proposed</div>
+                  <pre className="text-[10px] bg-green-50 dark:bg-green-950/30 rounded px-1.5 py-1 whitespace-pre-wrap break-all max-h-24 overflow-auto">
+                    {formatValue(fp.facet.content)}
+                  </pre>
+                </div>
+              </div>
+            )}
+            {fp.action === 'add' && (
+              <div>
+                <div className="text-[10px] font-medium text-muted-foreground mb-0.5">Content</div>
+                <pre className="text-[10px] bg-green-50 dark:bg-green-950/30 rounded px-1.5 py-1 whitespace-pre-wrap break-all max-h-24 overflow-auto">
+                  {formatValue(fp.facet.content)}
+                </pre>
+              </div>
+            )}
+            {fp.action === 'remove' && (
+              <div>
+                <div className="text-[10px] font-medium text-muted-foreground mb-0.5">Removing</div>
+                <pre className="text-[10px] bg-red-50 dark:bg-red-950/30 rounded px-1.5 py-1 whitespace-pre-wrap break-all max-h-24 overflow-auto line-through">
+                  {formatValue(fp.facet.content)}
+                </pre>
+              </div>
+            )}
+          </div>
+        </div>
+
+        <ApprovalButtons status={status} onApprove={handleApprove} onReject={handleReject} />
+      </div>
+    );
+  }
 
   const isBatch = proposal.type === 'batch_module_change_proposal';
   const isModule = proposal.type === 'module_change_proposal';

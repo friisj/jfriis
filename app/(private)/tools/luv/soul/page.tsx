@@ -55,6 +55,17 @@ export default async function LuvSoulPage() {
           }
         />
         <Row
+          label="Facets"
+          value={
+            Array.isArray(soul.facets) && soul.facets.length
+              ? (() => {
+                  const layers = new Set(soul.facets.map((f: { layer: string }) => f.layer));
+                  return `${soul.facets.length} facet${soul.facets.length === 1 ? '' : 's'} across ${layers.size} layer${layers.size === 1 ? '' : 's'}`;
+                })()
+              : undefined
+          }
+        />
+        <Row
           label="Override"
           value={soul.system_prompt_override ? 'Active' : undefined}
         />

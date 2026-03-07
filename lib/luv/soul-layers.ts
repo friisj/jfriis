@@ -9,6 +9,7 @@
 export type SoulLayerType =
   | 'core_identity'
   | 'personality'
+  | 'relational'
   | 'voice'
   | 'knowledge'
   | 'chassis_awareness'
@@ -53,6 +54,11 @@ export const LAYER_REGISTRY: Record<
     label: 'Personality',
     priority: 20,
     description: 'Archetype, temperament, and personality traits',
+  },
+  relational: {
+    label: 'Relational',
+    priority: 25,
+    description: 'Values, emotional patterns, and relational dynamics',
   },
   voice: {
     label: 'Voice',

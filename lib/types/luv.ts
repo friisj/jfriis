@@ -11,6 +11,19 @@
 // ============================================================================
 
 /**
+ * A dynamic psychological dimension that the agent can propose.
+ * Stored in `soul_data.facets[]` and rendered into the assigned composition layer.
+ */
+export interface SoulFacet {
+  key: string;
+  label: string;
+  type: 'text' | 'tags' | 'key_value';
+  layer: string;
+  content: unknown;
+  description?: string;
+}
+
+/**
  * Soul data — personality, voice, rules, and behavior configuration.
  * Well-known keys with index signature for extensibility.
  */
@@ -33,6 +46,7 @@ export interface LuvSoulData {
   skills?: string[];
   background?: string;
   system_prompt_override?: string;
+  facets?: SoulFacet[];
 }
 
 /**

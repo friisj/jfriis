@@ -504,7 +504,8 @@ function MessageBubble({
               ((output as Record<string, unknown>).type === 'soul_change_proposal' ||
                 (output as Record<string, unknown>).type === 'chassis_change_proposal' ||
                 (output as Record<string, unknown>).type === 'module_change_proposal' ||
-                (output as Record<string, unknown>).type === 'batch_module_change_proposal')
+                (output as Record<string, unknown>).type === 'batch_module_change_proposal' ||
+                (output as Record<string, unknown>).type === 'facet_change_proposal')
             ) {
               return (
                 <ProposalCard
