@@ -9,11 +9,20 @@
 export type SoulLayerType =
   | 'core_identity'
   | 'personality'
+  | 'relational'
   | 'voice'
   | 'knowledge'
+  | 'chassis_awareness'
   | 'behavioral_rules'
   | 'context'
   | 'memory';
+
+export interface ChassisModuleSummary {
+  slug: string;
+  name: string;
+  category: string;
+  paramCount: number;
+}
 
 export interface SoulLayer {
   id: string;
@@ -46,6 +55,11 @@ export const LAYER_REGISTRY: Record<
     priority: 20,
     description: 'Archetype, temperament, and personality traits',
   },
+  relational: {
+    label: 'Relational',
+    priority: 25,
+    description: 'Values, emotional patterns, and relational dynamics',
+  },
   voice: {
     label: 'Voice',
     priority: 30,
@@ -55,6 +69,11 @@ export const LAYER_REGISTRY: Record<
     label: 'Knowledge',
     priority: 40,
     description: 'Skills and domain expertise',
+  },
+  chassis_awareness: {
+    label: 'Chassis Awareness',
+    priority: 45,
+    description: 'Awareness of physical form described by chassis modules',
   },
   behavioral_rules: {
     label: 'Behavioral Rules',

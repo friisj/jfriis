@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { MessageSquare } from 'lucide-react';
@@ -15,6 +15,7 @@ import type { LuvSoulData } from '@/lib/types/luv';
 import { cn } from '@/lib/utils';
 import { LuvContextNav } from './components/luv-context-nav';
 import { ChatDrawer } from './components/chat-drawer';
+import { LuvChatProvider, useLuvChat } from './components/luv-chat-context';
 
 type Space = 'identity' | 'stage' | 'library';
 
@@ -33,18 +34,16 @@ const pathToSpace: Record<string, Space> = {
   '/tools/luv/presets': 'library',
   '/tools/luv/prompts': 'library',
   '/tools/luv/training': 'library',
+  '/tools/luv/memories': 'library',
 };
 
-function LuvHeaderActions({
-  chatOpen,
-  onChatToggle,
-}: {
-  chatOpen: boolean;
-  onChatToggle: () => void;
-}) {
+function LuvHeaderActions() {
   const { setActions } = usePrivateHeader();
   const pathname = usePathname();
+  const { chatOpen, setChatOpen } = useLuvChat();
   const activeSpace = pathToSpace[pathname] ?? 'identity';
+
+  const onChatToggle = useCallback(() => setChatOpen(!chatOpen), [chatOpen, setChatOpen]);
 
   useEffect(() => {
     setActions(
@@ -85,8 +84,8 @@ function LuvHeaderActions({
   return null;
 }
 
-export default function LuvLayout({ children }: { children: React.ReactNode }) {
-  const [chatOpen, setChatOpen] = useState(false);
+function LuvLayoutInner({ children }: { children: React.ReactNode }) {
+  const { chatOpen } = useLuvChat();
   const [soulData, setSoulData] = useState<LuvSoulData>({});
   const [soulLoaded, setSoulLoaded] = useState(false);
 
@@ -99,22 +98,32 @@ export default function LuvLayout({ children }: { children: React.ReactNode }) {
 
   return (
     <>
-      <LuvHeaderActions chatOpen={chatOpen} onChatToggle={() => setChatOpen((o) => !o)} />
-      <ResizablePanelGroup direction="horizontal" className="flex-1">
-        <ResizablePanel defaultSize={15} minSize={10} collapsible>
-          <LuvContextNav />
-        </ResizablePanel>
-        <ResizableHandle />
-        <ResizablePanel>{children}</ResizablePanel>
-        {chatOpen && (
-          <>
-            <ResizableHandle withHandle />
-            <ResizablePanel defaultSize={30} minSize={20}>
-              <ChatDrawer soulData={soulData} soulLoaded={soulLoaded} />
-            </ResizablePanel>
-          </>
-        )}
-      </ResizablePanelGroup>
+      <LuvHeaderActions />
+      <div className="h-full">
+        <ResizablePanelGroup direction="horizontal" className="flex-1">
+          <ResizablePanel defaultSize={15} minSize={10} collapsible>
+            <LuvContextNav />
+          </ResizablePanel>
+          <ResizableHandle />
+          <ResizablePanel>{children}</ResizablePanel>
+          {chatOpen && (
+            <>
+              <ResizableHandle withHandle />
+              <ResizablePanel defaultSize={30} minSize={20}>
+                <ChatDrawer soulData={soulData} soulLoaded={soulLoaded} />
+              </ResizablePanel>
+            </>
+          )}
+        </ResizablePanelGroup>
+      </div>
     </>
+  );
+}
+
+export default function LuvLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <LuvChatProvider>
+      <LuvLayoutInner>{children}</LuvLayoutInner>
+    </LuvChatProvider>
   );
 }

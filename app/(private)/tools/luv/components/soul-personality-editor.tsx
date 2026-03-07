@@ -19,9 +19,14 @@ export function SoulPersonalityEditor({
   initialSoulData,
   initialVersion,
 }: SoulPersonalityEditorProps) {
-  const [personality, setPersonality] = useState(
-    initialSoulData.personality ?? {}
-  );
+  const [personality, setPersonality] = useState(() => {
+    const p = initialSoulData.personality ?? {};
+    // Normalize traits to array (DB may store as string)
+    if (p.traits && !Array.isArray(p.traits)) {
+      return { ...p, traits: [String(p.traits)] };
+    }
+    return p;
+  });
   const [saving, setSaving] = useState(false);
   const [traitInput, setTraitInput] = useState('');
 

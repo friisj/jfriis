@@ -11,6 +11,19 @@
 // ============================================================================
 
 /**
+ * A dynamic psychological dimension that the agent can propose.
+ * Stored in `soul_data.facets[]` and rendered into the assigned composition layer.
+ */
+export interface SoulFacet {
+  key: string;
+  label: string;
+  type: 'text' | 'tags' | 'key_value';
+  layer: string;
+  content: unknown;
+  description?: string;
+}
+
+/**
  * Soul data — personality, voice, rules, and behavior configuration.
  * Well-known keys with index signature for extensibility.
  */
@@ -33,6 +46,7 @@ export interface LuvSoulData {
   skills?: string[];
   background?: string;
   system_prompt_override?: string;
+  facets?: SoulFacet[];
 }
 
 /**
@@ -290,3 +304,29 @@ export type CreateLuvMessageInput = {
   role: LuvMessageRole;
   content: string;
 };
+
+/**
+ * Memory — persistent fact learned across conversations
+ */
+export interface LuvMemory {
+  id: string;
+  content: string;
+  category: string;
+  source_conversation_id: string | null;
+  active: boolean;
+  created_at: string;
+  updated_at: string;
+  created_by: string | null;
+}
+
+export type CreateLuvMemoryInput = {
+  content: string;
+  category?: string;
+  source_conversation_id?: string;
+};
+
+export type UpdateLuvMemoryInput = Partial<{
+  content: string;
+  category: string;
+  active: boolean;
+}>;

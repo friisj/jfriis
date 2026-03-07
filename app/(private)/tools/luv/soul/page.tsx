@@ -6,9 +6,9 @@ export default async function LuvSoulPage() {
   const soul = character?.soul_data ?? {};
 
   return (
-    <div className="container px-4 py-8 max-w-xl">
+    <div className="px-6 py-6 overflow-y-auto h-full">
       <div className="flex items-center gap-3 mb-6">
-        <h1 className="text-2xl font-bold">Soul</h1>
+        <h1 className="text-5xl font-bold">Soul</h1>
         {character && (
           <Badge variant="outline">v{character.version}</Badge>
         )}
@@ -20,9 +20,11 @@ export default async function LuvSoulPage() {
         <Row
           label="Traits"
           value={
-            soul.personality?.traits?.length
+            Array.isArray(soul.personality?.traits) && soul.personality.traits.length
               ? soul.personality.traits.join(', ')
-              : undefined
+              : typeof soul.personality?.traits === 'string'
+                ? soul.personality.traits
+                : undefined
           }
         />
         <Row label="Tone" value={soul.voice?.tone} />
@@ -36,7 +38,11 @@ export default async function LuvSoulPage() {
         <Row
           label="Skills"
           value={
-            soul.skills?.length ? soul.skills.join(', ') : undefined
+            Array.isArray(soul.skills) && soul.skills.length
+              ? soul.skills.join(', ')
+              : typeof soul.skills === 'string'
+                ? soul.skills
+                : undefined
           }
         />
         <Row
@@ -45,6 +51,17 @@ export default async function LuvSoulPage() {
             soul.background
               ? soul.background.slice(0, 120) +
                 (soul.background.length > 120 ? '...' : '')
+              : undefined
+          }
+        />
+        <Row
+          label="Facets"
+          value={
+            Array.isArray(soul.facets) && soul.facets.length
+              ? (() => {
+                  const layers = new Set(soul.facets.map((f: { layer: string }) => f.layer));
+                  return `${soul.facets.length} facet${soul.facets.length === 1 ? '' : 's'} across ${layers.size} layer${layers.size === 1 ? '' : 's'}`;
+                })()
               : undefined
           }
         />

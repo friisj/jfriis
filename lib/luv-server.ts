@@ -14,6 +14,8 @@ import type {
   LuvTrainingSetItem,
   LuvPromptTemplate,
   LuvAestheticPreset,
+  LuvMemory,
+  CreateLuvMemoryInput,
 } from './types/luv';
 
 // NOTE: luv_* tables not in generated Supabase types - using type assertions
@@ -164,4 +166,44 @@ export async function getLuvPresetsServer(): Promise<LuvAestheticPreset[]> {
 
   if (error) throw error;
   return data as LuvAestheticPreset[];
+}
+
+// ============================================================================
+// Memories
+// ============================================================================
+
+export async function getLuvMemoriesServer(
+  activeOnly = false
+): Promise<LuvMemory[]> {
+  const client = await createClient();
+  let query = (client as any)
+    .from('luv_memories')
+    .select('*')
+    .order('created_at', { ascending: false });
+
+  if (activeOnly) {
+    query = query.eq('active', true);
+  }
+
+  const { data, error } = await query;
+  if (error) throw error;
+  return data as LuvMemory[];
+}
+
+export async function createLuvMemoryServer(
+  input: CreateLuvMemoryInput
+): Promise<LuvMemory> {
+  const client = await createClient();
+  const { data, error } = await (client as any)
+    .from('luv_memories')
+    .insert({
+      content: input.content,
+      category: input.category || 'general',
+      source_conversation_id: input.source_conversation_id || null,
+    })
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data as LuvMemory;
 }

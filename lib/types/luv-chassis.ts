@@ -2,6 +2,43 @@
  * Luv: Chassis Module Types
  */
 
+// Parameter Schema Types
+
+export type ParameterType =
+  | 'text'
+  | 'number'
+  | 'range'
+  | 'color'
+  | 'enum'
+  | 'boolean'
+  | 'json'
+  | 'media_ref'
+  | 'measurement'
+  | 'ratio'
+  | 'constraint_range';
+
+export type ParameterTier = 'basic' | 'intermediate' | 'advanced' | 'clinical';
+
+export type MeasurementUnit = 'cm' | 'in' | 'ratio' | 'degrees' | 'mm' | 'percent';
+
+export interface ParameterDef {
+  key: string;
+  label: string;
+  type: ParameterType;
+  description?: string;
+  default?: unknown;
+  options?: string[];
+  min?: number;
+  max?: number;
+  step?: number;
+  tier?: ParameterTier;
+  units?: MeasurementUnit[];
+  defaultUnit?: MeasurementUnit;
+  ratioLabels?: [string, string];
+}
+
+// Module Types
+
 export interface LuvChassisModule {
   id: string;
   slug: string;
@@ -10,6 +47,7 @@ export interface LuvChassisModule {
   description: string | null;
   current_version: number;
   parameters: Record<string, unknown>;
+  parameter_schema: ParameterDef[];
   schema_key: string;
   sequence: number;
   created_at: string;
@@ -41,7 +79,7 @@ export type CreateChassisModuleInput = {
   category?: string;
   description?: string;
   parameters?: Record<string, unknown>;
-  schema_key: string;
+  parameter_schema?: ParameterDef[];
   sequence?: number;
 };
 
@@ -50,6 +88,7 @@ export type UpdateChassisModuleInput = Partial<{
   category: string;
   description: string | null;
   parameters: Record<string, unknown>;
+  parameter_schema: ParameterDef[];
   current_version: number;
   sequence: number;
 }>;

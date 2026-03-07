@@ -70,7 +70,7 @@ export async function createChassisModule(
       category: input.category ?? 'general',
       description: input.description ?? null,
       parameters: input.parameters ?? {},
-      schema_key: input.schema_key,
+      parameter_schema: input.parameter_schema ?? [],
       sequence: input.sequence ?? 0,
     })
     .select()
