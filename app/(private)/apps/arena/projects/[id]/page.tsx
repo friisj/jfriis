@@ -6,6 +6,7 @@ import { SessionCard } from '@/components/studio/arena/session-card'
 import { CORE_DIMENSIONS } from '@/lib/studio/arena/types'
 import type { ArenaProjectAssemblyWithSkill } from '@/lib/studio/arena/db-types'
 import { FoundationSection } from './foundation-section'
+import { InputsSection } from './inputs-section'
 
 interface Props {
   params: Promise<{ id: string }>
@@ -15,12 +16,26 @@ const DIMENSION_LABELS: Record<string, string> = {
   color: 'Color',
   typography: 'Typography',
   spacing: 'Spacing',
+  elevation: 'Elevation',
+  radius: 'Radius',
+  density: 'Density',
+  motion: 'Motion',
+  iconography: 'Iconography',
+  voice: 'Voice & Tone',
+  presentation: 'Presentation',
 }
 
 const DIMENSION_COLORS: Record<string, string> = {
   color: 'bg-rose-50 dark:bg-rose-950/20 border-rose-200 dark:border-rose-800',
   typography: 'bg-blue-50 dark:bg-blue-950/20 border-blue-200 dark:border-blue-800',
   spacing: 'bg-amber-50 dark:bg-amber-950/20 border-amber-200 dark:border-amber-800',
+  elevation: 'bg-violet-50 dark:bg-violet-950/20 border-violet-200 dark:border-violet-800',
+  radius: 'bg-emerald-50 dark:bg-emerald-950/20 border-emerald-200 dark:border-emerald-800',
+  density: 'bg-cyan-50 dark:bg-cyan-950/20 border-cyan-200 dark:border-cyan-800',
+  motion: 'bg-orange-50 dark:bg-orange-950/20 border-orange-200 dark:border-orange-800',
+  iconography: 'bg-indigo-50 dark:bg-indigo-950/20 border-indigo-200 dark:border-indigo-800',
+  voice: 'bg-pink-50 dark:bg-pink-950/20 border-pink-200 dark:border-pink-800',
+  presentation: 'bg-teal-50 dark:bg-teal-950/20 border-teal-200 dark:border-teal-800',
 }
 
 const DEFAULT_DIM_COLOR = 'bg-slate-50 dark:bg-slate-950/20 border-slate-200 dark:border-slate-800'
@@ -52,6 +67,7 @@ export default async function ProjectDetailPage({ params }: Props) {
 
   return (
     <div className="max-w-7xl mx-auto space-y-6">
+      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <div className="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400 mb-1">
@@ -72,23 +88,18 @@ export default async function ProjectDetailPage({ params }: Props) {
             <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">{project.description}</p>
           )}
         </div>
-        <div className="flex gap-2">
-          <Link
-            href={`/apps/arena/projects/${project.id}/inputs`}
-            className="px-4 py-2 bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 text-sm font-medium rounded-lg hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors"
-          >
-            Edit Inputs
-          </Link>
-          <Link
-            href={`/apps/arena/projects/${project.id}/import`}
-            className="px-4 py-2 bg-purple-600 text-white text-sm font-medium rounded-lg hover:bg-purple-700 transition-colors"
-          >
-            Import from Figma
-          </Link>
-        </div>
+        <Link
+          href={`/apps/arena/sessions/new?project=${project.id}`}
+          className="px-4 py-2 bg-purple-600 text-white text-sm font-medium rounded-lg hover:bg-purple-700 transition-colors"
+        >
+          New Session
+        </Link>
       </div>
 
-      {/* Assembly panel */}
+      {/* Inputs */}
+      <InputsSection project={project} />
+
+      {/* Skill Assembly */}
       <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm p-5">
         <h2 className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-3">Skill Assembly</h2>
         <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">
@@ -138,6 +149,9 @@ export default async function ProjectDetailPage({ params }: Props) {
         </div>
       </div>
 
+      {/* Foundation */}
+      <FoundationSection project={project} />
+
       {/* Sessions */}
       <div>
         <div className="flex items-center justify-between mb-3">
@@ -170,53 +184,7 @@ export default async function ProjectDetailPage({ params }: Props) {
         )}
       </div>
 
-      {/* Foundation */}
-      <FoundationSection project={project} />
-
-      {/* Fonts & Inputs */}
-      <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm p-5">
-        <div className="flex items-center justify-between mb-3">
-          <h2 className="text-sm font-semibold text-slate-700 dark:text-slate-300">Fonts &amp; Inputs</h2>
-          <Link
-            href={`/apps/arena/projects/${project.id}/inputs`}
-            className="text-xs text-purple-600 hover:text-purple-700 font-medium"
-          >
-            Edit
-          </Link>
-        </div>
-        {project.inputs?.fonts && project.inputs.fonts.length > 0 ? (
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-3">
-            {project.inputs.fonts.map((f) => (
-              <div key={f.role} className="bg-slate-50 dark:bg-slate-700/50 rounded-lg px-3 py-2">
-                <span className="text-[10px] uppercase tracking-wider text-slate-400 dark:text-slate-500">{f.role}</span>
-                <p className="text-sm font-medium text-slate-800 dark:text-slate-200">{f.family}</p>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <p className="text-xs text-slate-400 dark:text-slate-500 italic mb-3">
-            No fonts configured.{' '}
-            <Link href={`/apps/arena/projects/${project.id}/inputs`} className="text-purple-600 hover:text-purple-700 not-italic">
-              Set fonts
-            </Link>
-          </p>
-        )}
-        {project.inputs && (project.inputs.figma_links?.length > 0 || project.inputs.images?.length > 0 || project.inputs.urls?.length > 0) && (
-          <div className="flex flex-wrap gap-4 text-xs text-slate-500 dark:text-slate-400 pt-2 border-t border-slate-100 dark:border-slate-700">
-            {project.inputs.figma_links?.length > 0 && (
-              <span>{project.inputs.figma_links.length} Figma link{project.inputs.figma_links.length !== 1 ? 's' : ''}</span>
-            )}
-            {project.inputs.images?.length > 0 && (
-              <span>{project.inputs.images.length} image{project.inputs.images.length !== 1 ? 's' : ''}</span>
-            )}
-            {project.inputs.urls?.length > 0 && (
-              <span>{project.inputs.urls.length} reference URL{project.inputs.urls.length !== 1 ? 's' : ''}</span>
-            )}
-          </div>
-        )}
-      </div>
-
-      {/* Project info */}
+      {/* Project info (Figma file) */}
       {(project.figma_file_url || project.figma_file_key) && (
         <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm p-5">
           <h2 className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">Figma</h2>
@@ -268,27 +236,6 @@ export default async function ProjectDetailPage({ params }: Props) {
             {legacySkills.map((skill) => (
               <SkillCard key={skill.id} skill={skill} />
             ))}
-          </div>
-        </div>
-      )}
-
-      {skills.length === 0 && (
-        <div className="text-center py-12 bg-white dark:bg-slate-800 rounded-lg shadow-sm space-y-2">
-          <p className="text-slate-500 dark:text-slate-400">No skills yet.</p>
-          <div className="flex items-center justify-center gap-3 text-sm">
-            <Link
-              href={`/apps/arena/projects/${project.id}/import`}
-              className="text-purple-600 hover:text-purple-700"
-            >
-              Import from Figma
-            </Link>
-            <span className="text-slate-300 dark:text-slate-600">or</span>
-            <Link
-              href="/apps/arena/templates"
-              className="text-purple-600 hover:text-purple-700"
-            >
-              Clone from templates
-            </Link>
           </div>
         </div>
       )}

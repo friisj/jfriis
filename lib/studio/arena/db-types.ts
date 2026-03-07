@@ -9,6 +9,7 @@ export interface ArenaProjectInputs {
   fonts: { role: string; family: string }[]
   images: string[]
   urls: string[]
+  icon_library?: string
 }
 
 export interface ArenaProject {

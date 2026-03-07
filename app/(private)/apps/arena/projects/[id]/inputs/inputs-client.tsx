@@ -18,6 +18,9 @@ export function ProjectInputsClient({ project }: Props) {
   // Initialize from project.inputs
   const inputs = project.inputs ?? { figma_links: [], fonts: [], images: [], urls: [] }
 
+  // Icon library
+  const [iconLibrary, setIconLibrary] = useState<string>(inputs.icon_library ?? '')
+
   // Font state — initializes selectors from saved project fonts
   const { availableFonts, fontDisplay, fontBody, fontMono, handleFontChange } = useArenaFonts(inputs.fonts)
 
@@ -64,6 +67,7 @@ export function ProjectInputsClient({ project }: Props) {
         fonts: buildFontsArray(),
         images,
         urls,
+        ...(iconLibrary ? { icon_library: iconLibrary } : {}),
       }
       await updateProjectInputs(project.id, newInputs)
       router.push(`/apps/arena/projects/${project.id}`)
@@ -72,7 +76,7 @@ export function ProjectInputsClient({ project }: Props) {
     } finally {
       setSaving(false)
     }
-  }, [figmaLinks, images, urls, fontDisplay, fontBody, fontMono, project.id, router]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [figmaLinks, images, urls, iconLibrary, fontDisplay, fontBody, fontMono, project.id, router]) // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <div className="space-y-6">
@@ -84,6 +88,23 @@ export function ProjectInputsClient({ project }: Props) {
         onFontChange={handleFontChange}
         availableFonts={availableFonts}
       />
+
+      {/* Icon Library */}
+      <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm p-5">
+        <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1">Icon Library</h3>
+        <p className="text-[10px] text-slate-400 mb-3">
+          Select which icon library to use for this project.
+        </p>
+        <select
+          value={iconLibrary}
+          onChange={(e) => setIconLibrary(e.target.value)}
+          className="w-full max-w-xs text-sm px-3 py-2 border border-slate-200 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200"
+        >
+          <option value="">None</option>
+          <option value="lucide">Lucide</option>
+          <option value="phosphor">Phosphor</option>
+        </select>
+      </div>
 
       {/* Figma Links */}
       <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm p-5">

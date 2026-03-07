@@ -32,16 +32,13 @@ function generateSlug(name: string): string {
 export async function createProjectAction(formData: FormData) {
   const name = formData.get('name') as string
   const description = (formData.get('description') as string) || null
-  const figmaFileUrl = (formData.get('figma_file_url') as string) || null
-  const figmaFileKey = (formData.get('figma_file_key') as string) || null
-  const substrate = (formData.get('substrate') as string) || null
+  const themeTemplate = (formData.get('theme_template') as string) || null
 
-  // Parse dimension config from form
+  // Parse dimension config from form — all get basic scope
   const dimensionKeys = (formData.getAll('dimensions') as string[])
   const config: ProjectConfig = { dimensions: {} }
   for (const dim of dimensionKeys) {
-    const scope = (formData.get(`scope_${dim}`) as string) || 'basic'
-    config.dimensions[dim] = { scope: scope as 'basic' | 'advanced' }
+    config.dimensions[dim] = { scope: 'basic' }
   }
   // Default to core dimensions if none selected
   if (Object.keys(config.dimensions).length === 0) {
@@ -52,6 +49,9 @@ export async function createProjectAction(formData: FormData) {
 
   if (!name?.trim()) throw new Error('Name is required')
 
+  const metadata: Record<string, unknown> = {}
+  if (themeTemplate) metadata.theme_template = themeTemplate
+
   const supabase = await arenaClient()
   const { data, error } = await supabase
     .from('arena_projects')
@@ -59,11 +59,8 @@ export async function createProjectAction(formData: FormData) {
       name: name.trim(),
       slug: generateSlug(name),
       description,
-      figma_file_url: figmaFileUrl,
-      figma_file_key: figmaFileKey,
-      substrate,
       config: config as unknown as Record<string, unknown>,
-      metadata: {},
+      metadata,
     })
     .select()
     .single()
@@ -451,7 +448,8 @@ export async function seedBaseTemplates() {
     .eq('tier', 'template')
 
   const existingDims = new Set((existing ?? []).map((s: { dimension: string }) => s.dimension))
-  const missingDims = CORE_DIMENSIONS.filter(dim => !existingDims.has(dim))
+  const allDims = Object.keys(BASE_SKILL)
+  const missingDims = allDims.filter(dim => !existingDims.has(dim))
 
   if (missingDims.length === 0) {
     return { seeded: false, message: 'All base templates already exist' }
