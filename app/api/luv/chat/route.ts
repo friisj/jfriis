@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { streamText, convertToModelMessages, stepCountIs, type UIMessage } from 'ai';
+import { streamText, convertToModelMessages, stepCountIs, type UIMessage, type ToolSet } from 'ai';
 import { requireAuth } from '@/lib/ai/auth';
 import { checkAIRateLimit, getAIRateLimitHeaders } from '@/lib/ai/rate-limit';
 import { getModel } from '@/lib/ai/models';
@@ -7,6 +7,7 @@ import { composeSoulSystemPrompt } from '@/lib/luv-prompt-composer';
 import { getLuvCharacterServer, getLuvMemoriesServer } from '@/lib/luv-server';
 import { getChassisModulesServer } from '@/lib/luv-chassis-server';
 import { luvTools } from '@/lib/luv-tools';
+import { getAnthropic } from '@/lib/ai/providers';
 import type { ChassisModuleSummary } from '@/lib/luv/soul-layers';
 
 export async function POST(request: Request) {
@@ -63,7 +64,10 @@ export async function POST(request: Request) {
       model: getModel(modelKey),
       system: systemPrompt,
       messages: modelMessages,
-      tools: luvTools,
+      tools: {
+        ...luvTools,
+        web_search: getAnthropic().tools.webSearch_20250305({ maxUses: 3 }),
+      } as ToolSet,
       stopWhen: stepCountIs(5),
     });
 
