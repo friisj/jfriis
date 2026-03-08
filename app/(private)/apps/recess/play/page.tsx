@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useReducer, useState } from 'react'
+import { useCallback, useEffect, useReducer, useRef } from 'react'
 import Link from 'next/link'
 import type { GameState, Direction } from '@/lib/recess/types'
 import { loadConfig } from '@/lib/recess/config'
@@ -14,6 +14,7 @@ import {
   interact,
   clearMessage,
 } from '@/lib/recess/engine'
+import { getRecessAudio, type RecessSound } from '@/lib/recess/audio'
 import MazeRenderer from '@/components/recess/MazeRenderer'
 import GameHud from '@/components/recess/GameHud'
 import TeacherEncounter from '@/components/recess/TeacherEncounter'
@@ -49,6 +50,51 @@ function reducer(state: GameState, action: Action): GameState {
 
 export default function PlayPage() {
   const [state, dispatch] = useReducer(reducer, null, () => createGame(loadConfig()))
+  const audioRef = useRef(getRecessAudio())
+  const prevPhaseRef = useRef(state.phase)
+  const prevStrikesRef = useRef(state.strikes)
+
+  // Initialize audio on first user interaction
+  useEffect(() => {
+    const audio = audioRef.current
+    const initOnInteraction = () => {
+      audio.init()
+      window.removeEventListener('click', initOnInteraction)
+      window.removeEventListener('keydown', initOnInteraction)
+    }
+    window.addEventListener('click', initOnInteraction)
+    window.addEventListener('keydown', initOnInteraction)
+    return () => {
+      window.removeEventListener('click', initOnInteraction)
+      window.removeEventListener('keydown', initOnInteraction)
+      audio.dispose()
+    }
+  }, [])
+
+  const playSound = useCallback((sound: RecessSound) => {
+    audioRef.current.play(sound)
+  }, [])
+
+  // React to phase transitions with sounds
+  useEffect(() => {
+    const prev = prevPhaseRef.current
+    prevPhaseRef.current = state.phase
+
+    if (prev === state.phase) return
+
+    if (state.phase === 'encounter') playSound('encounter')
+    if (state.phase === 'gym') playSound('gym-enter')
+    if (state.phase === 'transition') playSound('key-collect')
+    if (state.phase === 'detained') playSound('detention')
+    if (state.phase === 'won') playSound('victory')
+  }, [state.phase, playSound])
+
+  // React to strike changes
+  useEffect(() => {
+    const prev = prevStrikesRef.current
+    prevStrikesRef.current = state.strikes
+    if (state.strikes > prev) playSound('accuse-wrong')
+  }, [state.strikes, playSound])
 
   // Auto-clear messages after 2.5s
   useEffect(() => {
@@ -57,6 +103,17 @@ export default function PlayPage() {
       return () => clearTimeout(timer)
     }
   }, [state.message])
+
+  const handleMove = useCallback((dir: Direction) => {
+    const next = movePlayer(state, dir)
+    // Detect wall bump (position unchanged)
+    if (next.playerPos.row === state.playerPos.row && next.playerPos.col === state.playerPos.col) {
+      playSound('wall-bump')
+    } else {
+      playSound('footstep')
+    }
+    dispatch({ type: 'move', dir })
+  }, [state, playSound])
 
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
@@ -75,7 +132,7 @@ export default function PlayPage() {
       const dir = keyMap[e.key]
       if (dir) {
         e.preventDefault()
-        dispatch({ type: 'move', dir })
+        handleMove(dir)
         return
       }
 
@@ -85,7 +142,7 @@ export default function PlayPage() {
         dispatch({ type: 'interact' })
       }
     },
-    [state.phase]
+    [state.phase, handleMove]
   )
 
   useEffect(() => {
@@ -125,13 +182,13 @@ export default function PlayPage() {
       {/* Mobile controls */}
       <div className="grid grid-cols-3 gap-2 w-44 md:hidden">
         <div />
-        <button onClick={() => dispatch({ type: 'move', dir: 'north' })} className="p-4 bg-zinc-800 rounded text-center hover:bg-zinc-700 active:bg-zinc-600 text-lg">&uarr;</button>
+        <button onClick={() => handleMove('north')} className="p-4 bg-zinc-800 rounded text-center hover:bg-zinc-700 active:bg-zinc-600 text-lg">&uarr;</button>
         <div />
-        <button onClick={() => dispatch({ type: 'move', dir: 'west' })} className="p-4 bg-zinc-800 rounded text-center hover:bg-zinc-700 active:bg-zinc-600 text-lg">&larr;</button>
+        <button onClick={() => handleMove('west')} className="p-4 bg-zinc-800 rounded text-center hover:bg-zinc-700 active:bg-zinc-600 text-lg">&larr;</button>
         <button onClick={() => dispatch({ type: 'interact' })} className="p-4 bg-purple-800 rounded text-center hover:bg-purple-700 active:bg-purple-600 text-xs font-bold">ACT</button>
-        <button onClick={() => dispatch({ type: 'move', dir: 'east' })} className="p-4 bg-zinc-800 rounded text-center hover:bg-zinc-700 active:bg-zinc-600 text-lg">&rarr;</button>
+        <button onClick={() => handleMove('east')} className="p-4 bg-zinc-800 rounded text-center hover:bg-zinc-700 active:bg-zinc-600 text-lg">&rarr;</button>
         <div />
-        <button onClick={() => dispatch({ type: 'move', dir: 'south' })} className="p-4 bg-zinc-800 rounded text-center hover:bg-zinc-700 active:bg-zinc-600 text-lg">&darr;</button>
+        <button onClick={() => handleMove('south')} className="p-4 bg-zinc-800 rounded text-center hover:bg-zinc-700 active:bg-zinc-600 text-lg">&darr;</button>
         <div />
       </div>
 
@@ -143,6 +200,7 @@ export default function PlayPage() {
           teacher={state.currentEncounter}
           floorDifficulty={floorDifficulty}
           onDecide={(accuse) => dispatch({ type: 'accuse', accuse })}
+          playSound={playSound}
         />
       )}
 
@@ -151,6 +209,7 @@ export default function PlayPage() {
           demons={state.demonsFound}
           floor={state.currentFloor}
           onResult={(won) => dispatch({ type: 'dodgeball', won })}
+          playSound={playSound}
         />
       )}
 
@@ -160,7 +219,7 @@ export default function PlayPage() {
             <h2 className="text-2xl font-bold text-yellow-400">Key obtained!</h2>
             <p className="text-zinc-400">Descending to floor {state.currentFloor - 1}...</p>
             <button
-              onClick={() => dispatch({ type: 'advance' })}
+              onClick={() => { playSound('floor-down'); dispatch({ type: 'advance' }) }}
               className="px-6 py-2 bg-blue-600 hover:bg-blue-500 rounded-lg font-medium transition-colors"
             >
               Continue

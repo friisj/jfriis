@@ -2,11 +2,13 @@
 
 import { useState, useEffect, useRef } from 'react'
 import type { Teacher } from '@/lib/recess/types'
+import type { RecessSound } from '@/lib/recess/audio'
 
 interface GymBattleProps {
   demons: Teacher[]
   floor: number
   onResult: (won: boolean) => void
+  playSound?: (sound: RecessSound) => void
 }
 
 type BattlePhase = 'intro' | 'dodge' | 'throw' | 'hit' | 'miss' | 'result'
@@ -18,7 +20,7 @@ const LANE_LABELS = ['LEFT', 'CENTER', 'RIGHT']
  * Each demon requires one successful throw to eliminate.
  * Timing windows tighten on lower floors.
  */
-export default function GymBattle({ demons, floor, onResult }: GymBattleProps) {
+export default function GymBattle({ demons, floor, onResult, playSound }: GymBattleProps) {
   const [phase, setPhase] = useState<BattlePhase>('intro')
   const [currentDemon, setCurrentDemon] = useState(0)
   const [playerHP, setPlayerHP] = useState(demons.length + 1)
@@ -100,10 +102,11 @@ export default function GymBattle({ demons, floor, onResult }: GymBattleProps) {
   function handleDodge(chosenLane: Lane) {
     if (phase !== 'dodge') return
 
-    // Ball comes FROM ballLane — any other lane is a dodge
     if (chosenLane !== ballLane) {
+      playSound?.('dodge-success')
       setPhase('throw')
     } else {
+      playSound?.('dodge-fail')
       takeDamage()
     }
   }
@@ -116,6 +119,7 @@ export default function GymBattle({ demons, floor, onResult }: GymBattleProps) {
     const hit = crosshairPos >= 35 && crosshairPos <= 65
 
     if (hit) {
+      playSound?.('throw-hit')
       const newDefeated = demonsDefeated + 1
       setDemonsDefeated(newDefeated)
       setPhase('hit')
@@ -130,6 +134,7 @@ export default function GymBattle({ demons, floor, onResult }: GymBattleProps) {
         }
       }, 800)
     } else {
+      playSound?.('throw-miss')
       setPhase('miss')
       setTimeout(() => startDodge(), 800)
     }

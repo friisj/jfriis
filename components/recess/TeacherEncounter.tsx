@@ -2,21 +2,23 @@
 
 import { useState } from 'react'
 import type { Teacher, Challenge } from '@/lib/recess/types'
+import type { RecessSound } from '@/lib/recess/audio'
 import { pickChallenge } from '@/lib/recess/challenges'
 
 interface TeacherEncounterProps {
   teacher: Teacher
   floorDifficulty?: number
   onDecide: (accuse: boolean) => void
+  playSound?: (sound: RecessSound) => void
 }
 
-export default function TeacherEncounter({ teacher, floorDifficulty = 0, onDecide }: TeacherEncounterProps) {
+export default function TeacherEncounter({ teacher, floorDifficulty = 0, onDecide, playSound }: TeacherEncounterProps) {
   const [challenge] = useState<Challenge>(() => pickChallenge(floorDifficulty))
   const [answered, setAnswered] = useState(false)
   const [teacherResponse, setTeacherResponse] = useState<number | null>(null)
 
   function handleChallenge() {
-    // Teacher responds based on whether they're a demon
+    playSound?.('challenge')
     const response = teacher.isDemon ? challenge.demonAnswer : challenge.normalAnswer
     setTeacherResponse(response)
     setAnswered(true)
@@ -67,7 +69,7 @@ export default function TeacherEncounter({ teacher, floorDifficulty = 0, onDecid
 
             <div className="flex gap-3">
               <button
-                onClick={() => onDecide(true)}
+                onClick={() => { playSound?.('accuse-right'); onDecide(true) }}
                 className="flex-1 py-2.5 bg-red-600 hover:bg-red-500 text-white rounded-lg font-medium transition-colors"
               >
                 ACCUSE
