@@ -67,10 +67,20 @@ const annotationSchema = z.object({
   segments: z.array(segmentSchema),
 })
 
+const referenceSchema = z.object({
+  type: z.enum(['figma', 'image']),
+  url: z.string(),
+  imageUrl: z.string().optional(),
+  label: z.string(),
+  figmaNodeName: z.string().optional(),
+})
+
 const inputSchema = z.object({
   currentSkill: z.record(z.string(), dimensionSchema),
+  currentThemeTokens: z.record(z.string(), z.record(z.string(), z.string())).optional(),
   feedback: z.array(feedbackItemSchema),
   annotations: z.array(annotationSchema).default([]),
+  references: z.array(referenceSchema).default([]),
   notes: z.string(),
   iterationCount: z.number(),
   targetDimension: z.string().optional(),
@@ -88,7 +98,19 @@ const themeUpdatesSchema = z.record(z.string(), z.record(z.string(), z.string())
 const outputSchema = z.object({
   summary: z.string(),
   theme_updates: themeUpdatesSchema,
-}).catchall(outputDimensionSchema)
+}).catchall(z.any()).transform((data) => {
+  // Validate dimension keys (everything except summary/theme_updates) as dimension objects
+  const result: Record<string, unknown> = { summary: data.summary, theme_updates: data.theme_updates }
+  for (const [key, value] of Object.entries(data)) {
+    if (key === 'summary' || key === 'theme_updates') continue
+    const parsed = outputDimensionSchema.safeParse(value)
+    if (parsed.success) {
+      result[key] = parsed.data
+    }
+    // Silently drop non-dimension keys (e.g. "content" from post-processing)
+  }
+  return result
+})
 
 type RefineOutput = z.infer<typeof outputSchema>
 
@@ -120,6 +142,17 @@ Each feedback item targets a specific decision by dimension + label:
 
 Decisions with NO feedback: keep rationale, intent, confidence, and source exactly as they were.
 
+## Cascading Changes
+
+When a token value changes, consider what OTHER tokens must also change to maintain system coherence:
+
+- If Primary becomes a light color (e.g. white), button text that sits ON Primary must become dark. Include a "Primary Text" or equivalent token correction.
+- If Background changes, verify that Text and Muted still have sufficient contrast.
+- Color changes can cascade to related tokens (e.g., changing Primary may require adjusting Secondary for harmony).
+- Always include cascading corrections in theme_updates — don't just change the requested token in isolation.
+
+Think about each token change as an edit to a connected system, not an isolated substitution.
+
 ## Rules
 
 - Preserve all existing rules unless they contradict the feedback.
@@ -128,14 +161,21 @@ Decisions with NO feedback: keep rationale, intent, confidence, and source exact
 - Each iteration should produce FEWER changes than the last (convergence).`
 
 function buildPrompt(input: RefineInput) {
-  const dims = Object.keys(input.currentSkill)
+  const allDims = Object.keys(input.currentSkill)
+  // When scoped to a target dimension, only include that dimension in prompt/output
+  const targetDim = input.targetDimension
+  const outputDims = targetDim ? [targetDim] : allDims
 
   // Build dynamic decision labels section for system prompt
-  const decisionLabelsSection = dims.map(dim => {
+  const decisionLabelsSection = outputDims.map(dim => {
     const state = input.currentSkill[dim]
     const labels = state.decisions.map(d => d.label)
     return `### ${dim.charAt(0).toUpperCase() + dim.slice(1)} (${labels.length} decisions)\n${labels.map(l => `- "${l}"`).join('\n')}`
   }).join('\n\n')
+
+  const scopeNote = targetDim
+    ? `\n\n## Scope\n\nThis refinement targets the "${targetDim}" dimension ONLY. Output ONLY "${targetDim}" decisions and rules. Do NOT include other dimensions in your response.`
+    : ''
 
   const systemPrompt = `${BASE_SYSTEM_PROMPT}
 
@@ -155,11 +195,11 @@ ${decisionLabelsSection}
 
 ## Output Format
 
-Output a single JSON object with one key per dimension, plus "theme_updates" and "summary":
+Output a single JSON object with ${targetDim ? `"${targetDim}"` : 'one key per dimension'}, plus "theme_updates" and "summary":
 {
-${dims.map(d => `  "${d}": { "decisions": [...], "rules": [...] }`).join(',\n')},
+${outputDims.map(d => `  "${d}": { "decisions": [...], "rules": [...] }`).join(',\n')},
   "theme_updates": {
-${dims.map(d => `    "${d}": { "Label": "value", ... }`).join(',\n')}
+${outputDims.map(d => `    "${d}": { "Label": "value", ... }`).join(',\n')}
   },
   "summary": "2-3 sentence summary of what changed and why"
 }
@@ -168,6 +208,10 @@ Each decision: { label, rationale, intent, confidence, source: "gym" }
 Do NOT include "value" in decisions — token values go exclusively into theme_updates.
 
 The "theme_updates" object contains token corrections per dimension. For each dimension, include a flat object mapping decision labels to their corrected values. Only include entries that changed (adjusted or flagged decisions). Omit dimensions with no token changes.
+
+## Brevity
+
+Keep intent fields concise (1-2 sentences max). Keep rationale to one sentence. Do NOT pad with filler or restate the obvious. Shorter = better.
 
 ## Structured Annotations
 
@@ -185,10 +229,21 @@ interleaved text and grab references. Grab references use the format
 
 Weight annotations by hat type: Black and White observations are highest priority.
 Yellow observations identify constraints (preserve these aspects).
-Green offers options, not directives.`
+Green offers options, not directives.
 
-  // Serialize current skill
-  const skillSummary = dims.map(dim => {
+## Visual References
+
+You may receive reference images alongside the feedback. These are "like this" directional inputs — the user is showing you visual examples of the aesthetic, mood, or design patterns they want the system to move toward.
+
+When processing references:
+- Extract relevant design signals: color palette, spacing rhythm, density, typography feel, visual weight, elevation approach
+- Use the user's label for each reference to understand what specific aspect they want to draw from
+- References are directional, not prescriptive — incorporate their essence, don't copy them literally
+- Multiple references may provide complementary signals — synthesize, don't pick one over another
+- Reference signals should influence both intent fields (skill layer) and token corrections (theme_updates)${scopeNote}`
+
+  // Serialize current skill — only target dimension when scoped
+  const skillSummary = outputDims.map(dim => {
     const state = input.currentSkill[dim]
     const decisions = state.decisions.map(d => {
       let line = `  ${d.label}: [${d.confidence}] — ${d.rationale}`
@@ -211,18 +266,27 @@ Green offers options, not directives.`
       }).join('\n')
     : '(no specific decision feedback)'
 
-  let user = ''
-
-  // Scope refinement to a single dimension when specified
-  if (input.targetDimension) {
-    user += `**IMPORTANT: This refinement targets the "${input.targetDimension}" dimension ONLY. You MUST modify only ${input.targetDimension} decisions and rules. Copy the other two dimensions EXACTLY from the input — do not change any values, rationales, confidence levels, or rules in the non-target dimensions.**\n\n`
+  // Serialize current theme tokens so the AI can see existing values and reason about cascading
+  let themeTokensSection = ''
+  if (input.currentThemeTokens) {
+    const relevantTokens = outputDims
+      .filter(dim => input.currentThemeTokens![dim])
+      .map(dim => {
+        const entries = Object.entries(input.currentThemeTokens![dim])
+          .map(([label, value]) => `  ${label}: ${value}`)
+          .join('\n')
+        return `### ${dim}\n${entries}`
+      }).join('\n\n')
+    if (relevantTokens) {
+      themeTokensSection = `\n\n## Current Theme Tokens\n\nThese are the current token values. When changing a token, consider what other tokens must change to maintain contrast and coherence.\n\n${relevantTokens}`
+    }
   }
 
-  user += `Refine this design skill based on user feedback. This is iteration ${input.iterationCount + 1}.
+  let user = `Refine this design skill based on user feedback. This is iteration ${input.iterationCount + 1}.
 
 ## Current Skill State
 
-${skillSummary}
+${skillSummary}${themeTokensSection}
 
 ## User Feedback on Decisions
 
@@ -248,6 +312,46 @@ Output JSON only.`
   return { system: systemPrompt, user }
 }
 
+// --- Multimodal message builder (used when references have images) ---
+
+function buildMessages(input: RefineInput) {
+  const { system, user } = buildPrompt(input)
+
+  const content: Array<
+    | { type: 'text'; text: string }
+    | { type: 'image'; image: string }
+  > = []
+
+  // Add reference images
+  if (input.references.length > 0) {
+    // Text describing the references
+    const refDescriptions = input.references.map((ref, i) => {
+      const source = ref.type === 'figma'
+        ? `Figma node "${ref.figmaNodeName ?? 'unknown'}"`
+        : 'Uploaded image'
+      return `${i + 1}. [${source}] ${ref.label || '(no description)'}`
+    })
+    const referencesText = `\n\n## Visual References\n\n${refDescriptions.join('\n')}\n\nReference images follow:`
+
+    // Add image blocks for each reference that has an image URL
+    for (const ref of input.references) {
+      const imageUrl = ref.type === 'figma' ? ref.imageUrl : ref.url
+      if (imageUrl) {
+        content.push({ type: 'image', image: imageUrl })
+      }
+    }
+
+    content.push({ type: 'text', text: user + referencesText })
+  } else {
+    content.push({ type: 'text', text: user })
+  }
+
+  return {
+    system,
+    messages: [{ role: 'user' as const, content }],
+  }
+}
+
 // --- Action registration ---
 
 const arenaRefineSkillAction: Action<RefineInput, RefineOutput> = {
@@ -257,9 +361,11 @@ const arenaRefineSkillAction: Action<RefineInput, RefineOutput> = {
   entityTypes: ['studio_experiment'],
   taskType: 'classification',
   model: 'claude-haiku',
+  maxOutputTokens: 8000,
   inputSchema,
   outputSchema,
   buildPrompt,
+  buildMessages,
 }
 
 registerAction(arenaRefineSkillAction)

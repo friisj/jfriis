@@ -27,6 +27,15 @@ export interface ArenaAnnotation {
   timestamp: number
 }
 
+export interface ArenaReference {
+  id: string
+  type: 'figma' | 'image'
+  url: string
+  imageUrl?: string
+  label: string
+  figmaNodeName?: string
+}
+
 export interface SkillDecision {
   id: string
   label: string
@@ -90,9 +99,9 @@ export interface FoundationGap {
   severity: 'low' | 'medium' | 'high'
 }
 
-/** Foundation brief generated from substrate + inputs */
+/** Foundation brief generated from project inputs + current skills/tokens */
 export interface FoundationBrief {
-  intent: string[]
+  summary: string
   gaps: FoundationGap[]
   generated_at: string
 }

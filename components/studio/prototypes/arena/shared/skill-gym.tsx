@@ -11,7 +11,7 @@
  */
 
 import { useState, useCallback, useMemo, useRef, useEffect } from 'react'
-import type { SkillState, SkillDecision, ArenaAnnotation, AnnotationSegment, TokenMap, ProjectTheme } from '@/lib/studio/arena/types'
+import type { SkillState, SkillDecision, ArenaAnnotation, ArenaReference, AnnotationSegment, TokenMap, ProjectTheme } from '@/lib/studio/arena/types'
 import { resolveRenderTokens } from '@/lib/studio/arena/types'
 import { DEBONO_HATS } from '@/lib/studio/arena/debono-hats'
 import type { DebonoHatKey } from '@/lib/studio/arena/debono-hats'
@@ -41,6 +41,7 @@ export interface GymRoundData {
   annotations: ArenaAnnotation[]
   notes: string
   theme_updates?: Record<string, TokenMap>
+  references?: ArenaReference[]
 }
 
 export interface CanvasTabDef {
@@ -399,6 +400,199 @@ function AnnotationQueue({ annotations, onRemove }: {
 }
 
 // ---------------------------------------------------------------------------
+// Reference Editor (inline)
+// ---------------------------------------------------------------------------
+
+function ReferenceEditor({ references, onChange }: {
+  references: ArenaReference[]
+  onChange: (refs: ArenaReference[]) => void
+}) {
+  const [inputValue, setInputValue] = useState('')
+  const [loading, setLoading] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
+  const addFigmaReference = useCallback(async (url: string) => {
+    setLoading(true)
+    try {
+      const res = await fetch('/api/arena/figma-screenshot', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error ?? 'Failed to fetch Figma screenshot')
+      const ref: ArenaReference = {
+        id: `ref_${Date.now()}`,
+        type: 'figma',
+        url,
+        imageUrl: data.imageUrl,
+        label: '',
+        figmaNodeName: data.nodeName,
+      }
+      onChange([...references, ref])
+    } catch (err) {
+      console.error('Figma reference failed:', err)
+    } finally {
+      setLoading(false)
+      setInputValue('')
+    }
+  }, [references, onChange])
+
+  const addImageReference = useCallback((file: File) => {
+    const reader = new FileReader()
+    reader.onload = () => {
+      const dataUrl = reader.result as string
+      const ref: ArenaReference = {
+        id: `ref_${Date.now()}`,
+        type: 'image',
+        url: dataUrl,
+        label: '',
+      }
+      onChange([...references, ref])
+    }
+    reader.readAsDataURL(file)
+  }, [references, onChange])
+
+  const handleAddUrl = useCallback(() => {
+    const url = inputValue.trim()
+    if (!url) return
+    if (url.includes('figma.com')) {
+      addFigmaReference(url)
+    }
+  }, [inputValue, addFigmaReference])
+
+  const handleFileChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file && file.type.startsWith('image/')) {
+      addImageReference(file)
+    }
+    e.target.value = ''
+  }, [addImageReference])
+
+  const handlePaste = useCallback((e: React.ClipboardEvent) => {
+    const items = e.clipboardData.items
+    for (const item of items) {
+      if (item.type.startsWith('image/')) {
+        e.preventDefault()
+        const file = item.getAsFile()
+        if (file) addImageReference(file)
+        return
+      }
+    }
+  }, [addImageReference])
+
+  const handleRemove = useCallback((id: string) => {
+    onChange(references.filter(r => r.id !== id))
+  }, [references, onChange])
+
+  const handleLabelChange = useCallback((id: string, label: string) => {
+    onChange(references.map(r => r.id === id ? { ...r, label } : r))
+  }, [references, onChange])
+
+  return (
+    <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl p-5 space-y-4">
+      <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">
+        Reference Images
+      </h3>
+      <p className="text-xs text-gray-400">
+        Paste a Figma URL or upload images as &quot;like this&quot; references for the AI.
+      </p>
+
+      {/* Add reference controls */}
+      <div className="flex gap-2" onPaste={handlePaste}>
+        <input
+          type="text"
+          value={inputValue}
+          onChange={(e) => setInputValue(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && handleAddUrl()}
+          placeholder="Paste a Figma URL..."
+          className="flex-1 px-3 py-2 text-xs border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-200 placeholder:text-gray-400"
+          disabled={loading}
+        />
+        <button
+          onClick={handleAddUrl}
+          disabled={!inputValue.trim().includes('figma.com') || loading}
+          className="px-3 py-2 text-xs font-medium bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:bg-gray-300 dark:disabled:bg-gray-700 disabled:cursor-not-allowed transition-colors"
+        >
+          {loading ? 'Loading...' : 'Add'}
+        </button>
+        <button
+          onClick={() => fileInputRef.current?.click()}
+          className="px-3 py-2 text-xs font-medium border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-300 transition-colors"
+        >
+          Upload Image
+        </button>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          onChange={handleFileChange}
+          className="hidden"
+        />
+      </div>
+
+      {/* Reference cards */}
+      {references.length === 0 ? (
+        <div className="py-8 text-center">
+          <p className="text-xs text-gray-400">No references yet. Paste a Figma URL or upload an image.</p>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {references.map(ref => (
+            <div key={ref.id} className="flex gap-3 p-3 rounded-lg border border-gray-100 dark:border-gray-800">
+              {/* Thumbnail */}
+              <div className="w-20 h-20 flex-shrink-0 rounded-md overflow-hidden bg-gray-100 dark:bg-gray-800">
+                {(ref.type === 'figma' && ref.imageUrl) ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={ref.imageUrl} alt={ref.figmaNodeName ?? 'Figma reference'} className="w-full h-full object-cover" />
+                ) : ref.type === 'image' ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={ref.url} alt="Uploaded reference" className="w-full h-full object-cover" />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center text-gray-400 text-xs">No preview</div>
+                )}
+              </div>
+
+              {/* Content */}
+              <div className="flex-1 min-w-0 space-y-1">
+                <div className="flex items-center gap-2">
+                  <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${
+                    ref.type === 'figma'
+                      ? 'bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-400'
+                      : 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400'
+                  }`}>
+                    {ref.type === 'figma' ? 'Figma' : 'Image'}
+                  </span>
+                  {ref.figmaNodeName && (
+                    <span className="text-xs text-gray-500 dark:text-gray-400 truncate">{ref.figmaNodeName}</span>
+                  )}
+                </div>
+                <textarea
+                  value={ref.label}
+                  onChange={(e) => handleLabelChange(ref.id, e.target.value)}
+                  placeholder="Describe what to use from this reference..."
+                  rows={2}
+                  className="w-full px-2 py-1 text-xs border border-gray-200 dark:border-gray-700 rounded bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-200 placeholder:text-gray-400 resize-none"
+                />
+              </div>
+
+              {/* Remove */}
+              <button
+                onClick={() => handleRemove(ref.id)}
+                className="p-1 rounded text-xs text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors flex-shrink-0 self-start"
+                title="Remove reference"
+              >
+                {'\u2717'}
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
 // Main SkillGym component
 // ---------------------------------------------------------------------------
 
@@ -414,8 +608,9 @@ export function SkillGym({ skill, onSkillUpdate, onBack, fontOverrides, targetDi
   const [error, setError] = useState<string | null>(null)
 
   // Annotation state
-  const [activeTab, setActiveTab] = useState<'tokens' | 'annotations'>('tokens')
+  const [activeTab, setActiveTab] = useState<'tokens' | 'annotations' | 'references'>('tokens')
   const [annotations, setAnnotations] = useState<ArenaAnnotation[]>([])
+  const [references, setReferences] = useState<ArenaReference[]>([])
   const [activeHat, setActiveHat] = useState<DebonoHatKey>('white')
   const previewContainerRef = useRef<HTMLDivElement>(null)
 
@@ -580,7 +775,7 @@ export function SkillGym({ skill, onSkillUpdate, onBack, fontOverrides, targetDi
   }, [isGrabActive])
 
   const handleRefine = useCallback(async () => {
-    if (feedbackCount === 0 && annotations.length === 0) return
+    if (feedbackCount === 0 && annotations.length === 0 && references.length === 0) return
 
     setPhase('refining')
     setError(null)
@@ -598,10 +793,20 @@ export function SkillGym({ skill, onSkillUpdate, onBack, fontOverrides, targetDi
           action: 'arena-refine-skill',
           input: {
             currentSkill: skill,
+            currentThemeTokens: theme ? Object.fromEntries(
+              Object.entries(theme).map(([dim, dt]) => [dim, dt.tokens])
+            ) : undefined,
             feedback: scopedFeedback,
             annotations: annotations.map(a => ({
               hatKey: a.hatKey,
               segments: a.segments,
+            })),
+            references: references.map(r => ({
+              type: r.type,
+              url: r.url,
+              imageUrl: r.imageUrl,
+              label: r.label,
+              figmaNodeName: r.figmaNodeName,
             })),
             notes,
             iterationCount: roundCount,
@@ -617,8 +822,10 @@ export function SkillGym({ skill, onSkillUpdate, onBack, fontOverrides, targetDi
 
       const result = data.data as SkillState & { summary: string; theme_updates?: Record<string, TokenMap> }
       const { summary: resultSummary, theme_updates: resultThemeUpdates, ...refinedDims } = result
+      // Merge refined dimensions into the full skill (scoped responses only contain the target dimension)
+      const mergedSkill = { ...skill, ...refinedDims }
       setPreviousSkill(skill)
-      setRefinedSkill(refinedDims)
+      setRefinedSkill(mergedSkill)
       setRefineSummary(resultSummary)
       setRefineThemeUpdates(resultThemeUpdates)
       setPhase('review')
@@ -626,7 +833,7 @@ export function SkillGym({ skill, onSkillUpdate, onBack, fontOverrides, targetDi
       setError(err instanceof Error ? err.message : 'Unknown error')
       setPhase('gym')
     }
-  }, [skill, feedbackMap, annotations, notes, roundCount, feedbackCount, targetDimension])
+  }, [skill, feedbackMap, annotations, references, notes, roundCount, feedbackCount, targetDimension])
 
   const handleAccept = useCallback(() => {
     if (!refinedSkill) return
@@ -635,6 +842,7 @@ export function SkillGym({ skill, onSkillUpdate, onBack, fontOverrides, targetDi
       annotations,
       notes,
       theme_updates: refineThemeUpdates,
+      references,
     })
     setPreviousSkill(null)
     setRefinedSkill(null)
@@ -644,9 +852,10 @@ export function SkillGym({ skill, onSkillUpdate, onBack, fontOverrides, targetDi
     setFeedbackMap({})
     setNotes('')
     setAnnotations([])
+    setReferences([])
     setActiveTab('tokens')
     setPhase('gym')
-  }, [refinedSkill, onSkillUpdate, feedbackMap, annotations, notes, refineThemeUpdates])
+  }, [refinedSkill, onSkillUpdate, feedbackMap, annotations, notes, refineThemeUpdates, references])
 
   const handleReject = useCallback(() => {
     setRefinedSkill(null)
@@ -681,7 +890,7 @@ export function SkillGym({ skill, onSkillUpdate, onBack, fontOverrides, targetDi
       <div className="max-w-4xl mx-auto p-8">
         <div className="flex flex-col items-center justify-center gap-4 py-20">
           <div className="w-8 h-8 border-2 border-purple-600 border-t-transparent rounded-full animate-spin" />
-          <p className="text-sm text-gray-600 dark:text-gray-400">Refining skill (round {roundCount + 1})...</p>
+          <p className="text-sm text-gray-600 dark:text-gray-400">Refining (round {roundCount + 1})...</p>
         </div>
       </div>
     )
@@ -714,15 +923,24 @@ export function SkillGym({ skill, onSkillUpdate, onBack, fontOverrides, targetDi
         </div>
 
         {/* Side-by-side canonical components */}
-        {effectiveTabs.map(({ label, Component }) => (
-          <div key={label} className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl p-6">
-            <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-4">{label}</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <Component skill={previousSkill} label="Previous" fontOverrides={fontOverrides} theme={theme} />
-              <Component skill={refinedSkill} label="Refined" fontOverrides={fontOverrides} theme={theme} />
+        {effectiveTabs.map(({ label, Component }) => {
+          // Build a theme with refineThemeUpdates merged for the "Refined" preview
+          const refinedTheme = theme && refineThemeUpdates
+            ? Object.entries(refineThemeUpdates).reduce((acc, [dim, tokens]) => ({
+                ...acc,
+                [dim]: { ...acc[dim], tokens: { ...acc[dim]?.tokens, ...tokens }, source: acc[dim]?.source ?? 'refinement' },
+              }), { ...theme })
+            : theme
+          return (
+            <div key={label} className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl p-6">
+              <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-4">{label}</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <Component skill={previousSkill} label="Previous" fontOverrides={fontOverrides} theme={theme} />
+                <Component skill={refinedSkill} label="Refined" fontOverrides={fontOverrides} theme={refinedTheme} />
+              </div>
             </div>
-          </div>
-        ))}
+          )
+        })}
 
         <div className="flex gap-3 justify-center">
           <button
@@ -759,11 +977,20 @@ export function SkillGym({ skill, onSkillUpdate, onBack, fontOverrides, targetDi
 
   return (
     <div className="max-w-5xl mx-auto p-8 space-y-6">
-      <div className="text-center space-y-2">
-        <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">Skill Gym</h2>
-        <p className="text-sm text-gray-500 dark:text-gray-400">
-          Round {roundCount + 1} — Review each decision: approve, adjust, or flag for AI review.
-        </p>
+      <div className="flex items-start justify-between">
+        <div className="space-y-1">
+          <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">Skill Gym</h2>
+          <p className="text-sm text-gray-500 dark:text-gray-400">
+            Round {roundCount + 1} — Review each decision: approve, adjust, or flag for AI review.
+          </p>
+        </div>
+        <button
+          onClick={handleRefine}
+          disabled={feedbackCount === 0 && annotations.length === 0 && references.length === 0}
+          className="px-6 py-2.5 bg-purple-600 text-white font-medium rounded-xl hover:bg-purple-700 disabled:bg-gray-300 dark:disabled:bg-gray-700 disabled:cursor-not-allowed transition-colors text-sm flex-shrink-0"
+        >
+          Refine (Round {roundCount + 1})
+        </button>
       </div>
 
       {/* Canonical components preview / annotation canvas */}
@@ -833,10 +1060,22 @@ export function SkillGym({ skill, onSkillUpdate, onBack, fontOverrides, targetDi
         >
           Annotations{annotations.length > 0 ? ` (${annotations.length})` : ''}
         </button>
+        <button
+          onClick={() => setActiveTab('references')}
+          className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+            activeTab === 'references'
+              ? 'border-purple-600 text-purple-700 dark:text-purple-400'
+              : 'border-transparent text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
+          }`}
+        >
+          References{references.length > 0 ? ` (${references.length})` : ''}
+        </button>
       </div>
 
       {/* Tab content */}
-      {activeTab === 'tokens' ? (
+      {activeTab === 'references' ? (
+        <ReferenceEditor references={references} onChange={setReferences} />
+      ) : activeTab === 'tokens' ? (
         <>
           {/* Per-dimension feedback sections */}
           {visibleDimensions.map(dim => {
@@ -931,31 +1170,23 @@ export function SkillGym({ skill, onSkillUpdate, onBack, fontOverrides, targetDi
       )}
 
       {/* Footer */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <button
-            onClick={onBack}
-            className="text-xs text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 underline"
-          >
-            Back to compare
-          </button>
-          <span className="text-xs text-gray-400">
-            {feedbackCount}/{decisionCount} decisions reviewed
-            {annotations.length > 0 ? ` + ${annotations.length} annotation${annotations.length !== 1 ? 's' : ''}` : ''}
-          </span>
-          <button
-            onClick={() => handleExport(skill)}
-            className="text-xs text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 underline"
-          >
-            Export current
-          </button>
-        </div>
+      <div className="flex items-center gap-4">
         <button
-          onClick={handleRefine}
-          disabled={feedbackCount === 0 && annotations.length === 0}
-          className="px-8 py-3 bg-purple-600 text-white font-medium rounded-xl hover:bg-purple-700 disabled:bg-gray-300 dark:disabled:bg-gray-700 disabled:cursor-not-allowed transition-colors text-sm"
+          onClick={onBack}
+          className="text-xs text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 underline"
         >
-          Refine Skill (Round {roundCount + 1})
+          Back to compare
+        </button>
+        <span className="text-xs text-gray-400">
+          {feedbackCount}/{decisionCount} decisions reviewed
+          {annotations.length > 0 ? ` + ${annotations.length} annotation${annotations.length !== 1 ? 's' : ''}` : ''}
+          {references.length > 0 ? ` + ${references.length} reference${references.length !== 1 ? 's' : ''}` : ''}
+        </span>
+        <button
+          onClick={() => handleExport(skill)}
+          className="text-xs text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 underline"
+        >
+          Export current
         </button>
       </div>
     </div>

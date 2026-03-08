@@ -3,10 +3,11 @@
 import { createClient } from '@/lib/supabase-server'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { revalidatePath } from 'next/cache'
-import type { SkillState, ArenaAnnotation, SkillTier, ProjectConfig, TokenMap } from './types'
+import type { SkillState, ArenaAnnotation, ArenaReference, SkillTier, ProjectConfig, TokenMap, DimensionState } from './types'
 import { CORE_DIMENSIONS, extractTokensFromDimension } from './types'
 import { BASE_SKILL, BASE_THEME_TOKENS } from './base-skill'
 import type { ArenaProjectInputs } from './db-types'
+import { getTemplateSkills, getTemplateThemes, getProjectAssembly, getProjectThemes } from './queries'
 
 // Arena tables aren't in the generated Supabase types yet.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -66,6 +67,35 @@ export async function createProjectAction(formData: FormData) {
     .single()
 
   if (error) throw error
+
+  const projectId = data.id as string
+
+  // Clone base template skills for each selected dimension (skills only — no themes)
+  const templateSkills = await getTemplateSkills()
+  for (const templateSkill of templateSkills) {
+    if (templateSkill.dimension && config.dimensions[templateSkill.dimension]) {
+      await cloneTemplateToProject(templateSkill.id, projectId)
+    }
+  }
+
+  // Clone theme tokens — from selected theme template, or from base 'default' templates
+  const themeSource = await getTemplateThemes(themeTemplate ?? 'default')
+  for (const theme of themeSource) {
+    if (!config.dimensions[theme.dimension]) continue
+    const supabase2 = await arenaClient()
+    await supabase2
+      .from('arena_themes')
+      .insert({
+        project_id: projectId,
+        skill_id: null,
+        dimension: theme.dimension,
+        platform: theme.platform,
+        name: theme.name,
+        tokens: theme.tokens,
+        source: 'template-clone',
+      })
+  }
+
   revalidatePath('/apps/arena')
   return data
 }
@@ -202,6 +232,7 @@ export async function completeGymRound(input: {
   round: number
   feedback: FeedbackItem[]
   annotations: ArenaAnnotation[]
+  references?: ArenaReference[]
   skill_state: SkillState
   ai_summary?: string
   theme_updates?: Record<string, TokenMap>
@@ -237,6 +268,23 @@ export async function completeGymRound(input: {
       .from('arena_session_annotations')
       .insert(annotationRows)
     if (annError) throw annError
+  }
+
+  // Insert reference rows
+  if (input.references && input.references.length > 0) {
+    const referenceRows = input.references.map((r) => ({
+      session_id: input.session_id,
+      round: input.round,
+      type: r.type,
+      url: r.url,
+      image_url: r.imageUrl ?? null,
+      label: r.label,
+      figma_node_name: r.figmaNodeName ?? null,
+    }))
+    const { error: refError } = await supabase
+      .from('arena_session_references')
+      .insert(referenceRows)
+    if (refError) throw refError
   }
 
   // Insert iteration snapshot
@@ -501,6 +549,95 @@ export async function seedBaseTemplates() {
   return { seeded: true, templateIds }
 }
 
+export async function updateBaseTemplates() {
+  const supabase = await arenaClient()
+
+  // Update template skills with latest BASE_SKILL state
+  const { data: templateSkills } = await supabase
+    .from('arena_skills')
+    .select('id, dimension')
+    .eq('is_template', true)
+    .eq('tier', 'template')
+  if (!templateSkills) return { updated: false, message: 'No template skills found' }
+
+  const skillUpdates: string[] = []
+  for (const skill of templateSkills) {
+    const dim = skill.dimension as string
+    const dimState = BASE_SKILL[dim]
+    if (!dimState) continue
+    const { error } = await supabase
+      .from('arena_skills')
+      .update({ state: dimState as unknown as Record<string, unknown>, updated_at: new Date().toISOString() })
+      .eq('id', skill.id)
+    if (error) throw error
+    skillUpdates.push(dim)
+  }
+
+  // Update template themes with latest BASE_THEME_TOKENS
+  const { data: templateThemes } = await supabase
+    .from('arena_themes')
+    .select('id, dimension, skill_id')
+    .eq('is_template', true)
+  if (!templateThemes) return { updated: true, skillUpdates, themeUpdates: [] }
+
+  const themeUpdates: string[] = []
+  for (const theme of templateThemes) {
+    const dim = theme.dimension as string
+    const tokens = BASE_THEME_TOKENS[dim]
+    if (!tokens) continue
+    const { error } = await supabase
+      .from('arena_themes')
+      .update({ tokens, updated_at: new Date().toISOString() })
+      .eq('id', theme.id)
+    if (error) throw error
+    themeUpdates.push(dim)
+  }
+
+  // Propagate to existing project clones:
+  // Update project skills that were cloned from templates (tier='project', parent_skill_id points to template)
+  const templateSkillIds = templateSkills.map(s => s.id as string)
+  if (templateSkillIds.length > 0) {
+    const { data: cloneSkills } = await supabase
+      .from('arena_skills')
+      .select('id, parent_skill_id, dimension')
+      .eq('tier', 'project')
+      .in('parent_skill_id', templateSkillIds)
+    if (cloneSkills) {
+      for (const clone of cloneSkills) {
+        const dim = clone.dimension as string
+        const dimState = BASE_SKILL[dim]
+        if (!dimState) continue
+        const { error } = await supabase
+          .from('arena_skills')
+          .update({ state: dimState as unknown as Record<string, unknown>, updated_at: new Date().toISOString() })
+          .eq('id', clone.id)
+        if (error) throw error
+      }
+    }
+  }
+
+  // Update project themes that were cloned from templates (source='template-clone')
+  const { data: cloneThemes } = await supabase
+    .from('arena_themes')
+    .select('id, dimension')
+    .eq('source', 'template-clone')
+  if (cloneThemes) {
+    for (const clone of cloneThemes) {
+      const dim = clone.dimension as string
+      const tokens = BASE_THEME_TOKENS[dim]
+      if (!tokens) continue
+      const { error } = await supabase
+        .from('arena_themes')
+        .update({ tokens, updated_at: new Date().toISOString() })
+        .eq('id', clone.id)
+      if (error) throw error
+    }
+  }
+
+  revalidatePath('/apps/arena')
+  return { updated: true, skillUpdates, themeUpdates }
+}
+
 export async function cloneTemplateToProject(templateId: string, projectId: string) {
   const supabase = await arenaClient()
 
@@ -542,31 +679,6 @@ export async function cloneTemplateToProject(templateId: string, projectId: stri
         { onConflict: 'project_id,dimension' }
       )
     if (aErr) throw aErr
-  }
-
-  // Clone associated theme configs from template into project-scoped rows
-  if (template.dimension) {
-    const { data: templateThemes } = await supabase
-      .from('arena_themes')
-      .select('*')
-      .eq('skill_id', templateId)
-
-    if (templateThemes && templateThemes.length > 0) {
-      for (const theme of templateThemes) {
-        const { error: thErr } = await supabase
-          .from('arena_themes')
-          .insert({
-            project_id: projectId,
-            skill_id: null,
-            dimension: theme.dimension,
-            platform: theme.platform,
-            name: theme.name,
-            tokens: theme.tokens,
-            source: 'template-clone',
-          })
-        if (thErr) throw thErr
-      }
-    }
   }
 
   revalidatePath('/apps/arena')
@@ -630,6 +742,7 @@ export async function updateProjectInputs(projectId: string, inputs: ArenaProjec
 // =============================================================================
 
 export async function generateFoundation(projectId: string) {
+  console.log('[arena:foundation] Starting generation for project:', projectId)
   const supabase = await arenaClient()
 
   // Get the project
@@ -639,27 +752,119 @@ export async function generateFoundation(projectId: string) {
     .eq('id', projectId)
     .single()
   if (projErr || !project) throw new Error('Project not found')
+  console.log('[arena:foundation] Project loaded:', project.name)
 
-  // Use the AI action system via the executeAction helper
+  // Gather current assembly skills and project themes
+  const [assembly, projectTheme] = await Promise.all([
+    getProjectAssembly(projectId),
+    getProjectThemes(projectId),
+  ])
+  console.log('[arena:foundation] Assembly entries:', assembly.length, 'Theme dimensions:', Object.keys(projectTheme).length)
+
+  const dimensions = project.config?.dimensions
+    ? Object.keys(project.config.dimensions)
+    : CORE_DIMENSIONS
+
+  // Build current skills map from assembly
+  const currentSkills: Record<string, DimensionState> = {}
+  for (const entry of assembly) {
+    if (entry.skill?.state && 'decisions' in entry.skill.state) {
+      currentSkills[entry.dimension] = entry.skill.state as DimensionState
+    }
+  }
+
+  // Build current tokens map from project themes
+  const currentTokens: Record<string, TokenMap> = {}
+  for (const [dim, theme] of Object.entries(projectTheme)) {
+    if (theme.tokens && Object.keys(theme.tokens).length > 0) {
+      currentTokens[dim] = theme.tokens
+    }
+  }
+  console.log('[arena:foundation] Skills dimensions:', Object.keys(currentSkills).length, 'Token dimensions:', Object.keys(currentTokens).length)
+
+  // Use the AI action system
   const { executeAction } = await import('@/lib/ai/actions')
   await import('@/lib/ai/actions/arena-generate-foundation')
 
+  console.log('[arena:foundation] Calling AI action...')
   const result = await executeAction('arena-generate-foundation', {
-    substrate: project.substrate,
+    description: project.description ?? null,
     inputs: project.inputs,
-    config: project.config,
+    dimensions,
+    currentSkills,
+    currentTokens,
   })
+  console.log('[arena:foundation] AI result:', { success: result.success, model: result.model, durationMs: result.durationMs, error: result.error })
 
   if (!result.success) {
     throw new Error(result.error?.message ?? 'Foundation generation failed')
   }
 
+  const output = result.data as {
+    skills: Record<string, DimensionState>
+    tokens: Record<string, TokenMap>
+    summary: string
+    gaps: Array<{ dimension: string; description: string; severity: string }>
+  }
+
+  // Write skills back: update each dimension's assembly skill state
+  for (const entry of assembly) {
+    const updatedState = output.skills[entry.dimension]
+    if (updatedState && entry.skill_id) {
+      const { error: skillErr } = await supabase
+        .from('arena_skills')
+        .update({
+          state: updatedState as unknown as Record<string, unknown>,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', entry.skill_id)
+      if (skillErr) throw skillErr
+    }
+  }
+
+  // Write tokens back: upsert project theme rows
+  for (const [dim, tokens] of Object.entries(output.tokens)) {
+    if (Object.keys(tokens).length === 0) continue
+
+    const { data: existing } = await supabase
+      .from('arena_themes')
+      .select('id')
+      .eq('project_id', projectId)
+      .is('skill_id', null)
+      .eq('dimension', dim)
+      .eq('platform', 'tailwind')
+      .eq('name', 'default')
+      .maybeSingle()
+
+    if (existing) {
+      const { error: themeErr } = await supabase
+        .from('arena_themes')
+        .update({ tokens, source: 'foundation', updated_at: new Date().toISOString() })
+        .eq('id', existing.id)
+      if (themeErr) throw themeErr
+    } else {
+      const { error: themeErr } = await supabase
+        .from('arena_themes')
+        .insert({
+          project_id: projectId,
+          skill_id: null,
+          dimension: dim,
+          platform: 'tailwind',
+          name: 'default',
+          tokens,
+          source: 'foundation',
+        })
+      if (themeErr) throw themeErr
+    }
+  }
+
+  // Store foundation brief on project
   const foundation = {
-    ...(result.data as Record<string, unknown>),
+    summary: output.summary,
+    gaps: output.gaps,
     generated_at: new Date().toISOString(),
   }
 
-  // Store foundation on project
   const { error: updateErr } = await supabase
     .from('arena_projects')
     .update({ foundation: foundation as unknown as Record<string, unknown> })

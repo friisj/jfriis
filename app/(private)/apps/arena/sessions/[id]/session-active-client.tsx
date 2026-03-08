@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback, useMemo } from 'react'
+import { useState, useCallback, useMemo, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import type { ArenaSessionWithSkills, ArenaProjectAssemblyWithSkill } from '@/lib/studio/arena/db-types'
@@ -9,8 +9,10 @@ import { CORE_DIMENSIONS, assembleSkillState, emptySkillState } from '@/lib/stud
 import { SkillGym } from '@/components/studio/prototypes/arena/shared/skill-gym'
 import type { GymRoundData, CanvasTabDef } from '@/components/studio/prototypes/arena/shared/skill-gym'
 import type { ArenaTestComponent } from '@/lib/studio/arena/db-types'
+import type { TokenMap } from '@/lib/studio/arena/types'
 import { COMPONENT_REGISTRY } from '@/components/studio/prototypes/arena/shared/canonical-components'
 import { completeGymRound, acceptRefinement, abandonSession } from '@/lib/studio/arena/actions'
+import type { AvailableFonts } from '@/components/studio/arena/font-selector'
 
 interface SessionActiveClientProps {
   session: ArenaSessionWithSkills
@@ -76,9 +78,69 @@ export function SessionActiveClient({ session, assembly = [], sessionComponents 
   }, [targetDimension, session.input_skill?.state, controlSkill])
 
   const [currentSkill, setCurrentSkill] = useState<SkillState>(initialSkill)
+  const [currentTheme, setCurrentTheme] = useState<ProjectTheme | undefined>(theme)
   const [round, setRound] = useState(session.round_count + 1)
   const [finishing, setFinishing] = useState(false)
   const [abandoning, setAbandoning] = useState(false)
+
+  // Font loading: match theme typography tokens against available arena fonts
+  const [fontOverrides, setFontOverrides] = useState<{ display?: string; body?: string; mono?: string } | undefined>(undefined)
+
+  useEffect(() => {
+    if (!currentTheme?.typography?.tokens) return
+    const tokens = currentTheme.typography.tokens
+    const fontFamilies: { role: 'display' | 'body' | 'mono'; family: string }[] = []
+    for (const [label, value] of Object.entries(tokens)) {
+      const lower = label.toLowerCase()
+      if (lower.includes('display') && lower.includes('font')) fontFamilies.push({ role: 'display', family: value })
+      else if (lower.includes('body') && lower.includes('font')) fontFamilies.push({ role: 'body', family: value })
+      else if (lower.includes('mono') && lower.includes('font')) fontFamilies.push({ role: 'mono', family: value })
+    }
+    if (fontFamilies.length === 0) return
+
+    let cancelled = false
+    fetch('/api/arena/fonts')
+      .then(res => res.json())
+      .then((data: AvailableFonts) => {
+        if (cancelled) return
+        const matched: { scopedName: string; role: string; files: { path: string; weight: number; style: string; format: string }[] }[] = []
+        for (const { role, family } of fontFamilies) {
+          // Strip scoped prefix if present for matching
+          const cleanName = family.replace(/^__fi__/, '')
+          const font = data.customFonts.find(f => f.name === cleanName || f.displayName === cleanName || f.name === family || f.displayName === family)
+          if (font) {
+            matched.push({ scopedName: `__fi__${font.name}`, role, files: font.files })
+          }
+        }
+        if (matched.length === 0) return
+
+        // Inject @font-face rules
+        const css = matched.flatMap(f =>
+          f.files.map(file =>
+            `@font-face { font-family: "${f.scopedName}"; src: url(${file.path}) format("${file.format}"); font-weight: ${file.weight}; font-style: ${file.style}; font-display: swap; }`
+          )
+        ).join('\n')
+        const style = document.createElement('style')
+        style.setAttribute('data-arena-session-fonts', '')
+        style.textContent = css
+        document.head.appendChild(style)
+
+        // Build fontOverrides
+        const overrides: { display?: string; body?: string; mono?: string } = {}
+        for (const m of matched) {
+          if (m.role === 'display') overrides.display = `"${m.scopedName}", system-ui, sans-serif`
+          else if (m.role === 'body') overrides.body = `"${m.scopedName}", system-ui, sans-serif`
+          else if (m.role === 'mono') overrides.mono = `"${m.scopedName}", ui-monospace, monospace`
+        }
+        setFontOverrides(Object.keys(overrides).length > 0 ? overrides : undefined)
+      })
+      .catch(err => console.error('Failed to load arena fonts:', err))
+
+    return () => {
+      cancelled = true
+      document.querySelectorAll('style[data-arena-session-fonts]').forEach(el => el.remove())
+    }
+  }, [currentTheme])
 
   // Build canvas tabs from session test components
   const gymComponents = useMemo((): CanvasTabDef[] | undefined => {
@@ -108,10 +170,26 @@ export function SessionActiveClient({ session, assembly = [], sessionComponents 
         round,
         feedback: dbFeedback,
         annotations: roundData.annotations,
+        references: roundData.references,
         skill_state: refined,
         theme_updates: roundData.theme_updates,
       })
       setCurrentSkill(refined)
+      // Merge theme_updates into currentTheme so the preview reflects token corrections
+      if (roundData.theme_updates) {
+        setCurrentTheme(prev => {
+          if (!prev) return prev
+          const updated = { ...prev }
+          for (const [dim, tokens] of Object.entries(roundData.theme_updates as Record<string, TokenMap>)) {
+            updated[dim] = {
+              ...updated[dim],
+              tokens: { ...updated[dim]?.tokens, ...tokens },
+              source: updated[dim]?.source ?? 'refinement',
+            }
+          }
+          return updated
+        })
+      }
       setRound((r) => r + 1)
     } catch (err) {
       console.error('Failed to persist round:', err)
@@ -205,7 +283,8 @@ export function SessionActiveClient({ session, assembly = [], sessionComponents 
         onBack={() => router.push(session.project_id ? `/apps/arena/projects/${session.project_id}` : '/apps/arena')}
         targetDimension={targetDimension}
         testComponents={gymComponents}
-        theme={theme}
+        theme={currentTheme}
+        fontOverrides={fontOverrides}
       />
     </div>
   )

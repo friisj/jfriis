@@ -1,8 +1,9 @@
 /**
  * Arena Generate Foundation Action
  *
- * Takes a substrate, project inputs, and dimension config to produce
- * a foundation brief with design intent principles and gap detection.
+ * Multimodal action that analyzes project inputs (images, fonts, URLs, description)
+ * and current template skills/tokens to produce updated, project-aligned skill
+ * decisions and token values.
  */
 
 import { z } from 'zod'
@@ -11,106 +12,161 @@ import type { Action } from './types'
 
 // --- Schemas ---
 
-const dimensionConfigSchema = z.object({
-  scope: z.enum(['basic', 'advanced']),
+// Output schemas are intentionally lenient — AI may add extra fields or
+// use slightly different values. We validate shape, not exact content.
+const decisionSchema = z.object({
+  id: z.string(),
+  label: z.string(),
+  rationale: z.string().optional().default(''),
+  intent: z.string().optional(),
+  value: z.string().optional(),
+  confidence: z.string().optional().default('medium'),
+  source: z.string().optional().default('foundation'),
+}).passthrough()
+
+const ruleSchema = z.object({
+  id: z.string(),
+  statement: z.string(),
+  type: z.string().optional().default('should'),
+  source: z.string().optional().default('foundation'),
+}).passthrough()
+
+const dimensionStateSchema = z.object({
+  decisions: z.array(decisionSchema),
+  rules: z.array(ruleSchema).default([]),
+}).passthrough()
+
+const gapSchema = z.object({
+  dimension: z.string(),
+  description: z.string(),
+  severity: z.string().default('medium'),
 })
 
 const inputSchema = z.object({
-  substrate: z.string().nullable(),
+  description: z.string().nullable(),
   inputs: z.object({
     figma_links: z.array(z.object({ url: z.string() })).default([]),
     fonts: z.array(z.object({ role: z.string(), family: z.string() })).default([]),
     images: z.array(z.string()).default([]),
     urls: z.array(z.string()).default([]),
+    icon_library: z.string().optional(),
   }).nullable(),
-  config: z.object({
-    dimensions: z.record(z.string(), dimensionConfigSchema).default({}),
-  }).nullable(),
+  dimensions: z.array(z.string()),
+  currentSkills: z.record(z.string(), dimensionStateSchema).default({}),
+  currentTokens: z.record(z.string(), z.record(z.string(), z.string())).default({}),
 })
 
 type FoundationInput = z.infer<typeof inputSchema>
 
-const gapSchema = z.object({
-  dimension: z.string(),
-  description: z.string(),
-  severity: z.enum(['low', 'medium', 'high']),
-})
-
+// Output schema is deliberately permissive — AI output varies in shape.
+// Real validation happens when writing to DB in generateFoundation().
 const outputSchema = z.object({
-  intent: z.array(z.string()),
-  gaps: z.array(gapSchema),
+  skills: z.record(z.string(), z.any()),
+  tokens: z.record(z.string(), z.any()),
+  summary: z.string(),
+  gaps: z.array(gapSchema).default([]),
 })
 
 type FoundationOutput = z.infer<typeof outputSchema>
 
-// --- Prompt ---
+// --- Multimodal message builder ---
 
-function buildPrompt(input: FoundationInput) {
-  const substrate = input.substrate ?? 'none specified'
-  const dimensions = input.config?.dimensions ? Object.keys(input.config.dimensions) : []
-  const dimScopes = input.config?.dimensions
-    ? Object.entries(input.config.dimensions).map(([dim, cfg]) => `${dim} (${cfg.scope})`).join(', ')
-    : 'none configured'
-
+function buildMessages(input: FoundationInput) {
   const fonts = input.inputs?.fonts ?? []
   const figmaLinks = input.inputs?.figma_links ?? []
   const images = input.inputs?.images ?? []
   const urls = input.inputs?.urls ?? []
+  const iconLibrary = input.inputs?.icon_library
 
-  const inputsSummary = [
-    fonts.length > 0 ? `Fonts: ${fonts.map(f => `${f.role}: ${f.family}`).join(', ')}` : null,
-    figmaLinks.length > 0 ? `Figma links: ${figmaLinks.length}` : null,
-    images.length > 0 ? `Images: ${images.length}` : null,
-    urls.length > 0 ? `Reference URLs: ${urls.length}` : null,
-  ].filter(Boolean).join('\n')
-
-  const system = `You are a design system foundation analyst. You analyze a project's substrate (aesthetic posture), inputs, and dimension configuration to produce a foundation brief.
-
-## Substrate Concept
-
-A substrate is the aesthetic foundation of a design system — it shapes the overall feel:
-- **minimal**: clean, sparse, focused on essentials, generous whitespace, restrained palette
-- **brutalist**: raw, honest, exposed structure, unconventional, bold contrasts
-- **maximalist**: rich, layered, expressive, abundant detail, vibrant
-- **organic**: natural, flowing, warm, textured, earthy tones
-- **corporate**: professional, structured, trustworthy, conventional, polished
+  const system = `You are a design system foundation analyst. You analyze a project's visual inputs (reference images, fonts, URLs) alongside its current template skill decisions and token values to produce project-aligned updates.
 
 ## Your Task
 
-1. Analyze the substrate through the lens of the configured dimensions
-2. Consider the provided inputs (fonts, links, images, URLs) as constraints
-3. Produce 3-5 design intent principles that guide decision-making
-4. Detect gaps where the dimension config demands exceed what the inputs provide
+1. Analyze any reference images for: color palettes, density, spacing rhythm, visual tone, typography patterns
+2. Consider specified fonts and how they affect typography decisions
+3. Consider the project description as design intent
+4. Start from the current skill decisions (template baseline) and update rationale/intent to reflect this specific project
+5. Start from current token values and update where inputs provide clear signal (e.g., extract primary/secondary/accent colors from images)
+6. Preserve the decision label structure exactly — keep the same labels and same rules structure
+7. Flag gaps where dimensions lack sufficient input signal
 
-## Gap Detection
+## Output Rules
 
-For each configured dimension, check if the inputs provide enough signal:
-- Color dimension with no images or Figma links → gap (no color source)
-- Typography dimension with no fonts → gap (no font specification)
-- Any advanced scope with limited inputs → gap (insufficient detail)
+- For skills: return the full decisions and rules arrays for each dimension, with updated rationale/intent fields. Keep all existing decision labels — do not add or remove decisions.
+- For tokens: return the full token map per dimension, with updated values where inputs provide signal. Keep existing values where no new signal exists.
+- summary: 2-4 sentences describing what was analyzed and what changed
+- gaps: dimensions where the foundation couldn't make confident updates due to missing inputs
 
 ## Output Format
 
 Output a single JSON object:
 {
-  "intent": ["principle 1", "principle 2", ...],
-  "gaps": [{ "dimension": "color", "description": "No color inputs provided", "severity": "high" }, ...]
+  "skills": { "<dimension>": { "decisions": [...], "rules": [...] }, ... },
+  "tokens": { "<dimension>": { "<label>": "<value>", ... }, ... },
+  "summary": "...",
+  "gaps": [{ "dimension": "...", "description": "...", "severity": "high|medium|low" }]
 }
 
-Severity: "high" = missing critical input, "medium" = partial coverage, "low" = nice to have.`
+Output JSON only. No markdown fences.`
 
-  const user = `Generate a foundation brief for this project.
+  // Build content parts for the user message
+  const content: Array<
+    | { type: 'text'; text: string }
+    | { type: 'image'; image: string }
+  > = []
 
-## Substrate: ${substrate}
+  // Add images as image parts for visual analysis
+  for (const imageUrl of images) {
+    content.push({ type: 'image', image: imageUrl })
+  }
 
-## Configured Dimensions: ${dimScopes || 'none'}
+  // Build text context
+  const textParts: string[] = []
 
-## Available Inputs
-${inputsSummary || '(no inputs yet)'}
+  if (input.description) {
+    textParts.push(`## Project Description\n${input.description}`)
+  }
 
-Output JSON only.`
+  textParts.push(`## Active Dimensions\n${input.dimensions.join(', ')}`)
 
-  return { system, user }
+  if (fonts.length > 0) {
+    textParts.push(`## Fonts\n${fonts.map(f => `- ${f.role}: ${f.family}`).join('\n')}`)
+  }
+
+  if (figmaLinks.length > 0) {
+    textParts.push(`## Figma Links\n${figmaLinks.map(l => `- ${l.url}`).join('\n')}`)
+  }
+
+  if (urls.length > 0) {
+    textParts.push(`## Reference URLs\n${urls.map(u => `- ${u}`).join('\n')}`)
+  }
+
+  if (iconLibrary) {
+    textParts.push(`## Icon Library\n${iconLibrary}`)
+  }
+
+  // Add current skills and tokens as structured context
+  if (Object.keys(input.currentSkills).length > 0) {
+    textParts.push(`## Current Skill Decisions (template baseline)\n\`\`\`json\n${JSON.stringify(input.currentSkills, null, 2)}\n\`\`\``)
+  }
+
+  if (Object.keys(input.currentTokens).length > 0) {
+    textParts.push(`## Current Token Values (template baseline)\n\`\`\`json\n${JSON.stringify(input.currentTokens, null, 2)}\n\`\`\``)
+  }
+
+  textParts.push('Generate the foundation. Output JSON only.')
+
+  content.push({ type: 'text', text: textParts.join('\n\n') })
+
+  return {
+    system,
+    messages: [{ role: 'user' as const, content }],
+  }
+}
+
+// Stub buildPrompt (required by Action interface but buildMessages takes precedence)
+function buildPrompt(_input: FoundationInput) {
+  return { system: '', user: '' }
 }
 
 // --- Action registration ---
@@ -118,13 +174,15 @@ Output JSON only.`
 const arenaGenerateFoundationAction: Action<FoundationInput, FoundationOutput> = {
   id: 'arena-generate-foundation',
   name: 'Arena Generate Foundation',
-  description: 'Generate a foundation brief from substrate, inputs, and dimension config',
+  description: 'Analyze project inputs and update skill decisions and tokens with project-specific context',
   entityTypes: ['studio_experiment'],
   taskType: 'generation',
-  model: 'claude-haiku',
+  model: 'claude-sonnet',
+  maxOutputTokens: 16000,
   inputSchema,
   outputSchema,
   buildPrompt,
+  buildMessages,
 }
 
 registerAction(arenaGenerateFoundationAction)

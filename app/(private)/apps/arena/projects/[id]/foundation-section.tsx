@@ -52,17 +52,10 @@ export function FoundationSection({ project }: FoundationSectionProps) {
 
       {foundation ? (
         <div className="space-y-3">
-          {foundation.intent && foundation.intent.length > 0 && (
+          {foundation.summary && (
             <div>
-              <span className="text-[10px] uppercase tracking-wider text-slate-400 dark:text-slate-500">Design Intent</span>
-              <ul className="mt-1 space-y-1">
-                {foundation.intent.map((item, i) => (
-                  <li key={i} className="text-sm text-slate-700 dark:text-slate-300 flex items-start gap-2">
-                    <span className="text-purple-500 flex-shrink-0 mt-0.5">*</span>
-                    {item}
-                  </li>
-                ))}
-              </ul>
+              <span className="text-[10px] uppercase tracking-wider text-slate-400 dark:text-slate-500">Summary</span>
+              <p className="mt-1 text-sm text-slate-700 dark:text-slate-300 whitespace-pre-line">{foundation.summary}</p>
             </div>
           )}
 
@@ -95,7 +88,7 @@ export function FoundationSection({ project }: FoundationSectionProps) {
       ) : (
         <div className="text-center py-6">
           <p className="text-xs text-slate-400 dark:text-slate-500 mb-3">
-            No foundation generated yet. Generate design principles from substrate and inputs.
+            No foundation generated yet. Analyze inputs and refine skills with project-specific context.
           </p>
           <button
             onClick={handleGenerate}
