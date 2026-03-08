@@ -120,7 +120,7 @@ export default function PlayPage() {
         </div>
       )}
 
-      <MazeRenderer state={state} />
+      <MazeRenderer state={state} fogOfWar />
 
       {/* Mobile controls */}
       <div className="grid grid-cols-3 gap-2 w-44 md:hidden">

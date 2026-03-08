@@ -89,6 +89,7 @@ export interface GameState {
   currentEncounter: Teacher | null
   levelConfigs: LevelConfig[] // pre-generated configs for all floors
   message: string | null // transient feedback message
+  visitedCells: Record<string, boolean> // "row,col" → true
 }
 
 // ── Challenge ────────────────────────────────────────────────
