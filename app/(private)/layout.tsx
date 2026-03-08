@@ -77,9 +77,9 @@ export default function PrivateLayout({ children }: { children: React.ReactNode 
     <ProtectedRoute>
       <PrivacyModeProvider>
         <PrivateHeaderProvider>
-          <div className="min-h-screen flex flex-col">
+          <div className="min-h-screen flex flex-col h-dvh">
             <PrivateHeader />
-            <main className="flex-1 flex flex-col">
+            <main className="flex-1 flex flex-col overflow-hidden relative">
               {children}
             </main>
           </div>

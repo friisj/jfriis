@@ -5,16 +5,26 @@
  * prioritized layers, then joining them in order.
  */
 
-import type { LuvSoulData } from '../types/luv';
-import type { SoulLayer, CompositionResult } from './soul-layers';
+import type { LuvSoulData, SoulFacet } from '../types/luv';
+import type { SoulLayer, SoulLayerType, CompositionResult, ChassisModuleSummary } from './soul-layers';
 import { LAYER_REGISTRY } from './soul-layers';
+
+export interface MemoryItem {
+  content: string;
+  category: string;
+}
+
+export interface ComposeOptions {
+  chassisModuleSummaries?: ChassisModuleSummary[];
+  memories?: MemoryItem[];
+}
 
 /**
  * Compose a system prompt from soul data using the layered pipeline.
  *
  * If `system_prompt_override` is set, a single Core Identity layer is returned.
  */
-export function composeLayers(soulData: LuvSoulData): CompositionResult {
+export function composeLayers(soulData: LuvSoulData, options?: ComposeOptions): CompositionResult {
   // Full override — bypass composition entirely
   if (soulData.system_prompt_override?.trim()) {
     const overrideLayer: SoulLayer = {
@@ -55,7 +65,7 @@ export function composeLayers(soulData: LuvSoulData): CompositionResult {
     if (personality.temperament) {
       parts.push(`Your temperament is: ${personality.temperament}.`);
     }
-    if (personality.traits && personality.traits.length > 0) {
+    if (Array.isArray(personality.traits) && personality.traits.length > 0) {
       parts.push(
         `Your personality traits are: ${personality.traits.join(', ')}.`
       );
@@ -80,7 +90,7 @@ export function composeLayers(soulData: LuvSoulData): CompositionResult {
     if (voice.formality) parts.push(`Formality: ${voice.formality}.`);
     if (voice.humor) parts.push(`Humor: ${voice.humor}.`);
     if (voice.warmth) parts.push(`Warmth: ${voice.warmth}.`);
-    if (voice.quirks && voice.quirks.length > 0) {
+    if (Array.isArray(voice.quirks) && voice.quirks.length > 0) {
       parts.push(`Speech quirks: ${voice.quirks.join(', ')}.`);
     }
     if (parts.length > 0) {
@@ -96,13 +106,43 @@ export function composeLayers(soulData: LuvSoulData): CompositionResult {
   }
 
   // Layer 4: Knowledge (skills)
-  if (soulData.skills && soulData.skills.length > 0) {
+  if (Array.isArray(soulData.skills) && soulData.skills.length > 0) {
     layers.push({
       id: 'knowledge',
       type: 'knowledge',
       priority: LAYER_REGISTRY.knowledge.priority,
       content: `You are skilled in: ${soulData.skills.join(', ')}.`,
       source: 'soul_data.skills',
+      enabled: true,
+    });
+  }
+
+  // Layer 4.5: Chassis Awareness
+  const summaries = options?.chassisModuleSummaries;
+  if (summaries && summaries.length > 0) {
+    const byCategory = new Map<string, string[]>();
+    for (const s of summaries) {
+      const cat = s.category || 'other';
+      if (!byCategory.has(cat)) byCategory.set(cat, []);
+      byCategory.get(cat)!.push(s.name);
+    }
+    const groups = [...byCategory.entries()]
+      .map(([cat, names]) => `${cat}: ${names.join(', ')}`)
+      .join('; ');
+
+    layers.push({
+      id: 'chassis_awareness',
+      type: 'chassis_awareness',
+      priority: LAYER_REGISTRY.chassis_awareness.priority,
+      content: [
+        `You have a physical form described by ${summaries.length} chassis modules (${groups}).`,
+        'Use read_chassis_module to see full parameter schema and current values for any module.',
+        'Use propose_module_change or propose_module_changes to suggest parameter updates.',
+        'Use review_chassis_module to load a module\'s config alongside a reference image for visual self-review.',
+        'When discussing your appearance, read the relevant module first so you can speak with specificity.',
+        'The user can also paste images directly into chat for you to analyze against your chassis parameters.',
+      ].join(' '),
+      source: 'chassis_modules',
       enabled: true,
     });
   }
@@ -134,7 +174,64 @@ export function composeLayers(soulData: LuvSoulData): CompositionResult {
     });
   }
 
-  // Layer 7: Memory — not populated from soul_data yet (future: persistent memory store)
+  // Layer 7: Memory
+  const memories = options?.memories;
+  if (memories && memories.length > 0) {
+    const byCategory = new Map<string, string[]>();
+    for (const m of memories) {
+      const cat = m.category || 'general';
+      if (!byCategory.has(cat)) byCategory.set(cat, []);
+      byCategory.get(cat)!.push(m.content);
+    }
+
+    let memoryContent: string;
+    if (byCategory.size === 1) {
+      memoryContent = memories.map((m) => `- ${m.content}`).join('\n');
+    } else {
+      const sections: string[] = [];
+      for (const [cat, items] of byCategory) {
+        sections.push(`**${cat}**\n${items.map((c) => `- ${c}`).join('\n')}`);
+      }
+      memoryContent = sections.join('\n\n');
+    }
+
+    layers.push({
+      id: 'memory',
+      type: 'memory',
+      priority: LAYER_REGISTRY.memory.priority,
+      content: memoryContent,
+      source: 'luv_memories',
+      enabled: true,
+    });
+  }
+
+  // Append facets to their assigned layers (or create new layers for facet-only types)
+  if (Array.isArray(soulData.facets) && soulData.facets.length > 0) {
+    const facetsByLayer = new Map<string, SoulFacet[]>();
+    for (const facet of soulData.facets) {
+      if (!facetsByLayer.has(facet.layer)) facetsByLayer.set(facet.layer, []);
+      facetsByLayer.get(facet.layer)!.push(facet);
+    }
+
+    for (const [layerType, facets] of facetsByLayer) {
+      if (!(layerType in LAYER_REGISTRY)) continue;
+      const registryEntry = LAYER_REGISTRY[layerType as SoulLayerType];
+      const facetContent = facets.map(renderFacet).join('\n');
+      const existing = layers.find((l) => l.type === layerType);
+      if (existing) {
+        existing.content = existing.content + '\n' + facetContent;
+      } else {
+        layers.push({
+          id: `facets_${layerType}`,
+          type: layerType as SoulLayerType,
+          priority: registryEntry.priority,
+          content: facetContent,
+          source: 'soul_data.facets',
+          enabled: true,
+        });
+      }
+    }
+  }
 
   // Sort by priority, filter enabled
   const activeLayers = layers
@@ -154,4 +251,25 @@ export function composeLayers(soulData: LuvSoulData): CompositionResult {
     layers: activeLayers,
     tokenEstimate: Math.ceil(prompt.length / 4),
   };
+}
+
+function renderFacet(facet: SoulFacet): string {
+  switch (facet.type) {
+    case 'text':
+      return typeof facet.content === 'string' ? facet.content : String(facet.content);
+    case 'tags':
+      if (Array.isArray(facet.content)) {
+        return `Your ${facet.label}: ${facet.content.join(', ')}.`;
+      }
+      return '';
+    case 'key_value':
+      if (facet.content && typeof facet.content === 'object' && !Array.isArray(facet.content)) {
+        return Object.entries(facet.content as Record<string, string>)
+          .map(([k, v]) => `When facing ${k}: ${v}`)
+          .join('\n');
+      }
+      return '';
+    default:
+      return '';
+  }
 }

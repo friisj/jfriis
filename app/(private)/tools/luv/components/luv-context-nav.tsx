@@ -3,7 +3,6 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
-import { getAllSchemas } from '@/lib/luv/chassis-schemas';
 
 type Space = 'identity' | 'stage' | 'library';
 
@@ -25,33 +24,25 @@ const soulGroup: NavGroup = {
     { href: '/tools/luv/soul/personality', label: 'Personality' },
     { href: '/tools/luv/soul/voice', label: 'Voice' },
     { href: '/tools/luv/soul/rules', label: 'Rules' },
+    { href: '/tools/luv/soul/facets', label: 'Facets' },
     { href: '/tools/luv/soul/overrides', label: 'Overrides' },
     { href: '/tools/luv/soul/preview', label: 'Preview' },
   ],
 };
 
-function buildChassisGroup(): NavGroup {
-  const schemas = getAllSchemas();
-  const moduleItems: NavItem[] = schemas.map((s) => ({
-    href: `/tools/luv/chassis/${s.key}`,
-    label: s.label,
-  }));
+const chassisGroup: NavGroup = {
+  header: 'Chassis',
+  href: '/tools/luv/chassis',
+  items: [],
+};
 
-  return {
-    header: 'Chassis',
-    href: '/tools/luv/chassis',
-    items: [
-      ...moduleItems,
-    ],
-  };
-}
-
-const identityGroups: NavGroup[] = [soulGroup, buildChassisGroup()];
+const identityGroups: NavGroup[] = [soulGroup, chassisGroup];
 
 const libraryLinks: NavItem[] = [
   { href: '/tools/luv/conversations', label: 'Conversations' },
   { href: '/tools/luv/history', label: 'History' },
   { href: '/tools/luv/media', label: 'Media' },
+  { href: '/tools/luv/memories', label: 'Memories' },
   { href: '/tools/luv/presets', label: 'Presets' },
   { href: '/tools/luv/prompts', label: 'Prompts' },
   { href: '/tools/luv/studies', label: 'Studies' },
@@ -65,6 +56,7 @@ const pathToSpace: Record<string, Space> = {
   '/tools/luv/conversations': 'library',
   '/tools/luv/history': 'library',
   '/tools/luv/media': 'library',
+  '/tools/luv/memories': 'library',
   '/tools/luv/presets': 'library',
   '/tools/luv/prompts': 'library',
   '/tools/luv/studies': 'library',

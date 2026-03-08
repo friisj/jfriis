@@ -12,7 +12,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
-import type { ParameterDef, MeasurementUnit } from '@/lib/luv/chassis-schemas';
+import type { ParameterDef, MeasurementUnit } from '@/lib/types/luv-chassis';
 
 interface MeasurementValue {
   value: number;
@@ -39,18 +39,20 @@ export function ParameterControl({ param, value, onChange }: ParameterControlPro
   const id = `param-${param.key}`;
 
   return (
-    <div className="space-y-1">
-      <div className="flex items-center justify-between">
+    <div className="w-full flex gap-6">
+      <div className="flex flex-col items-start justify-center space-y-0.5">
         <Label htmlFor={id} className="text-xs font-medium">
           {param.label}
         </Label>
         {param.description && (
-          <span className="text-[10px] text-muted-foreground">
+          <span className="text-xs text-muted-foreground">
             {param.description}
           </span>
         )}
       </div>
-      {renderControl(param, value, onChange, id)}
+      <div className="flex justify-end flex-1 items-center">
+        {renderControl(param, value, onChange, id)}
+      </div>
     </div>
   );
 }
@@ -69,7 +71,7 @@ function renderControl(
           value={(value as string) ?? ''}
           onChange={(e) => onChange(e.target.value)}
           placeholder={param.default as string}
-          className="text-xs h-8"
+          className="text-xs h-8 bg-background rounded-sm"
         />
       );
 
@@ -83,7 +85,7 @@ function renderControl(
           min={param.min}
           max={param.max}
           step={param.step}
-          className="text-xs h-8"
+          className="text-xs h-8 bg-background rounded-sm"
         />
       );
 
@@ -118,7 +120,7 @@ function renderControl(
             value={(value as string) ?? ''}
             onChange={(e) => onChange(e.target.value)}
             placeholder={(param.default as string) ?? '#000000'}
-            className="text-xs h-8 font-mono"
+            className="text-x md:text-xs h-8 font-mono bg-background rounded-sm"
           />
         </div>
       );
@@ -129,7 +131,7 @@ function renderControl(
           value={(value as string) ?? (param.default as string) ?? ''}
           onValueChange={onChange}
         >
-          <SelectTrigger id={id} className="text-xs h-8">
+          <SelectTrigger id={id} className="text-xs h-8 bg-background min-w-32 rounded-sm">
             <SelectValue placeholder="Select..." />
           </SelectTrigger>
           <SelectContent>
@@ -164,7 +166,7 @@ function renderControl(
             }
           }}
           rows={4}
-          className="text-xs font-mono"
+          className="text-xs font-mono bg-background rounded-sm"
         />
       );
 
@@ -175,7 +177,7 @@ function renderControl(
           value={(value as string) ?? ''}
           onChange={(e) => onChange(e.target.value)}
           placeholder="Storage path or reference ID"
-          className="text-xs h-8"
+          className="text-xs h-8 bg-background rounded-sm"
         />
       );
 
@@ -198,7 +200,7 @@ function renderControl(
               min={param.min}
               max={param.max}
               step={param.step ?? 0.1}
-              className="text-xs h-8 flex-1"
+              className="text-xs h-8 flex-1 bg-background rounded-sm md:text-xs font-mono"
             />
             <Select
               value={mv.unit}
@@ -206,7 +208,7 @@ function renderControl(
                 onChange({ ...mv, unit: unit as MeasurementUnit })
               }
             >
-              <SelectTrigger className="text-xs h-8 w-20">
+              <SelectTrigger className="text-xs h-6 min-w-24 bg-background">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -218,16 +220,6 @@ function renderControl(
               </SelectContent>
             </Select>
           </div>
-          {param.min !== undefined && param.max !== undefined && (
-            <div className="relative h-1.5 bg-muted rounded-full overflow-hidden">
-              <div
-                className="absolute h-full bg-primary/40 rounded-full"
-                style={{
-                  width: `${Math.min(100, Math.max(0, ((mv.value - param.min) / (param.max - param.min)) * 100))}%`,
-                }}
-              />
-            </div>
-          )}
         </div>
       );
     }

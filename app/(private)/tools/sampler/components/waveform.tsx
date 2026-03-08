@@ -38,9 +38,13 @@ export function Waveform({
 
   const [zoom, setZoom] = useState(1);
   const [viewOffset, setViewOffset] = useState(0);
+  const [isPanning, setIsPanning] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
 
   // Keep ref in sync with props
-  trimRef.current = { start: trimStart, end: trimEnd };
+  useEffect(() => {
+    trimRef.current = { start: trimStart, end: trimEnd };
+  }, [trimStart, trimEnd]);
 
   // Clamp viewOffset when zoom changes
   const clampOffset = useCallback(
@@ -265,13 +269,6 @@ export function Waveform({
     [zoom, viewOffset]
   );
 
-  const getPixelFraction = useCallback((e: React.PointerEvent) => {
-    const canvas = canvasRef.current;
-    if (!canvas) return 0;
-    const rect = canvas.getBoundingClientRect();
-    return Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
-  }, []);
-
   const handlePointerDown = useCallback(
     (e: React.PointerEvent) => {
       if (!editable || !onTrimChange) return;
@@ -288,13 +285,16 @@ export function Waveform({
       // Determine which handle is being grabbed
       if (Math.abs(bufPos - start) < handleZone) {
         dragRef.current = 'start';
+        setIsDragging(true);
         canvas.setPointerCapture(e.pointerId);
       } else if (Math.abs(bufPos - end) < handleZone) {
         dragRef.current = 'end';
+        setIsDragging(true);
         canvas.setPointerCapture(e.pointerId);
       } else if (zoom > 1) {
         // Pan mode when zoomed
         panRef.current = { active: true, startX: e.clientX, startOffset: viewOffset };
+        setIsPanning(true);
         canvas.setPointerCapture(e.pointerId);
       }
     },
@@ -335,11 +335,13 @@ export function Waveform({
   const handlePointerUp = useCallback(() => {
     if (panRef.current.active) {
       panRef.current.active = false;
+      setIsPanning(false);
       return;
     }
 
     if (!dragRef.current || !onTrimChange) return;
     dragRef.current = null;
+    setIsDragging(false);
 
     const { start, end } = trimRef.current;
     onTrimChange(start, end);
@@ -379,8 +381,8 @@ export function Waveform({
   // Determine cursor style
   const isZoomed = zoom > 1;
   const cursorStyle = (() => {
-    if (panRef.current.active) return 'grabbing';
-    if (isZoomed && !dragRef.current) return 'grab';
+    if (isPanning) return 'grabbing';
+    if (isZoomed && !isDragging) return 'grab';
     if (editable && onTrimChange) return 'col-resize';
     return 'default';
   })();

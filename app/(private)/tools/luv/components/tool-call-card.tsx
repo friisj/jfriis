@@ -15,6 +15,13 @@ const toolLabels: Record<string, string> = {
   read_chassis: 'Read Chassis Data',
   list_references: 'List References',
   list_prompt_templates: 'List Prompt Templates',
+  list_chassis_modules: 'List Chassis Modules',
+  read_chassis_module: 'Read Chassis Module',
+  view_reference_image: 'View Reference Image',
+  view_module_media: 'View Module Media',
+  review_chassis_module: 'Review Chassis Module',
+  compose_context_pack: 'Compose Context Pack',
+  evaluate_generation: 'Evaluate Generation',
 };
 
 export function ToolCallCard({ toolName, state, result }: ToolCallCardProps) {
