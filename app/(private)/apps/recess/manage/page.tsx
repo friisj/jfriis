@@ -1,10 +1,11 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import type { GameConfig } from '@/lib/recess/types'
 import { DEFAULT_CONFIG } from '@/lib/recess/types'
 import { generateMaze, buildLevelConfig } from '@/lib/recess/maze'
+import { loadConfig, saveConfig, resetConfig } from '@/lib/recess/config'
 import MazeRenderer from '@/components/recess/MazeRenderer'
 import type { GameState } from '@/lib/recess/types'
 
@@ -46,11 +47,38 @@ export default function ManagePage() {
   const [config, setConfig] = useState<GameConfig>(DEFAULT_CONFIG)
   const [previewFloor, setPreviewFloor] = useState(config.totalFloors)
   const [seed, setSeed] = useState(0)
+  const [saved, setSaved] = useState(false)
+  const loaded = useRef(false)
+
+  // Load config from localStorage on mount
+  useEffect(() => {
+    const stored = loadConfig()
+    setConfig(stored)
+    setPreviewFloor(stored.totalFloors)
+    loaded.current = true
+  }, [])
+
+  // Auto-save config on change (debounced)
+  useEffect(() => {
+    if (!loaded.current) return
+    const timer = setTimeout(() => {
+      saveConfig(config)
+      setSaved(true)
+      setTimeout(() => setSaved(false), 1000)
+    }, 500)
+    return () => clearTimeout(timer)
+  }, [config])
 
   const update = (partial: Partial<GameConfig>) => {
     const next = { ...config, ...partial }
     setConfig(next)
     if (previewFloor > next.totalFloors) setPreviewFloor(next.totalFloors)
+  }
+
+  const handleReset = () => {
+    resetConfig()
+    setConfig(DEFAULT_CONFIG)
+    setPreviewFloor(DEFAULT_CONFIG.totalFloors)
   }
 
   // Generate a preview maze for the selected floor
@@ -86,7 +114,10 @@ export default function ManagePage() {
           <Link href="/apps/recess" className="text-sm text-zinc-600 hover:text-zinc-400 transition-colors">
             &larr; Recess
           </Link>
-          <h1 className="text-lg font-bold">Level Manager</h1>
+          <div className="flex items-center gap-2">
+            {saved && <span className="text-xs text-green-500">Saved</span>}
+            <h1 className="text-lg font-bold">Level Manager</h1>
+          </div>
         </div>
 
         <section className="space-y-3">
@@ -118,6 +149,13 @@ export default function ManagePage() {
             Regenerate maze
           </button>
         </section>
+
+        <button
+          onClick={handleReset}
+          className="w-full py-2 bg-zinc-800/50 hover:bg-zinc-700/50 border border-zinc-700 rounded-lg text-sm text-zinc-500 hover:text-zinc-300 transition-colors"
+        >
+          Reset to defaults
+        </button>
       </div>
 
       {/* Preview */}
