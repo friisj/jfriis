@@ -148,8 +148,14 @@ export function composeLayers(soulData: LuvSoulData, options?: ComposeOptions): 
   }
 
   // Layer 5: Behavioral Rules
-  if (soulData.rules && soulData.rules.length > 0) {
-    const rulesList = soulData.rules
+  const rawRules = soulData.rules;
+  const normalizedRules = Array.isArray(rawRules)
+    ? rawRules
+    : typeof rawRules === 'string' && rawRules.trim()
+      ? [rawRules]
+      : [];
+  if (normalizedRules.length > 0) {
+    const rulesList = normalizedRules
       .map((rule, i) => `${i + 1}. ${rule}`)
       .join('\n');
     layers.push({
