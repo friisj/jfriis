@@ -12,7 +12,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
-import type { ParameterDef, MeasurementUnit } from '@/lib/luv/chassis-schemas';
+import type { ParameterDef, MeasurementUnit } from '@/lib/types/luv-chassis';
 
 interface MeasurementValue {
   value: number;

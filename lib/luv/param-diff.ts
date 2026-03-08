@@ -5,7 +5,7 @@
  * optionally enriched with schema labels.
  */
 
-import type { ParameterDef } from '@/lib/luv/chassis-schemas';
+import type { ParameterDef } from '@/lib/types/luv-chassis';
 
 export type DiffType = 'added' | 'changed' | 'removed';
 

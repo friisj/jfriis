@@ -22,7 +22,6 @@ import type {
   ParameterConstraint,
 } from '@/lib/types/luv-chassis';
 import type { LuvChassisModule } from '@/lib/types/luv-chassis';
-import { getSchema } from '@/lib/luv/chassis-schemas';
 
 interface StudyEditorProps {
   study?: LuvChassisStudy;
@@ -46,7 +45,7 @@ export function StudyEditor({ study, modules = [] }: StudyEditorProps) {
 
   // Selected module's schema for constraint editing
   const selectedModule = modules.find((m) => m.id === moduleId);
-  const schema = selectedModule ? getSchema(selectedModule.schema_key) : undefined;
+  const schema = selectedModule?.parameter_schema;
 
   const addFinding = () => {
     setFindings((prev) => [...prev, { observation: '', source: '', implications: '' }]);
@@ -64,7 +63,7 @@ export function StudyEditor({ study, modules = [] }: StudyEditorProps) {
 
   const addConstraint = (paramKey: string) => {
     if (!schema) return;
-    const param = schema.parameters.find((p) => p.key === paramKey);
+    const param = schema.find((p) => p.key === paramKey);
     if (!param) return;
     setConstraints((prev) => ({
       ...prev,
@@ -273,7 +272,7 @@ export function StudyEditor({ study, modules = [] }: StudyEditorProps) {
           ))}
 
           {/* Add constraint from available params */}
-          {schema.parameters
+          {schema
             .filter((p) => !(p.key in constraints))
             .length > 0 && (
             <Select onValueChange={addConstraint}>
@@ -281,7 +280,7 @@ export function StudyEditor({ study, modules = [] }: StudyEditorProps) {
                 <SelectValue placeholder="Lock parameter..." />
               </SelectTrigger>
               <SelectContent>
-                {schema.parameters
+                {schema
                   .filter((p) => !(p.key in constraints))
                   .map((p) => (
                     <SelectItem key={p.key} value={p.key} className="text-xs">
