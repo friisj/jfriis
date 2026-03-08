@@ -19,7 +19,10 @@ export function SoulRulesEditor({
   initialSoulData,
   initialVersion,
 }: SoulRulesEditorProps) {
-  const [rules, setRules] = useState<string[]>(initialSoulData.rules ?? []);
+  const [rules, setRules] = useState<string[]>(() => {
+    const r = initialSoulData.rules;
+    return Array.isArray(r) ? r : typeof r === 'string' ? [r] : [];
+  });
   const [skills, setSkills] = useState<string[]>(initialSoulData.skills ?? []);
   const [saving, setSaving] = useState(false);
   const [ruleInput, setRuleInput] = useState('');

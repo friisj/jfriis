@@ -42,7 +42,7 @@ export interface LuvSoulData {
     warmth?: string;
     quirks?: string[];
   };
-  rules?: string[];
+  rules?: string | string[];
   skills?: string[];
   background?: string;
   system_prompt_override?: string;

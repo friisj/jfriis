@@ -11,6 +11,10 @@ import { composeSoulSystemPrompt } from '@/lib/luv-prompt-composer';
 import { updateLuvCharacter, createLuvCharacter } from '@/lib/luv';
 import type { LuvSoulData } from '@/lib/types/luv';
 
+function normalizeRules(r: LuvSoulData['rules']): string[] {
+  return Array.isArray(r) ? r : typeof r === 'string' ? [r] : [];
+}
+
 interface SoulEditorProps {
   characterId: string | null;
   initialSoulData: LuvSoulData;
@@ -109,21 +113,18 @@ export function SoulEditor({
   const addRule = () => {
     const trimmed = ruleInput.trim();
     if (!trimmed) return;
-    const rules = soulData.rules ?? [];
+    const rules = normalizeRules(soulData.rules);
     updateField('rules', [...rules, trimmed]);
     setRuleInput('');
   };
 
   const removeRule = (index: number) => {
-    const rules = soulData.rules ?? [];
-    updateField(
-      'rules',
-      rules.filter((_, i) => i !== index)
-    );
+    const rules = normalizeRules(soulData.rules);
+    updateField('rules', rules.filter((_, i) => i !== index));
   };
 
   const moveRule = (index: number, direction: -1 | 1) => {
-    const rules = [...(soulData.rules ?? [])];
+    const rules = [...normalizeRules(soulData.rules)];
     const newIndex = index + direction;
     if (newIndex < 0 || newIndex >= rules.length) return;
     [rules[index], rules[newIndex]] = [rules[newIndex], rules[index]];
@@ -336,7 +337,7 @@ export function SoulEditor({
             </Button>
           </div>
           <ol className="space-y-2">
-            {(soulData.rules ?? []).map((rule, i) => (
+            {normalizeRules(soulData.rules).map((rule, i) => (
               <li
                 key={i}
                 className="flex items-center gap-2 rounded-md border p-2 text-sm"
