@@ -225,9 +225,10 @@ function renderControl(
     }
 
     case 'ratio': {
-      const rv = (value as RatioValue) ?? { a: 0.5, b: 0.5 };
+      const rawRv = value as RatioValue | undefined | null;
+      const rv = { a: rawRv?.a ?? 0.5, b: rawRv?.b ?? 0.5 };
       const labels = param.ratioLabels ?? ['A', 'B'];
-      const total = (rv.a || 0) + (rv.b || 0);
+      const total = rv.a + rv.b;
       return (
         <div className="space-y-1.5">
           <div className="flex items-center gap-2">
@@ -256,10 +257,8 @@ function renderControl(
     }
 
     case 'constraint_range': {
-      const cr = (value as ConstraintRangeValue) ?? {
-        min: param.min ?? 0,
-        max: param.max ?? 100,
-      };
+      const rawCr = value as ConstraintRangeValue | undefined | null;
+      const cr = { min: rawCr?.min ?? param.min ?? 0, max: rawCr?.max ?? param.max ?? 100 };
       const rangeMin = param.min ?? 0;
       const rangeMax = param.max ?? 100;
       return (

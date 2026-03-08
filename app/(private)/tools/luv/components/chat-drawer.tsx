@@ -1,307 +1,49 @@
 'use client';
 
-import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
-import { useChat } from '@ai-sdk/react';
-import { DefaultChatTransport, isToolUIPart, getToolName } from 'ai';
-import type { UIMessage, FileUIPart } from 'ai';
+import { useState, useEffect } from 'react';
+import { isToolUIPart, getToolName } from 'ai';
+import type { UIMessage } from 'ai';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { ChevronDown, ImagePlus, X } from 'lucide-react';
-import { createLuvConversation, createLuvMessage, getLuvConversation, getLuvMessages } from '@/lib/luv';
-import type { LuvSoulData } from '@/lib/types/luv';
-import { useLuvChat } from './luv-chat-context';
+import { ChevronDown, ImagePlus, Settings2, X } from 'lucide-react';
+import { composeLayers } from '@/lib/luv/soul-composer';
+import { LAYER_REGISTRY } from '@/lib/luv/soul-layers';
+import { useLuvChatSession, MODEL_OPTIONS, getMessageText } from './use-luv-chat-session';
 import { ToolCallCard } from './tool-call-card';
 import { ProposalCard } from './proposal-card';
-import { CompositionPreview } from './composition-preview';
+import { RecentConversations } from './recent-conversations';
 
-const MODEL_OPTIONS = [
-  { key: 'claude-sonnet', label: 'Sonnet', vision: true },
-  { key: 'claude-haiku', label: 'Haiku', vision: true },
-  { key: 'claude-opus', label: 'Opus', vision: true },
-  { key: 'gpt-4o', label: 'GPT-4o', vision: true },
-  { key: 'gemini-flash', label: 'Gemini', vision: true },
-];
-
-const READ_TOOLS = new Set([
-  'read_soul',
-  'read_chassis',
-  'list_references',
-  'list_prompt_templates',
-  'list_chassis_modules',
-  'read_chassis_module',
-  'view_reference_image',
-  'view_module_media',
-  'review_chassis_module',
-  'compose_context_pack',
-  'evaluate_generation',
-  'save_memory',
-  'list_memories',
-]);
-
-interface ChatDrawerProps {
-  soulData: LuvSoulData;
-  soulLoaded: boolean;
-}
-
-function getMessageText(msg: UIMessage): string {
-  return msg.parts
-    .filter((p): p is { type: 'text'; text: string } => p.type === 'text')
-    .map((p) => p.text)
-    .join('');
-}
-
-export function ChatDrawer({ soulData, soulLoaded }: ChatDrawerProps) {
-  const { activeConversationId, clearActiveConversation } = useLuvChat();
-  const [modelKey, setModelKey] = useState('claude-sonnet');
-  const [resumedConversationId, setResumedConversationId] = useState<string | null>(null);
-  const [input, setInput] = useState('');
-  const [pendingFiles, setPendingFiles] = useState<FileUIPart[]>([]);
-  const [promptOpen, setPromptOpen] = useState(false);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
-  const transport = useMemo(
-    () =>
-      new DefaultChatTransport({
-        api: '/api/luv/chat',
-        body: { modelKey },
-      }),
-    [modelKey]
-  );
-
-  const { messages, sendMessage, setMessages, status, error } = useChat({
-    transport,
-  });
-
-  // Load conversation when activeConversationId changes
-  useEffect(() => {
-    if (!activeConversationId || activeConversationId === resumedConversationId) return;
-
-    let cancelled = false;
-    (async () => {
-      try {
-        const [conv, msgs] = await Promise.all([
-          getLuvConversation(activeConversationId),
-          getLuvMessages(activeConversationId),
-        ]);
-        if (cancelled) return;
-
-        setModelKey(conv.model);
-        setResumedConversationId(activeConversationId);
-
-        const uiMessages: UIMessage[] = msgs
-          .filter((m) => m.role === 'user' || m.role === 'assistant')
-          .map((m) => ({
-            id: m.id,
-            role: m.role as 'user' | 'assistant',
-            parts: [{ type: 'text' as const, text: m.content }],
-            createdAt: new Date(m.created_at),
-          }));
-        setMessages(uiMessages);
-      } catch (err) {
-        console.error('Failed to load conversation:', err);
-      }
-    })();
-    return () => { cancelled = true; };
-  }, [activeConversationId, resumedConversationId, setMessages]);
-
-  const isActive = status === 'streaming' || status === 'submitted';
-
-  const scrollToBottom = useCallback(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, []);
-
-  useEffect(() => {
-    scrollToBottom();
-  }, [messages, scrollToBottom]);
-
-  useEffect(() => {
-    textareaRef.current?.focus();
-  }, []);
-
-  const addFilesFromFileList = useCallback((files: File[]) => {
-    // Anthropic API limit: 5MB base64. Base64 adds ~33% overhead,
-    // so we target ~3.5MB raw to stay safely under the limit.
-    const MAX_BASE64_BYTES = 5 * 1024 * 1024;
-    const MAX_DIMENSION = 2048;
-    const JPEG_QUALITY = 0.85;
-
-    for (const file of files) {
-      if (!file.type.startsWith('image/')) continue;
-
-      const img = new Image();
-      img.onload = () => {
-        URL.revokeObjectURL(img.src);
-
-        // Check if we need to resize: estimate base64 size from file size
-        const estimatedBase64 = file.size * 1.37; // base64 overhead + data URL prefix
-        const needsResize =
-          estimatedBase64 > MAX_BASE64_BYTES ||
-          img.width > MAX_DIMENSION ||
-          img.height > MAX_DIMENSION;
-
-        if (!needsResize) {
-          // Small enough — use original
-          const reader = new FileReader();
-          reader.onload = () => {
-            setPendingFiles((prev) => [
-              ...prev,
-              { type: 'file', mediaType: file.type, url: reader.result as string, filename: file.name },
-            ]);
-          };
-          reader.readAsDataURL(file);
-          return;
-        }
-
-        // Resize via canvas
-        let { width, height } = img;
-        if (width > MAX_DIMENSION || height > MAX_DIMENSION) {
-          const scale = MAX_DIMENSION / Math.max(width, height);
-          width = Math.round(width * scale);
-          height = Math.round(height * scale);
-        }
-
-        const canvas = document.createElement('canvas');
-        canvas.width = width;
-        canvas.height = height;
-        const ctx = canvas.getContext('2d');
-        if (!ctx) return;
-        ctx.drawImage(img, 0, 0, width, height);
-
-        // Encode as JPEG for smaller size
-        const dataUrl = canvas.toDataURL('image/jpeg', JPEG_QUALITY);
-        setPendingFiles((prev) => [
-          ...prev,
-          { type: 'file', mediaType: 'image/jpeg', url: dataUrl, filename: file.name },
-        ]);
-      };
-      img.src = URL.createObjectURL(file);
-    }
-  }, []);
-
-  const handleSend = async () => {
-    const trimmed = input.trim();
-    if ((!trimmed && pendingFiles.length === 0) || isActive) return;
-    const files = pendingFiles.length > 0 ? [...pendingFiles] : undefined;
-    setInput('');
-    setPendingFiles([]);
-    await sendMessage({ text: trimmed || ' ', files });
-  };
-
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      handleSend();
-    }
-  };
-
-  const handleSaveConversation = async () => {
-    if (messages.length === 0) return;
-    try {
-      if (resumedConversationId) {
-        // Save new messages to existing conversation
-        const existingMsgs = await getLuvMessages(resumedConversationId);
-        const existingIds = new Set(existingMsgs.map((m) => m.id));
-        for (const msg of messages) {
-          if ((msg.role === 'user' || msg.role === 'assistant') && !existingIds.has(msg.id)) {
-            await createLuvMessage({
-              conversation_id: resumedConversationId,
-              role: msg.role,
-              content: getMessageText(msg),
-            });
-          }
-        }
-      } else {
-        const firstUserMsg = messages.find((m) => m.role === 'user');
-        const firstText = firstUserMsg ? getMessageText(firstUserMsg) : '';
-        const title = firstText
-          ? firstText.slice(0, 60) + (firstText.length > 60 ? '...' : '')
-          : 'Untitled conversation';
-
-        const conversation = await createLuvConversation({
-          title,
-          soul_snapshot: soulData,
-          model: modelKey,
-        });
-
-        setResumedConversationId(conversation.id);
-
-        for (const msg of messages) {
-          if (msg.role === 'user' || msg.role === 'assistant') {
-            await createLuvMessage({
-              conversation_id: conversation.id,
-              role: msg.role,
-              content: getMessageText(msg),
-            });
-          }
-        }
-      }
-    } catch (err) {
-      console.error('Failed to save conversation:', err);
-    }
-  };
-
-  const handlePaste = useCallback(
-    (e: React.ClipboardEvent) => {
-      const items = Array.from(e.clipboardData.items);
-      const imageItems = items.filter((item) => item.type.startsWith('image/'));
-      if (imageItems.length === 0) return;
-      e.preventDefault();
-      const files = imageItems
-        .map((item) => item.getAsFile())
-        .filter((f): f is File => f !== null);
-      addFilesFromFileList(files);
-    },
-    [addFilesFromFileList]
-  );
-
-  const handleDrop = useCallback(
-    (e: React.DragEvent) => {
-      e.preventDefault();
-      const files = Array.from(e.dataTransfer.files).filter((f) =>
-        f.type.startsWith('image/')
-      );
-      addFilesFromFileList(files);
-    },
-    [addFilesFromFileList]
-  );
-
-  const handleClear = () => {
-    setMessages([]);
-    setInput('');
-    setPendingFiles([]);
-    setResumedConversationId(null);
-    clearActiveConversation();
-  };
+export function ChatDrawer() {
+  const {
+    modelKey,
+    setModelKey,
+    input,
+    setInput,
+    pendingFiles,
+    setPendingFiles,
+    messages,
+    status,
+    error,
+    isActive,
+    soulData,
+    soulLoaded,
+    messagesEndRef,
+    textareaRef,
+    fileInputRef,
+    handleSend,
+    handleKeyDown,
+    handleSaveConversation,
+    handlePaste,
+    handleDrop,
+    handleClear,
+    addFilesFromFileList,
+  } = useLuvChatSession();
 
   return (
     <div className="flex flex-col h-full relative">
-      {/* Header */}
-      <div className="flex items-center justify-between h-10 px-3 border-b shrink-0">
-        <span className="text-xs font-medium">Chat</span>
-        <select
-          value={modelKey}
-          onChange={(e) => setModelKey(e.target.value)}
-          className="text-xs rounded border bg-background px-1.5 py-0.5"
-        >
-          {MODEL_OPTIONS.map((opt) => (
-            <option key={opt.key} value={opt.key}>
-              {opt.label}
-            </option>
-          ))}
-        </select>
-      </div>
-
-      {/* Composition Preview */}
-      <CompositionPreview
-        soulData={soulData}
-        open={promptOpen}
-        onToggle={() => setPromptOpen(!promptOpen)}
-      />
-
       {/* Messages */}
       <div
         className="flex-1 overflow-y-auto px-3 py-3 space-y-3 min-h-0"
@@ -314,9 +56,7 @@ export function ChatDrawer({ soulData, soulLoaded }: ChatDrawerProps) {
           </p>
         )}
         {soulLoaded && messages.length === 0 && (
-          <p className="text-xs text-muted-foreground text-center py-4">
-            Chat with Luv while you work.
-          </p>
+          <EmptyState soulData={soulData} modelKey={modelKey} />
         )}
         {messages.map((msg) => (
           <MessageBubble
@@ -374,6 +114,32 @@ export function ChatDrawer({ soulData, soulLoaded }: ChatDrawerProps) {
               e.target.value = '';
             }}
           />
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-auto self-end px-1.5 shrink-0"
+                title="Chat settings"
+              >
+                <Settings2 className="size-4" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent side="top" align="start" className="w-48 p-2">
+              <label className="text-[10px] font-medium text-muted-foreground">Model</label>
+              <select
+                value={modelKey}
+                onChange={(e) => setModelKey(e.target.value)}
+                className="w-full text-xs rounded border bg-background px-1.5 py-1 mt-0.5"
+              >
+                {MODEL_OPTIONS.map((opt) => (
+                  <option key={opt.key} value={opt.key}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+            </PopoverContent>
+          </Popover>
           <Button
             variant="ghost"
             size="sm"
@@ -419,7 +185,7 @@ export function ChatDrawer({ soulData, soulLoaded }: ChatDrawerProps) {
               variant="ghost"
               size="sm"
               className="h-6 text-[10px] px-1.5"
-              onClick={handleSaveConversation}
+              onClick={() => handleSaveConversation(soulData)}
               disabled={isActive}
             >
               Save
@@ -515,7 +281,6 @@ function MessageBubble({
               );
             }
 
-            // Read tool or fallback
             return (
               <ToolCallCard
                 key={toolCallId}
@@ -565,5 +330,43 @@ function ScrollIndicator({
     >
       <ChevronDown className="size-3.5" />
     </button>
+  );
+}
+
+function EmptyState({
+  soulData,
+  modelKey,
+}: {
+  soulData: import('@/lib/types/luv').LuvSoulData;
+  modelKey: string;
+}) {
+  const { layers, tokenEstimate } = composeLayers(soulData);
+  const modelLabel = MODEL_OPTIONS.find((o) => o.key === modelKey)?.label ?? modelKey;
+
+  return (
+    <div className="text-center py-4 space-y-3">
+      <p className="text-xs text-muted-foreground">
+        Chat with Luv while you work.
+      </p>
+      <div className="text-left rounded-md border bg-muted/30 px-2.5 py-2 space-y-1">
+        <p className="text-[10px] font-medium text-muted-foreground">
+          {modelLabel} · {layers.length} layers · {tokenEstimate} tokens
+        </p>
+        <div className="flex flex-wrap gap-1">
+          {layers.map((layer) => {
+            const meta = LAYER_REGISTRY[layer.type];
+            return (
+              <span
+                key={layer.id}
+                className="inline-block text-[10px] rounded bg-muted px-1.5 py-0.5 text-muted-foreground"
+              >
+                {meta?.label ?? layer.type}
+              </span>
+            );
+          })}
+        </div>
+      </div>
+      <RecentConversations compact />
+    </div>
   );
 }

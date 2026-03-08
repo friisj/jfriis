@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useCallback } from 'react';
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { MessageSquare } from 'lucide-react';
@@ -10,8 +10,6 @@ import {
   ResizablePanel,
   ResizableHandle,
 } from '@/components/ui/resizable';
-import { getLuvCharacter } from '@/lib/luv';
-import type { LuvSoulData } from '@/lib/types/luv';
 import { cn } from '@/lib/utils';
 import { LuvContextNav } from './components/luv-context-nav';
 import { ChatDrawer } from './components/chat-drawer';
@@ -85,16 +83,13 @@ function LuvHeaderActions() {
 }
 
 function LuvLayoutInner({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
   const { chatOpen } = useLuvChat();
-  const [soulData, setSoulData] = useState<LuvSoulData>({});
-  const [soulLoaded, setSoulLoaded] = useState(false);
 
-  useEffect(() => {
-    getLuvCharacter().then((char) => {
-      if (char) setSoulData(char.soul_data);
-      setSoulLoaded(true);
-    });
-  }, []);
+  // Fullscreen chat route — bypass panels, sidebar, and drawer
+  if (pathname.startsWith('/tools/luv/chat')) {
+    return <>{children}</>;
+  }
 
   return (
     <>
@@ -110,7 +105,7 @@ function LuvLayoutInner({ children }: { children: React.ReactNode }) {
             <>
               <ResizableHandle withHandle />
               <ResizablePanel defaultSize={30} minSize={20}>
-                <ChatDrawer soulData={soulData} soulLoaded={soulLoaded} />
+                <ChatDrawer />
               </ResizablePanel>
             </>
           )}
