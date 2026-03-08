@@ -14,6 +14,13 @@ const MODES = [
     textColor: 'text-green-400',
   },
   {
+    href: '/apps/recess/play3d',
+    title: 'Play 3D',
+    description: 'First-person view. WASD + mouse look. Same game, new perspective.',
+    color: 'border-cyan-800 hover:border-cyan-600',
+    textColor: 'text-cyan-400',
+  },
+  {
     href: '/apps/recess/manage',
     title: 'Manage',
     description: 'Tune level generation, gameplay params, and preview mazes.',
