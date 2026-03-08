@@ -1,9 +1,9 @@
 'use client'
 
-import { useCallback, useEffect, useReducer } from 'react'
+import { useCallback, useEffect, useReducer, useState } from 'react'
 import Link from 'next/link'
 import type { GameState, Direction } from '@/lib/recess/types'
-import { DEFAULT_CONFIG } from '@/lib/recess/types'
+import { loadConfig } from '@/lib/recess/config'
 import {
   createGame,
   movePlayer,
@@ -48,7 +48,7 @@ function reducer(state: GameState, action: Action): GameState {
 }
 
 export default function PlayPage() {
-  const [state, dispatch] = useReducer(reducer, DEFAULT_CONFIG, createGame)
+  const [state, dispatch] = useReducer(reducer, null, () => createGame(loadConfig()))
 
   // Auto-clear messages after 2.5s
   useEffect(() => {

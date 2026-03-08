@@ -11,7 +11,18 @@ interface MazeRendererProps {
   fogOfWar?: boolean // hide unexplored cells
 }
 
-/** Check if a cell is adjacent to the player (within 1 step through open walls). */
+/** Floor-specific color themes — deeper floors feel more oppressive. */
+function floorTheme(floor: number, totalFloors: number) {
+  const depth = totalFloors - floor // 0 = top (easy), higher = deeper
+  const themes = [
+    { wall: '#71717a', bg: '#18181b', accent: '#a1a1aa' }, // zinc — safe upper floors
+    { wall: '#57534e', bg: '#1c1917', accent: '#a8a29e' }, // stone — getting darker
+    { wall: '#44403c', bg: '#1a1412', accent: '#78716c' }, // warm dark — deep floors
+  ]
+  return themes[Math.min(depth, themes.length - 1)]
+}
+
+/** Check if a cell is adjacent to the player (within 1 step). */
 function isNearPlayer(state: GameState, row: number, col: number): boolean {
   const { playerPos } = state
   const dr = Math.abs(row - playerPos.row)
@@ -25,12 +36,13 @@ export default function MazeRenderer({ state, showAllTeachers = false, fogOfWar 
   const cols = maze[0].length
   const width = cols * CELL_SIZE
   const height = rows * CELL_SIZE
+  const theme = floorTheme(state.currentFloor, state.config.totalFloors)
 
   return (
     <svg
       viewBox={`0 0 ${width} ${height}`}
-      className="w-full max-w-2xl border border-zinc-700 rounded-lg bg-zinc-900"
-      style={{ aspectRatio: `${width}/${height}` }}
+      className="w-full max-w-2xl border border-zinc-700 rounded-lg"
+      style={{ aspectRatio: `${width}/${height}`, backgroundColor: theme.bg }}
     >
       {/* Cells */}
       {maze.flat().map((cell) => {
@@ -43,9 +55,9 @@ export default function MazeRenderer({ state, showAllTeachers = false, fogOfWar 
         // Cell background
         let fill = 'transparent'
         if (isVisited) {
-          if (cell.content.type === 'start') fill = '#22c55e20'
-          if (cell.content.type === 'gym') fill = '#eab30820'
-          if (cell.content.type === 'exit') fill = '#3b82f620'
+          if (cell.content.type === 'start') fill = '#22c55e15'
+          if (cell.content.type === 'gym') fill = '#eab30815'
+          if (cell.content.type === 'exit') fill = '#3b82f615'
         }
 
         // Fog opacity
@@ -61,29 +73,34 @@ export default function MazeRenderer({ state, showAllTeachers = false, fogOfWar 
             {isVisited && (
               <>
                 {cell.walls.north && (
-                  <line x1={x} y1={y} x2={x + CELL_SIZE} y2={y} stroke="#71717a" strokeWidth={WALL_WIDTH} />
+                  <line x1={x} y1={y} x2={x + CELL_SIZE} y2={y} stroke={theme.wall} strokeWidth={WALL_WIDTH} />
                 )}
                 {cell.walls.south && (
-                  <line x1={x} y1={y + CELL_SIZE} x2={x + CELL_SIZE} y2={y + CELL_SIZE} stroke="#71717a" strokeWidth={WALL_WIDTH} />
+                  <line x1={x} y1={y + CELL_SIZE} x2={x + CELL_SIZE} y2={y + CELL_SIZE} stroke={theme.wall} strokeWidth={WALL_WIDTH} />
                 )}
                 {cell.walls.west && (
-                  <line x1={x} y1={y} x2={x} y2={y + CELL_SIZE} stroke="#71717a" strokeWidth={WALL_WIDTH} />
+                  <line x1={x} y1={y} x2={x} y2={y + CELL_SIZE} stroke={theme.wall} strokeWidth={WALL_WIDTH} />
                 )}
                 {cell.walls.east && (
-                  <line x1={x + CELL_SIZE} y1={y} x2={x + CELL_SIZE} y2={y + CELL_SIZE} stroke="#71717a" strokeWidth={WALL_WIDTH} />
+                  <line x1={x + CELL_SIZE} y1={y} x2={x + CELL_SIZE} y2={y + CELL_SIZE} stroke={theme.wall} strokeWidth={WALL_WIDTH} />
                 )}
               </>
             )}
 
-            {/* Content labels — only show if nearby */}
+            {/* Landmark labels */}
             {isVisited && cell.content.type === 'gym' && (
-              <text x={x + CELL_SIZE / 2} y={y + CELL_SIZE / 2} textAnchor="middle" dominantBaseline="central" fill="#eab308" fontSize="10" fontWeight="bold" opacity={isNear ? 1 : 0.4}>
-                GYM
+              <text x={x + CELL_SIZE / 2} y={y + CELL_SIZE / 2} textAnchor="middle" dominantBaseline="central" fontSize="16" opacity={isNear ? 1 : 0.4}>
+                🏀
               </text>
             )}
             {isVisited && cell.content.type === 'exit' && (
-              <text x={x + CELL_SIZE / 2} y={y + CELL_SIZE / 2} textAnchor="middle" dominantBaseline="central" fill="#3b82f6" fontSize="10" fontWeight="bold" opacity={isNear ? 1 : 0.4}>
-                EXIT
+              <text x={x + CELL_SIZE / 2} y={y + CELL_SIZE / 2} textAnchor="middle" dominantBaseline="central" fontSize="16" opacity={isNear ? 1 : 0.4}>
+                🚪
+              </text>
+            )}
+            {isVisited && cell.content.type === 'start' && (
+              <text x={x + CELL_SIZE / 2} y={y + CELL_SIZE / 2} textAnchor="middle" dominantBaseline="central" fontSize="10" fill="#22c55e" fontWeight="bold" opacity={isNear ? 0.6 : 0.2}>
+                START
               </text>
             )}
 
@@ -95,7 +112,7 @@ export default function MazeRenderer({ state, showAllTeachers = false, fogOfWar 
         )
       })}
 
-      {/* Teachers */}
+      {/* Teachers — emoji icons instead of plain circles */}
       {teachers.map((teacher) => {
         const isFound = demonsFound.some((d) => d.id === teacher.id)
         if (isFound) return null
@@ -103,47 +120,59 @@ export default function MazeRenderer({ state, showAllTeachers = false, fogOfWar 
 
         // In fog mode, only show teachers that are nearby
         if (fogOfWar && !isNearPlayer(state, teacher.position.row, teacher.position.col)) {
-          // Show on visited cells but dimmed
           const tKey = `${teacher.position.row},${teacher.position.col}`
           if (!visitedCells[tKey]) return null
-          // Don't show at all if not near — they could be hiding
           return null
         }
 
         const x = teacher.position.col * CELL_SIZE + CELL_SIZE / 2
         const y = teacher.position.row * CELL_SIZE + CELL_SIZE / 2
 
-        const color = showAllTeachers
-          ? teacher.isDemon ? '#ef4444' : '#22c55e'
-          : teacher.challenged ? '#a855f7' : '#f97316'
+        if (showAllTeachers) {
+          // Manage/debug mode: show demon vs normal with colored circles + emoji
+          return (
+            <g key={teacher.id}>
+              <circle cx={x} cy={y} r={10} fill={teacher.isDemon ? '#ef444430' : '#22c55e20'} stroke={teacher.isDemon ? '#ef4444' : '#22c55e'} strokeWidth={1.5} />
+              <text x={x} y={y + 1} textAnchor="middle" dominantBaseline="central" fontSize="12">
+                {teacher.isDemon ? '👿' : '🧑‍🏫'}
+              </text>
+            </g>
+          )
+        }
 
+        // Play mode: all teachers look the same until challenged
         return (
-          <circle
-            key={teacher.id}
-            cx={x}
-            cy={y}
-            r={6}
-            fill={color}
-            stroke={showAllTeachers && teacher.isDemon ? '#fca5a5' : 'none'}
-            strokeWidth={1.5}
-          />
+          <g key={teacher.id}>
+            <text x={x} y={y + 1} textAnchor="middle" dominantBaseline="central" fontSize="14">
+              {teacher.challenged ? '❓' : '🧑‍🏫'}
+            </text>
+          </g>
         )
       })}
 
-      {/* Player — smooth animated position */}
-      <rect
-        x={playerPos.col * CELL_SIZE + CELL_SIZE / 4}
-        y={playerPos.row * CELL_SIZE + CELL_SIZE / 4}
-        width={CELL_SIZE / 2}
-        height={CELL_SIZE / 2}
-        rx={4}
-        fill="#22c55e"
-        stroke="#4ade80"
-        strokeWidth={2}
-        style={{
-          transition: 'x 120ms ease-out, y 120ms ease-out',
-        }}
-      />
+      {/* Player character */}
+      <g style={{ transition: 'transform 120ms ease-out' }}>
+        {/* Player shadow */}
+        <ellipse
+          cx={playerPos.col * CELL_SIZE + CELL_SIZE / 2}
+          cy={playerPos.row * CELL_SIZE + CELL_SIZE / 2 + 6}
+          rx={7}
+          ry={3}
+          fill="#00000040"
+          style={{ transition: 'cx 120ms ease-out, cy 120ms ease-out' }}
+        />
+        {/* Player emoji */}
+        <text
+          x={playerPos.col * CELL_SIZE + CELL_SIZE / 2}
+          y={playerPos.row * CELL_SIZE + CELL_SIZE / 2 + 1}
+          textAnchor="middle"
+          dominantBaseline="central"
+          fontSize="18"
+          style={{ transition: 'x 120ms ease-out, y 120ms ease-out' }}
+        >
+          🧒
+        </text>
+      </g>
 
       {/* Player glow */}
       {fogOfWar && (
@@ -152,16 +181,14 @@ export default function MazeRenderer({ state, showAllTeachers = false, fogOfWar 
           cy={playerPos.row * CELL_SIZE + CELL_SIZE / 2}
           r={CELL_SIZE * 1.2}
           fill="none"
-          stroke="#4ade8030"
-          strokeWidth={2}
-          style={{
-            transition: 'cx 120ms ease-out, cy 120ms ease-out',
-          }}
+          stroke="#fbbf2420"
+          strokeWidth={3}
+          style={{ transition: 'cx 120ms ease-out, cy 120ms ease-out' }}
         />
       )}
 
       {/* Border */}
-      <rect x={0} y={0} width={width} height={height} fill="none" stroke="#71717a" strokeWidth={WALL_WIDTH * 2} />
+      <rect x={0} y={0} width={width} height={height} fill="none" stroke={theme.wall} strokeWidth={WALL_WIDTH * 2} />
     </svg>
   )
 }
