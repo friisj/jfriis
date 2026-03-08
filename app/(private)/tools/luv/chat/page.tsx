@@ -13,6 +13,7 @@ import remarkGfm from 'remark-gfm';
 import { useLuvChatSession, MODEL_OPTIONS, getMessageText } from '../components/use-luv-chat-session';
 import { ToolCallCard } from '../components/tool-call-card';
 import { ProposalCard } from '../components/proposal-card';
+import { RecentConversations } from '../components/recent-conversations';
 
 export default function LuvChatPage() {
   const { setHidden } = usePrivateHeader();
@@ -106,9 +107,12 @@ export default function LuvChatPage() {
             </p>
           )}
           {soulLoaded && messages.length === 0 && (
-            <p className="text-sm text-muted-foreground text-center py-8">
-              Start a conversation with Luv.
-            </p>
+            <div className="text-center py-8">
+              <p className="text-sm text-muted-foreground">
+                Start a conversation with Luv.
+              </p>
+              <RecentConversations />
+            </div>
           )}
           {messages.map((msg) => (
             <FullscreenMessageBubble

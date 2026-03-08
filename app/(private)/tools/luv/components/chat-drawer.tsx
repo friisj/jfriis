@@ -12,6 +12,7 @@ import { useLuvChatSession, MODEL_OPTIONS, getMessageText } from './use-luv-chat
 import { ToolCallCard } from './tool-call-card';
 import { ProposalCard } from './proposal-card';
 import { CompositionPreview } from './composition-preview';
+import { RecentConversations } from './recent-conversations';
 
 export function ChatDrawer() {
   const {
@@ -78,9 +79,12 @@ export function ChatDrawer() {
           </p>
         )}
         {soulLoaded && messages.length === 0 && (
-          <p className="text-xs text-muted-foreground text-center py-4">
-            Chat with Luv while you work.
-          </p>
+          <div className="text-center py-4">
+            <p className="text-xs text-muted-foreground">
+              Chat with Luv while you work.
+            </p>
+            <RecentConversations compact />
+          </div>
         )}
         {messages.map((msg) => (
           <MessageBubble
