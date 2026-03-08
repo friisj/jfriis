@@ -3,7 +3,6 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
-import { getAllSchemas } from '@/lib/luv/chassis-schemas';
 
 type Space = 'identity' | 'stage' | 'library';
 
@@ -31,23 +30,13 @@ const soulGroup: NavGroup = {
   ],
 };
 
-function buildChassisGroup(): NavGroup {
-  const schemas = getAllSchemas();
-  const moduleItems: NavItem[] = schemas.map((s) => ({
-    href: `/tools/luv/chassis/${s.key}`,
-    label: s.label,
-  }));
+const chassisGroup: NavGroup = {
+  header: 'Chassis',
+  href: '/tools/luv/chassis',
+  items: [],
+};
 
-  return {
-    header: 'Chassis',
-    href: '/tools/luv/chassis',
-    items: [
-      ...moduleItems,
-    ],
-  };
-}
-
-const identityGroups: NavGroup[] = [soulGroup, buildChassisGroup()];
+const identityGroups: NavGroup[] = [soulGroup, chassisGroup];
 
 const libraryLinks: NavItem[] = [
   { href: '/tools/luv/conversations', label: 'Conversations' },
