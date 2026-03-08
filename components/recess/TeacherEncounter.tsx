@@ -6,11 +6,12 @@ import { pickChallenge } from '@/lib/recess/challenges'
 
 interface TeacherEncounterProps {
   teacher: Teacher
+  floorDifficulty?: number
   onDecide: (accuse: boolean) => void
 }
 
-export default function TeacherEncounter({ teacher, onDecide }: TeacherEncounterProps) {
-  const [challenge] = useState<Challenge>(() => pickChallenge())
+export default function TeacherEncounter({ teacher, floorDifficulty = 0, onDecide }: TeacherEncounterProps) {
+  const [challenge] = useState<Challenge>(() => pickChallenge(floorDifficulty))
   const [answered, setAnswered] = useState(false)
   const [teacherResponse, setTeacherResponse] = useState<number | null>(null)
 
@@ -24,9 +25,14 @@ export default function TeacherEncounter({ teacher, onDecide }: TeacherEncounter
   return (
     <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
       <div className="bg-zinc-900 border border-zinc-700 rounded-xl p-6 max-w-md w-full space-y-4">
-        <h2 className="text-xl font-bold text-white">
-          You found {teacher.name}!
-        </h2>
+        <div className="flex items-center justify-between">
+          <h2 className="text-xl font-bold text-white">
+            {teacher.name}
+          </h2>
+          {teacher.challenged && (
+            <span className="text-xs text-purple-400 bg-purple-900/30 px-2 py-0.5 rounded">re-challenge</span>
+          )}
+        </div>
 
         {!answered ? (
           <>

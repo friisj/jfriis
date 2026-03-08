@@ -1,4 +1,4 @@
-import type { GameState, GameConfig, Direction, Teacher } from './types'
+import type { GameState, GameConfig, Direction } from './types'
 import { DEFAULT_CONFIG } from './types'
 import { generateMaze, buildLevelConfig } from './maze'
 import { resetChallenges } from './challenges'
@@ -27,6 +27,7 @@ export function createGame(config: GameConfig = DEFAULT_CONFIG): GameState {
     demonsFound: [],
     currentEncounter: null,
     levelConfigs,
+    message: null,
   }
 }
 
@@ -54,28 +55,32 @@ export function movePlayer(state: GameState, dir: Direction): GameState {
   if (newCol < 0 || newCol >= state.maze[0].length) return state
 
   const newCell = state.maze[newRow][newCol]
-  const newState = { ...state, playerPos: { row: newRow, col: newCol } }
+  const newState: GameState = { ...state, playerPos: { row: newRow, col: newCol }, message: null }
 
-  // Check what's in the new cell
+  // Check what's in the new cell — only auto-trigger for unchalllenged teachers
   if (newCell.content.type === 'teacher') {
     const teacherId = (newCell.content as { type: 'teacher'; teacherId: string }).teacherId
     const teacher = state.teachers.find((t) => t.id === teacherId)
-    if (teacher && !teacher.accused) {
+    if (teacher && !teacher.accused && !teacher.challenged) {
       return { ...newState, phase: 'encounter', currentEncounter: teacher }
     }
   }
 
-  // Check if all demons found — auto-trigger gym
+  // Check gym
   if (newCell.content.type === 'gym') {
-    const allDemonsFound =
-      newState.demonsFound.length ===
-      state.teachers.filter((t) => t.isDemon).length
-    if (allDemonsFound && newState.demonsFound.length > 0) {
+    const totalDemons = state.teachers.filter((t) => t.isDemon).length
+    const allDemonsFound = newState.demonsFound.length === totalDemons
+    if (allDemonsFound && totalDemons > 0) {
       return { ...newState, phase: 'gym' }
+    }
+    if (totalDemons > 0) {
+      const remaining = totalDemons - newState.demonsFound.length
+      return { ...newState, message: `${remaining} demon${remaining > 1 ? 's' : ''} still hiding — keep searching!` }
     }
   }
 
-  // Check exit (only works if player has key for this floor)
+  // Check exit — player needs keysCollected > floors already descended
+  // Floor 3 (top, first) needs >0 keys, floor 2 needs >1, etc.
   if (newCell.content.type === 'exit' && newState.keysCollected > state.config.totalFloors - state.currentFloor) {
     if (state.currentFloor <= 1) {
       return { ...newState, phase: 'won' }
@@ -84,6 +89,44 @@ export function movePlayer(state: GameState, dir: Direction): GameState {
   }
 
   return newState
+}
+
+/**
+ * Interact with a teacher or gym on the player's current cell.
+ * Used for re-engaging challenged (but not accused) teachers,
+ * or entering the gym when standing on it.
+ */
+export function interact(state: GameState): GameState {
+  if (state.phase !== 'exploring') return state
+
+  const { row, col } = state.playerPos
+  const cell = state.maze[row][col]
+
+  if (cell.content.type === 'teacher') {
+    const teacherId = (cell.content as { type: 'teacher'; teacherId: string }).teacherId
+    const teacher = state.teachers.find((t) => t.id === teacherId)
+    if (teacher && !teacher.accused) {
+      return { ...state, phase: 'encounter', currentEncounter: teacher, message: null }
+    }
+  }
+
+  if (cell.content.type === 'gym') {
+    const totalDemons = state.teachers.filter((t) => t.isDemon).length
+    const allDemonsFound = state.demonsFound.length === totalDemons
+    if (allDemonsFound && totalDemons > 0) {
+      return { ...state, phase: 'gym', message: null }
+    }
+    if (totalDemons > 0) {
+      const remaining = totalDemons - state.demonsFound.length
+      return { ...state, message: `${remaining} demon${remaining > 1 ? 's' : ''} still hiding — keep searching!` }
+    }
+  }
+
+  return state
+}
+
+export function clearMessage(state: GameState): GameState {
+  return { ...state, message: null }
 }
 
 export function accuseTeacher(state: GameState, accuse: boolean): GameState {
@@ -127,6 +170,7 @@ export function accuseTeacher(state: GameState, accuse: boolean): GameState {
       demonsFound,
       score,
       maze,
+      message: `${teacher.name} was a demon! +${10 * (state.config.totalFloors - state.currentFloor + 1)} kids saved!`,
     }
   } else {
     // Wrong! Strike
@@ -149,6 +193,7 @@ export function accuseTeacher(state: GameState, accuse: boolean): GameState {
       currentEncounter: null,
       teachers,
       strikes,
+      message: `${teacher.name} is NOT a demon! Strike ${strikes}/${state.config.maxStrikes}!`,
     }
   }
 }
@@ -158,10 +203,20 @@ export function resolveDodgeball(state: GameState, won: boolean): GameState {
 
   if (won) {
     const keysCollected = state.keysCollected + 1
-    return { ...state, phase: 'exploring', keysCollected, demonsFound: [] }
+    return {
+      ...state,
+      phase: 'exploring',
+      keysCollected,
+      demonsFound: [],
+      message: 'Dodgeball victory! Key earned — find the exit!',
+    }
   } else {
-    // Lost dodgeball — demons scatter back into the maze (reset found)
-    return { ...state, phase: 'exploring', demonsFound: [] }
+    // Lost dodgeball — keep demons found, player can retry at gym
+    return {
+      ...state,
+      phase: 'exploring',
+      message: 'Lost dodgeball! Head back to the gym to try again.',
+    }
   }
 }
 
@@ -186,32 +241,10 @@ export function advanceFloor(state: GameState): GameState {
     playerPos: { row: 0, col: 0 },
     demonsFound: [],
     currentEncounter: null,
+    message: null,
   }
 }
 
 export function restartGame(state: GameState): GameState {
   return createGame(state.config)
-}
-
-/**
- * Get status text for the current game state.
- */
-export function getStatusText(state: GameState): string {
-  const totalDemons = state.teachers.filter((t) => t.isDemon).length
-  switch (state.phase) {
-    case 'exploring':
-      return `Floor ${state.currentFloor} | Demons: ${state.demonsFound.length}/${totalDemons} | Keys: ${state.keysCollected} | Strikes: ${state.strikes}/${state.config.maxStrikes}`
-    case 'encounter':
-      return `Encountering ${state.currentEncounter?.name}...`
-    case 'gym':
-      return `DODGEBALL! ${state.demonsFound.length} demon teachers in the gym!`
-    case 'transition':
-      return `Key obtained! Descending to floor ${state.currentFloor - 1}...`
-    case 'detained':
-      return `DETENTION! Sent back to the top floor. Score reset.`
-    case 'won':
-      return `RECESS! You escaped with ${state.score} kids saved!`
-    default:
-      return ''
-  }
 }

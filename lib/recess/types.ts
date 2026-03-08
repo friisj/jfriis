@@ -88,15 +88,19 @@ export interface GameState {
   demonsFound: Teacher[] // demons correctly identified this floor
   currentEncounter: Teacher | null
   levelConfigs: LevelConfig[] // pre-generated configs for all floors
+  message: string | null // transient feedback message
 }
 
 // ── Challenge ────────────────────────────────────────────────
+
+export type ChallengeDifficulty = 'obvious' | 'moderate' | 'subtle'
 
 export interface Challenge {
   question: string
   options: string[]
   demonAnswer: number   // index of how a demon would answer
   normalAnswer: number  // index of how a normal teacher would answer
+  difficulty: ChallengeDifficulty
 }
 
 // ── Direction ────────────────────────────────────────────────

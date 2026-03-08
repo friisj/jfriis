@@ -70,6 +70,7 @@ export default function ManagePage() {
       demonsFound: [],
       currentEncounter: null,
       levelConfigs: [],
+      message: null,
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [config, previewFloor, seed])

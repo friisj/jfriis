@@ -4,7 +4,16 @@ import { useCallback, useEffect, useReducer } from 'react'
 import Link from 'next/link'
 import type { GameState, Direction } from '@/lib/recess/types'
 import { DEFAULT_CONFIG } from '@/lib/recess/types'
-import { createGame, movePlayer, accuseTeacher, resolveDodgeball, advanceFloor, restartGame } from '@/lib/recess/engine'
+import {
+  createGame,
+  movePlayer,
+  accuseTeacher,
+  resolveDodgeball,
+  advanceFloor,
+  restartGame,
+  interact,
+  clearMessage,
+} from '@/lib/recess/engine'
 import MazeRenderer from '@/components/recess/MazeRenderer'
 import GameHud from '@/components/recess/GameHud'
 import TeacherEncounter from '@/components/recess/TeacherEncounter'
@@ -16,6 +25,8 @@ type Action =
   | { type: 'dodgeball'; won: boolean }
   | { type: 'advance' }
   | { type: 'restart' }
+  | { type: 'interact' }
+  | { type: 'clearMessage' }
 
 function reducer(state: GameState, action: Action): GameState {
   switch (action.type) {
@@ -29,14 +40,28 @@ function reducer(state: GameState, action: Action): GameState {
       return advanceFloor(state)
     case 'restart':
       return restartGame(state)
+    case 'interact':
+      return interact(state)
+    case 'clearMessage':
+      return clearMessage(state)
   }
 }
 
 export default function PlayPage() {
   const [state, dispatch] = useReducer(reducer, DEFAULT_CONFIG, createGame)
 
+  // Auto-clear messages after 2.5s
+  useEffect(() => {
+    if (state.message) {
+      const timer = setTimeout(() => dispatch({ type: 'clearMessage' }), 2500)
+      return () => clearTimeout(timer)
+    }
+  }, [state.message])
+
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
+      if (state.phase !== 'exploring') return
+
       const keyMap: Record<string, Direction> = {
         ArrowUp: 'north',
         ArrowDown: 'south',
@@ -48,9 +73,16 @@ export default function PlayPage() {
         d: 'east',
       }
       const dir = keyMap[e.key]
-      if (dir && state.phase === 'exploring') {
+      if (dir) {
         e.preventDefault()
         dispatch({ type: 'move', dir })
+        return
+      }
+
+      // Space or Enter to interact
+      if (e.key === ' ' || e.key === 'Enter') {
+        e.preventDefault()
+        dispatch({ type: 'interact' })
       }
     },
     [state.phase]
@@ -60,6 +92,9 @@ export default function PlayPage() {
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [handleKeyDown])
+
+  // Floor difficulty: 0 = top (easiest), increases as floor descends
+  const floorDifficulty = state.config.totalFloors - state.currentFloor
 
   return (
     <div className="flex flex-col items-center gap-6 p-6 min-h-screen">
@@ -77,24 +112,36 @@ export default function PlayPage() {
       </div>
 
       <GameHud state={state} />
+
+      {/* Message toast */}
+      {state.message && (
+        <div className="px-4 py-2 bg-zinc-800 border border-zinc-600 rounded-lg text-sm text-zinc-200 text-center max-w-md animate-in fade-in slide-in-from-top-2 duration-200">
+          {state.message}
+        </div>
+      )}
+
       <MazeRenderer state={state} />
 
       {/* Mobile controls */}
-      <div className="grid grid-cols-3 gap-2 w-36 md:hidden">
+      <div className="grid grid-cols-3 gap-2 w-44 md:hidden">
         <div />
-        <button onClick={() => dispatch({ type: 'move', dir: 'north' })} className="p-3 bg-zinc-800 rounded text-center hover:bg-zinc-700">&uarr;</button>
+        <button onClick={() => dispatch({ type: 'move', dir: 'north' })} className="p-4 bg-zinc-800 rounded text-center hover:bg-zinc-700 active:bg-zinc-600 text-lg">&uarr;</button>
         <div />
-        <button onClick={() => dispatch({ type: 'move', dir: 'west' })} className="p-3 bg-zinc-800 rounded text-center hover:bg-zinc-700">&larr;</button>
-        <button onClick={() => dispatch({ type: 'move', dir: 'south' })} className="p-3 bg-zinc-800 rounded text-center hover:bg-zinc-700">&darr;</button>
-        <button onClick={() => dispatch({ type: 'move', dir: 'east' })} className="p-3 bg-zinc-800 rounded text-center hover:bg-zinc-700">&rarr;</button>
+        <button onClick={() => dispatch({ type: 'move', dir: 'west' })} className="p-4 bg-zinc-800 rounded text-center hover:bg-zinc-700 active:bg-zinc-600 text-lg">&larr;</button>
+        <button onClick={() => dispatch({ type: 'interact' })} className="p-4 bg-purple-800 rounded text-center hover:bg-purple-700 active:bg-purple-600 text-xs font-bold">ACT</button>
+        <button onClick={() => dispatch({ type: 'move', dir: 'east' })} className="p-4 bg-zinc-800 rounded text-center hover:bg-zinc-700 active:bg-zinc-600 text-lg">&rarr;</button>
+        <div />
+        <button onClick={() => dispatch({ type: 'move', dir: 'south' })} className="p-4 bg-zinc-800 rounded text-center hover:bg-zinc-700 active:bg-zinc-600 text-lg">&darr;</button>
+        <div />
       </div>
 
-      <p className="text-xs text-zinc-600">WASD or Arrow keys to move</p>
+      <p className="text-xs text-zinc-600">WASD to move &middot; Space to interact</p>
 
       {/* Overlays */}
       {state.phase === 'encounter' && state.currentEncounter && (
         <TeacherEncounter
           teacher={state.currentEncounter}
+          floorDifficulty={floorDifficulty}
           onDecide={(accuse) => dispatch({ type: 'accuse', accuse })}
         />
       )}
