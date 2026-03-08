@@ -1,6 +1,9 @@
 'use client'
 
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
+import type { HighScore } from '@/lib/recess/types'
+import { loadHighScores } from '@/lib/recess/scores'
 
 const MODES = [
   {
@@ -27,6 +30,12 @@ const MODES = [
 ]
 
 export default function RecessPage() {
+  const [scores, setScores] = useState<HighScore[]>([])
+
+  useEffect(() => {
+    setScores(loadHighScores())
+  }, [])
+
   return (
     <div className="flex flex-col items-center justify-center min-h-screen p-6">
       <h1 className="text-5xl font-bold tracking-tight mb-2">Recess</h1>
@@ -44,6 +53,34 @@ export default function RecessPage() {
           </Link>
         ))}
       </div>
+
+      {scores.length > 0 && (
+        <div className="mt-10 w-full max-w-md">
+          <h2 className="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-3">High Scores</h2>
+          <div className="bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-zinc-500 text-xs">
+                  <th className="text-left px-4 py-2 font-medium">#</th>
+                  <th className="text-left px-4 py-2 font-medium">Kids Saved</th>
+                  <th className="text-left px-4 py-2 font-medium">Floors</th>
+                  <th className="text-right px-4 py-2 font-medium">Date</th>
+                </tr>
+              </thead>
+              <tbody>
+                {scores.slice(0, 5).map((s, i) => (
+                  <tr key={i} className="border-t border-zinc-800/50">
+                    <td className="px-4 py-2 text-zinc-600">{i + 1}</td>
+                    <td className="px-4 py-2 text-yellow-400 font-mono font-bold">{s.score}</td>
+                    <td className="px-4 py-2 text-zinc-400 font-mono">{s.floors}</td>
+                    <td className="px-4 py-2 text-zinc-600 text-right font-mono">{s.date}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
       <Link
         href="/apps"

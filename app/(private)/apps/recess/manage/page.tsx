@@ -100,6 +100,8 @@ export default function ManagePage() {
       levelConfigs: [],
       message: null,
       visitedCells: {},
+      moveCount: 0,
+      items: [],
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [config, previewFloor, seed])

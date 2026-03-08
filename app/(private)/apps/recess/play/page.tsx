@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useReducer, useRef } from 'react'
+import { useCallback, useEffect, useReducer, useRef, useState } from 'react'
 import Link from 'next/link'
 import type { GameState, Direction } from '@/lib/recess/types'
 import { loadConfig } from '@/lib/recess/config'
@@ -15,6 +15,7 @@ import {
   clearMessage,
 } from '@/lib/recess/engine'
 import { getRecessAudio, type RecessSound } from '@/lib/recess/audio'
+import { saveHighScore, isHighScore } from '@/lib/recess/scores'
 import MazeRenderer from '@/components/recess/MazeRenderer'
 import GameHud from '@/components/recess/GameHud'
 import TeacherEncounter from '@/components/recess/TeacherEncounter'
@@ -53,6 +54,9 @@ export default function PlayPage() {
   const audioRef = useRef(getRecessAudio())
   const prevPhaseRef = useRef(state.phase)
   const prevStrikesRef = useRef(state.strikes)
+  const [shake, setShake] = useState(false)
+  const [newHighScore, setNewHighScore] = useState(false)
+  const scoreSaved = useRef(false)
 
   // Initialize audio on first user interaction
   useEffect(() => {
@@ -75,7 +79,7 @@ export default function PlayPage() {
     audioRef.current.play(sound)
   }, [])
 
-  // React to phase transitions with sounds
+  // React to phase transitions with sounds + effects
   useEffect(() => {
     const prev = prevPhaseRef.current
     prevPhaseRef.current = state.phase
@@ -85,15 +89,38 @@ export default function PlayPage() {
     if (state.phase === 'encounter') playSound('encounter')
     if (state.phase === 'gym') playSound('gym-enter')
     if (state.phase === 'transition') playSound('key-collect')
-    if (state.phase === 'detained') playSound('detention')
-    if (state.phase === 'won') playSound('victory')
-  }, [state.phase, playSound])
+    if (state.phase === 'detained') {
+      playSound('detention')
+      setShake(true)
+      setTimeout(() => setShake(false), 500)
+    }
+    if (state.phase === 'won') {
+      playSound('victory')
+      // Save high score
+      if (!scoreSaved.current && state.score > 0) {
+        scoreSaved.current = true
+        const isNew = isHighScore(state.score)
+        setNewHighScore(isNew)
+        saveHighScore(state.score, state.config.totalFloors)
+      }
+    }
 
-  // React to strike changes
+    // Reset score tracking on restart
+    if (state.phase === 'exploring' && prev !== 'exploring') {
+      scoreSaved.current = false
+      setNewHighScore(false)
+    }
+  }, [state.phase, state.score, state.config.totalFloors, playSound])
+
+  // React to strike changes — screen shake
   useEffect(() => {
     const prev = prevStrikesRef.current
     prevStrikesRef.current = state.strikes
-    if (state.strikes > prev) playSound('accuse-wrong')
+    if (state.strikes > prev) {
+      playSound('accuse-wrong')
+      setShake(true)
+      setTimeout(() => setShake(false), 400)
+    }
   }, [state.strikes, playSound])
 
   // Auto-clear messages after 2.5s
@@ -106,7 +133,6 @@ export default function PlayPage() {
 
   const handleMove = useCallback((dir: Direction) => {
     const next = movePlayer(state, dir)
-    // Detect wall bump (position unchanged)
     if (next.playerPos.row === state.playerPos.row && next.playerPos.col === state.playerPos.col) {
       playSound('wall-bump')
     } else {
@@ -136,7 +162,6 @@ export default function PlayPage() {
         return
       }
 
-      // Space or Enter to interact
       if (e.key === ' ' || e.key === 'Enter') {
         e.preventDefault()
         dispatch({ type: 'interact' })
@@ -150,11 +175,24 @@ export default function PlayPage() {
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [handleKeyDown])
 
-  // Floor difficulty: 0 = top (easiest), increases as floor descends
   const floorDifficulty = state.config.totalFloors - state.currentFloor
 
   return (
-    <div className="flex flex-col items-center gap-6 p-6 min-h-screen">
+    <div
+      className="flex flex-col items-center gap-6 p-6 min-h-screen transition-transform"
+      style={shake ? { animation: 'shake 0.4s ease-in-out' } : undefined}
+    >
+      <style>{`
+        @keyframes shake {
+          0%, 100% { transform: translateX(0); }
+          15% { transform: translateX(-6px) rotate(-1deg); }
+          30% { transform: translateX(5px) rotate(1deg); }
+          45% { transform: translateX(-4px); }
+          60% { transform: translateX(3px); }
+          75% { transform: translateX(-2px); }
+        }
+      `}</style>
+
       <div className="flex items-center justify-between w-full max-w-2xl">
         <Link href="/apps/recess" className="text-sm text-zinc-600 hover:text-zinc-400 transition-colors">
           &larr; Recess
@@ -170,7 +208,6 @@ export default function PlayPage() {
 
       <GameHud state={state} />
 
-      {/* Message toast */}
       {state.message && (
         <div className="px-4 py-2 bg-zinc-800 border border-zinc-600 rounded-lg text-sm text-zinc-200 text-center max-w-md animate-in fade-in slide-in-from-top-2 duration-200">
           {state.message}
@@ -249,6 +286,9 @@ export default function PlayPage() {
             <h2 className="text-3xl font-bold text-green-400">RECESS!</h2>
             <p className="text-zinc-300">You escaped the school!</p>
             <p className="text-2xl font-bold text-yellow-400">{state.score} kids saved</p>
+            {newHighScore && (
+              <p className="text-sm text-yellow-300 animate-pulse">New High Score!</p>
+            )}
             <button
               onClick={() => dispatch({ type: 'restart' })}
               className="px-6 py-2 bg-green-600 hover:bg-green-500 rounded-lg font-medium transition-colors"

@@ -85,6 +85,8 @@ function buildScenarioState(scenario: SandboxMode): GameState {
         levelConfigs: [],
         message: null,
         visitedCells: { '0,0': true },
+        moveCount: 0,
+        items: [],
       }
     }
     case 'scenario-all-demons': {

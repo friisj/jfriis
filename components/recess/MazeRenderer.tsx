@@ -103,6 +103,11 @@ export default function MazeRenderer({ state, showAllTeachers = false, fogOfWar 
                 START
               </text>
             )}
+            {isVisited && cell.content.type === 'item' && (
+              <text x={x + CELL_SIZE / 2} y={y + CELL_SIZE / 2} textAnchor="middle" dominantBaseline="central" fontSize="14" opacity={isNear ? 1 : 0.4}>
+                {(cell.content as { type: 'item'; item: string }).item === 'hall-pass' ? '📋' : '☕'}
+              </text>
+            )}
 
             {/* Fog overlay */}
             {fogOpacity > 0 && (
