@@ -13,6 +13,9 @@ export type CellContent =
   | { type: 'gym' }
   | { type: 'exit' }
   | { type: 'teacher'; teacherId: string }
+  | { type: 'item'; item: ItemType }
+
+export type ItemType = 'hall-pass' | 'coffee'
 
 export interface Cell {
   row: number
@@ -90,6 +93,8 @@ export interface GameState {
   levelConfigs: LevelConfig[] // pre-generated configs for all floors
   message: string | null // transient feedback message
   visitedCells: Record<string, boolean> // "row,col" → true
+  moveCount: number // tracks player moves for teacher patrol timing
+  items: ItemType[] // collected power-up items
 }
 
 // ── Challenge ────────────────────────────────────────────────
@@ -107,3 +112,11 @@ export interface Challenge {
 // ── Direction ────────────────────────────────────────────────
 
 export type Direction = 'north' | 'south' | 'east' | 'west'
+
+// ── High Scores ─────────────────────────────────────────────
+
+export interface HighScore {
+  score: number
+  floors: number
+  date: string // ISO date
+}

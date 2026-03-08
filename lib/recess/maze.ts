@@ -1,4 +1,4 @@
-import type { Cell, Maze, Direction, Teacher, LevelConfig } from './types'
+import type { Cell, Maze, Direction, Teacher, LevelConfig, ItemType } from './types'
 
 const TEACHER_NAMES = [
   'Ms. Grimshaw', 'Mr. Hollow', 'Mrs. Blackwood', 'Dr. Vex',
@@ -131,6 +131,14 @@ export function generateMaze(config: LevelConfig): {
 
   // Shuffle teachers so demons aren't always first
   const shuffledTeachers = shuffle(teachers)
+
+  // Place items in remaining empty cells (1-2 per floor)
+  const remainingCells = maze.flat().filter((c) => c.content.type === 'empty')
+  const itemCells = shuffle(remainingCells).slice(0, Math.min(2, remainingCells.length))
+  const itemTypes: ItemType[] = ['hall-pass', 'coffee']
+  itemCells.forEach((cell, i) => {
+    cell.content = { type: 'item', item: itemTypes[i % itemTypes.length] }
+  })
 
   // Reset visited flags
   for (const row of maze) {

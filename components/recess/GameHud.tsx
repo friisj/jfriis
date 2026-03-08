@@ -9,6 +9,8 @@ interface GameHudProps {
 export default function GameHud({ state }: GameHudProps) {
   const totalDemons = state.teachers.filter((t) => t.isDemon).length
 
+  const hallPasses = state.items?.filter((i) => i === 'hall-pass').length ?? 0
+
   return (
     <div className="flex flex-wrap gap-4 text-sm font-mono">
       <Stat label="Floor" value={`${state.currentFloor} / ${state.config.totalFloors}`} />
@@ -20,6 +22,9 @@ export default function GameHud({ state }: GameHudProps) {
         color={state.strikes >= state.config.maxStrikes - 1 ? 'text-red-500' : 'text-zinc-400'}
       />
       <Stat label="Kids Saved" value={`${state.score}`} color="text-green-400" />
+      {hallPasses > 0 && (
+        <Stat label="Hall Pass" value={`${hallPasses}`} color="text-blue-400" />
+      )}
     </div>
   )
 }

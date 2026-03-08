@@ -1,7 +1,9 @@
-import type { GameState, GameConfig, Direction, Maze } from './types'
+import type { GameState, GameConfig, Direction, Maze, Teacher, ItemType } from './types'
 import { DEFAULT_CONFIG } from './types'
 import { generateMaze, buildLevelConfig } from './maze'
 import { resetChallenges } from './challenges'
+
+const PATROL_INTERVAL = 4 // teachers move every N player moves
 
 /** Build initial visited cells — mark start cell + visible neighbors. */
 function initVisited(maze: Maze, row: number, col: number): Record<string, boolean> {
@@ -26,6 +28,70 @@ function markVisible(maze: Maze, row: number, col: number, visited: Record<strin
       }
     }
   }
+}
+
+/** Move teachers to adjacent open cells (patrol). */
+function patrolTeachers(state: GameState): GameState {
+  const { maze, teachers, playerPos } = state
+  const rows = maze.length
+  const cols = maze[0].length
+  const dirs: Direction[] = ['north', 'south', 'east', 'west']
+  const offsets: Record<Direction, [number, number]> = {
+    north: [-1, 0], south: [1, 0], east: [0, 1], west: [0, -1],
+  }
+
+  // Build set of occupied cells (teachers + player)
+  const occupied = new Set<string>()
+  occupied.add(`${playerPos.row},${playerPos.col}`)
+  for (const t of teachers) {
+    if (!t.accused) occupied.add(`${t.position.row},${t.position.col}`)
+  }
+
+  const newMaze = maze.map((row) => row.map((cell) => ({ ...cell })))
+  const newTeachers = teachers.map((teacher) => {
+    if (teacher.accused) return teacher
+
+    // 50% chance to stay put each patrol tick
+    if (Math.random() < 0.5) return teacher
+
+    const { row, col } = teacher.position
+    const cell = newMaze[row][col]
+
+    // Find valid moves
+    const validMoves: { row: number; col: number; dir: Direction }[] = []
+    for (const dir of dirs) {
+      if (cell.walls[dir]) continue
+      const [dr, dc] = offsets[dir]
+      const nr = row + dr
+      const nc = col + dc
+      if (nr < 0 || nr >= rows || nc < 0 || nc >= cols) continue
+      const targetKey = `${nr},${nc}`
+      if (occupied.has(targetKey)) continue
+      const target = newMaze[nr][nc]
+      // Can only move into empty cells
+      if (target.content.type !== 'empty') continue
+      validMoves.push({ row: nr, col: nc, dir })
+    }
+
+    if (validMoves.length === 0) return teacher
+
+    const move = validMoves[Math.floor(Math.random() * validMoves.length)]
+
+    // Update maze: clear old cell, set new cell
+    newMaze[row][col] = { ...newMaze[row][col], content: { type: 'empty' } }
+    newMaze[move.row][move.col] = {
+      ...newMaze[move.row][move.col],
+      content: { type: 'teacher', teacherId: teacher.id },
+    }
+
+    // Update occupied set
+    occupied.delete(`${row},${col}`)
+    occupied.add(`${move.row},${move.col}`)
+
+    return { ...teacher, position: { row: move.row, col: move.col } }
+  })
+
+  return { ...state, maze: newMaze, teachers: newTeachers }
 }
 
 export function createGame(config: GameConfig = DEFAULT_CONFIG): GameState {
@@ -54,6 +120,8 @@ export function createGame(config: GameConfig = DEFAULT_CONFIG): GameState {
     levelConfigs,
     message: null,
     visitedCells: initVisited(maze, 0, 0),
+    moveCount: 0,
+    items: [],
   }
 }
 
@@ -81,17 +149,62 @@ export function movePlayer(state: GameState, dir: Direction): GameState {
   const visitedCells = { ...state.visitedCells }
   markVisible(state.maze, newRow, newCol, visitedCells)
 
-  const newState: GameState = {
+  const moveCount = state.moveCount + 1
+
+  let newState: GameState = {
     ...state,
     playerPos: { row: newRow, col: newCol },
     message: null,
     visitedCells,
+    moveCount,
+  }
+
+  // Teacher patrol every N moves
+  if (moveCount % PATROL_INTERVAL === 0) {
+    newState = patrolTeachers(newState)
+  }
+
+  // Pick up items
+  if (newCell.content.type === 'item') {
+    const item = (newCell.content as { type: 'item'; item: ItemType }).item
+    const maze = newState.maze.map((r) =>
+      r.map((c) =>
+        c.row === newRow && c.col === newCol
+          ? { ...c, content: { type: 'empty' as const } }
+          : c
+      )
+    )
+    const itemLabel = item === 'hall-pass' ? 'Hall Pass (forgives 1 strike)' : 'Coffee (reveals nearby area)'
+
+    if (item === 'coffee') {
+      // Reveal a wider area around the player
+      const expanded = { ...visitedCells }
+      for (let r = Math.max(0, newRow - 2); r <= Math.min(newState.maze.length - 1, newRow + 2); r++) {
+        for (let c = Math.max(0, newCol - 2); c <= Math.min(newState.maze[0].length - 1, newCol + 2); c++) {
+          expanded[`${r},${c}`] = true
+        }
+      }
+      newState = {
+        ...newState,
+        maze,
+        visitedCells: expanded,
+        message: `Found ${itemLabel}!`,
+      }
+    } else {
+      newState = {
+        ...newState,
+        maze,
+        items: [...newState.items, item],
+        message: `Found ${itemLabel}!`,
+      }
+    }
+    return newState
   }
 
   // Auto-trigger encounter for unchallenged teachers
   if (newCell.content.type === 'teacher') {
     const teacherId = (newCell.content as { type: 'teacher'; teacherId: string }).teacherId
-    const teacher = state.teachers.find((t) => t.id === teacherId)
+    const teacher = newState.teachers.find((t) => t.id === teacherId)
     if (teacher && !teacher.accused && !teacher.challenged) {
       return { ...newState, phase: 'encounter', currentEncounter: teacher }
     }
@@ -99,7 +212,7 @@ export function movePlayer(state: GameState, dir: Direction): GameState {
 
   // Check gym
   if (newCell.content.type === 'gym') {
-    const totalDemons = state.teachers.filter((t) => t.isDemon).length
+    const totalDemons = newState.teachers.filter((t) => t.isDemon).length
     const allDemonsFound = newState.demonsFound.length === totalDemons
     if (allDemonsFound && totalDemons > 0) {
       return { ...newState, phase: 'gym' }
@@ -194,6 +307,21 @@ export function accuseTeacher(state: GameState, accuse: boolean): GameState {
       message: `${teacher.name} was a demon! +${10 * (state.config.totalFloors - state.currentFloor + 1)} kids saved!`,
     }
   } else {
+    // Check if player has a hall pass to forgive the strike
+    const hallPassIndex = state.items.indexOf('hall-pass')
+    if (hallPassIndex >= 0) {
+      const items = [...state.items]
+      items.splice(hallPassIndex, 1)
+      return {
+        ...state,
+        phase: 'exploring',
+        currentEncounter: null,
+        teachers,
+        items,
+        message: `${teacher.name} is NOT a demon — but your Hall Pass saved you!`,
+      }
+    }
+
     const strikes = state.strikes + 1
 
     if (strikes >= state.config.maxStrikes) {
@@ -262,6 +390,7 @@ export function advanceFloor(state: GameState): GameState {
     currentEncounter: null,
     message: null,
     visitedCells: initVisited(maze, 0, 0),
+    moveCount: 0,
   }
 }
 
