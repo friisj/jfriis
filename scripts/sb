@@ -10,23 +10,26 @@
 #   scripts/sb update <table> <id> '<json>'        Patch a row by UUID
 #   scripts/sb delete <table> <id>                 Delete a row by UUID
 #
-# Sources .env.local for NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY.
+# Reads credentials from shell environment first, then .env.local as fallback.
 
 set -euo pipefail
 
 # --- Load credentials ---
-ENV_FILE="${ENV_FILE:-$(cd "$(dirname "$0")/.." && pwd)/.env.local}"
-if [[ ! -f "$ENV_FILE" ]]; then
-  echo "Error: $ENV_FILE not found" >&2; exit 1
-fi
-
-get_env() { grep "^$1=" "$ENV_FILE" | head -1 | cut -d= -f2-; }
-
-SB_URL="$(get_env NEXT_PUBLIC_SUPABASE_URL)"
-SB_KEY="$(get_env SUPABASE_SERVICE_ROLE_KEY)"
+# Prefer shell env vars (set in cloud sessions), fall back to .env.local (local dev)
+SB_URL="${NEXT_PUBLIC_SUPABASE_URL:-}"
+SB_KEY="${SUPABASE_SERVICE_ROLE_KEY:-}"
 
 if [[ -z "$SB_URL" || -z "$SB_KEY" ]]; then
-  echo "Error: NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY not set in $ENV_FILE" >&2; exit 1
+  ENV_FILE="${ENV_FILE:-$(cd "$(dirname "$0")/.." && pwd)/.env.local}"
+  if [[ -f "$ENV_FILE" ]]; then
+    get_env() { grep "^$1=" "$ENV_FILE" | head -1 | cut -d= -f2-; }
+    SB_URL="${SB_URL:-$(get_env NEXT_PUBLIC_SUPABASE_URL)}"
+    SB_KEY="${SB_KEY:-$(get_env SUPABASE_SERVICE_ROLE_KEY)}"
+  fi
+fi
+
+if [[ -z "$SB_URL" || -z "$SB_KEY" ]]; then
+  echo "Error: NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be set (via env or .env.local)" >&2; exit 1
 fi
 
 API="$SB_URL/rest/v1"
