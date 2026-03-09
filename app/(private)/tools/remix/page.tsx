@@ -1,7 +1,15 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import type { Recipe } from '@/lib/types/remix'
+import type {
+  Arrangement,
+  PatternSet,
+  Recipe,
+  SampleBank,
+} from '@/lib/types/remix'
+import { generatePatterns } from '@/lib/remix/pattern-generator'
+import { buildArrangement } from '@/lib/remix/arrangement-builder'
+import { MixdownEngine } from '@/lib/remix/mixdown-engine'
 
 interface RecipeOption {
   id: string
@@ -9,38 +17,6 @@ interface RecipeOption {
   description: string
   config: Recipe
   is_preset: boolean
-}
-
-interface StemChop {
-  id: string
-  stem_type: string
-  audio_url: string
-  duration_ms: number
-  energy: number
-  tags: string[]
-  strategy: string
-}
-
-interface StemChopsGroup {
-  stem_type: string
-  chops: StemChop[]
-}
-
-interface SampleBank {
-  source: {
-    filename: string
-    duration_ms: number
-    sample_rate: number
-    channels: number
-  }
-  analysis: {
-    bpm: number
-    bpm_confidence: number
-    key: string
-    key_confidence: number
-    bar_duration_ms: number
-  }
-  stems: StemChopsGroup[]
 }
 
 type JobState =
@@ -52,6 +28,7 @@ type JobState =
       jobId: string
       sampleBank: SampleBank
       stemUrls: string[]
+      recipe: Recipe
     }
   | { phase: 'error'; message: string }
 
@@ -71,7 +48,6 @@ function useAudioPreview() {
 
   const toggle = useCallback(
     (url: string) => {
-      // Stop current
       if (audioRef.current) {
         audioRef.current.pause()
         audioRef.current.removeAttribute('src')
@@ -95,16 +71,6 @@ function useAudioPreview() {
     [playingUrl]
   )
 
-  const stop = useCallback(() => {
-    if (audioRef.current) {
-      audioRef.current.pause()
-      audioRef.current.removeAttribute('src')
-      audioRef.current = null
-    }
-    setPlayingUrl(null)
-  }, [])
-
-  // Cleanup on unmount
   useEffect(() => {
     return () => {
       if (audioRef.current) {
@@ -114,7 +80,7 @@ function useAudioPreview() {
     }
   }, [])
 
-  return { playingUrl, toggle, stop }
+  return { playingUrl, toggle }
 }
 
 // ---------------------------------------------------------------------------
@@ -149,7 +115,7 @@ function PlayButton({
 }
 
 // ---------------------------------------------------------------------------
-// Results panel
+// Results panel — stems & chops browser
 // ---------------------------------------------------------------------------
 
 function ResultsPanel({
@@ -174,7 +140,6 @@ function ResultsPanel({
   const { source, analysis } = sampleBank
   const durationSec = (source.duration_ms / 1000).toFixed(1)
 
-  // Build a map from stem type to its URL
   const stemTypeToUrl: Record<string, string> = {}
   for (const url of stemUrls) {
     const match = url.match(/\/([^/]+)\.wav$/)
@@ -194,10 +159,7 @@ function ResultsPanel({
             value: `${(source.sample_rate / 1000).toFixed(1)}k`,
           },
         ].map(({ label, value }) => (
-          <div
-            key={label}
-            className="bg-muted/50 rounded-lg p-3 text-center"
-          >
+          <div key={label} className="bg-muted/50 rounded-lg p-3 text-center">
             <div className="text-lg font-bold font-mono">{value}</div>
             <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
               {label}
@@ -208,9 +170,7 @@ function ResultsPanel({
 
       {/* Stems */}
       <div className="space-y-2">
-        <h3 className="text-sm font-medium">
-          Stems ({stemUrls.length})
-        </h3>
+        <h3 className="text-sm font-medium">Stems ({stemUrls.length})</h3>
         <div className="grid gap-2">
           {sampleBank.stems.map((stemGroup) => {
             const stemUrl = stemTypeToUrl[stemGroup.stem_type]
@@ -242,7 +202,6 @@ function ResultsPanel({
                   </button>
                 </div>
 
-                {/* Chops list */}
                 {isExpanded && (
                   <div className="border-t bg-muted/30 divide-y divide-border/50 max-h-64 overflow-y-auto">
                     {stemGroup.chops.map((chop) => (
@@ -272,11 +231,12 @@ function ResultsPanel({
                             </span>
                           ))}
                         </div>
-                        {/* Energy bar */}
                         <div className="w-12 h-1.5 bg-muted rounded-full overflow-hidden">
                           <div
                             className="h-full bg-foreground/40 rounded-full"
-                            style={{ width: `${Math.min(chop.energy * 100, 100)}%` }}
+                            style={{
+                              width: `${Math.min(chop.energy * 100, 100)}%`,
+                            }}
                           />
                         </div>
                       </div>
@@ -293,6 +253,202 @@ function ResultsPanel({
 }
 
 // ---------------------------------------------------------------------------
+// Remix player — stages 4-6 (generate patterns, arrange, play)
+// ---------------------------------------------------------------------------
+
+function RemixPlayer({
+  sampleBank,
+  recipe,
+}: {
+  sampleBank: SampleBank
+  recipe: Recipe
+}) {
+  const engineRef = useRef<MixdownEngine | null>(null)
+  const [remixState, setRemixState] = useState<
+    'idle' | 'loading' | 'ready' | 'playing' | 'error'
+  >('idle')
+  const [progress, setProgress] = useState({ bar: 0, total: 0 })
+  const [seed, setSeed] = useState(() => Math.floor(Math.random() * 100000))
+  const [generatedData, setGeneratedData] = useState<{
+    patternSet: PatternSet
+    arrangement: Arrangement
+  } | null>(null)
+
+  const generate = useCallback(async () => {
+    setRemixState('loading')
+
+    try {
+      // Stage 4: Pattern generation
+      const patternSet = generatePatterns(sampleBank, recipe, seed)
+
+      // Stage 5: Arrangement
+      const arrangement = buildArrangement(patternSet, recipe)
+
+      setGeneratedData({ patternSet, arrangement })
+
+      // Stage 6: Prepare mixdown engine
+      const engine = new MixdownEngine()
+      await engine.init()
+      await engine.preloadChops(sampleBank)
+
+      if (engineRef.current) engineRef.current.dispose()
+      engineRef.current = engine
+
+      setRemixState('ready')
+      setProgress({ bar: 0, total: arrangement.total_bars })
+    } catch (err) {
+      console.error('[remix] Generation error:', err)
+      setRemixState('error')
+    }
+  }, [sampleBank, recipe, seed])
+
+  const play = useCallback(async () => {
+    if (!engineRef.current || !generatedData) return
+
+    setRemixState('playing')
+
+    await engineRef.current.play(
+      generatedData.arrangement,
+      generatedData.patternSet,
+      recipe,
+      (bar, total) => {
+        setProgress({ bar, total })
+        if (bar >= total) setRemixState('ready')
+      }
+    )
+  }, [generatedData, recipe])
+
+  const stop = useCallback(() => {
+    engineRef.current?.stop()
+    setRemixState('ready')
+  }, [])
+
+  const regenerate = useCallback(() => {
+    setSeed(Math.floor(Math.random() * 100000))
+  }, [])
+
+  // Auto-generate when seed changes
+  useEffect(() => {
+    if (remixState !== 'idle') {
+      generate()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [seed])
+
+  // Cleanup
+  useEffect(() => {
+    return () => {
+      engineRef.current?.dispose()
+    }
+  }, [])
+
+  const totalSteps = generatedData
+    ? generatedData.patternSet.patterns.reduce(
+        (sum, p) => sum + p.steps.length,
+        0
+      )
+    : 0
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h3 className="text-sm font-medium">Remix</h3>
+        {generatedData && (
+          <span className="text-xs text-muted-foreground font-mono">
+            seed: {seed}
+          </span>
+        )}
+      </div>
+
+      {/* Controls */}
+      <div className="flex items-center gap-3">
+        {remixState === 'idle' && (
+          <button
+            onClick={generate}
+            className="px-4 py-2 bg-foreground text-background rounded-lg text-sm font-medium hover:opacity-90 transition-opacity"
+          >
+            Generate Remix
+          </button>
+        )}
+
+        {remixState === 'loading' && (
+          <span className="text-sm text-muted-foreground">
+            Loading chops...
+          </span>
+        )}
+
+        {(remixState === 'ready' || remixState === 'playing') && (
+          <>
+            <button
+              onClick={remixState === 'playing' ? stop : play}
+              className="px-4 py-2 bg-foreground text-background rounded-lg text-sm font-medium hover:opacity-90 transition-opacity"
+            >
+              {remixState === 'playing' ? '■ Stop' : '▶ Play'}
+            </button>
+            <button
+              onClick={regenerate}
+              disabled={remixState === 'playing'}
+              className="px-4 py-2 border rounded-lg text-sm font-medium hover:bg-accent transition-colors disabled:opacity-50"
+            >
+              Re-roll
+            </button>
+          </>
+        )}
+
+        {remixState === 'error' && (
+          <button
+            onClick={generate}
+            className="px-4 py-2 border border-red-500/30 text-red-600 dark:text-red-400 rounded-lg text-sm font-medium hover:bg-red-500/5 transition-colors"
+          >
+            Retry
+          </button>
+        )}
+      </div>
+
+      {/* Progress bar */}
+      {remixState === 'playing' && progress.total > 0 && (
+        <div className="space-y-1">
+          <div className="h-2 bg-muted rounded-full overflow-hidden">
+            <div
+              className="h-full bg-foreground/60 rounded-full transition-all duration-100"
+              style={{
+                width: `${(progress.bar / progress.total) * 100}%`,
+              }}
+            />
+          </div>
+          <div className="text-xs text-muted-foreground font-mono">
+            Bar {progress.bar} / {progress.total}
+          </div>
+        </div>
+      )}
+
+      {/* Generation summary */}
+      {generatedData && remixState !== 'loading' && (
+        <div className="text-xs text-muted-foreground bg-muted/50 rounded-lg p-3 space-y-1 font-mono">
+          <div>
+            {generatedData.patternSet.patterns.length} patterns, {totalSteps}{' '}
+            steps
+          </div>
+          <div>
+            {generatedData.arrangement.sections.length} sections,{' '}
+            {generatedData.arrangement.total_bars} bars
+          </div>
+          <div>
+            sections:{' '}
+            {generatedData.arrangement.sections
+              .map(
+                (s) =>
+                  `${s.name} (${s.lanes.length} lanes, ${s.length_bars} bars)`
+              )
+              .join(' → ')}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
 // Main page
 // ---------------------------------------------------------------------------
 
@@ -303,7 +459,6 @@ export default function RemixNewJob() {
   const [jobState, setJobState] = useState<JobState>({ phase: 'idle' })
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  // Load recipes on mount
   useEffect(() => {
     fetch('/api/remix/recipes')
       .then((res) => res.json())
@@ -355,6 +510,7 @@ export default function RemixNewJob() {
         jobId: result.job_id,
         sampleBank: result.sample_bank,
         stemUrls: result.stem_urls,
+        recipe: recipe.config,
       })
     } catch (error) {
       setJobState({
@@ -434,7 +590,6 @@ export default function RemixNewJob() {
           ))}
         </div>
 
-        {/* Recipe summary */}
         {selectedRecipe && (
           <div className="text-xs text-muted-foreground bg-muted/50 rounded-lg p-3 space-y-1 font-mono">
             <div>
@@ -481,7 +636,7 @@ export default function RemixNewJob() {
 
       {/* Results */}
       {jobState.phase === 'complete' && (
-        <div className="space-y-4">
+        <div className="space-y-6">
           <div className="flex items-center justify-between">
             <p className="text-sm font-medium text-green-600 dark:text-green-400">
               Processing complete
@@ -490,10 +645,18 @@ export default function RemixNewJob() {
               {jobState.jobId.slice(0, 8)}
             </span>
           </div>
+
           <ResultsPanel
             sampleBank={jobState.sampleBank}
             stemUrls={jobState.stemUrls}
           />
+
+          <div className="border-t pt-6">
+            <RemixPlayer
+              sampleBank={jobState.sampleBank}
+              recipe={jobState.recipe}
+            />
+          </div>
         </div>
       )}
 
