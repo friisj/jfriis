@@ -146,6 +146,7 @@ class SampleBank(BaseModel):
 
 
 class ProcessResponse(BaseModel):
+    job_id: str
     sample_bank: SampleBank
     stem_urls: list[str]
     chop_urls: list[str]
