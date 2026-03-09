@@ -267,6 +267,39 @@ Arena applies reinforcement learning patterns to design system creation. Users t
 
 ---
 
+### Remix
+**Status**: Phase 1 (Exploration) - Initial scaffold, awaiting pipeline technical design
+**Location**: `/components/studio/prototypes/remix/` + `/docs/studio/remix/`
+**Focus**: Multi-model pipeline that decomposes source audio into stems, chops them, and sequences them into new instrumental tracks (techno, ambient, etc.)
+
+**Current State**:
+- ✅ Project scaffolding and initial research
+- ⏳ Researching stem separation APIs (Demucs, Spleeter, MDX-Net)
+- ⏳ Designing stage interfaces and data schemas
+- ⏳ Awaiting technical guidance on pipeline architecture
+
+**Concept**:
+Remix is source-aware recomposition — not blank-slate generation. The pipeline takes a real audio file, separates it into drums/bass/melodic/other stems via Demucs, chops those stems at transients or bar boundaries into a sample bank, then uses genre-conditioned pattern generation and arrangement logic to sequence a new track. Mirrors how producers actually sample records, rather than how most AI music tools generate from noise.
+
+**Pipeline Stages**:
+1. Stem Separation (Demucs via Replicate)
+2. Analysis (BPM detection, key estimation, transient marking)
+3. Chopping (sample bank extraction)
+4. Pattern Generation (genre-conditioned sequences)
+5. Arrangement (song structure assembly)
+6. Mixdown (render to output audio)
+
+**Next Steps**:
+1. Research stem separation API options and latency characteristics
+2. Define stage interface schemas (what flows between stages)
+3. Prototype stage 1: Demucs on a real audio file
+4. Design genre template format for pattern generation
+5. Evaluate relationship/reuse with existing Sampler tool
+
+**Documents**: `/docs/studio/remix/exploration/` (research.md, definitions.md)
+
+---
+
 ## Future Studio Projects
 
 ### Ideas Under Consideration
