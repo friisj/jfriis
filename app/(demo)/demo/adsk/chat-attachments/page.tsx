@@ -1,25 +1,7 @@
 /* eslint-disable */
 "use client";
 
-import {
-  AlertTriangle,
-  ArrowLeft,
-  BarChart3,
-  Check,
-  ChevronRight,
-  ExternalLink,
-  Layers,
-  Microscope,
-  Minus,
-  Pencil,
-  Plus,
-  RefreshCw,
-  Search,
-  Send,
-  Settings,
-  User,
-  X,
-} from "lucide-react";
+import { IconAlertTriangle, IconArrowLeft, IconChartBar, IconCheck, IconChevronRight, IconExternalLink, IconStack2, IconMicroscope, IconMinus, IconPencil, IconPlus, IconRefresh, IconSearch, IconSend, IconSettings, IconUser, IconX } from "@tabler/icons-react";
 import { useEffect, useRef, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -203,31 +185,31 @@ const MENU_ITEMS: Array<{
     id: "ticker",
     label: "Tickers",
     description: "Add stocks for analysis",
-    icon: <Search className="size-4" />,
+    icon: <IconSearch size={16} />,
   },
   {
     id: "theme",
     label: "Theme",
     description: "Define an investment thesis",
-    icon: <Layers className="size-4" />,
+    icon: <IconStack2 size={16} />,
   },
   {
     id: "expert",
     label: "Expert",
     description: "Get a specific perspective",
-    icon: <User className="size-4" />,
+    icon: <IconUser size={16} />,
   },
   {
     id: "index",
     label: "Index",
     description: "Reference a marketplace index",
-    icon: <BarChart3 className="size-4" />,
+    icon: <IconChartBar size={16} />,
   },
   {
     id: "deep-research",
     label: "Deep Research",
     description: "Run comprehensive analysis",
-    icon: <Microscope className="size-4" />,
+    icon: <IconMicroscope size={16} />,
   },
 ];
 
@@ -728,7 +710,7 @@ function PreparingShell({
             className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
             onClick={onClose}
           >
-            <X className="size-4" />
+            <IconX size={16} />
           </button>
         </div>
 
@@ -858,18 +840,18 @@ function TickerPreparing({
 
   return (
     <PreparingShell
-      icon={<Search className="size-4" />}
+      icon={<IconSearch size={16} />}
       onClose={onClose}
       title="Add Tickers"
     >
       <div className="space-y-3">
         <div className="flex items-center gap-2 rounded border border-border bg-card px-2 py-1.5">
-          <Search className="size-3.5 text-muted-foreground" />
+          <IconSearch size={14} className="text-muted-foreground" />
           <input
             className="flex-1 bg-transparent text-sm placeholder:text-muted-foreground focus:outline-none"
             onChange={(e) => setSearch(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="Search tickers..."
+            placeholder="IconSearch tickers..."
             ref={inputRef}
             type="text"
             value={search}
@@ -1237,7 +1219,7 @@ function ThemePreparing({
             className="flex items-center gap-1.5 text-muted-foreground text-sm hover:text-primary"
             onClick={addManualSubTheme}
           >
-            <Plus className="size-3" />
+            <IconPlus size={12} />
             Add sub-theme
           </button>
         </div>
@@ -1262,7 +1244,7 @@ function ThemePreparing({
                 size="sm"
                 variant="secondary"
               >
-                <Pencil className="size-3" />
+                <IconPencil size={12} />
                 Create Manually
               </Button>
               <Button
@@ -1332,10 +1314,10 @@ function ThemePreparing({
             className="flex items-center gap-1 text-muted-foreground hover:text-foreground"
             onClick={goBack}
           >
-            <ArrowLeft className="size-4" />
+            <IconArrowLeft size={16} />
           </button>
         ) : (
-          <Layers className="size-4" />
+          <IconStack2 size={16} />
         )
       }
       onClose={onClose}
@@ -1381,7 +1363,7 @@ function ThemePreparing({
                 disabled={sketchesLoading}
                 onClick={regenerateSketches}
               >
-                <RefreshCw className={cn("size-4", sketchesLoading && "animate-spin")} />
+                <IconRefresh className={cn("size-4", sketchesLoading && "animate-spin")} />
                 Re-generate
               </button>
             </div>
@@ -1438,7 +1420,7 @@ function ThemePreparing({
                                     startSketchLoading();
                                   }}
                                 >
-                                  <Plus className="size-4" />
+                                  <IconPlus size={16} />
                                 </button>
                               </TooltipTrigger>
                               <TooltipContent className="max-w-48 p-3">
@@ -1459,7 +1441,7 @@ function ThemePreparing({
                                     startSketchLoading();
                                   }}
                                 >
-                                  <Minus className="size-4" />
+                                  <IconMinus size={16} />
                                 </button>
                               </TooltipTrigger>
                               <TooltipContent className="max-w-48 p-3">
@@ -1504,7 +1486,7 @@ function ThemePreparing({
                                 }}
                               >
                                 {isSelected && (
-                                  <Check className="size-3.5" />
+                                  <IconCheck size={14} />
                                 )}
                                 {subTheme}
                               </li>
@@ -1643,7 +1625,7 @@ function ExpertPreparing({
             className="flex items-center gap-1 hover:text-foreground"
             onClick={goToBrowse}
           >
-            <ArrowLeft className="size-3" />
+            <IconArrowLeft size={12} />
             <span>Topics</span>
           </button>
           <span>/</span>
@@ -1664,7 +1646,7 @@ function ExpertPreparing({
       onClick={() => goToExpert(expert)}
     >
       <div className="flex size-10 items-center justify-center rounded-full bg-muted">
-        <User className="size-5 text-muted-foreground" />
+        <IconUser size={20} className="text-muted-foreground" />
       </div>
       <div className="flex-1">
         <div className="flex items-center gap-2">
@@ -1686,7 +1668,7 @@ function ExpertPreparing({
             className="flex items-center gap-1 text-muted-foreground hover:text-foreground"
             onClick={() => setView(selectedTopic ? "topic-detail" : "browse")}
           >
-            <ArrowLeft className="size-4" />
+            <IconArrowLeft size={16} />
           </button>
         }
         onClose={onClose}
@@ -1695,7 +1677,7 @@ function ExpertPreparing({
         <div className="space-y-4">
           <div className="flex items-start gap-3">
             <div className="flex size-14 items-center justify-center rounded-full bg-muted">
-              <User className="size-7 text-muted-foreground" />
+              <IconUser size={28} className="text-muted-foreground" />
             </div>
             <div className="flex-1 space-y-1">
               <div className="flex items-center gap-2">
@@ -1709,7 +1691,7 @@ function ExpertPreparing({
                   target="_blank"
                   title="View full profile"
                 >
-                  <ExternalLink className="size-4" />
+                  <IconExternalLink size={16} />
                 </a>
               </div>
               <div className="flex flex-col gap-1 border-t pt-2 text-muted-foreground text-sm">
@@ -1788,12 +1770,12 @@ function ExpertPreparing({
   // Shared search input
   const SearchInput = () => (
     <div className="flex items-center gap-2 rounded border border-border bg-card px-2 py-1.5">
-      <Search className="size-3.5 text-muted-foreground" />
+      <IconSearch size={14} className="text-muted-foreground" />
       <input
         className="flex-1 bg-transparent text-sm placeholder:text-muted-foreground focus:outline-none"
         onChange={(e) => setSearch(e.target.value)}
         onKeyDown={handleKeyDown}
-        placeholder="Search experts and topics..."
+        placeholder="IconSearch experts and topics..."
         ref={inputRef}
         type="text"
         value={search}
@@ -1803,7 +1785,7 @@ function ExpertPreparing({
           className="text-muted-foreground hover:text-foreground"
           onClick={() => setSearch("")}
         >
-          <X className="size-3.5" />
+          <IconX size={14} />
         </button>
       )}
     </div>
@@ -1856,7 +1838,7 @@ function ExpertPreparing({
 
     return (
       <PreparingShell
-        icon={<User className="size-4" />}
+        icon={<IconUser size={16} />}
         onClose={onClose}
         title="Add Expert"
       >
@@ -1893,7 +1875,7 @@ function ExpertPreparing({
 
   return (
     <PreparingShell
-      icon={<User className="size-4" />}
+      icon={<IconUser size={16} />}
       onClose={onClose}
       title="Add Expert"
     >
@@ -1924,7 +1906,7 @@ function ExpertPreparing({
                   <span className="mr-2 text-muted-foreground text-xs">
                     {count}
                   </span>
-                  <ChevronRight className="size-3.5 text-muted-foreground" />
+                  <IconChevronRight size={14} className="text-muted-foreground" />
                 </button>
               );
             })
@@ -2057,7 +2039,7 @@ function IndexPreparing({
             className="flex items-center gap-1 text-muted-foreground hover:text-foreground"
             onClick={goToList}
           >
-            <ArrowLeft className="size-4" />
+            <IconArrowLeft size={16} />
           </button>
         }
         onClose={onClose}
@@ -2068,7 +2050,7 @@ function IndexPreparing({
             <div className="flex items-center justify-between">
               <h3 className="flex items-center gap-2 text-xl">
                 {previewIndex.name}{" "}
-                <ExternalLink className="inline-flex size-4 text-muted-foreground hover:text-foreground" />
+                <IconExternalLink className="inline-flex size-4 text-muted-foreground hover:text-foreground" />
               </h3>
               <div className="flex items-center gap-2">
                 <svg
@@ -2119,7 +2101,7 @@ function IndexPreparing({
                     target="_blank"
                     title={`View on ${previewIndex.publisher}`}
                   >
-                    <ExternalLink className="size-3.5" />
+                    <IconExternalLink size={14} />
                   </a>
                 )}
               </div>
@@ -2155,18 +2137,18 @@ function IndexPreparing({
   // VIEW: Index List (default)
   return (
     <PreparingShell
-      icon={<BarChart3 className="size-4" />}
+      icon={<IconChartBar size={16} />}
       onClose={onClose}
       title="Add Indices"
     >
       <div className="space-y-3">
         <div className="flex items-center gap-2 rounded border border-border bg-card px-2 py-1.5">
-          <Search className="size-3.5 text-muted-foreground" />
+          <IconSearch size={14} className="text-muted-foreground" />
           <input
             className="flex-1 bg-transparent text-sm placeholder:text-muted-foreground focus:outline-none"
             onChange={(e) => setSearch(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="Search indices..."
+            placeholder="IconSearch indices..."
             ref={inputRef}
             type="text"
             value={search}
@@ -2258,7 +2240,7 @@ function IndexPreparing({
                   }}
                   title="Add index"
                 >
-                  <Plus className="size-4" />
+                  <IconPlus size={16} />
                 </button>
               </div>
             ))
@@ -2280,7 +2262,7 @@ function DeepResearchPreparing({
 }) {
   return (
     <PreparingShell
-      icon={<Microscope className="size-4" />}
+      icon={<IconMicroscope size={16} />}
       onClose={onClose}
       onDone={onDone}
       title="Deep Research Run"
@@ -2305,7 +2287,7 @@ function DeepResearchPreparing({
             size="sm"
             variant="secondary"
           >
-            <Settings className="mr-1 size-3" />
+            <IconSettings className="mr-1 size-3" />
             Configure
           </Button>
           <span className="text-muted-foreground text-sm">
@@ -2358,7 +2340,7 @@ function AttachmentChip({
       role={onClick ? "button" : undefined}
     >
       {error ? (
-        <AlertTriangle className="size-3 flex-shrink-0 text-destructive" />
+        <IconAlertTriangle size={12} className="flex-shrink-0 text-destructive" />
       ) : (
         <span className="flex-shrink-0">{icon}</span>
       )}
@@ -2392,7 +2374,7 @@ function AttachmentChip({
             onRemove();
           }}
         >
-          <X className="size-3" />
+          <IconX size={12} />
         </button>
       )}
     </span>
@@ -2465,7 +2447,7 @@ function ThemeChips({
       {themes.map((theme, i) => (
         <AttachmentChip
           error={theme.error}
-          icon={<Layers className="size-3 text-muted-foreground" />}
+          icon={<IconStack2 size={12} className="text-muted-foreground" />}
           key={i}
           onClick={() => onClick(theme)}
           primary={theme.name}
@@ -2488,7 +2470,7 @@ function ExpertChips({
       {experts.map((expert) => (
         <AttachmentChip
           error={expert.error}
-          icon={<User className="size-3 text-muted-foreground" />}
+          icon={<IconUser size={12} className="text-muted-foreground" />}
           key={expert.name}
           onRemove={() => onRemove(expert.name)}
           primary={expert.name}
@@ -2511,7 +2493,7 @@ function IndexChips({
       {indices.map((index) => (
         <AttachmentChip
           error={index.error}
-          icon={<BarChart3 className="size-3 text-muted-foreground" />}
+          icon={<IconChartBar size={12} className="text-muted-foreground" />}
           key={index.name}
           onRemove={() => onRemove(index.name)}
           primary={index.name}
@@ -2542,7 +2524,7 @@ function AttachmentMenu({
             size="icon"
             variant="ghost"
           >
-            <Plus className="size-4" />
+            <IconPlus size={16} />
           </Button>
         </TooltipTrigger>
         <TooltipContent className="max-w-64 space-y-2 p-3" side="top">
@@ -2635,7 +2617,7 @@ function MessageDisplay({ message }: { message: Message }) {
             ))}
             {attachments.themes.map((theme, i) => (
               <AttachmentChip
-                icon={<Layers className="size-3 text-muted-foreground" />}
+                icon={<IconStack2 size={12} className="text-muted-foreground" />}
                 key={i}
                 primary={theme.name}
                 secondary={`${theme.subThemeCount} sub-theme${theme.subThemeCount === 1 ? "" : "s"}`}
@@ -2643,7 +2625,7 @@ function MessageDisplay({ message }: { message: Message }) {
             ))}
             {attachments.experts.map((expert) => (
               <AttachmentChip
-                icon={<User className="size-3 text-muted-foreground" />}
+                icon={<IconUser size={12} className="text-muted-foreground" />}
                 key={expert.name}
                 primary={expert.name}
                 secondary={expert.topic}
@@ -2651,7 +2633,7 @@ function MessageDisplay({ message }: { message: Message }) {
             ))}
             {attachments.indices.map((index) => (
               <AttachmentChip
-                icon={<BarChart3 className="size-3 text-muted-foreground" />}
+                icon={<IconChartBar size={12} className="text-muted-foreground" />}
                 key={index.name}
                 primary={index.name}
                 secondary={index.publisher}
@@ -2659,7 +2641,7 @@ function MessageDisplay({ message }: { message: Message }) {
             ))}
             {attachments.deepResearch && (
               <AttachmentChip
-                icon={<Microscope className="size-3 text-muted-foreground" />}
+                icon={<IconMicroscope size={12} className="text-muted-foreground" />}
                 primary="Deep Research"
                 secondary={
                   attachments.deepResearch.isCustom ? "custom" : "default"
@@ -3250,7 +3232,7 @@ export default function ChatAttachmentsPrototype() {
                           }}
                           title="Click to configure"
                         >
-                          <Microscope className="size-3.5" />
+                          <IconMicroscope size={14} />
                           <span className="font-medium">Deep Research</span>
                         </button>
                         <button
@@ -3263,7 +3245,7 @@ export default function ChatAttachmentsPrototype() {
                           }
                           title="Remove"
                         >
-                          <X className="size-3" />
+                          <IconX size={12} />
                         </button>
                       </div>
                     ) : null}
@@ -3280,7 +3262,7 @@ export default function ChatAttachmentsPrototype() {
                       size="icon"
                       variant="secondary"
                     >
-                      <Send className="size-4" />
+                      <IconSend size={16} />
                     </Button>
                   </div>
                 </div>

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { ChevronDown, ChevronRight, Eye, Brain, Sparkles, Clock, Zap } from 'lucide-react';
+import { IconChevronDown, IconChevronRight, IconEye, IconBrain, IconSparkles, IconClock, IconBolt } from '@tabler/icons-react';
 
 interface StepMetrics {
   durationMs: number;
@@ -44,12 +44,12 @@ function MetricsBadge({ metrics, label }: { metrics?: StepMetrics; label?: strin
 
   return (
     <span className="inline-flex items-center gap-1.5 text-[10px] text-muted-foreground bg-muted/50 px-1.5 py-0.5 rounded">
-      <Clock className="w-2.5 h-2.5" />
+      <IconClock size={8} className=".5 .5" />
       {formatDuration(metrics.durationMs)}
       {tokens && (
         <>
           <span className="text-muted-foreground/50">|</span>
-          <Zap className="w-2.5 h-2.5" />
+          <IconBolt size={8} className=".5 .5" />
           {tokens}
         </>
       )}
@@ -78,7 +78,7 @@ export function ThinkingChainViewer({ thinkingChain }: ThinkingChainViewerProps)
         className="w-full px-3 py-2 bg-purple-50 dark:bg-purple-950/30 flex items-center justify-between text-sm hover:bg-purple-100 dark:hover:bg-purple-950/50 transition-colors"
       >
         <span className="flex items-center gap-2 font-medium text-purple-800 dark:text-purple-200">
-          <Brain className="w-4 h-4" />
+          <IconBrain size={16}  />
           Thinking Chain
           {totalMetrics && (
             <span className="text-[10px] font-normal text-purple-600 dark:text-purple-400">
@@ -87,9 +87,9 @@ export function ThinkingChainViewer({ thinkingChain }: ThinkingChainViewerProps)
           )}
         </span>
         {expanded ? (
-          <ChevronDown className="w-4 h-4 text-purple-600" />
+          <IconChevronDown size={16} className="text-purple-600" />
         ) : (
-          <ChevronRight className="w-4 h-4 text-purple-600" />
+          <IconChevronRight size={16} className="text-purple-600" />
         )}
       </button>
 
@@ -111,7 +111,7 @@ export function ThinkingChainViewer({ thinkingChain }: ThinkingChainViewerProps)
             <div className="space-y-1">
               <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
                 <span className="w-5 h-5 rounded-full bg-blue-200 dark:bg-blue-800 flex items-center justify-center text-[10px]">2</span>
-                <Eye className="w-3 h-3" />
+                <IconEye size={12}  />
                 Vision Analysis
                 <span className="text-muted-foreground">({thinkingChain.referenceAnalysis!.length} refs)</span>
                 <MetricsBadge metrics={thinkingChain.metrics?.vision} />
@@ -125,9 +125,9 @@ export function ThinkingChainViewer({ thinkingChain }: ThinkingChainViewerProps)
                     >
                       <span className="font-medium">Reference {index + 1}</span>
                       {expandedRefs.includes(index) ? (
-                        <ChevronDown className="w-3 h-3" />
+                        <IconChevronDown size={12}  />
                       ) : (
-                        <ChevronRight className="w-3 h-3" />
+                        <IconChevronRight size={12}  />
                       )}
                     </button>
                     {expandedRefs.includes(index) && (
@@ -148,7 +148,7 @@ export function ThinkingChainViewer({ thinkingChain }: ThinkingChainViewerProps)
                 <span className="w-5 h-5 rounded-full bg-green-200 dark:bg-green-800 flex items-center justify-center text-[10px]">
                   {hasVision ? '3' : '2'}
                 </span>
-                <Sparkles className="w-3 h-3" />
+                <IconSparkles size={12}  />
                 Refined Prompt
                 <MetricsBadge metrics={thinkingChain.metrics?.reasoning} />
               </div>

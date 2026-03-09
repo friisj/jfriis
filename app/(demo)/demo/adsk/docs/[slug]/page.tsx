@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { cn } from '@/lib/utils'
-import { ChevronDown, Code, Eye } from 'lucide-react'
+import { IconChevronDown, IconCode, IconEye } from '@tabler/icons-react'
 
 const DOCS = [
   { slug: 'prd', label: 'PRD' },
@@ -60,7 +60,7 @@ export default function DocViewer() {
               onClick={() => setDropdownOpen(!dropdownOpen)}
             >
               {currentDoc?.label ?? slug}
-              <ChevronDown className="size-3.5 text-muted-foreground" />
+              <IconChevronDown size={14} className="text-muted-foreground" />
             </button>
             {dropdownOpen && (
               <>
@@ -101,7 +101,7 @@ export default function DocViewer() {
             )}
             onClick={() => setMode('rendered')}
           >
-            <Eye className="size-3.5" />
+            <IconEye size={14}  />
             Rendered
           </button>
           <button
@@ -113,7 +113,7 @@ export default function DocViewer() {
             )}
             onClick={() => setMode('raw')}
           >
-            <Code className="size-3.5" />
+            <IconCode size={14}  />
             Raw
           </button>
         </div>

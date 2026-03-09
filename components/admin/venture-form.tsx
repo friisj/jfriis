@@ -20,7 +20,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { ExternalLink } from 'lucide-react'
+import { IconExternalLink } from '@tabler/icons-react'
 
 // ============================================================================
 // Relationship slots for ventures
@@ -477,7 +477,7 @@ export function VentureForm({ ventureId, initialData }: VentureFormProps) {
           onCancel={() => router.push('/admin/ventures')}
           saveLabel={ventureId ? 'Save' : 'Create'}
           links={ventureId ? [
-            { label: 'Portfolio', href: `/portfolio/${formData.slug}`, icon: <ExternalLink className="size-4" />, external: true },
+            { label: 'Portfolio', href: `/portfolio/${formData.slug}`, icon: <IconExternalLink size={16}  />, external: true },
           ] : undefined}
           onDelete={ventureId ? handleDelete : undefined}
         />

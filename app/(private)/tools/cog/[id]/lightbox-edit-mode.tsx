@@ -12,7 +12,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Loader2, Shuffle, Trash2, Paintbrush, Eraser } from 'lucide-react';
+import { IconLoader2, IconArrowsShuffle, IconTrash, IconBrush, IconEraser } from '@tabler/icons-react';
 import { MaskCanvas, type MaskCanvasRef, type MaskTool } from './mask-canvas';
 import { MorphCanvas, type MorphCanvasRef } from './morph-canvas';
 import { touchupCogImage } from '@/lib/ai/actions/touchup-cog-image';
@@ -482,7 +482,7 @@ export function LightboxEditMode({
               className="h-8 px-2 text-white/70 hover:text-white hover:bg-white/10"
               title="Reset to original"
             >
-              <Trash2 className="w-4 h-4" />
+              <IconTrash size={16}  />
             </Button>
 
             {hasMorphed && (
@@ -504,7 +504,7 @@ export function LightboxEditMode({
                 className="h-8 px-2"
                 title="Brush (B)"
               >
-                <Paintbrush className="w-4 h-4" />
+                <IconBrush size={16}  />
               </Button>
               <Button
                 variant={brushTool === 'eraser' ? 'default' : 'ghost'}
@@ -512,9 +512,9 @@ export function LightboxEditMode({
                 onClick={() => setBrushTool('eraser')}
                 disabled={isProcessing}
                 className="h-8 px-2"
-                title="Eraser (E/X)"
+                title="IconEraser (E/X)"
               >
-                <Eraser className="w-4 h-4" />
+                <IconEraser size={16}  />
               </Button>
             </div>
 
@@ -562,7 +562,7 @@ export function LightboxEditMode({
               className="h-8 px-2 text-white/70 hover:text-white hover:bg-white/10"
               title="Clear mask"
             >
-              <Trash2 className="w-4 h-4" />
+              <IconTrash size={16}  />
             </Button>
 
             {maskBase64 && (
@@ -636,7 +636,7 @@ export function LightboxEditMode({
                     disabled={isProcessing}
                     className="text-white/70 hover:text-white hover:bg-white/10 h-7 px-2"
                   >
-                    <Shuffle className="w-3 h-3" />
+                    <IconArrowsShuffle size={12}  />
                   </Button>
                 </div>
               </div>
@@ -693,7 +693,7 @@ export function LightboxEditMode({
                 className="bg-white text-black hover:bg-white/90 h-11 px-6"
               >
                 {isProcessing ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <IconLoader2 size={16} className="animate-spin" />
                 ) : (
                   'Apply'
                 )}
@@ -713,7 +713,7 @@ export function LightboxEditMode({
               >
                 {isProcessing ? (
                   <>
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    <IconLoader2 size={16} className="mr-2 animate-spin" />
                     Saving...
                   </>
                 ) : (
@@ -735,7 +735,7 @@ export function LightboxEditMode({
               >
                 {isProcessing ? (
                   <>
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    <IconLoader2 size={16} className="mr-2 animate-spin" />
                     Processing...
                   </>
                 ) : (

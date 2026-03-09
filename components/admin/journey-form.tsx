@@ -16,7 +16,7 @@ import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select'
-import { ExternalLink } from 'lucide-react'
+import { IconExternalLink } from '@tabler/icons-react'
 
 // ============================================================================
 // Relationship slots
@@ -546,7 +546,7 @@ export function JourneyForm({ journey }: JourneyFormProps) {
           onCancel={() => router.push('/admin/journeys')}
           saveLabel={journey ? 'Save' : 'Create'}
           links={journey ? [
-            { label: 'Canvas', href: `/admin/journeys/${journey.id}`, icon: <ExternalLink className="size-4" /> },
+            { label: 'Canvas', href: `/admin/journeys/${journey.id}`, icon: <IconExternalLink size={16}  /> },
           ] : undefined}
           onDelete={journey ? handleDelete : undefined}
         />

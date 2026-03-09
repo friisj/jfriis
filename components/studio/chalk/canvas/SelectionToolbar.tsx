@@ -1,6 +1,6 @@
 "use client";
 
-import { Focus, Pencil, Copy, Trash2 } from "lucide-react";
+import { IconFocusCentered, IconPencil, IconCopy, IconTrash } from "@tabler/icons-react";
 
 interface SelectionToolbarProps {
   fidelity: number;
@@ -37,7 +37,7 @@ export function SelectionToolbar({
         className="p-1.5 hover:bg-indigo-50 rounded transition-colors group"
         title="Focus AI on this component"
       >
-        <Focus className="w-4 h-4 text-gray-600 group-hover:text-indigo-600" />
+        <IconFocusCentered size={16} className="text-gray-600 group-hover:text-indigo-600" />
       </button>
 
       {/* Edit / Annotate */}
@@ -49,7 +49,7 @@ export function SelectionToolbar({
         className="p-1.5 hover:bg-blue-50 rounded transition-colors group"
         title="Edit and annotate"
       >
-        <Pencil className="w-4 h-4 text-gray-600 group-hover:text-blue-600" />
+        <IconPencil size={16} className="text-gray-600 group-hover:text-blue-600" />
       </button>
 
       {/* Duplicate */}
@@ -62,7 +62,7 @@ export function SelectionToolbar({
           className="p-1.5 hover:bg-gray-100 rounded transition-colors group"
           title="Duplicate"
         >
-          <Copy className="w-4 h-4 text-gray-600 group-hover:text-gray-900" />
+          <IconCopy size={16} className="text-gray-600 group-hover:text-gray-900" />
         </button>
       )}
 
@@ -76,7 +76,7 @@ export function SelectionToolbar({
           className="p-1.5 hover:bg-red-50 rounded transition-colors group border-l border-gray-300"
           title="Delete"
         >
-          <Trash2 className="w-4 h-4 text-gray-600 group-hover:text-red-600" />
+          <IconTrash size={16} className="text-gray-600 group-hover:text-red-600" />
         </button>
       )}
     </div>

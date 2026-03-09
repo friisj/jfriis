@@ -32,7 +32,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { ExternalLink, LayoutGrid } from 'lucide-react'
+import { IconExternalLink, IconLayoutGrid } from '@tabler/icons-react'
 import { useRef } from 'react'
 
 // ============================================================================
@@ -843,7 +843,7 @@ export function StudioProjectForm({
           onCancel={() => router.back()}
           saveLabel={mode === 'create' ? 'Create' : 'Save'}
           links={mode === 'edit' && project ? [
-            { label: 'Project Page', href: `/studio/${project.slug}`, icon: <ExternalLink className="size-4" />, external: true },
+            { label: 'Project Page', href: `/studio/${project.slug}`, icon: <IconExternalLink size={16}  />, external: true },
           ] : undefined}
           onDelete={mode === 'edit' ? handleDelete : undefined}
         />

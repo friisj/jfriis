@@ -4,7 +4,7 @@ import { useRef, useState } from "react"
 import { MarkupCanvas } from "@/components/studio/chalk/markup/MarkupCanvas"
 import { WireframeRenderer } from "@/components/studio/chalk/wireframe/WireframeRenderer"
 import type { Wireframe } from "@/lib/studio/chalk/wireframe/schema"
-import { Loader2 } from "lucide-react"
+import { IconLoader2 } from "@tabler/icons-react"
 
 const initialWireframe: Wireframe = {
   components: [
@@ -106,7 +106,7 @@ export default function VisionIterationPrototype() {
         <div className="flex-1 overflow-auto p-4 space-y-4">
           {iterating && (
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <Loader2 className="w-4 h-4 animate-spin" />
+              <IconLoader2 size={16} className="animate-spin" />
               Claude is analyzing your markup...
             </div>
           )}

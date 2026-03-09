@@ -21,7 +21,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
-import { Layers, Trash2 } from 'lucide-react';
+import { IconStack2, IconTrash } from '@tabler/icons-react';
 import { deleteCollection } from '@/lib/sampler';
 import type { SamplerCollection } from '@/lib/types/sampler';
 
@@ -62,7 +62,7 @@ export function CollectionCard({ collection, onBatchGenerate }: CollectionCardPr
               }}
               title="Delete collection"
             >
-              <Trash2 className="size-3.5" />
+              <IconTrash size={14}  />
             </Button>
             <div
               className="w-8 h-8 rounded mb-3"
@@ -83,12 +83,12 @@ export function CollectionCard({ collection, onBatchGenerate }: CollectionCardPr
         </ContextMenuTrigger>
         <ContextMenuContent>
           <ContextMenuItem onClick={() => onBatchGenerate(collection)}>
-            <Layers className="size-4 mr-2" />
+            <IconStack2 size={16} className="mr-2" />
             Batch Generate
           </ContextMenuItem>
           <ContextMenuSeparator />
           <ContextMenuItem variant="destructive" onClick={() => setConfirmDelete(true)}>
-            <Trash2 className="size-4 mr-2" />
+            <IconTrash size={16} className="mr-2" />
             Delete
           </ContextMenuItem>
         </ContextMenuContent>

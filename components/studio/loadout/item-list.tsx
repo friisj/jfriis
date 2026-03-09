@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Plus, Search, Edit, Trash2, Square, CheckSquare, Layers, Eye, Grid3X3, List } from 'lucide-react';
+import { IconPlus, IconSearch, IconEdit, IconTrash, IconSquare, IconSquareCheck, IconStack2, IconEye, IconGrid3x3, IconList } from '@tabler/icons-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -123,9 +123,9 @@ export function ItemList({ items, setItems, collections, setCollections, onViewI
       <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
         <div className="flex flex-1 gap-2 w-full sm:w-auto">
           <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <IconSearch size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
             <Input
-              placeholder="Search items..."
+              placeholder="IconSearch items..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="pl-10"
@@ -154,7 +154,7 @@ export function ItemList({ items, setItems, collections, setCollections, onViewI
               onClick={() => setViewMode('grid')}
               className="rounded-r-none"
             >
-              <Grid3X3 className="h-4 w-4" />
+              <IconGrid3x3 size={16}  />
             </Button>
             <Button
               variant={viewMode === 'list' ? 'default' : 'ghost'}
@@ -162,13 +162,13 @@ export function ItemList({ items, setItems, collections, setCollections, onViewI
               onClick={() => setViewMode('list')}
               className="rounded-l-none"
             >
-              <List className="h-4 w-4" />
+              <IconList size={16}  />
             </Button>
           </div>
           <Dialog open={isAddItemOpen} onOpenChange={setIsAddItemOpen}>
             <DialogTrigger asChild>
               <Button>
-                <Plus className="h-4 w-4 mr-2" />
+                <IconPlus size={16} className="mr-2" />
                 Add Item
               </Button>
             </DialogTrigger>
@@ -192,9 +192,9 @@ export function ItemList({ items, setItems, collections, setCollections, onViewI
             className="h-8"
           >
             {selectedItems.length === filteredItems.length && filteredItems.length > 0 ? (
-              <CheckSquare className="h-4 w-4" />
+              <IconSquareCheck size={16}  />
             ) : (
-              <Square className="h-4 w-4" />
+              <IconSquare size={16}  />
             )}
             <span className="ml-2">
               {selectedItems.length === filteredItems.length && filteredItems.length > 0 
@@ -213,7 +213,7 @@ export function ItemList({ items, setItems, collections, setCollections, onViewI
           <Dialog open={isBulkManageOpen} onOpenChange={setIsBulkManageOpen}>
             <DialogTrigger asChild>
               <Button variant="outline" size="sm">
-                <Layers className="h-4 w-4 mr-2" />
+                <IconStack2 size={16} className="mr-2" />
                 Add to Collection
               </Button>
             </DialogTrigger>
@@ -290,7 +290,7 @@ export function ItemList({ items, setItems, collections, setCollections, onViewI
                           onClick={() => onViewItem(item)}
                           className="h-8 w-8 p-0"
                         >
-                          <Eye className="h-4 w-4" />
+                          <IconEye size={16}  />
                         </Button>
                       )}
                       <Button
@@ -299,7 +299,7 @@ export function ItemList({ items, setItems, collections, setCollections, onViewI
                         onClick={() => setEditingItem(item)}
                         className="h-8 w-8 p-0"
                       >
-                        <Edit className="h-4 w-4" />
+                        <IconEdit size={16}  />
                       </Button>
                       <Button
                         variant="ghost"
@@ -307,7 +307,7 @@ export function ItemList({ items, setItems, collections, setCollections, onViewI
                         onClick={() => handleDeleteItem(item.id)}
                         className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
                       >
-                        <Trash2 className="h-4 w-4" />
+                        <IconTrash size={16}  />
                       </Button>
                     </div>
                   </div>
@@ -415,7 +415,7 @@ export function ItemList({ items, setItems, collections, setCollections, onViewI
                     onClick={() => onViewItem(item)}
                     className="h-8 w-8 p-0"
                   >
-                    <Eye className="h-4 w-4" />
+                    <IconEye size={16}  />
                   </Button>
                 )}
                 <Button
@@ -424,7 +424,7 @@ export function ItemList({ items, setItems, collections, setCollections, onViewI
                   onClick={() => setEditingItem(item)}
                   className="h-8 w-8 p-0"
                 >
-                  <Edit className="h-4 w-4" />
+                  <IconEdit size={16}  />
                 </Button>
                 <Button
                   variant="ghost"
@@ -432,7 +432,7 @@ export function ItemList({ items, setItems, collections, setCollections, onViewI
                   onClick={() => handleDeleteItem(item.id)}
                   className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
                 >
-                  <Trash2 className="h-4 w-4" />
+                  <IconTrash size={16}  />
                 </Button>
               </div>
             </div>
@@ -446,12 +446,12 @@ export function ItemList({ items, setItems, collections, setCollections, onViewI
         </div>
       )}
 
-      {/* Edit Item Dialog */}
+      {/* IconEdit Item Dialog */}
       {editingItem && (
         <Dialog open={true} onOpenChange={() => setEditingItem(null)}>
           <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle>Edit Item</DialogTitle>
+              <DialogTitle>IconEdit Item</DialogTitle>
             </DialogHeader>
             <EditItemForm
               item={editingItem}

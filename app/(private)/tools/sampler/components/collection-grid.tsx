@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Square } from 'lucide-react';
+import { IconSquare } from '@tabler/icons-react';
 import { SamplerEngine } from '@/lib/sampler-engine';
 import { updatePad, expandGrid, uploadAudio, createSound } from '@/lib/sampler';
 import { encodeWav } from '@/lib/sampler-wav';
@@ -595,7 +595,7 @@ export function CollectionGrid({ collection }: CollectionGridProps) {
               className="w-8 h-8 flex items-center justify-center rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
               title="Stop all (Esc)"
             >
-              <Square className="size-4" />
+              <IconSquare size={16}  />
             </button>
           </div>
           <div className="flex-1 h-full flex flex-col">

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { ChevronRight } from 'lucide-react';
+import { IconChevronRight } from '@tabler/icons-react';
 import { cn } from '@/lib/utils';
 
 interface ToolCallCardProps {
@@ -46,7 +46,7 @@ export function ToolCallCard({ toolName, state, result }: ToolCallCardProps) {
         )}
         disabled={!isComplete}
       >
-        <ChevronRight
+        <IconChevronRight
           className={cn(
             'size-3 shrink-0 transition-transform',
             expanded && 'rotate-90'

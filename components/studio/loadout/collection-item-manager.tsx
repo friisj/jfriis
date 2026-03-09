@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Plus, X, Search } from 'lucide-react';
+import { IconPlus, IconX, IconSearch } from '@tabler/icons-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -72,7 +72,7 @@ export function CollectionItemManager({
           <Dialog open={isOpen} onOpenChange={setIsOpen}>
             <DialogTrigger asChild>
               <Button variant="outline" size="sm" className="h-7 text-xs">
-                <Plus className="h-3 w-3 mr-1" />
+                <IconPlus size={12} className="mr-1" />
                 Add Items
               </Button>
             </DialogTrigger>
@@ -82,9 +82,9 @@ export function CollectionItemManager({
               </DialogHeader>
               <div className="space-y-4">
                 <div className="relative">
-                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  <IconSearch size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
                   <Input
-                    placeholder="Search available items..."
+                    placeholder="IconSearch available items..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                     className="pl-10"
@@ -113,7 +113,7 @@ export function CollectionItemManager({
                             onClick={() => addItem(item.id)}
                             className="h-7 text-xs"
                           >
-                            <Plus className="h-3 w-3" />
+                            <IconPlus size={12}  />
                           </Button>
                         </div>
                       </div>
@@ -156,7 +156,7 @@ export function CollectionItemManager({
                   onClick={() => removeItem(item.id)}
                   className="h-7 w-7 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
                 >
-                  <X className="h-3 w-3" />
+                  <IconX size={12}  />
                 </Button>
               </div>
             ))}

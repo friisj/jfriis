@@ -12,7 +12,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { X, Play, Square, Scissors } from 'lucide-react';
+import { IconX, IconPlayerPlay, IconSquare, IconScissors } from '@tabler/icons-react';
 import { updatePad, updateSound } from '@/lib/sampler';
 import { EffectsChain } from './effects-chain';
 import { Waveform } from './waveform';
@@ -190,7 +190,7 @@ export function PadConfigPanel({ pad, getBuffer, onPadUpdated, onEffectsChange, 
           )}
         </div>
         <Button variant="ghost" size="icon" className="size-7 shrink-0" onClick={onClose}>
-          <X className="size-4" />
+          <IconX size={16}  />
           <span className="sr-only">Close</span>
         </Button>
       </div>
@@ -220,8 +220,8 @@ export function PadConfigPanel({ pad, getBuffer, onPadUpdated, onEffectsChange, 
                 className="size-7 p-0"
                 onClick={onTogglePlay}
               >
-                {isPlaying ? <Square className="size-3" /> : <Play className="size-3" />}
-                <span className="sr-only">{isPlaying ? 'Stop' : 'Play'}</span>
+                {isPlaying ? <IconSquare size={12}  /> : <IconPlayerPlay size={12}  />}
+                <span className="sr-only">{isPlaying ? 'Stop' : 'IconPlayerPlay'}</span>
               </Button>
             )}
             {isBuffer && pad.effects.trim && (
@@ -237,7 +237,7 @@ export function PadConfigPanel({ pad, getBuffer, onPadUpdated, onEffectsChange, 
                     onClick={() => onCropSound(pad.id)}
                     title="Crop: bake trim into new sound file"
                   >
-                    <Scissors className="size-3" />
+                    <IconScissors size={12}  />
                     Crop
                   </Button>
                 )}
@@ -369,7 +369,7 @@ export function PadConfigPanel({ pad, getBuffer, onPadUpdated, onEffectsChange, 
             {pad.effects.xyPad?.enabled && (
               <div className="grid grid-cols-2 gap-2">
                 <div className="space-y-1">
-                  <Label className="text-xs text-muted-foreground">X Axis</Label>
+                  <Label className="text-xs text-muted-foreground">IconX Axis</Label>
                   <Select
                     value={pad.effects.xyPad.xAxis}
                     onValueChange={(v: XYAxisParam) => {

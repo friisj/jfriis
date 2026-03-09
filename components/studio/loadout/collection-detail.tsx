@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { ArrowLeft, Edit, Trash2, Calendar, Package, Weight, DollarSign, Grid3X3, List } from 'lucide-react';
+import { IconArrowLeft, IconEdit, IconTrash, IconCalendar, IconPackage, IconWeight, IconCurrencyDollar, IconGrid3x3, IconList } from '@tabler/icons-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -109,7 +109,7 @@ export function CollectionDetail({
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
           <Button variant="ghost" onClick={onBack} className="p-2">
-            <ArrowLeft className="h-4 w-4" />
+            <IconArrowLeft size={16}  />
           </Button>
           <div>
             <div className="flex items-center gap-3">
@@ -126,15 +126,15 @@ export function CollectionDetail({
         </div>
         <div className="flex gap-2">
           <Button variant="outline" onClick={() => setIsEditOpen(true)}>
-            <Edit className="h-4 w-4 mr-2" />
-            Edit
+            <IconEdit size={16} className="mr-2" />
+            IconEdit
           </Button>
           <Button 
             variant="outline" 
             onClick={handleDeleteCollection}
             className="text-red-600 border-red-600 hover:bg-red-50"
           >
-            <Trash2 className="h-4 w-4 mr-2" />
+            <IconTrash size={16} className="mr-2" />
             Delete
           </Button>
         </div>
@@ -145,7 +145,7 @@ export function CollectionDetail({
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center gap-2">
-              <Package className="h-4 w-4 text-muted-foreground" />
+              <IconPackage size={16} className="text-muted-foreground" />
               <div className="text-sm text-muted-foreground">Total Items</div>
             </div>
             <div className="text-2xl font-bold mt-1">{collectionItems.length}</div>
@@ -155,8 +155,8 @@ export function CollectionDetail({
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center gap-2">
-              <Weight className="h-4 w-4 text-muted-foreground" />
-              <div className="text-sm text-muted-foreground">Total Weight</div>
+              <IconWeight size={16} className="text-muted-foreground" />
+              <div className="text-sm text-muted-foreground">Total IconWeight</div>
             </div>
             <div className="text-2xl font-bold mt-1">{getTotalWeight()}g</div>
           </CardContent>
@@ -165,7 +165,7 @@ export function CollectionDetail({
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center gap-2">
-              <DollarSign className="h-4 w-4 text-muted-foreground" />
+              <IconCurrencyDollar size={16} className="text-muted-foreground" />
               <div className="text-sm text-muted-foreground">Total Value</div>
             </div>
             <div className="text-2xl font-bold mt-1">${getTotalValue().toFixed(2)}</div>
@@ -175,7 +175,7 @@ export function CollectionDetail({
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center gap-2">
-              <Calendar className="h-4 w-4 text-muted-foreground" />
+              <IconCalendar size={16} className="text-muted-foreground" />
               <div className="text-sm text-muted-foreground">Created</div>
             </div>
             <div className="text-sm font-medium mt-1">
@@ -217,14 +217,14 @@ export function CollectionDetail({
                 size="sm"
                 onClick={() => setViewMode('grid')}
               >
-                <Grid3X3 className="h-4 w-4" />
+                <IconGrid3x3 size={16}  />
               </Button>
               <Button
                 variant={viewMode === 'list' ? 'default' : 'outline'}
                 size="sm"
                 onClick={() => setViewMode('list')}
               >
-                <List className="h-4 w-4" />
+                <IconList size={16}  />
               </Button>
             </div>
           </div>
@@ -270,7 +270,7 @@ export function CollectionDetail({
                         </div>
                         {item.weight && (
                           <div className="flex justify-between text-sm">
-                            <span className="text-muted-foreground">Weight:</span>
+                            <span className="text-muted-foreground">IconWeight:</span>
                             <span>{item.weight}g</span>
                           </div>
                         )}
@@ -313,12 +313,12 @@ export function CollectionDetail({
         </CardContent>
       </Card>
 
-      {/* Edit Dialog */}
+      {/* IconEdit Dialog */}
       {isEditOpen && (
         <Dialog open={true} onOpenChange={() => setIsEditOpen(false)}>
           <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle>Edit Collection</DialogTitle>
+              <DialogTitle>IconEdit Collection</DialogTitle>
             </DialogHeader>
             <EditCollectionForm
               collection={collection}

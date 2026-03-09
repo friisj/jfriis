@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Plus, Trash2, Upload, X, ImagePlus } from 'lucide-react';
+import { IconPlus, IconTrash, IconUpload, IconX, IconPhotoPlus } from '@tabler/icons-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -119,7 +119,7 @@ export function SeedManager() {
           onClick={() => { setAdding(true); setExpandedId(null); }}
           className="h-6 w-6 p-0"
         >
-          <Plus className="h-4 w-4" />
+          <IconPlus size={16}  />
         </Button>
       </div>
 
@@ -251,7 +251,7 @@ function SeedCard({
           </div>
         ) : (
           <div className="aspect-square rounded bg-muted/50 flex items-center justify-center">
-            <Upload className="h-6 w-6 text-muted-foreground/40" />
+            <IconUpload size={24} className="text-muted-foreground/40" />
           </div>
         )}
         <div>
@@ -268,7 +268,7 @@ function SeedCard({
       <div className="flex items-center justify-between">
         <span className="text-xs font-mono text-muted-foreground">{seed.type_key}</span>
         <Button size="sm" variant="ghost" onClick={onToggle} className="h-5 w-5 p-0">
-          <X className="h-3.5 w-3.5" />
+          <IconX size={12} className=".5 .5" />
         </Button>
       </div>
 
@@ -290,7 +290,7 @@ function SeedCard({
           />
         ) : (
           <div className="flex flex-col items-center justify-center h-full text-muted-foreground/40">
-            <ImagePlus className="h-8 w-8 mb-1" />
+            <IconPhotoPlus size={32} className="mb-1" />
             <span className="text-xs">No image</span>
           </div>
         )}
@@ -317,8 +317,8 @@ function SeedCard({
         disabled={uploading}
         className="h-7 text-xs w-full"
       >
-        <Upload className="h-3 w-3 mr-1.5" />
-        {uploading ? 'Uploading...' : seed.seed_image_path ? 'Replace Image' : 'Upload Image'}
+        <IconUpload size={12} className="mr-1.5" />
+        {uploading ? 'Uploading...' : seed.seed_image_path ? 'Replace Image' : 'IconUpload Image'}
       </Button>
 
       {/* Editable fields */}
@@ -355,7 +355,7 @@ function SeedCard({
           onClick={onDelete}
           className="h-6 text-xs text-destructive hover:text-destructive ml-auto"
         >
-          <Trash2 className="h-3 w-3 mr-1" />
+          <IconTrash size={12} className="mr-1" />
           Delete
         </Button>
       </div>
@@ -395,7 +395,7 @@ function NewSeedCard({
       <div className="flex items-center justify-between">
         <span className="text-xs font-semibold">New Type</span>
         <Button size="sm" variant="ghost" onClick={onCancel} className="h-5 w-5 p-0">
-          <X className="h-3.5 w-3.5" />
+          <IconX size={12} className=".5 .5" />
         </Button>
       </div>
 

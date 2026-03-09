@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { ArrowLeft, Plus, Settings, Trash2 } from 'lucide-react';
+import { IconArrowLeft, IconPlus, IconSettings, IconTrash } from '@tabler/icons-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -258,7 +258,7 @@ function CriteriaEditor({ criteria, onChange }: {
             {!isValidWeight && ' (should be 100%)'}
           </span>
           <Button size="sm" variant="outline" onClick={addCriterion} className="h-6 text-xs px-2">
-            <Plus className="h-3 w-3 mr-1" /> Add
+            <IconPlus size={12} className="mr-1" /> Add
           </Button>
         </div>
       </div>
@@ -296,7 +296,7 @@ function CriteriaEditor({ criteria, onChange }: {
               onClick={() => removeCriterion(i)}
               className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive shrink-0"
             >
-              <Trash2 className="h-3.5 w-3.5" />
+              <IconTrash size={12} className=".5 .5" />
             </Button>
           </div>
           <div className="h-1.5 bg-muted rounded-full overflow-hidden">
@@ -341,11 +341,11 @@ function ConfigColumn({ type, onEdit, onNew, onManageTypes }: {
         <div className="flex items-center gap-0.5">
           {type !== 'eval' && (
             <Button size="sm" variant="ghost" onClick={onManageTypes} className="h-6 w-6 p-0" title="Manage types">
-              <Settings className="h-3.5 w-3.5" />
+              <IconSettings size={12} className=".5 .5" />
             </Button>
           )}
           <Button size="sm" variant="ghost" onClick={onNew} className="h-6 w-6 p-0">
-            <Plus className="h-4 w-4" />
+            <IconPlus size={16}  />
           </Button>
         </div>
       </div>
@@ -444,7 +444,7 @@ function ConfigFormView({ type, config, userId, onDone, seeds }: {
     <div className="max-w-6xl mx-auto space-y-4">
       <div className="flex items-center gap-2">
         <Button size="sm" variant="ghost" onClick={onDone} className="h-7 px-2 text-xs">
-          <ArrowLeft className="h-3.5 w-3.5 mr-1" /> Back
+          <IconArrowLeft size={12} className=".5 .5 mr-1" /> Back
         </Button>
         <h3 className="text-sm font-semibold">
           {editingId ? `Edit ${def.singular}` : `New ${def.singular}`}
@@ -579,7 +579,7 @@ export function PromptLibrary() {
       <div className="max-w-6xl mx-auto space-y-4">
         <div className="flex items-center gap-2">
           <Button size="sm" variant="ghost" onClick={done} className="h-7 px-2 text-xs">
-            <ArrowLeft className="h-3.5 w-3.5 mr-1" /> Back
+            <IconArrowLeft size={12} className=".5 .5 mr-1" /> Back
           </Button>
           <h3 className="text-sm font-semibold">Manage Types</h3>
         </div>

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Plus, X } from 'lucide-react';
+import { IconPlus, IconX } from '@tabler/icons-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
@@ -84,7 +84,7 @@ export function CollectionPicker({ item, collections, onUpdateCollections, trigg
                   removeFromCollection(collection);
                 }}
               >
-                <X className="h-3 w-3" />
+                <IconX size={12}  />
               </Button>
             </Badge>
           ))}
@@ -96,7 +96,7 @@ export function CollectionPicker({ item, collections, onUpdateCollections, trigg
         <DialogTrigger asChild>
           {trigger || (
             <Button variant="outline" size="sm" className="text-xs h-6">
-              <Plus className="h-3 w-3 mr-1" />
+              <IconPlus size={12} className="mr-1" />
               Collections
             </Button>
           )}

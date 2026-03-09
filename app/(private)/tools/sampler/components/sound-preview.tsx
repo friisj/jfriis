@@ -2,7 +2,7 @@
 
 import { useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Play, Square } from 'lucide-react';
+import { IconPlayerPlay, IconSquare } from '@tabler/icons-react';
 
 interface SoundPreviewProps {
   audioUrl: string | null;
@@ -39,9 +39,9 @@ export function SoundPreview({ audioUrl }: SoundPreviewProps) {
       size="icon"
       className="h-8 w-8"
       onClick={toggle}
-      aria-label={playing ? 'Stop' : 'Play'}
+      aria-label={playing ? 'Stop' : 'IconPlayerPlay'}
     >
-      {playing ? <Square className="h-4 w-4" /> : <Play className="h-4 w-4" />}
+      {playing ? <IconSquare size={16}  /> : <IconPlayerPlay size={16}  />}
     </Button>
   );
 }

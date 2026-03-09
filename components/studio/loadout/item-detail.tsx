@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { ArrowLeft, Edit, Trash2, Calendar, Tag, DollarSign, Weight, Package } from 'lucide-react';
+import { IconArrowLeft, IconEdit, IconTrash, IconCalendar, IconTag, IconCurrencyDollar, IconWeight, IconPackage } from '@tabler/icons-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -89,7 +89,7 @@ export function ItemDetail({
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
           <Button variant="ghost" onClick={onBack} className="p-2">
-            <ArrowLeft className="h-4 w-4" />
+            <IconArrowLeft size={16}  />
           </Button>
           <div>
             <h1 className="text-2xl font-bold">{item.name}</h1>
@@ -105,15 +105,15 @@ export function ItemDetail({
         </div>
         <div className="flex gap-2">
           <Button variant="outline" onClick={() => setIsEditOpen(true)}>
-            <Edit className="h-4 w-4 mr-2" />
-            Edit
+            <IconEdit size={16} className="mr-2" />
+            IconEdit
           </Button>
           <Button 
             variant="outline" 
             onClick={handleDeleteItem}
             className="text-red-600 border-red-600 hover:bg-red-50"
           >
-            <Trash2 className="h-4 w-4 mr-2" />
+            <IconTrash size={16} className="mr-2" />
             Delete
           </Button>
         </div>
@@ -126,7 +126,7 @@ export function ItemDetail({
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <Package className="h-5 w-5" />
+                <IconPackage size={20}  />
                 Basic Information
               </CardTitle>
             </CardHeader>
@@ -155,8 +155,8 @@ export function ItemDetail({
                 {item.weight && (
                   <div>
                     <label className="text-sm font-medium text-muted-foreground flex items-center gap-1">
-                      <Weight className="h-4 w-4" />
-                      Weight
+                      <IconWeight size={16}  />
+                      IconWeight
                     </label>
                     <p className="mt-1">{item.weight}g</p>
                   </div>
@@ -164,7 +164,7 @@ export function ItemDetail({
                 {item.price && (
                   <div>
                     <label className="text-sm font-medium text-muted-foreground flex items-center gap-1">
-                      <DollarSign className="h-4 w-4" />
+                      <IconCurrencyDollar size={16}  />
                       Price
                     </label>
                     <p className="mt-1">${item.price}</p>
@@ -175,7 +175,7 @@ export function ItemDetail({
               {item.tags.length > 0 && (
                 <div>
                   <label className="text-sm font-medium text-muted-foreground flex items-center gap-1">
-                    <Tag className="h-4 w-4" />
+                    <IconTag size={16}  />
                     Tags
                   </label>
                   <div className="flex flex-wrap gap-1 mt-2">
@@ -201,7 +201,7 @@ export function ItemDetail({
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <Calendar className="h-5 w-5" />
+                <IconCalendar size={20}  />
                 Timeline
               </CardTitle>
             </CardHeader>
@@ -225,7 +225,7 @@ export function ItemDetail({
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <Package className="h-5 w-5" />
+                  <IconPackage size={20}  />
                   Purchase Request
                 </CardTitle>
               </CardHeader>
@@ -314,12 +314,12 @@ export function ItemDetail({
         </div>
       </div>
 
-      {/* Edit Dialog */}
+      {/* IconEdit Dialog */}
       {isEditOpen && (
         <Dialog open={true} onOpenChange={() => setIsEditOpen(false)}>
           <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle>Edit Item</DialogTitle>
+              <DialogTitle>IconEdit Item</DialogTitle>
             </DialogHeader>
             <EditItemForm
               item={item}

@@ -2,7 +2,7 @@
 
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
-import { X } from 'lucide-react';
+import { IconX } from '@tabler/icons-react';
 import type { BatchItem } from '@/lib/types/sampler';
 
 interface BatchStatusProps {
@@ -35,7 +35,7 @@ export function BatchStatus({ items, onCancel, onDismiss }: BatchStatusProps) {
         </div>
         {isComplete ? (
           <Button variant="ghost" size="sm" onClick={onDismiss}>
-            <X className="size-4" />
+            <IconX size={16}  />
           </Button>
         ) : (
           <Button variant="ghost" size="sm" onClick={onCancel}>

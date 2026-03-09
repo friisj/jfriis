@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
 import { Slider } from '@/components/ui/slider';
-import { RotateCcw, Zap } from 'lucide-react';
+import { IconRotate, IconBolt } from '@tabler/icons-react';
 
 interface FlowEngineProps {
   isPlaying: boolean;
@@ -444,7 +444,7 @@ export function FlowEngine({
               className="bg-white/5 border-red-500/30 text-red-200 hover:bg-red-500/20"
               onClick={clearMemory}
             >
-              <RotateCcw className="w-3 h-3" />
+              <IconRotate size={12}  />
             </Button>
           </div>
 
@@ -466,7 +466,7 @@ export function FlowEngine({
                   onClick={nudgeHarmonicDrift}
                   disabled={!isPlaying}
                 >
-                  <Zap className="w-3 h-3" />
+                  <IconBolt size={12}  />
                 </Button>
               </div>
             </div>

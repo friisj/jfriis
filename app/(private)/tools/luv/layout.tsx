@@ -3,7 +3,7 @@
 import { useEffect, useCallback } from 'react';
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
-import { MessageSquare } from 'lucide-react';
+import { IconMessage } from '@tabler/icons-react';
 import { usePrivateHeader } from '@/components/layout/private-header-context';
 import {
   ResizablePanelGroup,
@@ -71,7 +71,7 @@ function LuvHeaderActions() {
           )}
           title={chatOpen ? 'Close chat' : 'Open chat'}
         >
-          <MessageSquare className="size-4" />
+          <IconMessage size={16}  />
         </button>
       </nav>,
     );

@@ -1,6 +1,6 @@
 "use client";
 
-import { Info, Focus } from "lucide-react";
+import { IconInfoCircle, IconFocusCentered } from "@tabler/icons-react";
 
 interface ComponentSelectionPanelProps {
   selectedComponent: {
@@ -24,7 +24,7 @@ export function ComponentSelectionPanel({
     return (
       <div className="p-4 bg-white border-l border-gray-200">
         <div className="text-center text-gray-400 mt-8">
-          <Info className="w-12 h-12 mx-auto mb-3 opacity-50" />
+          <IconInfoCircle size={48} className="mx-auto mb-3 opacity-50" />
           <p className="text-sm">Select a component to view details</p>
         </div>
       </div>
@@ -57,14 +57,14 @@ export function ComponentSelectionPanel({
       {/* Header */}
       <div className="p-4 border-b border-gray-200">
         <h2 className="text-lg font-semibold flex items-center gap-2">
-          <Info className="w-5 h-5" />
+          <IconInfoCircle size={20} />
           Component Details
         </h2>
       </div>
 
-      {/* Component Info */}
+      {/* Component IconInfoCircle */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
-        {/* Basic Info */}
+        {/* Basic IconInfoCircle */}
         <div>
           <label className="text-xs font-medium text-gray-500 uppercase tracking-wide">
             Type
@@ -151,7 +151,7 @@ export function ComponentSelectionPanel({
           onClick={onFocusAI}
           className="w-full px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700 font-medium text-sm flex items-center justify-center gap-2"
         >
-          <Focus className="w-4 h-4" />
+          <IconFocusCentered size={16} />
           Focus AI on This Component
         </button>
         <p className="text-xs text-gray-500 mt-2 text-center">

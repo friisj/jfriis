@@ -2,7 +2,7 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase-server'
 import { notFound } from 'next/navigation'
 import { ExperimentStatusSelect } from '@/components/studio/experiment-status-select'
-import { Pencil } from 'lucide-react'
+import { IconPencil } from '@tabler/icons-react'
 
 type ExperimentStatus = 'planned' | 'in_progress' | 'completed' | 'abandoned'
 
@@ -163,7 +163,7 @@ export default async function ProjectPage({ params }: Props) {
                                   className="ml-2 text-gray-300 hover:text-gray-500 transition-colors"
                                   title="Edit in admin"
                                 >
-                                  <Pencil className="size-3" />
+                                  <IconPencil size={12}  />
                                 </Link>
                               </div>
                             ))}
@@ -204,7 +204,7 @@ export default async function ProjectPage({ params }: Props) {
                       className="ml-2 text-gray-300 hover:text-gray-500 transition-colors"
                       title="Edit in admin"
                     >
-                      <Pencil className="size-3" />
+                      <IconPencil size={12}  />
                     </Link>
                   </div>
                   {experiment.description && (

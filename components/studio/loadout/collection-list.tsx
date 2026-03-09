@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Plus, Package, Edit, Trash2, Eye, Grid3X3, List } from 'lucide-react';
+import { IconPlus, IconPackage, IconEdit, IconTrash, IconEye, IconGrid3x3, IconList } from '@tabler/icons-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -78,7 +78,7 @@ export function CollectionList({ collections, setCollections, items, onViewColle
               onClick={() => setViewMode('grid')}
               className="rounded-r-none"
             >
-              <Grid3X3 className="h-4 w-4" />
+              <IconGrid3x3 size={16}  />
             </Button>
             <Button
               variant={viewMode === 'list' ? 'default' : 'ghost'}
@@ -86,13 +86,13 @@ export function CollectionList({ collections, setCollections, items, onViewColle
               onClick={() => setViewMode('list')}
               className="rounded-l-none"
             >
-              <List className="h-4 w-4" />
+              <IconList size={16}  />
             </Button>
           </div>
           <Dialog open={isAddCollectionOpen} onOpenChange={setIsAddCollectionOpen}>
             <DialogTrigger asChild>
               <Button>
-                <Plus className="h-4 w-4 mr-2" />
+                <IconPlus size={16} className="mr-2" />
                 Add Collection
               </Button>
             </DialogTrigger>
@@ -137,7 +137,7 @@ export function CollectionList({ collections, setCollections, items, onViewColle
                             onClick={() => onViewCollection(collection)}
                             className="h-8 w-8 p-0"
                           >
-                            <Eye className="h-4 w-4" />
+                            <IconEye size={16}  />
                           </Button>
                         )}
                         <Button
@@ -146,7 +146,7 @@ export function CollectionList({ collections, setCollections, items, onViewColle
                           onClick={() => setEditingCollection(collection)}
                           className="h-8 w-8 p-0"
                         >
-                          <Edit className="h-4 w-4" />
+                          <IconEdit size={16}  />
                         </Button>
                         <Button
                           variant="ghost"
@@ -154,7 +154,7 @@ export function CollectionList({ collections, setCollections, items, onViewColle
                           onClick={() => handleDeleteCollection(collection.id)}
                           className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
                         >
-                          <Trash2 className="h-4 w-4" />
+                          <IconTrash size={16}  />
                         </Button>
                       </div>
                     </div>
@@ -224,7 +224,7 @@ export function CollectionList({ collections, setCollections, items, onViewColle
                       onClick={() => onViewCollection(collection)}
                       className="h-8 w-8 p-0"
                     >
-                      <Eye className="h-4 w-4" />
+                      <IconEye size={16}  />
                     </Button>
                   )}
                   <Button
@@ -233,7 +233,7 @@ export function CollectionList({ collections, setCollections, items, onViewColle
                     onClick={() => setEditingCollection(collection)}
                     className="h-8 w-8 p-0"
                   >
-                    <Edit className="h-4 w-4" />
+                    <IconEdit size={16}  />
                   </Button>
                   <Button
                     variant="ghost"
@@ -241,7 +241,7 @@ export function CollectionList({ collections, setCollections, items, onViewColle
                     onClick={() => handleDeleteCollection(collection.id)}
                     className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
                   >
-                    <Trash2 className="h-4 w-4" />
+                    <IconTrash size={16}  />
                   </Button>
                 </div>
               </div>
@@ -252,18 +252,18 @@ export function CollectionList({ collections, setCollections, items, onViewColle
       
       {collections.length === 0 && (
         <div className="text-center py-8 text-muted-foreground">
-          <Package className="h-12 w-12 mx-auto mb-4 opacity-50" />
+          <IconPackage size={48} className="mx-auto mb-4 opacity-50" />
           <p>No collections created yet.</p>
           <p className="text-sm">Create your first collection to organize your gear.</p>
         </div>
       )}
 
-      {/* Edit Collection Dialog */}
+      {/* IconEdit Collection Dialog */}
       {editingCollection && (
         <Dialog open={true} onOpenChange={() => setEditingCollection(null)}>
           <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle>Edit Collection</DialogTitle>
+              <DialogTitle>IconEdit Collection</DialogTitle>
             </DialogHeader>
             <EditCollectionForm
               collection={editingCollection}

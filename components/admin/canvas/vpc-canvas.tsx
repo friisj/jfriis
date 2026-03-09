@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useMemo, useCallback } from 'react'
-import { Plus, Check } from 'lucide-react'
+import { IconPlus, IconCheck } from '@tabler/icons-react'
 import { cn } from '@/lib/utils'
 import { BlockGridCanvas, type CanvasMode } from './block-grid-canvas'
 import { CustomerProfileItemCard } from './customer-profile-item'
@@ -203,7 +203,7 @@ export function VPCCanvas({
           {/* Addressed indicator */}
           {isAddressed && (
             <div className="absolute top-1 right-1 w-4 h-4 bg-green-500 rounded-full flex items-center justify-center">
-              <Check className="w-2.5 h-2.5 text-white" />
+              <IconCheck size={8} className=".5 .5 text-white" />
             </div>
           )}
           {/* Toggle addressed button in structured mode */}
@@ -226,7 +226,7 @@ export function VPCCanvas({
               aria-checked={isAddressed}
               title={isAddressed ? 'Mark as not addressed' : 'Mark as addressed'}
             >
-              <Check className="w-3 h-3" aria-hidden="true" />
+              <IconCheck size={12}  aria-hidden="true" />
               <span className="sr-only">
                 {isAddressed ? 'Currently addressed' : 'Not addressed'}
               </span>
@@ -262,7 +262,7 @@ export function VPCCanvas({
           'hover:bg-muted/50 rounded transition-colors'
         )}
       >
-        <Plus className="w-3.5 h-3.5" />
+        <IconPlus size={12} className=".5 .5" />
         Add
       </button>
     ),
@@ -328,7 +328,7 @@ export function VPCCanvas({
           'hover:bg-muted/50 rounded transition-colors'
         )}
       >
-        <Plus className="w-3.5 h-3.5" />
+        <IconPlus size={12} className=".5 .5" />
         Add
       </button>
     ),

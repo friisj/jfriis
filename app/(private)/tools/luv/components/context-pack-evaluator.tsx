@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { Check, X } from 'lucide-react';
+import { IconCheck, IconX } from '@tabler/icons-react';
 import { updateContextPack } from '@/lib/luv-chassis';
 import type {
   LuvChassisContextPack,
@@ -131,7 +131,7 @@ export function ContextPackEvaluator({
                     className="h-5 w-5 p-0"
                     onClick={() => toggleCriterion(i, true)}
                   >
-                    <Check className="h-3 w-3" />
+                    <IconCheck size={12}  />
                   </Button>
                   <Button
                     variant={c.passed === false ? 'destructive' : 'outline'}
@@ -139,7 +139,7 @@ export function ContextPackEvaluator({
                     className="h-5 w-5 p-0"
                     onClick={() => toggleCriterion(i, false)}
                   >
-                    <X className="h-3 w-3" />
+                    <IconX size={12}  />
                   </Button>
                   <span className="text-xs flex-1">
                     {c.label}:{' '}

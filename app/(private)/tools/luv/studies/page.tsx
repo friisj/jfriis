@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Plus } from 'lucide-react';
+import { IconPlus } from '@tabler/icons-react';
 import { getStudiesServer } from '@/lib/luv-chassis-server';
 
 export default async function StudiesListPage() {
@@ -13,7 +13,7 @@ export default async function StudiesListPage() {
         <h2 className="text-sm font-semibold">Chassis Studies</h2>
         <Link href="/tools/luv/studies/new">
           <Button variant="outline" size="sm" className="h-7 text-xs">
-            <Plus className="h-3 w-3 mr-1" />
+            <IconPlus size={12} className="mr-1" />
             New Study
           </Button>
         </Link>

@@ -8,7 +8,7 @@ import {
   ResizablePanel,
   ResizableHandle,
 } from '@/components/ui/resizable'
-import { ChevronRight, Download, Sun, Moon, PanelRightClose, PanelRightOpen } from 'lucide-react'
+import { IconChevronRight, IconDownload, IconSun, IconMoon, IconLayoutSidebarRightCollapse, IconLayoutSidebarRightExpand } from '@tabler/icons-react'
 import { ThemeExport } from './theme-export'
 import { themes } from '@/lib/themes/theme-config'
 import { getColorValue } from '@/lib/tailwind-colors'
@@ -854,7 +854,7 @@ ${tailwindColorMappings.map(m => '  ' + m).join('\n')}
                   ? 'Custom (Editable)'
                   : `${selectedTheme.charAt(0).toUpperCase() + selectedTheme.slice(1)} Theme`}
               </span>
-              <ChevronRight className="size-3.5 rotate-90" />
+              <IconChevronRight size={14} className="rotate-90" />
             </button>
           </PopoverTrigger>
           <PopoverContent align="end" side="bottom" className="min-w-10 p-1">
@@ -889,9 +889,9 @@ ${tailwindColorMappings.map(m => '  ' + m).join('\n')}
           title={`Switch to ${themeMode === 'light' ? 'dark' : 'light'} mode`}
         >
           {themeMode === 'light' ? (
-            <Moon className="size-3.5" />
+            <IconMoon size={14}  />
           ) : (
-            <Sun className="size-3.5" />
+            <IconSun size={14}  />
           )}
         </button>
 
@@ -899,7 +899,7 @@ ${tailwindColorMappings.map(m => '  ' + m).join('\n')}
           onClick={() => setShowExport(!showExport)}
           className="px-3 h-10 text-foreground hover:bg-accent transition-colors text-xs font-medium flex items-center"
         >
-          <Download className="size-3.5" />
+          <IconDownload size={14}  />
           <span className="sr-only">Export</span>
         </button>
         <button
@@ -907,9 +907,9 @@ ${tailwindColorMappings.map(m => '  ' + m).join('\n')}
           className="size-10 hover:bg-accent transition-colors text-sm font-medium flex items-center justify-center"
         >
           {sidebarOpen ? (
-            <PanelRightClose className="size-3.5" />
+            <IconLayoutSidebarRightCollapse size={14}  />
           ) : (
-            <PanelRightOpen className="size-3.5" />
+            <IconLayoutSidebarRightExpand size={14}  />
           )}
           <span className="sr-only">Toggle sidebar</span>
         </button>

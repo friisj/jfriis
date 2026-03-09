@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useRef, useEffect, useCallback, type ReactNode, memo } from 'react'
-import { MoreHorizontal, Pencil, Trash2, ChevronUp, ChevronDown } from 'lucide-react'
+import { IconDotsVertical, IconPencil, IconTrash, IconChevronUp, IconChevronDown } from '@tabler/icons-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
@@ -294,26 +294,26 @@ function CanvasLaneHeaderInner({
                 className="h-6 w-6 absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity"
                 disabled={loading}
               >
-                <MoreHorizontal className="h-4 w-4" />
+                <IconDotsVertical size={16}  />
                 <span className="sr-only">Options</span>
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               {editable && onRename && (
                 <DropdownMenuItem onClick={startEditing}>
-                  <Pencil className="h-4 w-4 mr-2" />
+                  <IconPencil size={16} className="mr-2" />
                   Rename
                 </DropdownMenuItem>
               )}
               {showMoveUp && onMoveUp && (
                 <DropdownMenuItem onClick={() => onMoveUp()}>
-                  <ChevronUp className="h-4 w-4 mr-2" />
+                  <IconChevronUp size={16} className="mr-2" />
                   Move Up
                 </DropdownMenuItem>
               )}
               {showMoveDown && onMoveDown && (
                 <DropdownMenuItem onClick={() => onMoveDown()}>
-                  <ChevronDown className="h-4 w-4 mr-2" />
+                  <IconChevronDown size={16} className="mr-2" />
                   Move Down
                 </DropdownMenuItem>
               )}
@@ -324,7 +324,7 @@ function CanvasLaneHeaderInner({
                     onClick={() => setShowDeleteDialog(true)}
                     className="text-destructive focus:text-destructive"
                   >
-                    <Trash2 className="h-4 w-4 mr-2" />
+                    <IconTrash size={16} className="mr-2" />
                     Delete
                   </DropdownMenuItem>
                 </>

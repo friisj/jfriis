@@ -2,22 +2,24 @@
 
 import { useState, useMemo, useCallback, useEffect } from 'react'
 
-type Tab = 'lucide' | 'phosphor'
+type Tab = 'tabler' | 'phosphor'
 type IconEntry = [string, React.ComponentType<{ size?: number; className?: string }>]
 
 export function IconsClient() {
-  const [tab, setTab] = useState<Tab>('lucide')
+  const [tab, setTab] = useState<Tab>('tabler')
   const [search, setSearch] = useState('')
   const [copied, setCopied] = useState<string | null>(null)
-  const [lucideEntries, setLucideEntries] = useState<IconEntry[]>([])
+  const [tablerEntries, setTablerEntries] = useState<IconEntry[]>([])
   const [phosphorEntries, setPhosphorEntries] = useState<IconEntry[]>([])
   const [loading, setLoading] = useState(true)
 
   // Lazy-load icon libraries to avoid polluting the webpack module graph
   useEffect(() => {
-    import('lucide-react').then((mod) => {
-      const entries = Object.entries(mod.icons) as IconEntry[]
-      setLucideEntries(entries)
+    import('@tabler/icons-react').then((mod) => {
+      const entries = Object.entries(mod).filter(
+        ([name, val]) => typeof val === 'function' && name.startsWith('Icon') && name !== 'IconContext'
+      ) as IconEntry[]
+      setTablerEntries(entries)
       setLoading(false)
     })
   }, [])
@@ -34,11 +36,11 @@ export function IconsClient() {
     })
   }, [tab, phosphorEntries.length])
 
-  const filteredLucide = useMemo(() => {
-    if (!search) return lucideEntries
+  const filteredTabler = useMemo(() => {
+    if (!search) return tablerEntries
     const q = search.toLowerCase()
-    return lucideEntries.filter(([name]) => name.toLowerCase().includes(q))
-  }, [search, lucideEntries])
+    return tablerEntries.filter(([name]) => name.toLowerCase().includes(q))
+  }, [search, tablerEntries])
 
   const filteredPhosphor = useMemo(() => {
     if (!search) return phosphorEntries
@@ -46,8 +48,8 @@ export function IconsClient() {
     return phosphorEntries.filter(([name]) => name.toLowerCase().includes(q))
   }, [search, phosphorEntries])
 
-  const entries = tab === 'lucide' ? filteredLucide : filteredPhosphor
-  const totalCount = tab === 'lucide' ? lucideEntries.length : phosphorEntries.length
+  const entries = tab === 'tabler' ? filteredTabler : filteredPhosphor
+  const totalCount = tab === 'tabler' ? tablerEntries.length : phosphorEntries.length
 
   const handleCopy = useCallback((name: string) => {
     navigator.clipboard.writeText(name)
@@ -60,7 +62,7 @@ export function IconsClient() {
       {/* Tabs + search */}
       <div className="flex items-center gap-4 flex-wrap">
         <div className="flex bg-slate-100 dark:bg-slate-800 rounded-lg p-0.5">
-          {(['lucide', 'phosphor'] as const).map((t) => (
+          {(['tabler', 'phosphor'] as const).map((t) => (
             <button
               key={t}
               onClick={() => { setTab(t); setSearch('') }}
@@ -70,14 +72,14 @@ export function IconsClient() {
                   : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
               }`}
             >
-              {t === 'lucide' ? 'Lucide' : 'Phosphor'}
+              {t === 'tabler' ? 'Tabler' : 'Phosphor'}
             </button>
           ))}
         </div>
         <input
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          placeholder={`Search ${tab === 'lucide' ? 'Lucide' : 'Phosphor'} icons...`}
+          placeholder={`Search ${tab === 'tabler' ? 'Tabler' : 'Phosphor'} icons...`}
           className="flex-1 min-w-[200px] px-3 py-2 text-sm border border-slate-200 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200"
         />
         <span className="text-xs text-slate-400 dark:text-slate-500">

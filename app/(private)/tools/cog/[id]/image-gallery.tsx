@@ -15,7 +15,7 @@ import { Button } from '@/components/ui/button';
 import { CogGridImage, CogTinyImage } from '@/components/cog/cog-image';
 import { StarRating } from './star-rating';
 import type { CogTagWithGroup, CogImageWithGroupInfo } from '@/lib/types/cog';
-import { Trash2 } from 'lucide-react';
+import { IconTrash } from '@tabler/icons-react';
 
 export interface UploadingFile {
   id: string;
@@ -741,7 +741,7 @@ export function ImageGallery({
                   }}
                   title="Delete image"
                 >
-                  <Trash2 className="size-3" />
+                  <IconTrash size={12}  />
                 </button>
               )}
             </div>

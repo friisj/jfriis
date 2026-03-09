@@ -1,7 +1,7 @@
 'use client'
 
 import { Button } from '@/components/ui/button'
-import { Loader2 } from 'lucide-react'
+import { IconLoader2 } from '@tabler/icons-react'
 import { cn } from '@/lib/utils'
 
 interface FormActionsProps {
@@ -75,7 +75,7 @@ export function FormActions({
         >
           {isSubmitting ? (
             <>
-              <Loader2 className="size-4 animate-spin" />
+              <IconLoader2 size={16} className="animate-spin" />
               {submitLoadingLabel}
             </>
           ) : (

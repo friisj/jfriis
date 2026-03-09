@@ -10,7 +10,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { Loader2, MoreHorizontal, Sparkles, Trash2 } from 'lucide-react'
+import { IconLoader2, IconDotsVertical, IconSparkles, IconTrash } from '@tabler/icons-react'
 
 interface AIAction {
   label: string
@@ -103,7 +103,7 @@ export function EntityControlCluster({
           >
             {isSaving ? (
               <>
-                <Loader2 className="size-4 animate-spin" />
+                <IconLoader2 size={16} className="animate-spin" />
                 Saving...
               </>
             ) : (
@@ -129,9 +129,9 @@ export function EntityControlCluster({
                   disabled={action.loading}
                 >
                   {action.loading ? (
-                    <Loader2 className="size-4 animate-spin" />
+                    <IconLoader2 size={16} className="animate-spin" />
                   ) : (
-                    action.icon || <Sparkles className="size-4" />
+                    action.icon || <IconSparkles size={16}  />
                   )}
                   {action.label}
                 </Button>
@@ -193,7 +193,7 @@ export function EntityControlCluster({
                 disabled={isSaving}
                 className="text-destructive hover:text-destructive hover:bg-destructive/10"
               >
-                <Trash2 className="size-4" />
+                <IconTrash size={16}  />
                 {deleteLabel}
               </Button>
             </div>
@@ -204,7 +204,7 @@ export function EntityControlCluster({
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="outline" size="icon-sm">
-                  <MoreHorizontal className="size-4" />
+                  <IconDotsVertical size={16}  />
                   <span className="sr-only">More actions</span>
                 </Button>
               </DropdownMenuTrigger>
@@ -218,9 +218,9 @@ export function EntityControlCluster({
                         disabled={action.loading}
                       >
                         {action.loading ? (
-                          <Loader2 className="size-4 animate-spin" />
+                          <IconLoader2 size={16} className="animate-spin" />
                         ) : (
-                          action.icon || <Sparkles className="size-4" />
+                          action.icon || <IconSparkles size={16}  />
                         )}
                         <span>{action.label}</span>
                         {action.description && (
@@ -276,7 +276,7 @@ export function EntityControlCluster({
                       onClick={handleDelete}
                       disabled={isSaving}
                     >
-                      <Trash2 className="size-4" />
+                      <IconTrash size={16}  />
                       <span>{deleteLabel}</span>
                     </DropdownMenuItem>
                   </>

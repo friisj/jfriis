@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { Check, X, RefreshCw, Sparkles, ThumbsUp } from 'lucide-react';
+import { IconCheck, IconX, IconRefresh, IconSparkles, IconThumbUp } from '@tabler/icons-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -186,7 +186,7 @@ export function CalibrationPanel({
         />
         <div className="flex gap-2">
           <Button size="sm" variant="outline" onClick={handleDistill} disabled={busy} className="h-7 text-xs">
-            <Sparkles className="h-3 w-3 mr-1" />
+            <IconSparkles size={12} className="mr-1" />
             {distilling ? 'Distilling...' : prompt.trim() ? 'Re-distill' : 'Distill'}
           </Button>
           <Button size="sm" onClick={handleGenerate} disabled={busy || !prompt.trim()} className="h-7 text-xs">
@@ -295,11 +295,11 @@ function ActiveRoundView({
       {/* Actions */}
       <div className="flex gap-2">
         <Button size="sm" variant="outline" onClick={onRefine} disabled={busy} className="h-7 text-xs">
-          <RefreshCw className="h-3 w-3 mr-1" />
+          <IconRefresh size={12} className="mr-1" />
           {refining ? 'Refining...' : 'Refine'}
         </Button>
         <Button size="sm" onClick={onApprove} disabled={busy} className="h-7 text-xs">
-          <ThumbsUp className="h-3 w-3 mr-1" />
+          <IconThumbUp size={12} className="mr-1" />
           {approving ? 'Approving...' : 'Approve'}
         </Button>
       </div>
@@ -336,9 +336,9 @@ function BenchmarkImageCard({
             image.rating === 'approved' ? 'bg-green-500' : 'bg-red-500'
           }`}>
             {image.rating === 'approved' ? (
-              <Check className="h-3 w-3 text-white" />
+              <IconCheck size={12} className="text-white" />
             ) : (
-              <X className="h-3 w-3 text-white" />
+              <IconX size={12} className="text-white" />
             )}
           </div>
         )}
@@ -352,7 +352,7 @@ function BenchmarkImageCard({
           onClick={() => onRate(image.id, 'approved')}
           className="h-6 flex-1 text-xs px-1"
         >
-          <Check className="h-3 w-3" />
+          <IconCheck size={12}  />
         </Button>
         <Button
           size="sm"
@@ -360,7 +360,7 @@ function BenchmarkImageCard({
           onClick={() => onRate(image.id, 'rejected')}
           className="h-6 flex-1 text-xs px-1"
         >
-          <X className="h-3 w-3" />
+          <IconX size={12}  />
         </Button>
       </div>
 
@@ -418,9 +418,9 @@ function RoundHistoryItem({ round }: { round: CogBenchmarkRoundWithImages }) {
                       img.rating === 'approved' ? 'bg-green-500' : 'bg-red-500'
                     }`}>
                       {img.rating === 'approved' ? (
-                        <Check className="h-2.5 w-2.5 text-white" />
+                        <IconCheck size={8} className=".5 .5 text-white" />
                       ) : (
-                        <X className="h-2.5 w-2.5 text-white" />
+                        <IconX size={8} className=".5 .5 text-white" />
                       )}
                     </div>
                   )}

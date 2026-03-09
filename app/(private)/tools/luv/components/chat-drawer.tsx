@@ -17,7 +17,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { ArrowUp, ChevronDown, Ellipsis, ImagePlus, Save, Trash2, X } from 'lucide-react';
+import { IconArrowUp, IconChevronDown, IconDots, IconPhotoPlus, IconDeviceFloppy, IconTrash, IconX } from '@tabler/icons-react';
 import { composeLayers } from '@/lib/luv/soul-composer';
 import { LAYER_REGISTRY } from '@/lib/luv/soul-layers';
 import { useLuvChatSession, MODEL_OPTIONS, getMessageText } from './use-luv-chat-session';
@@ -107,7 +107,7 @@ export function ChatDrawer() {
                   onClick={() => setPendingFiles((prev) => prev.filter((_, j) => j !== i))}
                   className="absolute -top-1 -right-1 bg-destructive text-destructive-foreground rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
                 >
-                  <X className="size-2.5" />
+                  <IconX size={10}  />
                 </button>
               </div>
             ))}
@@ -135,7 +135,7 @@ export function ChatDrawer() {
                     className="h-auto self-end shrink-0 p-0 hover:bg-transparent active:bg-transparent"
                     title="Chat menu"
                   >
-                    <Ellipsis className="size-4" />
+                    <IconDots size={16}  />
                   </button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent side="top" align="start" className="w-48">
@@ -155,15 +155,15 @@ export function ChatDrawer() {
                         onClick={() => handleSaveConversation(soulData)}
                         disabled={isActive}
                       >
-                        <Save className="size-3.5 mr-2" />
-                        Save conversation
+                        <IconDeviceFloppy size={14} className="mr-2" />
+                        IconDeviceFloppy conversation
                       </DropdownMenuItem>
                       <DropdownMenuItem
                         className="text-xs"
                         onClick={handleClear}
                         disabled={isActive}
                       >
-                        <Trash2 className="size-3.5 mr-2" />
+                        <IconTrash size={14} className="mr-2" />
                         Clear conversation
                       </DropdownMenuItem>
                     </>
@@ -178,7 +178,7 @@ export function ChatDrawer() {
                 disabled={isActive || !soulLoaded}
                 title="Attach image"
               >
-                <ImagePlus className="size-4" />
+                <IconPhotoPlus size={16}  />
               </Button>
               <input
                 ref={fileInputRef}
@@ -199,7 +199,7 @@ export function ChatDrawer() {
                 size="sm"
                 className="h-auto self-end size-8 p-2"
               >
-                <ArrowUp className="size-4" />
+                <IconArrowUp size={16}  />
               </Button>
             </div>
           </div>
@@ -342,7 +342,7 @@ function ScrollIndicator({
       }
       className="flex items-center justify-center w-6 h-6 rounded-full bg-muted border absolute bottom-20 left-1/2 -translate-x-1/2 shadow-sm hover:bg-accent transition-colors"
     >
-      <ChevronDown className="size-3.5" />
+      <IconChevronDown size={14}  />
     </button>
   );
 }

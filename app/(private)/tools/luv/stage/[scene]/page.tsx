@@ -1,7 +1,7 @@
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, AlertTriangle } from 'lucide-react';
+import { IconArrowLeft, IconAlertTriangle } from '@tabler/icons-react';
 import { getScene } from '@/lib/luv/scene-registry';
 import { buildSceneContext } from '@/lib/luv/scene-context';
 import {
@@ -44,7 +44,7 @@ export default async function SceneViewerPage({ params }: Props) {
           href="/tools/luv/stage"
           className="text-xs text-muted-foreground hover:text-foreground transition-colors"
         >
-          <ArrowLeft className="h-3 w-3 inline mr-1" />
+          <IconArrowLeft size={12} className="inline mr-1" />
           Scenes
         </Link>
       </div>
@@ -62,7 +62,7 @@ export default async function SceneViewerPage({ params }: Props) {
       {ctx.missingRequired.length > 0 && (
         <div className="rounded border border-yellow-500/30 bg-yellow-500/5 p-3 mb-6">
           <div className="flex items-center gap-2 text-xs text-yellow-600 dark:text-yellow-400">
-            <AlertTriangle className="h-3 w-3" />
+            <IconAlertTriangle size={12}  />
             <span>Missing required modules: {ctx.missingRequired.join(', ')}</span>
           </div>
         </div>

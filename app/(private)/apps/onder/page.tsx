@@ -10,7 +10,7 @@ import { ColorLayersMaster } from '@/components/studio/onder/color-layers-master
 import { FlowEngine } from '@/components/studio/onder/flow-engine';
 import { ColorLayerBus } from '@/lib/studio/onder/color-layer-bus';
 import { ColorLayerManager } from '@/lib/studio/onder/color-layer-manager';
-import { Info, Square, StopCircle } from 'lucide-react';
+import { IconInfoCircle, IconSquare, IconPlayerStop } from '@tabler/icons-react';
 import * as Tone from 'tone';
 
 interface PadLayer {
@@ -549,7 +549,7 @@ export default function OnderPage() {
             {process.env.NODE_ENV === 'development' && colorBusRef.current && colorManagerRef.current && (
               <details className="text-xs text-gray-400">
                 <summary className="cursor-pointer hover:text-gray-300">
-                  System Info
+                  System IconInfoCircle
                 </summary>
                 <div className="absolute z-50 mt-2 bg-black/90 border border-cyan-500/30 rounded p-3 font-mono text-xs space-y-1 min-w-80">
                   <div>Master Level: {colorBusRef.current.masterLevel}% ({(colorBusRef.current.masterLevel/100).toFixed(2)} gain)</div>
@@ -565,7 +565,7 @@ export default function OnderPage() {
             <Dialog>
               <DialogTrigger asChild>
                 <Button variant="outline" size="sm" className="border-cyan-500/30 text-cyan-200 hover:bg-cyan-500/20">
-                  <Info className="w-4 h-4" />
+                  <IconInfoCircle size={16}  />
                 </Button>
               </DialogTrigger>
               <DialogContent className="bg-slate-900 border-cyan-500/30">
@@ -612,7 +612,7 @@ export default function OnderPage() {
                         : 'bg-cyan-600 hover:bg-cyan-700'
                     } text-white`}
                   >
-                    {isPlaying ? <StopCircle className="w-6 h-6" /> : <Square className="w-6 h-6" />}
+                    {isPlaying ? <IconPlayerStop size={24}  /> : <IconSquare size={24}  />}
                   </Button>
 
                   <div className="text-left">

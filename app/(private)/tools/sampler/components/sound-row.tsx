@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { Pencil, Trash2, Check, X } from 'lucide-react';
+import { IconPencil, IconTrash, IconCheck, IconX } from '@tabler/icons-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { updateSound, deleteSound } from '@/lib/sampler';
@@ -84,7 +84,7 @@ export function SoundRow({ sound, onDeleted, onRenamed }: SoundRowProps) {
               className="h-7 w-7"
               disabled={saving}
             >
-              <Check className="size-3.5" />
+              <IconCheck size={14}  />
             </Button>
             <Button
               type="button"
@@ -93,7 +93,7 @@ export function SoundRow({ sound, onDeleted, onRenamed }: SoundRowProps) {
               className="h-7 w-7"
               onClick={() => { setName(sound.name); setEditing(false); }}
             >
-              <X className="size-3.5" />
+              <IconX size={14}  />
             </Button>
           </form>
         ) : (
@@ -132,7 +132,7 @@ export function SoundRow({ sound, onDeleted, onRenamed }: SoundRowProps) {
             onClick={() => setEditing(true)}
             title="Rename"
           >
-            <Pencil className="size-3.5" />
+            <IconPencil size={14}  />
           </Button>
           <Button
             variant="ghost"
@@ -142,7 +142,7 @@ export function SoundRow({ sound, onDeleted, onRenamed }: SoundRowProps) {
             disabled={deleting}
             title="Delete"
           >
-            <Trash2 className="size-3.5" />
+            <IconTrash size={14}  />
           </Button>
         </div>
       </td>

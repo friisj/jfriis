@@ -13,7 +13,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
-import { MessageSquare, Loader2, Clock } from 'lucide-react';
+import { IconMessage, IconLoader2, IconClock } from '@tabler/icons-react';
 import { refineCogImage } from '@/lib/ai/actions/refine-cog-image';
 
 interface RefinementHistoryEntry {
@@ -85,7 +85,7 @@ export function RefineImageDialog({
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button variant="outline" size="sm" className="gap-1.5">
-          <MessageSquare className="w-3.5 h-3.5" />
+          <IconMessage size={12} className=".5 .5" />
           Refine
           {refinementHistory.length > 0 && (
             <span className="text-xs bg-muted px-1.5 rounded">
@@ -165,7 +165,7 @@ export function RefineImageDialog({
                   <div className="flex-1 min-w-0">
                     <p className="text-foreground truncate">{entry.feedback}</p>
                     <p className="text-muted-foreground flex items-center gap-1">
-                      <Clock className="w-3 h-3" />
+                      <IconClock size={12}  />
                       {formatDuration(entry.durationMs)}
                     </p>
                   </div>
@@ -188,7 +188,7 @@ export function RefineImageDialog({
           <Button onClick={handleRefine} disabled={!feedback.trim() || isRefining}>
             {isRefining ? (
               <>
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                <IconLoader2 size={16} className="mr-2 animate-spin" />
                 Refining...
               </>
             ) : (

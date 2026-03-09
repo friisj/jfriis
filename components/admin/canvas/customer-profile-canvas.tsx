@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useMemo, useCallback } from 'react'
-import { Plus } from 'lucide-react'
+import { IconPlus } from '@tabler/icons-react'
 import { cn } from '@/lib/utils'
 import { BlockGridCanvas, type CanvasMode } from './block-grid-canvas'
 import { CustomerProfileItemCard } from './customer-profile-item'
@@ -146,7 +146,7 @@ export function CustomerProfileCanvas({
             'hover:bg-muted/50 rounded transition-colors'
           )}
         >
-          <Plus className="w-3.5 h-3.5" />
+          <IconPlus size={12} className=".5 .5" />
           Add
         </button>
       )

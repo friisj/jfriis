@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState, useImperativeHandle, forwardRef, useEffect } from "react";
-import { Volume2, Loader2 } from "lucide-react";
+import { IconVolume, IconLoader2 } from "@tabler/icons-react";
 
 interface Stroke {
   points: { x: number; y: number }[];
@@ -516,7 +516,7 @@ export const CombinedAnnotationCanvas = forwardRef<
                 </div>
                 {annotation.status === "transcribing" && (
                   <div className="text-xs text-gray-500 flex items-center gap-1 mt-1">
-                    <Loader2 className="w-3 h-3 animate-spin" />
+                    <IconLoader2 className="w-3 h-3 animate-spin" />
                     Transcribing...
                   </div>
                 )}
@@ -533,7 +533,7 @@ export const CombinedAnnotationCanvas = forwardRef<
                         }}
                         className="mt-2 flex items-center gap-1 text-xs text-red-600 hover:text-red-700"
                       >
-                        <Volume2 className="w-4 h-4" />
+                        <IconVolume className="w-4 h-4" />
                         Play Audio
                       </button>
                     )}
