@@ -2,54 +2,67 @@
 
 import { useState, useMemo, useCallback, useEffect } from 'react'
 
-type Tab = 'tabler' | 'phosphor'
+type Tab = 'tabler' | 'lucide' | 'phosphor'
 type IconEntry = [string, React.ComponentType<{ size?: number; className?: string }>]
+
+const TAB_LABELS: Record<Tab, string> = {
+  tabler: 'Tabler',
+  lucide: 'Lucide',
+  phosphor: 'Phosphor',
+}
 
 export function IconsClient() {
   const [tab, setTab] = useState<Tab>('tabler')
   const [search, setSearch] = useState('')
   const [copied, setCopied] = useState<string | null>(null)
-  const [tablerEntries, setTablerEntries] = useState<IconEntry[]>([])
-  const [phosphorEntries, setPhosphorEntries] = useState<IconEntry[]>([])
+  const [iconSets, setIconSets] = useState<Record<Tab, IconEntry[]>>({
+    tabler: [],
+    lucide: [],
+    phosphor: [],
+  })
   const [loading, setLoading] = useState(true)
 
-  // Lazy-load icon libraries to avoid polluting the webpack module graph
+  // Lazy-load Tabler on mount (default tab)
   useEffect(() => {
     import('@tabler/icons-react').then((mod) => {
       const entries = Object.entries(mod).filter(
         ([name, val]) => typeof val === 'function' && name.startsWith('Icon') && name !== 'IconContext'
       ) as IconEntry[]
-      setTablerEntries(entries)
+      setIconSets((prev) => ({ ...prev, tabler: entries }))
       setLoading(false)
     })
   }, [])
 
+  // Lazy-load other sets on tab switch
   useEffect(() => {
-    if (tab !== 'phosphor' || phosphorEntries.length > 0) return
+    if (tab === 'tabler') return
+    if (iconSets[tab].length > 0) return
     setLoading(true)
-    import('@phosphor-icons/react').then((mod) => {
-      const entries = Object.entries(mod).filter(
-        ([name, val]) => typeof val === 'function' && /^[A-Z]/.test(name) && name !== 'IconContext'
-      ) as IconEntry[]
-      setPhosphorEntries(entries)
-      setLoading(false)
-    })
-  }, [tab, phosphorEntries.length])
 
-  const filteredTabler = useMemo(() => {
-    if (!search) return tablerEntries
+    if (tab === 'lucide') {
+      import('lucide-react').then((mod) => {
+        const entries = Object.entries(mod.icons) as IconEntry[]
+        setIconSets((prev) => ({ ...prev, lucide: entries }))
+        setLoading(false)
+      })
+    } else if (tab === 'phosphor') {
+      import('@phosphor-icons/react').then((mod) => {
+        const entries = Object.entries(mod).filter(
+          ([name, val]) => typeof val === 'function' && /^[A-Z]/.test(name) && name !== 'IconContext'
+        ) as IconEntry[]
+        setIconSets((prev) => ({ ...prev, phosphor: entries }))
+        setLoading(false)
+      })
+    }
+  }, [tab, iconSets])
+
+  const allEntries = iconSets[tab]
+
+  const filtered = useMemo(() => {
+    if (!search) return allEntries
     const q = search.toLowerCase()
-    return tablerEntries.filter(([name]) => name.toLowerCase().includes(q))
-  }, [search, tablerEntries])
-
-  const filteredPhosphor = useMemo(() => {
-    if (!search) return phosphorEntries
-    const q = search.toLowerCase()
-    return phosphorEntries.filter(([name]) => name.toLowerCase().includes(q))
-  }, [search, phosphorEntries])
-
-  const entries = tab === 'tabler' ? filteredTabler : filteredPhosphor
-  const totalCount = tab === 'tabler' ? tablerEntries.length : phosphorEntries.length
+    return allEntries.filter(([name]) => name.toLowerCase().includes(q))
+  }, [search, allEntries])
 
   const handleCopy = useCallback((name: string) => {
     navigator.clipboard.writeText(name)
@@ -62,7 +75,7 @@ export function IconsClient() {
       {/* Tabs + search */}
       <div className="flex items-center gap-4 flex-wrap">
         <div className="flex bg-slate-100 dark:bg-slate-800 rounded-lg p-0.5">
-          {(['tabler', 'phosphor'] as const).map((t) => (
+          {(['tabler', 'lucide', 'phosphor'] as const).map((t) => (
             <button
               key={t}
               onClick={() => { setTab(t); setSearch('') }}
@@ -72,18 +85,18 @@ export function IconsClient() {
                   : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
               }`}
             >
-              {t === 'tabler' ? 'Tabler' : 'Phosphor'}
+              {TAB_LABELS[t]}
             </button>
           ))}
         </div>
         <input
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          placeholder={`Search ${tab === 'tabler' ? 'Tabler' : 'Phosphor'} icons...`}
+          placeholder={`Search ${TAB_LABELS[tab]} icons...`}
           className="flex-1 min-w-[200px] px-3 py-2 text-sm border border-slate-200 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200"
         />
         <span className="text-xs text-slate-400 dark:text-slate-500">
-          {entries.length} / {totalCount}
+          {filtered.length} / {allEntries.length}
         </span>
       </div>
 
@@ -92,13 +105,13 @@ export function IconsClient() {
         <div className="text-center py-8 text-sm text-slate-400 dark:text-slate-500">
           Loading icons...
         </div>
-      ) : entries.length === 0 ? (
+      ) : filtered.length === 0 ? (
         <div className="text-center py-8 text-sm text-slate-400 dark:text-slate-500">
           No icons match &ldquo;{search}&rdquo;
         </div>
       ) : (
         <div className="grid grid-cols-6 sm:grid-cols-8 md:grid-cols-10 lg:grid-cols-12 gap-2">
-          {entries.map(([name, Icon]) => (
+          {filtered.map(([name, Icon]) => (
             <button
               key={name}
               onClick={() => handleCopy(name)}
