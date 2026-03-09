@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
 
-type Space = 'identity' | 'stage' | 'library';
+type Space = 'identity' | 'stage' | 'research' | 'library';
 
 interface NavItem {
   href: string;
@@ -52,6 +52,17 @@ const spaceConfig: Record<Space, { label: string; sections: NavSection[] }> = {
       },
     ],
   },
+  research: {
+    label: 'Research',
+    sections: [
+      { label: 'All', href: '/tools/luv/research' },
+      { label: 'Hypotheses', href: '/tools/luv/research/hypotheses' },
+      { label: 'Experiments', href: '/tools/luv/research/experiments' },
+      { label: 'Decisions', href: '/tools/luv/research/decisions' },
+      { label: 'Insights', href: '/tools/luv/research/insights' },
+      { label: 'Evidence', href: '/tools/luv/research/evidence' },
+    ],
+  },
   library: {
     label: 'Library',
     sections: [
@@ -66,13 +77,14 @@ const spaceConfig: Record<Space, { label: string; sections: NavSection[] }> = {
   },
 };
 
-const spaceOrder: Space[] = ['identity', 'stage', 'library'];
+const spaceOrder: Space[] = ['identity', 'stage', 'research', 'library'];
 
 export function resolveSpace(pathname: string): Space {
   if (pathname.startsWith('/tools/luv/soul')) return 'identity';
   if (pathname.startsWith('/tools/luv/chassis')) return 'identity';
   if (pathname.startsWith('/tools/luv/studies')) return 'identity';
   if (pathname.startsWith('/tools/luv/stage')) return 'stage';
+  if (pathname.startsWith('/tools/luv/research')) return 'research';
   if (pathname.startsWith('/tools/luv/conversations')) return 'library';
   if (pathname.startsWith('/tools/luv/history')) return 'library';
   if (pathname.startsWith('/tools/luv/media')) return 'library';
