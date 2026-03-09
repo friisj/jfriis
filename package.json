@@ -122,6 +122,7 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "@vitejs/plugin-react": "^5.1.2",
+    "canvas": "^3.2.1",
     "eslint": "^9",
     "eslint-config-next": "16.0.3",
     "happy-dom": "^20.3.7",

@@ -21,6 +21,13 @@ const MODES = [
     textColor: 'text-cyan-400',
   },
   {
+    href: '/apps/recess/textures',
+    title: 'Texture Lab',
+    description: 'Prototype surface materials — procedural textures, matcaps, and SD-generated assets.',
+    color: 'border-orange-800 hover:border-orange-600',
+    textColor: 'text-orange-400',
+  },
+  {
     href: '/apps/recess/manage',
     title: 'Manage',
     description: 'Tune level generation, gameplay params, and preview mazes.',
