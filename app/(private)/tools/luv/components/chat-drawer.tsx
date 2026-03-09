@@ -5,10 +5,19 @@ import { isToolUIPart, getToolName } from 'ai';
 import type { UIMessage } from 'ai';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+} from '@/components/ui/dropdown-menu';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { ChevronDown, ImagePlus, Settings2, X } from 'lucide-react';
+import { ArrowUp, ChevronDown, Ellipsis, ImagePlus, Save, Send, Trash2, X } from 'lucide-react';
 import { composeLayers } from '@/lib/luv/soul-composer';
 import { LAYER_REGISTRY } from '@/lib/luv/soul-layers';
 import { useLuvChatSession, MODEL_OPTIONS, getMessageText } from './use-luv-chat-session';
@@ -79,7 +88,7 @@ export function ChatDrawer() {
       <ScrollIndicator containerRef={messagesEndRef} />
 
       {/* Input */}
-      <div className="border-t px-3 py-2 shrink-0 space-y-1.5">
+      <div className="border-t shrink-0 space-y-1.5">
         {/* Pending image thumbnails */}
         {pendingFiles.length > 0 && (
           <div className="flex gap-1.5 flex-wrap">
@@ -102,96 +111,97 @@ export function ChatDrawer() {
             ))}
           </div>
         )}
-        <div className="flex gap-1.5">
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/*"
-            multiple
-            className="hidden"
-            onChange={(e) => {
-              if (e.target.files) addFilesFromFileList(Array.from(e.target.files));
-              e.target.value = '';
-            }}
-          />
-          <Popover>
-            <PopoverTrigger asChild>
+        <div className="flex flex-col">
+          <div className="flex">
+            <Textarea
+              ref={textareaRef}
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={handleKeyDown}
+              onPaste={handlePaste}
+              placeholder="Message Luv..."
+              rows={2}
+              className="resize-none text-xs border-none rounded-none p-4 focus-visible:ring-0 focus-visible:ring-offset-0 bg-transparent shadow-none"
+              disabled={isActive || !soulLoaded}
+            />
+          </div>
+          <div className="flex justify-between items-end">
+            <div className="flex gap-2 px-4 pb-4">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    className="h-auto self-end shrink-0 p-0 hover:bg-transparent active:bg-transparent"
+                    title="Chat menu"
+                  >
+                    <Ellipsis className="size-4" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent side="top" align="start" className="w-48">
+                  <DropdownMenuLabel className="text-[10px]">Model</DropdownMenuLabel>
+                  <DropdownMenuRadioGroup value={modelKey} onValueChange={setModelKey}>
+                    {MODEL_OPTIONS.map((opt) => (
+                      <DropdownMenuRadioItem key={opt.key} value={opt.key} className="text-xs">
+                        {opt.label}
+                      </DropdownMenuRadioItem>
+                    ))}
+                  </DropdownMenuRadioGroup>
+                  {messages.length > 0 && (
+                    <>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem
+                        className="text-xs"
+                        onClick={() => handleSaveConversation(soulData)}
+                        disabled={isActive}
+                      >
+                        <Save className="size-3.5 mr-2" />
+                        Save conversation
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        className="text-xs"
+                        onClick={handleClear}
+                        disabled={isActive}
+                      >
+                        <Trash2 className="size-3.5 mr-2" />
+                        Clear conversation
+                      </DropdownMenuItem>
+                    </>
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
               <Button
                 variant="ghost"
                 size="sm"
                 className="h-auto self-end px-1.5 shrink-0"
-                title="Chat settings"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={isActive || !soulLoaded}
+                title="Attach image"
               >
-                <Settings2 className="size-4" />
+                <ImagePlus className="size-4" />
               </Button>
-            </PopoverTrigger>
-            <PopoverContent side="top" align="start" className="w-48 p-2">
-              <label className="text-[10px] font-medium text-muted-foreground">Model</label>
-              <select
-                value={modelKey}
-                onChange={(e) => setModelKey(e.target.value)}
-                className="w-full text-xs rounded border bg-background px-1.5 py-1 mt-0.5"
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                multiple
+                className="hidden"
+                onChange={(e) => {
+                  if (e.target.files) addFilesFromFileList(Array.from(e.target.files));
+                  e.target.value = '';
+                }}
+              />
+            </div>
+            <div className="flex-1 flex justify-end px-4 pb-4">
+              <Button
+                onClick={handleSend}
+                disabled={isActive || (!input.trim() && pendingFiles.length === 0) || !soulLoaded}
+                size="sm"
+                className="h-auto self-end size-8 p-2"
               >
-                {MODEL_OPTIONS.map((opt) => (
-                  <option key={opt.key} value={opt.key}>
-                    {opt.label}
-                  </option>
-                ))}
-              </select>
-            </PopoverContent>
-          </Popover>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-auto self-end px-1.5 shrink-0"
-            onClick={() => fileInputRef.current?.click()}
-            disabled={isActive || !soulLoaded}
-            title="Attach image"
-          >
-            <ImagePlus className="size-4" />
-          </Button>
-          <Textarea
-            ref={textareaRef}
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={handleKeyDown}
-            onPaste={handlePaste}
-            placeholder="Message Luv..."
-            rows={2}
-            className="resize-none text-xs"
-            disabled={isActive || !soulLoaded}
-          />
-          <Button
-            onClick={handleSend}
-            disabled={isActive || (!input.trim() && pendingFiles.length === 0) || !soulLoaded}
-            size="sm"
-            className="h-auto self-end"
-          >
-            Send
-          </Button>
-        </div>
-        {messages.length > 0 && (
-          <div className="flex justify-between">
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-6 text-[10px] px-1.5"
-              onClick={handleClear}
-              disabled={isActive}
-            >
-              Clear
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-6 text-[10px] px-1.5"
-              onClick={() => handleSaveConversation(soulData)}
-              disabled={isActive}
-            >
-              Save
-            </Button>
+                <ArrowUp className="size-4" />
+              </Button>
+            </div>
           </div>
-        )}
+        </div>
       </div>
     </div>
   );
