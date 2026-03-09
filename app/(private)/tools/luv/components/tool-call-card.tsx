@@ -1,7 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { IconChevronRight } from '@tabler/icons-react';
+import Link from 'next/link';
+import { IconChevronRight, IconExternalLink } from '@tabler/icons-react';
 import { cn } from '@/lib/utils';
 
 interface ToolCallCardProps {
@@ -30,10 +31,89 @@ const toolLabels: Record<string, string> = {
   search_research: 'Search Research',
 };
 
+// Tools whose results contain linkable research entries
+const researchTools = new Set([
+  'create_research',
+  'update_research',
+  'get_research',
+  'list_research',
+  'search_research',
+]);
+
+interface ResearchEntry {
+  id: string;
+  kind: string;
+  title: string;
+}
+
+function isResearchEntry(v: unknown): v is ResearchEntry {
+  return (
+    typeof v === 'object' &&
+    v !== null &&
+    'id' in v &&
+    'kind' in v &&
+    'title' in v &&
+    typeof (v as ResearchEntry).id === 'string' &&
+    typeof (v as ResearchEntry).title === 'string'
+  );
+}
+
+function extractLinkableEntries(toolName: string, result: unknown): ResearchEntry[] {
+  if (!researchTools.has(toolName) || !result || typeof result !== 'object') return [];
+
+  const r = result as Record<string, unknown>;
+
+  // Single entry (create_research, update_research, get_research)
+  if (isResearchEntry(r)) return [r];
+
+  // get_research returns { entry, children }
+  if (isResearchEntry(r.entry)) {
+    const entries = [r.entry as ResearchEntry];
+    if (Array.isArray(r.children)) {
+      entries.push(...(r.children as unknown[]).filter(isResearchEntry));
+    }
+    return entries;
+  }
+
+  // list_research / search_research return { entries }
+  if (Array.isArray(r.entries)) {
+    return (r.entries as unknown[]).filter(isResearchEntry);
+  }
+
+  return [];
+}
+
+const kindLabels: Record<string, string> = {
+  hypothesis: 'Hypothesis',
+  experiment: 'Experiment',
+  decision: 'Decision',
+  insight: 'Insight',
+  evidence: 'Evidence',
+};
+
+function EntryLink({ entry }: { entry: ResearchEntry }) {
+  return (
+    <Link
+      href={`/tools/luv/research/${entry.id}`}
+      className="flex items-center gap-1.5 px-2 py-1 rounded hover:bg-accent/50 transition-colors group"
+    >
+      <span className="text-[10px] text-muted-foreground w-16 shrink-0">
+        {kindLabels[entry.kind] ?? entry.kind}
+      </span>
+      <span className="text-xs truncate flex-1">{entry.title}</span>
+      <IconExternalLink
+        size={10}
+        className="shrink-0 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity"
+      />
+    </Link>
+  );
+}
+
 export function ToolCallCard({ toolName, state, result }: ToolCallCardProps) {
   const [expanded, setExpanded] = useState(false);
   const label = toolLabels[toolName] ?? toolName;
   const isComplete = state === 'output-available';
+  const linkableEntries = isComplete ? extractLinkableEntries(toolName, result) : [];
 
   return (
     <div className="rounded border bg-muted/50 text-xs my-1">
@@ -58,9 +138,25 @@ export function ToolCallCard({ toolName, state, result }: ToolCallCardProps) {
             running...
           </span>
         )}
+        {isComplete && linkableEntries.length > 0 && !expanded && (
+          <span className="ml-auto text-muted-foreground">
+            {linkableEntries.length} {linkableEntries.length === 1 ? 'entry' : 'entries'}
+          </span>
+        )}
       </button>
+
+      {/* Linkable entries shown when expanded */}
+      {expanded && linkableEntries.length > 0 && (
+        <div className="border-t py-1">
+          {linkableEntries.map((entry) => (
+            <EntryLink key={entry.id} entry={entry} />
+          ))}
+        </div>
+      )}
+
+      {/* Raw JSON fallback */}
       {expanded && result != null && (
-        <div className="border-t px-2 py-1.5 max-h-48 overflow-auto">
+        <div className={cn('border-t px-2 py-1.5 max-h-48 overflow-auto', linkableEntries.length > 0 && 'opacity-50')}>
           <pre className="text-[10px] text-muted-foreground whitespace-pre-wrap break-all">
             {JSON.stringify(result, null, 2)}
           </pre>
