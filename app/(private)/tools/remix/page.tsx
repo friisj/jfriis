@@ -11,11 +11,48 @@ interface RecipeOption {
   is_preset: boolean
 }
 
+interface StemChop {
+  id: string
+  stem_type: string
+  audio_url: string
+  duration_ms: number
+  energy: number
+  tags: string[]
+  strategy: string
+}
+
+interface StemChopsGroup {
+  stem_type: string
+  chops: StemChop[]
+}
+
+interface SampleBank {
+  source: {
+    filename: string
+    duration_ms: number
+    sample_rate: number
+    channels: number
+  }
+  analysis: {
+    bpm: number
+    bpm_confidence: number
+    key: string
+    key_confidence: number
+    bar_duration_ms: number
+  }
+  stems: StemChopsGroup[]
+}
+
 type JobState =
   | { phase: 'idle' }
   | { phase: 'uploading' }
   | { phase: 'processing'; stage: string }
-  | { phase: 'complete'; jobId: string; chopCount: number; stemCount: number }
+  | {
+      phase: 'complete'
+      jobId: string
+      sampleBank: SampleBank
+      stemUrls: string[]
+    }
   | { phase: 'error'; message: string }
 
 const STAGE_LABELS: Record<string, string> = {
@@ -23,6 +60,241 @@ const STAGE_LABELS: Record<string, string> = {
   analyzing: 'Analyzing audio...',
   chopping: 'Chopping stems...',
 }
+
+// ---------------------------------------------------------------------------
+// Audio preview hook (HTML5 Audio, simple play/stop)
+// ---------------------------------------------------------------------------
+
+function useAudioPreview() {
+  const audioRef = useRef<HTMLAudioElement | null>(null)
+  const [playingUrl, setPlayingUrl] = useState<string | null>(null)
+
+  const toggle = useCallback(
+    (url: string) => {
+      // Stop current
+      if (audioRef.current) {
+        audioRef.current.pause()
+        audioRef.current.removeAttribute('src')
+        audioRef.current = null
+      }
+
+      if (playingUrl === url) {
+        setPlayingUrl(null)
+        return
+      }
+
+      const audio = new Audio(url)
+      audio.onended = () => {
+        setPlayingUrl(null)
+        audioRef.current = null
+      }
+      audio.play()
+      audioRef.current = audio
+      setPlayingUrl(url)
+    },
+    [playingUrl]
+  )
+
+  const stop = useCallback(() => {
+    if (audioRef.current) {
+      audioRef.current.pause()
+      audioRef.current.removeAttribute('src')
+      audioRef.current = null
+    }
+    setPlayingUrl(null)
+  }, [])
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (audioRef.current) {
+        audioRef.current.pause()
+        audioRef.current = null
+      }
+    }
+  }, [])
+
+  return { playingUrl, toggle, stop }
+}
+
+// ---------------------------------------------------------------------------
+// Play button component
+// ---------------------------------------------------------------------------
+
+function PlayButton({
+  url,
+  playingUrl,
+  onToggle,
+  label,
+}: {
+  url: string
+  playingUrl: string | null
+  onToggle: (url: string) => void
+  label?: string
+}) {
+  const isPlaying = playingUrl === url
+  return (
+    <button
+      onClick={() => onToggle(url)}
+      className={`flex items-center gap-1.5 px-2 py-1 rounded text-xs font-medium transition-colors ${
+        isPlaying
+          ? 'bg-foreground text-background'
+          : 'bg-muted hover:bg-accent text-foreground'
+      }`}
+    >
+      <span className="w-3 text-center">{isPlaying ? '■' : '▶'}</span>
+      {label && <span>{label}</span>}
+    </button>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Results panel
+// ---------------------------------------------------------------------------
+
+function ResultsPanel({
+  sampleBank,
+  stemUrls,
+}: {
+  sampleBank: SampleBank
+  stemUrls: string[]
+}) {
+  const { playingUrl, toggle } = useAudioPreview()
+  const [expandedStems, setExpandedStems] = useState<Set<string>>(new Set())
+
+  const toggleStemExpand = (stemType: string) => {
+    setExpandedStems((prev) => {
+      const next = new Set(prev)
+      if (next.has(stemType)) next.delete(stemType)
+      else next.add(stemType)
+      return next
+    })
+  }
+
+  const { source, analysis } = sampleBank
+  const durationSec = (source.duration_ms / 1000).toFixed(1)
+
+  // Build a map from stem type to its URL
+  const stemTypeToUrl: Record<string, string> = {}
+  for (const url of stemUrls) {
+    const match = url.match(/\/([^/]+)\.wav$/)
+    if (match) stemTypeToUrl[match[1]] = url
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Analysis summary */}
+      <div className="grid grid-cols-4 gap-3">
+        {[
+          { label: 'Duration', value: `${durationSec}s` },
+          { label: 'BPM', value: `${Math.round(analysis.bpm)}` },
+          { label: 'Key', value: analysis.key },
+          {
+            label: 'Sample Rate',
+            value: `${(source.sample_rate / 1000).toFixed(1)}k`,
+          },
+        ].map(({ label, value }) => (
+          <div
+            key={label}
+            className="bg-muted/50 rounded-lg p-3 text-center"
+          >
+            <div className="text-lg font-bold font-mono">{value}</div>
+            <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
+              {label}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Stems */}
+      <div className="space-y-2">
+        <h3 className="text-sm font-medium">
+          Stems ({stemUrls.length})
+        </h3>
+        <div className="grid gap-2">
+          {sampleBank.stems.map((stemGroup) => {
+            const stemUrl = stemTypeToUrl[stemGroup.stem_type]
+            const isExpanded = expandedStems.has(stemGroup.stem_type)
+            return (
+              <div
+                key={stemGroup.stem_type}
+                className="border rounded-lg overflow-hidden"
+              >
+                <div className="flex items-center gap-3 p-3">
+                  {stemUrl && (
+                    <PlayButton
+                      url={stemUrl}
+                      playingUrl={playingUrl}
+                      onToggle={toggle}
+                    />
+                  )}
+                  <span className="font-medium text-sm flex-1">
+                    {stemGroup.stem_type}
+                  </span>
+                  <span className="text-xs text-muted-foreground">
+                    {stemGroup.chops.length} chops
+                  </span>
+                  <button
+                    onClick={() => toggleStemExpand(stemGroup.stem_type)}
+                    className="text-xs text-muted-foreground hover:text-foreground px-2 py-1"
+                  >
+                    {isExpanded ? '▾ hide' : '▸ chops'}
+                  </button>
+                </div>
+
+                {/* Chops list */}
+                {isExpanded && (
+                  <div className="border-t bg-muted/30 divide-y divide-border/50 max-h-64 overflow-y-auto">
+                    {stemGroup.chops.map((chop) => (
+                      <div
+                        key={chop.id}
+                        className="flex items-center gap-3 px-3 py-2"
+                      >
+                        <PlayButton
+                          url={chop.audio_url}
+                          playingUrl={playingUrl}
+                          onToggle={toggle}
+                        />
+                        <span className="text-xs font-mono text-muted-foreground w-16">
+                          {(chop.duration_ms / 1000).toFixed(2)}s
+                        </span>
+                        <span className="text-xs text-muted-foreground">
+                          {chop.strategy}
+                        </span>
+                        <div className="flex-1" />
+                        <div className="flex gap-1">
+                          {chop.tags.map((tag) => (
+                            <span
+                              key={tag}
+                              className="text-[10px] bg-muted px-1.5 py-0.5 rounded text-muted-foreground"
+                            >
+                              {tag}
+                            </span>
+                          ))}
+                        </div>
+                        {/* Energy bar */}
+                        <div className="w-12 h-1.5 bg-muted rounded-full overflow-hidden">
+                          <div
+                            className="h-full bg-foreground/40 rounded-full"
+                            style={{ width: `${Math.min(chop.energy * 100, 100)}%` }}
+                          />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )
+          })}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Main page
+// ---------------------------------------------------------------------------
 
 export default function RemixNewJob() {
   const [recipes, setRecipes] = useState<RecipeOption[]>([])
@@ -81,8 +353,8 @@ export default function RemixNewJob() {
       setJobState({
         phase: 'complete',
         jobId: result.job_id,
-        stemCount: result.stem_urls?.length || 0,
-        chopCount: result.chop_urls?.length || 0,
+        sampleBank: result.sample_bank,
+        stemUrls: result.stem_urls,
       })
     } catch (error) {
       setJobState({
@@ -207,19 +479,21 @@ export default function RemixNewJob() {
         {jobState.phase === 'error' && 'Retry'}
       </button>
 
-      {/* Status */}
+      {/* Results */}
       {jobState.phase === 'complete' && (
-        <div className="p-4 rounded-lg border border-green-500/30 bg-green-500/5 space-y-2">
-          <p className="text-sm font-medium text-green-600 dark:text-green-400">
-            Processing complete
-          </p>
-          <div className="text-xs text-muted-foreground space-y-1">
-            <p>
-              {jobState.stemCount} stems separated, {jobState.chopCount} chops
-              generated
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <p className="text-sm font-medium text-green-600 dark:text-green-400">
+              Processing complete
             </p>
-            <p className="font-mono">Job: {jobState.jobId}</p>
+            <span className="text-xs font-mono text-muted-foreground">
+              {jobState.jobId.slice(0, 8)}
+            </span>
           </div>
+          <ResultsPanel
+            sampleBank={jobState.sampleBank}
+            stemUrls={jobState.stemUrls}
+          />
         </div>
       )}
 

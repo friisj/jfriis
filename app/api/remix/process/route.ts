@@ -112,13 +112,25 @@ export async function POST(request: NextRequest) {
       })
       .eq('id', job.id)
 
+    // Prefix pipeline base URL onto relative audio paths so the browser
+    // can fetch them directly from the Python service
+    const prefixUrl = (path: string) =>
+      path.startsWith('/') ? `${PIPELINE_URL}${path}` : path
+
+    const sampleBank = result.sample_bank
+    for (const stemChops of sampleBank.stems) {
+      for (const chop of stemChops.chops) {
+        chop.audio_url = prefixUrl(chop.audio_url)
+      }
+    }
+
     return NextResponse.json({
       job_id: job.id,
       pipeline_job_id: result.job_id,
       status: 'patterning',
-      sample_bank: result.sample_bank,
-      stem_urls: result.stem_urls,
-      chop_urls: result.chop_urls,
+      sample_bank: sampleBank,
+      stem_urls: (result.stem_urls as string[]).map(prefixUrl),
+      chop_urls: (result.chop_urls as string[]).map(prefixUrl),
     })
   } catch (error) {
     const message =
