@@ -1,7 +1,15 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import type { Recipe } from '@/lib/types/remix'
+import type {
+  Arrangement,
+  PatternSet,
+  Recipe,
+  SampleBank,
+} from '@/lib/types/remix'
+import { generatePatterns } from '@/lib/remix/pattern-generator'
+import { buildArrangement } from '@/lib/remix/arrangement-builder'
+import { MixdownEngine } from '@/lib/remix/mixdown-engine'
 
 interface RecipeOption {
   id: string
@@ -15,7 +23,13 @@ type JobState =
   | { phase: 'idle' }
   | { phase: 'uploading' }
   | { phase: 'processing'; stage: string }
-  | { phase: 'complete'; jobId: string; chopCount: number; stemCount: number }
+  | {
+      phase: 'complete'
+      jobId: string
+      sampleBank: SampleBank
+      stemUrls: string[]
+      recipe: Recipe
+    }
   | { phase: 'error'; message: string }
 
 const STAGE_LABELS: Record<string, string> = {
@@ -24,6 +38,420 @@ const STAGE_LABELS: Record<string, string> = {
   chopping: 'Chopping stems...',
 }
 
+// ---------------------------------------------------------------------------
+// Audio preview hook (HTML5 Audio, simple play/stop)
+// ---------------------------------------------------------------------------
+
+function useAudioPreview() {
+  const audioRef = useRef<HTMLAudioElement | null>(null)
+  const [playingUrl, setPlayingUrl] = useState<string | null>(null)
+
+  const toggle = useCallback(
+    (url: string) => {
+      if (audioRef.current) {
+        audioRef.current.pause()
+        audioRef.current.removeAttribute('src')
+        audioRef.current = null
+      }
+
+      if (playingUrl === url) {
+        setPlayingUrl(null)
+        return
+      }
+
+      const audio = new Audio(url)
+      audio.onended = () => {
+        setPlayingUrl(null)
+        audioRef.current = null
+      }
+      audio.play()
+      audioRef.current = audio
+      setPlayingUrl(url)
+    },
+    [playingUrl]
+  )
+
+  useEffect(() => {
+    return () => {
+      if (audioRef.current) {
+        audioRef.current.pause()
+        audioRef.current = null
+      }
+    }
+  }, [])
+
+  return { playingUrl, toggle }
+}
+
+// ---------------------------------------------------------------------------
+// Play button component
+// ---------------------------------------------------------------------------
+
+function PlayButton({
+  url,
+  playingUrl,
+  onToggle,
+  label,
+}: {
+  url: string
+  playingUrl: string | null
+  onToggle: (url: string) => void
+  label?: string
+}) {
+  const isPlaying = playingUrl === url
+  return (
+    <button
+      onClick={() => onToggle(url)}
+      className={`flex items-center gap-1.5 px-2 py-1 rounded text-xs font-medium transition-colors ${
+        isPlaying
+          ? 'bg-foreground text-background'
+          : 'bg-muted hover:bg-accent text-foreground'
+      }`}
+    >
+      <span className="w-3 text-center">{isPlaying ? '■' : '▶'}</span>
+      {label && <span>{label}</span>}
+    </button>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Results panel — stems & chops browser
+// ---------------------------------------------------------------------------
+
+function ResultsPanel({
+  sampleBank,
+  stemUrls,
+}: {
+  sampleBank: SampleBank
+  stemUrls: string[]
+}) {
+  const { playingUrl, toggle } = useAudioPreview()
+  const [expandedStems, setExpandedStems] = useState<Set<string>>(new Set())
+
+  const toggleStemExpand = (stemType: string) => {
+    setExpandedStems((prev) => {
+      const next = new Set(prev)
+      if (next.has(stemType)) next.delete(stemType)
+      else next.add(stemType)
+      return next
+    })
+  }
+
+  const { source, analysis } = sampleBank
+  const durationSec = (source.duration_ms / 1000).toFixed(1)
+
+  const stemTypeToUrl: Record<string, string> = {}
+  for (const url of stemUrls) {
+    const match = url.match(/\/([^/]+)\.wav$/)
+    if (match) stemTypeToUrl[match[1]] = url
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Analysis summary */}
+      <div className="grid grid-cols-4 gap-3">
+        {[
+          { label: 'Duration', value: `${durationSec}s` },
+          { label: 'BPM', value: `${Math.round(analysis.bpm)}` },
+          { label: 'Key', value: analysis.key },
+          {
+            label: 'Sample Rate',
+            value: `${(source.sample_rate / 1000).toFixed(1)}k`,
+          },
+        ].map(({ label, value }) => (
+          <div key={label} className="bg-muted/50 rounded-lg p-3 text-center">
+            <div className="text-lg font-bold font-mono">{value}</div>
+            <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
+              {label}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Stems */}
+      <div className="space-y-2">
+        <h3 className="text-sm font-medium">Stems ({stemUrls.length})</h3>
+        <div className="grid gap-2">
+          {sampleBank.stems.map((stemGroup) => {
+            const stemUrl = stemTypeToUrl[stemGroup.stem_type]
+            const isExpanded = expandedStems.has(stemGroup.stem_type)
+            return (
+              <div
+                key={stemGroup.stem_type}
+                className="border rounded-lg overflow-hidden"
+              >
+                <div className="flex items-center gap-3 p-3">
+                  {stemUrl && (
+                    <PlayButton
+                      url={stemUrl}
+                      playingUrl={playingUrl}
+                      onToggle={toggle}
+                    />
+                  )}
+                  <span className="font-medium text-sm flex-1">
+                    {stemGroup.stem_type}
+                  </span>
+                  <span className="text-xs text-muted-foreground">
+                    {stemGroup.chops.length} chops
+                  </span>
+                  <button
+                    onClick={() => toggleStemExpand(stemGroup.stem_type)}
+                    className="text-xs text-muted-foreground hover:text-foreground px-2 py-1"
+                  >
+                    {isExpanded ? '▾ hide' : '▸ chops'}
+                  </button>
+                </div>
+
+                {isExpanded && (
+                  <div className="border-t bg-muted/30 divide-y divide-border/50 max-h-64 overflow-y-auto">
+                    {stemGroup.chops.map((chop) => (
+                      <div
+                        key={chop.id}
+                        className="flex items-center gap-3 px-3 py-2"
+                      >
+                        <PlayButton
+                          url={chop.audio_url}
+                          playingUrl={playingUrl}
+                          onToggle={toggle}
+                        />
+                        <span className="text-xs font-mono text-muted-foreground w-16">
+                          {(chop.duration_ms / 1000).toFixed(2)}s
+                        </span>
+                        <span className="text-xs text-muted-foreground">
+                          {chop.strategy}
+                        </span>
+                        <div className="flex-1" />
+                        <div className="flex gap-1">
+                          {chop.tags.map((tag) => (
+                            <span
+                              key={tag}
+                              className="text-[10px] bg-muted px-1.5 py-0.5 rounded text-muted-foreground"
+                            >
+                              {tag}
+                            </span>
+                          ))}
+                        </div>
+                        <div className="w-12 h-1.5 bg-muted rounded-full overflow-hidden">
+                          <div
+                            className="h-full bg-foreground/40 rounded-full"
+                            style={{
+                              width: `${Math.min(chop.energy * 100, 100)}%`,
+                            }}
+                          />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )
+          })}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Remix player — stages 4-6 (generate patterns, arrange, play)
+// ---------------------------------------------------------------------------
+
+function RemixPlayer({
+  sampleBank,
+  recipe,
+}: {
+  sampleBank: SampleBank
+  recipe: Recipe
+}) {
+  const engineRef = useRef<MixdownEngine | null>(null)
+  const [remixState, setRemixState] = useState<
+    'idle' | 'loading' | 'ready' | 'playing' | 'error'
+  >('idle')
+  const [progress, setProgress] = useState({ bar: 0, total: 0 })
+  const [seed, setSeed] = useState(() => Math.floor(Math.random() * 100000))
+  const [generatedData, setGeneratedData] = useState<{
+    patternSet: PatternSet
+    arrangement: Arrangement
+  } | null>(null)
+
+  const generate = useCallback(async () => {
+    setRemixState('loading')
+
+    try {
+      // Stage 4: Pattern generation
+      const patternSet = generatePatterns(sampleBank, recipe, seed)
+
+      // Stage 5: Arrangement
+      const arrangement = buildArrangement(patternSet, recipe)
+
+      setGeneratedData({ patternSet, arrangement })
+
+      // Stage 6: Prepare mixdown engine
+      const engine = new MixdownEngine()
+      await engine.init()
+      await engine.preloadChops(sampleBank)
+
+      if (engineRef.current) engineRef.current.dispose()
+      engineRef.current = engine
+
+      setRemixState('ready')
+      setProgress({ bar: 0, total: arrangement.total_bars })
+    } catch (err) {
+      console.error('[remix] Generation error:', err)
+      setRemixState('error')
+    }
+  }, [sampleBank, recipe, seed])
+
+  const play = useCallback(async () => {
+    if (!engineRef.current || !generatedData) return
+
+    setRemixState('playing')
+
+    await engineRef.current.play(
+      generatedData.arrangement,
+      generatedData.patternSet,
+      recipe,
+      (bar, total) => {
+        setProgress({ bar, total })
+        if (bar >= total) setRemixState('ready')
+      }
+    )
+  }, [generatedData, recipe])
+
+  const stop = useCallback(() => {
+    engineRef.current?.stop()
+    setRemixState('ready')
+  }, [])
+
+  const regenerate = useCallback(() => {
+    setSeed(Math.floor(Math.random() * 100000))
+  }, [])
+
+  // Auto-generate when seed changes
+  useEffect(() => {
+    if (remixState !== 'idle') {
+      generate()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [seed])
+
+  // Cleanup
+  useEffect(() => {
+    return () => {
+      engineRef.current?.dispose()
+    }
+  }, [])
+
+  const totalSteps = generatedData
+    ? generatedData.patternSet.patterns.reduce(
+        (sum, p) => sum + p.steps.length,
+        0
+      )
+    : 0
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h3 className="text-sm font-medium">Remix</h3>
+        {generatedData && (
+          <span className="text-xs text-muted-foreground font-mono">
+            seed: {seed}
+          </span>
+        )}
+      </div>
+
+      {/* Controls */}
+      <div className="flex items-center gap-3">
+        {remixState === 'idle' && (
+          <button
+            onClick={generate}
+            className="px-4 py-2 bg-foreground text-background rounded-lg text-sm font-medium hover:opacity-90 transition-opacity"
+          >
+            Generate Remix
+          </button>
+        )}
+
+        {remixState === 'loading' && (
+          <span className="text-sm text-muted-foreground">
+            Loading chops...
+          </span>
+        )}
+
+        {(remixState === 'ready' || remixState === 'playing') && (
+          <>
+            <button
+              onClick={remixState === 'playing' ? stop : play}
+              className="px-4 py-2 bg-foreground text-background rounded-lg text-sm font-medium hover:opacity-90 transition-opacity"
+            >
+              {remixState === 'playing' ? '■ Stop' : '▶ Play'}
+            </button>
+            <button
+              onClick={regenerate}
+              disabled={remixState === 'playing'}
+              className="px-4 py-2 border rounded-lg text-sm font-medium hover:bg-accent transition-colors disabled:opacity-50"
+            >
+              Re-roll
+            </button>
+          </>
+        )}
+
+        {remixState === 'error' && (
+          <button
+            onClick={generate}
+            className="px-4 py-2 border border-red-500/30 text-red-600 dark:text-red-400 rounded-lg text-sm font-medium hover:bg-red-500/5 transition-colors"
+          >
+            Retry
+          </button>
+        )}
+      </div>
+
+      {/* Progress bar */}
+      {remixState === 'playing' && progress.total > 0 && (
+        <div className="space-y-1">
+          <div className="h-2 bg-muted rounded-full overflow-hidden">
+            <div
+              className="h-full bg-foreground/60 rounded-full transition-all duration-100"
+              style={{
+                width: `${(progress.bar / progress.total) * 100}%`,
+              }}
+            />
+          </div>
+          <div className="text-xs text-muted-foreground font-mono">
+            Bar {progress.bar} / {progress.total}
+          </div>
+        </div>
+      )}
+
+      {/* Generation summary */}
+      {generatedData && remixState !== 'loading' && (
+        <div className="text-xs text-muted-foreground bg-muted/50 rounded-lg p-3 space-y-1 font-mono">
+          <div>
+            {generatedData.patternSet.patterns.length} patterns, {totalSteps}{' '}
+            steps
+          </div>
+          <div>
+            {generatedData.arrangement.sections.length} sections,{' '}
+            {generatedData.arrangement.total_bars} bars
+          </div>
+          <div>
+            sections:{' '}
+            {generatedData.arrangement.sections
+              .map(
+                (s) =>
+                  `${s.name} (${s.lanes.length} lanes, ${s.length_bars} bars)`
+              )
+              .join(' → ')}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Main page
+// ---------------------------------------------------------------------------
+
 export default function RemixNewJob() {
   const [recipes, setRecipes] = useState<RecipeOption[]>([])
   const [selectedRecipeId, setSelectedRecipeId] = useState<string>('')
@@ -31,7 +459,6 @@ export default function RemixNewJob() {
   const [jobState, setJobState] = useState<JobState>({ phase: 'idle' })
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  // Load recipes on mount
   useEffect(() => {
     fetch('/api/remix/recipes')
       .then((res) => res.json())
@@ -81,8 +508,9 @@ export default function RemixNewJob() {
       setJobState({
         phase: 'complete',
         jobId: result.job_id,
-        stemCount: result.stem_urls?.length || 0,
-        chopCount: result.chop_urls?.length || 0,
+        sampleBank: result.sample_bank,
+        stemUrls: result.stem_urls,
+        recipe: recipe.config,
       })
     } catch (error) {
       setJobState({
@@ -162,7 +590,6 @@ export default function RemixNewJob() {
           ))}
         </div>
 
-        {/* Recipe summary */}
         {selectedRecipe && (
           <div className="text-xs text-muted-foreground bg-muted/50 rounded-lg p-3 space-y-1 font-mono">
             <div>
@@ -207,18 +634,28 @@ export default function RemixNewJob() {
         {jobState.phase === 'error' && 'Retry'}
       </button>
 
-      {/* Status */}
+      {/* Results */}
       {jobState.phase === 'complete' && (
-        <div className="p-4 rounded-lg border border-green-500/30 bg-green-500/5 space-y-2">
-          <p className="text-sm font-medium text-green-600 dark:text-green-400">
-            Processing complete
-          </p>
-          <div className="text-xs text-muted-foreground space-y-1">
-            <p>
-              {jobState.stemCount} stems separated, {jobState.chopCount} chops
-              generated
+        <div className="space-y-6">
+          <div className="flex items-center justify-between">
+            <p className="text-sm font-medium text-green-600 dark:text-green-400">
+              Processing complete
             </p>
-            <p className="font-mono">Job: {jobState.jobId}</p>
+            <span className="text-xs font-mono text-muted-foreground">
+              {jobState.jobId.slice(0, 8)}
+            </span>
+          </div>
+
+          <ResultsPanel
+            sampleBank={jobState.sampleBank}
+            stemUrls={jobState.stemUrls}
+          />
+
+          <div className="border-t pt-6">
+            <RemixPlayer
+              sampleBank={jobState.sampleBank}
+              recipe={jobState.recipe}
+            />
           </div>
         </div>
       )}
