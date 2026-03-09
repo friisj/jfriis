@@ -1,7 +1,7 @@
 -- Add parameter_schema JSONB column to luv_chassis_modules
 -- Stores the full ParameterDef[] array per module, replacing code-side schema files.
 
-ALTER TABLE luv_chassis_modules ADD COLUMN parameter_schema jsonb NOT NULL DEFAULT '[]';
+ALTER TABLE luv_chassis_modules ADD COLUMN IF NOT EXISTS parameter_schema jsonb NOT NULL DEFAULT '[]';
 
 -- Backfill each module with its current code-side schema
 

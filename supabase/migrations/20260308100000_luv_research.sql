@@ -2,7 +2,7 @@
 -- decisions, insights, and evidence. Self-referencing parent_id enables
 -- hierarchy (e.g. experiment → hypothesis, evidence → experiment).
 
-create table luv_research (
+create table if not exists luv_research (
   id uuid primary key default gen_random_uuid(),
   kind text not null check (kind in ('hypothesis', 'experiment', 'decision', 'insight', 'evidence')),
   title text not null,
