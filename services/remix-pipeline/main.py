@@ -30,7 +30,7 @@ app = FastAPI(title="Remix Pipeline", version="0.1.0")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
+    allow_origins=["http://localhost:3000", "http://localhost:3002"],
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -65,19 +65,17 @@ async def process(
         audio, recipe_input.separation, job_id=job_id, output_dir=OUTPUT_DIR
     )
 
-    # Rewrite local paths to served URLs
-    for stem in stem_set.stems:
-        stem.audio_url = _to_url(stem.audio_url)
-
-    # Stage 2: Analysis
+    # Stage 2: Analysis (needs local filesystem paths)
     analysis = await analyze_stems(stem_set, recipe_input.analysis)
 
-    # Stage 3: Chopping
+    # Stage 3: Chopping (needs local filesystem paths)
     sample_bank = await chop_stems(
         stem_set, analysis, recipe_input.chopping, output_dir=job_dir
     )
 
-    # Rewrite chop paths to served URLs
+    # Rewrite all local paths to served URLs (after all stages complete)
+    for stem in stem_set.stems:
+        stem.audio_url = _to_url(stem.audio_url)
     for stem_chops in sample_bank.stems:
         for chop in stem_chops.chops:
             chop.audio_url = _to_url(chop.audio_url)

@@ -2,30 +2,34 @@
 Stage 1: Stem Separation
 
 Uses Demucs to decompose source audio into constituent stems.
-Saves separated stems to local output directory (upload to storage handled by caller).
+Saves separated stems to local output directory.
 """
 
 import tempfile
 import uuid
 from pathlib import Path
 
+import librosa
+import numpy as np
 import soundfile as sf
 import torch
-import torchaudio
-from demucs.api import Separator, save_audio
+from demucs.apply import apply_model
+from demucs.pretrained import get_model
 from fastapi import UploadFile
 
 from models import SeparationConfig, SourceInfo, Stem, StemSet, StemType
 
-# Cache separators by model name to avoid reloading on every request
-_separator_cache: dict[str, Separator] = {}
+# Cache models by name to avoid reloading on every request
+_model_cache: dict[str, object] = {}
 
 
-def _get_separator(model: str) -> Separator:
-    """Get or create a cached Separator instance for the given model."""
-    if model not in _separator_cache:
-        _separator_cache[model] = Separator(model=model)
-    return _separator_cache[model]
+def _get_model(model_name: str):
+    """Get or create a cached Demucs model instance."""
+    if model_name not in _model_cache:
+        model = get_model(model_name)
+        model.eval()
+        _model_cache[model_name] = model
+    return _model_cache[model_name]
 
 
 async def separate_stems(
@@ -66,33 +70,73 @@ async def separate_stems(
         channels=info.channels,
     )
 
-    # Run Demucs separation
-    separator = _get_separator(config.model)
-    origin, separated = separator.separate_audio_file(str(source_path))
+    # Load model
+    model = _get_model(config.model)
+    model_sr = model.samplerate  # typically 44100
 
-    # Save each stem and build metadata
+    # Load audio using librosa (avoids torchcodec dependency)
+    # librosa returns mono by default; load as multi-channel numpy array
+    audio_data, sr = sf.read(str(source_path), always_2d=True)
+    # audio_data shape: (samples, channels) — transpose to (channels, samples)
+    audio_data = audio_data.T
+    wav = torch.from_numpy(audio_data).float()
+
+    # Resample if needed
+    if sr != model_sr:
+        # Use librosa for resampling
+        resampled_channels = []
+        for ch in range(wav.shape[0]):
+            resampled = librosa.resample(wav[ch].numpy(), orig_sr=sr, target_sr=model_sr)
+            resampled_channels.append(resampled)
+        wav = torch.from_numpy(np.stack(resampled_channels)).float()
+
+    # Normalize for better separation quality
+    ref = wav.mean(0)
+    wav_mean = ref.mean()
+    wav_std = ref.std()
+    wav_norm = (wav - wav_mean) / (wav_std + 1e-8)
+
+    # Run separation
+    # apply_model expects (batch, channels, time)
+    with torch.no_grad():
+        sources = apply_model(
+            model,
+            wav_norm[None],
+            device="cpu",  # use CPU for compatibility; GPU if available
+            split=True,
+            overlap=0.25,
+            progress=True,
+        )
+
+    # sources shape: (batch, num_sources, channels, time)
+    sources = sources[0]  # remove batch dim → (num_sources, channels, time)
+
+    # Denormalize
+    sources = sources * (wav_std + 1e-8) + wav_mean
+
+    # Save each stem
     stems: list[Stem] = []
-    sample_rate = separator.samplerate
 
-    for stem_name, stem_tensor in separated.items():
-        # stem_tensor shape: (channels, time)
+    for i, stem_name in enumerate(model.sources):
+        stem_tensor = sources[i]  # (channels, time)
         stem_path = stems_dir / f"{stem_name}.wav"
-        save_audio(stem_tensor, str(stem_path), samplerate=sample_rate)
 
-        peak = stem_tensor.abs().max().item()
-        duration_ms = (stem_tensor.shape[-1] / sample_rate) * 1000
+        # Save as WAV (channels, time) → (time, channels) for soundfile
+        sf.write(str(stem_path), stem_tensor.cpu().numpy().T, model_sr)
+
+        peak = float(stem_tensor.abs().max().item())
+        duration_ms = (stem_tensor.shape[-1] / model_sr) * 1000
 
         # Map Demucs stem name to our StemType enum
         try:
             stem_type = StemType(stem_name)
         except ValueError:
-            # Unknown stem name — map to 'other'
             stem_type = StemType.other
 
         stems.append(
             Stem(
                 type=stem_type,
-                audio_url=str(stem_path),  # local path for now; caller uploads to storage
+                audio_url=str(stem_path),
                 duration_ms=duration_ms,
                 peak_amplitude=peak,
             )

@@ -57,6 +57,7 @@ export async function POST(request: NextRequest) {
     .single()
 
   if (jobError) {
+    console.error('[remix/process] Job creation failed:', jobError.message)
     return NextResponse.json(
       { error: 'Failed to create job', details: jobError.message },
       { status: 500 }
@@ -122,6 +123,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     const message =
       error instanceof Error ? error.message : 'Unknown error'
+    console.error('[remix/process] Pipeline error:', message)
 
     await (supabase as any)
       .from('remix_jobs')
