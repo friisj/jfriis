@@ -67,6 +67,24 @@ export function getAvailableVariables(context: TemplateContext): string[] {
   return Object.keys(context).sort();
 }
 
+/**
+ * Get variable paths scoped to specific module slugs.
+ * Useful for scene components that only care about their declared modules.
+ *
+ * @example
+ * getModuleVariables(ctx, ['eyes', 'skin'])
+ * // → ['modules.eyes.color', 'modules.eyes.size', 'modules.skin.tone', ...]
+ */
+export function getModuleVariables(
+  context: TemplateContext,
+  moduleSlugs: string[]
+): { key: string; value: unknown }[] {
+  const prefixes = moduleSlugs.map((s) => `modules.${s}.`);
+  return Object.entries(context)
+    .filter(([k]) => prefixes.some((p) => k.startsWith(p)))
+    .map(([key, value]) => ({ key, value }));
+}
+
 // -- Helpers --
 
 function resolvePath(obj: TemplateContext, path: string): unknown {

@@ -5,7 +5,7 @@
  * that scene components can consume for rendering.
  */
 
-import type { SceneDefinition } from './scene-registry';
+import type { SceneDescriptor } from './stage/types';
 import type { LuvChassisModule, LuvChassisModuleMedia } from '@/lib/types/luv-chassis';
 import { buildTemplateContext, renderTemplate, type TemplateContext } from './template-engine';
 
@@ -18,14 +18,14 @@ export interface ModuleContext {
 }
 
 export interface SceneContext {
-  scene: SceneDefinition;
+  scene: SceneDescriptor;
   modules: ModuleContext[];
   missingRequired: string[];
   templateContext: TemplateContext;
 }
 
 export function buildSceneContext(
-  scene: SceneDefinition,
+  scene: SceneDescriptor,
   modules: LuvChassisModule[],
   media: Map<string, LuvChassisModuleMedia[]>
 ): SceneContext {
