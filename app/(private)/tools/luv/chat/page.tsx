@@ -60,16 +60,6 @@ export default function LuvChatPage() {
 
   return (
     <div className="h-dvh flex flex-col bg-background">
-      {/* Top bar */}
-      <div className="flex items-center h-12 px-4 border-b shrink-0">
-        <Link
-          href="/tools/luv"
-          className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
-        >
-          <ArrowLeft className="size-4" />
-          <span>Back</span>
-        </Link>
-      </div>
 
       {/* Messages */}
       <div
