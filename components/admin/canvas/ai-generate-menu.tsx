@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useRef } from 'react'
+import { IconBolt, IconArrowLeft, IconChevronRight, IconLoader2 } from '@tabler/icons-react'
 import {
   Popover,
   PopoverContent,
@@ -136,9 +137,7 @@ export function AIGenerateMenu({
           disabled={disabled || isGenerating}
           className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
         >
-          <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
-          </svg>
+          <IconBolt size={16} />
           {label}
         </button>
       </PopoverTrigger>
@@ -169,9 +168,7 @@ export function AIGenerateMenu({
                 className="p-1 rounded hover:bg-muted"
                 disabled={isGenerating}
               >
-                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M19 12H5M12 19l-7-7 7-7" />
-                </svg>
+                <IconArrowLeft size={16} />
               </button>
               <span className="font-medium">{selectedOption.label}</span>
             </div>
@@ -224,15 +221,7 @@ export function AIGenerateMenu({
               className="text-sm text-muted-foreground hover:text-foreground mb-3 flex items-center gap-1"
               disabled={isGenerating}
             >
-              <svg
-                className={`w-3 h-3 transition-transform ${showAdvanced ? 'rotate-90' : ''}`}
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-              >
-                <path d="M9 18l6-6-6-6" />
-              </svg>
+              <IconChevronRight size={12} className={`transition-transform ${showAdvanced ? 'rotate-90' : ''}`} />
               Advanced options
             </button>
 
@@ -289,17 +278,12 @@ export function AIGenerateMenu({
             >
               {isGenerating ? (
                 <>
-                  <svg className="w-4 h-4 animate-spin" viewBox="0 0 24 24" fill="none">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                  </svg>
+                  <IconLoader2 size={16} className="animate-spin" />
                   Generating...
                 </>
               ) : (
                 <>
-                  <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
-                  </svg>
+                  <IconBolt size={16} />
                   Generate {count} {selectedOption.label.toLowerCase()}
                 </>
               )}

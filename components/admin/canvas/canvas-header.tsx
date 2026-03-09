@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { ReactNode } from 'react'
+import { IconChevronLeft, IconHandStop, IconList } from '@tabler/icons-react'
 import { Button } from '@/components/ui/button'
 
 export type CanvasMode = 'drag' | 'structured'
@@ -33,9 +34,7 @@ export function CanvasHeader({
           href={backHref}
           className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
         >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-          </svg>
+          <IconChevronLeft size={16} />
           Back to Form
         </Link>
         <div className="h-6 w-px bg-border" />
@@ -53,9 +52,7 @@ export function CanvasHeader({
           }`}
         >
           <span className="flex items-center gap-2">
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 11.5V14m0-2.5v-6a1.5 1.5 0 113 0m-3 6a1.5 1.5 0 00-3 0v2a7.5 7.5 0 0015 0v-5a1.5 1.5 0 00-3 0m-6-3V11m0-5.5v-1a1.5 1.5 0 013 0v1m0 0V11m0-5.5a1.5 1.5 0 013 0v3m0 0V11" />
-            </svg>
+            <IconHandStop size={16} />
             Drag
           </span>
         </button>
@@ -68,9 +65,7 @@ export function CanvasHeader({
           }`}
         >
           <span className="flex items-center gap-2">
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
-            </svg>
+            <IconList size={16} />
             Structured
           </span>
         </button>

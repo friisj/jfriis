@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
+import { IconX } from '@tabler/icons-react'
 import { supabase } from '@/lib/supabase'
 import type { AssumptionRelationshipType } from '@/lib/types/boundary-objects'
 import {
@@ -385,9 +386,7 @@ export function TouchpointAssumptionLinker({
                   title="Remove link"
                   disabled={unlinkingId === link.assumption_id}
                 >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
+                  <IconX size={16} />
                 </button>
               </div>
             </div>

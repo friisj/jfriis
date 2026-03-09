@@ -13,6 +13,7 @@ import {
   CommandSeparator,
 } from '@/components/ui/command'
 import { BLOCK_ITEM_TYPES, type CanvasItemType, type CanvasType } from '@/lib/types/canvas-items'
+import { IconChevronUp, IconChevronDown, IconInfoCircle, IconX, IconPlus, IconLoader2 } from '@tabler/icons-react'
 import { AssumptionLinker } from './assumption-linker'
 import { FeedbackManager } from './feedback-manager'
 
@@ -335,10 +336,7 @@ export function CanvasItemSelector({
       {loadingPlaced ? (
         <div className="p-4 rounded-lg border bg-background">
           <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
-            <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
-              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-            </svg>
+            <IconLoader2 size={16} className="animate-spin" />
             Loading placed items...
           </div>
         </div>
@@ -358,9 +356,7 @@ export function CanvasItemSelector({
                   className="p-0.5 text-muted-foreground hover:text-foreground disabled:opacity-30 disabled:cursor-not-allowed"
                   title="Move up"
                 >
-                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
-                  </svg>
+                  <IconChevronUp size={12} />
                 </button>
                 <button
                   type="button"
@@ -369,9 +365,7 @@ export function CanvasItemSelector({
                   className="p-0.5 text-muted-foreground hover:text-foreground disabled:opacity-30 disabled:cursor-not-allowed"
                   title="Move down"
                 >
-                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                  </svg>
+                  <IconChevronDown size={12} />
                 </button>
               </div>
 
@@ -409,9 +403,7 @@ export function CanvasItemSelector({
                     className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-accent rounded opacity-0 group-hover:opacity-100 transition-opacity"
                     title="View details"
                   >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
+                    <IconInfoCircle size={16} />
                   </button>
                 </PopoverTrigger>
                 <PopoverContent className="w-80" align="end">
@@ -469,9 +461,7 @@ export function CanvasItemSelector({
                 className="p-1.5 text-muted-foreground hover:text-red-600 hover:bg-red-500/10 rounded opacity-0 group-hover:opacity-100 transition-opacity"
                 title="Remove from block"
               >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
+                <IconX size={16} />
               </button>
             </div>
           ))}
@@ -485,9 +475,7 @@ export function CanvasItemSelector({
             type="button"
             className="w-full flex items-center justify-center gap-2 p-3 rounded-lg border border-dashed hover:bg-accent/50 transition-colors text-sm text-muted-foreground hover:text-foreground"
           >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-            </svg>
+            <IconPlus size={16} />
             Add {itemTypeLabels[allowedTypes[0]]}
             {allowedTypes.length > 1 && ` or ${itemTypeLabels[allowedTypes[1]]}`}
             {allowedTypes.length > 2 && '...'}
@@ -504,10 +492,7 @@ export function CanvasItemSelector({
               {loadingItems ? (
                 <div className="p-4 text-center">
                   <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
-                    <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                    </svg>
+                    <IconLoader2 size={16} className="animate-spin" />
                     Loading items...
                   </div>
                 </div>

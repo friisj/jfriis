@@ -7,6 +7,7 @@ import Link from 'next/link'
 import { useState } from 'react'
 import { ModeToggle } from '@/components/theme-switcher'
 import { usePrivacyMode } from '@/lib/privacy-mode'
+import { IconChevronDown, IconMenu2 } from '@tabler/icons-react'
 
 export function UserMenu() {
   const { user, isAdmin } = useAuth()
@@ -32,20 +33,11 @@ export function UserMenu() {
               <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center text-xs font-medium">
                 {user.email?.[0].toUpperCase()}
               </div>
-              <svg
-                className={`w-4 h-4 transition-transform ${isOpen ? 'rotate-180' : ''}`}
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-              </svg>
+              <IconChevronDown size={16} className={`transition-transform ${isOpen ? 'rotate-180' : ''}`} />
             </>
           ) : (
             <>
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-              </svg>
+              <IconMenu2 size={20} />
             </>
           )}
         </button>

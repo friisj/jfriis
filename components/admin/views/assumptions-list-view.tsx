@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
+import { IconBolt, IconPencil, IconCircleCheck } from '@tabler/icons-react'
 import {
   AdminTable,
   AdminTableColumn,
@@ -168,18 +169,14 @@ export function AssumptionsListView({ assumptions }: AssumptionsListViewProps) {
             className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-lg border border-primary bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
             title="Create hypothesis to test this assumption"
           >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-            </svg>
+            <IconBolt size={16} />
             Test
           </Link>
           <Link
             href={`/admin/assumptions/${assumption.id}/edit`}
             className="inline-flex items-center gap-1 px-3 py-1.5 text-sm rounded-lg border border-border hover:bg-accent transition-colors"
           >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-            </svg>
+            <IconPencil size={16} />
             Edit
           </Link>
         </div>
@@ -201,9 +198,7 @@ export function AssumptionsListView({ assumptions }: AssumptionsListViewProps) {
     return (
       <AdminEmptyState
         icon={
-          <svg className="w-8 h-8 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
+          <IconCircleCheck size={32} className="text-muted-foreground" />
         }
         title="No assumptions yet"
         description="Start by identifying assumptions from your canvases and hypotheses"

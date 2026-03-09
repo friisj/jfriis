@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
+import { IconLayoutGrid, IconBolt, IconFile, IconList } from '@tabler/icons-react'
 import {
   AdminTable,
   AdminTableColumn,
@@ -175,25 +176,19 @@ export function ItemsListView({ items }: ItemsListViewProps) {
         <div className="flex items-center gap-3 text-sm">
           {typeof item.placement_count === 'number' && (
             <div className="flex items-center gap-1">
-              <svg className="w-4 h-4 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z" />
-              </svg>
+              <IconLayoutGrid size={16} className="text-muted-foreground" />
               <span className="text-muted-foreground">{item.placement_count}</span>
             </div>
           )}
           {typeof item.assumption_count === 'number' && item.assumption_count > 0 && (
             <div className="flex items-center gap-1">
-              <svg className="w-4 h-4 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-              </svg>
+              <IconBolt size={16} className="text-muted-foreground" />
               <span className="text-muted-foreground">{item.assumption_count}</span>
             </div>
           )}
           {typeof item.evidence_count === 'number' && item.evidence_count > 0 && (
             <div className="flex items-center gap-1">
-              <svg className="w-4 h-4 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-              </svg>
+              <IconFile size={16} className="text-muted-foreground" />
               <span className="text-muted-foreground">{item.evidence_count}</span>
             </div>
           )}
@@ -245,9 +240,7 @@ export function ItemsListView({ items }: ItemsListViewProps) {
     return (
       <AdminEmptyState
         icon={
-          <svg className="w-8 h-8 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
-          </svg>
+          <IconList size={32} className="text-muted-foreground" />
         }
         title="No canvas items yet"
         description="Create reusable items that can be placed across multiple canvases"

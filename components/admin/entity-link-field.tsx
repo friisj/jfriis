@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
+import { IconChevronDown, IconX } from '@tabler/icons-react'
 import { supabase } from '@/lib/supabase'
 import type {
   LinkableEntityType,
@@ -331,14 +332,7 @@ export function EntityLinkField({
                 ? 'Saving...'
                 : selectedItem?.label || placeholder || `Select ${label.toLowerCase()}...`}
             </span>
-            <svg
-              className={`w-4 h-4 text-muted-foreground transition-transform ${isOpen ? 'rotate-180' : ''}`}
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-            </svg>
+            <IconChevronDown size={16} className={`text-muted-foreground transition-transform ${isOpen ? 'rotate-180' : ''}`} />
           </button>
 
           {selectedItem && !disabled && !saving && (
@@ -350,9 +344,7 @@ export function EntityLinkField({
               }}
               className="absolute right-8 top-1/2 -translate-y-1/2 p-1 text-muted-foreground hover:text-foreground"
             >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
+              <IconX size={16} />
             </button>
           )}
 
@@ -419,9 +411,7 @@ export function EntityLinkField({
                 disabled={disabled || saving}
                 className="hover:opacity-70 disabled:opacity-50"
               >
-                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
+                <IconX size={12} />
               </button>
             </div>
           ))}

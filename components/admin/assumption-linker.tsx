@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
+import { IconPlus } from '@tabler/icons-react'
 import { supabase } from '@/lib/supabase'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import {
@@ -383,9 +384,7 @@ export function AssumptionLinker({
             type="button"
             className="inline-flex items-center gap-1 px-2 py-1 text-xs rounded border border-dashed hover:border-primary hover:bg-accent transition-colors text-muted-foreground hover:text-foreground"
           >
-            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-            </svg>
+            <IconPlus size={12} />
             Add assumption
           </button>
         </PopoverTrigger>

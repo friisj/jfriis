@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { IconChevronDown } from '@tabler/icons-react'
 import type { ExtractedTokens } from '@/lib/studio/arena/figma-extractor'
 
 interface ExtractedTokensPanelProps {
@@ -22,12 +23,7 @@ export function ExtractedTokensPanel({ tokens }: ExtractedTokensPanelProps) {
             {tokens.colors.length} colors, {tokens.fonts.length} fonts, {tokens.spacing.length} spacing, {tokens.shadows?.length ?? 0} shadows
           </p>
         </div>
-        <svg
-          className={`w-4 h-4 text-gray-400 transition-transform ${expanded ? 'rotate-180' : ''}`}
-          fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
-        >
-          <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-        </svg>
+        <IconChevronDown size={16} className={`text-gray-400 transition-transform ${expanded ? 'rotate-180' : ''}`} />
       </button>
 
       {expanded && (

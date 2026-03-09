@@ -3,6 +3,7 @@
 import { useRef, useEffect, useState, useCallback, forwardRef, useImperativeHandle } from 'react';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
+import { IconBrush, IconEraser } from '@tabler/icons-react';
 
 export interface MaskCanvasRef {
   clearMask: () => void;
@@ -341,7 +342,7 @@ export const MaskCanvas = forwardRef<MaskCanvasRef, MaskCanvasProps>(function Ma
               className="gap-1.5"
               title="Brush (B)"
             >
-              <BrushIcon className="w-4 h-4" />
+              <IconBrush size={16} />
               <span className="hidden sm:inline">Brush</span>
             </Button>
             <Button
@@ -351,7 +352,7 @@ export const MaskCanvas = forwardRef<MaskCanvasRef, MaskCanvasProps>(function Ma
               className="gap-1.5"
               title="Eraser (E/X)"
             >
-              <EraserIcon className="w-4 h-4" />
+              <IconEraser size={16} />
               <span className="hidden sm:inline">Eraser</span>
             </Button>
           </div>
@@ -490,43 +491,6 @@ function getCursor(tool: MaskTool, displaySize: number): string {
   return `url("data:image/svg+xml,${encoded}") ${half} ${half}, crosshair`;
 }
 
-function BrushIcon({ className }: { className?: string }) {
-  return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className={className}
-    >
-      <path d="M18.37 2.63 14 7l-1.59-1.59a2 2 0 0 0-2.82 0L8 7l9 9 1.59-1.59a2 2 0 0 0 0-2.82L17 10l4.37-4.37a2.12 2.12 0 1 0-3-3Z" />
-      <path d="M9 8c-2 3-4 3.5-7 4l8 10c2-1 6-5 6-7" />
-      <path d="M14.5 17.5 4.5 15" />
-    </svg>
-  );
-}
-
-function EraserIcon({ className }: { className?: string }) {
-  return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className={className}
-    >
-      <path d="m7 21-4.3-4.3c-1-1-1-2.5 0-3.4l9.6-9.6c1-1 2.5-1 3.4 0l5.6 5.6c1 1 1 2.5 0 3.4L13 21" />
-      <path d="M22 21H7" />
-      <path d="m5 11 9 9" />
-    </svg>
-  );
-}
 
 /**
  * Export helper to get mask dimensions matching the source image

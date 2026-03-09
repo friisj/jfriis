@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import { IconUser } from '@tabler/icons-react'
 import { StatusBadge } from '@/components/admin'
 import { formatDate } from '@/lib/utils'
 import {
@@ -41,9 +42,7 @@ export function JourneyCard({ journey }: JourneyCardProps) {
         <div className="flex items-center gap-2 text-sm flex-wrap">
           {journey.customer_profile_name && (
             <span className="inline-flex items-center gap-1 text-muted-foreground">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-              </svg>
+              <IconUser size={16} />
               {journey.customer_profile_name}
             </span>
           )}

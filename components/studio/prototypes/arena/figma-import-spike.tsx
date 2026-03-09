@@ -6,6 +6,7 @@ import { emptySkillState } from '@/lib/studio/arena/types'
 import { BASE_SKILL } from '@/lib/studio/arena/base-skill'
 import type { ExtractedTokens } from '@/lib/studio/arena/figma-extractor'
 import { extractTokens } from '@/lib/studio/arena/figma-extractor'
+import { IconChevronDown } from '@tabler/icons-react'
 import { CanonicalCard, CanonicalForm, CanonicalDashboard } from './shared/canonical-components'
 import { InferredSkillPanel } from './shared/skill-panel'
 import { SkillGym } from './shared/skill-gym'
@@ -87,12 +88,7 @@ function ExtractedTokensPanel({ tokens }: { tokens: ExtractedTokens }) {
             {tokens.colors.length} colors, {tokens.fonts.length} fonts, {tokens.spacing.length} spacing values
           </p>
         </div>
-        <svg
-          className={`w-4 h-4 text-gray-400 transition-transform ${expanded ? 'rotate-180' : ''}`}
-          fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
-        >
-          <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-        </svg>
+        <IconChevronDown size={16} className={`text-gray-400 transition-transform ${expanded ? 'rotate-180' : ''}`} />
       </button>
 
       {expanded && (

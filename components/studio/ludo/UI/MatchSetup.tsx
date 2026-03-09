@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { MatchConfiguration, MATCH_LENGTHS } from '@/lib/studio/ludo/game/types';
 import { Button } from '@/components/ui/button';
+import { IconChevronDown } from '@tabler/icons-react';
 
 type GameTypeSelection = 'single' | 'match';
 
@@ -61,14 +62,7 @@ export function MatchSetup({ value, onChange }: MatchSetupProps) {
       <details className="space-y-2" open={rulesOpen} onToggle={(e) => setRulesOpen((e.target as HTMLDetailsElement).open)}>
         <summary className="font-semibold text-sm cursor-pointer list-none flex items-center justify-between py-2">
           Game Config
-          <svg
-            className={`h-4 w-4 transition-transform ${rulesOpen ? 'rotate-180' : ''}`}
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-          >
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-          </svg>
+          <IconChevronDown size={16} className={`transition-transform ${rulesOpen ? 'rotate-180' : ''}`} />
         </summary>
         <div className="space-y-3 pt-1">
           {/* Doubling Cube */}

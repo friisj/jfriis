@@ -15,6 +15,7 @@ import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select'
+import { IconChevronDown } from '@tabler/icons-react'
 
 // ============================================================================
 // Types & Constants
@@ -116,14 +117,7 @@ function CanvasBlockEditor({
               {assumptionIds.length} assumptions
             </span>
           )}
-          <svg
-            className={`w-5 h-5 transition-transform ${isOpen ? 'rotate-180' : ''}`}
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-          </svg>
+          <IconChevronDown size={20} className={`transition-transform ${isOpen ? 'rotate-180' : ''}`} />
         </div>
       </button>
 

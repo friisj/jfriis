@@ -2,6 +2,7 @@ export const dynamic = 'force-dynamic'
 
 import { createClient } from '@/lib/supabase-server'
 import Link from 'next/link'
+import { IconLayout, IconUsers, IconShieldCheck, IconCircleCheck } from '@tabler/icons-react'
 
 interface CanvasTypeCard {
   title: string
@@ -30,44 +31,28 @@ export default async function AdminCanvasesPage() {
       description: '9-block business model visualization',
       href: '/admin/canvases/business-models',
       count: bmcResult.count ?? 0,
-      icon: (
-        <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z" />
-        </svg>
-      ),
+      icon: <IconLayout size={32} />,
     },
     {
       title: 'Customer Profiles',
       description: 'Jobs, pains, and gains analysis',
       href: '/admin/canvases/customer-profiles',
       count: cpResult.count ?? 0,
-      icon: (
-        <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-        </svg>
-      ),
+      icon: <IconUsers size={32} />,
     },
     {
       title: 'Value Maps',
       description: 'Products, pain relievers, gain creators',
       href: '/admin/canvases/value-maps',
       count: vmResult.count ?? 0,
-      icon: (
-        <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z" />
-        </svg>
-      ),
+      icon: <IconLayout size={32} />,
     },
     {
       title: 'Value Proposition Canvases',
       description: 'Product-market fit analysis',
       href: '/admin/canvases/value-propositions',
       count: vpcResult.count ?? 0,
-      icon: (
-        <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-        </svg>
-      ),
+      icon: <IconShieldCheck size={32} />,
     },
   ]
 
@@ -111,9 +96,7 @@ export default async function AdminCanvasesPage() {
           >
             <div className="flex items-start justify-between mb-4">
               <div className="p-2 rounded-lg bg-muted text-muted-foreground group-hover:text-primary transition-colors">
-                <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
+                <IconCircleCheck size={32} />
               </div>
               <div className="text-right">
                 <span className="text-2xl font-bold text-muted-foreground group-hover:text-foreground transition-colors">
