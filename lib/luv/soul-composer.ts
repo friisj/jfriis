@@ -14,9 +14,16 @@ export interface MemoryItem {
   category: string;
 }
 
+export interface ResearchSummary {
+  openHypotheses: number;
+  activeExperiments: number;
+  totalEntries: number;
+}
+
 export interface ComposeOptions {
   chassisModuleSummaries?: ChassisModuleSummary[];
   memories?: MemoryItem[];
+  research?: ResearchSummary;
 }
 
 /**
@@ -164,6 +171,40 @@ export function composeLayers(soulData: LuvSoulData, options?: ComposeOptions): 
       priority: LAYER_REGISTRY.behavioral_rules.priority,
       content: rulesList,
       source: 'soul_data.rules',
+      enabled: true,
+    });
+  }
+
+  // Layer 5.5: Research Awareness
+  const research = options?.research;
+  if (research && research.totalEntries > 0) {
+    const parts = [
+      'You have a research toolkit for tracking hypotheses, experiments, decisions, insights, and evidence.',
+      `You have ${research.totalEntries} research entries (${research.openHypotheses} open hypotheses, ${research.activeExperiments} active experiments).`,
+      'Use create_research to log new thinking. Use list_research or search_research to review existing entries.',
+      'Link entries with parent_id (e.g. experiments to hypotheses, evidence to experiments).',
+      'Reserve research entries for substantive thinking that should persist — not trivial observations.',
+    ];
+    layers.push({
+      id: 'research_awareness',
+      type: 'research_awareness',
+      priority: LAYER_REGISTRY.research_awareness.priority,
+      content: parts.join(' '),
+      source: 'luv_research',
+      enabled: true,
+    });
+  } else {
+    // Even with no entries, tell the agent the tools exist
+    layers.push({
+      id: 'research_awareness',
+      type: 'research_awareness',
+      priority: LAYER_REGISTRY.research_awareness.priority,
+      content: [
+        'You have a research toolkit for tracking hypotheses, experiments, decisions, insights, and evidence.',
+        'Use create_research to start logging substantive thinking. Use list_research to review entries.',
+        'Link entries with parent_id (e.g. experiments to hypotheses, evidence to experiments).',
+      ].join(' '),
+      source: 'luv_research',
       enabled: true,
     });
   }

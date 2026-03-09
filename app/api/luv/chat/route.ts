@@ -6,6 +6,7 @@ import { getModel } from '@/lib/ai/models';
 import { composeSoulSystemPrompt } from '@/lib/luv-prompt-composer';
 import { getLuvCharacterServer, getLuvMemoriesServer } from '@/lib/luv-server';
 import { getChassisModulesServer } from '@/lib/luv-chassis-server';
+import { listLuvResearchServer } from '@/lib/luv-research-server';
 import { luvTools } from '@/lib/luv-tools';
 import { getAnthropic } from '@/lib/ai/providers';
 import type { ChassisModuleSummary } from '@/lib/luv/soul-layers';
@@ -35,11 +36,12 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Messages required' }, { status: 400 });
     }
 
-    // Load soul + chassis modules + memories server-side
-    const [character, chassisModules, memories] = await Promise.all([
+    // Load soul + chassis modules + memories + research server-side
+    const [character, chassisModules, memories, allResearch] = await Promise.all([
       getLuvCharacterServer(),
       getChassisModulesServer(),
       getLuvMemoriesServer(true),
+      listLuvResearchServer(),
     ]);
     const soulData = character?.soul_data ?? {};
     const chassisModuleSummaries: ChassisModuleSummary[] = chassisModules.map((m) => ({
@@ -52,9 +54,15 @@ export async function POST(request: Request) {
       content: m.content,
       category: m.category,
     }));
+    const researchSummary = {
+      openHypotheses: allResearch.filter((r) => r.kind === 'hypothesis' && r.status === 'open').length,
+      activeExperiments: allResearch.filter((r) => r.kind === 'experiment' && r.status === 'active').length,
+      totalEntries: allResearch.length,
+    };
     const systemPrompt = composeSoulSystemPrompt(soulData, {
       chassisModuleSummaries,
       memories: memoryItems,
+      research: researchSummary,
     });
 
     // Convert UI-format messages (from useChat) to model-format messages (for streamText)

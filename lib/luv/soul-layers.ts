@@ -14,6 +14,7 @@ export type SoulLayerType =
   | 'knowledge'
   | 'chassis_awareness'
   | 'behavioral_rules'
+  | 'research_awareness'
   | 'context'
   | 'memory';
 
@@ -79,6 +80,11 @@ export const LAYER_REGISTRY: Record<
     label: 'Behavioral Rules',
     priority: 50,
     description: 'Ordered constraints governing behavior',
+  },
+  research_awareness: {
+    label: 'Research',
+    priority: 55,
+    description: 'Awareness of research toolkit and active research entries',
   },
   context: {
     label: 'Context',

@@ -22,6 +22,12 @@ const toolLabels: Record<string, string> = {
   review_chassis_module: 'Review Chassis Module',
   compose_context_pack: 'Compose Context Pack',
   evaluate_generation: 'Evaluate Generation',
+  create_research: 'Create Research Entry',
+  update_research: 'Update Research Entry',
+  delete_research: 'Delete Research Entry',
+  get_research: 'Get Research Entry',
+  list_research: 'List Research',
+  search_research: 'Search Research',
 };
 
 export function ToolCallCard({ toolName, state, result }: ToolCallCardProps) {
