@@ -1,13 +1,23 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import Link from 'next/link';
 import { isToolUIPart, getToolName } from 'ai';
 import type { UIMessage } from 'ai';
-import { ArrowLeft, ImagePlus, X } from 'lucide-react';
+import { ArrowLeft, ArrowUp, Ellipsis, ImagePlus, Save, Trash2, X } from 'lucide-react';
 import { usePrivateHeader } from '@/components/layout/private-header-context';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+} from '@/components/ui/dropdown-menu';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { useLuvChatSession, MODEL_OPTIONS, getMessageText } from '../components/use-luv-chat-session';
@@ -51,7 +61,7 @@ export default function LuvChatPage() {
   return (
     <div className="h-dvh flex flex-col bg-background">
       {/* Top bar */}
-      <div className="flex items-center justify-between h-12 px-4 border-b shrink-0">
+      <div className="flex items-center h-12 px-4 border-b shrink-0">
         <Link
           href="/tools/luv"
           className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
@@ -59,39 +69,6 @@ export default function LuvChatPage() {
           <ArrowLeft className="size-4" />
           <span>Back</span>
         </Link>
-        <div className="flex items-center gap-3">
-          <select
-            value={modelKey}
-            onChange={(e) => setModelKey(e.target.value)}
-            className="text-sm rounded border bg-background px-2 py-1"
-          >
-            {MODEL_OPTIONS.map((opt) => (
-              <option key={opt.key} value={opt.key}>
-                {opt.label}
-              </option>
-            ))}
-          </select>
-          {messages.length > 0 && (
-            <>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => handleSaveConversation(soulData)}
-                disabled={isActive}
-              >
-                Save
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleClear}
-                disabled={isActive}
-              >
-                Clear
-              </Button>
-            </>
-          )}
-        </div>
       </div>
 
       {/* Messages */}
@@ -134,9 +111,9 @@ export default function LuvChatPage() {
 
       {/* Input */}
       <div className="border-t shrink-0">
-        <div className="max-w-3xl mx-auto px-4 py-3 space-y-2">
+        <div className="max-w-3xl mx-auto">
           {pendingFiles.length > 0 && (
-            <div className="flex gap-2 flex-wrap">
+            <div className="flex gap-2 flex-wrap px-4 pt-3">
               {pendingFiles.map((f, i) => (
                 <div key={i} className="relative group">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -156,28 +133,7 @@ export default function LuvChatPage() {
               ))}
             </div>
           )}
-          <div className="flex gap-2">
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*"
-              multiple
-              className="hidden"
-              onChange={(e) => {
-                if (e.target.files) addFilesFromFileList(Array.from(e.target.files));
-                e.target.value = '';
-              }}
-            />
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-auto self-end px-2 shrink-0"
-              onClick={() => fileInputRef.current?.click()}
-              disabled={isActive || !soulLoaded}
-              title="Attach image"
-            >
-              <ImagePlus className="size-5" />
-            </Button>
+          <div className="flex flex-col">
             <Textarea
               ref={textareaRef}
               value={input}
@@ -186,17 +142,83 @@ export default function LuvChatPage() {
               onPaste={handlePaste}
               placeholder="Message Luv..."
               rows={3}
-              className="resize-none text-sm"
+              className="resize-none text-sm border-none rounded-none px-4 py-3 focus-visible:ring-0 focus-visible:ring-offset-0 bg-transparent shadow-none"
               disabled={isActive || !soulLoaded}
             />
-            <Button
-              onClick={handleSend}
-              disabled={isActive || (!input.trim() && pendingFiles.length === 0) || !soulLoaded}
-              size="sm"
-              className="h-auto self-end"
-            >
-              Send
-            </Button>
+            <div className="flex justify-between items-end px-4 pb-3">
+              <div className="flex gap-2">
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <button
+                      className="shrink-0 p-0 hover:bg-transparent active:bg-transparent"
+                      title="Chat menu"
+                    >
+                      <Ellipsis className="size-5" />
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent side="top" align="start" className="w-48">
+                    <DropdownMenuLabel className="text-[10px]">Model</DropdownMenuLabel>
+                    <DropdownMenuRadioGroup value={modelKey} onValueChange={setModelKey}>
+                      {MODEL_OPTIONS.map((opt) => (
+                        <DropdownMenuRadioItem key={opt.key} value={opt.key} className="text-xs">
+                          {opt.label}
+                        </DropdownMenuRadioItem>
+                      ))}
+                    </DropdownMenuRadioGroup>
+                    {messages.length > 0 && (
+                      <>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem
+                          className="text-xs"
+                          onClick={() => handleSaveConversation(soulData)}
+                          disabled={isActive}
+                        >
+                          <Save className="size-3.5 mr-2" />
+                          Save conversation
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          className="text-xs"
+                          onClick={handleClear}
+                          disabled={isActive}
+                        >
+                          <Trash2 className="size-3.5 mr-2" />
+                          Clear conversation
+                        </DropdownMenuItem>
+                      </>
+                    )}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  className="hidden"
+                  onChange={(e) => {
+                    if (e.target.files) addFilesFromFileList(Array.from(e.target.files));
+                    e.target.value = '';
+                  }}
+                />
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-auto self-end px-1.5 shrink-0"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={isActive || !soulLoaded}
+                  title="Attach image"
+                >
+                  <ImagePlus className="size-5" />
+                </Button>
+              </div>
+              <Button
+                onClick={handleSend}
+                disabled={isActive || (!input.trim() && pendingFiles.length === 0) || !soulLoaded}
+                size="sm"
+                className="h-auto self-end size-8 p-2"
+              >
+                <ArrowUp className="size-4" />
+              </Button>
+            </div>
           </div>
         </div>
       </div>
@@ -221,7 +243,7 @@ function FullscreenMessageBubble({
     );
     return (
       <div className="flex justify-end">
-        <div className="max-w-[75%] rounded-lg px-4 py-3 text-sm whitespace-pre-wrap bg-primary text-primary-foreground">
+        <div className="max-w-[85%] sm:max-w-[75%] rounded-lg px-4 py-3 text-sm whitespace-pre-wrap bg-primary text-primary-foreground break-words">
           {fileParts.length > 0 && (
             <div className="flex gap-2 flex-wrap mb-2">
               {fileParts.map((f, i) => (
@@ -243,13 +265,13 @@ function FullscreenMessageBubble({
 
   return (
     <div className="flex justify-start">
-      <div className="max-w-[75%] space-y-2">
+      <div className="max-w-[85%] sm:max-w-[75%] space-y-2">
         {message.parts.map((part, i) => {
           if (part.type === 'text' && part.text) {
             return (
               <div
                 key={i}
-                className="rounded-lg px-4 py-3 text-sm bg-muted prose prose-sm dark:prose-invert prose-p:my-1.5 prose-ul:my-1.5 prose-ol:my-1.5 prose-li:my-0.5 prose-headings:my-2 prose-pre:my-1.5 max-w-none"
+                className="rounded-lg px-4 py-3 text-sm bg-muted prose prose-sm dark:prose-invert prose-p:my-1.5 prose-ul:my-1.5 prose-ol:my-1.5 prose-li:my-0.5 prose-headings:my-2 prose-pre:my-1.5 max-w-none break-words [&_pre]:overflow-x-auto [&_pre]:max-w-[calc(100vw-6rem)]"
               >
                 <ReactMarkdown remarkPlugins={[remarkGfm]}>
                   {part.text}
