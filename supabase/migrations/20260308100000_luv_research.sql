@@ -34,7 +34,7 @@ create index idx_luv_research_fts on luv_research using gin (
 create trigger set_luv_research_updated_at
   before update on luv_research
   for each row
-  execute function update_updated_at();
+  execute function update_updated_at_column();
 
 -- RLS: admin full access (matches other luv_* tables)
 alter table luv_research enable row level security;
