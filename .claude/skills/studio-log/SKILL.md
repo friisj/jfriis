@@ -81,16 +81,17 @@ Draft a title: concise, specific, not click-bait. Under 80 characters. Avoid "Th
 ### Step 4: Create the Log Entry
 
 ```bash
-scripts/sb create log_entries '{
-  "title": "<drafted title>",
-  "slug": "<kebab-case-title>",
-  "content": {"markdown": "<full drafted prose>"},
-  "entry_date": "<today YYYY-MM-DD>",
-  "type": "research",
-  "published": false,
-  "is_private": true,
-  "tags": ["studio", "<angle>", "<project-slug if applicable>"]
-}'
+PAYLOAD=$(python3 -c "import json; print(json.dumps({
+  'title': '<drafted title>',
+  'slug': '<kebab-case-title>',
+  'content': {'markdown': '<full drafted prose>'},
+  'entry_date': '<today YYYY-MM-DD>',
+  'type': 'research',
+  'published': False,
+  'is_private': True,
+  'tags': ['studio', '<angle>', '<project-slug if applicable>']
+}))")
+scripts/sb create log_entries "$PAYLOAD"
 ```
 
 Save the returned entry `id`.
@@ -102,15 +103,16 @@ Save the returned entry `id`.
 Record this as a tracked first draft in `log_entry_drafts`:
 
 ```bash
-scripts/sb create log_entry_drafts '{
-  "log_entry_id": "<entry-id>",
-  "content": "<full drafted prose>",
-  "is_primary": true,
-  "label": "initial-draft",
-  "generation_instructions": "<first 500 chars of raw user input>",
-  "generation_model": "claude-sonnet-4-6",
-  "generation_mode": "rewrite"
-}'
+PAYLOAD=$(python3 -c "import json; print(json.dumps({
+  'log_entry_id': '<entry-id>',
+  'content': '<full drafted prose>',
+  'is_primary': True,
+  'label': 'initial-draft',
+  'generation_instructions': '<first 500 chars of raw user input>',
+  'generation_model': 'claude-sonnet-4-6',
+  'generation_mode': 'rewrite'
+}))")
+scripts/sb create log_entry_drafts "$PAYLOAD"
 ```
 
 ### Step 6: Link to Studio Project
@@ -118,14 +120,15 @@ scripts/sb create log_entry_drafts '{
 If a project was identified in Step 1, create an entity link:
 
 ```bash
-scripts/sb create entity_links '{
-  "source_type": "log_entry",
-  "source_id": "<entry-id>",
-  "target_type": "studio_project",
-  "target_id": "<project-id>",
-  "link_type": "related",
-  "metadata": {}
-}'
+PAYLOAD=$(python3 -c "import json; print(json.dumps({
+  'source_type': 'log_entry',
+  'source_id': '<entry-id>',
+  'target_type': 'studio_project',
+  'target_id': '<project-id>',
+  'link_type': 'related',
+  'metadata': {}
+}))")
+scripts/sb create entity_links "$PAYLOAD"
 ```
 
 ### Step 7: Confirmation
