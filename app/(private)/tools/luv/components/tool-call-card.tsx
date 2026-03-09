@@ -23,6 +23,7 @@ const toolLabels: Record<string, string> = {
   review_chassis_module: 'Review Chassis Module',
   compose_context_pack: 'Compose Context Pack',
   evaluate_generation: 'Evaluate Generation',
+  get_current_context: 'Get Current Context',
   create_research: 'Create Research Entry',
   update_research: 'Update Research Entry',
   delete_research: 'Delete Research Entry',

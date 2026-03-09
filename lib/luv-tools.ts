@@ -725,6 +725,30 @@ export const proposeFacetChange = tool({
 });
 
 // ============================================================================
+// Context Tool (factory — needs pageContext injected at request time)
+// ============================================================================
+
+import type { LuvPageContext } from './types/luv';
+
+export function createCurrentContextTool(pageContext: LuvPageContext | null) {
+  return tool({
+    description:
+      'Get the current context: what time it is, which page the user is viewing in the Luv workbench, and any data rendered on that page. Call this at the start of a conversation to orient yourself.',
+    inputSchema: zodSchema(z.object({})),
+    execute: async () => {
+      if (!pageContext) {
+        return { timestamp: new Date().toISOString(), note: 'No page context available' };
+      }
+      return {
+        ...pageContext,
+        // Refresh timestamp to actual call time
+        timestamp: new Date().toISOString(),
+      };
+    },
+  });
+}
+
+// ============================================================================
 // Tool Registry
 // ============================================================================
 

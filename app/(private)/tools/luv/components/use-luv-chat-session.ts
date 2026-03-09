@@ -28,8 +28,10 @@ export function getMessageText(msg: UIMessage): string {
 }
 
 export function useLuvChatSession() {
-  const { activeConversationId, clearActiveConversation, soulData, soulLoaded } =
+  const { activeConversationId, clearActiveConversation, soulData, soulLoaded, pageContext } =
     useLuvChat();
+  const pageContextRef = useRef(pageContext);
+  pageContextRef.current = pageContext;
 
   const [modelKey, setModelKey] = useState('claude-sonnet');
   const [resumedConversationId, setResumedConversationId] = useState<string | null>(null);
@@ -45,9 +47,14 @@ export function useLuvChatSession() {
     () =>
       new DefaultChatTransport({
         api: '/api/luv/chat',
-        body: { modelKey },
+        body: {
+          modelKey,
+          pageContext: pageContextRef.current,
+        },
       }),
-    [modelKey]
+    // Recreate when model or pathname changes (pageContext.pathname is stable per nav)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [modelKey, pageContext.pathname]
   );
 
   const { messages, sendMessage, setMessages, status, error } = useChat({

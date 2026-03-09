@@ -368,3 +368,20 @@ export type UpdateLuvResearchInput = Partial<{
   tags: string[];
   metadata: Record<string, unknown>;
 }>;
+
+// ============================================================================
+// Page Context — client-side context passed to the agent via chat transport
+// ============================================================================
+
+export interface LuvPageContext {
+  /** ISO timestamp of when the context was captured */
+  timestamp: string;
+  /** Current pathname in the Luv tool */
+  pathname: string;
+  /** Human-readable label for the current view */
+  viewLabel: string;
+  /** Which top-level space is active */
+  space: string;
+  /** Structured data from the current page view (extensible) */
+  pageData?: Record<string, unknown>;
+}
