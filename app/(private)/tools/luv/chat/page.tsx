@@ -1,10 +1,9 @@
 'use client';
 
 import { useEffect } from 'react';
-import Link from 'next/link';
 import { isToolUIPart, getToolName } from 'ai';
 import type { UIMessage } from 'ai';
-import { ArrowLeft, ArrowUp, Ellipsis, ImagePlus, Save, Trash2, X } from 'lucide-react';
+import { ArrowUp, Ellipsis, ImagePlus, Save, Trash2, X } from 'lucide-react';
 import { usePrivateHeader } from '@/components/layout/private-header-context';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -46,6 +45,7 @@ export default function LuvChatPage() {
     isActive,
     soulData,
     soulLoaded,
+    scrollContainerRef,
     messagesEndRef,
     textareaRef,
     fileInputRef,
@@ -63,6 +63,7 @@ export default function LuvChatPage() {
 
       {/* Messages */}
       <div
+        ref={scrollContainerRef}
         className="flex-1 overflow-y-auto min-h-0"
         onDrop={handleDrop}
         onDragOver={(e) => e.preventDefault()}

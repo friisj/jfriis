@@ -17,7 +17,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { ArrowUp, ChevronDown, Ellipsis, ImagePlus, Save, Send, Trash2, X } from 'lucide-react';
+import { ArrowUp, ChevronDown, Ellipsis, ImagePlus, Save, Trash2, X } from 'lucide-react';
 import { composeLayers } from '@/lib/luv/soul-composer';
 import { LAYER_REGISTRY } from '@/lib/luv/soul-layers';
 import { useLuvChatSession, MODEL_OPTIONS, getMessageText } from './use-luv-chat-session';
@@ -39,6 +39,7 @@ export function ChatDrawer() {
     isActive,
     soulData,
     soulLoaded,
+    scrollContainerRef,
     messagesEndRef,
     textareaRef,
     fileInputRef,
@@ -55,6 +56,7 @@ export function ChatDrawer() {
     <div className="flex flex-col h-full relative">
       {/* Messages */}
       <div
+        ref={scrollContainerRef}
         className="flex-1 overflow-y-auto px-3 py-3 space-y-3 min-h-0"
         onDrop={handleDrop}
         onDragOver={(e) => e.preventDefault()}
@@ -85,7 +87,7 @@ export function ChatDrawer() {
       </div>
 
       {/* Scroll indicator */}
-      <ScrollIndicator containerRef={messagesEndRef} />
+      <ScrollIndicator scrollContainerRef={scrollContainerRef} messagesEndRef={messagesEndRef} />
 
       {/* Input */}
       <div className="border-t shrink-0 space-y-1.5">
@@ -309,14 +311,16 @@ function MessageBubble({
 }
 
 function ScrollIndicator({
-  containerRef,
+  scrollContainerRef,
+  messagesEndRef,
 }: {
-  containerRef: React.RefObject<HTMLDivElement | null>;
+  scrollContainerRef: React.RefObject<HTMLDivElement | null>;
+  messagesEndRef: React.RefObject<HTMLDivElement | null>;
 }) {
   const [showScroll, setShowScroll] = useState(false);
 
   useEffect(() => {
-    const container = containerRef.current?.parentElement;
+    const container = scrollContainerRef.current;
     if (!container) return;
 
     const handleScroll = () => {
@@ -324,9 +328,9 @@ function ScrollIndicator({
       setShowScroll(scrollHeight - scrollTop - clientHeight > 40);
     };
 
-    container.addEventListener('scroll', handleScroll);
+    container.addEventListener('scroll', handleScroll, { passive: true });
     return () => container.removeEventListener('scroll', handleScroll);
-  }, [containerRef]);
+  }, [scrollContainerRef]);
 
   if (!showScroll) return null;
 
@@ -334,7 +338,7 @@ function ScrollIndicator({
     <button
       type="button"
       onClick={() =>
-        containerRef.current?.scrollIntoView({ behavior: 'smooth' })
+        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
       }
       className="flex items-center justify-center w-6 h-6 rounded-full bg-muted border absolute bottom-20 left-1/2 -translate-x-1/2 shadow-sm hover:bg-accent transition-colors"
     >

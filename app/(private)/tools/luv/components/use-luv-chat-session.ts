@@ -36,9 +36,11 @@ export function useLuvChatSession() {
   const [resumedConversationId, setResumedConversationId] = useState<string | null>(null);
   const [input, setInput] = useState('');
   const [pendingFiles, setPendingFiles] = useState<FileUIPart[]>([]);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const isStuckToBottom = useRef(true);
 
   const transport = useMemo(
     () =>
@@ -89,13 +91,26 @@ export function useLuvChatSession() {
 
   const isActive = status === 'streaming' || status === 'submitted';
 
-  const scrollToBottom = useCallback(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  // Track whether user has scrolled away from bottom
+  useEffect(() => {
+    const el = scrollContainerRef.current;
+    if (!el) return;
+    const handleScroll = () => {
+      const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+      isStuckToBottom.current = distanceFromBottom < 50;
+    };
+    el.addEventListener('scroll', handleScroll, { passive: true });
+    return () => el.removeEventListener('scroll', handleScroll);
   }, []);
 
+  // Auto-scroll on new content only when stuck to bottom
   useEffect(() => {
-    scrollToBottom();
-  }, [messages, scrollToBottom]);
+    if (!isStuckToBottom.current) return;
+    const el = scrollContainerRef.current;
+    if (!el) return;
+    // Instant during streaming to avoid animation queue-up
+    el.scrollTop = el.scrollHeight;
+  }, [messages]);
 
   useEffect(() => {
     textareaRef.current?.focus();
@@ -166,6 +181,7 @@ export function useLuvChatSession() {
     const files = pendingFiles.length > 0 ? [...pendingFiles] : undefined;
     setInput('');
     setPendingFiles([]);
+    isStuckToBottom.current = true;
     await sendMessage({ text: trimmed || ' ', files });
   }, [input, pendingFiles, isActive, sendMessage]);
 
@@ -275,6 +291,7 @@ export function useLuvChatSession() {
     soulData,
     soulLoaded,
     // Refs
+    scrollContainerRef,
     messagesEndRef,
     textareaRef,
     fileInputRef,
