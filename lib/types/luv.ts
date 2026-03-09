@@ -330,3 +330,41 @@ export type UpdateLuvMemoryInput = Partial<{
   category: string;
   active: boolean;
 }>;
+
+// ============================================================================
+// Research
+// ============================================================================
+
+export type LuvResearchKind = 'hypothesis' | 'experiment' | 'decision' | 'insight' | 'evidence';
+export type LuvResearchStatus = 'open' | 'active' | 'resolved' | 'archived';
+
+export interface LuvResearch {
+  id: string;
+  kind: LuvResearchKind;
+  title: string;
+  body: string | null;
+  status: LuvResearchStatus;
+  tags: string[];
+  metadata: Record<string, unknown>;
+  parent_id: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export type CreateLuvResearchInput = {
+  kind: LuvResearchKind;
+  title: string;
+  body?: string;
+  status?: LuvResearchStatus;
+  tags?: string[];
+  metadata?: Record<string, unknown>;
+  parent_id?: string;
+};
+
+export type UpdateLuvResearchInput = Partial<{
+  title: string;
+  body: string | null;
+  status: LuvResearchStatus;
+  tags: string[];
+  metadata: Record<string, unknown>;
+}>;
