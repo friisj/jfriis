@@ -17,7 +17,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from '@/components/ui/collapsible';
-import { ChevronDown, ChevronRight, Plus, Trash2, ArrowUp, ArrowDown } from 'lucide-react';
+import { IconChevronDown, IconChevronRight, IconPlus, IconTrash, IconArrowUp, IconArrowDown } from '@tabler/icons-react';
 import { updateChassisModule } from '@/lib/luv-chassis';
 import type { ParameterDef, ParameterType, ParameterTier, MeasurementUnit } from '@/lib/types/luv-chassis';
 
@@ -124,7 +124,7 @@ export function ModuleSchemaEditor({ moduleId, parameterSchema, onSaved }: Modul
                 <div className="flex items-center gap-2">
                   <CollapsibleTrigger asChild>
                     <button className="flex items-center gap-1.5 text-xs hover:text-foreground transition-colors flex-1 text-left">
-                      {isExpanded ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+                      {isExpanded ? <IconChevronDown size={12}  /> : <IconChevronRight size={12}  />}
                       <span className="font-medium">{param.label}</span>
                       <Badge variant="secondary" className="text-[10px]">{param.type}</Badge>
                       {param.tier && param.tier !== 'basic' && (
@@ -138,13 +138,13 @@ export function ModuleSchemaEditor({ moduleId, parameterSchema, onSaved }: Modul
                       variant="ghost" size="sm" className="h-5 w-5 p-0"
                       onClick={() => moveParam(idx, -1)} disabled={idx === 0}
                     >
-                      <ArrowUp className="h-3 w-3" />
+                      <IconArrowUp size={12}  />
                     </Button>
                     <Button
                       variant="ghost" size="sm" className="h-5 w-5 p-0"
                       onClick={() => moveParam(idx, 1)} disabled={idx === params.length - 1}
                     >
-                      <ArrowDown className="h-3 w-3" />
+                      <IconArrowDown size={12}  />
                     </Button>
                   </div>
                 </div>
@@ -230,7 +230,7 @@ export function ModuleSchemaEditor({ moduleId, parameterSchema, onSaved }: Modul
         </div>
       ) : (
         <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => setAdding(true)}>
-          <Plus className="h-3 w-3 mr-1" />
+          <IconPlus size={12} className="mr-1" />
           Add Parameter
         </Button>
       )}
@@ -397,7 +397,7 @@ function ParamEditor({
 
       <div className="pt-1">
         <Button variant="destructive" size="sm" className="h-6 text-[10px]" onClick={onRemove}>
-          <Trash2 className="h-3 w-3 mr-1" />
+          <IconTrash size={12} className="mr-1" />
           Remove Parameter
         </Button>
       </div>

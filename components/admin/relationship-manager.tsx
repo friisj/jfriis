@@ -29,15 +29,7 @@ import {
 } from '@/components/ui/command'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import {
-  ChevronRight,
-  Plus,
-  X,
-  Pencil,
-  Search,
-  Sparkles,
-  Loader2,
-} from 'lucide-react'
+import { IconChevronRight, IconPlus, IconX, IconPencil, IconSearch, IconSparkles, IconLoader2 } from '@tabler/icons-react'
 import { cn } from '@/lib/utils'
 
 // ============================================================================
@@ -465,9 +457,9 @@ export function RelationshipManager({
             disabled={suggestingLinks || disabled}
           >
             {suggestingLinks ? (
-              <Loader2 className="size-3.5 animate-spin" />
+              <IconLoader2 size={14} className="animate-spin" />
             ) : (
-              <Sparkles className="size-3.5" />
+              <IconSparkles size={14}  />
             )}
             Suggest
           </Button>
@@ -488,7 +480,7 @@ export function RelationshipManager({
             >
               <div className="flex items-center">
                 <CollapsibleTrigger className="flex items-center gap-1.5 flex-1 py-1.5 px-2 -mx-2 rounded-md hover:bg-muted/50 transition-colors text-sm font-medium">
-                  <ChevronRight
+                  <IconChevronRight
                     className={cn(
                       'size-3.5 text-muted-foreground transition-transform',
                       isOpen && 'rotate-90'
@@ -511,7 +503,7 @@ export function RelationshipManager({
                   }}
                   disabled={disabled || saving}
                 >
-                  <Plus className="size-3.5" />
+                  <IconPlus size={14}  />
                   <span className="sr-only">Add {groupName}</span>
                 </Button>
               </div>
@@ -556,7 +548,7 @@ export function RelationshipManager({
                                 asChild
                               >
                                 <a href={slot.editHref(item.entityId)}>
-                                  <Pencil className="size-3" />
+                                  <IconPencil size={12}  />
                                   <span className="sr-only">Edit</span>
                                 </a>
                               </Button>
@@ -568,7 +560,7 @@ export function RelationshipManager({
                               onClick={() => handleRemove(item)}
                               disabled={disabled || saving}
                             >
-                              <X className="size-3" />
+                              <IconX size={12}  />
                               <span className="sr-only">Remove</span>
                             </Button>
                           </div>
@@ -599,7 +591,7 @@ export function RelationshipManager({
         disabled={disabled}
         className="w-full flex items-center gap-2 px-3 py-2 border border-dashed rounded-md text-sm text-muted-foreground hover:text-foreground hover:border-foreground/20 transition-colors disabled:opacity-50"
       >
-        <Search className="size-3.5" />
+        <IconSearch size={14}  />
         Quick link: search all entities...
         <kbd className="ml-auto hidden sm:inline-block text-[10px] font-mono bg-muted px-1.5 py-0.5 rounded">
           {'\u2318'}K
@@ -625,7 +617,7 @@ export function RelationshipManager({
         onAdd={handleAdd}
         disabled={disabled || saving}
         title="Quick Link"
-        description="Search and link to any entity"
+        description="IconSearch and link to any entity"
       />
     </div>
   )
@@ -673,7 +665,7 @@ function AddLinkDialog({
       title={title}
       description={description}
     >
-      <CommandInput placeholder="Search entities..." />
+      <CommandInput placeholder="IconSearch entities..." />
       <CommandList>
         <CommandEmpty>No matching entities found.</CommandEmpty>
         {slotGroups.map(({ label, slot, items }) => (

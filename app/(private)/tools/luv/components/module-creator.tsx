@@ -19,7 +19,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Plus } from 'lucide-react';
+import { IconPlus } from '@tabler/icons-react';
 import { createChassisModule } from '@/lib/luv-chassis';
 
 const CATEGORIES = ['face', 'coloring', 'body', 'general'];
@@ -66,7 +66,7 @@ export function ModuleCreator() {
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button variant="outline" size="sm">
-          <Plus className="h-3 w-3 mr-1" />
+          <IconPlus size={12} className="mr-1" />
           New Module
         </Button>
       </DialogTrigger>

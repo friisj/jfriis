@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { ChevronRight } from 'lucide-react';
+import { IconChevronRight } from '@tabler/icons-react';
 import { composeLayers } from '@/lib/luv/soul-composer';
 import { composeSoulSystemPrompt } from '@/lib/luv-prompt-composer';
 import { LAYER_REGISTRY } from '@/lib/luv/soul-layers';
@@ -57,7 +57,7 @@ function LayerRow({ layer }: { layer: SoulLayer }) {
         onClick={() => setExpanded(!expanded)}
         className="flex items-center gap-1.5 w-full px-3 py-2 text-sm hover:bg-muted transition-colors"
       >
-        <ChevronRight
+        <IconChevronRight
           className={cn(
             'size-3 shrink-0 transition-transform',
             expanded && 'rotate-90'

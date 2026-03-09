@@ -14,6 +14,7 @@ import { MaskCanvas } from '../../mask-canvas'
 import { useMorphMode } from './modes/use-morph-mode'
 import { useMaskEditMode } from './modes/use-mask-edit-mode'
 import { useRefineMode } from './modes/use-refine-mode'
+import { IconChevronLeft, IconChevronRight, IconStarFilled } from '@tabler/icons-react'
 import { MorphPalette } from './modes/morph-palette'
 import { MaskEditPalette } from './modes/mask-edit-palette'
 import { RefinePalette } from './modes/refine-palette'
@@ -685,19 +686,7 @@ export function ImageEditor({ seriesId, imageId, initialImages }: ImageEditorPro
                     className="absolute left-4 top-1/2 -translate-y-1/2 z-10 p-3 rounded-full bg-white/10 hover:bg-white/20 transition-colors text-white"
                     aria-label="Previous image"
                   >
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      width="24"
-                      height="24"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    >
-                      <path d="m15 18-6-6 6-6" />
-                    </svg>
+                    <IconChevronLeft size={24} />
                   </button>
                 )}
 
@@ -730,19 +719,7 @@ export function ImageEditor({ seriesId, imageId, initialImages }: ImageEditorPro
                     className="absolute right-4 top-1/2 -translate-y-1/2 z-10 p-3 rounded-full bg-white/10 hover:bg-white/20 transition-colors text-white"
                     aria-label="Next image"
                   >
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      width="24"
-                      height="24"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    >
-                      <path d="m9 18 6-6-6-6" />
-                    </svg>
+                    <IconChevronRight size={24} />
                   </button>
                 )}
               </>
@@ -810,15 +787,7 @@ export function ImageEditor({ seriesId, imageId, initialImages }: ImageEditorPro
                           {/* Primary badge */}
                           {isPrimary && (
                             <div className="absolute top-1 left-1 px-2 py-0.5 bg-blue-500 rounded-md text-[10px] font-semibold text-white shadow-lg flex items-center gap-1">
-                              <svg
-                                xmlns="http://www.w3.org/2000/svg"
-                                width="10"
-                                height="10"
-                                viewBox="0 0 24 24"
-                                fill="currentColor"
-                              >
-                                <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
-                              </svg>
+                              <IconStarFilled size={10} />
                               Primary
                             </div>
                           )}

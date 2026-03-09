@@ -1,6 +1,6 @@
 'use client';
 
-import { RotateCcw } from 'lucide-react';
+import { IconRotate } from '@tabler/icons-react';
 import { cn } from '@/lib/utils';
 import {
   Select,
@@ -40,7 +40,7 @@ function SectionHeader({ label, onReset, active }: { label: string; onReset: () 
         )}
         title={`Reset ${label}`}
       >
-        <RotateCcw className="w-3 h-3" />
+        <IconRotate size={12}  />
       </button>
     </div>
   );
@@ -474,7 +474,7 @@ export function EffectsChain({ effects, onChange }: EffectsChainProps) {
               )}
               title="Reset Reverse"
             >
-              <RotateCcw className="w-3 h-3" />
+              <IconRotate size={12}  />
             </button>
           </div>
           <Switch
@@ -500,7 +500,7 @@ export function EffectsChain({ effects, onChange }: EffectsChainProps) {
               )}
               title="Reset Stutter"
             >
-              <RotateCcw className="w-3 h-3" />
+              <IconRotate size={12}  />
             </button>
           </div>
           <Switch

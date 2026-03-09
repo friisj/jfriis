@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, createContext, useContext, type ReactNode } from 'react';
+import { IconChevronRight } from '@tabler/icons-react';
 
 interface DisclosureContextValue {
   isOpen: boolean;
@@ -48,20 +49,7 @@ export function DisclosureTrigger({ children, className = '' }: DisclosureTrigge
       className={`flex items-center gap-2 text-left w-full ${className}`}
       aria-expanded={isOpen}
     >
-      <svg
-        xmlns="http://www.w3.org/2000/svg"
-        width="16"
-        height="16"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        className={`transition-transform flex-shrink-0 ${isOpen ? 'rotate-90' : ''}`}
-      >
-        <path d="m9 18 6-6-6-6" />
-      </svg>
+      <IconChevronRight size={16} className={`transition-transform flex-shrink-0 ${isOpen ? 'rotate-90' : ''}`} />
       {children}
     </button>
   );

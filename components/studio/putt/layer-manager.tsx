@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { ChevronRight, ChevronDown } from "lucide-react";
+import { IconChevronRight, IconChevronDown } from "@tabler/icons-react";
 
 /**
  * Layer visibility configuration for 3D scene management
@@ -192,9 +192,9 @@ export function LayerManager({ config, onChange, surfaceSpec, enabledFeatures, m
             className="p-0 h-4 w-4 flex items-center justify-center"
           >
             {disclosed.terrain ? (
-              <ChevronDown className="h-3 w-3" />
+              <IconChevronDown className="h-3 w-3" />
             ) : (
-              <ChevronRight className="h-3 w-3" />
+              <IconChevronRight className="h-3 w-3" />
             )}
           </button>
           <input
@@ -267,9 +267,9 @@ export function LayerManager({ config, onChange, surfaceSpec, enabledFeatures, m
                           className="p-0 h-3 w-3 flex items-center justify-center"
                         >
                           {disclosed.tierDetails ? (
-                            <ChevronDown className="h-2 w-2" />
+                            <IconChevronDown className="h-2 w-2" />
                           ) : (
-                            <ChevronRight className="h-2 w-2" />
+                            <IconChevronRight className="h-2 w-2" />
                           )}
                         </button>
                         <span className="text-muted-foreground">Tiers: {surfaceSpec.tiers.length}</span>
@@ -295,9 +295,9 @@ export function LayerManager({ config, onChange, surfaceSpec, enabledFeatures, m
                           className="p-0 h-3 w-3 flex items-center justify-center"
                         >
                           {disclosed.ridgeDetails ? (
-                            <ChevronDown className="h-2 w-2" />
+                            <IconChevronDown className="h-2 w-2" />
                           ) : (
-                            <ChevronRight className="h-2 w-2" />
+                            <IconChevronRight className="h-2 w-2" />
                           )}
                         </button>
                         <span className="text-muted-foreground">Ridges: {surfaceSpec.ridges.length}</span>
@@ -323,9 +323,9 @@ export function LayerManager({ config, onChange, surfaceSpec, enabledFeatures, m
                           className="p-0 h-3 w-3 flex items-center justify-center"
                         >
                           {disclosed.swaleDetails ? (
-                            <ChevronDown className="h-2 w-2" />
+                            <IconChevronDown className="h-2 w-2" />
                           ) : (
-                            <ChevronRight className="h-2 w-2" />
+                            <IconChevronRight className="h-2 w-2" />
                           )}
                         </button>
                         <span className="text-muted-foreground">Swales: {surfaceSpec.swales.length}</span>
@@ -351,9 +351,9 @@ export function LayerManager({ config, onChange, surfaceSpec, enabledFeatures, m
                           className="p-0 h-3 w-3 flex items-center justify-center"
                         >
                           {disclosed.crownDetails ? (
-                            <ChevronDown className="h-2 w-2" />
+                            <IconChevronDown className="h-2 w-2" />
                           ) : (
-                            <ChevronRight className="h-2 w-2" />
+                            <IconChevronRight className="h-2 w-2" />
                           )}
                         </button>
                         <span className="text-muted-foreground">Crowns: {surfaceSpec.crowns.length}</span>
@@ -384,9 +384,9 @@ export function LayerManager({ config, onChange, surfaceSpec, enabledFeatures, m
             className="p-0 h-4 w-4 flex items-center justify-center"
           >
             {disclosed.physicsHeightfield ? (
-              <ChevronDown className="h-3 w-3" />
+              <IconChevronDown className="h-3 w-3" />
             ) : (
-              <ChevronRight className="h-3 w-3" />
+              <IconChevronRight className="h-3 w-3" />
             )}
           </button>
           <input
@@ -422,9 +422,9 @@ export function LayerManager({ config, onChange, surfaceSpec, enabledFeatures, m
             disabled
           >
             {disclosed.turfMaterial ? (
-              <ChevronDown className="h-3 w-3" />
+              <IconChevronDown className="h-3 w-3" />
             ) : (
-              <ChevronRight className="h-3 w-3" />
+              <IconChevronRight className="h-3 w-3" />
             )}
           </button>
           <input
@@ -447,9 +447,9 @@ export function LayerManager({ config, onChange, surfaceSpec, enabledFeatures, m
             className="p-0 h-4 w-4 flex items-center justify-center"
           >
             {disclosed.contourLines ? (
-              <ChevronDown className="h-3 w-3" />
+              <IconChevronDown className="h-3 w-3" />
             ) : (
-              <ChevronRight className="h-3 w-3" />
+              <IconChevronRight className="h-3 w-3" />
             )}
           </button>
           <input
@@ -495,9 +495,9 @@ export function LayerManager({ config, onChange, surfaceSpec, enabledFeatures, m
             className="p-0 h-4 w-4 flex items-center justify-center"
           >
             {disclosed.sdfGrid ? (
-              <ChevronDown className="h-3 w-3" />
+              <IconChevronDown className="h-3 w-3" />
             ) : (
-              <ChevronRight className="h-3 w-3" />
+              <IconChevronRight className="h-3 w-3" />
             )}
           </button>
           <input
@@ -540,9 +540,9 @@ export function LayerManager({ config, onChange, surfaceSpec, enabledFeatures, m
             className="p-0 h-4 w-4 flex items-center justify-center"
           >
             {disclosed.pinFlats ? (
-              <ChevronDown className="h-3 w-3" />
+              <IconChevronDown className="h-3 w-3" />
             ) : (
-              <ChevronRight className="h-3 w-3" />
+              <IconChevronRight className="h-3 w-3" />
             )}
           </button>
           <input
@@ -580,9 +580,9 @@ export function LayerManager({ config, onChange, surfaceSpec, enabledFeatures, m
             className="p-0 h-4 w-4 flex items-center justify-center"
           >
             {disclosed.startCupMarkers ? (
-              <ChevronDown className="h-3 w-3" />
+              <IconChevronDown className="h-3 w-3" />
             ) : (
-              <ChevronRight className="h-3 w-3" />
+              <IconChevronRight className="h-3 w-3" />
             )}
           </button>
           <input
@@ -620,9 +620,9 @@ export function LayerManager({ config, onChange, surfaceSpec, enabledFeatures, m
             className="p-0 h-4 w-4 flex items-center justify-center"
           >
             {disclosed.cup ? (
-              <ChevronDown className="h-3 w-3" />
+              <IconChevronDown className="h-3 w-3" />
             ) : (
-              <ChevronRight className="h-3 w-3" />
+              <IconChevronRight className="h-3 w-3" />
             )}
           </button>
           <input
@@ -723,9 +723,9 @@ export function LayerManager({ config, onChange, surfaceSpec, enabledFeatures, m
             className="p-0 h-4 w-4 flex items-center justify-center"
           >
             {disclosed.ball ? (
-              <ChevronDown className="h-3 w-3" />
+              <IconChevronDown className="h-3 w-3" />
             ) : (
-              <ChevronRight className="h-3 w-3" />
+              <IconChevronRight className="h-3 w-3" />
             )}
           </button>
           <input

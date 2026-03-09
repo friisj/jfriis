@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { ArrowLeft, Plus, CheckCircle2, RotateCcw, Search, Package, Calendar, MapPin, Edit, Trash2, Play, Pause } from 'lucide-react';
+import { IconArrowLeft, IconPlus, IconCircleCheck, IconRotate, IconSearch, IconPackage, IconCalendar, IconMapPin, IconEdit, IconTrash, IconPlayerPlay, IconPlayerPause } from '@tabler/icons-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -289,7 +289,7 @@ export function TripDetail({
           {
             label: 'Start Packing',
             action: () => handleStatusChange('packing'),
-            icon: <Package className="h-4 w-4" />,
+            icon: <IconPackage size={16}  />,
             variant: 'default' as const,
             disabled: false
           }
@@ -300,14 +300,14 @@ export function TripDetail({
           {
             label: 'Start Trip',
             action: () => handleStatusChange('active'),
-            icon: <Play className="h-4 w-4" />,
+            icon: <IconPlayerPlay size={16}  />,
             variant: 'default' as const,
             disabled: checkedOutItems.length === 0
           },
           {
             label: 'Back to Planning',
             action: () => handleStatusChange('planning'),
-            icon: <Edit className="h-4 w-4" />,
+            icon: <IconEdit size={16}  />,
             variant: 'outline' as const,
             disabled: false
           }
@@ -318,7 +318,7 @@ export function TripDetail({
           {
             label: 'Start Unpacking',
             action: () => handleStatusChange('unpacking'),
-            icon: <Pause className="h-4 w-4" />,
+            icon: <IconPlayerPause size={16}  />,
             variant: 'default' as const,
             disabled: false
           }
@@ -329,14 +329,14 @@ export function TripDetail({
           {
             label: 'Complete Trip',
             action: () => handleStatusChange('completed'),
-            icon: <CheckCircle2 className="h-4 w-4" />,
+            icon: <IconCircleCheck size={16}  />,
             variant: 'default' as const,
             disabled: checkedOutItems.some(item => !item.checkedInAt)
           },
           {
             label: 'Resume Trip',
             action: () => handleStatusChange('active'),
-            icon: <Play className="h-4 w-4" />,
+            icon: <IconPlayerPlay size={16}  />,
             variant: 'outline' as const,
             disabled: false
           }
@@ -415,7 +415,7 @@ export function TripDetail({
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
           <Button variant="ghost" onClick={onBack} className="p-2">
-            <ArrowLeft className="h-4 w-4" />
+            <IconArrowLeft size={16}  />
           </Button>
           <div>
             <div className="flex items-center gap-3">
@@ -446,8 +446,8 @@ export function TripDetail({
           {/* Standard actions */}
           {!['completed', 'cancelled'].includes(trip.status) && (
             <Button variant="outline">
-              <Edit className="h-4 w-4 mr-2" />
-              Edit
+              <IconEdit size={16} className="mr-2" />
+              IconEdit
             </Button>
           )}
           <Button 
@@ -455,7 +455,7 @@ export function TripDetail({
             onClick={handleDeleteTrip}
             className="text-red-600 border-red-600 hover:bg-red-50"
           >
-            <Trash2 className="h-4 w-4 mr-2" />
+            <IconTrash size={16} className="mr-2" />
             Delete
           </Button>
         </div>
@@ -482,7 +482,7 @@ export function TripDetail({
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center gap-2">
-              <Calendar className="h-4 w-4 text-muted-foreground" />
+              <IconCalendar size={16} className="text-muted-foreground" />
               <div className="text-sm text-muted-foreground">Start Date</div>
             </div>
             <div className="text-lg font-semibold mt-1">
@@ -495,7 +495,7 @@ export function TripDetail({
           <Card>
             <CardContent className="p-4">
               <div className="flex items-center gap-2">
-                <Calendar className="h-4 w-4 text-muted-foreground" />
+                <IconCalendar size={16} className="text-muted-foreground" />
                 <div className="text-sm text-muted-foreground">End Date</div>
               </div>
               <div className="text-lg font-semibold mt-1">
@@ -509,7 +509,7 @@ export function TripDetail({
           <Card>
             <CardContent className="p-4">
               <div className="flex items-center gap-2">
-                <MapPin className="h-4 w-4 text-muted-foreground" />
+                <IconMapPin size={16} className="text-muted-foreground" />
                 <div className="text-sm text-muted-foreground">Location</div>
               </div>
               <div className="text-lg font-semibold mt-1">{trip.location}</div>
@@ -520,7 +520,7 @@ export function TripDetail({
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center gap-2">
-              <Package className="h-4 w-4 text-muted-foreground" />
+              <IconPackage size={16} className="text-muted-foreground" />
               <div className="text-sm text-muted-foreground">Checked Out</div>
             </div>
             <div className="text-lg font-semibold mt-1">{checkedOutItems.length} items</div>
@@ -549,14 +549,14 @@ export function TripDetail({
         <CardHeader>
           <div className="flex items-center justify-between">
             <CardTitle className="flex items-center gap-2">
-              <Package className="h-5 w-5" />
+              <IconPackage size={20}  />
               Checked Out Items ({checkedOutItems.length})
             </CardTitle>
             <Button 
               onClick={() => setIsCheckOutOpen(true)}
               disabled={!canCheckOut()}
             >
-              <Plus className="h-4 w-4 mr-2" />
+              <IconPlus size={16} className="mr-2" />
               Check Out Items
             </Button>
           </div>
@@ -564,14 +564,14 @@ export function TripDetail({
         <CardContent>
           {checkedOutItems.length === 0 ? (
             <div className="text-center py-12">
-              <Package className="h-12 w-12 mx-auto mb-4 opacity-50" />
+              <IconPackage size={48} className="mx-auto mb-4 opacity-50" />
               <p className="text-muted-foreground mb-4">No items checked out for this trip.</p>
               <Button 
                 onClick={() => setIsCheckOutOpen(true)} 
                 variant="outline"
                 disabled={!canCheckOut()}
               >
-                <Plus className="h-4 w-4 mr-2" />
+                <IconPlus size={16} className="mr-2" />
                 Check Out Your First Item
               </Button>
             </div>
@@ -611,7 +611,7 @@ export function TripDetail({
                         onClick={() => handleCheckIn(tripItem, 'good')}
                         className="text-green-600 border-green-600 hover:bg-green-50"
                       >
-                        <CheckCircle2 className="h-4 w-4 mr-1" />
+                        <IconCircleCheck size={16} className="mr-1" />
                         Good
                       </Button>
                       <Button
@@ -620,7 +620,7 @@ export function TripDetail({
                         onClick={() => handleCheckIn(tripItem, 'damaged')}
                         className="text-yellow-600 border-yellow-600 hover:bg-yellow-50"
                       >
-                        <RotateCcw className="h-4 w-4 mr-1" />
+                        <IconRotate size={16} className="mr-1" />
                         Damaged
                       </Button>
                       <Button
@@ -648,11 +648,11 @@ export function TripDetail({
           </DialogHeader>
           
           <div className="flex-1 overflow-hidden flex flex-col space-y-4">
-            {/* Search */}
+            {/* IconSearch */}
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <IconSearch size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
               <Input
-                placeholder="Search items and collections..."
+                placeholder="IconSearch items and collections..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-10"
@@ -774,7 +774,7 @@ export function TripDetail({
                       Clear Selection
                     </Button>
                     <Button onClick={handleCheckOut}>
-                      <CheckCircle2 className="h-4 w-4 mr-2" />
+                      <IconCircleCheck size={16} className="mr-2" />
                       Check Out Items
                     </Button>
                   </div>

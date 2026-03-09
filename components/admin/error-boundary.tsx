@@ -1,6 +1,7 @@
 'use client'
 
 import { Component, type ReactNode } from 'react'
+import { IconAlertCircle } from '@tabler/icons-react'
 
 interface ErrorBoundaryProps {
   children: ReactNode
@@ -39,19 +40,7 @@ export class AdminErrorBoundary extends Component<ErrorBoundaryProps, ErrorBound
           <div className="max-w-md w-full p-6 bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800 rounded-lg">
             <div className="flex items-start gap-3">
               <div className="flex-shrink-0">
-                <svg
-                  className="w-6 h-6 text-red-600 dark:text-red-400"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                  />
-                </svg>
+                <IconAlertCircle size={24} className="text-red-600 dark:text-red-400" />
               </div>
               <div className="flex-1">
                 <h3 className="text-lg font-semibold text-red-900 dark:text-red-100">
@@ -101,19 +90,7 @@ export function ErrorState({
     <div className="min-h-[400px] flex items-center justify-center p-4">
       <div className="max-w-md w-full text-center">
         <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-red-100 dark:bg-red-950/30 mb-4">
-          <svg
-            className="w-8 h-8 text-red-600 dark:text-red-400"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-            />
-          </svg>
+          <IconAlertCircle size={32} className="text-red-600 dark:text-red-400" />
         </div>
         <h3 className="text-xl font-semibold text-foreground mb-2">{title}</h3>
         {message && <p className="text-muted-foreground mb-6">{message}</p>}

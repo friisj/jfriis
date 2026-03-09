@@ -2,7 +2,7 @@
 "use client";
 
 import { useRef, useState, useEffect } from "react";
-import { Volume2, Loader2 } from "lucide-react";
+import { IconVolume, IconLoader2 } from "@tabler/icons-react";
 
 interface VoiceAnnotation {
   id: string;
@@ -433,7 +433,7 @@ export function VoiceAnnotationCanvas({
                     </div>
                     {annotation.status === "transcribing" && (
                       <div className="text-xs text-gray-500 flex items-center gap-1">
-                        <Loader2 className="w-3 h-3 animate-spin" />
+                        <IconLoader2 size={12} className="animate-spin" />
                         Transcribing...
                       </div>
                     )}
@@ -459,7 +459,7 @@ export function VoiceAnnotationCanvas({
                         className="ml-2 p-1 hover:bg-gray-100 rounded"
                         title="Play audio"
                       >
-                        <Volume2 className="w-4 h-4 text-red-600" />
+                        <IconVolume size={16} className="text-red-600" />
                       </button>
                     )}
                 </div>

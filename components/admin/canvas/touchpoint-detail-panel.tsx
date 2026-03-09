@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useCallback } from 'react'
-import { X, Plus, Pencil, Trash2, GripVertical } from 'lucide-react'
+import { IconX, IconPlus, IconPencil, IconTrash, IconGripVertical } from '@tabler/icons-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
@@ -47,7 +47,7 @@ export function TouchpointDetailPanel({
           </p>
         </div>
         <Button variant="ghost" size="icon" onClick={onClose}>
-          <X className="h-4 w-4" />
+          <IconX size={16}  />
         </Button>
       </div>
 
@@ -82,7 +82,7 @@ export function TouchpointDetailPanel({
             className="w-full"
             onClick={() => setIsCreating(true)}
           >
-            <Plus className="h-4 w-4 mr-2" />
+            <IconPlus size={16} className="mr-2" />
             Add Touchpoint
           </Button>
         )}
@@ -179,7 +179,7 @@ function TouchpointCard({
             className="h-7 w-7"
             onClick={onEdit}
           >
-            <Pencil className="h-3.5 w-3.5" />
+            <IconPencil size={12} className=".5 .5" />
           </Button>
           <Button
             variant="ghost"
@@ -188,7 +188,7 @@ function TouchpointCard({
             onClick={handleDelete}
             disabled={isDeleting}
           >
-            <Trash2 className="h-3.5 w-3.5" />
+            <IconTrash size={12} className=".5 .5" />
           </Button>
         </div>
       </div>

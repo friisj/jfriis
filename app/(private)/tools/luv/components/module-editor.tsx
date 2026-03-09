@@ -4,7 +4,7 @@ import { useState, useCallback, useMemo } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { AlertTriangle, Lock } from 'lucide-react';
+import { IconAlertTriangle, IconLock } from '@tabler/icons-react';
 import type { LuvChassisModule, ParameterConstraint, ParameterDef, ParameterTier } from '@/lib/types/luv-chassis';
 import { saveModuleWithVersion } from '@/lib/luv-chassis';
 import { validateModuleConstraints } from '@/lib/luv/chassis-constraints';
@@ -156,7 +156,7 @@ export function ModuleEditor({ module, allModules = [], studyLocks = [], onSaved
         <div className="rounded border border-yellow-500/30 bg-yellow-500/5 p-3 space-y-1">
           {violations.map((v, i) => (
             <div key={i} className="flex items-center gap-2 text-xs text-yellow-600 dark:text-yellow-400">
-              <AlertTriangle className="h-3 w-3 shrink-0" />
+              <IconAlertTriangle size={12} className="shrink-0" />
               <span>{v.message}</span>
             </div>
           ))}
@@ -189,7 +189,7 @@ export function ModuleEditor({ module, allModules = [], studyLocks = [], onSaved
                 >
                   {isLocked && (
                     <div className="flex items-center gap-1.5 mb-1 text-[10px] text-blue-600 dark:text-blue-400">
-                      <Lock className="h-2.5 w-2.5" />
+                      <IconLock size={8} className=".5 .5" />
                       <span>
                         Locked by{' '}
                         <Link

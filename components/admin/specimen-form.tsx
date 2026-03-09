@@ -16,7 +16,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select'
-import { ExternalLink } from 'lucide-react'
+import { IconExternalLink } from '@tabler/icons-react'
 
 // ============================================================================
 // Relationship slots
@@ -449,7 +449,7 @@ export function SpecimenForm({ specimenId, initialData }: SpecimenFormProps) {
           onCancel={() => router.push('/admin/specimens')}
           saveLabel={specimenId ? 'Save' : 'Create'}
           links={specimenId ? [
-            { label: 'Gallery', href: `/gallery/${formData.slug}`, icon: <ExternalLink className="size-4" />, external: true },
+            { label: 'Gallery', href: `/gallery/${formData.slug}`, icon: <IconExternalLink size={16}  />, external: true },
           ] : undefined}
           onDelete={specimenId ? handleDelete : undefined}
         />

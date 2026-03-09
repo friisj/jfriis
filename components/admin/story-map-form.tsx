@@ -16,7 +16,7 @@ import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select'
-import { ExternalLink } from 'lucide-react'
+import { IconExternalLink } from '@tabler/icons-react'
 
 // ============================================================================
 // Relationship slots
@@ -488,7 +488,7 @@ export function StoryMapForm({ storyMap }: StoryMapFormProps) {
           onCancel={() => router.push('/admin/story-maps')}
           saveLabel={storyMap ? 'Save' : 'Create'}
           links={storyMap ? [
-            { label: 'Canvas', href: `/admin/story-maps/${storyMap.id}/canvas`, icon: <ExternalLink className="size-4" /> },
+            { label: 'Canvas', href: `/admin/story-maps/${storyMap.id}/canvas`, icon: <IconExternalLink size={16}  /> },
           ] : undefined}
           onDelete={storyMap ? handleDelete : undefined}
           deleteConfirmMessage="Are you sure you want to delete this story map? This will also delete all activities and stories."

@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { IconPlus } from '@tabler/icons-react'
 import {
   usePasskeyManagement,
   type PasskeyCredential,
@@ -116,19 +117,7 @@ export function PasskeySettings() {
                   onClick={() => setShowRegisterForm(true)}
                   className="flex items-center gap-2 px-4 py-2 border rounded-lg text-sm font-medium hover:bg-accent transition-colors"
                 >
-                  <svg
-                    className="w-4 h-4"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M12 4v16m8-8H4"
-                    />
-                  </svg>
+                  <IconPlus size={16} />
                   Register New Passkey
                 </button>
               )}

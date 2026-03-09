@@ -3,7 +3,7 @@
 import { useEffect } from 'react';
 import { isToolUIPart, getToolName } from 'ai';
 import type { UIMessage } from 'ai';
-import { ArrowUp, Ellipsis, ImagePlus, Save, Trash2, X } from 'lucide-react';
+import { IconArrowUp, IconDots, IconPhotoPlus, IconDeviceFloppy, IconTrash, IconX } from '@tabler/icons-react';
 import { usePrivateHeader } from '@/components/layout/private-header-context';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -118,7 +118,7 @@ export default function LuvChatPage() {
                     onClick={() => setPendingFiles((prev) => prev.filter((_, j) => j !== i))}
                     className="absolute -top-1.5 -right-1.5 bg-destructive text-destructive-foreground rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
                   >
-                    <X className="size-3" />
+                    <IconX size={12}  />
                   </button>
                 </div>
               ))}
@@ -144,7 +144,7 @@ export default function LuvChatPage() {
                       className="shrink-0 p-0 hover:bg-transparent active:bg-transparent"
                       title="Chat menu"
                     >
-                      <Ellipsis className="size-5" />
+                      <IconDots size={20}  />
                     </button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent side="top" align="start" className="w-48">
@@ -164,15 +164,15 @@ export default function LuvChatPage() {
                           onClick={() => handleSaveConversation(soulData)}
                           disabled={isActive}
                         >
-                          <Save className="size-3.5 mr-2" />
-                          Save conversation
+                          <IconDeviceFloppy size={14} className="mr-2" />
+                          IconDeviceFloppy conversation
                         </DropdownMenuItem>
                         <DropdownMenuItem
                           className="text-xs"
                           onClick={handleClear}
                           disabled={isActive}
                         >
-                          <Trash2 className="size-3.5 mr-2" />
+                          <IconTrash size={14} className="mr-2" />
                           Clear conversation
                         </DropdownMenuItem>
                       </>
@@ -198,7 +198,7 @@ export default function LuvChatPage() {
                   disabled={isActive || !soulLoaded}
                   title="Attach image"
                 >
-                  <ImagePlus className="size-5" />
+                  <IconPhotoPlus size={20}  />
                 </Button>
               </div>
               <Button
@@ -207,7 +207,7 @@ export default function LuvChatPage() {
                 size="sm"
                 className="h-auto self-end size-8 p-2"
               >
-                <ArrowUp className="size-4" />
+                <IconArrowUp size={16}  />
               </Button>
             </div>
           </div>

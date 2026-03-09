@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { IconChevronDown } from '@tabler/icons-react'
 import type { ArenaSessionIteration, ArenaSessionFeedback, ArenaSessionAnnotation } from '@/lib/studio/arena/db-types'
 import { DEBONO_HATS } from '@/lib/studio/arena/debono-hats'
 
@@ -46,12 +47,7 @@ export function SessionReviewClient({ iterations, feedback, annotations }: Sessi
                   {roundFeedback.length} feedback, {roundAnnotations.length} annotations
                 </span>
               </div>
-              <svg
-                className={`w-4 h-4 text-slate-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
-                fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
-              >
-                <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-              </svg>
+              <IconChevronDown size={16} className={`text-slate-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
             </button>
 
             {isExpanded && (

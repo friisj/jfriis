@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
+import { IconChevronDown, IconChevronRight } from '@tabler/icons-react'
 import { StatusBadge } from '@/components/admin'
 import { formatDate } from '@/lib/utils'
 
@@ -248,21 +249,7 @@ export function JourneyDetailView({ journey, stages }: JourneyDetailViewProps) {
                         {stage.touchpoints.length}{' '}
                         {stage.touchpoints.length === 1 ? 'touchpoint' : 'touchpoints'}
                       </div>
-                      <svg
-                        className={`w-5 h-5 transition-transform ${
-                          isExpanded ? 'rotate-180' : ''
-                        }`}
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M19 9l-7 7-7-7"
-                        />
-                      </svg>
+                      <IconChevronDown size={20} className={`transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
                     </div>
                   </button>
 
@@ -288,19 +275,7 @@ export function JourneyDetailView({ journey, stages }: JourneyDetailViewProps) {
                                       {stage.sequence}.{touchpoint.sequence}
                                     </span>
                                     <span className="font-medium">{touchpoint.name}</span>
-                                    <svg
-                                      className="w-4 h-4 text-muted-foreground"
-                                      fill="none"
-                                      stroke="currentColor"
-                                      viewBox="0 0 24 24"
-                                    >
-                                      <path
-                                        strokeLinecap="round"
-                                        strokeLinejoin="round"
-                                        strokeWidth={2}
-                                        d="M9 5l7 7-7 7"
-                                      />
-                                    </svg>
+                                    <IconChevronRight size={16} className="text-muted-foreground" />
                                   </div>
                                   {touchpoint.description && (
                                     <p className="text-sm text-muted-foreground mt-2">

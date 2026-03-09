@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
-import { RefreshCw, Loader2 } from 'lucide-react';
+import { IconRefresh, IconLoader2 } from '@tabler/icons-react';
 import { retryCogStep } from '@/lib/ai/actions/retry-cog-step';
 
 interface RetryStepButtonProps {
@@ -50,12 +50,12 @@ export function RetryStepButton({ stepId }: RetryStepButtonProps) {
       >
         {isRetrying ? (
           <>
-            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+            <IconLoader2 size={12} className=".5 .5 animate-spin" />
             Retrying...
           </>
         ) : (
           <>
-            <RefreshCw className="w-3.5 h-3.5" />
+            <IconRefresh size={12} className=".5 .5" />
             Retry
           </>
         )}

@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { updateJob } from '@/lib/cog';
+import { IconPencil } from '@tabler/icons-react';
 
 interface EditableJobTitleProps {
   jobId: string;
@@ -82,21 +83,7 @@ export function EditableJobTitle({ jobId, title, canEdit }: EditableJobTitleProp
       title="Click to edit title"
     >
       {title || 'Untitled Job'}
-      <svg
-        xmlns="http://www.w3.org/2000/svg"
-        width="20"
-        height="20"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        className="opacity-0 group-hover:opacity-50 transition-opacity"
-      >
-        <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
-        <path d="m15 5 4 4" />
-      </svg>
+      <IconPencil size={20} className="opacity-0 group-hover:opacity-50 transition-opacity" />
     </button>
   );
 }

@@ -16,7 +16,7 @@ import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select'
-import { ExternalLink } from 'lucide-react'
+import { IconExternalLink } from '@tabler/icons-react'
 
 // ============================================================================
 // Relationship slots
@@ -579,7 +579,7 @@ export function BlueprintForm({ blueprint }: BlueprintFormProps) {
           onCancel={() => router.push('/admin/blueprints')}
           saveLabel={blueprint ? 'Save' : 'Create'}
           links={blueprint ? [
-            { label: 'Canvas', href: `/admin/blueprints/${blueprint.id}`, icon: <ExternalLink className="size-4" /> },
+            { label: 'Canvas', href: `/admin/blueprints/${blueprint.id}`, icon: <IconExternalLink size={16}  /> },
           ] : undefined}
           onDelete={blueprint ? handleDelete : undefined}
         />

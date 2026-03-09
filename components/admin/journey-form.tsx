@@ -16,7 +16,7 @@ import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select'
-import { ExternalLink } from 'lucide-react'
+import { IconExternalLink, IconInfoCircle } from '@tabler/icons-react'
 
 // ============================================================================
 // Relationship slots
@@ -345,9 +345,7 @@ export function JourneyForm({ journey }: JourneyFormProps) {
       {!journey && (
         <div className="p-4 bg-blue-500/10 border border-blue-500/20 rounded-lg">
           <div className="flex items-start gap-2 text-blue-700 dark:text-blue-400">
-            <svg className="w-5 h-5 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
+            <IconInfoCircle size={20} className="mt-0.5" />
             <div>
               <p className="font-medium">Next Step: Add Stages & Touchpoints</p>
               <p className="text-sm mt-1">
@@ -546,7 +544,7 @@ export function JourneyForm({ journey }: JourneyFormProps) {
           onCancel={() => router.push('/admin/journeys')}
           saveLabel={journey ? 'Save' : 'Create'}
           links={journey ? [
-            { label: 'Canvas', href: `/admin/journeys/${journey.id}`, icon: <ExternalLink className="size-4" /> },
+            { label: 'Canvas', href: `/admin/journeys/${journey.id}`, icon: <IconExternalLink size={16}  /> },
           ] : undefined}
           onDelete={journey ? handleDelete : undefined}
         />

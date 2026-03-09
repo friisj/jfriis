@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Check, X } from 'lucide-react';
+import { IconCheck, IconX } from '@tabler/icons-react';
 
 interface SoulChassisProposal {
   type: 'soul_change_proposal' | 'chassis_change_proposal';
@@ -239,7 +239,7 @@ function ApprovalButtons({
             className="h-6 text-[10px] px-2 gap-1"
             onClick={onApprove}
           >
-            <Check className="size-3" /> Approve
+            <IconCheck size={12}  /> Approve
           </Button>
           <Button
             size="sm"
@@ -247,7 +247,7 @@ function ApprovalButtons({
             className="h-6 text-[10px] px-2 gap-1"
             onClick={onReject}
           >
-            <X className="size-3" /> Reject
+            <IconX size={12}  /> Reject
           </Button>
         </>
       )}

@@ -8,7 +8,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from '@/components/ui/collapsible';
-import { ChevronDown, ChevronRight, RotateCcw, Plus, Minus, ArrowRight } from 'lucide-react';
+import { IconChevronDown, IconChevronRight, IconRotate, IconPlus, IconMinus, IconArrowRight } from '@tabler/icons-react';
 import { getModuleVersions, saveModuleWithVersion } from '@/lib/luv-chassis';
 import { diffParameters, formatDiffValue } from '@/lib/luv/param-diff';
 import type { ParamDiffEntry } from '@/lib/luv/param-diff';
@@ -99,9 +99,9 @@ export function ModuleVersionHistory({
                   <CollapsibleTrigger asChild>
                     <button className="flex items-center gap-2 text-xs hover:text-foreground transition-colors">
                       {isExpanded ? (
-                        <ChevronDown className="h-3 w-3" />
+                        <IconChevronDown size={12}  />
                       ) : (
-                        <ChevronRight className="h-3 w-3" />
+                        <IconChevronRight size={12}  />
                       )}
                       <Badge
                         variant={isCurrent ? 'default' : 'outline'}
@@ -129,7 +129,7 @@ export function ModuleVersionHistory({
                         onClick={() => handleRestore(version)}
                         disabled={restoring === version.id}
                       >
-                        <RotateCcw className="h-3 w-3 mr-1" />
+                        <IconRotate size={12} className="mr-1" />
                         {restoring === version.id ? 'Restoring...' : 'Restore'}
                       </Button>
                     )}
@@ -200,11 +200,11 @@ function VersionDiff({
 function DiffRow({ diff }: { diff: ParamDiffEntry }) {
   const icon =
     diff.type === 'added' ? (
-      <Plus className="h-2.5 w-2.5 text-green-500" />
+      <IconPlus size={8} className=".5 .5 text-green-500" />
     ) : diff.type === 'removed' ? (
-      <Minus className="h-2.5 w-2.5 text-red-500" />
+      <IconMinus size={8} className=".5 .5 text-red-500" />
     ) : (
-      <ArrowRight className="h-2.5 w-2.5 text-blue-500" />
+      <IconArrowRight size={8} className=".5 .5 text-blue-500" />
     );
 
   return (
@@ -216,7 +216,7 @@ function DiffRow({ diff }: { diff: ParamDiffEntry }) {
           <span className="text-muted-foreground line-through">
             {formatDiffValue(diff.oldValue)}
           </span>
-          <ArrowRight className="h-2 w-2 text-muted-foreground" />
+          <IconArrowRight size={8} className="text-muted-foreground" />
           <span>{formatDiffValue(diff.newValue)}</span>
         </>
       )}

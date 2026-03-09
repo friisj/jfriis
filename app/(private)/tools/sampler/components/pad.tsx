@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useCallback } from 'react';
-import { Plus, Settings, Volume2, Copy, Mic, Sparkles, Loader2 } from 'lucide-react';
+import { IconPlus, IconSettings, IconVolume, IconCopy, IconMicrophone, IconSparkles, IconLoader2 } from '@tabler/icons-react';
 import { cn } from '@/lib/utils';
 import {
   ContextMenu,
@@ -136,7 +136,7 @@ export function Pad({
             </div>
           ) : isSaving ? (
             <div className="flex flex-col items-center gap-1">
-              <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+              <IconLoader2 size={16} className="animate-spin text-muted-foreground" />
               <span className="text-[10px] text-muted-foreground">Saving…</span>
             </div>
           ) : hasSound ? (
@@ -144,7 +144,7 @@ export function Pad({
               {pad.label || pad.sound!.name}
             </span>
           ) : (
-            <Plus className="w-4 h-4 text-muted-foreground" />
+            <IconPlus size={16} className="text-muted-foreground" />
           )}
           {xyPos && (
             <span
@@ -160,36 +160,36 @@ export function Pad({
       </ContextMenuTrigger>
       <ContextMenuContent>
         <ContextMenuItem onClick={() => onSelect(pad)}>
-          <Settings className="mr-2 h-4 w-4" />
+          <IconSettings size={16} className="mr-2" />
           Configure
         </ContextMenuItem>
         {hasSound && (
           <ContextMenuItem onClick={() => onTrigger(pad)}>
-            <Volume2 className="mr-2 h-4 w-4" />
+            <IconVolume size={16} className="mr-2" />
             Play
           </ContextMenuItem>
         )}
         {hasSound && onDuplicate && (
           <ContextMenuItem onClick={() => onDuplicate(pad)}>
-            <Copy className="mr-2 h-4 w-4" />
+            <IconCopy size={16} className="mr-2" />
             Duplicate
           </ContextMenuItem>
         )}
         {onSample && (
           <ContextMenuItem onClick={() => onSample(pad)}>
-            <Mic className="mr-2 h-4 w-4" />
+            <IconMicrophone size={16} className="mr-2" />
             Sample
           </ContextMenuItem>
         )}
         {onGenerate && (
           <ContextMenuItem onClick={() => onGenerate(pad)}>
-            <Sparkles className="mr-2 h-4 w-4" />
+            <IconSparkles size={16} className="mr-2" />
             Generate
           </ContextMenuItem>
         )}
         {!hasSound && (
           <ContextMenuItem onClick={() => onSelect(pad)}>
-            <Plus className="mr-2 h-4 w-4" />
+            <IconPlus size={16} className="mr-2" />
             Assign Sound
           </ContextMenuItem>
         )}

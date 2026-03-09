@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Slider } from '@/components/ui/slider';
 import { Input } from '@/components/ui/input';
-import { Loader2, Shuffle } from 'lucide-react';
+import { IconLoader2, IconArrowsShuffle } from '@tabler/icons-react';
 import { MaskCanvas } from './mask-canvas';
 import { touchupCogImage } from '@/lib/ai/actions/touchup-cog-image';
 
@@ -327,7 +327,7 @@ export function LightboxTouchupDialog({
                     className="text-white/70 hover:text-white hover:bg-white/10 h-8 px-2"
                     title="Generate random seed"
                   >
-                    <Shuffle className="w-4 h-4" />
+                    <IconArrowsShuffle size={16}  />
                   </Button>
                 </div>
               </div>
@@ -371,7 +371,7 @@ export function LightboxTouchupDialog({
             >
               {isProcessing ? (
                 <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  <IconLoader2 size={16} className="mr-2 animate-spin" />
                   Processing...
                 </>
               ) : mode === 'spot_removal' ? (

@@ -10,7 +10,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Loader2 } from 'lucide-react';
+import { IconLoader2 } from '@tabler/icons-react';
 import { refineCogImageStandalone } from '@/lib/ai/actions/refine-cog-image-standalone';
 
 type RefinementModel = 'gemini-3-pro' | 'flux-2-pro' | 'flux-2-dev';
@@ -232,7 +232,7 @@ export function LightboxRefineDialog({
           >
             {isRefining ? (
               <>
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                <IconLoader2 size={16} className="mr-2 animate-spin" />
                 Refining...
               </>
             ) : (

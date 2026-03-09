@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Plus, Search, ShoppingCart, AlertTriangle, Clock, CheckCircle, Package, Trash2 } from 'lucide-react';
+import { IconPlus, IconSearch, IconShoppingCart, IconAlertTriangle, IconClock, IconCircleCheck, IconPackage, IconTrash } from '@tabler/icons-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -148,12 +148,12 @@ export function PurchaseRequestList({
 
   const getStatusIcon = (status: PurchaseRequest['status']) => {
     switch (status) {
-      case 'pending': return <Clock className="h-4 w-4" />;
-      case 'approved': return <CheckCircle className="h-4 w-4" />;
-      case 'ordered': return <ShoppingCart className="h-4 w-4" />;
-      case 'received': return <Package className="h-4 w-4" />;
-      case 'cancelled': return <AlertTriangle className="h-4 w-4" />;
-      default: return <Clock className="h-4 w-4" />;
+      case 'pending': return <IconClock size={16}  />;
+      case 'approved': return <IconCircleCheck size={16}  />;
+      case 'ordered': return <IconShoppingCart size={16}  />;
+      case 'received': return <IconPackage size={16}  />;
+      case 'cancelled': return <IconAlertTriangle size={16}  />;
+      default: return <IconClock size={16}  />;
     }
   };
 
@@ -187,9 +187,9 @@ export function PurchaseRequestList({
       <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
         <div className="flex flex-1 gap-2 w-full sm:w-auto">
           <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <IconSearch size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
             <Input
-              placeholder="Search purchase requests..."
+              placeholder="IconSearch purchase requests..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="pl-10"
@@ -217,7 +217,7 @@ export function PurchaseRequestList({
           <Dialog open={isAddRequestOpen} onOpenChange={setIsAddRequestOpen}>
             <DialogTrigger asChild>
               <Button>
-                <Plus className="h-4 w-4 mr-2" />
+                <IconPlus size={16} className="mr-2" />
                 New Request
               </Button>
             </DialogTrigger>
@@ -251,7 +251,7 @@ export function PurchaseRequestList({
                     onClick={() => handleDeleteRequest(request.id)}
                     className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
                   >
-                    <Trash2 className="h-4 w-4" />
+                    <IconTrash size={16}  />
                   </Button>
                 </div>
               </div>
@@ -363,7 +363,7 @@ export function PurchaseRequestList({
       
       {filteredRequests.length === 0 && (
         <div className="text-center py-8 text-muted-foreground">
-          <ShoppingCart className="h-12 w-12 mx-auto mb-4 opacity-50" />
+          <IconShoppingCart size={48} className="mx-auto mb-4 opacity-50" />
           <p>No purchase requests found matching your criteria.</p>
           <p className="text-sm">Create a new request to start tracking purchases.</p>
         </div>

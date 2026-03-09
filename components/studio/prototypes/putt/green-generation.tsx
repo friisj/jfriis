@@ -6,7 +6,7 @@ import { OrbitControls } from "@react-three/drei";
 import { GreenSurfaceTest, type SurfaceMetrics } from "@/components/studio/putt/green-surface-test";
 import { useState, useMemo, useEffect } from "react";
 import { Badge } from "@/components/ui/badge";
-import { ChevronRight, ChevronDown } from "lucide-react";
+import { IconChevronRight, IconChevronDown } from "@tabler/icons-react";
 import { generateGreenComplexSpec, type GreenComplexity } from "@/lib/studio/putt/green-complex-generator";
 import type { BallPhysicsState } from "@/components/studio/putt/ball";
 import { PHYSICS_CONFIG, getGreenSpeedLabel } from "@/lib/studio/putt/physics";
@@ -288,9 +288,9 @@ export default function GreenGenerationPrototype() {
           <div className="p-4 border-b">
             <div className="flex items-center gap-2 cursor-pointer" onClick={() => setDisclosedSimulation(!disclosedSimulation)}>
               {disclosedSimulation ? (
-                <ChevronDown className="h-4 w-4" />
+                <IconChevronDown size={16} />
               ) : (
-                <ChevronRight className="h-4 w-4" />
+                <IconChevronRight size={16} />
               )}
               <h2 className="text-lg font-bold">Simulation</h2>
             </div>
@@ -691,9 +691,9 @@ export default function GreenGenerationPrototype() {
         <div className="p-4 border-b">
           <div className="flex items-center gap-2 cursor-pointer" onClick={() => setDisclosedComplexity(!disclosedComplexity)}>
             {disclosedComplexity ? (
-              <ChevronDown className="h-4 w-4" />
+              <IconChevronDown size={16} />
             ) : (
-              <ChevronRight className="h-4 w-4" />
+              <IconChevronRight size={16} />
             )}
             <h2 className="text-lg font-bold">Green Complex</h2>
           </div>

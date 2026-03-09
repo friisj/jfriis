@@ -7,7 +7,7 @@ import type {
   WireframeOption,
 } from "@/lib/studio/chalk/types/chat";
 import { OptionCard } from "./OptionCard";
-import { Loader2, MessageSquare } from "lucide-react";
+import { IconLoader2, IconMessage } from "@tabler/icons-react";
 
 interface ChatPanelProps {
   context: ChatContext;
@@ -111,7 +111,7 @@ export function ChatPanel({
       {/* Header with Context Switcher */}
       <div className="p-4 border-b border-gray-200">
         <h2 className="text-lg font-semibold mb-3 flex items-center gap-2">
-          <MessageSquare className="w-5 h-5" />
+          <IconMessage className="w-5 h-5" />
           AI Chat
         </h2>
 
@@ -151,7 +151,7 @@ export function ChatPanel({
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
         {messages.length === 0 && (
           <div className="text-center text-gray-400 mt-8">
-            <MessageSquare className="w-12 h-12 mx-auto mb-3 opacity-50" />
+            <IconMessage className="w-12 h-12 mx-auto mb-3 opacity-50" />
             <p className="text-sm">Start a conversation to generate wireframes</p>
             <p className="text-xs mt-1">
               Try: "Create a login form" or "Design a product card"
@@ -193,7 +193,7 @@ export function ChatPanel({
         {loading && (
           <div className="flex justify-start">
             <div className="bg-gray-100 rounded-lg px-4 py-3 flex items-center gap-2">
-              <Loader2 className="w-4 h-4 animate-spin" />
+              <IconLoader2 className="w-4 h-4 animate-spin" />
               <span className="text-sm text-gray-600">
                 Generating options...
               </span>
@@ -222,7 +222,7 @@ export function ChatPanel({
             className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium text-sm self-end"
           >
             {loading ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
+              <IconLoader2 className="w-4 h-4 animate-spin" />
             ) : (
               "Send"
             )}

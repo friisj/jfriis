@@ -11,6 +11,7 @@ import {
   StatusBadge,
 } from '@/components/admin'
 import { formatDate } from '@/lib/utils'
+import { IconLayout } from '@tabler/icons-react'
 
 interface BusinessModelCanvas {
   id: string
@@ -142,9 +143,7 @@ export default function AdminBusinessModelsPage() {
       ) : (
         <AdminEmptyState
           icon={
-            <svg className="w-8 h-8 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z" />
-            </svg>
+            <IconLayout size={32} className="text-muted-foreground" />
           }
           title="No business model canvases yet"
           description="Create your first canvas to map out a business model"

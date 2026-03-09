@@ -4,6 +4,7 @@ import { useState, useCallback, useMemo, useEffect } from 'react'
 import type { SkillState } from '@/lib/studio/arena/types'
 import { emptySkillState } from '@/lib/studio/arena/types'
 import { BASE_SKILL } from '@/lib/studio/arena/base-skill'
+import { IconLink, IconX } from '@tabler/icons-react'
 import { CanonicalCard, CanonicalForm, CanonicalDashboard } from './shared/canonical-components'
 import { InferredSkillPanel } from './shared/skill-panel'
 
@@ -424,9 +425,7 @@ export default function InferStyleSpike() {
                             : 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400'
                         }`}>
                           {input.type === 'svg' ? 'SVG' : input.type === 'css' ? 'CSS' : (
-                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
-                            </svg>
+                            <IconLink size={16} />
                           )}
                         </div>
                       )}
@@ -438,9 +437,7 @@ export default function InferStyleSpike() {
                         onClick={() => handleRemoveInput(input.id)}
                         className="text-gray-400 hover:text-red-500 transition-colors"
                       >
-                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                        </svg>
+                        <IconX size={16} />
                       </button>
                     </div>
                   ))}
@@ -472,9 +469,7 @@ export default function InferStyleSpike() {
                             onClick={clearFont}
                             className="text-gray-400 hover:text-red-500 transition-colors"
                           >
-                            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                            </svg>
+                            <IconX size={12} />
                           </button>
                         </div>
                       ) : (

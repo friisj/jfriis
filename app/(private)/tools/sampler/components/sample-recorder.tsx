@@ -11,7 +11,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Loader2 } from 'lucide-react';
+import { IconLoader2 } from '@tabler/icons-react';
 import { TabRecorder, type RecordingResult } from '@/lib/sampler-recorder';
 import { uploadAudio, createSound } from '@/lib/sampler';
 import { Waveform } from './waveform';
@@ -217,7 +217,7 @@ export function SampleRecorder({ open, onOpenChange, onSampled }: SampleRecorder
           {/* Saving */}
           {phase === 'saving' && (
             <div className="flex flex-col items-center justify-center gap-3 py-8">
-              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              <IconLoader2 size={24} className="animate-spin text-muted-foreground" />
               <p className="text-sm text-muted-foreground">Uploading sample...</p>
             </div>
           )}

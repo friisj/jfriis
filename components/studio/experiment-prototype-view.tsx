@@ -7,7 +7,7 @@ import {
   updateExperimentOutcome,
   updateExperimentLearnings,
 } from '@/app/actions/studio'
-import { PanelLeftOpen, EyeOff, Pencil } from 'lucide-react'
+import { IconLayoutSidebarLeftExpand, IconEyeOff, IconPencil } from '@tabler/icons-react'
 
 type OverlayState = 'expanded' | 'hidden'
 type ExperimentStatus = 'planned' | 'in_progress' | 'completed' | 'abandoned'
@@ -120,8 +120,8 @@ export function ExperimentPrototypeView({
   // Inject toggle button into header
   useEffect(() => {
     const icon = overlayState === 'expanded'
-      ? <PanelLeftOpen className="size-3.5" />
-      : <EyeOff className="size-3.5" />
+      ? <IconLayoutSidebarLeftExpand size={14}  />
+      : <IconEyeOff size={14}  />
 
     const label = overlayState === 'expanded' ? 'Panel' : 'Hidden'
 
@@ -258,7 +258,7 @@ export function ExperimentPrototypeView({
                 className="flex items-center gap-1 text-gray-400 hover:text-gray-600 transition-colors"
                 title="Edit in admin"
               >
-                <Pencil className="size-3" />
+                <IconPencil size={12}  />
                 Edit
               </a>
             </div>

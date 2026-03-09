@@ -4,7 +4,7 @@ import { useState, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Play, Square, Wand2 } from 'lucide-react';
+import { IconPlayerPlay, IconSquare, IconWand } from '@tabler/icons-react';
 import type { SamplerSound } from '@/lib/types/sampler';
 
 interface SoundSynthesizerProps {
@@ -114,9 +114,9 @@ export function SoundSynthesizer({ onGenerated }: SoundSynthesizerProps) {
             onClick={playing ? handleStop : handlePreview}
           >
             {playing ? (
-              <><Square className="w-3 h-3 mr-1" /> Stop</>
+              <><IconSquare size={12} className="mr-1" /> Stop</>
             ) : (
-              <><Play className="w-3 h-3 mr-1" /> Preview</>
+              <><IconPlayerPlay size={12} className="mr-1" /> Preview</>
             )}
           </Button>
           <span className="text-xs text-muted-foreground">
@@ -133,7 +133,7 @@ export function SoundSynthesizer({ onGenerated }: SoundSynthesizerProps) {
         {loading ? (
           'Synthesizing...'
         ) : (
-          <><Wand2 className="w-4 h-4 mr-2" /> Synthesize with AI</>
+          <><IconWand size={16} className="mr-2" /> Synthesize with AI</>
         )}
       </Button>
     </div>

@@ -13,7 +13,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { Slider } from '@/components/ui/slider';
-import { Loader2, X, Sparkles, Zap } from 'lucide-react';
+import { IconLoader2, IconX, IconSparkles, IconBolt } from '@tabler/icons-react';
 import type { SamplerCollection, GenerationMethod, BatchPrompt, BatchSpec } from '@/lib/types/sampler';
 
 interface BatchWizardProps {
@@ -115,7 +115,7 @@ export function BatchWizard({ open, onOpenChange, collection }: BatchWizardProps
                       : 'border-muted hover:border-muted-foreground/30'
                   }`}
                 >
-                  <Sparkles className="size-5" />
+                  <IconSparkles size={20}  />
                   <span className="text-sm font-medium">ElevenLabs</span>
                   <span className="text-xs text-muted-foreground text-center">Realistic audio samples</span>
                 </button>
@@ -128,7 +128,7 @@ export function BatchWizard({ open, onOpenChange, collection }: BatchWizardProps
                       : 'border-muted hover:border-muted-foreground/30'
                   }`}
                 >
-                  <Zap className="size-5" />
+                  <IconBolt size={20}  />
                   <span className="text-sm font-medium">Synth</span>
                   <span className="text-xs text-muted-foreground text-center">Tone.js procedural sounds</span>
                 </button>
@@ -199,7 +199,7 @@ export function BatchWizard({ open, onOpenChange, collection }: BatchWizardProps
         {/* Step 2: Loading */}
         {step === 2 && (
           <div className="flex flex-col items-center justify-center py-12 gap-4">
-            <Loader2 className="size-8 animate-spin text-muted-foreground" />
+            <IconLoader2 size={32} className="animate-spin text-muted-foreground" />
             <p className="text-sm text-muted-foreground">
               Generating {count} sound prompts...
             </p>
@@ -232,7 +232,7 @@ export function BatchWizard({ open, onOpenChange, collection }: BatchWizardProps
                       className="text-muted-foreground hover:text-destructive shrink-0"
                       aria-label="Remove prompt"
                     >
-                      <X className="size-4" />
+                      <IconX size={16}  />
                     </button>
                   </div>
                   <Textarea

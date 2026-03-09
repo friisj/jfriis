@@ -2,7 +2,7 @@
 
 import React from 'react'
 import { cn } from '@/lib/utils'
-import { TrendingUp, TrendingDown, Minus } from 'lucide-react'
+import { IconTrendingUp, IconTrendingDown, IconMinus } from '@tabler/icons-react'
 import {
   getFitScoreColorClass,
   getFitScoreLabel,
@@ -75,12 +75,12 @@ export function FitScoreDisplay({
  */
 function FitTrendIcon({ score }: { score: number }) {
   if (score >= 60) {
-    return <TrendingUp className="w-4 h-4" />
+    return <IconTrendingUp size={16}  />
   }
   if (score >= 40) {
-    return <Minus className="w-4 h-4" />
+    return <IconMinus size={16}  />
   }
-  return <TrendingDown className="w-4 h-4" />
+  return <IconTrendingDown size={16}  />
 }
 
 /**

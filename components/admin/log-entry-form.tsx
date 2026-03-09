@@ -32,7 +32,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { ExternalLink } from 'lucide-react'
+import { IconExternalLink } from '@tabler/icons-react'
 
 // ============================================================================
 // Relationship slots for log entries
@@ -778,7 +778,7 @@ export function LogEntryForm({ entryId, initialData }: LogEntryFormProps) {
           onCancel={() => router.push('/admin/log')}
           saveLabel={entryId ? 'Save' : 'Create'}
           links={entryId && formData.published ? [
-            { label: 'View', href: `/log/${formData.slug}`, icon: <ExternalLink className="size-4" />, external: true },
+            { label: 'View', href: `/log/${formData.slug}`, icon: <IconExternalLink size={16}  />, external: true },
           ] : undefined}
           onDelete={entryId ? handleDelete : undefined}
         />

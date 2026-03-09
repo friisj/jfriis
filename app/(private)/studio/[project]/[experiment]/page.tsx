@@ -3,7 +3,7 @@ import { createClient } from '@/lib/supabase-server'
 import { notFound } from 'next/navigation'
 import { ExperimentStatusSelect } from '@/components/studio/experiment-status-select'
 import { EXPERIMENT_TYPE_LABELS } from '@/lib/boundary-objects/studio-experiments'
-import { Zap, Box } from 'lucide-react'
+import { IconBolt, IconBox } from '@tabler/icons-react'
 
 type ExperimentStatus = 'planned' | 'in_progress' | 'completed' | 'abandoned'
 
@@ -162,7 +162,7 @@ export default async function ExperimentPage({ params }: Props) {
                   className="block p-4 border-2 border-gray-200 rounded-lg hover:border-black transition-colors"
                 >
                   <div className="flex items-center gap-2 mb-2">
-                    <Zap className="size-4 text-purple-600" />
+                    <IconBolt size={16} className="text-purple-600" />
                     <span className="px-2 py-0.5 rounded text-xs font-medium bg-purple-500/10 text-purple-700">
                       Spike
                     </span>
@@ -180,7 +180,7 @@ export default async function ExperimentPage({ params }: Props) {
                   className="block p-4 border-2 border-gray-200 rounded-lg hover:border-black transition-colors"
                 >
                   <div className="flex items-center gap-2 mb-2">
-                    <Box className="size-4 text-emerald-600" />
+                    <IconBox size={16} className="text-emerald-600" />
                     <span className="px-2 py-0.5 rounded text-xs font-medium bg-emerald-500/10 text-emerald-700">
                       Prototype
                     </span>

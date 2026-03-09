@@ -2,6 +2,7 @@ export const dynamic = 'force-dynamic'
 
 import { createClient } from '@/lib/supabase-server'
 import Link from 'next/link'
+import { IconPlus, IconCode, IconCheck } from '@tabler/icons-react'
 
 interface Specimen {
   id: string
@@ -93,9 +94,7 @@ export default async function AdminSpecimensPage() {
             href="/admin/specimens/new"
             className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
           >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-            </svg>
+            <IconPlus size={20} />
             New Specimen
           </Link>
         </div>
@@ -111,9 +110,7 @@ export default async function AdminSpecimensPage() {
                 <div className="rounded-lg border bg-card hover:border-primary transition-all overflow-hidden h-full flex flex-col">
                   {/* Placeholder preview area */}
                   <div className="aspect-video bg-muted/50 flex items-center justify-center border-b">
-                    <svg className="w-12 h-12 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
-                    </svg>
+                    <IconCode size={48} className="text-muted-foreground" />
                   </div>
 
                   <div className="p-4 flex-1 flex flex-col">
@@ -122,9 +119,7 @@ export default async function AdminSpecimensPage() {
                         {specimen.title}
                       </h3>
                       {specimen.published && (
-                        <svg className="w-4 h-4 text-green-600 dark:text-green-400 flex-shrink-0 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                        </svg>
+                        <IconCheck size={16} className="text-green-600 dark:text-green-400 flex-shrink-0 ml-2" />
                       )}
                     </div>
 
@@ -162,9 +157,7 @@ export default async function AdminSpecimensPage() {
           <div className="rounded-lg border bg-card p-12 text-center">
             <div className="max-w-md mx-auto">
               <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
-                <svg className="w-8 h-8 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
-                </svg>
+                <IconCode size={32} className="text-muted-foreground" />
               </div>
               <h3 className="text-lg font-semibold mb-2">No specimens yet</h3>
               <p className="text-sm text-muted-foreground mb-6">
@@ -174,9 +167,7 @@ export default async function AdminSpecimensPage() {
                 href="/admin/specimens/new"
                 className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
               >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                </svg>
+                <IconPlus size={20} />
                 Create Specimen
               </Link>
             </div>

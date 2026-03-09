@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useEffect, useCallback } from 'react'
-import { X, Trash2, Loader2 } from 'lucide-react'
+import { IconX, IconTrash, IconLoader2 } from '@tabler/icons-react'
 import { cn } from '@/lib/utils'
 import type {
   ValueMapItem,
@@ -218,7 +218,7 @@ export function ValueMapItemDetailPanel({
           onClick={onClose}
           className="p-1 hover:bg-muted rounded transition-colors"
         >
-          <X className="w-4 h-4" />
+          <IconX size={16}  />
         </button>
       </div>
 
@@ -306,9 +306,9 @@ export function ValueMapItemDetailPanel({
             )}
           >
             {isDeleting ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
+              <IconLoader2 size={16} className="animate-spin" />
             ) : (
-              <Trash2 className="w-4 h-4" />
+              <IconTrash size={16}  />
             )}
             Delete
           </button>
@@ -332,7 +332,7 @@ export function ValueMapItemDetailPanel({
               (isSaving || isDeleting || !content.trim()) && 'opacity-50 cursor-not-allowed'
             )}
           >
-            {isSaving && <Loader2 className="w-4 h-4 animate-spin" />}
+            {isSaving && <IconLoader2 size={16} className="animate-spin" />}
             {isNew ? 'Add Item' : 'Save'}
           </button>
         </div>

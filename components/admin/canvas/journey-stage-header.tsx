@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback } from 'react'
-import { Plus } from 'lucide-react'
+import { IconPlus } from '@tabler/icons-react'
 import { Button } from '@/components/ui/button'
 import { useState } from 'react'
 import { CanvasColumnHeader } from './canvas-column-header'
@@ -82,7 +82,7 @@ export function AddStageButton({ onAdd }: AddStageButtonProps) {
       disabled={isLoading}
       className="h-8"
     >
-      <Plus className="h-4 w-4 mr-1" />
+      <IconPlus size={16} className="mr-1" />
       {isLoading ? 'Adding...' : 'Add Stage'}
     </Button>
   )

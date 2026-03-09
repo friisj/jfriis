@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { getCogImageUrl, createJobInput, deleteJobInput } from '@/lib/cog';
 import type { CogImage, CogJobInputWithImage } from '@/lib/types/cog';
+import { IconChevronRight } from '@tabler/icons-react';
 
 interface JobInputsProps {
   jobId: string;
@@ -89,20 +90,7 @@ export function JobInputs({ jobId, inputs, seriesImages, canEdit, maxReferenceIm
           className="flex items-center justify-between w-full p-4 text-left"
         >
           <div className="flex items-center gap-2">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              className={`transition-transform flex-shrink-0 ${isExpanded ? 'rotate-90' : ''}`}
-            >
-              <path d="m9 18 6-6-6-6" />
-            </svg>
+            <IconChevronRight size={16} className={`transition-transform flex-shrink-0 ${isExpanded ? 'rotate-90' : ''}`} />
             <span className="text-lg font-semibold">
               Reference Images ({referenceLimit > 0 ? `${inputs.length}/${referenceLimit}` : inputs.length})
             </span>

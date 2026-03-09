@@ -2,11 +2,11 @@
 
 import { FormEvent, ReactNode, useEffect, useState } from 'react'
 import Link from 'next/link'
-import { ArrowLeft } from 'lucide-react'
+import { IconArrowLeft } from '@tabler/icons-react'
 import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { Button } from '@/components/ui/button'
-import { Loader2 } from 'lucide-react'
+import { IconLoader2 } from '@tabler/icons-react'
 import { cn } from '@/lib/utils'
 
 interface TabConfig {
@@ -102,7 +102,7 @@ export function AdminEntityLayout({
             href={backHref}
             className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
           >
-            <ArrowLeft className="size-4" />
+            <IconArrowLeft size={16}  />
             {backLabel}
           </Link>
           {controlCluster}
@@ -175,7 +175,7 @@ export function AdminEntityLayout({
           <Button size="sm" onClick={onSave} disabled={isSaving}>
             {isSaving ? (
               <>
-                <Loader2 className="size-4 animate-spin" />
+                <IconLoader2 size={16} className="animate-spin" />
                 Saving...
               </>
             ) : (

@@ -14,7 +14,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Plus, Trash2 } from 'lucide-react';
+import { IconPlus, IconTrash } from '@tabler/icons-react';
 import { createStudy, updateStudy } from '@/lib/luv-chassis';
 import type {
   LuvChassisStudy,
@@ -192,7 +192,7 @@ export function StudyEditor({ study, modules = [] }: StudyEditorProps) {
             Findings
           </h4>
           <Button variant="ghost" size="sm" className="h-6 px-2 text-[10px]" onClick={addFinding}>
-            <Plus className="h-3 w-3 mr-1" />
+            <IconPlus size={12} className="mr-1" />
             Add Finding
           </Button>
         </div>
@@ -212,7 +212,7 @@ export function StudyEditor({ study, modules = [] }: StudyEditorProps) {
                 className="h-6 w-6 p-0 shrink-0"
                 onClick={() => removeFinding(i)}
               >
-                <Trash2 className="h-3 w-3" />
+                <IconTrash size={12}  />
               </Button>
             </div>
             <div className="grid grid-cols-2 gap-1">
@@ -266,7 +266,7 @@ export function StudyEditor({ study, modules = [] }: StudyEditorProps) {
                 className="h-6 w-6 p-0"
                 onClick={() => removeConstraint(key)}
               >
-                <Trash2 className="h-3 w-3" />
+                <IconTrash size={12}  />
               </Button>
             </div>
           ))}

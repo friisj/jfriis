@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import { IconCheck } from '@tabler/icons-react'
 import { StatusBadge } from '@/components/admin'
 import { formatDate } from '@/lib/utils'
 
@@ -44,9 +45,7 @@ export function VentureCard({ venture }: VentureCardProps) {
           )}
           {venture.published && (
             <span className="inline-flex items-center gap-1 text-xs text-green-600 dark:text-green-400">
-              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-              </svg>
+              <IconCheck size={12} />
               Published
             </span>
           )}

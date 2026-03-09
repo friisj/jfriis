@@ -18,7 +18,7 @@ import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select'
-import { ExternalLink } from 'lucide-react'
+import { IconExternalLink } from '@tabler/icons-react'
 
 // ============================================================================
 // Relationship slots
@@ -545,7 +545,7 @@ export function ExperimentForm({ experiment }: ExperimentFormProps) {
           onCancel={() => router.push('/admin/experiments')}
           saveLabel={experiment ? 'Save' : 'Create'}
           links={experiment && projectSlug ? [
-            { label: 'View', href: `/studio/${projectSlug}/${formData.slug}`, icon: <ExternalLink className="size-4" />, external: true },
+            { label: 'View', href: `/studio/${projectSlug}/${formData.slug}`, icon: <IconExternalLink size={16}  />, external: true },
           ] : undefined}
           onDelete={experiment ? handleDelete : undefined}
         />

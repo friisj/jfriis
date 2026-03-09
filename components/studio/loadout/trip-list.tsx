@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Plus, MapPin, Calendar, CheckCircle, Clock, Eye, Package } from 'lucide-react';
+import { IconPlus, IconMapPin, IconCalendar, IconCircleCheck, IconClock, IconEye, IconPackage } from '@tabler/icons-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -47,13 +47,13 @@ export function TripList({ trips, setTrips, onViewTrip }: TripListProps) {
 
   const getStatusIcon = (status: Trip['status']) => {
     switch (status) {
-      case 'planning': return <Clock className="h-4 w-4" />;
-      case 'packing': return <Package className="h-4 w-4" />;
-      case 'active': return <CheckCircle className="h-4 w-4" />;
-      case 'unpacking': return <Package className="h-4 w-4" />;
-      case 'completed': return <CheckCircle className="h-4 w-4" />;
-      case 'cancelled': return <CheckCircle className="h-4 w-4" />;
-      default: return <Clock className="h-4 w-4" />;
+      case 'planning': return <IconClock size={16}  />;
+      case 'packing': return <IconPackage size={16}  />;
+      case 'active': return <IconCircleCheck size={16}  />;
+      case 'unpacking': return <IconPackage size={16}  />;
+      case 'completed': return <IconCircleCheck size={16}  />;
+      case 'cancelled': return <IconCircleCheck size={16}  />;
+      default: return <IconClock size={16}  />;
     }
   };
 
@@ -80,7 +80,7 @@ export function TripList({ trips, setTrips, onViewTrip }: TripListProps) {
         <Dialog open={isAddTripOpen} onOpenChange={setIsAddTripOpen}>
           <DialogTrigger asChild>
             <Button>
-              <Plus className="h-4 w-4 mr-2" />
+              <IconPlus size={16} className="mr-2" />
               Add Trip
             </Button>
           </DialogTrigger>
@@ -118,7 +118,7 @@ export function TripList({ trips, setTrips, onViewTrip }: TripListProps) {
               
               <div className="space-y-2">
                 <div className="flex items-center gap-2 text-sm">
-                  <Calendar className="h-4 w-4 text-muted-foreground" />
+                  <IconCalendar size={16} className="text-muted-foreground" />
                   <span>{formatDate(trip.startDate)}</span>
                   {trip.endDate && (
                     <>
@@ -140,7 +140,7 @@ export function TripList({ trips, setTrips, onViewTrip }: TripListProps) {
                 
                 {trip.location && (
                   <div className="flex items-center gap-2 text-sm">
-                    <MapPin className="h-4 w-4 text-muted-foreground" />
+                    <IconMapPin size={16} className="text-muted-foreground" />
                     <span className="truncate">{trip.location}</span>
                   </div>
                 )}
@@ -160,7 +160,7 @@ export function TripList({ trips, setTrips, onViewTrip }: TripListProps) {
                     onClick={() => onViewTrip(trip)}
                     className="flex-1"
                   >
-                    <Eye className="h-4 w-4 mr-2" />
+                    <IconEye size={16} className="mr-2" />
                     View Details
                   </Button>
                 )}
@@ -170,7 +170,7 @@ export function TripList({ trips, setTrips, onViewTrip }: TripListProps) {
                   onClick={() => router.push(`/apps/loadout/trips/${trip.id}`)}
                   className="flex-1"
                 >
-                  <Calendar className="h-4 w-4 mr-2" />
+                  <IconCalendar size={16} className="mr-2" />
                   Trip Page
                 </Button>
               </div>
@@ -181,7 +181,7 @@ export function TripList({ trips, setTrips, onViewTrip }: TripListProps) {
       
       {trips.length === 0 && (
         <div className="text-center py-8 text-muted-foreground">
-          <MapPin className="h-12 w-12 mx-auto mb-4 opacity-50" />
+          <IconMapPin size={48} className="mx-auto mb-4 opacity-50" />
           <p>No trips planned yet.</p>
           <p className="text-sm">Create your first trip to start tracking gear.</p>
         </div>

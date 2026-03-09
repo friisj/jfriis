@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { ArrowLeft, Plus, CheckCircle2, RotateCcw, MapPin, Calendar, Edit } from 'lucide-react';
+import { IconArrowLeft, IconPlus, IconCircleCheck, IconRotate, IconMapPin, IconCalendar, IconEdit } from '@tabler/icons-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -229,7 +229,7 @@ export default function TripDetailPage() {
         <div className="container mx-auto px-4 py-6">
           <div className="flex items-center gap-4 mb-6">
             <Button variant="ghost" onClick={() => router.back()}>
-              <ArrowLeft className="h-4 w-4 mr-2" />
+              <IconArrowLeft size={16} className="mr-2" />
               Back
             </Button>
           </div>
@@ -255,7 +255,7 @@ export default function TripDetailPage() {
         {/* Header */}
         <div className="flex items-center gap-4 mb-6">
           <Button variant="ghost" onClick={() => router.back()}>
-            <ArrowLeft className="h-4 w-4 mr-2" />
+            <IconArrowLeft size={16} className="mr-2" />
             Back
           </Button>
         </div>
@@ -267,13 +267,13 @@ export default function TripDetailPage() {
               <h1 className="text-3xl font-bold">{trip.name}</h1>
               <div className="flex items-center gap-4 mt-2 text-muted-foreground">
                 <div className="flex items-center gap-1">
-                  <Calendar className="h-4 w-4" />
+                  <IconCalendar size={16}  />
                   {formatDate(trip.startDate)}
                   {trip.endDate && ` → ${formatDate(trip.endDate)}`}
                 </div>
                 {trip.location && (
                   <div className="flex items-center gap-1">
-                    <MapPin className="h-4 w-4" />
+                    <IconMapPin size={16}  />
                     {trip.location}
                   </div>
                 )}
@@ -284,8 +284,8 @@ export default function TripDetailPage() {
                 {trip.status}
               </Badge>
               <Button variant="outline" size="sm">
-                <Edit className="h-4 w-4 mr-2" />
-                Edit Trip
+                <IconEdit size={16} className="mr-2" />
+                IconEdit Trip
               </Button>
             </div>
           </div>
@@ -328,7 +328,7 @@ export default function TripDetailPage() {
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle className="text-xl">Gear List</CardTitle>
             <Button onClick={() => setIsCheckOutOpen(true)} disabled={availableItems.length === 0}>
-              <Plus className="h-4 w-4 mr-2" />
+              <IconPlus size={16} className="mr-2" />
               Check Out Items
             </Button>
           </CardHeader>
@@ -337,7 +337,7 @@ export default function TripDetailPage() {
               <div className="text-center py-12">
                 <p className="text-muted-foreground mb-4">No items checked out for this trip.</p>
                 <Button onClick={() => setIsCheckOutOpen(true)} variant="outline">
-                  <Plus className="h-4 w-4 mr-2" />
+                  <IconPlus size={16} className="mr-2" />
                   Check Out Your First Item
                 </Button>
               </div>
@@ -390,7 +390,7 @@ export default function TripDetailPage() {
                           onClick={() => handleCheckIn(tripItem, 'good')}
                           className="text-green-600 border-green-600 hover:bg-green-50"
                         >
-                          <CheckCircle2 className="h-4 w-4 mr-1" />
+                          <IconCircleCheck size={16} className="mr-1" />
                           Good
                         </Button>
                         <Button
@@ -399,7 +399,7 @@ export default function TripDetailPage() {
                           onClick={() => handleCheckIn(tripItem, 'damaged')}
                           className="text-yellow-600 border-yellow-600 hover:bg-yellow-50"
                         >
-                          <RotateCcw className="h-4 w-4 mr-1" />
+                          <IconRotate size={16} className="mr-1" />
                           Damaged
                         </Button>
                         <Button

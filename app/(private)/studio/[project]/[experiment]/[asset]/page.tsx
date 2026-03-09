@@ -3,7 +3,7 @@ import { createClient } from '@/lib/supabase-server'
 import { notFound } from 'next/navigation'
 import { ExperimentPrototypeView } from '@/components/studio/experiment-prototype-view'
 import { PrototypeRenderer } from '@/components/studio/prototype-renderer'
-import { ExternalLink } from 'lucide-react'
+import { IconExternalLink } from '@tabler/icons-react'
 
 type ExperimentStatus = 'planned' | 'in_progress' | 'completed' | 'abandoned'
 type ExperimentOutcome = 'success' | 'failure' | 'inconclusive' | null
@@ -144,7 +144,7 @@ export default async function AssetPage({ params }: Props) {
             className="inline-flex items-center gap-2 px-6 py-3 bg-black text-white rounded-lg hover:bg-gray-800 transition-colors text-lg font-medium"
           >
             Open App
-            <ExternalLink className="size-5" />
+            <IconExternalLink size={20}  />
           </a>
 
           <footer className="mt-16 pt-8 border-t border-gray-200 text-sm text-gray-500">

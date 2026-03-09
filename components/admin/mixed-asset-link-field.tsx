@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '@/lib/supabase'
 import { deleteLink } from '@/lib/entity-links'
-import { Zap, Box, X } from 'lucide-react'
+import { IconBolt, IconBox, IconX } from '@tabler/icons-react'
 import type { EntityLink } from '@/lib/types/entity-relationships'
 
 type AssetKind = 'spike' | 'prototype'
@@ -35,9 +35,9 @@ interface MixedAssetLinkFieldProps {
   onPendingLinksChange?: (links: PendingAssetLink[]) => void
 }
 
-const kindConfig: Record<AssetKind, { label: string; icon: typeof Zap; color: string }> = {
-  spike: { label: 'Spike', icon: Zap, color: 'bg-purple-500/10 text-purple-700 dark:text-purple-300' },
-  prototype: { label: 'Prototype', icon: Box, color: 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300' },
+const kindConfig: Record<AssetKind, { label: string; icon: typeof IconBolt; color: string }> = {
+  spike: { label: 'Spike', icon: IconBolt, color: 'bg-purple-500/10 text-purple-700 dark:text-purple-300' },
+  prototype: { label: 'Prototype', icon: IconBox, color: 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300' },
 }
 
 export function MixedAssetLinkField({
@@ -229,7 +229,7 @@ export function MixedAssetLinkField({
                     onClick={() => handleRemove(item.id)}
                     className="text-muted-foreground hover:text-foreground shrink-0"
                   >
-                    <X className="size-3.5" />
+                    <IconX size={14}  />
                   </button>
                 )}
               </div>
