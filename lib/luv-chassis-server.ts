@@ -18,6 +18,21 @@ export async function getChassisModulesServer(): Promise<LuvChassisModule[]> {
   return data as LuvChassisModule[];
 }
 
+export async function getChassisModulesBySlugsServer(
+  slugs: string[]
+): Promise<LuvChassisModule[]> {
+  if (slugs.length === 0) return [];
+  const client = await createClient();
+  const { data, error } = await (client as any)
+    .from('luv_chassis_modules')
+    .select('*')
+    .in('slug', slugs)
+    .order('sequence', { ascending: true });
+
+  if (error) throw error;
+  return data as LuvChassisModule[];
+}
+
 export async function getChassisModuleServer(
   id: string
 ): Promise<LuvChassisModule | null> {
