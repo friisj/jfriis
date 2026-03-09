@@ -1,130 +1,142 @@
-# Remix — Initial Research
+# Remix — Research
 
-> Landscape survey and foundational research for the project.
+> Landscape survey, prior art, and technical decisions.
 
 ---
 
 ## Problem Space
 
-Most AI music generation tools operate in one of two modes:
+Most AI music tools operate in two modes:
 
-1. **Blank-slate generation** — Given a text prompt, generate audio from noise (MusicGen, Suno, Udio). The output is novel but disconnected from any source material. The producer has no control over *what* the system draws from.
+1. **Blank-slate generation** (MusicGen, Suno, Udio) — generate from noise given a text prompt. Novel output but disconnected from any source material. No control over what the system draws from.
 
-2. **Style transfer** — Apply the style of one piece to the content of another. Useful but coarse — it captures texture and timbre, not structure.
+2. **Style transfer** — apply the style of one piece to another. Useful but coarse — captures texture and timbre, not structure.
 
-Neither mirrors how human producers actually work. A producer sampling a record doesn't generate from scratch — they *listen*, identify interesting moments, extract them, transform them, and sequence them into new arrangements. The source material is both raw material and creative constraint.
+Neither mirrors how human producers actually work. A producer sampling a record *listens*, identifies interesting moments, *extracts* them, *transforms* them, and *sequences* them into new arrangements. The source material is both raw material and creative constraint.
 
-Remix explores the space between these two modes: **source-aware recomposition**. The pipeline takes real audio as input, decomposes it, and reassembles fragments into something new — maintaining a traceable relationship to the source while producing a genuinely original composition.
+**Remix explores the space between:** source-aware recomposition. Take real audio, decompose it, and reassemble fragments into something new — maintaining a traceable relationship to the source while producing a genuinely original composition. Crucially, this is parameterized via **recipes** that encode creative intent as pipeline configuration.
 
 ---
 
-## Prior Art
+## Technical Landscape
 
 ### Stem Separation
 
-| Approach | Strengths | Weaknesses | Relevance |
-|----------|-----------|------------|-----------|
-| **Demucs (Meta)** | State-of-the-art quality, open-source, 4 or 6 stems, available on Replicate | Slow (5–30s per minute of audio), GPU required | Primary candidate for stage 1 |
-| **Spleeter (Deezer)** | Fast, well-documented, 2–5 stems | Lower quality, older model | Fallback / faster iteration |
-| **MDX-Net** | Competition-winning architecture, very high quality | Less accessible, not easily available via API | Research reference |
-| **Demucs htdemucs_6s** | 6-stem variant (drums, bass, other, vocals, guitar, piano) | Even slower | Useful for melodically complex sources |
+| Approach | Quality | Speed | Access | Decision |
+|----------|---------|-------|--------|----------|
+| **Demucs htdemucs** (Meta) | State-of-the-art | 5–30s/min | Open-source, Replicate | **Primary choice** |
+| **Demucs htdemucs_6s** | Best for complex sources | Slower | Same | Use for melodically rich input |
+| **Spleeter** (Deezer) | Adequate | Fast | Open-source | Fallback for fast iteration |
+| **MDX-Net** | Competition-winning | Variable | Less accessible | Research reference only |
 
-**Current assessment**: Start with Demucs via Replicate. The quality/accessibility tradeoff is best for prototyping.
+**Decision:** Demucs via Python microservice. `htdemucs` default, `htdemucs_6s` when recipe requests 6-stem separation (guitar + piano isolation useful for the 80s synth demo).
 
----
+### Analysis
 
-### Beat Detection & Analysis
+| Approach | Capabilities | Runtime | Decision |
+|----------|-------------|---------|----------|
+| **librosa** | BPM, onset detection, key, spectral, chromagram | Python | **Primary — runs in same microservice as Demucs** |
+| **essentia** (MTG) | Professional-grade rhythm + tonal analysis | Python (heavier) | Future upgrade path |
+| **Web Audio API** | Basic frequency analysis | Browser | For real-time playback visualization only |
 
-| Approach | Strengths | Weaknesses | Relevance |
-|----------|-----------|------------|-----------|
-| **Librosa (Python)** | Comprehensive audio analysis, BPM, onset detection, key estimation, spectral features | Requires Python runtime | Strong candidate for analysis stage |
-| **essentia (MTG)** | Professional-grade audio analysis library, rhythm and tonal analysis | Heavier dependency, more complex | Potential upgrade from librosa |
-| **Web Audio API** | Browser-native, no backend needed | Limited analysis depth, no ML | Useful for real-time playback but not analysis |
-| **Replicate (various)** | Pre-built BPM/key models via API | Additional API calls, latency | Possible if we avoid Python entirely |
+**Decision:** librosa in the Python microservice. Colocated with Demucs so analysis runs server-side without another round trip.
 
-**Current assessment**: Librosa for analysis if we're OK with a Python stage. Otherwise Replicate-based analysis endpoints.
+### Chopping
 
----
+No dominant library — custom implementation using librosa's onset detection output. Three strategies, selectable per-stem via recipe:
 
-### Chopping & Sample Extraction
+- **Transient-based:** Slice at amplitude onsets. Best for drums and percussive material.
+- **Bar-based:** Slice at bar boundaries. Better for sustained/melodic/harmonic material.
+- **Hybrid:** Transient chopping within a bar grid. Best general-purpose approach.
 
-No dominant library for this — typically custom code using onset detection output. Key decisions:
-
-- **Transient-based chopping**: Slice at amplitude onsets (best for drums)
-- **Bar-based chopping**: Slice at bar boundaries (better for melodic/harmonic material)
-- **Hybrid**: Transient chopping within a bar grid
-
----
+The recipe's `prefer_sustained` flag biases toward bar-based chopping and longer minimum chop lengths — critical for ambient output.
 
 ### Pattern Generation
 
-| Approach | Strengths | Weaknesses | Relevance |
-|----------|-----------|------------|-----------|
-| **LLM-as-arranger** | Flexible, can follow genre descriptions and narrative instructions | No intrinsic understanding of rhythm or audio | Interesting for high-level structure (song sections, variation) |
-| **Rule-based genre templates** | Predictable, genre-accurate, fast | Rigid, doesn't adapt to source material character | Good baseline, especially for techno |
-| **Probabilistic/Markov models** | Can learn patterns from existing sequences | Requires training data, output can be random-feeling | Research direction |
-| **Constraint solvers** | Can encode music theory rules | Complex to set up, may over-constrain | Long-term direction |
+| Approach | Strengths | Weaknesses | Role in Remix |
+|----------|-----------|------------|---------------|
+| **Rule-based templates** | Predictable, genre-accurate | Rigid | Baseline — genre structure rules |
+| **LLM-as-arranger** | Flexible, can follow narrative | No intrinsic rhythm sense | Higher-level decisions (section ordering, variation triggers) |
+| **Probabilistic/Markov** | Can learn from sequences | Needs training data | Future exploration |
 
-**Current assessment**: Start with rule-based genre templates (JSON or YAML) for the first prototype. Layer in LLM-as-arranger for higher-level decisions (section ordering, variation triggers). Evaluate Markov approaches later.
+**Decision:** Rule-based templates for rhythmic structure (what goes where in a bar). LLM for macro-arrangement decisions (section order, where to introduce variation, energy curve shaping). Recipe parameters control the balance.
 
----
+### Arrangement
 
-### Arrangement & Sequencing
+The least-explored domain. No clear open-source or API precedent for arrangement from stem banks — most tools stop at sample extraction and expect a human DAW workflow.
 
-The arrangement layer is the least explored by existing tools. Most stem-based tools stop at the sample extraction level and expect a human to sequence in a DAW.
+This is the most novel part of Remix and the highest-risk stage. The recipe's arrangement parameters (section definitions, phrase length, energy curve) are the primary control surface.
 
-Interesting precedents:
-- **Arrangement AI in commercial DAWs** (Logic Pro's AI arrangement feature) — Exists but closed/proprietary
-- **MusicLM / AudioCraft's MusicGen** — Conditioned generation, not arrangement of existing stems
-- **Landr Stem Splitter + AI Mastering** — Commercial tool that separates stems but leaves arrangement to user
+### Mixdown & Playback
 
-No clear open-source or API precedent for arrangement from stem banks. This is the most novel part of the pipeline.
+| Approach | Role | Decision |
+|----------|------|----------|
+| **Web Audio API** | Browser playback, real-time effects | Primary — shared with Sampler engine |
+| **Tone.js** | Pattern playback, scheduling | Use for sequenced playback in browser |
+| **FFmpeg (server)** | Final render to file | For export/download |
 
----
-
-### Mixdown & Post-processing
-
-| Approach | Strengths | Weaknesses | Relevance |
-|----------|-----------|------------|-----------|
-| **Web Audio API** | Browser-native, real-time, familiar from Sampler | Limited to what's available in-browser | Good for a browser-based prototype |
-| **FFmpeg (server-side)** | Full professional audio processing | Complex, requires server infrastructure | For production quality |
-| **Tone.js** | Already used in Sampler, expressive API | Not designed for multi-stem mixdown | Maybe for pattern playback layer |
-| **DDSP / neural audio effects** | Learnable audio effects | Overkill at this stage | Future direction |
-
-**Current assessment**: Web Audio API + existing Sampler engine patterns for initial prototype. Server-side FFmpeg when quality demands it.
+**Decision:** Web Audio API + Sampler's existing engine patterns for browser playback and effects. Server-side FFmpeg for final file render when needed.
 
 ---
 
-## Key Questions
+## Relationship to Sampler
 
-1. What's the right runtime environment for the analysis/chopping stage? (Python + librosa vs. Replicate API only vs. browser-only)
-2. How do we represent patterns — as note/step sequences (MIDI-like), as audio regions with timing offsets, or as something new?
-3. Can genre conditioning be entirely prompt-driven, or do we need curated pattern template libraries?
-4. What does "done" look like for a track — a rendered WAV, a sequence the user can further edit, or a live-playable arrangement?
-5. How tightly do we couple this to the Sampler tool vs. keeping it fully independent?
+Remix and Sampler share conceptual DNA and audio infrastructure:
 
----
+| | Sampler | Remix |
+|---|---------|-------|
+| **Role** | Instrument — trigger pads, perform live | Composer — process source, generate arrangement |
+| **Input** | Individual sounds (uploaded, generated, recorded) | Full audio files (tracks, loops, recordings) |
+| **Output** | Live performance / sound design | New compositions derived from source |
+| **UI** | Pad grid | DAW-like timeline (→ node graph) |
 
-## Relationship to Sampler Tool
+**Shared infrastructure:**
+- Web Audio API playback engine (`sampler-engine.ts` patterns)
+- Audio buffer management and caching
+- Effects chain architecture (per-channel effects)
+- WAV encoding (`sampler-wav.ts`)
 
-Remix shares conceptual DNA with the Sampler tool already in the codebase:
-- Both work with audio buffers and Web Audio API playback
-- Sampler already has chop/trim primitives, effects chains, and pad sequencing
-- Sampler's `sampler-engine.ts` and `sampler-synth.ts` may be reusable or at least reference implementations
-
-However, Remix operates at a higher level of abstraction — it's a *pipeline* that produces something Sampler-like as output, rather than a pad-based performance instrument. The relationship is:
-
-> **Sampler** = instrument (trigger pads, perform live)
-> **Remix** = composer (process source, generate arrangement)
-
-They may share a data layer (sounds, audio buffers) but serve different creative roles.
+**Not shared:**
+- UI components (pad grid vs. timeline)
+- Data model (pads/collections vs. pipeline stages/recipes)
+- Sound sourcing (upload/generate vs. stem separation)
 
 ---
 
-## Initial Findings
+## Relationship to Onder
 
-*(Populated as research progresses)*
+Onder is generative ambient synthesis from scratch — no source material. Distinct creative domain:
+
+- **Onder:** Generation from noise/synthesis parameters
+- **Remix:** Recomposition from real audio
+
+However, Onder's ambient synthesis tech (texture generation, drone engines, spatial audio) may fold into Remix in later iterations — specifically as additional processing options in the mixdown stage or as "fill" generators that augment sparse stem material.
 
 ---
 
-*This document captures the initial research phase. Update as exploration proceeds.*
+## Key Technical Decisions
+
+| Decision | Choice | Rationale |
+|----------|--------|-----------|
+| Stem separation runtime | Python microservice (not Replicate API) | More control, lower per-run cost, can colocate analysis |
+| Analysis library | librosa | Comprehensive, colocated with Demucs in Python service |
+| Initial UI paradigm | DAW-like timeline | Familiar, intuitive for stem/lane visualization |
+| Future UI exploration | Node graph | More flexible for non-linear pipeline editing |
+| Target genres (first) | Ambient, lo-fi/downtempo | More interesting transformation challenge than techno |
+| Pattern generation | Rule-based + LLM hybrid | Templates for structure, LLM for macro decisions |
+| Audio engine | Shared with Sampler (Web Audio) | Avoid duplication, leverage existing quality code |
+
+---
+
+## Open Research Questions
+
+1. **Stage interfaces:** What's the right data format between pipeline stages? Need contracts that are inspectable, serializable, and editable.
+2. **Recipe schema:** Strict typed config vs. freeform JSON vs. hybrid? How do recipes compose or inherit?
+3. **Chop representation:** Just audio + metadata, or richer (musical context, relationship to neighbors, source position)?
+4. **Python microservice design:** Containerized? Local-only? FastAPI? How does it communicate with Next.js?
+5. **Quality evaluation:** Beyond subjective listening — spectral similarity metrics? Structural analysis of output?
+6. **Intervention UX:** When a user edits a chop or pattern mid-pipeline, how does that propagate to downstream stages?
+
+---
+
+*Update as research progresses and decisions are validated.*
