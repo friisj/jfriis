@@ -7,9 +7,10 @@ import { composeSoulSystemPrompt } from '@/lib/luv-prompt-composer';
 import { getLuvCharacterServer, getLuvMemoriesServer } from '@/lib/luv-server';
 import { getChassisModulesServer } from '@/lib/luv-chassis-server';
 import { listLuvResearchServer } from '@/lib/luv-research-server';
-import { luvTools } from '@/lib/luv-tools';
+import { luvTools, createCurrentContextTool } from '@/lib/luv-tools';
 import { getAnthropic } from '@/lib/ai/providers';
 import type { ChassisModuleSummary } from '@/lib/luv/soul-layers';
+import type { LuvPageContext } from '@/lib/types/luv';
 
 export async function POST(request: Request) {
   const { user, error } = await requireAuth();
@@ -27,9 +28,10 @@ export async function POST(request: Request) {
 
   try {
     const body = await request.json();
-    const { messages, modelKey = 'claude-sonnet' } = body as {
+    const { messages, modelKey = 'claude-sonnet', pageContext = null } = body as {
       messages: UIMessage[];
       modelKey?: string;
+      pageContext?: LuvPageContext | null;
     };
 
     if (!messages || messages.length === 0) {
@@ -74,6 +76,7 @@ export async function POST(request: Request) {
       messages: modelMessages,
       tools: {
         ...luvTools,
+        get_current_context: createCurrentContextTool(pageContext ?? null),
         web_search: getAnthropic().tools.webSearch_20250305({ maxUses: 3 }),
       } as ToolSet,
       stopWhen: stepCountIs(5),
