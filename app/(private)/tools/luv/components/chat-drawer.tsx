@@ -17,7 +17,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { IconArrowUp, IconChevronDown, IconDots, IconPhotoPlus, IconDeviceFloppy, IconTrash, IconX } from '@tabler/icons-react';
+import { IconArrowUp, IconChevronDown, IconDots, IconPhotoPlus, IconTrash, IconX } from '@tabler/icons-react';
 import { composeLayers } from '@/lib/luv/soul-composer';
 import { LAYER_REGISTRY } from '@/lib/luv/soul-layers';
 import { useLuvChatSession, MODEL_OPTIONS, getMessageText } from './use-luv-chat-session';
@@ -45,7 +45,6 @@ export function ChatDrawer() {
     fileInputRef,
     handleSend,
     handleKeyDown,
-    handleSaveConversation,
     handlePaste,
     handleDrop,
     handleClear,
@@ -152,19 +151,11 @@ export function ChatDrawer() {
                       <DropdownMenuSeparator />
                       <DropdownMenuItem
                         className="text-xs"
-                        onClick={() => handleSaveConversation(soulData)}
-                        disabled={isActive}
-                      >
-                        <IconDeviceFloppy size={14} className="mr-2" />
-                        IconDeviceFloppy conversation
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        className="text-xs"
                         onClick={handleClear}
                         disabled={isActive}
                       >
                         <IconTrash size={14} className="mr-2" />
-                        Clear conversation
+                        New conversation
                       </DropdownMenuItem>
                     </>
                   )}

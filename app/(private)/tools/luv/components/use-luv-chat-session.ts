@@ -10,7 +10,6 @@ import {
   getLuvConversation,
   getLuvMessages,
 } from '@/lib/luv';
-import type { LuvSoulData } from '@/lib/types/luv';
 import { useLuvChat } from './luv-chat-context';
 
 export const MODEL_OPTIONS = [
@@ -90,6 +89,65 @@ export function useLuvChatSession() {
   }, [activeConversationId, resumedConversationId, setMessages]);
 
   const isActive = status === 'streaming' || status === 'submitted';
+  const prevStatusRef = useRef(status);
+  const savingRef = useRef(false);
+
+  // Auto-save after each completed exchange
+  useEffect(() => {
+    const prev = prevStatusRef.current;
+    prevStatusRef.current = status;
+
+    const justFinished =
+      (prev === 'streaming' || prev === 'submitted') && status === 'ready';
+    if (!justFinished || messages.length === 0 || savingRef.current) return;
+
+    savingRef.current = true;
+    (async () => {
+      try {
+        if (resumedConversationId) {
+          const existingMsgs = await getLuvMessages(resumedConversationId);
+          const existingIds = new Set(existingMsgs.map((m) => m.id));
+          for (const msg of messages) {
+            if ((msg.role === 'user' || msg.role === 'assistant') && !existingIds.has(msg.id)) {
+              await createLuvMessage({
+                conversation_id: resumedConversationId,
+                role: msg.role,
+                content: getMessageText(msg),
+              });
+            }
+          }
+        } else {
+          const firstUserMsg = messages.find((m) => m.role === 'user');
+          const firstText = firstUserMsg ? getMessageText(firstUserMsg) : '';
+          const title = firstText
+            ? firstText.slice(0, 60) + (firstText.length > 60 ? '...' : '')
+            : 'Untitled conversation';
+
+          const conversation = await createLuvConversation({
+            title,
+            soul_snapshot: soulData,
+            model: modelKey,
+          });
+
+          setResumedConversationId(conversation.id);
+
+          for (const msg of messages) {
+            if (msg.role === 'user' || msg.role === 'assistant') {
+              await createLuvMessage({
+                conversation_id: conversation.id,
+                role: msg.role,
+                content: getMessageText(msg),
+              });
+            }
+          }
+        }
+      } catch (err) {
+        console.error('Failed to auto-save conversation:', err);
+      } finally {
+        savingRef.current = false;
+      }
+    })();
+  }, [status, messages, resumedConversationId, modelKey, soulData]);
 
   // Track whether user has scrolled away from bottom
   useEffect(() => {
@@ -195,54 +253,6 @@ export function useLuvChatSession() {
     [handleSend]
   );
 
-  const handleSaveConversation = useCallback(
-    async (soul: LuvSoulData) => {
-      if (messages.length === 0) return;
-      try {
-        if (resumedConversationId) {
-          const existingMsgs = await getLuvMessages(resumedConversationId);
-          const existingIds = new Set(existingMsgs.map((m) => m.id));
-          for (const msg of messages) {
-            if ((msg.role === 'user' || msg.role === 'assistant') && !existingIds.has(msg.id)) {
-              await createLuvMessage({
-                conversation_id: resumedConversationId,
-                role: msg.role,
-                content: getMessageText(msg),
-              });
-            }
-          }
-        } else {
-          const firstUserMsg = messages.find((m) => m.role === 'user');
-          const firstText = firstUserMsg ? getMessageText(firstUserMsg) : '';
-          const title = firstText
-            ? firstText.slice(0, 60) + (firstText.length > 60 ? '...' : '')
-            : 'Untitled conversation';
-
-          const conversation = await createLuvConversation({
-            title,
-            soul_snapshot: soul,
-            model: modelKey,
-          });
-
-          setResumedConversationId(conversation.id);
-
-          for (const msg of messages) {
-            if (msg.role === 'user' || msg.role === 'assistant') {
-              await createLuvMessage({
-                conversation_id: conversation.id,
-                role: msg.role,
-                content: getMessageText(msg),
-              });
-            }
-          }
-        }
-      } catch (err) {
-        console.error('Failed to save conversation:', err);
-      }
-    },
-    [messages, resumedConversationId, modelKey]
-  );
-
   const handlePaste = useCallback(
     (e: React.ClipboardEvent) => {
       const items = Array.from(e.clipboardData.items);
@@ -298,7 +308,6 @@ export function useLuvChatSession() {
     // Actions
     handleSend,
     handleKeyDown,
-    handleSaveConversation,
     handlePaste,
     handleDrop,
     handleClear,

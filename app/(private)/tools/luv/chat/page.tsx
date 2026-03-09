@@ -3,7 +3,7 @@
 import { useEffect } from 'react';
 import { isToolUIPart, getToolName } from 'ai';
 import type { UIMessage } from 'ai';
-import { IconArrowUp, IconDots, IconPhotoPlus, IconDeviceFloppy, IconTrash, IconX } from '@tabler/icons-react';
+import { IconArrowUp, IconDots, IconPhotoPlus, IconTrash, IconX } from '@tabler/icons-react';
 import { usePrivateHeader } from '@/components/layout/private-header-context';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -43,7 +43,6 @@ export default function LuvChatPage() {
     status,
     error,
     isActive,
-    soulData,
     soulLoaded,
     scrollContainerRef,
     messagesEndRef,
@@ -51,7 +50,6 @@ export default function LuvChatPage() {
     fileInputRef,
     handleSend,
     handleKeyDown,
-    handleSaveConversation,
     handlePaste,
     handleDrop,
     handleClear,
@@ -161,19 +159,11 @@ export default function LuvChatPage() {
                         <DropdownMenuSeparator />
                         <DropdownMenuItem
                           className="text-xs"
-                          onClick={() => handleSaveConversation(soulData)}
-                          disabled={isActive}
-                        >
-                          <IconDeviceFloppy size={14} className="mr-2" />
-                          IconDeviceFloppy conversation
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          className="text-xs"
                           onClick={handleClear}
                           disabled={isActive}
                         >
                           <IconTrash size={14} className="mr-2" />
-                          Clear conversation
+                          New conversation
                         </DropdownMenuItem>
                       </>
                     )}
