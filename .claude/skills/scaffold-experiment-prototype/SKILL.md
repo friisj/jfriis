@@ -53,26 +53,28 @@ scripts/sb query studio_experiments "project_id=eq.<project-id>&slug=eq.<experim
 ### Step 3a: Create Experiment (if needed)
 
 ```bash
-scripts/sb create studio_experiments '{
-  "project_id": "<project-id>",
-  "slug": "<experiment-slug>",
-  "name": "<experiment-name>",
-  "description": "Spike experiment for <project-name>",
-  "type": "spike",
-  "status": "planned"
-}'
+PAYLOAD=$(python3 -c "import json; print(json.dumps({
+  'project_id': '<project-id>',
+  'slug': '<experiment-slug>',
+  'name': '<experiment-name>',
+  'description': 'Spike experiment for <project-name>',
+  'type': 'spike',
+  'status': 'planned'
+}))")
+scripts/sb create studio_experiments "$PAYLOAD"
 ```
 
 ### Step 3b: Create Spike Asset Record
 
 ```bash
-scripts/sb create studio_asset_spikes '{
-  "project_id": "<project-id>",
-  "slug": "<experiment-slug>",
-  "name": "<experiment-name>",
-  "description": "Spike component for <project-name>",
-  "component_key": "<project-slug>/<experiment-slug>"
-}'
+PAYLOAD=$(python3 -c "import json; print(json.dumps({
+  'project_id': '<project-id>',
+  'slug': '<experiment-slug>',
+  'name': '<experiment-name>',
+  'description': 'Spike component for <project-name>',
+  'component_key': '<project-slug>/<experiment-slug>'
+}))")
+scripts/sb create studio_asset_spikes "$PAYLOAD"
 ```
 
 ### Step 3c: Create Entity Link
@@ -80,14 +82,15 @@ scripts/sb create studio_asset_spikes '{
 Link the experiment to the spike asset:
 
 ```bash
-scripts/sb create entity_links '{
-  "source_type": "experiment",
-  "source_id": "<experiment-id>",
-  "target_type": "asset_spike",
-  "target_id": "<spike-id>",
-  "link_type": "contains",
-  "metadata": {}
-}'
+PAYLOAD=$(python3 -c "import json; print(json.dumps({
+  'source_type': 'experiment',
+  'source_id': '<experiment-id>',
+  'target_type': 'asset_spike',
+  'target_id': '<spike-id>',
+  'link_type': 'contains',
+  'metadata': {}
+}))")
+scripts/sb create entity_links "$PAYLOAD"
 ```
 
 ### Step 4: Create Component File

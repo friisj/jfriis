@@ -103,13 +103,14 @@ Determine the next available sequence number from existing hypotheses.
 For each approved hypothesis:
 
 ```bash
-scripts/sb create studio_hypotheses '{
-  "project_id": "<project-id>",
-  "statement": "We believe that [action/change] will [result/outcome] for [audience] because [rationale]",
-  "validation_criteria": "<Specific, measurable criteria>",
-  "status": "proposed",
-  "sequence": <next-sequence>
-}'
+PAYLOAD=$(python3 -c "import json; print(json.dumps({
+  'project_id': '<project-id>',
+  'statement': 'We believe that [action/change] will [result/outcome] for [audience] because [rationale]',
+  'validation_criteria': '<Specific, measurable criteria>',
+  'status': 'proposed',
+  'sequence': <next-sequence>
+}))")
+scripts/sb create studio_hypotheses "$PAYLOAD"
 ```
 
 ### Step 6: Generate Experiments
@@ -126,16 +127,17 @@ For each hypothesis (newly created + existing unvalidated ones), propose experim
 For each approved experiment:
 
 ```bash
-scripts/sb create studio_experiments '{
-  "project_id": "<project-id>",
-  "hypothesis_id": "<hypothesis-id>",
-  "name": "<Descriptive experiment name>",
-  "slug": "<kebab-case-slug>",
-  "description": "<What we are testing and how, grounded in specific boundary object findings>",
-  "type": "<spike|experiment|prototype|interview|smoke_test>",
-  "status": "planned",
-  "expected_outcome": "<What we expect to learn>"
-}'
+PAYLOAD=$(python3 -c "import json; print(json.dumps({
+  'project_id': '<project-id>',
+  'hypothesis_id': '<hypothesis-id>',
+  'name': '<Descriptive experiment name>',
+  'slug': '<kebab-case-slug>',
+  'description': '<What we are testing and how, grounded in specific boundary object findings>',
+  'type': '<spike|experiment|prototype|interview|smoke_test>',
+  'status': 'planned',
+  'expected_outcome': '<What we expect to learn>'
+}))")
+scripts/sb create studio_experiments "$PAYLOAD"
 ```
 
 ### Step 7: Propose Asset Scaffolding

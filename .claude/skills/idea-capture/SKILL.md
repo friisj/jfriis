@@ -33,17 +33,18 @@ Do NOT ask clarifying questions unless the input is truly unintelligible. Defaul
 ### Step 2: Create the Log Entry
 
 ```bash
-scripts/sb create log_entries '{
-  "title": "<title>",
-  "slug": "<slug>",
-  "content": {"markdown": "<description or empty string>"},
-  "entry_date": "<today YYYY-MM-DD>",
-  "type": "idea",
-  "idea_stage": "captured",
-  "published": false,
-  "is_private": true,
-  "tags": ["<tag1>", "<tag2>"]
-}'
+PAYLOAD=$(python3 -c "import json; print(json.dumps({
+  'title': '<title>',
+  'slug': '<slug>',
+  'content': {'markdown': '<description or empty string>'},
+  'entry_date': '<today YYYY-MM-DD>',
+  'type': 'idea',
+  'idea_stage': 'captured',
+  'published': False,
+  'is_private': True,
+  'tags': ['<tag1>', '<tag2>']
+}))")
+scripts/sb create log_entries "$PAYLOAD"
 ```
 
 **Important**: If the slug already exists (duplicate key error), append a numeric suffix (e.g., `audio-visualizer-2`).
@@ -58,14 +59,15 @@ If the user is currently working in a studio project context (check for recent m
 2. If yes, create an entity link:
 
 ```bash
-scripts/sb create entity_links '{
-  "source_type": "log_entry",
-  "source_id": "<entry-id>",
-  "target_type": "studio_project",
-  "target_id": "<project-id>",
-  "link_type": "related",
-  "metadata": {}
-}'
+PAYLOAD=$(python3 -c "import json; print(json.dumps({
+  'source_type': 'log_entry',
+  'source_id': '<entry-id>',
+  'target_type': 'studio_project',
+  'target_id': '<project-id>',
+  'link_type': 'related',
+  'metadata': {}
+}))")
+scripts/sb create entity_links "$PAYLOAD"
 ```
 
 If no obvious context, skip this step entirely. Speed is more important than completeness.

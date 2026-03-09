@@ -157,35 +157,37 @@ Gather all available context: name, description, problem_statement, hypothesis, 
 Create a `business_model_canvases` record. Populate ALL 9 blocks with initial items derived from project context:
 
 ```bash
-scripts/sb create business_model_canvases '{
-  "slug": "<project-slug>-business-model",
-  "name": "<Project Name> - Business Model",
-  "description": "<1-2 sentences grounded in project context>",
-  "studio_project_id": "<project-id>",
-  "status": "draft",
-  "key_partners": {"items": [{"id": "kp-001", "content": "<partner>", "priority": "high", "created_at": "<now>"}], "assumptions": [], "validation_status": "untested"},
-  "key_activities": {"items": [...], "assumptions": [], "validation_status": "untested"},
-  "key_resources": {"items": [...], "assumptions": [], "validation_status": "untested"},
-  "value_propositions": {"items": [...], "assumptions": [], "validation_status": "untested"},
-  "customer_segments": {"items": [...], "assumptions": [], "validation_status": "untested"},
-  "customer_relationships": {"items": [...], "assumptions": [], "validation_status": "untested"},
-  "channels": {"items": [...], "assumptions": [], "validation_status": "untested"},
-  "cost_structure": {"items": [...], "assumptions": [], "validation_status": "untested"},
-  "revenue_streams": {"items": [...], "assumptions": [], "validation_status": "untested"}
-}'
+PAYLOAD=$(python3 -c "import json; print(json.dumps({
+  'slug': '<project-slug>-business-model',
+  'name': '<Project Name> - Business Model',
+  'description': '<1-2 sentences grounded in project context>',
+  'studio_project_id': '<project-id>',
+  'status': 'draft',
+  'key_partners': {'items': [{'id': 'kp-001', 'content': '<partner>', 'priority': 'high', 'created_at': '<now>'}], 'assumptions': [], 'validation_status': 'untested'},
+  'key_activities': {'items': [...], 'assumptions': [], 'validation_status': 'untested'},
+  'key_resources': {'items': [...], 'assumptions': [], 'validation_status': 'untested'},
+  'value_propositions': {'items': [...], 'assumptions': [], 'validation_status': 'untested'},
+  'customer_segments': {'items': [...], 'assumptions': [], 'validation_status': 'untested'},
+  'customer_relationships': {'items': [...], 'assumptions': [], 'validation_status': 'untested'},
+  'channels': {'items': [...], 'assumptions': [], 'validation_status': 'untested'},
+  'cost_structure': {'items': [...], 'assumptions': [], 'validation_status': 'untested'},
+  'revenue_streams': {'items': [...], 'assumptions': [], 'validation_status': 'untested'}
+}))")
+scripts/sb create business_model_canvases "$PAYLOAD"
 ```
 
 Generate 2-4 items per block, grounded in the project's problem statement and description. Then create the entity_link:
 
 ```bash
-scripts/sb create entity_links '{
-  "source_type": "studio_project",
-  "source_id": "<project-id>",
-  "target_type": "business_model_canvas",
-  "target_id": "<bmc-id>",
-  "link_type": "explores",
-  "metadata": {}
-}'
+PAYLOAD=$(python3 -c "import json; print(json.dumps({
+  'source_type': 'studio_project',
+  'source_id': '<project-id>',
+  'target_type': 'business_model_canvas',
+  'target_id': '<bmc-id>',
+  'link_type': 'explores',
+  'metadata': {}
+}))")
+scripts/sb create entity_links "$PAYLOAD"
 ```
 
 ### Step 5: Generate Customer Profile
@@ -195,18 +197,19 @@ scripts/sb create entity_links '{
 Create a `customer_profiles` record. Use the JSONB block format for jobs, pains, and gains:
 
 ```bash
-scripts/sb create customer_profiles '{
-  "slug": "<project-slug>-primary-customer",
-  "name": "<Project Name> - Primary Customer",
-  "description": "<2-3 sentences describing the target customer>",
-  "studio_project_id": "<project-id>",
-  "profile_type": "persona",
-  "demographics": {"age_range": "<Age range>", "role": "<Role>", "tech_level": "<level>", "income": "<range>"},
-  "jobs": {"items": [...], "assumptions": [], "validation_status": "untested"},
-  "pains": {"items": [...], "assumptions": [], "validation_status": "untested"},
-  "gains": {"items": [...], "assumptions": [], "validation_status": "untested"},
-  "status": "draft"
-}'
+PAYLOAD=$(python3 -c "import json; print(json.dumps({
+  'slug': '<project-slug>-primary-customer',
+  'name': '<Project Name> - Primary Customer',
+  'description': '<2-3 sentences describing the target customer>',
+  'studio_project_id': '<project-id>',
+  'profile_type': 'persona',
+  'demographics': {'age_range': '<Age range>', 'role': '<Role>', 'tech_level': '<level>', 'income': '<range>'},
+  'jobs': {'items': [...], 'assumptions': [], 'validation_status': 'untested'},
+  'pains': {'items': [...], 'assumptions': [], 'validation_status': 'untested'},
+  'gains': {'items': [...], 'assumptions': [], 'validation_status': 'untested'},
+  'status': 'draft'
+}))")
+scripts/sb create customer_profiles "$PAYLOAD"
 ```
 
 Generate 3-5 items per block. Link with `explores`.
@@ -218,35 +221,37 @@ Generate 3-5 items per block. Link with `explores`.
 The VPC requires a `value_map_id`, so create the value map first:
 
 ```bash
-scripts/sb create value_maps '{
-  "slug": "<project-slug>-value-map",
-  "name": "<Project Name> - Value Map",
-  "description": "<1-2 sentences>",
-  "studio_project_id": "<project-id>",
-  "customer_profile_id": "<profile-id>",
-  "business_model_canvas_id": "<bmc-id>",
-  "products_services": {"items": [...], "assumptions": [], "validation_status": "untested"},
-  "pain_relievers": {"items": [...], "assumptions": [], "validation_status": "untested"},
-  "gain_creators": {"items": [...], "assumptions": [], "validation_status": "untested"},
-  "status": "draft"
-}'
+PAYLOAD=$(python3 -c "import json; print(json.dumps({
+  'slug': '<project-slug>-value-map',
+  'name': '<Project Name> - Value Map',
+  'description': '<1-2 sentences>',
+  'studio_project_id': '<project-id>',
+  'customer_profile_id': '<profile-id>',
+  'business_model_canvas_id': '<bmc-id>',
+  'products_services': {'items': [...], 'assumptions': [], 'validation_status': 'untested'},
+  'pain_relievers': {'items': [...], 'assumptions': [], 'validation_status': 'untested'},
+  'gain_creators': {'items': [...], 'assumptions': [], 'validation_status': 'untested'},
+  'status': 'draft'
+}))")
+scripts/sb create value_maps "$PAYLOAD"
 ```
 
 Then create the VPC linked to the value map:
 
 ```bash
-scripts/sb create value_proposition_canvases '{
-  "slug": "<project-slug>-value-proposition",
-  "name": "<Project Name> - Value Proposition",
-  "description": "<Value prop description>",
-  "studio_project_id": "<project-id>",
-  "customer_profile_id": "<profile-id>",
-  "value_map_id": "<value-map-id>",
-  "addressed_jobs": {"items": ["<job content>", "<job content>"]},
-  "addressed_pains": {"items": ["<pain content>", "<pain content>"]},
-  "addressed_gains": {"items": ["<gain content>", "<gain content>"]},
-  "status": "draft"
-}'
+PAYLOAD=$(python3 -c "import json; print(json.dumps({
+  'slug': '<project-slug>-value-proposition',
+  'name': '<Project Name> - Value Proposition',
+  'description': '<Value prop description>',
+  'studio_project_id': '<project-id>',
+  'customer_profile_id': '<profile-id>',
+  'value_map_id': '<value-map-id>',
+  'addressed_jobs': {'items': ['<job content>', '<job content>']},
+  'addressed_pains': {'items': ['<pain content>', '<pain content>']},
+  'addressed_gains': {'items': ['<gain content>', '<gain content>']},
+  'status': 'draft'
+}))")
+scripts/sb create value_proposition_canvases "$PAYLOAD"
 ```
 
 Link the VPC with `explores`.
@@ -258,29 +263,31 @@ Link the VPC with `explores`.
 Create 3-5 `assumptions` records. Distribute across risk categories (desirability, viability, feasibility, usability). **Bulk insert as an array:**
 
 ```bash
-scripts/sb create assumptions '[
+PAYLOAD=$(python3 -c "import json; print(json.dumps([
   {
-    "slug": "<project-slug>-<short-name>",
-    "statement": "We assume that <specific belief>",
-    "status": "identified",
-    "importance": "critical",
-    "category": "desirability",
-    "studio_project_id": "<project-id>",
-    "notes": "<Why this matters>"
+    'slug': '<project-slug>-<short-name>',
+    'statement': 'We assume that <specific belief>',
+    'status': 'identified',
+    'importance': 'critical',
+    'category': 'desirability',
+    'studio_project_id': '<project-id>',
+    'notes': '<Why this matters>'
   },
   { ... },
   { ... }
-]'
+]))")
+scripts/sb create assumptions "$PAYLOAD"
 ```
 
 Then bulk-create entity_links for all assumptions:
 
 ```bash
-scripts/sb create entity_links '[
-  {"source_type": "studio_project", "source_id": "<project-id>", "target_type": "assumption", "target_id": "<id-1>", "link_type": "tests", "metadata": {}},
-  {"source_type": "studio_project", "source_id": "<project-id>", "target_type": "assumption", "target_id": "<id-2>", "link_type": "tests", "metadata": {}},
+PAYLOAD=$(python3 -c "import json; print(json.dumps([
+  {'source_type': 'studio_project', 'source_id': '<project-id>', 'target_type': 'assumption', 'target_id': '<id-1>', 'link_type': 'tests', 'metadata': {}},
+  {'source_type': 'studio_project', 'source_id': '<project-id>', 'target_type': 'assumption', 'target_id': '<id-2>', 'link_type': 'tests', 'metadata': {}},
   ...
-]'
+]))")
+scripts/sb create entity_links "$PAYLOAD"
 ```
 
 ### Step 8: Generate User Journey + Stages + Touchpoints
@@ -292,28 +299,30 @@ Create the full journey cascade — journey record, stages, and touchpoints:
 **8a. Create the journey:**
 
 ```bash
-scripts/sb create user_journeys '{
-  "slug": "<project-slug>-core-journey",
-  "name": "<Project Name> - Core Journey",
-  "description": "<Journey description grounded in project context>",
-  "studio_project_id": "<project-id>",
-  "customer_profile_id": "<profile-id>",
-  "journey_type": "end_to_end",
-  "goal": "<What success looks like for this journey>",
-  "status": "draft"
-}'
+PAYLOAD=$(python3 -c "import json; print(json.dumps({
+  'slug': '<project-slug>-core-journey',
+  'name': '<Project Name> - Core Journey',
+  'description': '<Journey description grounded in project context>',
+  'studio_project_id': '<project-id>',
+  'customer_profile_id': '<profile-id>',
+  'journey_type': 'end_to_end',
+  'goal': '<What success looks like for this journey>',
+  'status': 'draft'
+}))")
+scripts/sb create user_journeys "$PAYLOAD"
 ```
 
 **8b. Bulk-create 4-5 journey stages:**
 
 ```bash
-scripts/sb create journey_stages '[
-  {"user_journey_id": "<journey-id>", "name": "Discovery", "description": "...", "sequence": 1, "stage_type": "pre_purchase", "customer_emotion": "...", "customer_mindset": "...", "customer_goal": "...", "drop_off_risk": "medium"},
-  {"user_journey_id": "<journey-id>", "name": "Evaluation", "description": "...", "sequence": 2, "stage_type": "pre_purchase", ...},
-  {"user_journey_id": "<journey-id>", "name": "Commitment", "description": "...", "sequence": 3, "stage_type": "purchase", ...},
-  {"user_journey_id": "<journey-id>", "name": "Onboarding", "description": "...", "sequence": 4, "stage_type": "post_purchase", ...},
-  {"user_journey_id": "<journey-id>", "name": "Ongoing Usage", "description": "...", "sequence": 5, "stage_type": "ongoing", ...}
-]'
+PAYLOAD=$(python3 -c "import json; print(json.dumps([
+  {'user_journey_id': '<journey-id>', 'name': 'Discovery', 'description': '...', 'sequence': 1, 'stage_type': 'pre_purchase', 'customer_emotion': '...', 'customer_mindset': '...', 'customer_goal': '...', 'drop_off_risk': 'medium'},
+  {'user_journey_id': '<journey-id>', 'name': 'Evaluation', 'description': '...', 'sequence': 2, 'stage_type': 'pre_purchase', ...},
+  {'user_journey_id': '<journey-id>', 'name': 'Commitment', 'description': '...', 'sequence': 3, 'stage_type': 'purchase', ...},
+  {'user_journey_id': '<journey-id>', 'name': 'Onboarding', 'description': '...', 'sequence': 4, 'stage_type': 'post_purchase', ...},
+  {'user_journey_id': '<journey-id>', 'name': 'Ongoing Usage', 'description': '...', 'sequence': 5, 'stage_type': 'ongoing', ...}
+]))")
+scripts/sb create journey_stages "$PAYLOAD"
 ```
 
 Adapt stage names to match the project domain.
@@ -321,25 +330,27 @@ Adapt stage names to match the project domain.
 **8c. Bulk-create touchpoints per stage (2-3 per stage):**
 
 ```bash
-scripts/sb create touchpoints '[
-  {"journey_stage_id": "<stage-1-id>", "name": "...", "sequence": 1, "channel_type": "web", "interaction_type": "browse", "importance": "high", "pain_level": "minor", "delight_potential": "medium"},
-  {"journey_stage_id": "<stage-1-id>", "name": "...", "sequence": 2, ...},
-  {"journey_stage_id": "<stage-2-id>", "name": "...", "sequence": 1, ...},
+PAYLOAD=$(python3 -c "import json; print(json.dumps([
+  {'journey_stage_id': '<stage-1-id>', 'name': '...', 'sequence': 1, 'channel_type': 'web', 'interaction_type': 'browse', 'importance': 'high', 'pain_level': 'minor', 'delight_potential': 'medium'},
+  {'journey_stage_id': '<stage-1-id>', 'name': '...', 'sequence': 2, ...},
+  {'journey_stage_id': '<stage-2-id>', 'name': '...', 'sequence': 1, ...},
   ...
-]'
+]))")
+scripts/sb create touchpoints "$PAYLOAD"
 ```
 
 **8d. Create entity_link:**
 
 ```bash
-scripts/sb create entity_links '{
-  "source_type": "studio_project",
-  "source_id": "<project-id>",
-  "target_type": "user_journey",
-  "target_id": "<journey-id>",
-  "link_type": "explores",
-  "metadata": {}
-}'
+PAYLOAD=$(python3 -c "import json; print(json.dumps({
+  'source_type': 'studio_project',
+  'source_id': '<project-id>',
+  'target_type': 'user_journey',
+  'target_id': '<journey-id>',
+  'link_type': 'explores',
+  'metadata': {}
+}))")
+scripts/sb create entity_links "$PAYLOAD"
 ```
 
 ### Step 9: Generate Service Blueprint + Steps
@@ -351,24 +362,26 @@ The service blueprint mirrors the journey stages, mapping what happens behind th
 **9a. Create the blueprint:**
 
 ```bash
-scripts/sb create service_blueprints '{
-  "slug": "<project-slug>-service-blueprint",
-  "name": "<Project Name> - Service Blueprint",
-  "description": "<How the service is delivered>",
-  "studio_project_id": "<project-id>",
-  "blueprint_type": "digital",
-  "status": "draft"
-}'
+PAYLOAD=$(python3 -c "import json; print(json.dumps({
+  'slug': '<project-slug>-service-blueprint',
+  'name': '<Project Name> - Service Blueprint',
+  'description': '<How the service is delivered>',
+  'studio_project_id': '<project-id>',
+  'blueprint_type': 'digital',
+  'status': 'draft'
+}))")
+scripts/sb create service_blueprints "$PAYLOAD"
 ```
 
 **9b. Bulk-create blueprint_steps (one per journey stage):**
 
 ```bash
-scripts/sb create blueprint_steps '[
-  {"service_blueprint_id": "<blueprint-id>", "name": "Discovery", "description": "...", "sequence": 1, "layers": {"customer_action": "...", "frontstage": "...", "backstage": "...", "support_process": "..."}, "cost_implication": "low", "customer_value_delivery": "medium", "failure_risk": "low"},
-  {"service_blueprint_id": "<blueprint-id>", "name": "Evaluation", ...},
+PAYLOAD=$(python3 -c "import json; print(json.dumps([
+  {'service_blueprint_id': '<blueprint-id>', 'name': 'Discovery', 'description': '...', 'sequence': 1, 'layers': {'customer_action': '...', 'frontstage': '...', 'backstage': '...', 'support_process': '...'}, 'cost_implication': 'low', 'customer_value_delivery': 'medium', 'failure_risk': 'low'},
+  {'service_blueprint_id': '<blueprint-id>', 'name': 'Evaluation', ...},
   ...
-]'
+]))")
+scripts/sb create blueprint_steps "$PAYLOAD"
 ```
 
 Populate all 4 layer keys with project-specific content derived from the journey stages and project context.
@@ -376,10 +389,11 @@ Populate all 4 layer keys with project-specific content derived from the journey
 **9c. Create entity_links:**
 
 ```bash
-scripts/sb create entity_links '[
-  {"source_type": "studio_project", "source_id": "<project-id>", "target_type": "service_blueprint", "target_id": "<blueprint-id>", "link_type": "prototypes", "metadata": {}},
-  {"source_type": "service_blueprint", "source_id": "<blueprint-id>", "target_type": "user_journey", "target_id": "<journey-id>", "link_type": "implements", "metadata": {}}
-]'
+PAYLOAD=$(python3 -c "import json; print(json.dumps([
+  {'source_type': 'studio_project', 'source_id': '<project-id>', 'target_type': 'service_blueprint', 'target_id': '<blueprint-id>', 'link_type': 'prototypes', 'metadata': {}},
+  {'source_type': 'service_blueprint', 'source_id': '<blueprint-id>', 'target_type': 'user_journey', 'target_id': '<journey-id>', 'link_type': 'implements', 'metadata': {}}
+]))")
+scripts/sb create entity_links "$PAYLOAD"
 ```
 
 ### Step 10: Generate Story Map + Activities + Stories
@@ -391,35 +405,38 @@ The story map translates the journey into development work.
 **10a. Create the story map:**
 
 ```bash
-scripts/sb create story_maps '{
-  "slug": "<project-slug>-story-map",
-  "name": "<Project Name> - Story Map",
-  "description": "<Dev planning for the project>",
-  "studio_project_id": "<project-id>",
-  "map_type": "feature",
-  "status": "draft"
-}'
+PAYLOAD=$(python3 -c "import json; print(json.dumps({
+  'slug': '<project-slug>-story-map',
+  'name': '<Project Name> - Story Map',
+  'description': '<Dev planning for the project>',
+  'studio_project_id': '<project-id>',
+  'map_type': 'feature',
+  'status': 'draft'
+}))")
+scripts/sb create story_maps "$PAYLOAD"
 ```
 
 **10b. Bulk-create activities (one per journey stage):**
 
 ```bash
-scripts/sb create activities '[
-  {"story_map_id": "<story-map-id>", "name": "Discovery", "description": "...", "sequence": 1, "user_goal": "..."},
-  {"story_map_id": "<story-map-id>", "name": "Evaluation", "description": "...", "sequence": 2, "user_goal": "..."},
+PAYLOAD=$(python3 -c "import json; print(json.dumps([
+  {'story_map_id': '<story-map-id>', 'name': 'Discovery', 'description': '...', 'sequence': 1, 'user_goal': '...'},
+  {'story_map_id': '<story-map-id>', 'name': 'Evaluation', 'description': '...', 'sequence': 2, 'user_goal': '...'},
   ...
-]'
+]))")
+scripts/sb create activities "$PAYLOAD"
 ```
 
 **10c. Bulk-create user stories (2-3 per activity):**
 
 ```bash
-scripts/sb create user_stories '[
-  {"activity_id": "<activity-1-id>", "title": "As a <persona>, I want to <action> so that <benefit>", "description": "...", "story_type": "feature", "priority": "high", "status": "backlog"},
-  {"activity_id": "<activity-1-id>", "title": "As a ...", ...},
-  {"activity_id": "<activity-2-id>", "title": "As a ...", ...},
+PAYLOAD=$(python3 -c "import json; print(json.dumps([
+  {'activity_id': '<activity-1-id>', 'title': 'As a <persona>, I want to <action> so that <benefit>', 'description': '...', 'story_type': 'feature', 'priority': 'high', 'status': 'backlog'},
+  {'activity_id': '<activity-1-id>', 'title': 'As a ...', ...},
+  {'activity_id': '<activity-2-id>', 'title': 'As a ...', ...},
   ...
-]'
+]))")
+scripts/sb create user_stories "$PAYLOAD"
 ```
 
 Use the user story format: "As a [persona], I want to [action] so that [benefit]". Ground stories in the customer profile and journey touchpoints.
@@ -427,11 +444,12 @@ Use the user story format: "As a [persona], I want to [action] so that [benefit]
 **10d. Create entity_links:**
 
 ```bash
-scripts/sb create entity_links '[
-  {"source_type": "studio_project", "source_id": "<project-id>", "target_type": "story_map", "target_id": "<story-map-id>", "link_type": "informs", "metadata": {}},
-  {"source_type": "story_map", "source_id": "<story-map-id>", "target_type": "user_journey", "target_id": "<journey-id>", "link_type": "implements", "metadata": {}},
-  {"source_type": "story_map", "source_id": "<story-map-id>", "target_type": "service_blueprint", "target_id": "<blueprint-id>", "link_type": "implements", "metadata": {}}
-]'
+PAYLOAD=$(python3 -c "import json; print(json.dumps([
+  {'source_type': 'studio_project', 'source_id': '<project-id>', 'target_type': 'story_map', 'target_id': '<story-map-id>', 'link_type': 'informs', 'metadata': {}},
+  {'source_type': 'story_map', 'source_id': '<story-map-id>', 'target_type': 'user_journey', 'target_id': '<journey-id>', 'link_type': 'implements', 'metadata': {}},
+  {'source_type': 'story_map', 'source_id': '<story-map-id>', 'target_type': 'service_blueprint', 'target_id': '<blueprint-id>', 'link_type': 'implements', 'metadata': {}}
+]))")
+scripts/sb create entity_links "$PAYLOAD"
 ```
 
 ### Step 11: Summary

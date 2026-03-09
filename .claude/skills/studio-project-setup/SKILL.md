@@ -18,9 +18,24 @@ This may be a project name, a description, or a rough idea. You will need to ext
 - **name**: Display name (e.g., "My Project")
 - **description**: Brief overview of the idea
 - **problem_statement**: What problem or opportunity this explores
-- **hypothesis**: Core thesis being investigated
 
 If the input is ambiguous, ask clarifying questions before proceeding.
+
+---
+
+## JSON Payload Convention
+
+When passing JSON to `scripts/sb create` or `scripts/sb update`, **always assign the payload to a shell variable first** to avoid quoting issues:
+
+```bash
+PAYLOAD=$(python3 -c "import json; print(json.dumps({
+  'key': 'value',
+  'nested': 'data'
+}))")
+scripts/sb create <table> "$PAYLOAD"
+```
+
+This prevents shell interpretation of special characters in the JSON. **Never pass raw inline JSON strings** as arguments — apostrophes, commas, and braces can be mangled by the shell.
 
 ---
 
@@ -57,21 +72,29 @@ Before creating anything, check for both existing projects and captured ideas:
 
 ### Step 2: Create Database Record
 
-Create the `studio_projects` record:
+First, retrieve the `user_id` (required NOT NULL column):
 
 ```bash
-scripts/sb create studio_projects '{
-  "slug": "<derived-slug>",
-  "name": "<derived-name>",
-  "description": "<description>",
-  "status": "draft",
-  "temperature": "warm",
-  "problem_statement": "<problem_statement>",
-  "hypothesis": "<hypothesis>",
-  "current_focus": "Initial setup and exploration",
-  "app_path": null
-}'
+USER_ID=$(scripts/sb query studio_projects "select=user_id&limit=1" | python3 -c "import sys,json; print(json.load(sys.stdin)[0]['user_id'])")
 ```
+
+Then create the `studio_projects` record using the safe JSON pattern:
+
+```bash
+PAYLOAD=$(python3 -c "import json; print(json.dumps({
+  'slug': '<derived-slug>',
+  'name': '<derived-name>',
+  'description': '<description>',
+  'status': 'draft',
+  'temperature': 'warm',
+  'problem_statement': '<problem_statement>',
+  'current_focus': 'Initial setup and exploration',
+  'user_id': '$USER_ID'
+}))")
+scripts/sb create studio_projects "$PAYLOAD"
+```
+
+> **Schema note:** The `studio_projects` table has these PRD fields: `problem_statement`, `success_criteria`, `scope_out`. There is no `hypothesis` column — hypotheses are separate records in `studio_hypotheses`.
 
 > **Note:** Set `app_path` to the URL path of the prototype app (e.g., `/apps/{slug}`) once an app route is created. Leave `null` during initial setup.
 >
@@ -89,48 +112,52 @@ Every studio project should have traceable lineage back to an idea. There are tw
 
 1. Create an `evolved_from` entity link:
    ```bash
-   scripts/sb create entity_links '{
-     "source_type": "studio_project",
-     "source_id": "<project-id>",
-     "target_type": "log_entry",
-     "target_id": "<source-idea-id>",
-     "link_type": "evolved_from",
-     "metadata": {}
-   }'
+   PAYLOAD=$(python3 -c "import json; print(json.dumps({
+     'source_type': 'studio_project',
+     'source_id': '<project-id>',
+     'target_type': 'log_entry',
+     'target_id': '<source-idea-id>',
+     'link_type': 'evolved_from',
+     'metadata': {}
+   }))")
+   scripts/sb create entity_links "$PAYLOAD"
    ```
 
 2. Update the idea's stage to `graduated`:
    ```bash
-   scripts/sb update log_entries <source-idea-id> '{"idea_stage": "graduated"}'
+   PAYLOAD=$(python3 -c "import json; print(json.dumps({'idea_stage': 'graduated'}))")
+   scripts/sb update log_entries <source-idea-id> "$PAYLOAD"
    ```
 
 **Path B — Creating a genesis idea** (no existing idea matched):
 
 1. Create a log entry as the origin record:
    ```bash
-   scripts/sb create log_entries '{
-     "title": "<name>",
-     "slug": "<slug>-genesis",
-     "content": {"markdown": "Genesis idea for studio project: <name>.\n\n<problem_statement>"},
-     "entry_date": "<today YYYY-MM-DD>",
-     "type": "idea",
-     "idea_stage": "graduated",
-     "published": false,
-     "is_private": true,
-     "tags": ["studio", "genesis"]
-   }'
+   PAYLOAD=$(python3 -c "import json; print(json.dumps({
+     'title': '<name>',
+     'slug': '<slug>-genesis',
+     'content': {'markdown': 'Genesis idea for studio project: <name>.\n\n<problem_statement>'},
+     'entry_date': '<today YYYY-MM-DD>',
+     'type': 'idea',
+     'idea_stage': 'graduated',
+     'published': False,
+     'is_private': True,
+     'tags': ['studio', 'genesis']
+   }))")
+   scripts/sb create log_entries "$PAYLOAD"
    ```
 
 2. Create an `evolved_from` entity link:
    ```bash
-   scripts/sb create entity_links '{
-     "source_type": "studio_project",
-     "source_id": "<project-id>",
-     "target_type": "log_entry",
-     "target_id": "<genesis-idea-id>",
-     "link_type": "evolved_from",
-     "metadata": {}
-   }'
+   PAYLOAD=$(python3 -c "import json; print(json.dumps({
+     'source_type': 'studio_project',
+     'source_id': '<project-id>',
+     'target_type': 'log_entry',
+     'target_id': '<genesis-idea-id>',
+     'link_type': 'evolved_from',
+     'metadata': {}
+   }))")
+   scripts/sb create entity_links "$PAYLOAD"
    ```
 
 ### Step 3: Create Initial Hypothesis
@@ -138,13 +165,14 @@ Every studio project should have traceable lineage back to an idea. There are tw
 Create at least one hypothesis record:
 
 ```bash
-scripts/sb create studio_hypotheses '{
-  "project_id": "<project-id>",
-  "statement": "<core hypothesis statement>",
-  "validation_criteria": "<how we will know if this is true>",
-  "sequence": 1,
-  "status": "proposed"
-}'
+PAYLOAD=$(python3 -c "import json; print(json.dumps({
+  'project_id': '<project-id>',
+  'statement': '<core hypothesis statement>',
+  'validation_criteria': '<how we will know if this is true>',
+  'sequence': 1,
+  'status': 'proposed'
+}))")
+scripts/sb create studio_hypotheses "$PAYLOAD"
 ```
 
 ### Step 4: Scaffold Documentation
@@ -299,15 +327,16 @@ export default function <PascalCaseName>Prototype() {
 Create a `studio_experiments` record for the initial prototype:
 
 ```bash
-scripts/sb create studio_experiments '{
-  "project_id": "<project-id>",
-  "hypothesis_id": "<hypothesis-id>",
-  "slug": "<slug>-prototype",
-  "name": "<Name> Prototype",
-  "description": "Initial prototype exploring core concept",
-  "type": "prototype",
-  "status": "planned"
-}'
+PAYLOAD=$(python3 -c "import json; print(json.dumps({
+  'project_id': '<project-id>',
+  'hypothesis_id': '<hypothesis-id>',
+  'slug': '<slug>-prototype',
+  'name': '<Name> Prototype',
+  'description': 'Initial prototype exploring core concept',
+  'type': 'prototype',
+  'status': 'planned'
+}))")
+scripts/sb create studio_experiments "$PAYLOAD"
 ```
 
 ### Step 7: Update Studio README
