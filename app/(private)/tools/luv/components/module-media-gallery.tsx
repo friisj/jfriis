@@ -81,7 +81,7 @@ export function ModuleMediaGallery({
         const path = `chassis-modules/${moduleSlug}/${f.parameterKey}/${Date.now()}-${i}.${ext}`;
 
         const { error: uploadError } = await supabase.storage
-          .from('luv-media')
+          .from('luv-images')
           .upload(path, f.file);
 
         if (uploadError) throw uploadError;
@@ -116,7 +116,7 @@ export function ModuleMediaGallery({
   const handleDelete = async (item: LuvChassisModuleMedia) => {
     if (!confirm('Delete this media?')) return;
     try {
-      await supabase.storage.from('luv-media').remove([item.storage_path]);
+      await supabase.storage.from('luv-images').remove([item.storage_path]);
       await deleteChassisModuleMedia(item.id);
       setMedia((prev) => prev.filter((m) => m.id !== item.id));
     } catch (err) {
@@ -126,7 +126,7 @@ export function ModuleMediaGallery({
 
   const getPublicUrl = (storagePath: string) => {
     const { data } = supabase.storage
-      .from('luv-media')
+      .from('luv-images')
       .getPublicUrl(storagePath);
     return data.publicUrl;
   };

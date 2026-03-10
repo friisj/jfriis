@@ -1,13 +1,17 @@
 import { NextResponse } from 'next/server';
+import { createClient } from '@supabase/supabase-js';
 import { requireAuth } from '@/lib/ai/auth';
-import { createClient } from '@/lib/supabase-server';
-import { createReviewItemServer, listReviewItemsServer } from '@/lib/luv-review-server';
 
-const LUV_MEDIA_BUCKET = 'luv-media';
-// Vercel serverless functions have a 4.5MB request body limit.
-// Keep per-file max under that to avoid 413 errors.
-const MAX_FILE_SIZE = 4 * 1024 * 1024; // 4MB
+const LUV_MEDIA_BUCKET = 'luv-images';
+const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
+
+function serviceClient() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+  );
+}
 
 export async function POST(request: Request) {
   const { user, error } = await requireAuth();
@@ -43,11 +47,15 @@ export async function POST(request: Request) {
       }
     }
 
-    // Get current item count for sequencing
-    const existingItems = await listReviewItemsServer(sessionId);
-    let nextSequence = existingItems.length;
+    const client = serviceClient();
 
-    const client = await createClient();
+    // Get current item count for sequencing
+    const { data: existing } = await client
+      .from('luv_review_items')
+      .select('id')
+      .eq('session_id', sessionId);
+    let nextSequence = existing?.length ?? 0;
+
     const results = [];
 
     for (const file of files) {
@@ -69,7 +77,30 @@ export async function POST(request: Request) {
         );
       }
 
-      const item = await createReviewItemServer(sessionId, storagePath, nextSequence);
+      // Create review item
+      const { data: item, error: itemError } = await client
+        .from('luv_review_items')
+        .insert({
+          session_id: sessionId,
+          storage_path: storagePath,
+          sequence: nextSequence,
+        })
+        .select()
+        .single();
+
+      if (itemError) {
+        return NextResponse.json(
+          { error: `DB insert failed for ${file.name}: ${itemError.message}` },
+          { status: 500 }
+        );
+      }
+
+      // Update session image count
+      await client
+        .from('luv_review_sessions')
+        .update({ image_count: nextSequence + 1 })
+        .eq('id', sessionId);
+
       results.push({
         id: item.id,
         sequence: item.sequence,

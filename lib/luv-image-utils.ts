@@ -5,9 +5,7 @@
  * or public URLs, used by vision tools.
  */
 
-import { createClient } from './supabase-server';
-
-const LUV_MEDIA_BUCKET = 'luv-media';
+const LUV_MEDIA_BUCKET = 'luv-images';
 
 export type MediaType = 'image/png' | 'image/jpeg' | 'image/webp' | 'image/gif';
 
@@ -29,16 +27,15 @@ function inferMediaType(path: string): MediaType {
 export async function resolveImageAsBase64(
   storagePath: string
 ): Promise<{ base64: string; mediaType: MediaType }> {
-  const client = await createClient();
-  const { data, error } = await client.storage
-    .from(LUV_MEDIA_BUCKET)
-    .download(storagePath);
+  // Fetch directly from public URL — avoids auth/RLS issues in streaming contexts
+  const url = resolveImagePublicUrl(storagePath);
+  const res = await fetch(url);
 
-  if (error || !data) {
-    throw new Error(`Failed to download image: ${error?.message ?? 'no data'}`);
+  if (!res.ok) {
+    throw new Error(`Failed to download image: ${res.status} ${res.statusText}`);
   }
 
-  const buffer = Buffer.from(await data.arrayBuffer());
+  const buffer = Buffer.from(await res.arrayBuffer());
   const base64 = buffer.toString('base64');
   const mediaType = inferMediaType(storagePath);
 

@@ -65,7 +65,7 @@ export function ReferenceGallery({ initialReferences }: ReferenceGalleryProps) {
         const path = `references/${Date.now()}-${i}.${ext}`;
 
         const { error: uploadError } = await supabase.storage
-          .from('luv-media')
+          .from('luv-images')
           .upload(path, f.file);
 
         if (uploadError) throw uploadError;
@@ -98,7 +98,7 @@ export function ReferenceGallery({ initialReferences }: ReferenceGalleryProps) {
   const handleDelete = async (ref: LuvReference) => {
     if (!confirm('Delete this reference?')) return;
     try {
-      await supabase.storage.from('luv-media').remove([ref.storage_path]);
+      await supabase.storage.from('luv-images').remove([ref.storage_path]);
       await deleteLuvReference(ref.id);
       setReferences((prev) => prev.filter((r) => r.id !== ref.id));
     } catch (err) {
@@ -108,7 +108,7 @@ export function ReferenceGallery({ initialReferences }: ReferenceGalleryProps) {
 
   const getPublicUrl = (storagePath: string) => {
     const { data } = supabase.storage
-      .from('luv-media')
+      .from('luv-images')
       .getPublicUrl(storagePath);
     return data.publicUrl;
   };
