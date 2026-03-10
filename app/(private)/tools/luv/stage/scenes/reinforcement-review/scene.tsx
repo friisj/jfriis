@@ -4,6 +4,7 @@ import { useState, useCallback, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/lib/supabase';
+import { useLuvChat } from '@/app/(private)/tools/luv/components/luv-chat-context';
 import type { SceneProps } from '@/lib/luv/stage/types';
 
 // ---------------------------------------------------------------------------
@@ -42,7 +43,7 @@ type View = 'sessions' | 'session-detail';
 
 function getPublicUrl(storagePath: string) {
   const { data } = supabase.storage
-    .from('luv-media')
+    .from('luv-images')
     .getPublicUrl(storagePath);
   return data.publicUrl;
 }
@@ -52,6 +53,7 @@ function getPublicUrl(storagePath: string) {
 // ---------------------------------------------------------------------------
 
 export default function ReinforcementReviewScene({ chassisModules }: SceneProps) {
+  const { setPageData } = useLuvChat();
   const [view, setView] = useState<View>('sessions');
   const [sessions, setSessions] = useState<ReviewSession[]>([]);
   const [activeSession, setActiveSession] = useState<ReviewSession | null>(null);
@@ -94,12 +96,21 @@ export default function ReinforcementReviewScene({ chassisModules }: SceneProps)
     setActiveSession(session);
     setView('session-detail');
     setSelectedItem(null);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data } = await (supabase as any)
       .from('luv_review_items')
       .select('*')
       .eq('session_id', session.id)
       .order('sequence', { ascending: true });
     setItems(data ?? []);
+    setPageData({
+      reviewSession: {
+        id: session.id,
+        title: session.title,
+        status: session.status,
+        imageCount: session.image_count,
+      },
+    });
   }
 
   function backToSessions() {
@@ -107,6 +118,7 @@ export default function ReinforcementReviewScene({ chassisModules }: SceneProps)
     setActiveSession(null);
     setItems([]);
     setSelectedItem(null);
+    setPageData(null);
     loadSessions();
   }
 
@@ -317,36 +329,59 @@ function UploadZone({
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const [uploadStatus, setUploadStatus] = useState('');
+
   const handleFiles = useCallback(
     async (fileList: FileList | File[]) => {
-      const files = Array.from(fileList).filter(
-        (f) => f.type.startsWith('image/') && f.size <= 10 * 1024 * 1024
-      );
-      if (files.length === 0) return;
+      const allFiles = Array.from(fileList);
+      // Accept common image types; fall back to extension check if type is empty
+      const files = allFiles.filter((f) => {
+        const isImage = f.type.startsWith('image/') ||
+          /\.(jpe?g|png|webp)$/i.test(f.name);
+        return isImage && f.size <= 10 * 1024 * 1024;
+      });
+
+      if (files.length === 0) {
+        setUploadStatus(
+          allFiles.length > 0
+            ? `Filtered out ${allFiles.length} file(s) — wrong type or > 10MB`
+            : 'No files selected'
+        );
+        return;
+      }
 
       setUploading(true);
-      const formData = new FormData();
-      formData.append('sessionId', sessionId);
-      files.forEach((f) => formData.append('files', f));
-
       try {
-        const res = await fetch('/api/luv/review-upload', {
-          method: 'POST',
-          body: formData,
-        });
-        const data = await res.json();
-        if (res.ok && data.items) {
-          // Reload items from DB to get full shape
-          const { data: freshItems } = await (supabase as any)
-            .from('luv_review_items')
-            .select('*')
-            .eq('session_id', sessionId)
-            .order('sequence', { ascending: true })
-            .gte('sequence', currentCount);
-          onUploaded(freshItems ?? []);
+        for (let i = 0; i < files.length; i++) {
+          setUploadStatus(`Uploading ${i + 1} of ${files.length}...`);
+          const formData = new FormData();
+          formData.append('sessionId', sessionId);
+          formData.append('files', files[i]);
+          const res = await fetch('/api/luv/review-upload', {
+            method: 'POST',
+            body: formData,
+          });
+          if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            console.error('Upload failed:', err);
+            setUploadStatus(`Failed on file ${i + 1}: ${JSON.stringify(err)}`);
+            return;
+          }
         }
+        setUploadStatus('Loading items...');
+        // Reload all items from DB after uploads complete
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const { data: freshItems } = await (supabase as any)
+          .from('luv_review_items')
+          .select('*')
+          .eq('session_id', sessionId)
+          .order('sequence', { ascending: true })
+          .gte('sequence', currentCount);
+        onUploaded(freshItems ?? []);
+        setUploadStatus('');
       } catch (err) {
         console.error('Upload failed:', err);
+        setUploadStatus(`Error: ${err instanceof Error ? err.message : 'Unknown'}`);
       } finally {
         setUploading(false);
       }
@@ -377,7 +412,9 @@ function UploadZone({
       }`}
     >
       {uploading ? (
-        <p className="text-xs text-muted-foreground">Uploading...</p>
+        <p className="text-xs text-muted-foreground">{uploadStatus || 'Uploading...'}</p>
+      ) : uploadStatus ? (
+        <p className="text-xs text-destructive">{uploadStatus}</p>
       ) : (
         <p className="text-xs text-muted-foreground">
           Drop images here or click to select

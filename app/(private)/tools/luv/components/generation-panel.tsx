@@ -23,7 +23,7 @@ export function GenerationPanel({
 
   const getPublicUrl = (storagePath: string) => {
     const { data } = supabase.storage
-      .from('luv-media')
+      .from('luv-images')
       .getPublicUrl(storagePath);
     return data.publicUrl;
   };
