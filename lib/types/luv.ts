@@ -370,6 +370,43 @@ export type UpdateLuvResearchInput = Partial<{
 }>;
 
 // ============================================================================
+// Artifacts
+// ============================================================================
+
+export type LuvArtifactStatus = 'draft' | 'published' | 'archived';
+
+export interface LuvArtifact {
+  id: string;
+  title: string;
+  slug: string;
+  content: string;
+  tags: string[];
+  status: LuvArtifactStatus;
+  conversation_id: string | null;
+  version: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export type CreateLuvArtifactInput = {
+  title: string;
+  slug: string;
+  content: string;
+  tags?: string[];
+  status?: LuvArtifactStatus;
+  conversation_id?: string;
+};
+
+export type UpdateLuvArtifactInput = Partial<{
+  title: string;
+  slug: string;
+  content: string;
+  tags: string[];
+  status: LuvArtifactStatus;
+  version: number;
+}>;
+
+// ============================================================================
 // Page Context — client-side context passed to the agent via chat transport
 // ============================================================================
 

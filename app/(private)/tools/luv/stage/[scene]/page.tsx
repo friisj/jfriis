@@ -3,7 +3,6 @@ import Link from 'next/link';
 import { Badge } from '@/components/ui/badge';
 import { IconArrowLeft, IconAlertTriangle } from '@tabler/icons-react';
 import { getSceneBySlugServer } from '@/lib/luv/stage/scenes-server';
-import { getSceneComponent } from '@/lib/luv/stage/component-registry';
 import { buildSceneContext } from '@/lib/luv/scene-context';
 import {
   getChassisModulesBySlugsServer,
@@ -37,7 +36,6 @@ export default async function SceneViewerPage({ params }: Props) {
   );
 
   const ctx = buildSceneContext(descriptor, modules, mediaMap);
-  const SceneComponent = getSceneComponent(descriptor.component);
 
   return (
     <div className="container px-4 py-8 max-w-2xl">
@@ -76,7 +74,7 @@ export default async function SceneViewerPage({ params }: Props) {
       )}
 
       <StageMount
-        SceneComponent={SceneComponent}
+        componentKey={descriptor.component}
         descriptor={descriptor}
         chassisModules={ctx.modules}
         templateContext={ctx.templateContext}
