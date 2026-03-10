@@ -1,3 +1,5 @@
+'use client';
+
 /**
  * Luv Stage — Component Registry
  *
@@ -7,6 +9,9 @@
  * The DB `luv_scenes.component` column has a CHECK constraint matching
  * the keys in this registry. When adding a new component here, also
  * add a migration to extend the constraint.
+ *
+ * Marked 'use client' because next/dynamic with ssr:false requires
+ * a client component context. Import this only from client components.
  */
 
 import dynamic from 'next/dynamic';
