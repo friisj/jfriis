@@ -407,6 +407,65 @@ export type UpdateLuvArtifactInput = Partial<{
 }>;
 
 // ============================================================================
+// Review Sessions & Items
+// ============================================================================
+
+export type LuvReviewSessionStatus = 'active' | 'completed' | 'archived';
+export type LuvClassification = 'me' | 'not_me' | 'skip';
+
+export interface LuvReviewSession {
+  id: string;
+  title: string;
+  status: LuvReviewSessionStatus;
+  image_count: number;
+  summary: string | null;
+  artifact_id: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface LuvReviewItem {
+  id: string;
+  session_id: string;
+  storage_path: string;
+  sequence: number;
+  human_classification: LuvClassification | null;
+  human_confidence: number | null;
+  human_notes: string | null;
+  agent_classification: 'me' | 'not_me' | null;
+  agent_confidence: number | null;
+  agent_reasoning: string | null;
+  reinforcement_notes: string | null;
+  module_links: string[];
+  promoted_to_reference_id: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export type CreateReviewSessionInput = {
+  title: string;
+};
+
+export type UpdateReviewSessionInput = Partial<{
+  title: string;
+  status: LuvReviewSessionStatus;
+  summary: string;
+  artifact_id: string;
+}>;
+
+export type UpdateReviewItemInput = Partial<{
+  human_classification: LuvClassification;
+  human_confidence: number;
+  human_notes: string;
+  agent_classification: 'me' | 'not_me';
+  agent_confidence: number;
+  agent_reasoning: string;
+  reinforcement_notes: string;
+  module_links: string[];
+  promoted_to_reference_id: string;
+}>;
+
+// ============================================================================
 // Page Context — client-side context passed to the agent via chat transport
 // ============================================================================
 
