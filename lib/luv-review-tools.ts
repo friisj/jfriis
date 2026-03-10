@@ -85,13 +85,30 @@ export const viewReviewItem = tool({
     const { resolveImageAsBase64 } = await import('./luv-image-utils');
     try {
       const { base64, mediaType } = await resolveImageAsBase64(result.storage_path!);
-      return {
-        type: 'content' as const,
-        value: [
-          { type: 'text' as const, text: `Review item #${(result.sequence ?? 0) + 1} (${result.id}). ${result.already_evaluated ? 'Already evaluated.' : 'Not yet evaluated.'}` },
-          { type: 'file-data' as const, data: base64, mediaType },
-        ],
-      };
+
+      // Run Gemini vision analysis in parallel with chassis data load
+      const { analyzeImageWithGemini, buildChassisVisionPrompt } = await import('./ai/gemini-vision');
+      const { getChassisModulesServer } = await import('./luv-chassis-server');
+
+      const [modules, _] = await Promise.all([
+        getChassisModulesServer(),
+        Promise.resolve(), // placeholder for parallel slot
+      ]);
+      const chassisParams = Object.fromEntries(
+        modules.map((m) => [m.slug, m.parameters])
+      );
+      const visionPrompt = buildChassisVisionPrompt(chassisParams);
+      const analysis = await analyzeImageWithGemini({ base64, mediaType, prompt: visionPrompt });
+
+      const parts: Array<{ type: 'text'; text: string } | { type: 'file-data'; data: string; mediaType: string }> = [
+        { type: 'text' as const, text: `Review item #${(result.sequence ?? 0) + 1} (${result.id}). ${result.already_evaluated ? 'Already evaluated.' : 'Not yet evaluated.'}` },
+      ];
+      if (analysis) {
+        parts.push({ type: 'text' as const, text: `[Gemini Vision Analysis]\n${analysis}` });
+      }
+      parts.push({ type: 'file-data' as const, data: base64, mediaType });
+
+      return { type: 'content' as const, value: parts };
     } catch {
       return { type: 'text' as const, value: 'Image could not be loaded from storage.' };
     }
