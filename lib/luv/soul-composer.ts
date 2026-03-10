@@ -24,6 +24,8 @@ export interface ComposeOptions {
   chassisModuleSummaries?: ChassisModuleSummary[];
   memories?: MemoryItem[];
   research?: ResearchSummary;
+  processProtocol?: string | null;
+  processState?: string | null;
 }
 
 /**
@@ -248,6 +250,30 @@ export function composeLayers(soulData: LuvSoulData, options?: ComposeOptions): 
       priority: LAYER_REGISTRY.memory.priority,
       content: memoryContent,
       source: 'luv_memories',
+      enabled: true,
+    });
+  }
+
+  // Layer 8: Process Protocol (page-aware workflow instructions)
+  if (options?.processProtocol) {
+    layers.push({
+      id: 'process_protocol',
+      type: 'process_protocol',
+      priority: LAYER_REGISTRY.process_protocol.priority,
+      content: options.processProtocol,
+      source: 'page_context',
+      enabled: true,
+    });
+  }
+
+  // Layer 9: Process State (active workflow snapshots)
+  if (options?.processState) {
+    layers.push({
+      id: 'process_state',
+      type: 'process_state',
+      priority: LAYER_REGISTRY.process_state.priority,
+      content: options.processState,
+      source: 'page_context',
       enabled: true,
     });
   }

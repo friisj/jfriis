@@ -10,6 +10,7 @@ import { listLuvResearchServer } from '@/lib/luv-research-server';
 import { luvTools, createCurrentContextTool } from '@/lib/luv-tools';
 import { getAnthropic } from '@/lib/ai/providers';
 import { analyzeImageWithGemini, buildGeneralVisionPrompt } from '@/lib/ai/gemini-vision';
+import { resolveProcessProtocol, resolveProcessState } from '@/lib/luv/process-context';
 import type { ChassisModuleSummary } from '@/lib/luv/soul-layers';
 import type { LuvPageContext } from '@/lib/types/luv';
 
@@ -62,10 +63,19 @@ export async function POST(request: Request) {
       activeExperiments: allResearch.filter((r) => r.kind === 'experiment' && r.status === 'active').length,
       totalEntries: allResearch.length,
     };
+
+    // Resolve page-aware process protocol and active state
+    const [processProtocol, processState] = await Promise.all([
+      Promise.resolve(resolveProcessProtocol(pageContext)),
+      resolveProcessState({ pageContext }),
+    ]);
+
     const systemPrompt = composeSoulSystemPrompt(soulData, {
       chassisModuleSummaries,
       memories: memoryItems,
       research: researchSummary,
+      processProtocol,
+      processState,
     });
 
     // Convert UI-format messages (from useChat) to model-format messages (for streamText)
