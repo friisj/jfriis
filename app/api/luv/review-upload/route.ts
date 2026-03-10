@@ -4,7 +4,9 @@ import { createClient } from '@/lib/supabase-server';
 import { createReviewItemServer, listReviewItemsServer } from '@/lib/luv-review-server';
 
 const LUV_MEDIA_BUCKET = 'luv-media';
-const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+// Vercel serverless functions have a 4.5MB request body limit.
+// Keep per-file max under that to avoid 413 errors.
+const MAX_FILE_SIZE = 4 * 1024 * 1024; // 4MB
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
 
 export async function POST(request: Request) {

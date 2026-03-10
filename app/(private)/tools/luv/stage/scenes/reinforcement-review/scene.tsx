@@ -320,31 +320,35 @@ function UploadZone({
   const handleFiles = useCallback(
     async (fileList: FileList | File[]) => {
       const files = Array.from(fileList).filter(
-        (f) => f.type.startsWith('image/') && f.size <= 10 * 1024 * 1024
+        (f) => f.type.startsWith('image/') && f.size <= 4 * 1024 * 1024
       );
       if (files.length === 0) return;
 
       setUploading(true);
-      const formData = new FormData();
-      formData.append('sessionId', sessionId);
-      files.forEach((f) => formData.append('files', f));
-
       try {
-        const res = await fetch('/api/luv/review-upload', {
-          method: 'POST',
-          body: formData,
-        });
-        const data = await res.json();
-        if (res.ok && data.items) {
-          // Reload items from DB to get full shape
-          const { data: freshItems } = await (supabase as any)
-            .from('luv_review_items')
-            .select('*')
-            .eq('session_id', sessionId)
-            .order('sequence', { ascending: true })
-            .gte('sequence', currentCount);
-          onUploaded(freshItems ?? []);
+        // Upload one file at a time to stay within Vercel's 4.5MB body limit
+        for (const file of files) {
+          const formData = new FormData();
+          formData.append('sessionId', sessionId);
+          formData.append('files', file);
+          const res = await fetch('/api/luv/review-upload', {
+            method: 'POST',
+            body: formData,
+          });
+          if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            console.error('Upload failed:', err);
+          }
         }
+        // Reload all items from DB after uploads complete
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const { data: freshItems } = await (supabase as any)
+          .from('luv_review_items')
+          .select('*')
+          .eq('session_id', sessionId)
+          .order('sequence', { ascending: true })
+          .gte('sequence', currentCount);
+        onUploaded(freshItems ?? []);
       } catch (err) {
         console.error('Upload failed:', err);
       } finally {
