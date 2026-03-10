@@ -20,7 +20,7 @@ export default async function ArtifactDetailPage({
   if (!artifact) notFound();
 
   return (
-    <div className="px-4 py-8 max-w-2xl">
+    <div className="px-4 py-8 h-full overflow-hidden">
       <div className="mb-2">
         <Link
           href="/tools/luv/artifacts"
@@ -30,7 +30,7 @@ export default async function ArtifactDetailPage({
         </Link>
       </div>
 
-      <div className="space-y-4">
+      <div className="space-y-4 flex flex-col h-full">
         <div>
           <div className="flex items-center gap-2 mb-1">
             <Badge
@@ -44,6 +44,10 @@ export default async function ArtifactDetailPage({
             </span>
           </div>
           <h1 className="text-sm font-semibold">{artifact.title}</h1>
+          <div className="text-xs text-muted-foreground">
+            Created {new Date(artifact.created_at).toLocaleDateString()} · Updated{' '}
+            {new Date(artifact.updated_at).toLocaleDateString()}
+          </div>
         </div>
 
         {artifact.tags.length > 0 && (
@@ -61,7 +65,7 @@ export default async function ArtifactDetailPage({
 
         <ArtifactContent content={artifact.content} />
 
-        <div className="text-[10px] text-muted-foreground">
+        <div className="text-xs text-muted-foreground">
           Created {new Date(artifact.created_at).toLocaleDateString()} · Updated{' '}
           {new Date(artifact.updated_at).toLocaleDateString()}
         </div>
