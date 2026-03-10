@@ -9,6 +9,7 @@ import { tool, zodSchema } from 'ai';
 import { z } from 'zod';
 import { getLuvCharacterServer } from './luv-server';
 import { luvResearchTools } from './luv-research-tools';
+import { luvArtifactTools } from './luv-artifact-tools';
 
 // ============================================================================
 // Read Tools (execute server-side, no approval needed)
@@ -772,4 +773,5 @@ export const luvTools = {
   save_memory: saveMemory,
   propose_facet_change: proposeFacetChange,
   ...luvResearchTools,
+  ...luvArtifactTools,
 };
