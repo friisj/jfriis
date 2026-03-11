@@ -20,12 +20,21 @@ interface SoulChassisProposal {
   proposedValue: unknown;
 }
 
+interface SchemaHints {
+  label?: string;
+  type?: string;
+  tier?: string;
+  description?: string;
+  options?: string[];
+}
+
 interface ModuleProposal {
   type: 'module_change_proposal';
   moduleId: string;
   moduleSlug: string;
   parameterKey: string;
   proposedValue: unknown;
+  schemaHints?: SchemaHints;
 }
 
 interface BatchModuleProposal {
@@ -35,6 +44,7 @@ interface BatchModuleProposal {
   changes: {
     parameterKey: string;
     proposedValue: unknown;
+    schemaHints?: SchemaHints;
   }[];
   overallReason: string;
 }
@@ -55,19 +65,30 @@ interface FacetProposal {
 
 type ChangeProposal = SoulChassisProposal | ModuleProposal | BatchModuleProposal | FacetProposal;
 
-/** Infer a basic parameter_schema entry from a key and value */
-function inferSchemaEntry(key: string, value: unknown): { key: string; label: string; type: string; tier: string } {
-  const label = key
+/** Build a parameter_schema entry, using agent-provided hints with value-based inference as fallback */
+function inferSchemaEntry(key: string, value: unknown, hints?: SchemaHints): Record<string, unknown> {
+  const label = hints?.label ?? key
     .replace(/_/g, ' ')
     .replace(/\b\w/g, (c) => c.toUpperCase());
 
-  let type = 'text';
-  if (typeof value === 'number') type = 'number';
-  else if (typeof value === 'boolean') type = 'boolean';
-  else if (typeof value === 'string' && /^#[0-9a-f]{3,8}$/i.test(value)) type = 'color';
-  else if (typeof value === 'object' && value !== null) type = 'json';
+  let type = hints?.type ?? 'text';
+  if (!hints?.type) {
+    if (typeof value === 'number') type = 'number';
+    else if (typeof value === 'boolean') type = 'boolean';
+    else if (typeof value === 'string' && /^#[0-9a-f]{3,8}$/i.test(value)) type = 'color';
+    else if (typeof value === 'object' && value !== null) type = 'json';
+  }
 
-  return { key, label, type, tier: 'advanced' };
+  const entry: Record<string, unknown> = {
+    key,
+    label,
+    type,
+    tier: hints?.tier ?? 'advanced',
+  };
+  if (hints?.description) entry.description = hints.description;
+  if (hints?.options) entry.options = hints.options;
+
+  return entry;
 }
 
 export async function POST(request: Request) {
@@ -89,7 +110,7 @@ export async function POST(request: Request) {
 
   // Module change proposal — update chassis module parameters
   if (proposal.type === 'module_change_proposal') {
-    const { moduleId, parameterKey, proposedValue } = proposal;
+    const { moduleId, parameterKey, proposedValue, schemaHints } = proposal;
     if (!moduleId || !parameterKey) {
       return NextResponse.json(
         { error: 'Invalid module proposal: missing moduleId or parameterKey' },
@@ -120,7 +141,7 @@ export async function POST(request: Request) {
     const schema = Array.isArray(mod.parameter_schema) ? [...mod.parameter_schema] : [];
     const hasSchemaEntry = schema.some((s: { key: string }) => s.key === parameterKey);
     if (!hasSchemaEntry) {
-      schema.push(inferSchemaEntry(parameterKey, proposedValue));
+      schema.push(inferSchemaEntry(parameterKey, proposedValue, schemaHints));
     }
 
     // Update module parameters (and schema if new param added)
@@ -194,7 +215,7 @@ export async function POST(request: Request) {
     for (const c of changes) {
       updatedParams[c.parameterKey] = c.proposedValue;
       if (!existingKeys.has(c.parameterKey)) {
-        schema.push(inferSchemaEntry(c.parameterKey, c.proposedValue));
+        schema.push(inferSchemaEntry(c.parameterKey, c.proposedValue, c.schemaHints));
         schemaChanged = true;
       }
     }

@@ -223,12 +223,19 @@ export const proposeModuleChange = tool({
         .describe('Module slug (e.g. "eyes", "hair", "skin")'),
       parameterKey: z
         .string()
-        .describe('Parameter key to change (e.g. "color", "shape")'),
+        .describe('Parameter key to change or add (e.g. "color", "pupil_dilation_response")'),
       proposedValue: z.unknown().describe('The new value to set'),
       reason: z.string().describe('Why this change is being proposed'),
+      schemaHints: z.object({
+        label: z.string().optional().describe('Human-readable label (e.g. "Pupil Dilation Response")'),
+        type: z.enum(['text', 'number', 'range', 'color', 'enum', 'boolean', 'json', 'media_ref', 'measurement', 'ratio', 'constraint_range']).optional().describe('Parameter control type'),
+        tier: z.enum(['basic', 'intermediate', 'advanced', 'clinical']).optional().describe('UI grouping tier'),
+        description: z.string().optional().describe('What this parameter controls'),
+        options: z.array(z.string()).optional().describe('Enum options if type is "enum"'),
+      }).optional().describe('Schema metadata for new parameters. Provide when adding a parameter that does not yet exist.'),
     })
   ),
-  execute: async ({ moduleSlug, parameterKey, proposedValue, reason }) => {
+  execute: async ({ moduleSlug, parameterKey, proposedValue, reason, schemaHints }) => {
     const { getChassisModuleBySlugServer } = await import(
       './luv-chassis-server'
     );
@@ -246,6 +253,7 @@ export const proposeModuleChange = tool({
       currentValue,
       proposedValue,
       reason,
+      ...(schemaHints && { schemaHints }),
     };
   },
 });
@@ -261,13 +269,20 @@ export const proposeModuleChanges = tool({
       changes: z
         .array(
           z.object({
-            parameterKey: z.string().describe('Parameter key to change'),
+            parameterKey: z.string().describe('Parameter key to change or add'),
             proposedValue: z.unknown().describe('The new value to set'),
             reason: z.string().describe('Why this parameter should change'),
+            schemaHints: z.object({
+              label: z.string().optional(),
+              type: z.enum(['text', 'number', 'range', 'color', 'enum', 'boolean', 'json', 'media_ref', 'measurement', 'ratio', 'constraint_range']).optional(),
+              tier: z.enum(['basic', 'intermediate', 'advanced', 'clinical']).optional(),
+              description: z.string().optional(),
+              options: z.array(z.string()).optional(),
+            }).optional().describe('Schema metadata for new parameters'),
           })
         )
         .min(1)
-        .describe('List of parameter changes'),
+        .describe('List of parameter changes or additions'),
       overallReason: z
         .string()
         .describe('Overall reason for this batch of changes'),
@@ -285,6 +300,7 @@ export const proposeModuleChanges = tool({
       currentValue: mod.parameters[c.parameterKey],
       proposedValue: c.proposedValue,
       reason: c.reason,
+      ...(c.schemaHints && { schemaHints: c.schemaHints }),
     }));
 
     return {
