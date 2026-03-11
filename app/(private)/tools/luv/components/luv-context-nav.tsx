@@ -1,8 +1,10 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
+import { getChassisModules } from '@/lib/luv-chassis';
 
 type Space = 'identity' | 'stage' | 'research' | 'library';
 
@@ -100,18 +102,42 @@ export function resolveSpace(pathname: string): Space {
 export function LuvContextNav() {
   const pathname = usePathname();
   const activeSpace = resolveSpace(pathname);
-  const { sections } = spaceConfig[activeSpace];
+  const baseSections = spaceConfig[activeSpace].sections;
+
+  // Dynamically load chassis module items when in identity space
+  const [chassisItems, setChassisItems] = useState<NavItem[]>([]);
+  useEffect(() => {
+    if (activeSpace !== 'identity') return;
+    getChassisModules()
+      .then((modules) =>
+        setChassisItems(
+          modules.map((m) => ({
+            href: `/tools/luv/chassis/${m.slug}`,
+            label: m.name,
+          }))
+        )
+      )
+      .catch(() => setChassisItems([]));
+  }, [activeSpace]);
+
+  // Inject dynamic chassis items into the sections
+  const sections = baseSections.map((section) => {
+    if (section.href === '/tools/luv/chassis' && chassisItems.length > 0) {
+      return { ...section, items: chassisItems };
+    }
+    return section;
+  });
 
   return (
     <nav className="flex flex-col h-full border-r border-border">
       {/* Space switcher */}
-      <div className="flex border-b border-border">
+      <div className="flex flex-col">
         {spaceOrder.map((space) => (
           <Link
             key={space}
             href={spaceConfig[space].sections[0].href}
             className={cn(
-              'flex-1 text-center py-2 text-[11px] font-medium transition-colors',
+              'flex items-center px-3 h-10 border-b text-base font-medium transition-colors',
               activeSpace === space
                 ? 'text-foreground bg-accent'
                 : 'text-muted-foreground hover:text-foreground hover:bg-accent/50',
@@ -123,7 +149,7 @@ export function LuvContextNav() {
       </div>
 
       {/* Section links */}
-      <div className="flex-1 overflow-y-auto py-2">
+      <div className="flex-1 overflow-y-auto">
         {sections.map((section) => {
           const sectionActive = pathname.startsWith(section.href);
           const isExactActive = pathname === section.href;
@@ -144,7 +170,7 @@ export function LuvContextNav() {
                 {section.label}
               </Link>
               {sectionActive && section.items && (
-                <div className="mt-0.5">
+                <div className="">
                   {section.items.map((item) => (
                     <Link
                       key={item.href}
