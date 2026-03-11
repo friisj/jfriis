@@ -16,6 +16,8 @@ export type SoulLayerType =
   | 'behavioral_rules'
   | 'research_awareness'
   | 'context'
+  | 'process_protocol'
+  | 'process_state'
   | 'memory';
 
 export interface ChassisModuleSummary {
@@ -90,6 +92,16 @@ export const LAYER_REGISTRY: Record<
     label: 'Context',
     priority: 60,
     description: 'Scene-specific or conversation-specific modifiers',
+  },
+  process_protocol: {
+    label: 'Process Protocol',
+    priority: 65,
+    description: 'Page-aware workflow instructions for the current context',
+  },
+  process_state: {
+    label: 'Active Processes',
+    priority: 68,
+    description: 'Dynamic state of active workflows and pending actions',
   },
   memory: {
     label: 'Memory',

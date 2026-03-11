@@ -30,8 +30,6 @@ export function getMessageText(msg: UIMessage): string {
 export function useLuvChatSession() {
   const { activeConversationId, clearActiveConversation, soulData, soulLoaded, pageContext } =
     useLuvChat();
-  const pageContextRef = useRef(pageContext);
-  pageContextRef.current = pageContext;
 
   const [modelKey, setModelKey] = useState('claude-sonnet');
   const [resumedConversationId, setResumedConversationId] = useState<string | null>(null);
@@ -43,18 +41,19 @@ export function useLuvChatSession() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const isStuckToBottom = useRef(true);
 
+  // Serialize pageData to detect changes within the same pathname (e.g. opening a review session)
+  const pageDataKey = JSON.stringify(pageContext.pageData ?? null);
   const transport = useMemo(
     () =>
       new DefaultChatTransport({
         api: '/api/luv/chat',
         body: {
           modelKey,
-          pageContext: pageContextRef.current,
+          pageContext,
         },
       }),
-    // Recreate when model or pathname changes (pageContext.pathname is stable per nav)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [modelKey, pageContext.pathname]
+    [modelKey, pageContext.pathname, pageDataKey]
   );
 
   const { messages, sendMessage, setMessages, status, error } = useChat({

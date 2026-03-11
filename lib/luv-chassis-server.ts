@@ -92,10 +92,10 @@ export async function getRecentChassisChangesServer(
 ): Promise<ChassisChangeEntry[]> {
   const client = await createClient();
 
-  // Fetch recent versions
+  // Use Supabase foreign key join to fetch versions with module data in one query
   const { data: versions, error: vErr } = await (client as any)
     .from('luv_chassis_module_versions')
-    .select('id, module_id, version, parameters, change_summary, created_at')
+    .select('id, module_id, version, parameters, change_summary, created_at, luv_chassis_modules(name, slug)')
     .order('created_at', { ascending: false })
     .limit(limit);
 
@@ -103,32 +103,16 @@ export async function getRecentChassisChangesServer(
   if (vErr) throw vErr;
   if (!versions || versions.length === 0) return [];
 
-  // Fetch module names for joining
-  const moduleIds = [...new Set(versions.map((v: { module_id: string }) => v.module_id))];
-  const { data: modules, error: mErr } = await (client as any)
-    .from('luv_chassis_modules')
-    .select('id, name, slug')
-    .in('id', moduleIds);
-
-  if (mErr) throw mErr;
-
-  const moduleMap = new Map(
-    (modules ?? []).map((m: { id: string; name: string; slug: string }) => [m.id, m])
-  );
-
-  return versions.map((v: { id: string; module_id: string; version: number; parameters: Record<string, unknown>; change_summary: string | null; created_at: string }) => {
-    const mod = moduleMap.get(v.module_id) ?? { name: 'Unknown', slug: 'unknown' };
-    return {
-      version_id: v.id,
-      module_id: v.module_id,
-      module_name: (mod as { name: string }).name,
-      module_slug: (mod as { slug: string }).slug,
-      version: v.version,
-      change_summary: v.change_summary,
-      created_at: v.created_at,
-      parameters: v.parameters,
-    };
-  });
+  return versions.map((v: { id: string; module_id: string; version: number; parameters: Record<string, unknown>; change_summary: string | null; created_at: string; luv_chassis_modules: { name: string; slug: string } | null }) => ({
+    version_id: v.id,
+    module_id: v.module_id,
+    module_name: v.luv_chassis_modules?.name ?? 'Unknown',
+    module_slug: v.luv_chassis_modules?.slug ?? 'unknown',
+    version: v.version,
+    change_summary: v.change_summary,
+    created_at: v.created_at,
+    parameters: v.parameters,
+  }));
 }
 
 // ============================================================================
