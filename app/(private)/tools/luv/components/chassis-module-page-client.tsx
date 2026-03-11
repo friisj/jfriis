@@ -6,6 +6,7 @@ import { ModuleVersionHistory } from './module-version-history';
 import { ContextPackComposer } from './context-pack-composer';
 import { Separator } from '@/components/ui/separator';
 import type { LuvChassisModule, LuvChassisModuleMedia, ParameterConstraint } from '@/lib/types/luv-chassis';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 
 interface StudyLock {
   studySlug: string;
@@ -24,7 +25,14 @@ export function ChassisModulePageClient({ module, allModules = [], studyLocks = 
   const parameterKeys = (module.parameter_schema ?? []).map((p) => p.key);
 
   return (
-    <>
+    <Tabs>
+      <TabsList>
+        <TabsTrigger value="parameters">Parameters</TabsTrigger>
+        <TabsTrigger value="media">Media</TabsTrigger>
+        <TabsTrigger value="schema">Schema</TabsTrigger>
+        <TabsTrigger value="context">Context</TabsTrigger>
+        <TabsTrigger value="versions">Versions</TabsTrigger>
+      </TabsList>
       <ModuleEditor
         key={module.id}
         module={module}
@@ -55,6 +63,6 @@ export function ChassisModulePageClient({ module, allModules = [], studyLocks = 
         currentVersion={module.current_version}
         onRestored={() => window.location.reload()}
       />
-    </>
+    </Tabs>
   );
 }

@@ -10,7 +10,6 @@ import { saveModuleWithVersion } from '@/lib/luv-chassis';
 import { validateModuleConstraints } from '@/lib/luv/chassis-constraints';
 import type { ConstraintViolation } from '@/lib/luv/chassis-constraints';
 import { ParameterControl } from './parameter-control';
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 interface StudyLock {
   studySlug: string;
@@ -142,17 +141,6 @@ export function ModuleEditor({ module, allModules = [], studyLocks = [], onSaved
             </div>
           </div>
 
-          <div className="pt-2">
-            <Tabs>
-              <TabsList>
-                <TabsTrigger value="parameters">Parameters</TabsTrigger>
-                <TabsTrigger value="history">Media</TabsTrigger>
-                <TabsTrigger value="schema">Schema</TabsTrigger>
-                <TabsTrigger value="context">Context</TabsTrigger>
-                <TabsTrigger value="versions">Versions</TabsTrigger>
-              </TabsList>
-            </Tabs>
-          </div>
         </div>
       </div>
 
