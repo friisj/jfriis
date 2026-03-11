@@ -109,13 +109,7 @@ export function ModuleEditor({ module, allModules = [], studyLocks = [], onSaved
   const orphanedKeys = Object.keys(parameters).filter((k) => !schemedKeys.has(k));
 
   return (
-    <div className="space-y-0">
-      <div className="flex justify-end px-6 pt-4">
-        <Button onClick={handleSave} disabled={saving} size="sm">
-          {saving ? 'Saving...' : 'Save'}
-        </Button>
-      </div>
-
+    <div className="space-y-0 flex flex-col overflow-visible">
       {violations.length > 0 && (
         <div className="rounded border border-yellow-500/30 bg-yellow-500/5 p-3 space-y-1">
           {violations.map((v, i) => (
@@ -126,14 +120,15 @@ export function ModuleEditor({ module, allModules = [], studyLocks = [], onSaved
           ))}
         </div>
       )}
+      <div className="flex-1 overflow-y-scroll shrink-0 pt-6 bg-secondary space-y-6">
       {TIER_ORDER.filter((t) => grouped.has(t)).map((tier) => (
-        <section key={tier} className="bg-secondary space-y-0">
-          <div className="px-6 pb-4 pt-12 border-y border-y-border">
+        <section key={tier} className="space-y-0 translate-y-px">
+          <div className="px-6 pb-4 pt-6 border-b border-b-border">
             <h4 className="text-lg text-foreground font-semibold">
               {TIER_LABELS[tier]}
             </h4>
           </div>
-          <div className="divide-y divide-y-border">
+          <div className="divide-y divide-y-border border-b">
             {grouped.get(tier)!.map((param) => {
               const lock = lockedParams.get(param.key);
               const isLocked = !!lock;
@@ -207,6 +202,12 @@ export function ModuleEditor({ module, allModules = [], studyLocks = [], onSaved
           </div>
         </section>
       )}
+      </div>
+      <div className="h-20 sticky bottom-0 border-t bg-background flex justify-start px-6 pt-4">
+        <Button onClick={handleSave} disabled={saving} size="sm">
+          {saving ? 'Saving...' : 'Save'}
+        </Button>
+      </div>
     </div>
   );
 }

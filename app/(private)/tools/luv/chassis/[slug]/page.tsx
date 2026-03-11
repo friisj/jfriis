@@ -37,7 +37,7 @@ export default async function ChassisModulePage({ params }: Props) {
     }));
 
   return (
-    <div className="overflow-y-auto h-full">
+    <div className="h-full">
       <ChassisModulePageClient
         module={chassisModule}
         allModules={allModules}

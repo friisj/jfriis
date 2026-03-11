@@ -137,7 +137,7 @@ export function LuvContextNav() {
             key={space}
             href={spaceConfig[space].sections[0].href}
             className={cn(
-              'flex items-center px-3 h-10 border-b text-base font-medium transition-colors',
+              'flex items-center px-3 h-20 pt-10 border-b text-sm font-medium transition-colors',
               activeSpace === space
                 ? 'text-foreground bg-accent'
                 : 'text-muted-foreground hover:text-foreground hover:bg-accent/50',

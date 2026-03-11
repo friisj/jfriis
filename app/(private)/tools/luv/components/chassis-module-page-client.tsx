@@ -25,76 +25,67 @@ export function ChassisModulePageClient({ module, allModules = [], studyLocks = 
   const parameterKeys = (module.parameter_schema ?? []).map((p) => p.key);
 
   return (
-    <div>
-
-      {/* Tabs */}
-      <Tabs defaultValue="parameters">
-        <TabsList className="mb-0 pb-0">
-          <TabsTrigger className="px-6" value="parameters">Parameters</TabsTrigger>
-          <TabsTrigger className="px-6" value="media">Media</TabsTrigger>
-          <TabsTrigger className="px-6" value="context">Context</TabsTrigger>
-          <TabsTrigger className="px-6" value="versions">Versions</TabsTrigger>
-        </TabsList>
+    <Tabs defaultValue="parameters" className="h-full overflow-hidden">
+      <TabsList className="mb-0 pb-0">
+        <TabsTrigger className="px-6" value="parameters">Parameters</TabsTrigger>
+        <TabsTrigger className="px-6" value="media">Media</TabsTrigger>
+        <TabsTrigger className="px-6" value="context">Context</TabsTrigger>
+        <TabsTrigger className="px-6" value="versions">Versions</TabsTrigger>
+      </TabsList>
 
 
-        {/* Header */}
-        <div className="pt-6 px-6 pb-6">
-          <div className="flex items-start justify-between">
-            <div className="space-y-3">
-              <h3 className="text-5xl font-semibold">{module.name}</h3>
-              <div className="flex items-baseline gap-2">
-                <Badge variant="outline" className="text-xs">
-                  v{module.current_version}
-                </Badge>
-                {module.description && (
-                  <p className="text-sm text-foreground">{module.description}</p>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <TabsContent value="parameters">
-          <ModuleEditor
-            key={module.id}
-            module={module}
-            allModules={allModules}
-            studyLocks={studyLocks}
-            onSaved={() => window.location.reload()}
-          />
-        </TabsContent>
-
-        <TabsContent value="media">
-          {parameterKeys.length > 0 ? (
-            <ModuleMediaGallery
-              moduleId={module.id}
-              moduleSlug={module.slug}
-              initialMedia={initialMedia}
-              parameterKeys={parameterKeys}
-            />
-          ) : (
-            <p className="px-6 py-8 text-sm text-muted-foreground">
-              No parameters defined — add parameters first to attach media.
-            </p>
+      {/* Header */}
+      <div className="pt-5 px-6 pb-6 min-h-60 flex flex-col justify-between border-b">
+        <h3 className="text-5xl font-semibold">{module.name}</h3>
+        <div className="flex items-baseline gap-2">
+          <Badge variant="outline" className="text-xs">
+            v{module.current_version}
+          </Badge>
+          {module.description && (
+            <p className="text-sm text-foreground">{module.description}</p>
           )}
-        </TabsContent>
+        </div>
+      </div>
+      <TabsContent value="parameters" className="flex-1 overflow-y-scroll">
+        <ModuleEditor
+          key={module.id}
+          module={module}
+          allModules={allModules}
+          studyLocks={studyLocks}
+          onSaved={() => window.location.reload()}
+        />
+      </TabsContent>
 
-        <TabsContent value="context">
-          <ContextPackComposer
-            module={module}
-            allModules={allModules}
-          />
-        </TabsContent>
-
-        <TabsContent value="versions">
-          <ModuleVersionHistory
+      <TabsContent value="media">
+        {parameterKeys.length > 0 ? (
+          <ModuleMediaGallery
             moduleId={module.id}
-            parameterSchema={module.parameter_schema}
-            currentVersion={module.current_version}
-            onRestored={() => window.location.reload()}
+            moduleSlug={module.slug}
+            initialMedia={initialMedia}
+            parameterKeys={parameterKeys}
           />
-        </TabsContent>
-      </Tabs>
-    </div>
+        ) : (
+          <p className="px-6 py-8 text-sm text-muted-foreground">
+            No parameters defined — add parameters first to attach media.
+          </p>
+        )}
+      </TabsContent>
+
+      <TabsContent value="context">
+        <ContextPackComposer
+          module={module}
+          allModules={allModules}
+        />
+      </TabsContent>
+
+      <TabsContent value="versions">
+        <ModuleVersionHistory
+          moduleId={module.id}
+          parameterSchema={module.parameter_schema}
+          currentVersion={module.current_version}
+          onRestored={() => window.location.reload()}
+        />
+      </TabsContent>
+    </Tabs>
   );
 }
