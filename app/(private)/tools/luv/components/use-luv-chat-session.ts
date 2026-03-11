@@ -32,6 +32,7 @@ export function useLuvChatSession() {
     useLuvChat();
 
   const [modelKey, setModelKey] = useState('claude-sonnet');
+  const [thinking, setThinking] = useState(false);
   const [resumedConversationId, setResumedConversationId] = useState<string | null>(null);
   const [input, setInput] = useState('');
   const [pendingFiles, setPendingFiles] = useState<FileUIPart[]>([]);
@@ -50,10 +51,11 @@ export function useLuvChatSession() {
         body: {
           modelKey,
           pageContext,
+          thinking,
         },
       }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [modelKey, pageContext.pathname, pageDataKey]
+    [modelKey, thinking, pageContext.pathname, pageDataKey]
   );
 
   const { messages, sendMessage, setMessages, status, error } = useChat({
@@ -296,6 +298,8 @@ export function useLuvChatSession() {
     // State
     modelKey,
     setModelKey,
+    thinking,
+    setThinking,
     input,
     setInput,
     pendingFiles,

@@ -20,12 +20,21 @@ interface SoulChassisProposal {
   proposedValue: unknown;
 }
 
+interface SchemaHints {
+  label?: string;
+  type?: string;
+  tier?: string;
+  description?: string;
+  options?: string[];
+}
+
 interface ModuleProposal {
   type: 'module_change_proposal';
   moduleId: string;
   moduleSlug: string;
   parameterKey: string;
   proposedValue: unknown;
+  schemaHints?: SchemaHints;
 }
 
 interface BatchModuleProposal {
@@ -35,8 +44,26 @@ interface BatchModuleProposal {
   changes: {
     parameterKey: string;
     proposedValue: unknown;
+    schemaHints?: SchemaHints;
   }[];
   overallReason: string;
+}
+
+interface NewModuleProposal {
+  type: 'new_module_proposal';
+  slug: string;
+  name: string;
+  category: string;
+  description: string;
+  parameters: Record<string, unknown>;
+  parameterSchema: {
+    key: string;
+    label: string;
+    type: string;
+    tier?: string;
+    description?: string;
+    options?: string[];
+  }[];
 }
 
 interface FacetProposal {
@@ -53,7 +80,33 @@ interface FacetProposal {
   };
 }
 
-type ChangeProposal = SoulChassisProposal | ModuleProposal | BatchModuleProposal | FacetProposal;
+type ChangeProposal = SoulChassisProposal | ModuleProposal | BatchModuleProposal | NewModuleProposal | FacetProposal;
+
+/** Build a parameter_schema entry, using agent-provided hints with value-based inference as fallback */
+function inferSchemaEntry(key: string, value: unknown, hints?: SchemaHints): Record<string, unknown> {
+  const label = hints?.label ?? key
+    .replace(/_/g, ' ')
+    .replace(/\b\w/g, (c) => c.toUpperCase());
+
+  let type = hints?.type ?? 'text';
+  if (!hints?.type) {
+    if (typeof value === 'number') type = 'number';
+    else if (typeof value === 'boolean') type = 'boolean';
+    else if (typeof value === 'string' && /^#[0-9a-f]{3,8}$/i.test(value)) type = 'color';
+    else if (typeof value === 'object' && value !== null) type = 'json';
+  }
+
+  const entry: Record<string, unknown> = {
+    key,
+    label,
+    type,
+    tier: hints?.tier ?? 'advanced',
+  };
+  if (hints?.description) entry.description = hints.description;
+  if (hints?.options) entry.options = hints.options;
+
+  return entry;
+}
 
 export async function POST(request: Request) {
   const { user, error } = await requireAuth();
@@ -74,7 +127,7 @@ export async function POST(request: Request) {
 
   // Module change proposal — update chassis module parameters
   if (proposal.type === 'module_change_proposal') {
-    const { moduleId, parameterKey, proposedValue } = proposal;
+    const { moduleId, parameterKey, proposedValue, schemaHints } = proposal;
     if (!moduleId || !parameterKey) {
       return NextResponse.json(
         { error: 'Invalid module proposal: missing moduleId or parameterKey' },
@@ -84,7 +137,7 @@ export async function POST(request: Request) {
 
     const { data: mod, error: fetchError } = await (supabase as any)
       .from('luv_chassis_modules')
-      .select('id, parameters, current_version')
+      .select('id, parameters, parameter_schema, current_version')
       .eq('id', moduleId)
       .single();
 
@@ -101,10 +154,24 @@ export async function POST(request: Request) {
     };
     const newVersion = (mod.current_version as number) + 1;
 
-    // Update module parameters
+    // Auto-append schema entry if this is a new parameter
+    const schema = Array.isArray(mod.parameter_schema) ? [...mod.parameter_schema] : [];
+    const hasSchemaEntry = schema.some((s: { key: string }) => s.key === parameterKey);
+    if (!hasSchemaEntry) {
+      schema.push(inferSchemaEntry(parameterKey, proposedValue, schemaHints));
+    }
+
+    // Update module parameters (and schema if new param added)
+    const updatePayload: Record<string, unknown> = {
+      parameters: updatedParams,
+      current_version: newVersion,
+    };
+    if (!hasSchemaEntry) {
+      updatePayload.parameter_schema = schema;
+    }
     const { error: updateError } = await (supabase as any)
       .from('luv_chassis_modules')
-      .update({ parameters: updatedParams, current_version: newVersion })
+      .update(updatePayload)
       .eq('id', moduleId);
 
     if (updateError) {
@@ -144,7 +211,7 @@ export async function POST(request: Request) {
 
     const { data: mod, error: fetchError } = await (supabase as any)
       .from('luv_chassis_modules')
-      .select('id, parameters, current_version')
+      .select('id, parameters, parameter_schema, current_version')
       .eq('id', moduleId)
       .single();
 
@@ -158,14 +225,29 @@ export async function POST(request: Request) {
     const updatedParams = {
       ...(mod.parameters as Record<string, unknown>),
     };
+    const schema = Array.isArray(mod.parameter_schema) ? [...mod.parameter_schema] : [];
+    const existingKeys = new Set(schema.map((s: { key: string }) => s.key));
+    let schemaChanged = false;
+
     for (const c of changes) {
       updatedParams[c.parameterKey] = c.proposedValue;
+      if (!existingKeys.has(c.parameterKey)) {
+        schema.push(inferSchemaEntry(c.parameterKey, c.proposedValue, c.schemaHints));
+        schemaChanged = true;
+      }
     }
     const newVersion = (mod.current_version as number) + 1;
 
+    const updatePayload: Record<string, unknown> = {
+      parameters: updatedParams,
+      current_version: newVersion,
+    };
+    if (schemaChanged) {
+      updatePayload.parameter_schema = schema;
+    }
     const { error: updateError } = await (supabase as any)
       .from('luv_chassis_modules')
-      .update({ parameters: updatedParams, current_version: newVersion })
+      .update(updatePayload)
       .eq('id', moduleId);
 
     if (updateError) {
@@ -190,6 +272,79 @@ export async function POST(request: Request) {
       moduleId,
       changedKeys,
       version: newVersion,
+    });
+  }
+
+  // New module proposal — create an entirely new chassis module
+  if (proposal.type === 'new_module_proposal') {
+    const { slug, name, category, description, parameters, parameterSchema } = proposal as NewModuleProposal;
+    if (!slug || !name) {
+      return NextResponse.json(
+        { error: 'Invalid new module proposal: missing slug or name' },
+        { status: 400 }
+      );
+    }
+
+    // Check for duplicate slug
+    const { data: existing } = await (supabase as any)
+      .from('luv_chassis_modules')
+      .select('id')
+      .eq('slug', slug)
+      .maybeSingle();
+
+    if (existing) {
+      return NextResponse.json(
+        { error: `Module with slug "${slug}" already exists` },
+        { status: 409 }
+      );
+    }
+
+    // Get next sequence
+    const { data: maxRow } = await (supabase as any)
+      .from('luv_chassis_modules')
+      .select('sequence')
+      .order('sequence', { ascending: false })
+      .limit(1)
+      .single();
+    const nextSequence = maxRow ? (maxRow.sequence as number) + 1 : 0;
+
+    const { data: created, error: createError } = await (supabase as any)
+      .from('luv_chassis_modules')
+      .insert({
+        slug,
+        name,
+        category: category || 'general',
+        description: description || null,
+        parameters: parameters || {},
+        parameter_schema: parameterSchema || [],
+        sequence: nextSequence,
+      })
+      .select()
+      .single();
+
+    if (createError) {
+      return NextResponse.json(
+        { error: `Failed to create module: ${createError.message}` },
+        { status: 500 }
+      );
+    }
+
+    // Create initial version snapshot
+    await (supabase as any)
+      .from('luv_chassis_module_versions')
+      .insert({
+        module_id: created.id,
+        version: 1,
+        parameters: parameters || {},
+        change_summary: `Agent: created module "${name}"`,
+      });
+
+    return NextResponse.json({
+      success: true,
+      moduleId: created.id,
+      slug: created.slug,
+      name: created.name,
+      parameterCount: parameterSchema?.length ?? 0,
     });
   }
 

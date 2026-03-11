@@ -215,7 +215,7 @@ export const proposeChassisChange = tool({
 
 export const proposeModuleChange = tool({
   description:
-    'Propose a parameter change to a chassis module. Returns a proposal that requires human approval. Use read_chassis_module first to see current values.',
+    'Propose a parameter change to a chassis module, or add a new parameter. Returns a proposal that requires human approval. Use read_chassis_module first to see current values. New parameters are auto-added to the schema when applied.',
   inputSchema: zodSchema(
     z.object({
       moduleSlug: z
@@ -223,12 +223,19 @@ export const proposeModuleChange = tool({
         .describe('Module slug (e.g. "eyes", "hair", "skin")'),
       parameterKey: z
         .string()
-        .describe('Parameter key to change (e.g. "color", "shape")'),
+        .describe('Parameter key to change or add (e.g. "color", "pupil_dilation_response")'),
       proposedValue: z.unknown().describe('The new value to set'),
       reason: z.string().describe('Why this change is being proposed'),
+      schemaHints: z.object({
+        label: z.string().optional().describe('Human-readable label (e.g. "Pupil Dilation Response")'),
+        type: z.enum(['text', 'number', 'range', 'color', 'enum', 'boolean', 'json', 'media_ref', 'measurement', 'ratio', 'constraint_range']).optional().describe('Parameter control type'),
+        tier: z.enum(['basic', 'intermediate', 'advanced', 'clinical']).optional().describe('UI grouping tier'),
+        description: z.string().optional().describe('What this parameter controls'),
+        options: z.array(z.string()).optional().describe('Enum options if type is "enum"'),
+      }).optional().describe('Schema metadata for new parameters. Provide when adding a parameter that does not yet exist.'),
     })
   ),
-  execute: async ({ moduleSlug, parameterKey, proposedValue, reason }) => {
+  execute: async ({ moduleSlug, parameterKey, proposedValue, reason, schemaHints }) => {
     const { getChassisModuleBySlugServer } = await import(
       './luv-chassis-server'
     );
@@ -246,13 +253,14 @@ export const proposeModuleChange = tool({
       currentValue,
       proposedValue,
       reason,
+      ...(schemaHints && { schemaHints }),
     };
   },
 });
 
 export const proposeModuleChanges = tool({
   description:
-    'Propose multiple parameter changes to a chassis module in one batch. More efficient than individual propose_module_change calls when updating several parameters at once. Returns a batch proposal that requires human approval.',
+    'Propose multiple parameter changes (or additions) to a chassis module in one batch. More efficient than individual propose_module_change calls when updating several parameters at once. New parameters are auto-added to the schema when applied. Returns a batch proposal that requires human approval.',
   inputSchema: zodSchema(
     z.object({
       moduleSlug: z
@@ -261,13 +269,20 @@ export const proposeModuleChanges = tool({
       changes: z
         .array(
           z.object({
-            parameterKey: z.string().describe('Parameter key to change'),
+            parameterKey: z.string().describe('Parameter key to change or add'),
             proposedValue: z.unknown().describe('The new value to set'),
             reason: z.string().describe('Why this parameter should change'),
+            schemaHints: z.object({
+              label: z.string().optional(),
+              type: z.enum(['text', 'number', 'range', 'color', 'enum', 'boolean', 'json', 'media_ref', 'measurement', 'ratio', 'constraint_range']).optional(),
+              tier: z.enum(['basic', 'intermediate', 'advanced', 'clinical']).optional(),
+              description: z.string().optional(),
+              options: z.array(z.string()).optional(),
+            }).optional().describe('Schema metadata for new parameters'),
           })
         )
         .min(1)
-        .describe('List of parameter changes'),
+        .describe('List of parameter changes or additions'),
       overallReason: z
         .string()
         .describe('Overall reason for this batch of changes'),
@@ -285,6 +300,7 @@ export const proposeModuleChanges = tool({
       currentValue: mod.parameters[c.parameterKey],
       proposedValue: c.proposedValue,
       reason: c.reason,
+      ...(c.schemaHints && { schemaHints: c.schemaHints }),
     }));
 
     return {
@@ -294,6 +310,49 @@ export const proposeModuleChanges = tool({
       moduleName: mod.name,
       changes: enrichedChanges,
       overallReason,
+    };
+  },
+});
+
+export const proposeNewModule = tool({
+  description:
+    'Propose creating an entirely new chassis module. Use this when the existing modules don\'t cover an aspect of physical appearance or physiological response that should be tracked. Returns a proposal that requires human approval.',
+  inputSchema: zodSchema(
+    z.object({
+      slug: z.string().describe('URL-friendly identifier (kebab-case, e.g. "physiological-responses")'),
+      name: z.string().describe('Display name (e.g. "Physiological Responses")'),
+      category: z.string().describe('Module category (e.g. "face", "body", "coloring", "expression", "physiology")'),
+      description: z.string().describe('What this module tracks'),
+      parameters: z.record(z.string(), z.unknown()).describe('Initial parameter values as key-value pairs'),
+      parameterSchema: z.array(z.object({
+        key: z.string(),
+        label: z.string(),
+        type: z.enum(['text', 'number', 'range', 'color', 'enum', 'boolean', 'json', 'media_ref', 'measurement', 'ratio', 'constraint_range']),
+        tier: z.enum(['basic', 'intermediate', 'advanced', 'clinical']).optional(),
+        description: z.string().optional(),
+        options: z.array(z.string()).optional(),
+      })).describe('Schema definitions for each parameter'),
+      reason: z.string().describe('Why this module should be created'),
+    })
+  ),
+  execute: async ({ slug, name, category, description, parameters, parameterSchema, reason }) => {
+    // Check if slug already exists
+    const { getChassisModulesServer } = await import('./luv-chassis-server');
+    const existing = await getChassisModulesServer();
+    if (existing.some((m) => m.slug === slug)) {
+      return { error: `Module "${slug}" already exists` };
+    }
+
+    return {
+      type: 'new_module_proposal' as const,
+      slug,
+      name,
+      category,
+      description,
+      parameters,
+      parameterSchema,
+      parameterCount: parameterSchema.length,
+      reason,
     };
   },
 });
@@ -765,6 +824,7 @@ export const luvTools = {
   propose_chassis_change: proposeChassisChange,
   propose_module_change: proposeModuleChange,
   propose_module_changes: proposeModuleChanges,
+  propose_new_module: proposeNewModule,
   compose_context_pack: composeContextPack,
   evaluate_generation: evaluateGeneration,
   view_reference_image: viewReferenceImage,

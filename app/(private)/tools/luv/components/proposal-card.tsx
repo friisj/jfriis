@@ -14,6 +14,14 @@ interface SoulChassisProposal {
   reason: string;
 }
 
+interface SchemaHints {
+  label?: string;
+  type?: string;
+  tier?: string;
+  description?: string;
+  options?: string[];
+}
+
 interface ModuleProposal {
   type: 'module_change_proposal';
   moduleId: string;
@@ -23,6 +31,7 @@ interface ModuleProposal {
   currentValue: unknown;
   proposedValue: unknown;
   reason: string;
+  schemaHints?: SchemaHints;
 }
 
 interface BatchModuleProposal {
@@ -35,6 +44,7 @@ interface BatchModuleProposal {
     currentValue: unknown;
     proposedValue: unknown;
     reason: string;
+    schemaHints?: SchemaHints;
   }[];
   overallReason: string;
 }
@@ -55,7 +65,19 @@ interface FacetProposal {
   reason: string;
 }
 
-type ChangeProposal = SoulChassisProposal | ModuleProposal | BatchModuleProposal | FacetProposal;
+interface NewModuleProposal {
+  type: 'new_module_proposal';
+  slug: string;
+  name: string;
+  category: string;
+  description: string;
+  parameters: Record<string, unknown>;
+  parameterSchema: { key: string; label: string; type: string; tier?: string; description?: string }[];
+  parameterCount: number;
+  reason: string;
+}
+
+type ChangeProposal = SoulChassisProposal | ModuleProposal | BatchModuleProposal | NewModuleProposal | FacetProposal;
 
 interface ProposalCardProps {
   proposal: ChangeProposal;
@@ -150,6 +172,41 @@ export function ProposalCard({ proposal, onApplied }: ProposalCardProps) {
     );
   }
 
+  if (proposal.type === 'new_module_proposal') {
+    const nm = proposal as NewModuleProposal;
+    return (
+      <div className="rounded border bg-blue-50 dark:bg-blue-950/30 text-xs my-1 overflow-hidden">
+        <div className="px-2.5 py-2 space-y-1.5">
+          <div className="font-medium">
+            New Module: {nm.name}
+            <span className="ml-1.5 text-[10px] bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 rounded px-1 py-0.5">New</span>
+          </div>
+          <div className="text-muted-foreground">{nm.reason}</div>
+          <div className="flex gap-1.5 text-[10px] text-muted-foreground">
+            <span className="bg-muted rounded px-1">{nm.slug}</span>
+            <span className="bg-muted rounded px-1">{nm.category}</span>
+            <span className="bg-muted rounded px-1">{nm.parameterCount} params</span>
+          </div>
+          {nm.description && (
+            <div className="text-[10px] text-muted-foreground">{nm.description}</div>
+          )}
+          <div className="space-y-0.5 mt-1">
+            {nm.parameterSchema.map((p) => (
+              <div key={p.key} className="flex items-center gap-1.5 text-[10px]">
+                <span className="font-medium">{p.label}</span>
+                <span className="text-muted-foreground">({p.key})</span>
+                <span className="bg-muted rounded px-0.5">{p.type}</span>
+                {p.tier && <span className="bg-muted rounded px-0.5">{p.tier}</span>}
+                <span className="text-green-700 dark:text-green-400 ml-auto">{formatValue(nm.parameters[p.key])}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+        <ApprovalButtons status={status} onApprove={handleApprove} onReject={handleReject} />
+      </div>
+    );
+  }
+
   const isBatch = proposal.type === 'batch_module_change_proposal';
   const isModule = proposal.type === 'module_change_proposal';
 
@@ -164,16 +221,22 @@ export function ProposalCard({ proposal, onApplied }: ProposalCardProps) {
           <div className="text-muted-foreground">{batch.overallReason}</div>
 
           <div className="space-y-1 mt-1.5">
-            {batch.changes.map((c, i) => (
-              <div key={i} className="grid grid-cols-[1fr_auto_1fr] gap-1 items-center text-[10px]">
-                <div className="font-medium truncate" title={c.parameterKey}>{c.parameterKey}</div>
-                <span className="text-muted-foreground px-1">&rarr;</span>
-                <div className="flex gap-1 items-baseline min-w-0">
-                  <span className="text-muted-foreground line-through truncate">{formatValue(c.currentValue)}</span>
-                  <span className="text-green-700 dark:text-green-400 font-medium truncate">{formatValue(c.proposedValue)}</span>
+            {batch.changes.map((c, i) => {
+              const isNewParam = c.currentValue === undefined;
+              return (
+                <div key={i} className="grid grid-cols-[1fr_auto_1fr] gap-1 items-center text-[10px]">
+                  <div className="font-medium truncate flex items-center gap-1" title={c.parameterKey}>
+                    {c.parameterKey}
+                    {isNewParam && <span className="text-[8px] bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 rounded px-0.5">new</span>}
+                  </div>
+                  <span className="text-muted-foreground px-1">&rarr;</span>
+                  <div className="flex gap-1 items-baseline min-w-0">
+                    {!isNewParam && <span className="text-muted-foreground line-through truncate">{formatValue(c.currentValue)}</span>}
+                    <span className="text-green-700 dark:text-green-400 font-medium truncate">{formatValue(c.proposedValue)}</span>
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
 
@@ -182,21 +245,31 @@ export function ProposalCard({ proposal, onApplied }: ProposalCardProps) {
     );
   }
 
+  const modProposal = isModule ? (proposal as ModuleProposal) : null;
+  const isNew = isModule && modProposal!.currentValue === undefined;
   const label = isModule
-    ? `Module: ${(proposal as ModuleProposal).moduleName}`
+    ? `Module: ${modProposal!.moduleName}`
     : proposal.type === 'soul_change_proposal'
       ? 'Soul'
       : 'Chassis';
   const pathLabel = isModule
-    ? (proposal as ModuleProposal).parameterKey
+    ? modProposal!.parameterKey
     : (proposal as SoulChassisProposal).path;
 
   return (
     <div className="rounded border bg-amber-50 dark:bg-amber-950/30 text-xs my-1 overflow-hidden">
       <div className="px-2.5 py-2 space-y-1.5">
         <div className="font-medium">
-          Update {label}: {pathLabel}
+          {isNew ? 'Add' : 'Update'} {label}: {pathLabel}
+          {isNew && <span className="ml-1.5 text-[10px] bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 rounded px-1 py-0.5">New</span>}
         </div>
+        {isNew && modProposal!.schemaHints && (
+          <div className="flex gap-1.5 text-[10px] text-muted-foreground">
+            {modProposal!.schemaHints.tier && <span className="bg-muted rounded px-1">{modProposal!.schemaHints.tier}</span>}
+            {modProposal!.schemaHints.type && <span className="bg-muted rounded px-1">{modProposal!.schemaHints.type}</span>}
+            {modProposal!.schemaHints.description && <span>{modProposal!.schemaHints.description}</span>}
+          </div>
+        )}
         <div className="text-muted-foreground">{(proposal as SoulChassisProposal | ModuleProposal).reason}</div>
 
         <div className="grid grid-cols-2 gap-2 mt-1.5">

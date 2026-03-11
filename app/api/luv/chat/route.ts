@@ -30,10 +30,11 @@ export async function POST(request: Request) {
 
   try {
     const body = await request.json();
-    const { messages, modelKey = 'claude-sonnet', pageContext = null } = body as {
+    const { messages, modelKey = 'claude-sonnet', pageContext = null, thinking = false } = body as {
       messages: UIMessage[];
       modelKey?: string;
       pageContext?: LuvPageContext | null;
+      thinking?: boolean;
     };
 
     if (!messages || messages.length === 0) {
@@ -84,6 +85,10 @@ export async function POST(request: Request) {
     // Pre-process user-uploaded images through Gemini vision
     const augmentedMessages = await augmentImagesWithGeminiVision(modelMessages);
 
+    // Enable extended thinking for Claude models when toggled on
+    const isClaudeModel = modelKey.startsWith('claude-');
+    const thinkingEnabled = thinking && isClaudeModel;
+
     const result = streamText({
       model: getModel(modelKey),
       system: systemPrompt,
@@ -94,6 +99,13 @@ export async function POST(request: Request) {
         web_search: getAnthropic().tools.webSearch_20250305({ maxUses: 3 }),
       } as ToolSet,
       stopWhen: stepCountIs(5),
+      ...(thinkingEnabled && {
+        providerOptions: {
+          anthropic: {
+            thinking: { type: 'enabled', budgetTokens: 10000 },
+          },
+        },
+      }),
     });
 
     return result.toUIMessageStreamResponse();
