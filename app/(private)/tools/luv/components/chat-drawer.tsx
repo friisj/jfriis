@@ -17,7 +17,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { IconArrowUp, IconChevronDown, IconDots, IconPhotoPlus, IconTrash, IconX } from '@tabler/icons-react';
+import { IconArrowUp, IconBrain, IconChevronDown, IconChevronRight, IconDots, IconPhotoPlus, IconTrash, IconX } from '@tabler/icons-react';
 import { composeLayers } from '@/lib/luv/soul-composer';
 import { LAYER_REGISTRY } from '@/lib/luv/soul-layers';
 import { useLuvChatSession, MODEL_OPTIONS, getMessageText } from './use-luv-chat-session';
@@ -29,6 +29,8 @@ export function ChatDrawer() {
   const {
     modelKey,
     setModelKey,
+    thinking,
+    setThinking,
     input,
     setInput,
     pendingFiles,
@@ -51,6 +53,8 @@ export function ChatDrawer() {
     addFilesFromFileList,
   } = useLuvChatSession();
 
+  const isClaudeModel = modelKey.startsWith('claude-');
+
   return (
     <div className="flex flex-col h-full relative">
       {/* Messages */}
@@ -66,7 +70,7 @@ export function ChatDrawer() {
           </p>
         )}
         {soulLoaded && messages.length === 0 && (
-          <EmptyState soulData={soulData} modelKey={modelKey} />
+          <EmptyState soulData={soulData} modelKey={modelKey} thinking={thinking} />
         )}
         {messages.map((msg) => (
           <MessageBubble
@@ -146,6 +150,18 @@ export function ChatDrawer() {
                       </DropdownMenuRadioItem>
                     ))}
                   </DropdownMenuRadioGroup>
+                  {isClaudeModel && (
+                    <>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem
+                        className="text-xs"
+                        onClick={() => setThinking((t) => !t)}
+                      >
+                        <IconBrain size={14} className={thinking ? 'text-violet-500 mr-2' : 'mr-2'} />
+                        Thinking {thinking ? 'on' : 'off'}
+                      </DropdownMenuItem>
+                    </>
+                  )}
                   {messages.length > 0 && (
                     <>
                       <DropdownMenuSeparator />
@@ -258,6 +274,10 @@ function MessageBubble({
             );
           }
 
+          if (part.type === 'reasoning' && 'text' in part && part.text) {
+            return <ReasoningDisclosure key={i} text={part.text as string} />;
+          }
+
           if (isToolUIPart(part)) {
             const toolName = getToolName(part);
             const toolCallId = part.toolCallId;
@@ -274,6 +294,7 @@ function MessageBubble({
                 (output as Record<string, unknown>).type === 'chassis_change_proposal' ||
                 (output as Record<string, unknown>).type === 'module_change_proposal' ||
                 (output as Record<string, unknown>).type === 'batch_module_change_proposal' ||
+                (output as Record<string, unknown>).type === 'new_module_proposal' ||
                 (output as Record<string, unknown>).type === 'facet_change_proposal')
             ) {
               return (
@@ -338,12 +359,41 @@ function ScrollIndicator({
   );
 }
 
+function ReasoningDisclosure({ text }: { text: string }) {
+  const [open, setOpen] = useState(false);
+  const lines = text.split('\n').filter(Boolean);
+  const preview = lines[0]?.slice(0, 80) ?? 'Thinking...';
+
+  return (
+    <div className="rounded-lg border border-violet-200 dark:border-violet-800/50 bg-violet-50/50 dark:bg-violet-950/20 text-xs overflow-hidden">
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        className="w-full flex items-center gap-1.5 px-2.5 py-1.5 text-left text-violet-600 dark:text-violet-400 hover:bg-violet-100/50 dark:hover:bg-violet-900/20 transition-colors"
+      >
+        <IconBrain size={12} className="shrink-0" />
+        {open ? <IconChevronDown size={12} className="shrink-0" /> : <IconChevronRight size={12} className="shrink-0" />}
+        <span className="truncate text-[10px]">
+          {open ? 'Thinking' : preview}
+        </span>
+      </button>
+      {open && (
+        <div className="px-2.5 pb-2 text-[10px] text-violet-700 dark:text-violet-300 whitespace-pre-wrap leading-relaxed max-h-60 overflow-y-auto">
+          {text}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function EmptyState({
   soulData,
   modelKey,
+  thinking,
 }: {
   soulData: import('@/lib/types/luv').LuvSoulData;
   modelKey: string;
+  thinking: boolean;
 }) {
   const { layers, tokenEstimate } = composeLayers(soulData);
   const modelLabel = MODEL_OPTIONS.find((o) => o.key === modelKey)?.label ?? modelKey;
@@ -355,7 +405,7 @@ function EmptyState({
       </p>
       <div className="text-left rounded-md border bg-muted/30 px-2.5 py-2 space-y-1">
         <p className="text-[10px] font-medium text-muted-foreground">
-          {modelLabel} · {layers.length} layers · {tokenEstimate} tokens
+          {modelLabel}{thinking ? ' · thinking' : ''} · {layers.length} layers · {tokenEstimate} tokens
         </p>
         <div className="flex flex-wrap gap-1">
           {layers.map((layer) => {
