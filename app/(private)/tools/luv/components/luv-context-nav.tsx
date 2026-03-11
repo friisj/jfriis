@@ -159,7 +159,7 @@ export function LuvContextNav() {
               <Link
                 href={section.href}
                 className={cn(
-                  'block px-1.5 py-1 text-xs font-medium transition-colors',
+                  'block px-1.5 py-2 text-xs font-medium transition-colors uppercase tracking-wide',
                   isExactActive
                     ? 'text-foreground bg-accent'
                     : sectionActive
