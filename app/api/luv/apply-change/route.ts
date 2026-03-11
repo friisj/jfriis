@@ -55,6 +55,21 @@ interface FacetProposal {
 
 type ChangeProposal = SoulChassisProposal | ModuleProposal | BatchModuleProposal | FacetProposal;
 
+/** Infer a basic parameter_schema entry from a key and value */
+function inferSchemaEntry(key: string, value: unknown): { key: string; label: string; type: string; tier: string } {
+  const label = key
+    .replace(/_/g, ' ')
+    .replace(/\b\w/g, (c) => c.toUpperCase());
+
+  let type = 'text';
+  if (typeof value === 'number') type = 'number';
+  else if (typeof value === 'boolean') type = 'boolean';
+  else if (typeof value === 'string' && /^#[0-9a-f]{3,8}$/i.test(value)) type = 'color';
+  else if (typeof value === 'object' && value !== null) type = 'json';
+
+  return { key, label, type, tier: 'advanced' };
+}
+
 export async function POST(request: Request) {
   const { user, error } = await requireAuth();
   if (!user) {
@@ -84,7 +99,7 @@ export async function POST(request: Request) {
 
     const { data: mod, error: fetchError } = await (supabase as any)
       .from('luv_chassis_modules')
-      .select('id, parameters, current_version')
+      .select('id, parameters, parameter_schema, current_version')
       .eq('id', moduleId)
       .single();
 
@@ -101,10 +116,24 @@ export async function POST(request: Request) {
     };
     const newVersion = (mod.current_version as number) + 1;
 
-    // Update module parameters
+    // Auto-append schema entry if this is a new parameter
+    const schema = Array.isArray(mod.parameter_schema) ? [...mod.parameter_schema] : [];
+    const hasSchemaEntry = schema.some((s: { key: string }) => s.key === parameterKey);
+    if (!hasSchemaEntry) {
+      schema.push(inferSchemaEntry(parameterKey, proposedValue));
+    }
+
+    // Update module parameters (and schema if new param added)
+    const updatePayload: Record<string, unknown> = {
+      parameters: updatedParams,
+      current_version: newVersion,
+    };
+    if (!hasSchemaEntry) {
+      updatePayload.parameter_schema = schema;
+    }
     const { error: updateError } = await (supabase as any)
       .from('luv_chassis_modules')
-      .update({ parameters: updatedParams, current_version: newVersion })
+      .update(updatePayload)
       .eq('id', moduleId);
 
     if (updateError) {
@@ -144,7 +173,7 @@ export async function POST(request: Request) {
 
     const { data: mod, error: fetchError } = await (supabase as any)
       .from('luv_chassis_modules')
-      .select('id, parameters, current_version')
+      .select('id, parameters, parameter_schema, current_version')
       .eq('id', moduleId)
       .single();
 
@@ -158,14 +187,29 @@ export async function POST(request: Request) {
     const updatedParams = {
       ...(mod.parameters as Record<string, unknown>),
     };
+    const schema = Array.isArray(mod.parameter_schema) ? [...mod.parameter_schema] : [];
+    const existingKeys = new Set(schema.map((s: { key: string }) => s.key));
+    let schemaChanged = false;
+
     for (const c of changes) {
       updatedParams[c.parameterKey] = c.proposedValue;
+      if (!existingKeys.has(c.parameterKey)) {
+        schema.push(inferSchemaEntry(c.parameterKey, c.proposedValue));
+        schemaChanged = true;
+      }
     }
     const newVersion = (mod.current_version as number) + 1;
 
+    const updatePayload: Record<string, unknown> = {
+      parameters: updatedParams,
+      current_version: newVersion,
+    };
+    if (schemaChanged) {
+      updatePayload.parameter_schema = schema;
+    }
     const { error: updateError } = await (supabase as any)
       .from('luv_chassis_modules')
-      .update({ parameters: updatedParams, current_version: newVersion })
+      .update(updatePayload)
       .eq('id', moduleId);
 
     if (updateError) {

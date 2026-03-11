@@ -106,6 +106,10 @@ export function ModuleEditor({ module, allModules = [], studyLocks = [], onSaved
     grouped.set(tier, group);
   }
 
+  // Find orphaned parameters (in parameters but not in schema)
+  const schemedKeys = new Set(schema.map((s) => s.key));
+  const orphanedKeys = Object.keys(parameters).filter((k) => !schemedKeys.has(k));
+
   return (
     <div className="space-y-0">
       <div className="flex items-center justify-between">
@@ -215,6 +219,34 @@ export function ModuleEditor({ module, allModules = [], studyLocks = [], onSaved
           </div>
         </section>
       ))}
+      {orphanedKeys.length > 0 && (
+        <section className="bg-secondary space-y-0">
+          <div className="px-6 pb-4 pt-12 border-y border-y-border">
+            <h4 className="text-lg text-foreground font-semibold">
+              Unschemed
+            </h4>
+            <p className="text-xs text-muted-foreground mt-1">
+              Parameters added by the agent that don&apos;t have schema definitions yet.
+            </p>
+          </div>
+          <div className="divide-y divide-y-border">
+            {orphanedKeys.map((key) => (
+              <div key={key} className="w-full bg-secondary px-6 py-4 flex items-center justify-between">
+                <div>
+                  <span className="text-sm font-medium">{key.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())}</span>
+                  <span className="text-xs text-muted-foreground ml-2">({key})</span>
+                </div>
+                <input
+                  type="text"
+                  value={String(parameters[key] ?? '')}
+                  onChange={(e) => updateParam(key, e.target.value)}
+                  className="text-sm bg-background border border-border rounded px-2 py-1 w-64 text-right"
+                />
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
     </div>
   );
 }

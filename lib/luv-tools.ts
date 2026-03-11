@@ -215,7 +215,7 @@ export const proposeChassisChange = tool({
 
 export const proposeModuleChange = tool({
   description:
-    'Propose a parameter change to a chassis module. Returns a proposal that requires human approval. Use read_chassis_module first to see current values.',
+    'Propose a parameter change to a chassis module, or add a new parameter. Returns a proposal that requires human approval. Use read_chassis_module first to see current values. New parameters are auto-added to the schema when applied.',
   inputSchema: zodSchema(
     z.object({
       moduleSlug: z
@@ -252,7 +252,7 @@ export const proposeModuleChange = tool({
 
 export const proposeModuleChanges = tool({
   description:
-    'Propose multiple parameter changes to a chassis module in one batch. More efficient than individual propose_module_change calls when updating several parameters at once. Returns a batch proposal that requires human approval.',
+    'Propose multiple parameter changes (or additions) to a chassis module in one batch. More efficient than individual propose_module_change calls when updating several parameters at once. New parameters are auto-added to the schema when applied. Returns a batch proposal that requires human approval.',
   inputSchema: zodSchema(
     z.object({
       moduleSlug: z
