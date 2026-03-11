@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { randomUUID } from 'crypto';
 import { requireAuth } from '@/lib/ai/auth';
 
 const LUV_MEDIA_BUCKET = 'luv-images';
@@ -49,18 +50,22 @@ export async function POST(request: Request) {
 
     const client = serviceClient();
 
-    // Get current item count for sequencing
-    const { data: existing } = await client
+    // Get max sequence for this session (safe under concurrency — each request gets its own starting point)
+    const { data: maxRow } = await client
       .from('luv_review_items')
-      .select('id')
-      .eq('session_id', sessionId);
-    let nextSequence = existing?.length ?? 0;
+      .select('sequence')
+      .eq('session_id', sessionId)
+      .order('sequence', { ascending: false })
+      .limit(1)
+      .single();
+    let nextSequence = maxRow ? maxRow.sequence + 1 : 0;
 
     const results = [];
 
     for (const file of files) {
       const ext = file.name.split('.').pop()?.toLowerCase() ?? 'jpg';
-      const storagePath = `reviews/${sessionId}/${nextSequence}.${ext}`;
+      // Randomized path to prevent URL enumeration
+      const storagePath = `reviews/${sessionId}/${randomUUID()}.${ext}`;
 
       const buffer = Buffer.from(await file.arrayBuffer());
       const { error: uploadError } = await client.storage
@@ -95,12 +100,6 @@ export async function POST(request: Request) {
         );
       }
 
-      // Update session image count
-      await client
-        .from('luv_review_sessions')
-        .update({ image_count: nextSequence + 1 })
-        .eq('id', sessionId);
-
       results.push({
         id: item.id,
         sequence: item.sequence,
@@ -109,6 +108,16 @@ export async function POST(request: Request) {
 
       nextSequence++;
     }
+
+    // Sync image_count from actual item count (atomic — always correct)
+    const { count } = await client
+      .from('luv_review_items')
+      .select('id', { count: 'exact', head: true })
+      .eq('session_id', sessionId);
+    await client
+      .from('luv_review_sessions')
+      .update({ image_count: count ?? results.length })
+      .eq('id', sessionId);
 
     return NextResponse.json({
       uploaded: results.length,
