@@ -3,7 +3,6 @@
 import { useState, useCallback, useMemo } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { IconAlertTriangle, IconLock } from '@tabler/icons-react';
 import type { LuvChassisModule, ParameterConstraint, ParameterDef, ParameterTier } from '@/lib/types/luv-chassis';
 import { saveModuleWithVersion } from '@/lib/luv-chassis';
@@ -111,37 +110,10 @@ export function ModuleEditor({ module, allModules = [], studyLocks = [], onSaved
 
   return (
     <div className="space-y-0">
-      <div className="flex items-center justify-between">
-        <div className="pt-6 px-6 pb-6 min-h-72 w-full flex flex-col justify-between">
-          <div className="flex items-start justify-start">
-            <div className="flex flex-col items-start justify-start space-y-3 ">
-              <h3 className="text-5xl font-semibold">{module.name}</h3>
-              <div className="flex items-baseline justify-start gap-2">
-                <button
-                  onClick={() => {
-                    document.getElementById('version-history')?.scrollIntoView({ behavior: 'smooth' });
-                  }}
-                  className="cursor-pointer"
-                  title="View version history"
-                >
-                  <Badge variant="outline" className="text-xs hover:bg-accent transition-colors">
-                    v{module.current_version}
-                  </Badge>
-                </button>
-                {module.description && (
-                  <p className="text-sm text-foreground">{module.description}</p>
-                )}
-              </div>
-            </div>
-
-            <div className="flex-1 flex items-start justify-end">
-              <Button onClick={handleSave} disabled={saving} size="sm">
-                {saving ? 'Saving...' : 'Save'}
-              </Button>
-            </div>
-          </div>
-
-        </div>
+      <div className="flex justify-end px-6 pt-4">
+        <Button onClick={handleSave} disabled={saving} size="sm">
+          {saving ? 'Saving...' : 'Save'}
+        </Button>
       </div>
 
       {violations.length > 0 && (
