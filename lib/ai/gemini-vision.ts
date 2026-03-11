@@ -9,12 +9,15 @@
 import { generateText } from 'ai';
 import { getModel } from './models';
 
+const DEFAULT_TIMEOUT_MS = 8000;
+
 interface AnalyzeImageOptions {
   base64: string;
   mediaType: string;
   prompt: string;
   modelKey?: string;
   maxTokens?: number;
+  timeoutMs?: number;
 }
 
 /**
@@ -27,8 +30,12 @@ export async function analyzeImageWithGemini({
   prompt,
   modelKey = 'gemini-flash',
   maxTokens = 800,
+  timeoutMs = DEFAULT_TIMEOUT_MS,
 }: AnalyzeImageOptions): Promise<string | null> {
   try {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+
     const result = await generateText({
       model: getModel(modelKey),
       messages: [
@@ -45,10 +52,17 @@ export async function analyzeImageWithGemini({
         },
       ],
       maxTokens,
+      abortSignal: controller.signal,
     });
+
+    clearTimeout(timer);
     return result.text;
   } catch (err) {
-    console.error('[gemini-vision] Analysis failed:', err);
+    if (err instanceof Error && err.name === 'AbortError') {
+      console.warn(`[gemini-vision] Timed out after ${timeoutMs}ms`);
+    } else {
+      console.error('[gemini-vision] Analysis failed:', err);
+    }
     return null;
   }
 }
