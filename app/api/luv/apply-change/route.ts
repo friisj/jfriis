@@ -2,6 +2,16 @@ import { NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/ai/auth';
 import { createClient } from '@/lib/supabase-server';
 
+// Allowed root keys for soul/chassis data mutations
+const ALLOWED_SOUL_ROOTS = new Set([
+  'personality', 'voice', 'rules', 'skills', 'background',
+  'system_prompt_override', 'facets',
+]);
+const ALLOWED_CHASSIS_ROOTS = new Set([
+  'face', 'body', 'coloring', 'age_appearance', 'distinguishing_features',
+  'hair', 'eyes', 'skin', 'skeletal', 'mouth', 'nose', 'body_proportions',
+]);
+
 interface SoulChassisProposal {
   type: 'soul_change_proposal' | 'chassis_change_proposal';
   characterId: string;
@@ -287,6 +297,16 @@ export async function POST(request: Request) {
   const currentData = { ...(character[dataColumn] as Record<string, unknown>) };
   const pathParts = proposal.path.split('.');
 
+  // Validate root key against allow-list
+  const rootKey = pathParts[0];
+  const allowedRoots = dataColumn === 'soul_data' ? ALLOWED_SOUL_ROOTS : ALLOWED_CHASSIS_ROOTS;
+  if (!allowedRoots.has(rootKey)) {
+    return NextResponse.json(
+      { error: `Invalid path root: "${rootKey}"` },
+      { status: 400 }
+    );
+  }
+
   if (pathParts.length === 1) {
     currentData[pathParts[0]] = proposal.proposedValue;
   } else {
@@ -300,18 +320,29 @@ export async function POST(request: Request) {
     cursor[pathParts[pathParts.length - 1]] = proposal.proposedValue;
   }
 
-  const { error: updateError } = await (supabase as any)
+  const newVersion = (character.version as number) + 1;
+  const { data: updated, error: updateError } = await (supabase as any)
     .from('luv_character')
     .update({
       [dataColumn]: currentData,
-      version: (character.version as number) + 1,
+      version: newVersion,
     })
-    .eq('id', proposal.characterId);
+    .eq('id', proposal.characterId)
+    .eq('version', character.version) // Optimistic lock — fails if version changed
+    .select('id')
+    .maybeSingle();
 
   if (updateError) {
     return NextResponse.json(
       { error: 'Failed to apply change' },
       { status: 500 }
+    );
+  }
+
+  if (!updated) {
+    return NextResponse.json(
+      { error: 'Conflict: character was modified concurrently. Please retry.' },
+      { status: 409 }
     );
   }
 
