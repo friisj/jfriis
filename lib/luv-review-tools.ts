@@ -51,9 +51,6 @@ export const evaluateReviewItem = tool({
     const result = output as { error?: string; itemId?: string; evaluated?: boolean };
     if (result.error) return { type: 'text' as const, value: result.error };
 
-    // Load the image for vision
-    const { getReviewItemServer } = await import('./luv-review-server');
-    // Note: image is shown before evaluation via view_review_item, not here
     return { type: 'text' as const, value: JSON.stringify(result) };
   },
 });
@@ -90,10 +87,7 @@ export const viewReviewItem = tool({
       const { analyzeImageWithGemini, buildChassisVisionPrompt } = await import('./ai/gemini-vision');
       const { getChassisModulesServer } = await import('./luv-chassis-server');
 
-      const [modules, _] = await Promise.all([
-        getChassisModulesServer(),
-        Promise.resolve(), // placeholder for parallel slot
-      ]);
+      const modules = await getChassisModulesServer();
       const chassisParams = Object.fromEntries(
         modules.map((m) => [m.slug, m.parameters])
       );
