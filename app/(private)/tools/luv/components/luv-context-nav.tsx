@@ -149,7 +149,7 @@ export function LuvContextNav() {
       </div>
 
       {/* Section links */}
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 overflow-y-auto p-2">
         {sections.map((section) => {
           const sectionActive = pathname.startsWith(section.href);
           const isExactActive = pathname === section.href;
@@ -159,7 +159,7 @@ export function LuvContextNav() {
               <Link
                 href={section.href}
                 className={cn(
-                  'block px-3 py-1.5 text-xs font-medium transition-colors',
+                  'block px-1.5 py-1 text-xs font-medium transition-colors',
                   isExactActive
                     ? 'text-foreground bg-accent'
                     : sectionActive
@@ -176,7 +176,7 @@ export function LuvContextNav() {
                       key={item.href}
                       href={item.href}
                       className={cn(
-                        'block pl-6 pr-3 py-1 text-xs transition-colors',
+                        'block pl-5 pr-3 py-1 text-xs transition-colors',
                         pathname === item.href
                           ? 'text-foreground font-medium bg-accent'
                           : 'text-muted-foreground hover:text-foreground hover:bg-accent/50',
