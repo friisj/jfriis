@@ -21,10 +21,6 @@ import type { SceneProps } from './types';
 const registry: Record<string, ComponentType<SceneProps>> = {
   // ssr: false because scene components are client-only — they may use
   // browser APIs (canvas, WebGL, video, etc.) and always use hooks.
-  'generative-prompt': dynamic(
-    () => import('@/app/(private)/tools/luv/stage/scenes/generative-prompt/scene'),
-    { ssr: false }
-  ),
   'reinforcement-review': dynamic(
     () => import('@/app/(private)/tools/luv/stage/scenes/reinforcement-review/scene'),
     { ssr: false }
