@@ -120,7 +120,7 @@ export function ModuleEditor({ module, allModules = [], studyLocks = [], onSaved
           ))}
         </div>
       )}
-      <div className="flex-1 overflow-y-scroll shrink-0 pt-6 bg-secondary space-y-6">
+      <div className="pt-6 bg-secondary space-y-6">
       {TIER_ORDER.filter((t) => grouped.has(t)).map((tier) => (
         <section key={tier} className="space-y-0 translate-y-px">
           <div className="px-6 pb-4 pt-6 border-b border-b-border">
@@ -203,7 +203,7 @@ export function ModuleEditor({ module, allModules = [], studyLocks = [], onSaved
         </section>
       )}
       </div>
-      <div className="h-20 sticky bottom-0 border-t bg-background flex justify-start px-6 pt-4">
+      <div className="h-20 sticky bottom-0 border-t bg-background/50 backdrop-blur-sm flex justify-start px-6 pt-4">
         <Button onClick={handleSave} disabled={saving} size="sm">
           {saving ? 'Saving...' : 'Save'}
         </Button>
