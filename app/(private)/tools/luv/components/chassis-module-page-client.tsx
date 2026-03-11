@@ -30,15 +30,15 @@ export function ChassisModulePageClient({ module, allModules = [], studyLocks = 
       {/* Tabs */}
       <Tabs defaultValue="parameters">
         <TabsList className="mb-0 pb-0">
-          <TabsTrigger value="parameters">Parameters</TabsTrigger>
-          <TabsTrigger value="media">Media</TabsTrigger>
-          <TabsTrigger value="context">Context</TabsTrigger>
-          <TabsTrigger value="versions">Versions</TabsTrigger>
+          <TabsTrigger className="px-6" value="parameters">Parameters</TabsTrigger>
+          <TabsTrigger className="px-6" value="media">Media</TabsTrigger>
+          <TabsTrigger className="px-6" value="context">Context</TabsTrigger>
+          <TabsTrigger className="px-6" value="versions">Versions</TabsTrigger>
         </TabsList>
 
 
         {/* Header */}
-        <div className="pt-6 px-6 pb-6 border-t">
+        <div className="pt-6 px-6 pb-6">
           <div className="flex items-start justify-between">
             <div className="space-y-3">
               <h3 className="text-5xl font-semibold">{module.name}</h3>
