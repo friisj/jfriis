@@ -314,6 +314,49 @@ export const proposeModuleChanges = tool({
   },
 });
 
+export const proposeNewModule = tool({
+  description:
+    'Propose creating an entirely new chassis module. Use this when the existing modules don\'t cover an aspect of physical appearance or physiological response that should be tracked. Returns a proposal that requires human approval.',
+  inputSchema: zodSchema(
+    z.object({
+      slug: z.string().describe('URL-friendly identifier (kebab-case, e.g. "physiological-responses")'),
+      name: z.string().describe('Display name (e.g. "Physiological Responses")'),
+      category: z.string().describe('Module category (e.g. "face", "body", "coloring", "expression", "physiology")'),
+      description: z.string().describe('What this module tracks'),
+      parameters: z.record(z.string(), z.unknown()).describe('Initial parameter values as key-value pairs'),
+      parameterSchema: z.array(z.object({
+        key: z.string(),
+        label: z.string(),
+        type: z.enum(['text', 'number', 'range', 'color', 'enum', 'boolean', 'json', 'media_ref', 'measurement', 'ratio', 'constraint_range']),
+        tier: z.enum(['basic', 'intermediate', 'advanced', 'clinical']).optional(),
+        description: z.string().optional(),
+        options: z.array(z.string()).optional(),
+      })).describe('Schema definitions for each parameter'),
+      reason: z.string().describe('Why this module should be created'),
+    })
+  ),
+  execute: async ({ slug, name, category, description, parameters, parameterSchema, reason }) => {
+    // Check if slug already exists
+    const { getChassisModulesServer } = await import('./luv-chassis-server');
+    const existing = await getChassisModulesServer();
+    if (existing.some((m) => m.slug === slug)) {
+      return { error: `Module "${slug}" already exists` };
+    }
+
+    return {
+      type: 'new_module_proposal' as const,
+      slug,
+      name,
+      category,
+      description,
+      parameters,
+      parameterSchema,
+      parameterCount: parameterSchema.length,
+      reason,
+    };
+  },
+});
+
 // ============================================================================
 // Context Pack Tools
 // ============================================================================
@@ -781,6 +824,7 @@ export const luvTools = {
   propose_chassis_change: proposeChassisChange,
   propose_module_change: proposeModuleChange,
   propose_module_changes: proposeModuleChanges,
+  propose_new_module: proposeNewModule,
   compose_context_pack: composeContextPack,
   evaluate_generation: evaluateGeneration,
   view_reference_image: viewReferenceImage,

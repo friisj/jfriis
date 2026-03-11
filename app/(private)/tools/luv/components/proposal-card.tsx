@@ -65,7 +65,19 @@ interface FacetProposal {
   reason: string;
 }
 
-type ChangeProposal = SoulChassisProposal | ModuleProposal | BatchModuleProposal | FacetProposal;
+interface NewModuleProposal {
+  type: 'new_module_proposal';
+  slug: string;
+  name: string;
+  category: string;
+  description: string;
+  parameters: Record<string, unknown>;
+  parameterSchema: { key: string; label: string; type: string; tier?: string; description?: string }[];
+  parameterCount: number;
+  reason: string;
+}
+
+type ChangeProposal = SoulChassisProposal | ModuleProposal | BatchModuleProposal | NewModuleProposal | FacetProposal;
 
 interface ProposalCardProps {
   proposal: ChangeProposal;
@@ -155,6 +167,41 @@ export function ProposalCard({ proposal, onApplied }: ProposalCardProps) {
           </div>
         </div>
 
+        <ApprovalButtons status={status} onApprove={handleApprove} onReject={handleReject} />
+      </div>
+    );
+  }
+
+  if (proposal.type === 'new_module_proposal') {
+    const nm = proposal as NewModuleProposal;
+    return (
+      <div className="rounded border bg-blue-50 dark:bg-blue-950/30 text-xs my-1 overflow-hidden">
+        <div className="px-2.5 py-2 space-y-1.5">
+          <div className="font-medium">
+            New Module: {nm.name}
+            <span className="ml-1.5 text-[10px] bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 rounded px-1 py-0.5">New</span>
+          </div>
+          <div className="text-muted-foreground">{nm.reason}</div>
+          <div className="flex gap-1.5 text-[10px] text-muted-foreground">
+            <span className="bg-muted rounded px-1">{nm.slug}</span>
+            <span className="bg-muted rounded px-1">{nm.category}</span>
+            <span className="bg-muted rounded px-1">{nm.parameterCount} params</span>
+          </div>
+          {nm.description && (
+            <div className="text-[10px] text-muted-foreground">{nm.description}</div>
+          )}
+          <div className="space-y-0.5 mt-1">
+            {nm.parameterSchema.map((p) => (
+              <div key={p.key} className="flex items-center gap-1.5 text-[10px]">
+                <span className="font-medium">{p.label}</span>
+                <span className="text-muted-foreground">({p.key})</span>
+                <span className="bg-muted rounded px-0.5">{p.type}</span>
+                {p.tier && <span className="bg-muted rounded px-0.5">{p.tier}</span>}
+                <span className="text-green-700 dark:text-green-400 ml-auto">{formatValue(nm.parameters[p.key])}</span>
+              </div>
+            ))}
+          </div>
+        </div>
         <ApprovalButtons status={status} onApprove={handleApprove} onReject={handleReject} />
       </div>
     );
