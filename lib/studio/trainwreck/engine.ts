@@ -1,5 +1,5 @@
 import * as THREE from 'three'
-import { GameState, TrainCar, Tool, CarType, CAR_CONFIG, TOOL_CONFIG, PlacedTrap, TrapEffect, CarPose, DEFAULT_DEV_CONTROLS } from './types'
+import { GameState, TrainCar, Tool, CarType, Coupling, CAR_CONFIG, TOOL_CONFIG, PlacedTrap, TrapEffect, CarPose, DEFAULT_DEV_CONTROLS } from './types'
 import { LEVELS, CAR_GAP, TRAIN_START_OFFSET } from './config'
 import { TrackPath } from './track'
 
@@ -20,6 +20,7 @@ export function buildTrain(carTypes: CarType[]): TrainCar[] {
       color: cfg.color,
       derailed: false,
       trackPosition: 0,
+      state: 'on-track' as const,
     }
   })
 }
@@ -33,8 +34,23 @@ export function buildTools(toolTypes: (typeof LEVELS)[number]['availableTools'])
   }))
 }
 
+export function buildCouplings(cars: TrainCar[]): Coupling[] {
+  const couplings: Coupling[] = []
+  for (let i = 0; i < cars.length - 1; i++) {
+    couplings.push({
+      frontCarId: cars[i].id,
+      rearCarId: cars[i + 1].id,
+      intact: true,
+      extension: 0,
+      breakForce: 50,
+    })
+  }
+  return couplings
+}
+
 export function initLevel(levelNumber: number): GameState {
   const level = LEVELS[Math.min(levelNumber - 1, LEVELS.length - 1)]
+  const cars = buildTrain(level.cars)
   return {
     status: 'playing',
     level: levelNumber,
@@ -43,7 +59,8 @@ export function initLevel(levelNumber: number): GameState {
     trainProgress: 0,
     trainSpeed: 1,
     crashed: false,
-    cars: buildTrain(level.cars),
+    cars,
+    couplings: buildCouplings(cars),
     tools: buildTools(level.availableTools),
     selectedTool: level.availableTools[0] ?? null,
     placedTraps: [],

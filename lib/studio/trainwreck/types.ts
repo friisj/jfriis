@@ -2,6 +2,8 @@ import * as THREE from 'three'
 
 export type CarType = 'locomotive' | 'boxcar' | 'tanker' | 'flatbed' | 'caboose'
 
+export type CarState = 'on-track' | 'derailing' | 'airborne' | 'sliding' | 'settled'
+
 export interface TrainCar {
   id: string
   type: CarType
@@ -14,6 +16,18 @@ export interface TrainCar {
   derailed: boolean
   /** Position along the track (0-1) */
   trackPosition: number
+  /** Physics state machine */
+  state: CarState
+}
+
+export interface Coupling {
+  frontCarId: string
+  rearCarId: string
+  intact: boolean
+  /** Current stretch beyond rest length */
+  extension: number
+  /** Max force before snap */
+  breakForce: number
 }
 
 export type ToolType = 'rail-remover' | 'explosive' | 'ramp' | 'curve-tightener' | 'oil-slick' | 'decoupler'
@@ -67,6 +81,7 @@ export interface GameState {
   trainSpeed: number // current speed multiplier (decelerates on crash)
   crashed: boolean // true once any car derails
   cars: TrainCar[]
+  couplings: Coupling[]
   tools: Tool[]
   selectedTool: ToolType | null
   placedTraps: PlacedTrap[]
@@ -105,6 +120,10 @@ export interface TrapEffect {
   blastForces?: Record<string, { fx: number; fy: number; fz: number }>
   /** Speed multiplier change for oil-slick */
   speedBoost?: number
+  /** Index of coupling broken by decoupler */
+  brokenCouplingIdx?: number
+  /** Indices of couplings broken by explosive */
+  brokenCouplingIdxs?: number[]
 }
 
 export const CAR_CONFIG: Record<CarType, { points: number; width: number; height: number; length: number; color: string; mass: number }> = {
@@ -136,6 +155,13 @@ export interface DerailBody {
   cascadeDelay: number
   launched: boolean
   bounceCount: number
+  carType: CarType
+  /** Tanker: hull punctured, leaking liquid */
+  ruptured: boolean
+  /** Tanker: secondary explosion occurred, on fire */
+  burning: boolean
+  /** Timer for secondary effects (tanker explosion delay) */
+  secondaryTimer: number
 }
 
 export interface Particle {
@@ -145,7 +171,17 @@ export interface Particle {
   maxLife: number
   size: number
   color: string
-  type: 'spark' | 'debris' | 'smoke'
+  type: 'spark' | 'debris' | 'smoke' | 'liquid' | 'fire'
+}
+
+export interface CargoBody {
+  x: number; y: number; z: number
+  vx: number; vy: number; vz: number
+  rotX: number; rotY: number; rotZ: number
+  vRotX: number; vRotY: number; vRotZ: number
+  width: number; height: number; length: number
+  settled: boolean
+  cargoType: 'log' | 'crate' | 'container'
 }
 
 export const TOOL_CONFIG: Record<ToolType, { name: string; description: string }> = {

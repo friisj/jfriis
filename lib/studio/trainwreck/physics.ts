@@ -55,6 +55,10 @@ export function processEffects(
         cascadeDelay,
         launched: false,
         bounceCount: 0,
+        carType: car.type,
+        ruptured: false,
+        burning: false,
+        secondaryTimer: 0,
       }
 
       const forwardSpeed = speed * (0.7 + Math.random() * 0.6)
