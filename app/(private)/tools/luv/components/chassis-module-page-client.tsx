@@ -4,6 +4,7 @@ import { ModuleEditor } from './module-editor';
 import { ModuleMediaGallery } from './module-media-gallery';
 import { ModuleVersionHistory } from './module-version-history';
 import { ContextPackComposer } from './context-pack-composer';
+import { StagePlayer } from '../stage/components/stage-player';
 import type { LuvChassisModule, LuvChassisModuleMedia, ParameterConstraint } from '@/lib/types/luv-chassis';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
@@ -29,6 +30,7 @@ export function ChassisModulePageClient({ module, allModules = [], studyLocks = 
       <TabsList className="mb-0 pb-0">
         <TabsTrigger className="px-6" value="parameters">Parameters</TabsTrigger>
         <TabsTrigger className="px-6" value="media">Media</TabsTrigger>
+        <TabsTrigger className="px-6" value="stage">Stage</TabsTrigger>
         <TabsTrigger className="px-6" value="context">Context</TabsTrigger>
         <TabsTrigger className="px-6" value="versions">Versions</TabsTrigger>
       </TabsList>
@@ -69,6 +71,10 @@ export function ChassisModulePageClient({ module, allModules = [], studyLocks = 
             No parameters defined — add parameters first to attach media.
           </p>
         )}
+      </TabsContent>
+
+      <TabsContent value="stage" className="h-[500px]">
+        <StagePlayer constrainToModule={module.slug} compact />
       </TabsContent>
 
       <TabsContent value="context">
