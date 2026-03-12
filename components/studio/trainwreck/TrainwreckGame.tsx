@@ -201,7 +201,6 @@ function applyDent(
   }
 
   positions.needsUpdate = true
-  geometry.computeVertexNormals()
 }
 
 function TrainCarMesh({
@@ -238,6 +237,9 @@ function TrainCarMesh({
         applyDent(tankerGeoRef.current, evt)
       }
     }
+    // Recompute normals once after all dents applied
+    if (bodyGeoRef.current) bodyGeoRef.current.computeVertexNormals()
+    if (tankerGeoRef.current && car.type === 'tanker') tankerGeoRef.current.computeVertexNormals()
     appliedDamage.current = damageEvents.length
   })
 
@@ -307,37 +309,15 @@ const RampWedge = React.forwardRef<THREE.Mesh, { color: string }>(function RampW
     const w = 0.65, len = 1.25, h = 0.8
     // 6 vertices: bottom quad + top edge (the peak)
     const vertices = new Float32Array([
-      // bottom face (y=0)
       -len, 0, -w,   // 0: back-left
        len, 0, -w,   // 1: front-left
        len, 0,  w,   // 2: front-right
       -len, 0,  w,   // 3: back-right
-      // top edge (y=h, at +X end)
        len, h, -w,   // 4: top-left
        len, h,  w,   // 5: top-right
     ])
-    const indices = [
-      // bottom
-      0, 2, 1,  0, 3, 2,
-      // slope (main ramp surface)
-      0, 1, 4,  0, 4, 3,  3, 4, 5,
-      // front face (+X side, vertical)
-      1, 2, 5,  1, 5, 4,
-      // left side (-Z)
-      0, 4, 1,
-      // right side (+Z)
-      3, 5, 2,  3, 2, 0,  // close the back too
-      // back face (-X, triangle)
-      0, 5, 3,  0, 4, 5,  // wait, that's the slope
-    ]
-    // Simpler approach: use indexed BufferGeometry with explicit triangles
     const g = new THREE.BufferGeometry()
     g.setAttribute('position', new THREE.BufferAttribute(vertices, 3))
-    // Faces:
-    // bottom: 0-1-2, 0-2-3
-    // slope: 0-4-1, 0-3-5, 3-5-0 => no, let me think
-    // The ramp surface goes from back-bottom to front-top
-    // slope face: 0,3 (back bottom) → 4,5 (front top)
     g.setIndex([
       // bottom
       0, 2, 1,  0, 3, 2,
@@ -452,15 +432,16 @@ interface Particle {
   type: 'spark' | 'debris' | 'smoke'
 }
 
-function Particles({ particles }: { particles: Particle[] }) {
+function Particles({ particlesRef }: { particlesRef: React.RefObject<Particle[]> }) {
   const meshRef = useRef<THREE.InstancedMesh>(null)
   const dummy = useMemo(() => new THREE.Object3D(), [])
   const maxParticles = 200
 
   useFrame(() => {
     if (!meshRef.current) return
+    const ps = particlesRef.current
     for (let i = 0; i < maxParticles; i++) {
-      const p = particles[i]
+      const p = ps[i]
       if (p && p.life > 0) {
         dummy.position.set(p.x, p.y, p.z)
         const s = p.size * (p.life / p.maxLife)
@@ -512,7 +493,6 @@ function Scene({ gameState, onUpdate, onPlaceTrap }: SceneProps) {
   const derailBodies = useRef<Record<string, DerailBody>>({})
   const carDamage = useRef<Record<string, DamageEvent[]>>({})
   const particles = useRef<Particle[]>([])
-  const [particleSnapshot, setParticleSnapshot] = useState<Particle[]>([])
 
   const stateRef = useRef(gameState)
   stateRef.current = gameState
@@ -530,6 +510,7 @@ function Scene({ gameState, onUpdate, onPlaceTrap }: SceneProps) {
     const gs = stateRef.current
     if (gs.status !== 'playing') return
 
+    const level = getLevel(gs.level)
     const dev = gs.devControls
 
     // Decelerate after crash
@@ -574,7 +555,10 @@ function Scene({ gameState, onUpdate, onPlaceTrap }: SceneProps) {
 
       // Apply speed boost from oil slicks
       if (totalSpeedBoost > 0) {
-        updates.trainSpeed = (updates.trainSpeed ?? currentSpeedMult) * totalSpeedBoost
+        updates.trainSpeed = Math.min(
+          (updates.trainSpeed ?? currentSpeedMult) * totalSpeedBoost,
+          5.0
+        )
       }
 
       // Only mark crashed if there are actual derailments
@@ -903,10 +887,6 @@ function Scene({ gameState, onUpdate, onPlaceTrap }: SceneProps) {
       if (p.y < 0) { p.y = 0; p.vy = 0; p.vx *= 0.5; p.vz *= 0.5 }
       return true
     })
-    // Snapshot for rendering (avoid re-creating array every frame)
-    if (particles.current.length > 0 || particleSnapshot.length > 0) {
-      setParticleSnapshot([...particles.current])
-    }
 
     const carsForScore = updates.cars ?? gs.cars
     updates.score = scoreFromDerailments(carsForScore)
@@ -973,7 +953,7 @@ function Scene({ gameState, onUpdate, onPlaceTrap }: SceneProps) {
         <TrapMarker key={trap.id} trap={trap} />
       ))}
 
-      <Particles particles={particleSnapshot} />
+      <Particles particlesRef={particles} />
     </>
   )
 }
@@ -1251,8 +1231,6 @@ function DevPanel({
 
 // ── Main Game Component ────────────────────────────────────
 
-let trapId = 0
-
 export default function TrainwreckGame() {
   const [gameState, setGameState] = useState<GameState>(() => ({
     ...initLevel(1),
@@ -1270,7 +1248,6 @@ export default function TrainwreckGame() {
           (next as Record<string, unknown>)[key] = value
         }
       }
-      gameRef.current = next
       return next
     })
   }, [])
@@ -1287,7 +1264,7 @@ export default function TrainwreckGame() {
         )
 
         const newTrap: PlacedTrap = {
-          id: `trap-${++trapId}`,
+          id: crypto.randomUUID(),
           type: prev.selectedTool,
           position: [x, RAIL_HEIGHT, 0],
           triggered: false,

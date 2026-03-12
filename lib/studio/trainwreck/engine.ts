@@ -1,9 +1,8 @@
 import { GameState, TrainCar, Tool, CarType, CAR_CONFIG, TOOL_CONFIG, PlacedTrap, TrapEffect, DEFAULT_DEV_CONTROLS } from './types'
 import { LEVELS, CAR_GAP, TRAIN_START_OFFSET } from './config'
 
-let nextId = 0
 function uid() {
-  return `tw-${++nextId}`
+  return crypto.randomUUID()
 }
 
 export function buildTrain(carTypes: CarType[]): TrainCar[] {
