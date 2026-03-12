@@ -2,7 +2,7 @@
 
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import { OrbitControls } from '@react-three/drei'
-import { useState, useRef, useCallback, useMemo, useEffect } from 'react'
+import React, { useState, useRef, useCallback, useMemo, useEffect } from 'react'
 import * as THREE from 'three'
 import {
   GameState,
@@ -300,6 +300,67 @@ function TrainCarMesh({
   )
 }
 
+/** True wedge geometry — flat at -X, rises to peak at +X */
+const RampWedge = React.forwardRef<THREE.Mesh, { color: string }>(function RampWedge({ color }, ref) {
+  const geo = useMemo(() => {
+    // Wedge: 2.5 long, 1.3 wide, peaks at 0.8 high on the +X side
+    const w = 0.65, len = 1.25, h = 0.8
+    // 6 vertices: bottom quad + top edge (the peak)
+    const vertices = new Float32Array([
+      // bottom face (y=0)
+      -len, 0, -w,   // 0: back-left
+       len, 0, -w,   // 1: front-left
+       len, 0,  w,   // 2: front-right
+      -len, 0,  w,   // 3: back-right
+      // top edge (y=h, at +X end)
+       len, h, -w,   // 4: top-left
+       len, h,  w,   // 5: top-right
+    ])
+    const indices = [
+      // bottom
+      0, 2, 1,  0, 3, 2,
+      // slope (main ramp surface)
+      0, 1, 4,  0, 4, 3,  3, 4, 5,
+      // front face (+X side, vertical)
+      1, 2, 5,  1, 5, 4,
+      // left side (-Z)
+      0, 4, 1,
+      // right side (+Z)
+      3, 5, 2,  3, 2, 0,  // close the back too
+      // back face (-X, triangle)
+      0, 5, 3,  0, 4, 5,  // wait, that's the slope
+    ]
+    // Simpler approach: use indexed BufferGeometry with explicit triangles
+    const g = new THREE.BufferGeometry()
+    g.setAttribute('position', new THREE.BufferAttribute(vertices, 3))
+    // Faces:
+    // bottom: 0-1-2, 0-2-3
+    // slope: 0-4-1, 0-3-5, 3-5-0 => no, let me think
+    // The ramp surface goes from back-bottom to front-top
+    // slope face: 0,3 (back bottom) → 4,5 (front top)
+    g.setIndex([
+      // bottom
+      0, 2, 1,  0, 3, 2,
+      // ramp slope (from back-bottom to front-top)
+      0, 4, 5,  0, 5, 3,
+      // front vertical face (+X)
+      1, 2, 5,  1, 5, 4,
+      // left side (-Z): triangle 0,1,4
+      0, 1, 4,
+      // right side (+Z): triangle 3,5,2
+      3, 5, 2,
+    ])
+    g.computeVertexNormals()
+    return g
+  }, [])
+
+  return (
+    <mesh ref={ref} geometry={geo} position={[0, 0.01, 0]} castShadow>
+      <meshStandardMaterial color={color} metalness={0.3} roughness={0.6} side={THREE.DoubleSide} />
+    </mesh>
+  )
+})
+
 const TRAP_COLORS: Record<ToolType, string> = {
   'rail-remover': '#ffaa00',
   'explosive': '#ff4400',
@@ -343,18 +404,7 @@ function TrapMarker({ trap }: { trap: PlacedTrap }) {
           <pointLight position={[0, 0.8, 0]} color={color} intensity={5} distance={10} />
         </>
       ) : trap.type === 'ramp' ? (
-        <>
-          {/* Ramp wedge — slopes up in +X (train travel direction) */}
-          <mesh ref={meshRef} position={[0.2, 0.35, 0]} rotation={[0, 0, Math.PI / 6]}>
-            <boxGeometry args={[2.0, 0.15, 1.2]} />
-            <meshStandardMaterial color={color} metalness={0.3} roughness={0.6} />
-          </mesh>
-          {/* Support block under the low end */}
-          <mesh position={[-0.6, 0.1, 0]}>
-            <boxGeometry args={[0.8, 0.2, 1.2]} />
-            <meshStandardMaterial color={color} metalness={0.3} roughness={0.6} />
-          </mesh>
-        </>
+        <RampWedge ref={meshRef} color={color} />
       ) : trap.type === 'oil-slick' ? (
         <>
           {/* Flat puddle on the track */}
