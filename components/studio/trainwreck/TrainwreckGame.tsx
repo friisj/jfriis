@@ -651,13 +651,14 @@ function Scene({ gameState, onUpdate, onPlaceTrap }: SceneProps) {
             }
 
             case 'ramp':
-              // Sky-high launch: massive upward, strong forward, minimal lateral
-              body.vx = forwardSpeed * (0.8 + Math.random() * 0.4) * inverseMass * 2.5
-              body.vy = force * (3.0 + Math.random() * 2.0) * inverseMass * 2
-              body.vz = (Math.random() - 0.5) * spread * 0.5 * inverseMass // tight grouping
-              body.vRotX = (Math.random() - 0.5) * spread * 1.5 * inverseMass
-              body.vRotY = (Math.random() - 0.5) * spread * 0.5 * inverseMass
-              body.vRotZ = (Math.random() - 0.5) * spread * 4 * inverseMass // barrel roll!
+              // Ramp converts forward kinetic energy into upward launch
+              // Mass doesn't reduce launch — heavier = more momentum hitting the ramp
+              body.vx = forwardSpeed * (0.8 + Math.random() * 0.4)
+              body.vy = forwardSpeed * (1.2 + Math.random() * 0.8) + force * 2
+              body.vz = (Math.random() - 0.5) * spread * 0.4 // tight grouping
+              body.vRotX = (Math.random() - 0.5) * 1.5
+              body.vRotY = (Math.random() - 0.5) * 0.5
+              body.vRotZ = (Math.random() - 0.5) * spread * 3 // barrel roll!
               break
 
             case 'decoupler':
