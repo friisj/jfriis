@@ -6,18 +6,36 @@ import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/lib/supabase';
 import type { SceneProps } from '@/lib/luv/stage/types';
 import { getModuleVariables } from '@/lib/luv/template-engine';
-import { composeInitialPrompt } from '@/lib/luv/stage/prompt-composer';
 
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
-interface GeneratedImage {
+interface GenerationResult {
+  id: string;
   url: string;
   storagePath: string;
-  metadata: Record<string, unknown>;
-  annotation?: 'up' | 'down' | null;
+  providerConfig: Record<string, unknown>;
+  createdAt: string;
+  moduleSnapshot: Record<string, unknown>;
+  annotations: ParameterAnnotation[];
+}
+
+interface ParameterAnnotation {
+  id?: string;
+  module_slug: string;
+  parameter_key: string;
+  rating: 'accurate' | 'inaccurate' | 'uncertain';
   note?: string;
+  source: 'human' | 'agent';
+}
+
+interface GenerationResultRow {
+  id: string;
+  storage_path: string;
+  provider_config: Record<string, unknown>;
+  module_snapshot: Record<string, unknown>;
+  created_at: string;
 }
 
 interface SavedTemplate {
@@ -32,6 +50,45 @@ interface SavedTemplate {
 
 type FluxModel = 'flux-2-dev' | 'flux-2-pro';
 type AspectRatio = '1:1' | '16:9' | '9:16' | '3:2' | '2:3' | '4:5' | '5:4' | '3:4' | '4:3';
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+function getPublicUrl(storagePath: string) {
+  const { data } = supabase.storage.from('luv-images').getPublicUrl(storagePath);
+  return data.publicUrl;
+}
+
+/** Build a frozen snapshot of scoped module parameters for storage */
+function buildModuleSnapshot(
+  modules: SceneProps['chassisModules']
+): Record<string, Record<string, unknown>> {
+  const snapshot: Record<string, Record<string, unknown>> = {};
+  for (const mod of modules) {
+    snapshot[mod.slug] = mod.parameters;
+  }
+  return snapshot;
+}
+
+/** Extract flat parameter entries from a module snapshot for annotation UI */
+function getSnapshotParameters(
+  snapshot: Record<string, unknown>,
+  moduleSlugs: string[]
+): Array<{ moduleSlug: string; key: string; value: unknown }> {
+  const params: Array<{ moduleSlug: string; key: string; value: unknown }> = [];
+  for (const slug of moduleSlugs) {
+    const modParams = snapshot[slug];
+    if (modParams && typeof modParams === 'object') {
+      for (const [key, value] of Object.entries(modParams as Record<string, unknown>)) {
+        if (value !== null && value !== undefined && value !== '') {
+          params.push({ moduleSlug: slug, key, value });
+        }
+      }
+    }
+  }
+  return params;
+}
 
 // ---------------------------------------------------------------------------
 // Scene Component
@@ -54,27 +111,71 @@ export default function PromptPlaygroundScene({
   // Generation state
   const [generating, setGenerating] = useState(false);
   const [generationError, setGenerationError] = useState<string | null>(null);
-  const [results, setResults] = useState<GeneratedImage[]>([]);
-  const [inspectedImage, setInspectedImage] = useState<GeneratedImage | null>(null);
+  const [results, setResults] = useState<GenerationResult[]>([]);
+  const [inspectedResult, setInspectedResult] = useState<GenerationResult | null>(null);
 
   // Saved templates
   const [savedTemplates, setSavedTemplates] = useState<SavedTemplate[]>([]);
   const [showHistory, setShowHistory] = useState(false);
   const [savingTemplate, setSavingTemplate] = useState(false);
 
-  // Module scope — narrow to focus module when mounted from a chassis module tab
+  // Module scope
   const scopedModules = focusModule
     ? chassisModules.filter((m) => m.slug === focusModule)
     : chassisModules;
   const moduleSlugs = scopedModules.map((m) => m.slug);
   const variables = getModuleVariables(templateContext, moduleSlugs);
 
-  // Auto-compose prompt on mount
+  // Load past generation results on mount
+  const loadResults = useCallback(async () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let query = (supabase as any)
+      .from('luv_generation_results')
+      .select('*')
+      .eq('scene_slug', 'prompt-playground')
+      .order('created_at', { ascending: false })
+      .limit(20);
+
+    if (focusModule) {
+      query = query.contains('module_slugs', [focusModule]);
+    }
+
+    const { data } = await query;
+    if (!data) return;
+
+    // Load annotations for these results
+    const resultIds = (data as GenerationResultRow[]).map((r) => r.id);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: annotations } = resultIds.length > 0
+      ? await (supabase as any)
+          .from('luv_parameter_annotations')
+          .select('*')
+          .in('generation_result_id', resultIds)
+      : { data: [] };
+
+    const annotationsByResult = new Map<string, ParameterAnnotation[]>();
+    for (const a of (annotations ?? [])) {
+      const list = annotationsByResult.get(a.generation_result_id) ?? [];
+      list.push(a);
+      annotationsByResult.set(a.generation_result_id, list);
+    }
+
+    setResults(
+      (data as GenerationResultRow[]).map((row) => ({
+        id: row.id,
+        url: getPublicUrl(row.storage_path),
+        storagePath: row.storage_path,
+        providerConfig: row.provider_config,
+        createdAt: row.created_at,
+        moduleSnapshot: row.module_snapshot,
+        annotations: annotationsByResult.get(row.id) ?? [],
+      }))
+    );
+  }, [focusModule]);
+
   useEffect(() => {
-    const initial = composeInitialPrompt(scopedModules);
-    setPromptText(initial);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [focusModule, chassisModules]);
+    loadResults();
+  }, [loadResults]);
 
   // Load saved templates
   const loadTemplates = useCallback(async () => {
@@ -101,6 +202,8 @@ export default function PromptPlaygroundScene({
     setGenerating(true);
     setGenerationError(null);
 
+    const moduleSnapshot = buildModuleSnapshot(scopedModules);
+
     try {
       const res = await fetch('/api/luv/generate', {
         method: 'POST',
@@ -110,6 +213,10 @@ export default function PromptPlaygroundScene({
           model: activeModel,
           aspectRatio,
           count,
+          sceneSlug: 'prompt-playground',
+          moduleSlugs,
+          moduleSnapshot,
+          promptSource: 'manual',
         }),
       });
 
@@ -120,18 +227,64 @@ export default function PromptPlaygroundScene({
       }
 
       const data = await res.json();
-      const newImages: GeneratedImage[] = (data.images ?? []).map(
-        (img: { url: string; storagePath: string; metadata: Record<string, unknown> }) => ({
+      const newResults: GenerationResult[] = (data.images ?? []).map(
+        (img: { id: string; url: string; storagePath: string; providerConfig: Record<string, unknown>; createdAt: string }) => ({
           ...img,
-          annotation: null,
-          note: '',
+          moduleSnapshot,
+          annotations: [],
         })
       );
-      setResults((prev) => [...newImages, ...prev]);
+      setResults((prev) => [...newResults, ...prev]);
     } catch (err) {
       setGenerationError(err instanceof Error ? err.message : 'Unknown error');
     } finally {
       setGenerating(false);
+    }
+  }
+
+  // Parameter annotation — persisted to DB
+  async function annotateParameter(
+    resultId: string,
+    moduleSlug: string,
+    parameterKey: string,
+    rating: 'accurate' | 'inaccurate' | 'uncertain',
+  ) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data } = await (supabase as any)
+      .from('luv_parameter_annotations')
+      .upsert(
+        {
+          generation_result_id: resultId,
+          module_slug: moduleSlug,
+          parameter_key: parameterKey,
+          rating,
+          source: 'human',
+        },
+        { onConflict: 'generation_result_id,module_slug,parameter_key,source' }
+      )
+      .select()
+      .single();
+
+    if (data) {
+      setResults((prev) =>
+        prev.map((r) => {
+          if (r.id !== resultId) return r;
+          const existing = r.annotations.filter(
+            (a) => !(a.module_slug === moduleSlug && a.parameter_key === parameterKey && a.source === 'human')
+          );
+          return { ...r, annotations: [...existing, data] };
+        })
+      );
+      // Update inspected result if it's the one being annotated
+      if (inspectedResult?.id === resultId) {
+        setInspectedResult((prev) => {
+          if (!prev) return prev;
+          const existing = prev.annotations.filter(
+            (a) => !(a.module_slug === moduleSlug && a.parameter_key === parameterKey && a.source === 'human')
+          );
+          return { ...prev, annotations: [...existing, data] };
+        });
+      }
     }
   }
 
@@ -143,7 +296,6 @@ export default function PromptPlaygroundScene({
     const name = templateName.trim() || `Prompt ${new Date().toLocaleString()}`;
     const moduleSlug = moduleSlugs[0] ?? 'general';
 
-    // Get next version for this module
     const existing = savedTemplates.filter((t) => t.module_slug === moduleSlug);
     const nextVersion = existing.length > 0
       ? Math.max(...existing.map((t) => t.version)) + 1
@@ -169,7 +321,6 @@ export default function PromptPlaygroundScene({
     setSavingTemplate(false);
   }
 
-  // Load template
   function loadTemplate(template: SavedTemplate) {
     setPromptText(template.template_text);
     if (template.provider_config.model) {
@@ -180,27 +331,15 @@ export default function PromptPlaygroundScene({
     }
   }
 
-  // Delete template
   async function deleteTemplate(id: string) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     await (supabase as any).from('luv_prompt_templates').delete().eq('id', id);
     setSavedTemplates((prev) => prev.filter((t) => t.id !== id));
   }
 
-  // Annotate image (local only)
-  function annotateImage(index: number, annotation: 'up' | 'down' | null) {
-    setResults((prev) =>
-      prev.map((img, i) =>
-        i === index ? { ...img, annotation: img.annotation === annotation ? null : annotation } : img
-      )
-    );
-  }
-
   return (
     <div className="space-y-5">
-      {/* ----------------------------------------------------------------- */}
-      {/* Variable Chips                                                     */}
-      {/* ----------------------------------------------------------------- */}
+      {/* Variable Chips */}
       {variables.length > 0 && (
         <div className="space-y-1.5">
           <div className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
@@ -222,9 +361,7 @@ export default function PromptPlaygroundScene({
         </div>
       )}
 
-      {/* ----------------------------------------------------------------- */}
-      {/* Template Editor                                                    */}
-      {/* ----------------------------------------------------------------- */}
+      {/* Template Editor */}
       <div className="space-y-2">
         <textarea
           value={promptText}
@@ -252,11 +389,8 @@ export default function PromptPlaygroundScene({
         </div>
       </div>
 
-      {/* ----------------------------------------------------------------- */}
-      {/* Generation Controls                                                */}
-      {/* ----------------------------------------------------------------- */}
+      {/* Generation Controls */}
       <div className="flex flex-wrap items-center gap-3">
-        {/* Model selector */}
         <div className="flex items-center gap-1.5">
           <label className="text-[10px] text-muted-foreground">Model</label>
           <select
@@ -268,8 +402,6 @@ export default function PromptPlaygroundScene({
             <option value="flux-2-pro">Flux 2 Pro</option>
           </select>
         </div>
-
-        {/* Aspect ratio */}
         <div className="flex items-center gap-1.5">
           <label className="text-[10px] text-muted-foreground">Ratio</label>
           <select
@@ -278,14 +410,10 @@ export default function PromptPlaygroundScene({
             className="rounded-md border bg-background px-2 py-1 text-xs"
           >
             {(['1:1', '16:9', '9:16', '3:2', '2:3', '4:5', '5:4', '3:4', '4:3'] as const).map(
-              (r) => (
-                <option key={r} value={r}>{r}</option>
-              )
+              (r) => <option key={r} value={r}>{r}</option>
             )}
           </select>
         </div>
-
-        {/* Count */}
         <div className="flex items-center gap-1.5">
           <label className="text-[10px] text-muted-foreground">Count</label>
           <select
@@ -293,13 +421,9 @@ export default function PromptPlaygroundScene({
             onChange={(e) => setCount(Number(e.target.value))}
             className="rounded-md border bg-background px-2 py-1 text-xs"
           >
-            {[1, 2, 3, 4].map((n) => (
-              <option key={n} value={n}>{n}</option>
-            ))}
+            {[1, 2, 3, 4].map((n) => <option key={n} value={n}>{n}</option>)}
           </select>
         </div>
-
-        {/* Generate button */}
         <Button
           size="sm"
           onClick={handleGenerate}
@@ -315,107 +439,64 @@ export default function PromptPlaygroundScene({
         </div>
       )}
 
-      {/* ----------------------------------------------------------------- */}
-      {/* Results Grid                                                       */}
-      {/* ----------------------------------------------------------------- */}
+      {/* Results Grid */}
       {results.length > 0 && (
         <div className="space-y-2">
           <div className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
             Results ({results.length})
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-            {results.map((img, i) => (
-              <div key={`${img.storagePath}-${i}`} className="space-y-1">
+            {results.map((result) => {
+              const annotationCount = result.annotations.length;
+              const inaccurateCount = result.annotations.filter((a) => a.rating === 'inaccurate').length;
+              return (
                 <button
+                  key={result.id}
                   type="button"
-                  onClick={() => setInspectedImage(inspectedImage === img ? null : img)}
+                  onClick={() => setInspectedResult(inspectedResult?.id === result.id ? null : result)}
                   className={`relative w-full aspect-square rounded-md overflow-hidden border-2 transition-all ${
-                    inspectedImage === img
+                    inspectedResult?.id === result.id
                       ? 'border-primary ring-1 ring-primary'
                       : 'border-transparent hover:border-muted-foreground/30'
                   }`}
                 >
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
-                    src={img.url}
-                    alt={`Generated ${i + 1}`}
+                    src={result.url}
+                    alt="Generated"
                     className="w-full h-full object-cover"
                   />
-                  {img.annotation && (
-                    <span className="absolute top-1 right-1 text-sm">
-                      {img.annotation === 'up' ? '\u2705' : '\u274C'}
+                  {/* Annotation summary badge */}
+                  {annotationCount > 0 && (
+                    <span className={`absolute top-1 right-1 text-[9px] px-1 rounded text-white ${
+                      inaccurateCount > 0 ? 'bg-red-500' : 'bg-green-500'
+                    }`}>
+                      {inaccurateCount > 0 ? `${inaccurateCount} off` : `${annotationCount} ok`}
                     </span>
                   )}
-                  {img.metadata.seed != null && (
+                  {result.providerConfig.seed != null && (
                     <span className="absolute bottom-0.5 left-0.5 text-[9px] bg-black/60 text-white px-1 rounded font-mono">
-                      {String(img.metadata.seed)}
+                      {String(result.providerConfig.seed)}
                     </span>
                   )}
                 </button>
-                {/* Quick annotation buttons */}
-                <div className="flex gap-1 justify-center">
-                  <button
-                    type="button"
-                    onClick={() => annotateImage(i, 'up')}
-                    className={`px-2 py-0.5 rounded text-[10px] transition-colors ${
-                      img.annotation === 'up'
-                        ? 'bg-green-500 text-white'
-                        : 'bg-muted hover:bg-muted/80'
-                    }`}
-                  >
-                    Good
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => annotateImage(i, 'down')}
-                    className={`px-2 py-0.5 rounded text-[10px] transition-colors ${
-                      img.annotation === 'down'
-                        ? 'bg-red-500 text-white'
-                        : 'bg-muted hover:bg-muted/80'
-                    }`}
-                  >
-                    Bad
-                  </button>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}
 
-      {/* ----------------------------------------------------------------- */}
-      {/* Inspected Image Detail                                             */}
-      {/* ----------------------------------------------------------------- */}
-      {inspectedImage && (
-        <div className="rounded-md border p-3 space-y-2">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-medium">Image Detail</span>
-            <button
-              type="button"
-              onClick={() => setInspectedImage(null)}
-              className="text-xs text-muted-foreground hover:text-foreground"
-            >
-              Close
-            </button>
-          </div>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={inspectedImage.url}
-            alt="Inspected"
-            className="w-full max-h-96 object-contain rounded"
-          />
-          <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-[10px] text-muted-foreground font-mono">
-            <span>Model: {String(inspectedImage.metadata.model)}</span>
-            <span>Ratio: {String(inspectedImage.metadata.aspectRatio)}</span>
-            <span>Seed: {inspectedImage.metadata.seed != null ? String(inspectedImage.metadata.seed) : 'random'}</span>
-            <span>Duration: {String(inspectedImage.metadata.durationMs)}ms</span>
-          </div>
-        </div>
+      {/* Inspected Result — parameter-level annotation */}
+      {inspectedResult && (
+        <InspectedResultDetail
+          result={inspectedResult}
+          moduleSlugs={moduleSlugs}
+          onAnnotate={annotateParameter}
+          onClose={() => setInspectedResult(null)}
+        />
       )}
 
-      {/* ----------------------------------------------------------------- */}
-      {/* Prompt History                                                      */}
-      {/* ----------------------------------------------------------------- */}
+      {/* Saved Templates */}
       <div className="space-y-2">
         <button
           type="button"
@@ -424,40 +505,27 @@ export default function PromptPlaygroundScene({
         >
           Saved Templates ({savedTemplates.length}) {showHistory ? '\u25B2' : '\u25BC'}
         </button>
-
         {showHistory && (
           <div className="space-y-1.5">
             {savedTemplates.length === 0 && (
               <p className="text-xs text-muted-foreground py-2">
-                No saved templates yet. Save a prompt to see it here.
+                No saved templates yet.
               </p>
             )}
             {savedTemplates.map((t) => (
-              <div
-                key={t.id}
-                className="flex items-start gap-2 rounded-md border p-2 group"
-              >
+              <div key={t.id} className="flex items-start gap-2 rounded-md border p-2 group">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-1.5">
                     <span className="text-xs font-medium truncate">{t.name}</span>
-                    <Badge variant="outline" className="text-[9px] shrink-0">
-                      v{t.version}
-                    </Badge>
-                    <Badge variant="outline" className="text-[9px] shrink-0">
-                      {t.module_slug}
-                    </Badge>
+                    <Badge variant="outline" className="text-[9px] shrink-0">v{t.version}</Badge>
+                    <Badge variant="outline" className="text-[9px] shrink-0">{t.module_slug}</Badge>
                   </div>
                   <p className="text-[10px] text-muted-foreground mt-0.5 line-clamp-2 font-mono">
                     {t.template_text}
                   </p>
                 </div>
                 <div className="flex gap-1 shrink-0">
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    className="h-6 px-2 text-[10px]"
-                    onClick={() => loadTemplate(t)}
-                  >
+                  <Button size="sm" variant="ghost" className="h-6 px-2 text-[10px]" onClick={() => loadTemplate(t)}>
                     Load
                   </Button>
                   <Button
@@ -474,6 +542,115 @@ export default function PromptPlaygroundScene({
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Inspected Result — parameter-level annotations
+// ---------------------------------------------------------------------------
+
+function InspectedResultDetail({
+  result,
+  moduleSlugs,
+  onAnnotate,
+  onClose,
+}: {
+  result: GenerationResult;
+  moduleSlugs: string[];
+  onAnnotate: (resultId: string, moduleSlug: string, paramKey: string, rating: 'accurate' | 'inaccurate' | 'uncertain') => void;
+  onClose: () => void;
+}) {
+  const params = getSnapshotParameters(result.moduleSnapshot, moduleSlugs);
+
+  function getAnnotation(moduleSlug: string, key: string): ParameterAnnotation | undefined {
+    return result.annotations.find(
+      (a) => a.module_slug === moduleSlug && a.parameter_key === key && a.source === 'human'
+    );
+  }
+
+  return (
+    <div className="rounded-md border p-3 space-y-3">
+      <div className="flex items-center justify-between">
+        <span className="text-xs font-medium">Parameter Review</span>
+        <button
+          type="button"
+          onClick={onClose}
+          className="text-xs text-muted-foreground hover:text-foreground"
+        >
+          Close
+        </button>
+      </div>
+
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={result.url}
+        alt="Inspected"
+        className="w-full max-h-80 object-contain rounded"
+      />
+
+      {/* Generation metadata */}
+      <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-[10px] text-muted-foreground font-mono">
+        <span>Model: {String(result.providerConfig.model)}</span>
+        <span>Ratio: {String(result.providerConfig.aspectRatio)}</span>
+        <span>Seed: {result.providerConfig.seed != null ? String(result.providerConfig.seed) : 'random'}</span>
+        <span>Duration: {String(result.providerConfig.durationMs)}ms</span>
+      </div>
+
+      {/* Parameter annotations */}
+      {params.length > 0 ? (
+        <div className="space-y-1">
+          <div className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
+            Parameter Accuracy
+          </div>
+          <div className="space-y-0.5">
+            {params.map(({ moduleSlug, key, value }) => {
+              const annotation = getAnnotation(moduleSlug, key);
+              const currentRating = annotation?.rating;
+
+              return (
+                <div
+                  key={`${moduleSlug}.${key}`}
+                  className="flex items-center gap-2 py-1 px-2 rounded hover:bg-muted/30 transition-colors"
+                >
+                  <span className="text-[10px] font-mono text-muted-foreground w-28 truncate shrink-0" title={`${moduleSlug}.${key}`}>
+                    {moduleSlug === moduleSlugs[0] && moduleSlugs.length === 1
+                      ? key
+                      : `${moduleSlug}.${key}`}
+                  </span>
+                  <span className="text-[10px] flex-1 truncate" title={String(value)}>
+                    {String(value)}
+                  </span>
+                  <div className="flex gap-0.5 shrink-0">
+                    {(['accurate', 'inaccurate', 'uncertain'] as const).map((rating) => (
+                      <button
+                        key={rating}
+                        type="button"
+                        onClick={() => onAnnotate(result.id, moduleSlug, key, rating)}
+                        className={`px-1.5 py-0.5 rounded text-[9px] transition-colors ${
+                          currentRating === rating
+                            ? rating === 'accurate'
+                              ? 'bg-green-500 text-white'
+                              : rating === 'inaccurate'
+                                ? 'bg-red-500 text-white'
+                                : 'bg-yellow-500 text-white'
+                            : 'bg-muted hover:bg-muted/80 text-muted-foreground'
+                        }`}
+                      >
+                        {rating === 'accurate' ? 'OK' : rating === 'inaccurate' ? 'Off' : '?'}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      ) : (
+        <p className="text-[10px] text-muted-foreground">
+          No module parameters captured for this generation.
+        </p>
+      )}
     </div>
   );
 }
