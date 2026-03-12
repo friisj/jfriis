@@ -80,12 +80,16 @@ function PartMesh({
   darkenFactor,
   baseColorOverride,
   bodyGeoRef,
+  emissiveColor,
+  emissiveIntensity,
 }: {
   part: CarPart
   damageLevel: number
   darkenFactor: number
   baseColorOverride?: string
   bodyGeoRef?: React.RefObject<THREE.BufferGeometry | null>
+  emissiveColor?: string
+  emissiveIntensity?: number
 }) {
   const roughnessBoost = damageLevel * 0.5
   const color = baseColorOverride && part.isMainBody ? baseColorOverride : part.color
@@ -130,6 +134,8 @@ function PartMesh({
         toneMapped
         opacity={isTransparent ? Math.max(0.2, 1 - damageLevel) : undefined}
         transparent={isTransparent && damageLevel > 0}
+        emissive={emissiveColor}
+        emissiveIntensity={emissiveIntensity ?? 0}
       />
     </mesh>
   )
@@ -156,12 +162,16 @@ export function TrainCarMesh({
   pose,
   derailOffset,
   damageEvents,
+  ruptured,
+  burning,
 }: {
   car: TrainCar
   x: number
   pose?: CarPose
   derailOffset: { x: number; y: number; z: number; rotX: number; rotY: number; rotZ: number }
   damageEvents: DamageEvent[]
+  ruptured?: boolean
+  burning?: boolean
 }) {
   const baseY = WHEEL_RADIUS * 2 + car.height / 2 + RAIL_HEIGHT
   const isDerailed = derailOffset.y !== 0 || derailOffset.z !== 0 || derailOffset.rotX !== 0 || derailOffset.rotY !== 0 || derailOffset.rotZ !== 0
@@ -203,6 +213,10 @@ export function TrainCarMesh({
 
   const carGeo = useMemo(() => getCarGeometry(car.type), [car.type])
 
+  // Emissive effects for tanker
+  const tankerEmissive = burning ? '#ff4400' : ruptured ? '#ff8800' : undefined
+  const tankerEmissiveIntensity = burning ? 1.5 : ruptured ? 0.6 : 0
+
   // Bogie Y offset: bottom of car body minus bogie height
   const bogieY = -car.height / 2 - 0.06
 
@@ -216,6 +230,8 @@ export function TrainCarMesh({
           darkenFactor={darkenFactor}
           baseColorOverride={car.derailed ? '#ff4444' : undefined}
           bodyGeoRef={part.isMainBody ? bodyGeoRef : undefined}
+          emissiveColor={car.type === 'tanker' ? tankerEmissive : undefined}
+          emissiveIntensity={car.type === 'tanker' ? tankerEmissiveIntensity : undefined}
         />
       ))}
 

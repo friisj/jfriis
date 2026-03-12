@@ -255,6 +255,8 @@ export function Scene({ gameState, onUpdate, onPlaceTrap, trackPath }: SceneProp
               x={body.worldX}
               derailOffset={{ x: 0, y: body.y, z: body.z, rotX: body.rotX, rotY: body.rotY, rotZ: body.rotZ }}
               damageEvents={damage}
+              ruptured={body.ruptured}
+              burning={body.burning}
             />
           )
         }
