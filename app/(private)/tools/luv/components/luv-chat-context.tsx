@@ -66,15 +66,29 @@ export function LuvChatProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const setPageData = useCallback((data: Record<string, unknown> | null) => {
-    setPageDataState(data);
+    if (data === null) {
+      setPageDataState(null);
+    } else {
+      // Merge with existing pageData so nested components can add fields
+      // without clobbering each other (e.g. StagePlayer sets activeScene,
+      // scene component adds recentGenerations).
+      setPageDataState((prev) => (prev ? { ...prev, ...data } : data));
+    }
   }, []);
 
   // Build the page context snapshot — always fresh from current state
+  // When a scene is active (via StagePlayer), derive viewLabel from it
+  // instead of the pathname (which still points to the parent page).
+  const activeScene = pageData?.activeScene as { slug?: string; name?: string } | undefined;
+  const viewLabel = activeScene?.name
+    ? `Stage / ${activeScene.name}`
+    : pathnameToLabel(pathname);
+
   const pageContext: LuvPageContext = {
     timestamp: new Date().toISOString(),
     pathname,
-    viewLabel: pathnameToLabel(pathname),
-    space: resolveSpace(pathname),
+    viewLabel,
+    space: activeScene ? 'stage' : resolveSpace(pathname),
     ...(pageData && { pageData }),
   };
 
