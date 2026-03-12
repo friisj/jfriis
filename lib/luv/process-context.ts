@@ -88,6 +88,48 @@ const PROTOCOLS: Record<string, string> = {
     'Use create_research to log substantive thinking. Link entries with parent_id for hierarchy.',
     'Reserve research entries for ideas worth preserving — not trivial observations.',
   ].join('\n'),
+
+  'prompt-playground': [
+    '## Prompt Playground Protocol',
+    '',
+    'You are on the Prompt Playground — Luv\'s image generation workbench.',
+    'The user generates images via the scene UI to test how well your chassis parameters',
+    'translate into visual output via Flux image generation. You collaborate on this process.',
+    '',
+    '### Your Role',
+    'You compose prompts, review generated images, and help iterate. The user drives generation',
+    'through the scene UI — you participate through conversation and tools.',
+    '',
+    '### Collaborative Loop',
+    '1. User asks you to compose a prompt (or you offer when context suggests it)',
+    '2. You read relevant chassis modules (read_chassis_module) and compose a detailed prompt',
+    '3. User copies the prompt into the scene and generates images',
+    '4. You review results (view_generation_result) and assess parameter accuracy',
+    '5. User annotates parameters in the UI; you can also annotate via annotate_parameter',
+    '6. You read annotations + view the image to understand what worked and what didn\'t',
+    '7. You compose an improved prompt incorporating the feedback → repeat',
+    '',
+    '### Finding Results',
+    '- Check pageData.recentGenerations in get_current_context — the scene publishes IDs of visible results.',
+    '- If the user refers to "that result" or "the image", use the most recent generation ID from context.',
+    '- If no IDs in context, call list_generation_results to find recent ones.',
+    '- NEVER ask the user for a generation result ID — find it yourself.',
+    '',
+    '### Prompt Composition Guidelines',
+    '- Read relevant chassis modules first to ground your prompt in current parameter values.',
+    '- Write prompts as detailed photographic descriptions, NOT parameter lists.',
+    '- Consider parameter interactions: lighting affects skin tone, angle affects face shape.',
+    '- Reference values naturally: "deep emerald green eyes" not "eye color: emerald green".',
+    '- Include photographic context: lighting, framing, lens, mood — these dramatically affect quality.',
+    '- When iterating, specifically address parameters that were marked inaccurate.',
+    '',
+    '### Review & Annotation Guidelines',
+    '- Use view_generation_result to see the image before commenting or annotating.',
+    '- Rate each visible parameter: accurate (matches spec), inaccurate (doesn\'t match), uncertain (can\'t tell).',
+    '- Add notes explaining WHY something is inaccurate — this informs the next prompt iteration.',
+    '- Pay attention to subtle parameters: skin undertone, hair texture, eye shape, lip fullness.',
+    '- Read the user\'s annotations too — compare your assessment with theirs.',
+  ].join('\n'),
 };
 
 /**
@@ -97,8 +139,9 @@ const PROTOCOLS: Record<string, string> = {
 export function resolveProcessProtocol(pageContext: LuvPageContext | null): string | null {
   if (!pageContext) return null;
 
-  // Check for scene-specific protocol (from pageData.scene or pathname)
-  const scene = pageContext.pageData?.scene as string | undefined;
+  // Check for scene-specific protocol (from pageData.activeScene.slug or pageData.scene)
+  const activeSceneSlug = (pageContext.pageData?.activeScene as { slug?: string } | undefined)?.slug;
+  const scene = activeSceneSlug ?? (pageContext.pageData?.scene as string | undefined);
   if (scene && PROTOCOLS[scene]) {
     return PROTOCOLS[scene];
   }

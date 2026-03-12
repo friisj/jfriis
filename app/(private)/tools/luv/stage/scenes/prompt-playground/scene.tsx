@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/lib/supabase';
 import type { SceneProps } from '@/lib/luv/stage/types';
 import { getModuleVariables } from '@/lib/luv/template-engine';
+import { useLuvChat } from '../../../components/luv-chat-context';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -99,6 +100,8 @@ export default function PromptPlaygroundScene({
   templateContext,
   focusModule,
 }: SceneProps) {
+  const { setPageData } = useLuvChat();
+
   // Prompt state
   const [promptText, setPromptText] = useState('');
   const [templateName, setTemplateName] = useState('');
@@ -176,6 +179,19 @@ export default function PromptPlaygroundScene({
   useEffect(() => {
     loadResults();
   }, [loadResults]);
+
+  // Publish recent result IDs to chat context so the agent can find them
+  useEffect(() => {
+    if (results.length === 0) return;
+    setPageData({
+      recentGenerations: results.slice(0, 5).map((r) => ({
+        id: r.id,
+        promptText: r.providerConfig.model ? `[${r.providerConfig.model}] ` : '' ,
+        createdAt: r.createdAt,
+      })),
+      inspectedResult: inspectedResult ? { id: inspectedResult.id } : null,
+    });
+  }, [results, inspectedResult, setPageData]);
 
   // Load saved templates
   const loadTemplates = useCallback(async () => {
@@ -366,7 +382,7 @@ export default function PromptPlaygroundScene({
         <textarea
           value={promptText}
           onChange={(e) => setPromptText(e.target.value)}
-          placeholder="Describe the image you want to generate..."
+          placeholder="Describe the image you want to generate, or ask Luv to compose a prompt..."
           rows={6}
           className="w-full rounded-md border bg-background px-3 py-2 text-sm font-mono resize-y leading-relaxed"
         />
@@ -442,8 +458,18 @@ export default function PromptPlaygroundScene({
       {/* Results Grid */}
       {results.length > 0 && (
         <div className="space-y-2">
-          <div className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
-            Results ({results.length})
+          <div className="flex items-center gap-2">
+            <div className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
+              Results ({results.length})
+            </div>
+            <button
+              type="button"
+              onClick={loadResults}
+              className="text-[10px] text-muted-foreground hover:text-foreground transition-colors"
+              title="Refresh results (e.g. after Luv annotates)"
+            >
+              Refresh
+            </button>
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
             {results.map((result) => {
