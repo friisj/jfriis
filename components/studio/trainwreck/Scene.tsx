@@ -186,6 +186,30 @@ export function Scene({ gameState, onUpdate, onPlaceTrap, trackPath }: SceneProp
     simulateCargoBodies(cargoBodies.current, delta, dev.gravity, dev.bounceRestitution)
     particles.current = updateParticles(particles.current, delta)
 
+    // Update car states from derail body physics
+    const stateUpdatedCars = (updates.cars ?? gs.cars).map((car) => {
+      const body = derailBodies.current[car.id]
+      if (!body) return car
+      let newState = car.state
+      if (car.state === 'on-track' && body.launched) {
+        newState = 'derailing'
+      }
+      if (car.state === 'derailing' && body.launched && body.y > 0.5) {
+        newState = 'airborne'
+      }
+      if ((car.state === 'derailing' || car.state === 'airborne') && body.grounded) {
+        newState = 'sliding'
+      }
+      if (car.state === 'sliding' && body.settled) {
+        newState = 'settled'
+      }
+      if (newState !== car.state) return { ...car, state: newState }
+      return car
+    })
+    if (stateUpdatedCars !== (updates.cars ?? gs.cars)) {
+      updates.cars = stateUpdatedCars
+    }
+
     const carsForScore = updates.cars ?? gs.cars
     updates.score = scoreFromDerailments(carsForScore)
 

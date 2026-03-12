@@ -339,6 +339,15 @@ export function simulateDerailBodies(
         }
       }
 
+      // Tanker: rupture on hard ground impact
+      if (body.carType === 'tanker' && !body.ruptured) {
+        const impactForce = Math.sqrt(body.vx * body.vx + body.vz * body.vz) + Math.abs(body.vy) * 0.5
+        if (impactForce > 3) {
+          body.ruptured = true
+          body.secondaryTimer = 3 // delay before secondary explosion
+        }
+      }
+
       // Settle when energy is low
       const totalV = Math.abs(body.vy) + Math.abs(body.vx) + Math.abs(body.vz)
       const totalRot = Math.abs(body.vRotX) + Math.abs(body.vRotY) + Math.abs(body.vRotZ)
@@ -347,6 +356,81 @@ export function simulateDerailBodies(
         body.vRotX = 0; body.vRotY = 0; body.vRotZ = 0
         body.settled = true
       }
+    }
+
+    // Tanker: drip liquid while ruptured and not yet exploded
+    if (body.carType === 'tanker' && body.ruptured && !body.burning) {
+      // Spawn liquid drip particles
+      if (Math.random() < 0.6) {
+        particles.push({
+          x: body.worldX + (Math.random() - 0.5) * body.length * 0.6,
+          y: body.y + 0.1,
+          z: body.z + (Math.random() - 0.5) * body.width * 0.6,
+          vx: (Math.random() - 0.5) * 0.5,
+          vy: -0.5 - Math.random(),
+          vz: (Math.random() - 0.5) * 0.5,
+          life: 2 + Math.random() * 2,
+          maxLife: 4,
+          size: 0.08 + Math.random() * 0.06,
+          color: '#557744',
+          type: 'liquid',
+        })
+      }
+
+      // Countdown to secondary explosion
+      body.secondaryTimer -= delta
+      if (body.secondaryTimer <= 0) {
+        body.burning = true
+        // Secondary explosion — spawn fire particles
+        for (let p = 0; p < 25; p++) {
+          particles.push({
+            x: body.worldX + (Math.random() - 0.5) * 1.5,
+            y: body.y + 0.5 + Math.random() * 1.5,
+            z: body.z + (Math.random() - 0.5) * 1.5,
+            vx: (Math.random() - 0.5) * 8,
+            vy: 3 + Math.random() * 6,
+            vz: (Math.random() - 0.5) * 8,
+            life: 1.5 + Math.random(),
+            maxLife: 2.5,
+            size: 0.2 + Math.random() * 0.2,
+            color: '#ff4400',
+            type: 'fire',
+          })
+        }
+
+        // Apply blast to nearby derail bodies
+        for (const [otherId, other] of bodyEntries) {
+          if (otherId === carId || other.settled) continue
+          const dx = other.worldX - body.worldX
+          const dy = other.y - body.y
+          const dz = other.z - body.z
+          const dist = Math.sqrt(dx * dx + dy * dy + dz * dz)
+          if (dist < 6 && dist > 0.1) {
+            const force = (1 - dist / 6) * 5
+            other.vx += (dx / dist) * force / other.mass
+            other.vy += Math.max(force / other.mass, 2)
+            other.vz += (dz / dist) * force / other.mass
+            other.settled = false
+          }
+        }
+      }
+    }
+
+    // Tanker: emit fire particles while burning
+    if (body.carType === 'tanker' && body.burning && Math.random() < 0.3) {
+      particles.push({
+        x: body.worldX + (Math.random() - 0.5) * body.length * 0.5,
+        y: body.y + 0.3 + Math.random() * 0.5,
+        z: body.z + (Math.random() - 0.5) * body.width * 0.5,
+        vx: (Math.random() - 0.5) * 1.5,
+        vy: 1 + Math.random() * 2,
+        vz: (Math.random() - 0.5) * 1.5,
+        life: 0.5 + Math.random() * 0.5,
+        maxLife: 1.0,
+        size: 0.1 + Math.random() * 0.1,
+        color: '#ff6600',
+        type: 'fire',
+      })
     }
 
     // Air drag
