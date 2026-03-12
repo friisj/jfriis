@@ -40,6 +40,7 @@ type AspectRatio = '1:1' | '16:9' | '9:16' | '3:2' | '2:3' | '4:5' | '5:4' | '3:
 export default function PromptPlaygroundScene({
   chassisModules,
   templateContext,
+  focusModule,
 }: SceneProps) {
   // Prompt state
   const [promptText, setPromptText] = useState('');
@@ -61,15 +62,19 @@ export default function PromptPlaygroundScene({
   const [showHistory, setShowHistory] = useState(false);
   const [savingTemplate, setSavingTemplate] = useState(false);
 
-  // Module scope — use all modules if scene has no required modules
-  const moduleSlugs = chassisModules.map((m) => m.slug);
+  // Module scope — narrow to focus module when mounted from a chassis module tab
+  const scopedModules = focusModule
+    ? chassisModules.filter((m) => m.slug === focusModule)
+    : chassisModules;
+  const moduleSlugs = scopedModules.map((m) => m.slug);
   const variables = getModuleVariables(templateContext, moduleSlugs);
 
   // Auto-compose prompt on mount
   useEffect(() => {
-    const initial = composeInitialPrompt(chassisModules);
+    const initial = composeInitialPrompt(scopedModules);
     setPromptText(initial);
-  }, [chassisModules]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [focusModule, chassisModules]);
 
   // Load saved templates
   const loadTemplates = useCallback(async () => {
