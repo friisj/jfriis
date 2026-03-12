@@ -48,7 +48,7 @@ insert into luv_scenes (
   'generative',
   array['prompt', 'image-gen', 'flux'],
   array[]::text[],
-  array[]::text[],
+  array['eyes','eyebrows','mouth','nose','ears','teeth-smile','facial-details','facial-profile','expression-range','hair','skin','shoulders-neck','torso','body-proportions','arms','hands','upper-legs','lower-legs','feet','hips-pelvis','bust','posterior','groin','perineum','posture','skeletal','skeletal-alignment','joints','deformation-dynamics','movement-dynamics','physiological-responses','voice']::text[],
   false,
   false,
   'dom',
