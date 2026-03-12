@@ -153,38 +153,133 @@ function Track({ length }: { length: number }) {
   )
 }
 
+// ── Damage / Deformation ──────────────────────────────────
+
+interface DamageEvent {
+  // Impact point in local car space
+  localX: number; localY: number; localZ: number
+  // Impact force (affects deformation radius and depth)
+  force: number
+}
+
+/** Apply a dent to a BufferGeometry at a local-space impact point */
+function applyDent(
+  geometry: THREE.BufferGeometry,
+  impact: DamageEvent,
+) {
+  const positions = geometry.attributes.position
+  const radius = 0.4 + impact.force * 0.15 // deformation radius
+  const depth = 0.05 + impact.force * 0.04 // max inward push
+
+  const center = new THREE.Vector3(impact.localX, impact.localY, impact.localZ)
+  const vertPos = new THREE.Vector3()
+
+  for (let i = 0; i < positions.count; i++) {
+    vertPos.set(
+      positions.getX(i),
+      positions.getY(i),
+      positions.getZ(i),
+    )
+
+    const dist = vertPos.distanceTo(center)
+    if (dist < radius) {
+      // Push vertex inward (toward center of car = origin)
+      const falloff = 1 - dist / radius
+      const strength = falloff * falloff * depth // quadratic falloff
+
+      // Direction: toward car center (0,0,0)
+      const dirToCenter = vertPos.clone().negate().normalize()
+      vertPos.addScaledVector(dirToCenter, strength)
+
+      // Add a bit of random jitter for organic look
+      vertPos.x += (Math.random() - 0.5) * strength * 0.3
+      vertPos.y += (Math.random() - 0.5) * strength * 0.3
+      vertPos.z += (Math.random() - 0.5) * strength * 0.3
+
+      positions.setXYZ(i, vertPos.x, vertPos.y, vertPos.z)
+    }
+  }
+
+  positions.needsUpdate = true
+  geometry.computeVertexNormals()
+}
+
 function TrainCarMesh({
   car,
   x,
   derailOffset,
+  damageEvents,
 }: {
   car: TrainCar
   x: number
   derailOffset: { x: number; y: number; z: number; rotX: number; rotY: number; rotZ: number }
+  damageEvents: DamageEvent[]
 }) {
   const baseY = WHEEL_RADIUS * 2 + car.height / 2 + RAIL_HEIGHT
   const y = baseY + derailOffset.y
   const z = derailOffset.z
   const cfg = CAR_CONFIG[car.type]
 
+  // Subdivided box geometry for deformable mesh (6 segments per axis)
+  const bodyGeoRef = useRef<THREE.BoxGeometry>(null)
+  const tankerGeoRef = useRef<THREE.CylinderGeometry>(null)
+  const appliedDamage = useRef(0)
+
+  // Apply new damage events to geometry
+  useFrame(() => {
+    if (appliedDamage.current >= damageEvents.length) return
+
+    for (let i = appliedDamage.current; i < damageEvents.length; i++) {
+      const evt = damageEvents[i]
+      if (bodyGeoRef.current) {
+        applyDent(bodyGeoRef.current, evt)
+      }
+      if (tankerGeoRef.current && car.type === 'tanker') {
+        applyDent(tankerGeoRef.current, evt)
+      }
+    }
+    appliedDamage.current = damageEvents.length
+  })
+
+  // Progressive color degradation based on damage
+  const damageLevel = Math.min(damageEvents.length / 5, 1) // 0-1
+  const baseColor = car.derailed ? '#ff4444' : cfg.color
+  const darkenFactor = 1 - damageLevel * 0.4
+  const roughnessBoost = damageLevel * 0.5
+
   return (
     <group position={[x + derailOffset.x, y, z]} rotation={[derailOffset.rotX, derailOffset.rotY, derailOffset.rotZ]}>
       <mesh castShadow>
-        <boxGeometry args={[car.length, car.height, car.width]} />
-        <meshStandardMaterial color={car.derailed ? '#ff4444' : cfg.color} />
+        <boxGeometry ref={bodyGeoRef} args={[car.length, car.height, car.width, 6, 4, 4]} />
+        <meshStandardMaterial
+          color={baseColor}
+          roughness={0.5 + roughnessBoost}
+          metalness={Math.max(0, 0.1 - damageLevel * 0.1)}
+          toneMapped
+        />
       </mesh>
 
       {car.type === 'tanker' && (
         <mesh castShadow rotation={[0, 0, Math.PI / 2]}>
-          <cylinderGeometry args={[car.width / 2 - 0.05, car.width / 2 - 0.05, car.length - 0.2, 12]} />
-          <meshStandardMaterial color={car.derailed ? '#ff6644' : '#8a9bae'} metalness={0.6} roughness={0.3} />
+          <cylinderGeometry ref={tankerGeoRef} args={[car.width / 2 - 0.05, car.width / 2 - 0.05, car.length - 0.2, 16, 6]} />
+          <meshStandardMaterial
+            color={car.derailed ? '#ff6644' : '#8a9bae'}
+            metalness={Math.max(0, 0.6 - damageLevel * 0.3)}
+            roughness={0.3 + roughnessBoost}
+          />
         </mesh>
       )}
 
       {car.type === 'locomotive' && (
         <mesh position={[car.length / 2 - 0.3, car.height / 4, 0]}>
           <boxGeometry args={[0.05, car.height / 3, car.width - 0.3]} />
-          <meshStandardMaterial color="#87CEEB" metalness={0.2} roughness={0.1} />
+          <meshStandardMaterial
+            color="#87CEEB"
+            metalness={0.2}
+            roughness={0.1}
+            opacity={Math.max(0.2, 1 - damageLevel)}
+            transparent={damageLevel > 0}
+          />
         </mesh>
       )}
 
@@ -197,7 +292,7 @@ function TrainCarMesh({
             castShadow
           >
             <cylinderGeometry args={[WHEEL_RADIUS, WHEEL_RADIUS, 0.08, 8]} />
-            <meshStandardMaterial color="#333" metalness={0.7} />
+            <meshStandardMaterial color={`hsl(0, 0%, ${33 * darkenFactor}%)`} metalness={0.7} />
           </mesh>
         ))
       )}
@@ -308,6 +403,7 @@ interface SceneProps {
 function Scene({ gameState, onUpdate, onPlaceTrap }: SceneProps) {
   const level = getLevel(gameState.level)
   const derailBodies = useRef<Record<string, DerailBody>>({})
+  const carDamage = useRef<Record<string, DamageEvent[]>>({})
   const particles = useRef<Particle[]>([])
   const [particleSnapshot, setParticleSnapshot] = useState<Particle[]>([])
 
@@ -318,6 +414,7 @@ function Scene({ gameState, onUpdate, onPlaceTrap }: SceneProps) {
   const prevCrashed = useRef(false)
   if (!gameState.crashed && prevCrashed.current) {
     derailBodies.current = {}
+    carDamage.current = {}
     particles.current = []
   }
   prevCrashed.current = gameState.crashed
@@ -470,6 +567,18 @@ function Scene({ gameState, onUpdate, onPlaceTrap }: SceneProps) {
         body.grounded = true
         body.bounceCount++
 
+        // Record damage event — impact on the underside, biased by velocity
+        const impactForce = Math.sqrt(body.vx * body.vx + body.vz * body.vz) + Math.abs(body.vy) * 0.5
+        if (impactForce > 0.5) {
+          if (!carDamage.current[carId]) carDamage.current[carId] = []
+          carDamage.current[carId].push({
+            localX: (Math.random() - 0.5) * body.length * 0.8,
+            localY: -body.height / 2 + (Math.random() - 0.5) * body.height * 0.3,
+            localZ: (Math.random() - 0.5) * body.width * 0.8,
+            force: Math.min(impactForce, 5),
+          })
+        }
+
         // Mass-based friction: heavier cars slide further
         const frictionMult = 0.5 + (body.mass / 16) // 0.5 – 1.0
         body.vx *= frictionMult
@@ -571,6 +680,27 @@ function Scene({ gameState, onUpdate, onPlaceTrap }: SceneProps) {
           b.worldX -= nx * sepB
           b.y -= ny * sepB
           b.z -= nz * sepB
+
+          // Record collision damage on both cars
+          const collisionForce = Math.abs(relDotN) * 0.5
+          if (collisionForce > 0.3) {
+            const idA = bodyEntries[i][0]
+            const idB = bodyEntries[j][0]
+            if (!carDamage.current[idA]) carDamage.current[idA] = []
+            if (!carDamage.current[idB]) carDamage.current[idB] = []
+            carDamage.current[idA].push({
+              localX: -nx * a.length * 0.3,
+              localY: -ny * a.height * 0.3,
+              localZ: -nz * a.width * 0.3,
+              force: Math.min(collisionForce / a.mass * 3, 4),
+            })
+            carDamage.current[idB].push({
+              localX: nx * b.length * 0.3,
+              localY: ny * b.height * 0.3,
+              localZ: nz * b.width * 0.3,
+              force: Math.min(collisionForce / b.mass * 3, 4),
+            })
+          }
         }
       }
     }
@@ -629,6 +759,7 @@ function Scene({ gameState, onUpdate, onPlaceTrap }: SceneProps) {
 
       {gameState.cars.map((car, i) => {
         const body = derailBodies.current[car.id]
+        const damage = carDamage.current[car.id] ?? []
         if (body && body.launched) {
           return (
             <TrainCarMesh
@@ -636,6 +767,7 @@ function Scene({ gameState, onUpdate, onPlaceTrap }: SceneProps) {
               car={car}
               x={body.worldX}
               derailOffset={{ x: 0, y: body.y, z: body.z, rotX: body.rotX, rotY: body.rotY, rotZ: body.rotZ }}
+              damageEvents={damage}
             />
           )
         }
@@ -645,6 +777,7 @@ function Scene({ gameState, onUpdate, onPlaceTrap }: SceneProps) {
             car={car}
             x={carPositions[i]}
             derailOffset={{ x: 0, y: 0, z: 0, rotX: 0, rotY: 0, rotZ: 0 }}
+            damageEvents={damage}
           />
         )
       })}
