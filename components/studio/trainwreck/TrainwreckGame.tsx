@@ -11,6 +11,8 @@ import {
   PlacedTrap,
   ToolType,
   CameraMode,
+  DevControls,
+  DEFAULT_DEV_CONTROLS,
 } from '@/lib/studio/trainwreck/types'
 import {
   TRACK_GAUGE,
@@ -158,7 +160,7 @@ function TrainCarMesh({
 }: {
   car: TrainCar
   x: number
-  derailOffset: { y: number; z: number; rotX: number; rotZ: number }
+  derailOffset: { x: number; y: number; z: number; rotX: number; rotY: number; rotZ: number }
 }) {
   const baseY = WHEEL_RADIUS * 2 + car.height / 2 + RAIL_HEIGHT
   const y = baseY + derailOffset.y
@@ -166,7 +168,7 @@ function TrainCarMesh({
   const cfg = CAR_CONFIG[car.type]
 
   return (
-    <group position={[x, y, z]} rotation={[derailOffset.rotX, 0, derailOffset.rotZ]}>
+    <group position={[x + derailOffset.x, y, z]} rotation={[derailOffset.rotX, derailOffset.rotY, derailOffset.rotZ]}>
       <mesh castShadow>
         <boxGeometry args={[car.length, car.height, car.width]} />
         <meshStandardMaterial color={car.derailed ? '#ff4444' : cfg.color} />
@@ -246,9 +248,14 @@ interface SceneProps {
 
 function Scene({ gameState, onUpdate, onPlaceTrap }: SceneProps) {
   const level = getLevel(gameState.level)
-  const derailAnimations = useRef<Record<string, { y: number; z: number; rotX: number; rotZ: number; vy: number; vz: number; vRotX: number; vRotZ: number }>>(
-    {}
-  )
+  const derailAnimations = useRef<Record<string, {
+    x: number; y: number; z: number
+    rotX: number; rotY: number; rotZ: number
+    vx: number; vy: number; vz: number
+    vRotX: number; vRotY: number; vRotZ: number
+    grounded: boolean
+    settled: boolean
+  }>>({})
 
   const stateRef = useRef(gameState)
   stateRef.current = gameState
@@ -257,14 +264,16 @@ function Scene({ gameState, onUpdate, onPlaceTrap }: SceneProps) {
     const gs = stateRef.current
     if (gs.status !== 'playing') return
 
+    const dev = gs.devControls
+
     // Decelerate after crash
     let currentSpeedMult = gs.trainSpeed
     if (gs.crashed) {
-      currentSpeedMult = Math.max(0, currentSpeedMult - delta * 0.8)
+      currentSpeedMult = Math.max(0, currentSpeedMult - delta * dev.brakeRate)
     }
 
-    const speed = level.trainSpeed * currentSpeedMult
-    const totalTravel = level.trackLength + 80 // full travel distance
+    const speed = level.trainSpeed * dev.speedMultiplier * currentSpeedMult
+    const totalTravel = level.trackLength + 80
     const progressDelta = (speed * delta) / totalTravel
     const newProgress = Math.min(gs.trainProgress + progressDelta, 1)
 
@@ -293,48 +302,99 @@ function Scene({ gameState, onUpdate, onPlaceTrap }: SceneProps) {
 
       for (const carId of derailedCarIds) {
         if (!derailAnimations.current[carId]) {
+          const force = dev.derailForce
+          const spread = dev.derailSpread
+          // Inherit forward momentum from train speed at derailment
+          const forwardSpeed = speed * (0.7 + Math.random() * 0.6)
           derailAnimations.current[carId] = {
-            y: 0, z: 0, rotX: 0, rotZ: 0,
-            vy: 2 + Math.random() * 3,
-            vz: (Math.random() - 0.5) * 4,
-            vRotX: (Math.random() - 0.5) * 3,
-            vRotZ: (Math.random() - 0.5) * 2,
+            x: 0, y: 0, z: 0,
+            rotX: 0, rotY: 0, rotZ: 0,
+            vx: forwardSpeed * (0.3 + Math.random() * 0.7),
+            vy: force * (0.6 + Math.random() * 0.8),
+            vz: (Math.random() - 0.5) * spread * 3,
+            vRotX: (Math.random() - 0.5) * spread * 3,
+            vRotY: (Math.random() - 0.5) * spread * 2,
+            vRotZ: (Math.random() - 0.5) * spread * 3,
+            grounded: false,
+            settled: false,
           }
         }
       }
     }
 
-    // Animate derailed cars
+    // Animate derailed cars — independent tumbling physics
+    const gravity = dev.gravity
+    const bounce = dev.bounceRestitution
     for (const [, anim] of Object.entries(derailAnimations.current)) {
-      anim.vy -= 9.81 * delta
+      if (anim.settled) continue
+
+      // Apply gravity
+      anim.vy -= gravity * delta
+
+      // Update positions
+      anim.x += anim.vx * delta
       anim.y += anim.vy * delta
       anim.z += anim.vz * delta
+
+      // Update rotations
       anim.rotX += anim.vRotX * delta
+      anim.rotY += anim.vRotY * delta
       anim.rotZ += anim.vRotZ * delta
 
+      // Ground collision
       if (anim.y < 0) {
         anim.y = 0
-        anim.vy = Math.abs(anim.vy) * 0.3
-        anim.vz *= 0.7
-        anim.vRotX *= 0.5
-        anim.vRotZ *= 0.5
-        if (Math.abs(anim.vy) < 0.3) {
+        anim.vy = Math.abs(anim.vy) * bounce
+        anim.grounded = true
+
+        // Friction on ground contact
+        anim.vx *= 0.6
+        anim.vz *= 0.6
+        anim.vRotX *= 0.4
+        anim.vRotY *= 0.4
+        anim.vRotZ *= 0.4
+
+        // Settle when energy is low
+        const totalV = Math.abs(anim.vy) + Math.abs(anim.vx) + Math.abs(anim.vz)
+        const totalRot = Math.abs(anim.vRotX) + Math.abs(anim.vRotY) + Math.abs(anim.vRotZ)
+        if (totalV < 0.4 && totalRot < 0.3) {
           anim.vy = 0
+          anim.vx = 0
           anim.vz = 0
           anim.vRotX = 0
+          anim.vRotY = 0
           anim.vRotZ = 0
+          anim.settled = true
         }
       }
+
+      // Air drag (slight)
+      if (!anim.grounded) {
+        anim.vx *= 0.998
+        anim.vz *= 0.998
+      }
+      anim.grounded = false
     }
 
     const carsForScore = updates.cars ?? gs.cars
     updates.score = scoreFromDerailments(carsForScore)
 
-    // Level ends when: train exits (progress >= 1) OR train fully stopped after crash
+    // Start end timer when train exits or fully stops after crash
     const trainStopped = gs.crashed && currentSpeedMult <= 0.01
-    if (newProgress >= 1 || trainStopped) {
-      updates.status = (updates.score ?? 0) >= level.pointGoal ? 'won' : 'lost'
-      updates.trainSpeed = 0
+    const levelShouldEnd = newProgress >= 1 || trainStopped
+
+    if (levelShouldEnd && gs.endTimer === 0 && gs.status === 'playing') {
+      // Start the countdown — 3 seconds to watch the carnage
+      updates.endTimer = 3
+      if (trainStopped) updates.trainSpeed = 0
+    } else if (gs.endTimer > 0) {
+      const remaining = gs.endTimer - delta
+      if (remaining <= 0) {
+        updates.status = (updates.score ?? gs.score) >= level.pointGoal ? 'won' : 'lost'
+        updates.endTimer = 0
+      } else {
+        updates.endTimer = remaining
+      }
     }
 
     onUpdate(updates)
@@ -353,7 +413,7 @@ function Scene({ gameState, onUpdate, onPlaceTrap }: SceneProps) {
       <ClickPlane enabled={canPlace} onPlace={onPlaceTrap} />
 
       {gameState.cars.map((car, i) => {
-        const anim = derailAnimations.current[car.id] ?? { y: 0, z: 0, rotX: 0, rotZ: 0 }
+        const anim = derailAnimations.current[car.id] ?? { x: 0, y: 0, z: 0, rotX: 0, rotY: 0, rotZ: 0 }
         return <TrainCarMesh key={car.id} car={car} x={carPositions[i]} derailOffset={anim} />
       })}
 
@@ -557,6 +617,83 @@ function HUD({
   )
 }
 
+// ── Dev Panel ──────────────────────────────────────────────
+
+interface SliderParam {
+  key: keyof DevControls
+  label: string
+  min: number
+  max: number
+  step: number
+}
+
+const PARAMS: SliderParam[] = [
+  { key: 'speedMultiplier', label: 'Speed', min: 0.1, max: 3, step: 0.1 },
+  { key: 'derailForce', label: 'Derail Force', min: 0.5, max: 8, step: 0.25 },
+  { key: 'derailSpread', label: 'Derail Spread', min: 0.1, max: 5, step: 0.1 },
+  { key: 'brakeRate', label: 'Brake Rate', min: 0.1, max: 3, step: 0.1 },
+  { key: 'gravity', label: 'Gravity', min: 2, max: 30, step: 0.5 },
+  { key: 'bounceRestitution', label: 'Bounce', min: 0, max: 0.9, step: 0.05 },
+  { key: 'toolUses', label: 'Tool Uses', min: 1, max: 10, step: 1 },
+]
+
+function DevPanel({
+  controls,
+  onChange,
+  onReset,
+}: {
+  controls: DevControls
+  onChange: (key: keyof DevControls, value: number) => void
+  onReset: () => void
+}) {
+  const [open, setOpen] = useState(false)
+
+  return (
+    <div className="absolute top-4 left-4 pointer-events-auto" style={{ top: '60px' }}>
+      <button
+        onClick={() => setOpen(!open)}
+        className="bg-black/70 text-white/70 px-3 py-1.5 rounded-lg text-xs font-mono hover:bg-black/90 hover:text-white transition-colors"
+      >
+        {open ? 'x' : 'DEV'}
+      </button>
+
+      {open && (
+        <div className="mt-2 bg-black/85 backdrop-blur-sm rounded-lg p-3 w-56 space-y-2.5">
+          <div className="flex items-center justify-between mb-1">
+            <span className="text-white/60 text-[10px] font-mono uppercase tracking-wider">Physics Tuning</span>
+            <button
+              onClick={onReset}
+              className="text-[10px] text-white/40 hover:text-white/70 font-mono"
+            >
+              reset
+            </button>
+          </div>
+
+          {PARAMS.map(({ key, label, min, max, step }) => (
+            <div key={key}>
+              <div className="flex justify-between text-[11px] mb-0.5">
+                <span className="text-white/60 font-mono">{label}</span>
+                <span className="text-yellow-400/80 font-mono tabular-nums">{controls[key].toFixed(step < 1 ? (step < 0.1 ? 2 : 1) : 0)}</span>
+              </div>
+              <input
+                type="range"
+                min={min}
+                max={max}
+                step={step}
+                value={controls[key]}
+                onChange={(e) => onChange(key, parseFloat(e.target.value))}
+                className="w-full h-1 appearance-none bg-white/10 rounded-full cursor-pointer
+                  [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3
+                  [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-yellow-400"
+              />
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ── Main Game Component ────────────────────────────────────
 
 let trapId = 0
@@ -619,28 +756,57 @@ export default function TrainwreckGame() {
     setGameState((prev) => ({ ...prev, cameraMode: mode }))
   }, [])
 
-  const handleStartLevel = useCallback(() => {
+  const handleDevChange = useCallback((key: keyof DevControls, value: number) => {
     setGameState((prev) => ({
-      ...initLevel(prev.level),
-      status: 'playing',
-      totalScore: prev.totalScore,
+      ...prev,
+      devControls: { ...prev.devControls, [key]: value },
     }))
+  }, [])
+
+  const handleDevReset = useCallback(() => {
+    setGameState((prev) => ({
+      ...prev,
+      devControls: DEFAULT_DEV_CONTROLS,
+    }))
+  }, [])
+
+  const handleStartLevel = useCallback(() => {
+    setGameState((prev) => {
+      const base = initLevel(prev.level)
+      return {
+        ...base,
+        status: 'playing' as const,
+        totalScore: prev.totalScore,
+        devControls: prev.devControls,
+        tools: base.tools.map((t) => ({ ...t, uses: prev.devControls.toolUses })),
+      }
+    })
   }, [])
 
   const handleNextLevel = useCallback(() => {
-    setGameState((prev) => ({
-      ...initLevel(prev.level + 1),
-      status: 'idle',
-      totalScore: prev.totalScore + prev.score,
-    }))
+    setGameState((prev) => {
+      const base = initLevel(prev.level + 1)
+      return {
+        ...base,
+        status: 'idle' as const,
+        totalScore: prev.totalScore + prev.score,
+        devControls: prev.devControls,
+        tools: base.tools.map((t) => ({ ...t, uses: prev.devControls.toolUses })),
+      }
+    })
   }, [])
 
   const handleRestart = useCallback(() => {
-    setGameState((prev) => ({
-      ...initLevel(prev.level),
-      status: 'playing',
-      totalScore: prev.totalScore,
-    }))
+    setGameState((prev) => {
+      const base = initLevel(prev.level)
+      return {
+        ...base,
+        status: 'playing' as const,
+        totalScore: prev.totalScore,
+        devControls: prev.devControls,
+        tools: base.tools.map((t) => ({ ...t, uses: prev.devControls.toolUses })),
+      }
+    })
   }, [])
 
   const level = getLevel(gameState.level)
@@ -688,6 +854,12 @@ export default function TrainwreckGame() {
         onNextLevel={handleNextLevel}
         onRestart={handleRestart}
         onSetCamera={handleSetCamera}
+      />
+
+      <DevPanel
+        controls={gameState.devControls}
+        onChange={handleDevChange}
+        onReset={handleDevReset}
       />
     </div>
   )

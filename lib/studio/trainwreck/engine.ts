@@ -1,4 +1,4 @@
-import { GameState, TrainCar, Tool, CarType, CAR_CONFIG, TOOL_CONFIG, PlacedTrap } from './types'
+import { GameState, TrainCar, Tool, CarType, CAR_CONFIG, TOOL_CONFIG, PlacedTrap, DEFAULT_DEV_CONTROLS } from './types'
 import { LEVELS, CAR_GAP, TRAIN_START_OFFSET } from './config'
 
 let nextId = 0
@@ -47,6 +47,8 @@ export function initLevel(levelNumber: number): GameState {
     selectedTool: level.availableTools[0] ?? null,
     placedTraps: [],
     cameraMode: 'free',
+    devControls: DEFAULT_DEV_CONTROLS,
+    endTimer: 0,
   }
 }
 

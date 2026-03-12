@@ -34,6 +34,26 @@ export interface Level {
 
 export type CameraMode = 'free' | 'follow' | 'overview'
 
+export interface DevControls {
+  speedMultiplier: number     // 0.1 – 3.0 (scales level train speed)
+  derailForce: number         // 0.5 – 5.0 (launch velocity on derail)
+  derailSpread: number        // 0.1 – 3.0 (lateral scatter)
+  brakeRate: number           // 0.2 – 3.0 (deceleration after crash)
+  gravity: number             // 5 – 20 (fall speed of derailed cars)
+  bounceRestitution: number   // 0 – 0.8 (bounciness on ground hit)
+  toolUses: number            // 1 – 5 (uses per tool)
+}
+
+export const DEFAULT_DEV_CONTROLS: DevControls = {
+  speedMultiplier: 1,
+  derailForce: 3,
+  derailSpread: 2,
+  brakeRate: 0.8,
+  gravity: 9.81,
+  bounceRestitution: 0.3,
+  toolUses: 1,
+}
+
 export interface GameState {
   status: 'idle' | 'playing' | 'won' | 'lost'
   level: number
@@ -47,6 +67,8 @@ export interface GameState {
   selectedTool: ToolType | null
   placedTraps: PlacedTrap[]
   cameraMode: CameraMode
+  devControls: DevControls
+  endTimer: number // seconds remaining before showing end screen (0 = not counting)
 }
 
 export interface PlacedTrap {
