@@ -25,6 +25,10 @@ const registry: Record<string, ComponentType<SceneProps>> = {
     () => import('@/app/(private)/tools/luv/stage/scenes/reinforcement-review/scene'),
     { ssr: false }
   ),
+  'prompt-playground': dynamic(
+    () => import('@/app/(private)/tools/luv/stage/scenes/prompt-playground/scene'),
+    { ssr: false }
+  ),
 };
 
 export function getSceneComponent(componentKey: string): ComponentType<SceneProps> | null {
