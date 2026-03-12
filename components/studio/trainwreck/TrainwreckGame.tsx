@@ -511,18 +511,29 @@ function Scene({ gameState, onUpdate, onPlaceTrap }: SceneProps) {
       // Collect all derailed car IDs and triggered trap IDs across all effects
       const allDerailedIds = new Set<string>()
       const allTriggeredTrapIds = new Set<string>()
+      let totalSpeedBoost = 0
       for (const effect of effects) {
         allTriggeredTrapIds.add(effect.trapId)
         for (const cid of effect.derailedCarIds) allDerailedIds.add(cid)
+        if (effect.speedBoost) totalSpeedBoost += effect.speedBoost
       }
 
-      updates.cars = gs.cars.map((c) =>
-        allDerailedIds.has(c.id) ? { ...c, derailed: true } : c
-      )
       updates.placedTraps = gs.placedTraps.map((t) =>
         allTriggeredTrapIds.has(t.id) ? { ...t, triggered: true } : t
       )
-      updates.crashed = true
+
+      // Apply speed boost from oil slicks
+      if (totalSpeedBoost > 0) {
+        updates.trainSpeed = (updates.trainSpeed ?? currentSpeedMult) * totalSpeedBoost
+      }
+
+      // Only mark crashed if there are actual derailments
+      if (allDerailedIds.size > 0) {
+        updates.cars = gs.cars.map((c) =>
+          allDerailedIds.has(c.id) ? { ...c, derailed: true } : c
+        )
+        updates.crashed = true
+      }
 
       // Process each effect with tool-specific physics
       for (const effect of effects) {
@@ -575,18 +586,17 @@ function Scene({ gameState, onUpdate, onPlaceTrap }: SceneProps) {
               break
 
             case 'explosive': {
-              // Blast: high upward force, radial scatter away from explosion center
-              const distFromBlast = carPositions[carIdx] - trapX
-              const blastDir = distFromBlast >= 0 ? 1 : -1
-              const proximity = Math.max(0.3, 1 - Math.abs(distFromBlast) / 6) // closer = stronger
+              // Use radial blast vectors computed by the engine
+              const bf = effect.blastForces?.[carId] ?? { fx: 0, fy: 1, fz: 0 }
+              const blastMag = force * 3
 
-              body.vx = blastDir * force * 2.5 * proximity * inverseMass
-              body.vy = force * (2.0 + Math.random() * 1.5) * proximity * inverseMass
-              body.vz = (Math.random() - 0.5) * spread * 5 * inverseMass
+              body.vx = bf.fx * blastMag * inverseMass
+              body.vy = bf.fy * blastMag * (1.5 + Math.random() * 1.0) * inverseMass
+              body.vz = bf.fz * spread * 4 * inverseMass
               body.vRotX = (Math.random() - 0.5) * spread * 5 * inverseMass
               body.vRotY = (Math.random() - 0.5) * spread * 4 * inverseMass
               body.vRotZ = (Math.random() - 0.5) * spread * 5 * inverseMass
-              body.cascadeDelay = Math.abs(distFromBlast) * 0.02 // near-simultaneous
+              body.cascadeDelay = 0 // simultaneous blast
               break
             }
 
@@ -629,6 +639,23 @@ function Scene({ gameState, onUpdate, onPlaceTrap }: SceneProps) {
               maxLife: 2.5,
               size: toolType === 'explosive' ? 0.2 + Math.random() * 0.2 : 0.15 + Math.random() * 0.15,
               color: particleColor,
+              type: 'debris',
+            })
+          }
+        }
+
+        // Oil slick: splash particles (no derailment)
+        if (toolType === 'oil-slick') {
+          for (let p = 0; p < 10; p++) {
+            particles.current.push({
+              x: trapX + (Math.random() - 0.5) * 2, y: 0.1, z: (Math.random() - 0.5) * 1.5,
+              vx: (Math.random() - 0.5) * 3,
+              vy: Math.random() * 2 + 0.5,
+              vz: (Math.random() - 0.5) * 3,
+              life: 0.6 + Math.random() * 0.4,
+              maxLife: 1.0,
+              size: 0.08 + Math.random() * 0.06,
+              color: '#44ff88',
               type: 'debris',
             })
           }

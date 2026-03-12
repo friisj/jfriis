@@ -85,6 +85,10 @@ export interface TrapEffect {
   trapX: number
   impactCarIdx: number
   derailedCarIds: string[]
+  /** Per-car blast vectors for explosive (carId → force vector) */
+  blastForces?: Record<string, { fx: number; fy: number; fz: number }>
+  /** Speed multiplier change for oil-slick */
+  speedBoost?: number
 }
 
 export const CAR_CONFIG: Record<CarType, { points: number; width: number; height: number; length: number; color: string; mass: number }> = {
@@ -100,6 +104,6 @@ export const TOOL_CONFIG: Record<ToolType, { name: string; description: string }
   'explosive': { name: 'Explosive', description: 'Blast radius — launches nearby cars in all directions' },
   'ramp': { name: 'Ramp', description: 'Launches cars sky-high with massive forward momentum' },
   'curve-tightener': { name: 'Curve Tightener', description: 'Sharpen a bend dangerously' },
-  'oil-slick': { name: 'Oil Slick', description: 'Reduce friction on a curve' },
+  'oil-slick': { name: 'Oil Slick', description: 'Speeds up the train — harder to stop after a crash' },
   'decoupler': { name: 'Decoupler', description: 'Surgical — derails only the single car that hits it' },
 }

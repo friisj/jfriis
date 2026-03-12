@@ -91,6 +91,77 @@ export function checkTrapCollisions(
     if (trap.triggered) continue
     const trapX = trap.position[0]
 
+    // Explosive uses proximity trigger (detonates before contact)
+    if (trap.type === 'explosive') {
+      // Find closest non-derailed car within trigger distance
+      let closestIdx = -1
+      let closestDist = Infinity
+      for (let i = 0; i < cars.length; i++) {
+        if (alreadyDerailed.has(cars[i].id)) continue
+        const dist = Math.abs(carPositions[i] - trapX)
+        if (dist < EXPLOSIVE_BLAST_RADIUS * 0.6 && dist < closestDist) {
+          closestDist = dist
+          closestIdx = i
+        }
+      }
+      if (closestIdx < 0) continue
+
+      // Blast all cars within radius — compute radial force vectors
+      const derailedCarIds: string[] = []
+      const blastForces: Record<string, { fx: number; fy: number; fz: number }> = {}
+
+      for (let j = 0; j < cars.length; j++) {
+        if (alreadyDerailed.has(cars[j].id)) continue
+        const dx = carPositions[j] - trapX
+        const dist = Math.abs(dx)
+        if (dist < EXPLOSIVE_BLAST_RADIUS + cars[j].length / 2) {
+          derailedCarIds.push(cars[j].id)
+          alreadyDerailed.add(cars[j].id)
+
+          // Hemispherical radial force — stronger when closer
+          const proximity = Math.max(0.2, 1 - dist / EXPLOSIVE_BLAST_RADIUS)
+          const dirX = dist < 0.1 ? (Math.random() - 0.5) * 2 : dx / dist // normalize
+          blastForces[cars[j].id] = {
+            fx: dirX * proximity,      // push away horizontally
+            fy: proximity,             // push up (hemisphere)
+            fz: (Math.random() - 0.5), // random lateral scatter
+          }
+        }
+      }
+
+      effects.push({
+        trapId: trap.id,
+        toolType: 'explosive',
+        trapX,
+        impactCarIdx: closestIdx,
+        derailedCarIds,
+        blastForces,
+      })
+      continue
+    }
+
+    // Oil slick uses contact trigger but doesn't derail
+    if (trap.type === 'oil-slick') {
+      for (let i = 0; i < cars.length; i++) {
+        if (alreadyDerailed.has(cars[i].id)) continue
+        const carX = carPositions[i]
+        const halfLen = cars[i].length / 2
+        if (trapX >= carX - halfLen && trapX <= carX + halfLen) {
+          effects.push({
+            trapId: trap.id,
+            toolType: 'oil-slick',
+            trapX,
+            impactCarIdx: i,
+            derailedCarIds: [],
+            speedBoost: 1.8, // 80% speed increase
+          })
+          break
+        }
+      }
+      continue
+    }
+
+    // Contact-based triggers for remaining tools
     for (let i = 0; i < cars.length; i++) {
       if (alreadyDerailed.has(cars[i].id)) continue
       const carX = carPositions[i]
@@ -101,7 +172,6 @@ export function checkTrapCollisions(
 
         switch (trap.type) {
           case 'rail-remover':
-          case 'oil-slick':
           case 'curve-tightener':
             // Derail hit car + all behind
             for (let j = i; j < cars.length; j++) {
@@ -112,20 +182,8 @@ export function checkTrapCollisions(
             }
             break
 
-          case 'explosive':
-            // Blast radius — derail all cars within range of the explosion
-            for (let j = 0; j < cars.length; j++) {
-              if (alreadyDerailed.has(cars[j].id)) continue
-              const dist = Math.abs(carPositions[j] - trapX)
-              if (dist < EXPLOSIVE_BLAST_RADIUS + cars[j].length / 2) {
-                derailedCarIds.push(cars[j].id)
-                alreadyDerailed.add(cars[j].id)
-              }
-            }
-            break
-
           case 'ramp':
-            // Launch the hit car + all behind (like rail-remover but with different physics)
+            // Launch the hit car + all behind
             for (let j = i; j < cars.length; j++) {
               if (!alreadyDerailed.has(cars[j].id)) {
                 derailedCarIds.push(cars[j].id)
