@@ -1,5 +1,83 @@
-import { GameState, TrainCar, DamageEvent, DerailBody, Particle, CarPose, CAR_CONFIG, TrapEffect } from './types'
+import { GameState, TrainCar, Coupling, DamageEvent, DerailBody, Particle, CarPose, CAR_CONFIG, TrapEffect, CargoBody } from './types'
 import { TrackPath } from './track'
+import { CAR_GAP, COUPLING_STIFFNESS, COUPLING_DAMPING, COUPLING_BREAK_FORCE } from './config'
+
+/**
+ * Simulate spring-damper couplings between cars.
+ * Locomotive is driven by headDistance; each subsequent car follows via spring forces.
+ * Returns updated CarPose[] for all cars.
+ */
+export function simulateCouplings(
+  cars: TrainCar[],
+  couplings: Coupling[],
+  headDistance: number,
+  trackPath: TrackPath,
+  carPathDistances: number[],
+  carVelocities: number[],
+  delta: number,
+  baseSpeed: number,
+): CarPose[] {
+  // Locomotive always driven by head distance
+  carPathDistances[0] = headDistance - cars[0].length / 2
+  carVelocities[0] = baseSpeed
+
+  // Apply spring-damper forces between coupled cars
+  for (let i = 0; i < couplings.length; i++) {
+    const coupling = couplings[i]
+    if (!coupling.intact) continue
+    if (cars[i].derailed || cars[i + 1].derailed) continue
+
+    const frontD = carPathDistances[i]
+    const rearD = carPathDistances[i + 1]
+    const restLength = cars[i].length / 2 + CAR_GAP + cars[i + 1].length / 2
+    const actualDist = frontD - rearD
+    const extension = actualDist - restLength
+    coupling.extension = extension
+
+    const relVel = carVelocities[i] - carVelocities[i + 1]
+    const force = COUPLING_STIFFNESS * extension + COUPLING_DAMPING * relVel
+
+    if (Math.abs(force) > COUPLING_BREAK_FORCE) {
+      coupling.intact = false
+      continue
+    }
+
+    // Apply force to rear car (front car is pulled by locomotive chain)
+    const rearMass = CAR_CONFIG[cars[i + 1].type].mass
+    carVelocities[i + 1] += (force / rearMass) * delta
+  }
+
+  // Apply friction deceleration to cars behind broken couplings
+  for (let i = 1; i < cars.length; i++) {
+    if (cars[i].derailed) continue
+    // Check if any coupling in the chain from loco to this car is broken
+    let connected = true
+    for (let j = 0; j < i; j++) {
+      if (!couplings[j].intact) { connected = false; break }
+    }
+    if (!connected) {
+      carVelocities[i] = Math.max(0, carVelocities[i] - 0.5 * delta)
+    }
+  }
+
+  // Update path distances from velocities
+  for (let i = 1; i < cars.length; i++) {
+    if (cars[i].derailed) continue
+    carPathDistances[i] += carVelocities[i] * delta
+  }
+
+  // Build poses from individual path distances
+  const poses: CarPose[] = []
+  for (let i = 0; i < cars.length; i++) {
+    const d = carPathDistances[i]
+    poses.push({
+      position: trackPath.getPointAt(d),
+      quaternion: trackPath.getQuaternionAt(d),
+      pathDistance: d,
+    })
+  }
+  return poses
+}
 
 /**
  * Process trap effects — creates DerailBodies and particles for newly derailed cars.

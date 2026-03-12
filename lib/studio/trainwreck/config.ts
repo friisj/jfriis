@@ -71,3 +71,12 @@ export const TRACK_OVERSHOOT = 60
 
 /** Wheel radius */
 export const WHEEL_RADIUS = 0.3
+
+/** Coupling spring stiffness */
+export const COUPLING_STIFFNESS = 80
+
+/** Coupling damping coefficient */
+export const COUPLING_DAMPING = 12
+
+/** Force threshold at which a coupling snaps */
+export const COUPLING_BREAK_FORCE = 50
