@@ -1,5 +1,7 @@
-import { GameState, TrainCar, Tool, CarType, CAR_CONFIG, TOOL_CONFIG, PlacedTrap, TrapEffect, DEFAULT_DEV_CONTROLS } from './types'
+import * as THREE from 'three'
+import { GameState, TrainCar, Tool, CarType, CAR_CONFIG, TOOL_CONFIG, PlacedTrap, TrapEffect, CarPose, DEFAULT_DEV_CONTROLS } from './types'
 import { LEVELS, CAR_GAP, TRAIN_START_OFFSET } from './config'
+import { TrackPath } from './track'
 
 function uid() {
   return crypto.randomUUID()
@@ -55,7 +57,7 @@ export function getLevel(levelNumber: number) {
   return LEVELS[Math.min(levelNumber - 1, LEVELS.length - 1)]
 }
 
-/** Calculate x positions of each car given train head position */
+/** Calculate x positions of each car given train head position (legacy — used for backward compat) */
 export function getCarPositions(cars: TrainCar[], headX: number): number[] {
   const positions: number[] = []
   let x = headX
@@ -67,19 +69,45 @@ export function getCarPositions(cars: TrainCar[], headX: number): number[] {
   return positions
 }
 
-/** Get the train head X position given progress (0-1) and track length */
+/** Get the train head X position given progress (0-1) and track length (legacy) */
 export function getTrainHeadX(progress: number, trackLength: number): number {
   const totalTravel = trackLength + TRAIN_START_OFFSET * 2
   return -TRAIN_START_OFFSET + progress * totalTravel
 }
 
-/** Explosive blast radius in world units */
+/** Get train head pose along the spline */
+export function getTrainHeadPose(progress: number, trackPath: TrackPath): CarPose {
+  const d = progress * trackPath.totalLength
+  return {
+    position: trackPath.getPointAt(d),
+    quaternion: trackPath.getQuaternionAt(d),
+    pathDistance: d,
+  }
+}
+
+/** Calculate poses for all cars walking backward along the spline from head distance */
+export function getCarPoses(cars: TrainCar[], headDistance: number, trackPath: TrackPath): CarPose[] {
+  const poses: CarPose[] = []
+  let d = headDistance
+  for (const car of cars) {
+    d -= car.length / 2
+    poses.push({
+      position: trackPath.getPointAt(d),
+      quaternion: trackPath.getQuaternionAt(d),
+      pathDistance: d,
+    })
+    d -= car.length / 2 + CAR_GAP
+  }
+  return poses
+}
+
+/** Explosive blast radius in path-distance units */
 const EXPLOSIVE_BLAST_RADIUS = 5
 
-/** Check if a trap should trigger based on car positions.
+/** Check if a trap should trigger based on path-distance overlap.
  *  Returns per-trap effects with tool-specific derailment logic. */
 export function checkTrapCollisions(
-  carPositions: number[],
+  carPoses: CarPose[],
   cars: TrainCar[],
   traps: PlacedTrap[]
 ): { effects: TrapEffect[] } {
@@ -88,16 +116,17 @@ export function checkTrapCollisions(
 
   for (const trap of traps) {
     if (trap.triggered) continue
+    const trapD = trap.pathDistance
     const trapX = trap.position[0]
+    const trapWorldPos = new THREE.Vector3(trap.position[0], trap.position[1], trap.position[2])
 
     // Explosive uses proximity trigger (detonates before contact)
     if (trap.type === 'explosive') {
-      // Find closest non-derailed car within trigger distance
       let closestIdx = -1
       let closestDist = Infinity
       for (let i = 0; i < cars.length; i++) {
         if (alreadyDerailed.has(cars[i].id)) continue
-        const dist = Math.abs(carPositions[i] - trapX)
+        const dist = Math.abs(carPoses[i].pathDistance - trapD)
         if (dist < EXPLOSIVE_BLAST_RADIUS * 0.6 && dist < closestDist) {
           closestDist = dist
           closestIdx = i
@@ -105,25 +134,23 @@ export function checkTrapCollisions(
       }
       if (closestIdx < 0) continue
 
-      // Blast all cars within radius — compute radial force vectors
       const derailedCarIds: string[] = []
       const blastForces: Record<string, { fx: number; fy: number; fz: number }> = {}
 
       for (let j = 0; j < cars.length; j++) {
         if (alreadyDerailed.has(cars[j].id)) continue
-        const dx = carPositions[j] - trapX
-        const dist = Math.abs(dx)
+        const dd = carPoses[j].pathDistance - trapD
+        const dist = Math.abs(dd)
         if (dist < EXPLOSIVE_BLAST_RADIUS + cars[j].length / 2) {
           derailedCarIds.push(cars[j].id)
           alreadyDerailed.add(cars[j].id)
 
-          // Hemispherical radial force — stronger when closer
           const proximity = Math.max(0.2, 1 - dist / EXPLOSIVE_BLAST_RADIUS)
-          const dirX = dist < 0.1 ? (Math.random() - 0.5) * 2 : dx / dist // normalize
+          const dirX = dist < 0.1 ? (Math.random() - 0.5) * 2 : dd / dist
           blastForces[cars[j].id] = {
-            fx: dirX * proximity,      // push away horizontally
-            fy: proximity,             // push up (hemisphere)
-            fz: (Math.random() - 0.5), // random lateral scatter
+            fx: dirX * proximity,
+            fy: proximity,
+            fz: (Math.random() - 0.5),
           }
         }
       }
@@ -132,6 +159,8 @@ export function checkTrapCollisions(
         trapId: trap.id,
         toolType: 'explosive',
         trapX,
+        trapPathDistance: trapD,
+        trapWorldPos,
         impactCarIdx: closestIdx,
         derailedCarIds,
         blastForces,
@@ -143,16 +172,17 @@ export function checkTrapCollisions(
     if (trap.type === 'oil-slick') {
       for (let i = 0; i < cars.length; i++) {
         if (alreadyDerailed.has(cars[i].id)) continue
-        const carX = carPositions[i]
         const halfLen = cars[i].length / 2
-        if (trapX >= carX - halfLen && trapX <= carX + halfLen) {
+        if (Math.abs(carPoses[i].pathDistance - trapD) < halfLen) {
           effects.push({
             trapId: trap.id,
             toolType: 'oil-slick',
             trapX,
+            trapPathDistance: trapD,
+            trapWorldPos,
             impactCarIdx: i,
             derailedCarIds: [],
-            speedBoost: 1.8, // 80% speed increase
+            speedBoost: 1.8,
           })
           break
         }
@@ -163,16 +193,14 @@ export function checkTrapCollisions(
     // Contact-based triggers for remaining tools
     for (let i = 0; i < cars.length; i++) {
       if (alreadyDerailed.has(cars[i].id)) continue
-      const carX = carPositions[i]
       const halfLen = cars[i].length / 2
 
-      if (trapX >= carX - halfLen && trapX <= carX + halfLen) {
+      if (Math.abs(carPoses[i].pathDistance - trapD) < halfLen) {
         const derailedCarIds: string[] = []
 
         switch (trap.type) {
           case 'rail-remover':
           case 'curve-tightener':
-            // Derail hit car + all behind
             for (let j = i; j < cars.length; j++) {
               if (!alreadyDerailed.has(cars[j].id)) {
                 derailedCarIds.push(cars[j].id)
@@ -182,7 +210,6 @@ export function checkTrapCollisions(
             break
 
           case 'ramp':
-            // Launch the hit car + all behind
             for (let j = i; j < cars.length; j++) {
               if (!alreadyDerailed.has(cars[j].id)) {
                 derailedCarIds.push(cars[j].id)
@@ -192,7 +219,6 @@ export function checkTrapCollisions(
             break
 
           case 'decoupler':
-            // Surgical — only the single car that hits it
             derailedCarIds.push(cars[i].id)
             alreadyDerailed.add(cars[i].id)
             break
@@ -202,6 +228,8 @@ export function checkTrapCollisions(
           trapId: trap.id,
           toolType: trap.type,
           trapX,
+          trapPathDistance: trapD,
+          trapWorldPos,
           impactCarIdx: i,
           derailedCarIds,
         })

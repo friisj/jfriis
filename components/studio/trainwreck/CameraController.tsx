@@ -8,11 +8,11 @@ import { CameraMode } from '@/lib/studio/trainwreck/types'
 
 export function CameraController({
   mode,
-  targetX,
+  targetPosition,
   trackLength,
 }: {
   mode: CameraMode
-  targetX: number
+  targetPosition: THREE.Vector3
   trackLength: number
 }) {
   const controlsRef = useRef<React.ComponentRef<typeof OrbitControls>>(null)
@@ -23,13 +23,17 @@ export function CameraController({
 
     if (mode === 'follow') {
       const target = controls.target as THREE.Vector3
-      target.x += (targetX - target.x) * 0.05
-      controls.object.position.x += (targetX - controls.object.position.x + 5) * 0.05
+      target.x += (targetPosition.x - target.x) * 0.05
+      target.y += (targetPosition.y - target.y) * 0.05
+      target.z += (targetPosition.z - target.z) * 0.05
+      controls.object.position.x += (targetPosition.x + 5 - controls.object.position.x) * 0.05
+      controls.object.position.y += (targetPosition.y + 8 - controls.object.position.y) * 0.05
+      controls.object.position.z += (targetPosition.z + 12 - controls.object.position.z) * 0.05
     } else if (mode === 'overview') {
       const target = controls.target as THREE.Vector3
       target.x += (0 - target.x) * 0.05
       target.y += (0 - target.y) * 0.05
-      // Pull camera high and back for full track view
+      target.z += (0 - target.z) * 0.05
       const desiredY = trackLength * 0.4
       const desiredZ = trackLength * 0.3
       controls.object.position.x += (0 - controls.object.position.x) * 0.05

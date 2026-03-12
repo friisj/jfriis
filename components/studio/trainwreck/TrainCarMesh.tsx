@@ -3,7 +3,7 @@
 import { useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
-import { TrainCar, DamageEvent, CAR_CONFIG } from '@/lib/studio/trainwreck/types'
+import { TrainCar, DamageEvent, CarPose, CAR_CONFIG } from '@/lib/studio/trainwreck/types'
 import { WHEEL_RADIUS } from '@/lib/studio/trainwreck/config'
 import { RAIL_HEIGHT } from '@/lib/studio/trainwreck/config'
 
@@ -51,18 +51,42 @@ export function applyDent(
 export function TrainCarMesh({
   car,
   x,
+  pose,
   derailOffset,
   damageEvents,
 }: {
   car: TrainCar
   x: number
+  /** Spline pose for on-track cars */
+  pose?: CarPose
   derailOffset: { x: number; y: number; z: number; rotX: number; rotY: number; rotZ: number }
   damageEvents: DamageEvent[]
 }) {
   const baseY = WHEEL_RADIUS * 2 + car.height / 2 + RAIL_HEIGHT
-  const y = baseY + derailOffset.y
-  const z = derailOffset.z
+  const isDerailed = derailOffset.y !== 0 || derailOffset.z !== 0 || derailOffset.rotX !== 0 || derailOffset.rotY !== 0 || derailOffset.rotZ !== 0
   const cfg = CAR_CONFIG[car.type]
+
+  // For on-track cars with a pose, use spline position/orientation
+  const groupRef = useRef<THREE.Group>(null)
+  useFrame(() => {
+    if (!groupRef.current) return
+    if (pose && !isDerailed) {
+      groupRef.current.position.set(
+        pose.position.x,
+        pose.position.y + baseY,
+        pose.position.z,
+      )
+      groupRef.current.quaternion.copy(pose.quaternion)
+    } else {
+      groupRef.current.position.set(x + derailOffset.x, baseY + derailOffset.y, derailOffset.z)
+      groupRef.current.rotation.set(derailOffset.rotX, derailOffset.rotY, derailOffset.rotZ)
+    }
+  })
+
+  // Initialize position
+  const initPos = pose && !isDerailed
+    ? [pose.position.x, pose.position.y + baseY, pose.position.z] as const
+    : [x + derailOffset.x, baseY + derailOffset.y, derailOffset.z] as const
 
   // Subdivided box geometry for deformable mesh (6 segments per axis)
   const bodyGeoRef = useRef<THREE.BoxGeometry>(null)
@@ -95,7 +119,7 @@ export function TrainCarMesh({
   const roughnessBoost = damageLevel * 0.5
 
   return (
-    <group position={[x + derailOffset.x, y, z]} rotation={[derailOffset.rotX, derailOffset.rotY, derailOffset.rotZ]}>
+    <group ref={groupRef} position={[initPos[0], initPos[1], initPos[2]]}>
       <mesh castShadow>
         <boxGeometry ref={bodyGeoRef} args={[car.length, car.height, car.width, 6, 4, 4]} />
         <meshStandardMaterial

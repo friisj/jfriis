@@ -1,7 +1,8 @@
 'use client'
 
 import { Canvas } from '@react-three/fiber'
-import { useState, useRef, useCallback } from 'react'
+import { useState, useRef, useCallback, useMemo } from 'react'
+import * as THREE from 'three'
 import {
   GameState,
   PlacedTrap,
@@ -11,7 +12,8 @@ import {
   DEFAULT_DEV_CONTROLS,
 } from '@/lib/studio/trainwreck/types'
 import { RAIL_HEIGHT } from '@/lib/studio/trainwreck/config'
-import { initLevel, getLevel, getTrainHeadX } from '@/lib/studio/trainwreck/engine'
+import { initLevel, getLevel, getTrainHeadPose } from '@/lib/studio/trainwreck/engine'
+import { createTrackPath, straightTrackPath } from '@/lib/studio/trainwreck/track'
 import { Scene } from './Scene'
 import { CameraController } from './CameraController'
 import { HUD } from './HUD'
@@ -26,6 +28,15 @@ export default function TrainwreckGame() {
   const gameRef = useRef(gameState)
   gameRef.current = gameState
 
+  const level = getLevel(gameState.level)
+
+  const trackPath = useMemo(() => {
+    if (level.trackPoints) {
+      return createTrackPath(level.trackPoints)
+    }
+    return straightTrackPath(level.trackLength)
+  }, [level])
+
   const handleUpdate = useCallback((updates: Partial<GameState>) => {
     setGameState((prev) => {
       const next = { ...prev }
@@ -39,11 +50,16 @@ export default function TrainwreckGame() {
   }, [])
 
   const handlePlaceTrap = useCallback(
-    (x: number) => {
+    (worldPos: THREE.Vector3) => {
       setGameState((prev) => {
         if (!prev.selectedTool) return prev
         const toolIdx = prev.tools.findIndex((t) => t.type === prev.selectedTool && t.uses > 0)
         if (toolIdx < 0) return prev
+
+        const lvl = getLevel(prev.level)
+        const tp = lvl.trackPoints ? createTrackPath(lvl.trackPoints) : straightTrackPath(lvl.trackLength)
+        const pathDistance = tp.closestDistance(worldPos)
+        const snapped = tp.getPointAt(pathDistance)
 
         const newTools = prev.tools.map((t, i) =>
           i === toolIdx ? { ...t, uses: t.uses - 1 } : t
@@ -52,8 +68,9 @@ export default function TrainwreckGame() {
         const newTrap: PlacedTrap = {
           id: crypto.randomUUID(),
           type: prev.selectedTool,
-          position: [x, RAIL_HEIGHT, 0],
+          position: [snapped.x, snapped.y + RAIL_HEIGHT, snapped.z],
           triggered: false,
+          pathDistance,
         }
 
         return {
@@ -127,8 +144,7 @@ export default function TrainwreckGame() {
     })
   }, [])
 
-  const level = getLevel(gameState.level)
-  const headX = getTrainHeadX(gameState.trainProgress, level.trackLength)
+  const headPose = getTrainHeadPose(gameState.trainProgress, trackPath)
 
   return (
     <div className="relative h-screen w-screen bg-black">
@@ -156,11 +172,12 @@ export default function TrainwreckGame() {
           gameState={gameState}
           onUpdate={handleUpdate}
           onPlaceTrap={handlePlaceTrap}
+          trackPath={trackPath}
         />
 
         <CameraController
           mode={gameState.cameraMode}
-          targetX={headX}
+          targetPosition={headPose.position}
           trackLength={level.trackLength}
         />
       </Canvas>

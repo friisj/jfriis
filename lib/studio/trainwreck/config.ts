@@ -8,6 +8,7 @@ export const LEVELS: Level[] = [
     cars: ['locomotive', 'boxcar', 'boxcar', 'caboose'],
     availableTools: ['rail-remover'],
     trackLength: 80,
+    trackPoints: [[-40, 0, 0], [0, 0, 0], [20, 0, 3], [40, 0, -3], [60, 0, 2], [80, 0, 0], [140, 0, 0]],
   },
   {
     number: 2,
@@ -16,6 +17,7 @@ export const LEVELS: Level[] = [
     cars: ['locomotive', 'boxcar', 'tanker', 'boxcar', 'caboose'],
     availableTools: ['rail-remover', 'explosive'],
     trackLength: 90,
+    trackPoints: [[-40, 0, 0], [-10, 0, 0], [10, 0, 5], [30, 0, -5], [50, 0, 4], [70, 0, -2], [90, 0, 0], [150, 0, 0]],
   },
   {
     number: 3,
@@ -24,6 +26,7 @@ export const LEVELS: Level[] = [
     cars: ['locomotive', 'boxcar', 'tanker', 'flatbed', 'boxcar', 'tanker', 'caboose'],
     availableTools: ['rail-remover', 'explosive', 'ramp'],
     trackLength: 100,
+    trackPoints: [[-40, 0, 0], [-10, 0, 0], [10, 1, 6], [30, 2, -6], [50, 1, 5], [70, 0, -4], [90, 0, 2], [100, 0, 0], [160, 0, 0]],
   },
   {
     number: 4,
@@ -32,6 +35,7 @@ export const LEVELS: Level[] = [
     cars: ['locomotive', 'tanker', 'boxcar', 'tanker', 'flatbed', 'boxcar', 'tanker', 'caboose'],
     availableTools: ['rail-remover', 'explosive', 'ramp', 'decoupler'],
     trackLength: 110,
+    trackPoints: [[-40, 0, 0], [-10, 0, 0], [10, 0, 8], [25, 2, -3], [40, 0, -8], [55, 1, 5], [70, 3, -6], [90, 1, 3], [110, 0, 0], [170, 0, 0]],
   },
   {
     number: 5,
@@ -40,6 +44,7 @@ export const LEVELS: Level[] = [
     cars: ['locomotive', 'tanker', 'tanker', 'boxcar', 'flatbed', 'tanker', 'boxcar', 'boxcar', 'tanker', 'caboose'],
     availableTools: ['rail-remover', 'explosive', 'ramp', 'decoupler', 'oil-slick'],
     trackLength: 120,
+    trackPoints: [[-40, 0, 0], [-10, 0, 0], [10, 1, 10], [25, 3, 0], [40, 1, -10], [55, 0, 5], [70, 4, -5], [85, 2, 8], [100, 0, -6], [120, 0, 0], [180, 0, 0]],
   },
 ]
 

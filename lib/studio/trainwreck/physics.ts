@@ -1,40 +1,50 @@
-import { GameState, TrainCar, DamageEvent, DerailBody, Particle, CAR_CONFIG, TrapEffect } from './types'
+import { GameState, TrainCar, DamageEvent, DerailBody, Particle, CarPose, CAR_CONFIG, TrapEffect } from './types'
+import { TrackPath } from './track'
 
 /**
  * Process trap effects — creates DerailBodies and particles for newly derailed cars.
+ * Launch velocities are rotated into the car's spline-tangent frame.
  * Mutates derailBodies and particles refs directly.
  */
 export function processEffects(
   effects: TrapEffect[],
   gameState: GameState,
-  carPositions: number[],
+  carPoses: CarPose[],
   speed: number,
   derailBodies: Record<string, DerailBody>,
   particles: Particle[],
+  trackPath: TrackPath,
 ): void {
   const dev = gameState.devControls
   const force = dev.derailForce
   const spread = dev.derailSpread
 
   for (const effect of effects) {
-    const { toolType, impactCarIdx, derailedCarIds, trapX } = effect
+    const { toolType, impactCarIdx, derailedCarIds } = effect
+    const trapWorldPos = effect.trapWorldPos
 
     for (const carId of derailedCarIds) {
-      if (derailBodies[carId]) continue // already has a body
+      if (derailBodies[carId]) continue
 
       const carIdx = gameState.cars.findIndex((c) => c.id === carId)
       const car = gameState.cars[carIdx]
       const cfg = CAR_CONFIG[car.type]
       const mass = cfg.mass
       const inverseMass = 1 / mass
+      const pose = carPoses[carIdx]
 
-      // Cascade delay: stagger based on distance from impact car
+      // Get spline frame at car's position for tangent-aligned launch
+      const frame = trackPath.getFrameAt(pose.pathDistance)
+      const tangent = frame.tangent  // forward along track
+      const binormal = frame.binormal  // lateral
+
       const distFromImpact = Math.abs(carIdx - impactCarIdx)
       const cascadeDelay = distFromImpact * 0.12
 
       const body: DerailBody = {
-        worldX: carPositions[carIdx],
-        y: 0, z: 0,
+        worldX: pose.position.x,
+        y: pose.position.y,
+        z: pose.position.z,
         rotX: 0, rotY: 0, rotZ: 0,
         vx: 0, vy: 0, vz: 0,
         vRotX: 0, vRotY: 0, vRotZ: 0,
@@ -47,70 +57,76 @@ export function processEffects(
         bounceCount: 0,
       }
 
-      // ── Tool-specific launch velocities ──
       const forwardSpeed = speed * (0.7 + Math.random() * 0.6)
 
       switch (toolType) {
         case 'rail-remover':
         case 'oil-slick':
-        case 'curve-tightener':
-          // Standard derailment
-          body.vx = forwardSpeed * (0.3 + Math.random() * 0.7) * inverseMass * 2
-          body.vy = force * (0.6 + Math.random() * 0.8) * inverseMass * 1.5
-          body.vz = (Math.random() - 0.5) * spread * 3 * inverseMass
+        case 'curve-tightener': {
+          const fwd = forwardSpeed * (0.3 + Math.random() * 0.7) * inverseMass * 2
+          const up = force * (0.6 + Math.random() * 0.8) * inverseMass * 1.5
+          const lat = (Math.random() - 0.5) * spread * 3 * inverseMass
+          body.vx = tangent.x * fwd + binormal.x * lat
+          body.vy = up
+          body.vz = tangent.z * fwd + binormal.z * lat
           body.vRotX = (Math.random() - 0.5) * spread * 3 * inverseMass
           body.vRotY = (Math.random() - 0.5) * spread * 2 * inverseMass
           body.vRotZ = (Math.random() - 0.5) * spread * 3 * inverseMass
           break
+        }
 
         case 'explosive': {
-          // Use radial blast vectors computed by the engine
           const bf = effect.blastForces?.[carId] ?? { fx: 0, fy: 1, fz: 0 }
           const blastMag = force * 3
-
-          body.vx = bf.fx * blastMag * inverseMass
+          // Map blast fx to tangent direction, fz to binormal
+          const fwd = bf.fx * blastMag * inverseMass
+          const lat = bf.fz * spread * 4 * inverseMass
+          body.vx = tangent.x * fwd + binormal.x * lat
           body.vy = bf.fy * blastMag * (1.5 + Math.random() * 1.0) * inverseMass
-          body.vz = bf.fz * spread * 4 * inverseMass
+          body.vz = tangent.z * fwd + binormal.z * lat
           body.vRotX = (Math.random() - 0.5) * spread * 5 * inverseMass
           body.vRotY = (Math.random() - 0.5) * spread * 4 * inverseMass
           body.vRotZ = (Math.random() - 0.5) * spread * 5 * inverseMass
-          body.cascadeDelay = 0 // simultaneous blast
+          body.cascadeDelay = 0
           break
         }
 
-        case 'ramp':
-          // Ramp converts forward kinetic energy into upward launch
-          // Mass doesn't reduce launch — heavier = more momentum hitting the ramp
-          body.vx = forwardSpeed * (0.8 + Math.random() * 0.4)
-          body.vy = forwardSpeed * (1.2 + Math.random() * 0.8) + force * 2
-          body.vz = (Math.random() - 0.5) * spread * 0.4 // tight grouping
+        case 'ramp': {
+          const fwd = forwardSpeed * (0.8 + Math.random() * 0.4)
+          const up = forwardSpeed * (1.2 + Math.random() * 0.8) + force * 2
+          const lat = (Math.random() - 0.5) * spread * 0.4
+          body.vx = tangent.x * fwd + binormal.x * lat
+          body.vy = up
+          body.vz = tangent.z * fwd + binormal.z * lat
           body.vRotX = (Math.random() - 0.5) * 1.5
           body.vRotY = (Math.random() - 0.5) * 0.5
-          body.vRotZ = (Math.random() - 0.5) * spread * 3 // barrel roll!
+          body.vRotZ = (Math.random() - 0.5) * spread * 3
           break
+        }
 
-        case 'decoupler':
-          // Surgical: minimal drama, just tips the single car off the track
-          body.vx = forwardSpeed * 0.3 * inverseMass
+        case 'decoupler': {
+          const fwd = forwardSpeed * 0.3 * inverseMass
+          const lat = (Math.random() > 0.5 ? 1 : -1) * spread * 1.5 * inverseMass
+          body.vx = tangent.x * fwd + binormal.x * lat
           body.vy = force * 0.4 * inverseMass
-          body.vz = (Math.random() > 0.5 ? 1 : -1) * spread * 1.5 * inverseMass
+          body.vz = tangent.z * fwd + binormal.z * lat
           body.vRotX = (Math.random() - 0.5) * spread * 1.0 * inverseMass
           body.vRotY = 0
           body.vRotZ = (Math.random() - 0.5) * spread * 2 * inverseMass
-          body.cascadeDelay = 0 // instant, it's only one car
+          body.cascadeDelay = 0
           break
+        }
       }
 
       derailBodies[carId] = body
 
-      // ── Tool-specific particle effects ──
       const particleCount = toolType === 'explosive' ? 20 : toolType === 'ramp' ? 12 : 8
       const particleColor = toolType === 'explosive' ? '#ff6622' : '#ffaa44'
       const particleSpeed = toolType === 'explosive' ? 14 : 8
 
       for (let p = 0; p < particleCount; p++) {
         particles.push({
-          x: carPositions[carIdx], y: 0.5, z: 0,
+          x: pose.position.x, y: pose.position.y + 0.5, z: pose.position.z,
           vx: (Math.random() - 0.5) * particleSpeed,
           vy: Math.random() * (particleSpeed * 0.8) + 2,
           vz: (Math.random() - 0.5) * particleSpeed,
@@ -123,11 +139,13 @@ export function processEffects(
       }
     }
 
-    // Oil slick: splash particles (no derailment)
+    // Oil slick: splash particles
     if (toolType === 'oil-slick') {
       for (let p = 0; p < 10; p++) {
         particles.push({
-          x: trapX + (Math.random() - 0.5) * 2, y: 0.1, z: (Math.random() - 0.5) * 1.5,
+          x: trapWorldPos.x + (Math.random() - 0.5) * 2,
+          y: trapWorldPos.y + 0.1,
+          z: trapWorldPos.z + (Math.random() - 0.5) * 1.5,
           vx: (Math.random() - 0.5) * 3,
           vy: Math.random() * 2 + 0.5,
           vz: (Math.random() - 0.5) * 3,
@@ -149,7 +167,7 @@ export function processEffects(
 export function simulateDerailBodies(
   delta: number,
   cars: TrainCar[],
-  carPositions: number[],
+  carPoses: CarPose[],
   derailBodies: Record<string, DerailBody>,
   carDamage: Record<string, DamageEvent[]>,
   particles: Particle[],
@@ -165,9 +183,13 @@ export function simulateDerailBodies(
     if (!body.launched) {
       body.cascadeDelay -= delta
       if (body.cascadeDelay > 0) {
-        // Still waiting — update worldX to track the decelerating train
+        // Still waiting — update position to track the decelerating train
         const carIdx = cars.findIndex((c) => c.id === carId)
-        if (carIdx >= 0) body.worldX = carPositions[carIdx]
+        if (carIdx >= 0) {
+          body.worldX = carPoses[carIdx].position.x
+          body.y = carPoses[carIdx].position.y
+          body.z = carPoses[carIdx].position.z
+        }
         continue
       }
       body.launched = true

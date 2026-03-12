@@ -1,16 +1,18 @@
 'use client'
 
-import { useRef } from 'react'
+import { useRef, useMemo } from 'react'
 import { useFrame } from '@react-three/fiber'
-import { GameState, DamageEvent, DerailBody, Particle } from '@/lib/studio/trainwreck/types'
+import * as THREE from 'three'
+import { GameState, DamageEvent, DerailBody, Particle, CarPose } from '@/lib/studio/trainwreck/types'
 import {
   getLevel,
-  getTrainHeadX,
-  getCarPositions,
+  getTrainHeadPose,
+  getCarPoses,
   checkTrapCollisions,
   scoreFromDerailments,
 } from '@/lib/studio/trainwreck/engine'
 import { processEffects, simulateDerailBodies, resolveCarCollisions, updateParticles } from '@/lib/studio/trainwreck/physics'
+import { TrackPath, createTrackPath, straightTrackPath } from '@/lib/studio/trainwreck/track'
 import { Ground, Track, ClickPlane } from './TrackEnvironment'
 import { TrainCarMesh } from './TrainCarMesh'
 import { TrapMarker } from './TrapMarker'
@@ -19,10 +21,11 @@ import { Particles } from './Particles'
 interface SceneProps {
   gameState: GameState
   onUpdate: (updates: Partial<GameState>) => void
-  onPlaceTrap: (x: number) => void
+  onPlaceTrap: (worldPos: THREE.Vector3) => void
+  trackPath: TrackPath
 }
 
-export function Scene({ gameState, onUpdate, onPlaceTrap }: SceneProps) {
+export function Scene({ gameState, onUpdate, onPlaceTrap, trackPath }: SceneProps) {
   const level = getLevel(gameState.level)
   const derailBodies = useRef<Record<string, DerailBody>>({})
   const carDamage = useRef<Record<string, DamageEvent[]>>({})
@@ -54,15 +57,15 @@ export function Scene({ gameState, onUpdate, onPlaceTrap }: SceneProps) {
     }
 
     const speed = level.trainSpeed * dev.speedMultiplier * currentSpeedMult
-    const totalTravel = level.trackLength + 80
+    const totalTravel = trackPath.totalLength
     const progressDelta = (speed * delta) / totalTravel
     const newProgress = Math.min(gs.trainProgress + progressDelta, 1)
 
-    const headX = getTrainHeadX(newProgress, level.trackLength)
-    const carPositions = getCarPositions(gs.cars, headX)
+    const headPose = getTrainHeadPose(newProgress, trackPath)
+    const carPoses = getCarPoses(gs.cars, headPose.pathDistance, trackPath)
 
     const { effects } = checkTrapCollisions(
-      carPositions,
+      carPoses,
       gs.cars,
       gs.placedTraps
     )
@@ -73,7 +76,6 @@ export function Scene({ gameState, onUpdate, onPlaceTrap }: SceneProps) {
     }
 
     if (effects.length > 0) {
-      // Collect all derailed car IDs and triggered trap IDs across all effects
       const allDerailedIds = new Set<string>()
       const allTriggeredTrapIds = new Set<string>()
       let totalSpeedBoost = 0
@@ -87,7 +89,6 @@ export function Scene({ gameState, onUpdate, onPlaceTrap }: SceneProps) {
         allTriggeredTrapIds.has(t.id) ? { ...t, triggered: true } : t
       )
 
-      // Apply speed boost from oil slicks
       if (totalSpeedBoost > 0) {
         updates.trainSpeed = Math.min(
           (updates.trainSpeed ?? currentSpeedMult) * totalSpeedBoost,
@@ -95,7 +96,6 @@ export function Scene({ gameState, onUpdate, onPlaceTrap }: SceneProps) {
         )
       }
 
-      // Only mark crashed if there are actual derailments
       if (allDerailedIds.size > 0) {
         updates.cars = gs.cars.map((c) =>
           allDerailedIds.has(c.id) ? { ...c, derailed: true } : c
@@ -103,13 +103,12 @@ export function Scene({ gameState, onUpdate, onPlaceTrap }: SceneProps) {
         updates.crashed = true
       }
 
-      // Process effects with tool-specific physics
-      processEffects(effects, gs, carPositions, speed, derailBodies.current, particles.current)
+      processEffects(effects, gs, carPoses, speed, derailBodies.current, particles.current, trackPath)
     }
 
     // ── Physics simulation ──
     simulateDerailBodies(
-      delta, gs.cars, carPositions,
+      delta, gs.cars, carPoses,
       derailBodies.current, carDamage.current, particles.current,
       dev.gravity, dev.bounceRestitution
     )
@@ -119,12 +118,10 @@ export function Scene({ gameState, onUpdate, onPlaceTrap }: SceneProps) {
     const carsForScore = updates.cars ?? gs.cars
     updates.score = scoreFromDerailments(carsForScore)
 
-    // Start end timer when train exits or fully stops after crash
     const trainStopped = gs.crashed && currentSpeedMult <= 0.01
     const levelShouldEnd = newProgress >= 1 || trainStopped
 
     if (levelShouldEnd && gs.endTimer === 0 && gs.status === 'playing') {
-      // Start the countdown — 3 seconds to watch the carnage
       updates.endTimer = 3
       if (trainStopped) updates.trainSpeed = 0
     } else if (gs.endTimer > 0) {
@@ -140,8 +137,8 @@ export function Scene({ gameState, onUpdate, onPlaceTrap }: SceneProps) {
     onUpdate(updates)
   })
 
-  const headX = getTrainHeadX(gameState.trainProgress, level.trackLength)
-  const carPositions = getCarPositions(gameState.cars, headX)
+  const headPose = getTrainHeadPose(gameState.trainProgress, trackPath)
+  const carPoses = getCarPoses(gameState.cars, headPose.pathDistance, trackPath)
 
   const canPlace = gameState.status === 'playing' && !!gameState.selectedTool &&
     gameState.tools.some((t) => t.type === gameState.selectedTool && t.uses > 0)
@@ -149,8 +146,8 @@ export function Scene({ gameState, onUpdate, onPlaceTrap }: SceneProps) {
   return (
     <>
       <Ground />
-      <Track length={level.trackLength} />
-      <ClickPlane enabled={canPlace} onPlace={onPlaceTrap} />
+      <Track trackPath={trackPath} />
+      <ClickPlane enabled={canPlace} onPlace={onPlaceTrap} trackPath={trackPath} />
 
       {gameState.cars.map((car, i) => {
         const body = derailBodies.current[car.id]
@@ -170,7 +167,8 @@ export function Scene({ gameState, onUpdate, onPlaceTrap }: SceneProps) {
           <TrainCarMesh
             key={car.id}
             car={car}
-            x={carPositions[i]}
+            pose={carPoses[i]}
+            x={carPoses[i].position.x}
             derailOffset={{ x: 0, y: 0, z: 0, rotX: 0, rotY: 0, rotZ: 0 }}
             damageEvents={damage}
           />
@@ -178,7 +176,7 @@ export function Scene({ gameState, onUpdate, onPlaceTrap }: SceneProps) {
       })}
 
       {gameState.placedTraps.map((trap) => (
-        <TrapMarker key={trap.id} trap={trap} />
+        <TrapMarker key={trap.id} trap={trap} trackPath={trackPath} />
       ))}
 
       <Particles particlesRef={particles} />

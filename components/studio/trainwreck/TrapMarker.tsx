@@ -4,13 +4,12 @@ import React, { useRef, useMemo } from 'react'
 import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 import { PlacedTrap, ToolType } from '@/lib/studio/trainwreck/types'
+import { TrackPath } from '@/lib/studio/trainwreck/track'
 
 /** True wedge geometry — flat at -X, rises to peak at +X */
 export const RampWedge = React.forwardRef<THREE.Mesh, { color: string }>(function RampWedge({ color }, ref) {
   const geo = useMemo(() => {
-    // Wedge: 2.5 long, 1.3 wide, peaks at 0.8 high on the +X side
     const w = 0.65, len = 1.25, h = 0.8
-    // 6 vertices: bottom quad + top edge (the peak)
     const vertices = new Float32Array([
       -len, 0, -w,   // 0: back-left
        len, 0, -w,   // 1: front-left
@@ -22,15 +21,10 @@ export const RampWedge = React.forwardRef<THREE.Mesh, { color: string }>(functio
     const g = new THREE.BufferGeometry()
     g.setAttribute('position', new THREE.BufferAttribute(vertices, 3))
     g.setIndex([
-      // bottom
       0, 2, 1,  0, 3, 2,
-      // ramp slope (from back-bottom to front-top)
       0, 4, 5,  0, 5, 3,
-      // front vertical face (+X)
       1, 2, 5,  1, 5, 4,
-      // left side (-Z): triangle 0,1,4
       0, 1, 4,
-      // right side (+Z): triangle 3,5,2
       3, 5, 2,
     ])
     g.computeVertexNormals()
@@ -53,10 +47,15 @@ export const TRAP_COLORS: Record<ToolType, string> = {
   'decoupler': '#ff44aa',
 }
 
-export function TrapMarker({ trap }: { trap: PlacedTrap }) {
+export function TrapMarker({ trap, trackPath }: { trap: PlacedTrap; trackPath: TrackPath }) {
   const meshRef = useRef<THREE.Mesh>(null)
   const baseColor = TRAP_COLORS[trap.type] ?? '#ffaa00'
   const color = trap.triggered ? '#ff0000' : baseColor
+
+  // Get track orientation at trap position
+  const trackQuat = useMemo(() => {
+    return trackPath.getQuaternionAt(trap.pathDistance)
+  }, [trackPath, trap.pathDistance])
 
   useFrame(({ clock }) => {
     if (!meshRef.current || trap.triggered) return
@@ -64,8 +63,10 @@ export function TrapMarker({ trap }: { trap: PlacedTrap }) {
     meshRef.current.scale.set(s, 1, s)
   })
 
+  const pos = trap.position
+
   return (
-    <group position={[trap.position[0], 0, 0]}>
+    <group position={[pos[0], pos[1], pos[2]]} quaternion={trackQuat}>
       {/* Ground X marker */}
       <mesh position={[0, 0.05, 0]} rotation={[-Math.PI / 2, 0, 0]}>
         <planeGeometry args={[2, 0.3]} />
@@ -79,7 +80,6 @@ export function TrapMarker({ trap }: { trap: PlacedTrap }) {
       {/* Tool-specific 3D marker */}
       {trap.type === 'explosive' ? (
         <>
-          {/* Barrel shape */}
           <mesh position={[0, 0.5, 0]}>
             <cylinderGeometry args={[0.25, 0.3, 1.0, 8]} />
             <meshStandardMaterial color={color} metalness={0.5} roughness={0.4} />
@@ -90,7 +90,6 @@ export function TrapMarker({ trap }: { trap: PlacedTrap }) {
         <RampWedge ref={meshRef} color={color} />
       ) : trap.type === 'oil-slick' ? (
         <>
-          {/* Flat puddle on the track */}
           <mesh ref={meshRef} position={[0, 0.06, 0]} rotation={[-Math.PI / 2, 0, 0]}>
             <circleGeometry args={[1.5, 16]} />
             <meshStandardMaterial color={color} metalness={0.9} roughness={0.05} transparent opacity={0.6} />
@@ -98,7 +97,6 @@ export function TrapMarker({ trap }: { trap: PlacedTrap }) {
         </>
       ) : trap.type === 'decoupler' ? (
         <>
-          {/* Blade/scissor shape */}
           <mesh ref={meshRef} position={[0, 0.6, 0]}>
             <boxGeometry args={[0.1, 1.2, 1.5]} />
             <meshStandardMaterial color={color} metalness={0.8} roughness={0.2} />
@@ -107,7 +105,6 @@ export function TrapMarker({ trap }: { trap: PlacedTrap }) {
         </>
       ) : (
         <>
-          {/* Default pylon (rail-remover, etc.) */}
           <mesh ref={meshRef} position={[0, 2, 0]}>
             <boxGeometry args={[0.3, 4, 0.3]} />
             <meshBasicMaterial color={color} transparent opacity={0.8} />

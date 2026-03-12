@@ -1,3 +1,5 @@
+import * as THREE from 'three'
+
 export type CarType = 'locomotive' | 'boxcar' | 'tanker' | 'flatbed' | 'caboose'
 
 export interface TrainCar {
@@ -30,6 +32,8 @@ export interface Level {
   cars: CarType[]
   availableTools: ToolType[]
   trackLength: number
+  /** Spline control points for curved track. If omitted, uses straight track. */
+  trackPoints?: [number, number, number][]
 }
 
 export type CameraMode = 'free' | 'follow' | 'overview'
@@ -71,11 +75,19 @@ export interface GameState {
   endTimer: number // seconds remaining before showing end screen (0 = not counting)
 }
 
+export interface CarPose {
+  position: THREE.Vector3
+  quaternion: THREE.Quaternion
+  pathDistance: number
+}
+
 export interface PlacedTrap {
   id: string
   type: ToolType
   position: [number, number, number]
   triggered: boolean
+  /** Arc-length distance along the track spline */
+  pathDistance: number
 }
 
 /** Result of a single trap triggering */
@@ -83,6 +95,10 @@ export interface TrapEffect {
   trapId: string
   toolType: ToolType
   trapX: number
+  /** Path distance of the trap along the spline */
+  trapPathDistance: number
+  /** World position of the trap (for particle spawning) */
+  trapWorldPos: THREE.Vector3
   impactCarIdx: number
   derailedCarIds: string[]
   /** Per-car blast vectors for explosive (carId → force vector) */

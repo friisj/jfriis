@@ -8,8 +8,8 @@ import {
   RAIL_HEIGHT,
   TIE_SPACING,
   GROUND_SIZE,
-  TRACK_OVERSHOOT,
 } from '@/lib/studio/trainwreck/config'
+import { TrackPath } from '@/lib/studio/trainwreck/track'
 
 export function Ground() {
   return (
@@ -23,9 +23,11 @@ export function Ground() {
 export function ClickPlane({
   enabled,
   onPlace,
+  trackPath,
 }: {
   enabled: boolean
-  onPlace: (x: number) => void
+  onPlace: (worldPos: THREE.Vector3) => void
+  trackPath: TrackPath
 }) {
   const { camera, gl } = useThree()
   const cursorRef = useRef<THREE.Mesh>(null)
@@ -59,7 +61,7 @@ export function ClickPlane({
       const hit = new THREE.Vector3()
       raycaster.ray.intersectPlane(groundPlane, hit)
       if (hit) {
-        onPlace(hit.x)
+        onPlace(hit)
       }
     }
 
@@ -79,7 +81,10 @@ export function ClickPlane({
     const hit = new THREE.Vector3()
     raycaster.ray.intersectPlane(groundPlane, hit)
     if (hit) {
-      cursorRef.current.position.set(hit.x, RAIL_HEIGHT + 0.05, 0)
+      // Snap cursor to nearest point on track
+      const d = trackPath.closestDistance(hit)
+      const snapped = trackPath.getPointAt(d)
+      cursorRef.current.position.set(snapped.x, snapped.y + RAIL_HEIGHT + 0.05, snapped.z)
       cursorRef.current.visible = true
     }
   })
@@ -94,39 +99,93 @@ export function ClickPlane({
   )
 }
 
-export function Track({ length }: { length: number }) {
+export function Track({ trackPath }: { trackPath: TrackPath }) {
   const halfGauge = TRACK_GAUGE / 2
-  // Track extends beyond playable area on both sides
-  const totalLength = length + TRACK_OVERSHOOT * 2
+  const totalLength = trackPath.totalLength
   const tieCount = Math.floor(totalLength / TIE_SPACING)
 
-  const tiePositions = useMemo(() => {
-    const positions: number[] = []
-    for (let i = 0; i < tieCount; i++) {
-      positions.push(i * TIE_SPACING - totalLength / 2 + TIE_SPACING / 2)
+  // Build rail tube geometries from spline samples
+  const { leftRailGeo, rightRailGeo } = useMemo(() => {
+    const samplesPerUnit = 2
+    const numSamples = Math.max(10, Math.ceil(totalLength * samplesPerUnit))
+
+    const leftPoints: THREE.Vector3[] = []
+    const rightPoints: THREE.Vector3[] = []
+
+    for (let i = 0; i <= numSamples; i++) {
+      const d = (i / numSamples) * totalLength
+      const pt = trackPath.getPointAt(d)
+      const frame = trackPath.getFrameAt(d)
+
+      // Offset by ±halfGauge along binormal, lift to rail height
+      const leftPt = pt.clone()
+        .addScaledVector(frame.binormal, -halfGauge)
+        .setY(pt.y + RAIL_HEIGHT / 2)
+      const rightPt = pt.clone()
+        .addScaledVector(frame.binormal, halfGauge)
+        .setY(pt.y + RAIL_HEIGHT / 2)
+
+      leftPoints.push(leftPt)
+      rightPoints.push(rightPt)
     }
-    return positions
-  }, [tieCount, totalLength])
+
+    const leftCurve = new THREE.CatmullRomCurve3(leftPoints, false)
+    const rightCurve = new THREE.CatmullRomCurve3(rightPoints, false)
+
+    const segments = Math.max(20, numSamples)
+    const leftGeo = new THREE.TubeGeometry(leftCurve, segments, 0.04, 6, false)
+    const rightGeo = new THREE.TubeGeometry(rightCurve, segments, 0.04, 6, false)
+
+    return { leftRailGeo: leftGeo, rightRailGeo: rightGeo }
+  }, [trackPath, totalLength, halfGauge])
+
+  // Build tie transforms
+  const { tieGeo, tieMat } = useMemo(() => {
+    const geo = new THREE.BoxGeometry(0.15, 0.06, TRACK_GAUGE + 0.4)
+    const mat = new THREE.MeshStandardMaterial({ color: '#5c4033' })
+    return { tieGeo: geo, tieMat: mat }
+  }, [])
+
+  const tieInstanceRef = useRef<THREE.InstancedMesh>(null)
+
+  useEffect(() => {
+    if (!tieInstanceRef.current) return
+    const dummy = new THREE.Object3D()
+
+    for (let i = 0; i < tieCount; i++) {
+      const d = (i + 0.5) * TIE_SPACING
+      if (d > totalLength) break
+      const pt = trackPath.getPointAt(d)
+      const frame = trackPath.getFrameAt(d)
+
+      dummy.position.set(pt.x, pt.y + 0.03, pt.z)
+      // Align tie perpendicular to track (along binormal)
+      const q = new THREE.Quaternion()
+      q.setFromUnitVectors(new THREE.Vector3(0, 0, 1), frame.binormal)
+      dummy.quaternion.copy(q)
+      dummy.updateMatrix()
+      tieInstanceRef.current.setMatrixAt(i, dummy.matrix)
+    }
+
+    tieInstanceRef.current.instanceMatrix.needsUpdate = true
+  }, [trackPath, tieCount, totalLength])
 
   return (
     <group>
       {/* Left rail */}
-      <mesh position={[0, RAIL_HEIGHT / 2, -halfGauge]} castShadow>
-        <boxGeometry args={[totalLength, RAIL_HEIGHT, 0.08]} />
+      <mesh geometry={leftRailGeo} castShadow>
         <meshStandardMaterial color="#666" metalness={0.8} roughness={0.3} />
       </mesh>
       {/* Right rail */}
-      <mesh position={[0, RAIL_HEIGHT / 2, halfGauge]} castShadow>
-        <boxGeometry args={[totalLength, RAIL_HEIGHT, 0.08]} />
+      <mesh geometry={rightRailGeo} castShadow>
         <meshStandardMaterial color="#666" metalness={0.8} roughness={0.3} />
       </mesh>
       {/* Ties */}
-      {tiePositions.map((x, i) => (
-        <mesh key={i} position={[x, 0.03, 0]} castShadow>
-          <boxGeometry args={[0.15, 0.06, TRACK_GAUGE + 0.4]} />
-          <meshStandardMaterial color="#5c4033" />
-        </mesh>
-      ))}
+      <instancedMesh
+        ref={tieInstanceRef}
+        args={[tieGeo, tieMat, tieCount]}
+        castShadow
+      />
     </group>
   )
 }
