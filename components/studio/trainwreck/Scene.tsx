@@ -1,9 +1,10 @@
 'use client'
 
-import { useRef, useMemo } from 'react'
+import { useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
-import { GameState, DamageEvent, DerailBody, Particle, CarPose } from '@/lib/studio/trainwreck/types'
+import { GameState, DamageEvent, DerailBody, Particle, CargoBody } from '@/lib/studio/trainwreck/types'
+import { CAR_GAP } from '@/lib/studio/trainwreck/config'
 import {
   getLevel,
   getTrainHeadPose,
@@ -11,11 +12,13 @@ import {
   checkTrapCollisions,
   scoreFromDerailments,
 } from '@/lib/studio/trainwreck/engine'
-import { processEffects, simulateDerailBodies, resolveCarCollisions, updateParticles } from '@/lib/studio/trainwreck/physics'
-import { TrackPath, createTrackPath, straightTrackPath } from '@/lib/studio/trainwreck/track'
+import { processEffects, simulateCouplings, simulateDerailBodies, resolveCarCollisions, updateParticles, simulateCargoBodies } from '@/lib/studio/trainwreck/physics'
+import { TrackPath } from '@/lib/studio/trainwreck/track'
 import { Ground, Track, ClickPlane } from './TrackEnvironment'
 import { TrainCarMesh } from './TrainCarMesh'
 import { TrapMarker } from './TrapMarker'
+import { CouplingConnector } from './CouplingConnector'
+import { CargoPiece } from './CargoPiece'
 import { Particles } from './Particles'
 
 interface SceneProps {
@@ -30,6 +33,12 @@ export function Scene({ gameState, onUpdate, onPlaceTrap, trackPath }: SceneProp
   const derailBodies = useRef<Record<string, DerailBody>>({})
   const carDamage = useRef<Record<string, DamageEvent[]>>({})
   const particles = useRef<Particle[]>([])
+  const cargoBodies = useRef<CargoBody[]>([])
+
+  // Coupling physics refs
+  const carPathDistances = useRef<number[]>([])
+  const carVelocities = useRef<number[]>([])
+  const couplingsInitialized = useRef(false)
 
   const stateRef = useRef(gameState)
   stateRef.current = gameState
@@ -40,6 +49,10 @@ export function Scene({ gameState, onUpdate, onPlaceTrap, trackPath }: SceneProp
     derailBodies.current = {}
     carDamage.current = {}
     particles.current = []
+    cargoBodies.current = []
+    carPathDistances.current = []
+    carVelocities.current = []
+    couplingsInitialized.current = false
   }
   prevCrashed.current = gameState.crashed
 
@@ -62,13 +75,28 @@ export function Scene({ gameState, onUpdate, onPlaceTrap, trackPath }: SceneProp
     const newProgress = Math.min(gs.trainProgress + progressDelta, 1)
 
     const headPose = getTrainHeadPose(newProgress, trackPath)
-    const carPoses = getCarPoses(gs.cars, headPose.pathDistance, trackPath)
 
-    const { effects } = checkTrapCollisions(
-      carPoses,
-      gs.cars,
-      gs.placedTraps
-    )
+    // Initialize coupling path distances from rigid offsets on first frame
+    if (!couplingsInitialized.current && gs.cars.length > 0) {
+      const rigidPoses = getCarPoses(gs.cars, headPose.pathDistance, trackPath)
+      carPathDistances.current = rigidPoses.map((p) => p.pathDistance)
+      carVelocities.current = gs.cars.map(() => speed)
+      couplingsInitialized.current = true
+    }
+
+    // Use coupling physics for car poses
+    let carPoses
+    if (couplingsInitialized.current && gs.couplings.length > 0) {
+      carPoses = simulateCouplings(
+        gs.cars, gs.couplings, headPose.pathDistance, trackPath,
+        carPathDistances.current, carVelocities.current,
+        delta, speed,
+      )
+    } else {
+      carPoses = getCarPoses(gs.cars, headPose.pathDistance, trackPath)
+    }
+
+    const { effects } = checkTrapCollisions(carPoses, gs.cars, gs.placedTraps)
 
     const updates: Partial<GameState> = {
       trainProgress: newProgress,
@@ -79,10 +107,16 @@ export function Scene({ gameState, onUpdate, onPlaceTrap, trackPath }: SceneProp
       const allDerailedIds = new Set<string>()
       const allTriggeredTrapIds = new Set<string>()
       let totalSpeedBoost = 0
+      const brokenCouplingIdxs = new Set<number>()
+
       for (const effect of effects) {
         allTriggeredTrapIds.add(effect.trapId)
         for (const cid of effect.derailedCarIds) allDerailedIds.add(cid)
         if (effect.speedBoost) totalSpeedBoost += effect.speedBoost
+        if (effect.brokenCouplingIdx !== undefined) brokenCouplingIdxs.add(effect.brokenCouplingIdx)
+        if (effect.brokenCouplingIdxs) {
+          for (const idx of effect.brokenCouplingIdxs) brokenCouplingIdxs.add(idx)
+        }
       }
 
       updates.placedTraps = gs.placedTraps.map((t) =>
@@ -98,12 +132,48 @@ export function Scene({ gameState, onUpdate, onPlaceTrap, trackPath }: SceneProp
 
       if (allDerailedIds.size > 0) {
         updates.cars = gs.cars.map((c) =>
-          allDerailedIds.has(c.id) ? { ...c, derailed: true } : c
+          allDerailedIds.has(c.id) ? { ...c, derailed: true, state: 'derailing' as const } : c
         )
         updates.crashed = true
       }
 
+      // Break couplings from effects
+      if (brokenCouplingIdxs.size > 0) {
+        updates.couplings = gs.couplings.map((c, i) =>
+          brokenCouplingIdxs.has(i) ? { ...c, intact: false } : c
+        )
+      }
+
       processEffects(effects, gs, carPoses, speed, derailBodies.current, particles.current, trackPath)
+
+      // Spawn cargo bodies for flatbed derailments
+      for (const effect of effects) {
+        for (const carId of effect.derailedCarIds) {
+          const carIdx = gs.cars.findIndex((c) => c.id === carId)
+          if (carIdx < 0 || gs.cars[carIdx].type !== 'flatbed') continue
+          const pose = carPoses[carIdx]
+          const cargoTypes: Array<'log' | 'crate' | 'container'> = ['log', 'crate', 'container']
+          for (let c = 0; c < 3; c++) {
+            cargoBodies.current.push({
+              x: pose.position.x + (Math.random() - 0.5) * 1.5,
+              y: pose.position.y + 1.5 + Math.random(),
+              z: pose.position.z + (Math.random() - 0.5) * 0.8,
+              vx: (Math.random() - 0.5) * 4,
+              vy: 3 + Math.random() * 4,
+              vz: (Math.random() - 0.5) * 4,
+              rotX: Math.random() * Math.PI, rotY: Math.random() * Math.PI, rotZ: Math.random() * Math.PI,
+              vRotX: (Math.random() - 0.5) * 5,
+              vRotY: (Math.random() - 0.5) * 3,
+              vRotZ: (Math.random() - 0.5) * 5,
+              width: 0.3 + Math.random() * 0.3,
+              height: 0.3 + Math.random() * 0.3,
+              length: 0.4 + Math.random() * 0.4,
+              settled: false,
+              cargoType: cargoTypes[c % cargoTypes.length],
+            })
+          }
+        }
+      }
     }
 
     // ── Physics simulation ──
@@ -113,6 +183,7 @@ export function Scene({ gameState, onUpdate, onPlaceTrap, trackPath }: SceneProp
       dev.gravity, dev.bounceRestitution
     )
     resolveCarCollisions(derailBodies.current, carDamage.current)
+    simulateCargoBodies(cargoBodies.current, delta, dev.gravity, dev.bounceRestitution)
     particles.current = updateParticles(particles.current, delta)
 
     const carsForScore = updates.cars ?? gs.cars
@@ -174,6 +245,28 @@ export function Scene({ gameState, onUpdate, onPlaceTrap, trackPath }: SceneProp
           />
         )
       })}
+
+      {/* Coupling connectors between on-track car pairs */}
+      {gameState.couplings.map((coupling, i) => {
+        if (!coupling.intact) return null
+        const frontCar = gameState.cars[i]
+        const rearCar = gameState.cars[i + 1]
+        if (!frontCar || !rearCar || frontCar.derailed || rearCar.derailed) return null
+        return (
+          <CouplingConnector
+            key={`coupling-${i}`}
+            frontPose={carPoses[i]}
+            rearPose={carPoses[i + 1]}
+            frontCarLength={frontCar.length}
+            rearCarLength={rearCar.length}
+          />
+        )
+      })}
+
+      {/* Cargo pieces from flatbed derailments */}
+      {cargoBodies.current.map((cargo, i) => (
+        <CargoPiece key={`cargo-${i}`} body={cargo} />
+      ))}
 
       {gameState.placedTraps.map((trap) => (
         <TrapMarker key={trap.id} trap={trap} trackPath={trackPath} />

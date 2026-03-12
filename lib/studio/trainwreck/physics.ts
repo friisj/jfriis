@@ -445,6 +445,45 @@ export function resolveCarCollisions(
 }
 
 /**
+ * Simulate cargo body physics — gravity, bounce, friction, settling.
+ */
+export function simulateCargoBodies(
+  bodies: CargoBody[],
+  delta: number,
+  gravity: number,
+  bounce: number,
+): void {
+  for (const body of bodies) {
+    if (body.settled) continue
+
+    body.vy -= gravity * delta
+    body.x += body.vx * delta
+    body.y += body.vy * delta
+    body.z += body.vz * delta
+    body.rotX += body.vRotX * delta
+    body.rotY += body.vRotY * delta
+    body.rotZ += body.vRotZ * delta
+
+    if (body.y < 0) {
+      body.y = 0
+      body.vy = Math.abs(body.vy) * bounce * 0.6
+      body.vx *= 0.5
+      body.vz *= 0.5
+      body.vRotX *= 0.3
+      body.vRotY *= 0.3
+      body.vRotZ *= 0.3
+
+      const totalV = Math.abs(body.vy) + Math.abs(body.vx) + Math.abs(body.vz)
+      if (totalV < 0.3) {
+        body.vy = 0; body.vx = 0; body.vz = 0
+        body.vRotX = 0; body.vRotY = 0; body.vRotZ = 0
+        body.settled = true
+      }
+    }
+  }
+}
+
+/**
  * Update particle positions and lifetimes.
  * Returns the filtered (still-alive) particles array.
  */
