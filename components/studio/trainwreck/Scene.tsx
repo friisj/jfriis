@@ -96,7 +96,7 @@ export function Scene({ gameState, onUpdate, onPlaceTrap, trackPath }: SceneProp
       carPoses = getCarPoses(gs.cars, headPose.pathDistance, trackPath)
     }
 
-    const { effects } = checkTrapCollisions(carPoses, gs.cars, gs.placedTraps)
+    const { effects } = checkTrapCollisions(carPoses, gs.cars, gs.placedTraps, gs.couplings)
 
     const updates: Partial<GameState> = {
       trainProgress: newProgress,

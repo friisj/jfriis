@@ -1,5 +1,5 @@
 import * as THREE from 'three'
-import { GameState, TrainCar, Tool, CarType, Coupling, CAR_CONFIG, TOOL_CONFIG, PlacedTrap, TrapEffect, CarPose, DEFAULT_DEV_CONTROLS } from './types'
+import { GameState, TrainCar, Tool, CarType, Coupling, CAR_CONFIG, TOOL_CONFIG, PlacedTrap, TrapEffect, CarPose, DEFAULT_DEV_CONTROLS, CarState } from './types'
 import { LEVELS, CAR_GAP, TRAIN_START_OFFSET } from './config'
 import { TrackPath } from './track'
 
@@ -126,7 +126,8 @@ const EXPLOSIVE_BLAST_RADIUS = 5
 export function checkTrapCollisions(
   carPoses: CarPose[],
   cars: TrainCar[],
-  traps: PlacedTrap[]
+  traps: PlacedTrap[],
+  couplings?: Coupling[],
 ): { effects: TrapEffect[] } {
   const effects: TrapEffect[] = []
   const alreadyDerailed = new Set(cars.filter((c) => c.derailed).map((c) => c.id))
@@ -172,6 +173,24 @@ export function checkTrapCollisions(
         }
       }
 
+      // Find couplings within blast radius
+      let brokenCouplingIdxs: number[] | undefined
+      if (couplings) {
+        brokenCouplingIdxs = []
+        for (let ci = 0; ci < couplings.length; ci++) {
+          if (!couplings[ci].intact) continue
+          // Coupling midpoint between front and rear car
+          const frontIdx = cars.findIndex((c) => c.id === couplings[ci].frontCarId)
+          const rearIdx = cars.findIndex((c) => c.id === couplings[ci].rearCarId)
+          if (frontIdx < 0 || rearIdx < 0) continue
+          const midD = (carPoses[frontIdx].pathDistance + carPoses[rearIdx].pathDistance) / 2
+          if (Math.abs(midD - trapD) < EXPLOSIVE_BLAST_RADIUS) {
+            brokenCouplingIdxs.push(ci)
+          }
+        }
+        if (brokenCouplingIdxs.length === 0) brokenCouplingIdxs = undefined
+      }
+
       effects.push({
         trapId: trap.id,
         toolType: 'explosive',
@@ -181,6 +200,7 @@ export function checkTrapCollisions(
         impactCarIdx: closestIdx,
         derailedCarIds,
         blastForces,
+        brokenCouplingIdxs,
       })
       continue
     }
@@ -235,11 +255,37 @@ export function checkTrapCollisions(
             }
             break
 
-          case 'decoupler':
+          case 'decoupler': {
             derailedCarIds.push(cars[i].id)
             alreadyDerailed.add(cars[i].id)
+            // Find coupling between hit car and car behind it
+            let brokenCouplingIdx: number | undefined
+            if (couplings) {
+              // Break coupling where this car is the front car (coupling to rear)
+              const cIdx = couplings.findIndex((c) => c.frontCarId === cars[i].id && c.intact)
+              if (cIdx >= 0) brokenCouplingIdx = cIdx
+              // Also break coupling where this car is the rear car (coupling from front)
+              if (brokenCouplingIdx === undefined) {
+                const cIdx2 = couplings.findIndex((c) => c.rearCarId === cars[i].id && c.intact)
+                if (cIdx2 >= 0) brokenCouplingIdx = cIdx2
+              }
+            }
+            effects.push({
+              trapId: trap.id,
+              toolType: trap.type,
+              trapX,
+              trapPathDistance: trapD,
+              trapWorldPos,
+              impactCarIdx: i,
+              derailedCarIds,
+              brokenCouplingIdx,
+            })
+            // Skip the generic push below
             break
+          }
         }
+
+        if (trap.type === 'decoupler') break // already pushed
 
         effects.push({
           trapId: trap.id,
