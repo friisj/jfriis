@@ -78,6 +78,15 @@ export interface PlacedTrap {
   triggered: boolean
 }
 
+/** Result of a single trap triggering */
+export interface TrapEffect {
+  trapId: string
+  toolType: ToolType
+  trapX: number
+  impactCarIdx: number
+  derailedCarIds: string[]
+}
+
 export const CAR_CONFIG: Record<CarType, { points: number; width: number; height: number; length: number; color: string; mass: number }> = {
   locomotive: { points: 50, width: 1.2, height: 1.8, length: 3.0, color: '#1a1a2e', mass: 8 },
   boxcar: { points: 100, width: 1.1, height: 1.6, length: 2.8, color: '#8B4513', mass: 3 },
@@ -87,10 +96,10 @@ export const CAR_CONFIG: Record<CarType, { points: number; width: number; height
 }
 
 export const TOOL_CONFIG: Record<ToolType, { name: string; description: string }> = {
-  'rail-remover': { name: 'Rail Remover', description: 'Remove a section of track' },
-  'explosive': { name: 'Explosive', description: 'Place a charge on the track' },
-  'ramp': { name: 'Ramp', description: 'Launch cars into the air' },
+  'rail-remover': { name: 'Rail Remover', description: 'Derails the hit car and everything behind it' },
+  'explosive': { name: 'Explosive', description: 'Blast radius — launches nearby cars in all directions' },
+  'ramp': { name: 'Ramp', description: 'Launches cars sky-high with massive forward momentum' },
   'curve-tightener': { name: 'Curve Tightener', description: 'Sharpen a bend dangerously' },
   'oil-slick': { name: 'Oil Slick', description: 'Reduce friction on a curve' },
-  'decoupler': { name: 'Decoupler', description: 'Separate cars mid-train' },
+  'decoupler': { name: 'Decoupler', description: 'Surgical — derails only the single car that hits it' },
 }

@@ -1,4 +1,4 @@
-import { GameState, TrainCar, Tool, CarType, CAR_CONFIG, TOOL_CONFIG, PlacedTrap, DEFAULT_DEV_CONTROLS } from './types'
+import { GameState, TrainCar, Tool, CarType, CAR_CONFIG, TOOL_CONFIG, PlacedTrap, TrapEffect, DEFAULT_DEV_CONTROLS } from './types'
 import { LEVELS, CAR_GAP, TRAIN_START_OFFSET } from './config'
 
 let nextId = 0
@@ -74,39 +74,86 @@ export function getTrainHeadX(progress: number, trackLength: number): number {
   return -TRAIN_START_OFFSET + progress * totalTravel
 }
 
-/** Check if a trap should trigger based on car positions */
+/** Explosive blast radius in world units */
+const EXPLOSIVE_BLAST_RADIUS = 5
+
+/** Check if a trap should trigger based on car positions.
+ *  Returns per-trap effects with tool-specific derailment logic. */
 export function checkTrapCollisions(
   carPositions: number[],
   cars: TrainCar[],
   traps: PlacedTrap[]
-): { triggeredTrapIds: string[]; derailedCarIds: string[] } {
-  const triggeredTrapIds: string[] = []
-  const derailedCarIds: string[] = []
+): { effects: TrapEffect[] } {
+  const effects: TrapEffect[] = []
+  const alreadyDerailed = new Set(cars.filter((c) => c.derailed).map((c) => c.id))
 
   for (const trap of traps) {
     if (trap.triggered) continue
     const trapX = trap.position[0]
 
     for (let i = 0; i < cars.length; i++) {
-      if (cars[i].derailed) continue
+      if (alreadyDerailed.has(cars[i].id)) continue
       const carX = carPositions[i]
       const halfLen = cars[i].length / 2
 
       if (trapX >= carX - halfLen && trapX <= carX + halfLen) {
-        triggeredTrapIds.push(trap.id)
+        const derailedCarIds: string[] = []
 
-        // Derail this car and all behind it
-        for (let j = i; j < cars.length; j++) {
-          if (!cars[j].derailed) {
-            derailedCarIds.push(cars[j].id)
-          }
+        switch (trap.type) {
+          case 'rail-remover':
+          case 'oil-slick':
+          case 'curve-tightener':
+            // Derail hit car + all behind
+            for (let j = i; j < cars.length; j++) {
+              if (!alreadyDerailed.has(cars[j].id)) {
+                derailedCarIds.push(cars[j].id)
+                alreadyDerailed.add(cars[j].id)
+              }
+            }
+            break
+
+          case 'explosive':
+            // Blast radius — derail all cars within range of the explosion
+            for (let j = 0; j < cars.length; j++) {
+              if (alreadyDerailed.has(cars[j].id)) continue
+              const dist = Math.abs(carPositions[j] - trapX)
+              if (dist < EXPLOSIVE_BLAST_RADIUS + cars[j].length / 2) {
+                derailedCarIds.push(cars[j].id)
+                alreadyDerailed.add(cars[j].id)
+              }
+            }
+            break
+
+          case 'ramp':
+            // Launch the hit car + all behind (like rail-remover but with different physics)
+            for (let j = i; j < cars.length; j++) {
+              if (!alreadyDerailed.has(cars[j].id)) {
+                derailedCarIds.push(cars[j].id)
+                alreadyDerailed.add(cars[j].id)
+              }
+            }
+            break
+
+          case 'decoupler':
+            // Surgical — only the single car that hits it
+            derailedCarIds.push(cars[i].id)
+            alreadyDerailed.add(cars[i].id)
+            break
         }
+
+        effects.push({
+          trapId: trap.id,
+          toolType: trap.type,
+          trapX,
+          impactCarIdx: i,
+          derailedCarIds,
+        })
         break
       }
     }
   }
 
-  return { triggeredTrapIds, derailedCarIds }
+  return { effects }
 }
 
 /** Calculate score from derailed cars */

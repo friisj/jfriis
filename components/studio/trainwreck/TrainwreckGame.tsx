@@ -300,9 +300,19 @@ function TrainCarMesh({
   )
 }
 
+const TRAP_COLORS: Record<ToolType, string> = {
+  'rail-remover': '#ffaa00',
+  'explosive': '#ff4400',
+  'ramp': '#44aaff',
+  'curve-tightener': '#aa44ff',
+  'oil-slick': '#44ff88',
+  'decoupler': '#ff44aa',
+}
+
 function TrapMarker({ trap }: { trap: PlacedTrap }) {
   const meshRef = useRef<THREE.Mesh>(null)
-  const color = trap.triggered ? '#ff0000' : '#ffaa00'
+  const baseColor = TRAP_COLORS[trap.type] ?? '#ffaa00'
+  const color = trap.triggered ? '#ff0000' : baseColor
 
   useFrame(({ clock }) => {
     if (!meshRef.current || trap.triggered) return
@@ -312,6 +322,7 @@ function TrapMarker({ trap }: { trap: PlacedTrap }) {
 
   return (
     <group position={[trap.position[0], 0, 0]}>
+      {/* Ground X marker */}
       <mesh position={[0, 0.05, 0]} rotation={[-Math.PI / 2, 0, 0]}>
         <planeGeometry args={[2, 0.3]} />
         <meshBasicMaterial color={color} side={THREE.DoubleSide} />
@@ -320,15 +331,52 @@ function TrapMarker({ trap }: { trap: PlacedTrap }) {
         <planeGeometry args={[2, 0.3]} />
         <meshBasicMaterial color={color} side={THREE.DoubleSide} />
       </mesh>
-      <mesh ref={meshRef} position={[0, 2, 0]}>
-        <boxGeometry args={[0.3, 4, 0.3]} />
-        <meshBasicMaterial color={color} transparent opacity={0.8} />
-      </mesh>
-      <mesh position={[0, 4.5, 0]}>
-        <sphereGeometry args={[0.4, 12, 12]} />
-        <meshBasicMaterial color={color} />
-      </mesh>
-      <pointLight position={[0, 1, 0]} color={color} intensity={3} distance={8} />
+
+      {/* Tool-specific 3D marker */}
+      {trap.type === 'explosive' ? (
+        <>
+          {/* Barrel shape */}
+          <mesh position={[0, 0.5, 0]}>
+            <cylinderGeometry args={[0.25, 0.3, 1.0, 8]} />
+            <meshStandardMaterial color={color} metalness={0.5} roughness={0.4} />
+          </mesh>
+          <pointLight position={[0, 0.8, 0]} color={color} intensity={5} distance={10} />
+        </>
+      ) : trap.type === 'ramp' ? (
+        <>
+          {/* Ramp wedge */}
+          <mesh ref={meshRef} position={[0, 0.3, 0]} rotation={[0, 0, -Math.PI / 6]}>
+            <boxGeometry args={[2.0, 0.15, 1.2]} />
+            <meshStandardMaterial color={color} metalness={0.3} roughness={0.6} />
+          </mesh>
+          <mesh position={[-0.5, 0.1, 0]}>
+            <boxGeometry args={[1.0, 0.2, 1.2]} />
+            <meshStandardMaterial color={color} metalness={0.3} roughness={0.6} />
+          </mesh>
+        </>
+      ) : trap.type === 'decoupler' ? (
+        <>
+          {/* Blade/scissor shape */}
+          <mesh ref={meshRef} position={[0, 0.6, 0]}>
+            <boxGeometry args={[0.1, 1.2, 1.5]} />
+            <meshStandardMaterial color={color} metalness={0.8} roughness={0.2} />
+          </mesh>
+          <pointLight position={[0, 0.5, 0]} color={color} intensity={2} distance={5} />
+        </>
+      ) : (
+        <>
+          {/* Default pylon (rail-remover, etc.) */}
+          <mesh ref={meshRef} position={[0, 2, 0]}>
+            <boxGeometry args={[0.3, 4, 0.3]} />
+            <meshBasicMaterial color={color} transparent opacity={0.8} />
+          </mesh>
+          <mesh position={[0, 4.5, 0]}>
+            <sphereGeometry args={[0.4, 12, 12]} />
+            <meshBasicMaterial color={color} />
+          </mesh>
+          <pointLight position={[0, 1, 0]} color={color} intensity={3} distance={8} />
+        </>
+      )}
     </group>
   )
 }
@@ -439,7 +487,7 @@ function Scene({ gameState, onUpdate, onPlaceTrap }: SceneProps) {
     const headX = getTrainHeadX(newProgress, level.trackLength)
     const carPositions = getCarPositions(gs.cars, headX)
 
-    const { triggeredTrapIds, derailedCarIds } = checkTrapCollisions(
+    const { effects } = checkTrapCollisions(
       carPositions,
       gs.cars,
       gs.placedTraps
@@ -450,44 +498,46 @@ function Scene({ gameState, onUpdate, onPlaceTrap }: SceneProps) {
       trainSpeed: currentSpeedMult,
     }
 
-    if (triggeredTrapIds.length > 0 || derailedCarIds.length > 0) {
+    if (effects.length > 0) {
+      // Collect all derailed car IDs and triggered trap IDs across all effects
+      const allDerailedIds = new Set<string>()
+      const allTriggeredTrapIds = new Set<string>()
+      for (const effect of effects) {
+        allTriggeredTrapIds.add(effect.trapId)
+        for (const cid of effect.derailedCarIds) allDerailedIds.add(cid)
+      }
+
       updates.cars = gs.cars.map((c) =>
-        derailedCarIds.includes(c.id) ? { ...c, derailed: true } : c
+        allDerailedIds.has(c.id) ? { ...c, derailed: true } : c
       )
       updates.placedTraps = gs.placedTraps.map((t) =>
-        triggeredTrapIds.includes(t.id) ? { ...t, triggered: true } : t
+        allTriggeredTrapIds.has(t.id) ? { ...t, triggered: true } : t
       )
       updates.crashed = true
 
-      // Find the index of the first derailed car (the impact point)
-      let firstDerailIdx = gs.cars.length
-      for (let i = 0; i < gs.cars.length; i++) {
-        if (derailedCarIds.includes(gs.cars[i].id)) {
-          firstDerailIdx = Math.min(firstDerailIdx, i)
-          break
-        }
-      }
+      // Process each effect with tool-specific physics
+      for (const effect of effects) {
+        const { toolType, impactCarIdx, derailedCarIds, trapX } = effect
+        const force = dev.derailForce
+        const spread = dev.derailSpread
 
-      for (const carId of derailedCarIds) {
-        if (!derailBodies.current[carId]) {
+        for (const carId of derailedCarIds) {
+          if (derailBodies.current[carId]) continue // already has a body
+
           const carIdx = gs.cars.findIndex((c) => c.id === carId)
           const car = gs.cars[carIdx]
           const cfg = CAR_CONFIG[car.type]
           const mass = cfg.mass
-          const inverseMass = 1 / mass // lighter = more dramatic
+          const inverseMass = 1 / mass
 
-          const force = dev.derailForce
-          const spread = dev.derailSpread
+          // Cascade delay: stagger based on distance from impact car
+          const distFromImpact = Math.abs(carIdx - impactCarIdx)
+          const cascadeDelay = distFromImpact * 0.12
 
-          // Cascade delay: each car behind the impact launches later
-          const distFromImpact = carIdx - firstDerailIdx
-          const cascadeDelay = distFromImpact * 0.12 // 120ms between each car
-
-          derailBodies.current[carId] = {
+          const body: DerailBody = {
             worldX: carPositions[carIdx],
             y: 0, z: 0,
             rotX: 0, rotY: 0, rotZ: 0,
-            // Mass-based launch: lighter cars fly higher and further
             vx: 0, vy: 0, vz: 0,
             vRotX: 0, vRotY: 0, vRotZ: 0,
             mass,
@@ -499,27 +549,77 @@ function Scene({ gameState, onUpdate, onPlaceTrap }: SceneProps) {
             bounceCount: 0,
           }
 
-          // Pre-compute launch velocities (applied after cascade delay)
-          const body = derailBodies.current[carId]
+          // ── Tool-specific launch velocities ──
           const forwardSpeed = speed * (0.7 + Math.random() * 0.6)
-          body.vx = forwardSpeed * (0.3 + Math.random() * 0.7) * inverseMass * 2
-          body.vy = force * (0.6 + Math.random() * 0.8) * inverseMass * 1.5
-          body.vz = (Math.random() - 0.5) * spread * 3 * inverseMass
-          body.vRotX = (Math.random() - 0.5) * spread * 3 * inverseMass
-          body.vRotY = (Math.random() - 0.5) * spread * 2 * inverseMass
-          body.vRotZ = (Math.random() - 0.5) * spread * 3 * inverseMass
 
-          // Spawn derailment debris particles
-          for (let p = 0; p < 8; p++) {
+          switch (toolType) {
+            case 'rail-remover':
+            case 'oil-slick':
+            case 'curve-tightener':
+              // Standard derailment
+              body.vx = forwardSpeed * (0.3 + Math.random() * 0.7) * inverseMass * 2
+              body.vy = force * (0.6 + Math.random() * 0.8) * inverseMass * 1.5
+              body.vz = (Math.random() - 0.5) * spread * 3 * inverseMass
+              body.vRotX = (Math.random() - 0.5) * spread * 3 * inverseMass
+              body.vRotY = (Math.random() - 0.5) * spread * 2 * inverseMass
+              body.vRotZ = (Math.random() - 0.5) * spread * 3 * inverseMass
+              break
+
+            case 'explosive': {
+              // Blast: high upward force, radial scatter away from explosion center
+              const distFromBlast = carPositions[carIdx] - trapX
+              const blastDir = distFromBlast >= 0 ? 1 : -1
+              const proximity = Math.max(0.3, 1 - Math.abs(distFromBlast) / 6) // closer = stronger
+
+              body.vx = blastDir * force * 2.5 * proximity * inverseMass
+              body.vy = force * (2.0 + Math.random() * 1.5) * proximity * inverseMass
+              body.vz = (Math.random() - 0.5) * spread * 5 * inverseMass
+              body.vRotX = (Math.random() - 0.5) * spread * 5 * inverseMass
+              body.vRotY = (Math.random() - 0.5) * spread * 4 * inverseMass
+              body.vRotZ = (Math.random() - 0.5) * spread * 5 * inverseMass
+              body.cascadeDelay = Math.abs(distFromBlast) * 0.02 // near-simultaneous
+              break
+            }
+
+            case 'ramp':
+              // Sky-high launch: massive upward, strong forward, minimal lateral
+              body.vx = forwardSpeed * (0.8 + Math.random() * 0.4) * inverseMass * 2.5
+              body.vy = force * (3.0 + Math.random() * 2.0) * inverseMass * 2
+              body.vz = (Math.random() - 0.5) * spread * 0.5 * inverseMass // tight grouping
+              body.vRotX = (Math.random() - 0.5) * spread * 1.5 * inverseMass
+              body.vRotY = (Math.random() - 0.5) * spread * 0.5 * inverseMass
+              body.vRotZ = (Math.random() - 0.5) * spread * 4 * inverseMass // barrel roll!
+              break
+
+            case 'decoupler':
+              // Surgical: minimal drama, just tips the single car off the track
+              body.vx = forwardSpeed * 0.3 * inverseMass
+              body.vy = force * 0.4 * inverseMass
+              body.vz = (Math.random() > 0.5 ? 1 : -1) * spread * 1.5 * inverseMass
+              body.vRotX = (Math.random() - 0.5) * spread * 1.0 * inverseMass
+              body.vRotY = 0
+              body.vRotZ = (Math.random() - 0.5) * spread * 2 * inverseMass
+              body.cascadeDelay = 0 // instant, it's only one car
+              break
+          }
+
+          derailBodies.current[carId] = body
+
+          // ── Tool-specific particle effects ──
+          const particleCount = toolType === 'explosive' ? 20 : toolType === 'ramp' ? 12 : 8
+          const particleColor = toolType === 'explosive' ? '#ff6622' : '#ffaa44'
+          const particleSpeed = toolType === 'explosive' ? 14 : 8
+
+          for (let p = 0; p < particleCount; p++) {
             particles.current.push({
               x: carPositions[carIdx], y: 0.5, z: 0,
-              vx: (Math.random() - 0.5) * 8,
-              vy: Math.random() * 6 + 2,
-              vz: (Math.random() - 0.5) * 8,
+              vx: (Math.random() - 0.5) * particleSpeed,
+              vy: Math.random() * (particleSpeed * 0.8) + 2,
+              vz: (Math.random() - 0.5) * particleSpeed,
               life: 1.5 + Math.random(),
               maxLife: 2.5,
-              size: 0.15 + Math.random() * 0.15,
-              color: '#ffaa44',
+              size: toolType === 'explosive' ? 0.2 + Math.random() * 0.2 : 0.15 + Math.random() * 0.15,
+              color: particleColor,
               type: 'debris',
             })
           }
@@ -913,6 +1013,7 @@ function HUD({
               key={tool.type}
               onClick={() => onSelectTool(tool.type)}
               disabled={tool.uses <= 0}
+              title={tool.description}
               className={`px-4 py-3 rounded-lg text-sm font-medium transition-all ${
                 gameState.selectedTool === tool.type
                   ? 'bg-yellow-500 text-black scale-105 ring-2 ring-yellow-300'
