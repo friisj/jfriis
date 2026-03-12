@@ -99,6 +99,39 @@ export const CAR_CONFIG: Record<CarType, { points: number; width: number; height
   caboose: { points: 150, width: 1.0, height: 1.5, length: 2.2, color: '#8B0000', mass: 2 },
 }
 
+// ── Physics types (used by Scene + physics.ts) ──
+
+export interface DamageEvent {
+  /** Impact point in local car space */
+  localX: number; localY: number; localZ: number
+  /** Impact force (affects deformation radius and depth) */
+  force: number
+}
+
+export interface DerailBody {
+  worldX: number; y: number; z: number
+  rotX: number; rotY: number; rotZ: number
+  vx: number; vy: number; vz: number
+  vRotX: number; vRotY: number; vRotZ: number
+  mass: number
+  width: number; height: number; length: number
+  grounded: boolean
+  settled: boolean
+  cascadeDelay: number
+  launched: boolean
+  bounceCount: number
+}
+
+export interface Particle {
+  x: number; y: number; z: number
+  vx: number; vy: number; vz: number
+  life: number
+  maxLife: number
+  size: number
+  color: string
+  type: 'spark' | 'debris' | 'smoke'
+}
+
 export const TOOL_CONFIG: Record<ToolType, { name: string; description: string }> = {
   'rail-remover': { name: 'Rail Remover', description: 'Derails the hit car and everything behind it' },
   'explosive': { name: 'Explosive', description: 'Blast radius — launches nearby cars in all directions' },
