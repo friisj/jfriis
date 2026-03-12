@@ -8,6 +8,8 @@ alter table luv_scenes add constraint luv_scenes_component_check
   check (component in ('generative-prompt', 'reinforcement-review', 'prompt-playground'));
 
 -- Prompt templates (saved prompt versions per module)
+-- Drop pre-existing table from dev if it exists with wrong schema
+drop table if exists luv_prompt_templates cascade;
 create table luv_prompt_templates (
   id uuid primary key default gen_random_uuid(),
   module_slug text not null,
@@ -31,7 +33,7 @@ create policy "Admin full access on luv_prompt_templates"
   with check (auth.role() = 'authenticated');
 
 -- Index for fast lookup by module
-create index idx_luv_prompt_templates_module on luv_prompt_templates(module_slug);
+create index if not exists idx_luv_prompt_templates_module on luv_prompt_templates(module_slug);
 
 -- Seed the prompt-playground scene record
 insert into luv_scenes (
@@ -52,4 +54,4 @@ insert into luv_scenes (
   'dom',
   'prompt-playground',
   'prototype'
-);
+) on conflict (slug) do nothing;
