@@ -247,6 +247,7 @@ export function StagePlayer({
               descriptor={activeScene.descriptor}
               chassisModules={activeScene.modules}
               templateContext={activeScene.templateContext}
+              focusModule={constrainToModule}
             />
           ) : (
             <div className="flex items-center justify-center p-8 text-center">

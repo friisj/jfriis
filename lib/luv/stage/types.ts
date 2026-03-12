@@ -138,4 +138,6 @@ export interface SceneProps {
   descriptor: SceneDescriptor;
   chassisModules: ModuleContext[];
   templateContext: TemplateContext;
+  /** When mounted from a chassis module tab, the slug of the focus module */
+  focusModule?: string;
 }
