@@ -344,14 +344,23 @@ function TrapMarker({ trap }: { trap: PlacedTrap }) {
         </>
       ) : trap.type === 'ramp' ? (
         <>
-          {/* Ramp wedge */}
-          <mesh ref={meshRef} position={[0, 0.3, 0]} rotation={[0, 0, -Math.PI / 6]}>
+          {/* Ramp wedge — slopes up in +X (train travel direction) */}
+          <mesh ref={meshRef} position={[0.2, 0.35, 0]} rotation={[0, 0, Math.PI / 6]}>
             <boxGeometry args={[2.0, 0.15, 1.2]} />
             <meshStandardMaterial color={color} metalness={0.3} roughness={0.6} />
           </mesh>
-          <mesh position={[-0.5, 0.1, 0]}>
-            <boxGeometry args={[1.0, 0.2, 1.2]} />
+          {/* Support block under the low end */}
+          <mesh position={[-0.6, 0.1, 0]}>
+            <boxGeometry args={[0.8, 0.2, 1.2]} />
             <meshStandardMaterial color={color} metalness={0.3} roughness={0.6} />
+          </mesh>
+        </>
+      ) : trap.type === 'oil-slick' ? (
+        <>
+          {/* Flat puddle on the track */}
+          <mesh ref={meshRef} position={[0, 0.06, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+            <circleGeometry args={[1.5, 16]} />
+            <meshStandardMaterial color={color} metalness={0.9} roughness={0.05} transparent opacity={0.6} />
           </mesh>
         </>
       ) : trap.type === 'decoupler' ? (
