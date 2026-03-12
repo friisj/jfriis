@@ -238,6 +238,65 @@ function TrapMarker({ trap }: { trap: PlacedTrap }) {
   )
 }
 
+// ── Particle System ───────────────────────────────────────
+
+interface Particle {
+  x: number; y: number; z: number
+  vx: number; vy: number; vz: number
+  life: number
+  maxLife: number
+  size: number
+  color: string
+  type: 'spark' | 'debris' | 'smoke'
+}
+
+function Particles({ particles }: { particles: Particle[] }) {
+  const meshRef = useRef<THREE.InstancedMesh>(null)
+  const dummy = useMemo(() => new THREE.Object3D(), [])
+  const maxParticles = 200
+
+  useFrame(() => {
+    if (!meshRef.current) return
+    for (let i = 0; i < maxParticles; i++) {
+      const p = particles[i]
+      if (p && p.life > 0) {
+        dummy.position.set(p.x, p.y, p.z)
+        const s = p.size * (p.life / p.maxLife)
+        dummy.scale.set(s, s, s)
+      } else {
+        dummy.position.set(0, -100, 0)
+        dummy.scale.set(0, 0, 0)
+      }
+      dummy.updateMatrix()
+      meshRef.current.setMatrixAt(i, dummy.matrix)
+    }
+    meshRef.current.instanceMatrix.needsUpdate = true
+  })
+
+  return (
+    <instancedMesh ref={meshRef} args={[undefined, undefined, maxParticles]}>
+      <boxGeometry args={[1, 1, 1]} />
+      <meshBasicMaterial color="#ffaa44" />
+    </instancedMesh>
+  )
+}
+
+// ── Derail Body ───────────────────────────────────────────
+
+interface DerailBody {
+  worldX: number; y: number; z: number
+  rotX: number; rotY: number; rotZ: number
+  vx: number; vy: number; vz: number
+  vRotX: number; vRotY: number; vRotZ: number
+  mass: number
+  width: number; height: number; length: number
+  grounded: boolean
+  settled: boolean
+  cascadeDelay: number  // seconds to wait before launching
+  launched: boolean
+  bounceCount: number
+}
+
 // ── Scene ──────────────────────────────────────────────────
 
 interface SceneProps {
@@ -248,17 +307,20 @@ interface SceneProps {
 
 function Scene({ gameState, onUpdate, onPlaceTrap }: SceneProps) {
   const level = getLevel(gameState.level)
-  const derailAnimations = useRef<Record<string, {
-    x: number; y: number; z: number
-    rotX: number; rotY: number; rotZ: number
-    vx: number; vy: number; vz: number
-    vRotX: number; vRotY: number; vRotZ: number
-    grounded: boolean
-    settled: boolean
-  }>>({})
+  const derailBodies = useRef<Record<string, DerailBody>>({})
+  const particles = useRef<Particle[]>([])
+  const [particleSnapshot, setParticleSnapshot] = useState<Particle[]>([])
 
   const stateRef = useRef(gameState)
   stateRef.current = gameState
+
+  // Clear physics state on level reset
+  const prevCrashed = useRef(false)
+  if (!gameState.crashed && prevCrashed.current) {
+    derailBodies.current = {}
+    particles.current = []
+  }
+  prevCrashed.current = gameState.crashed
 
   useFrame((_, delta) => {
     const gs = stateRef.current
@@ -300,80 +362,233 @@ function Scene({ gameState, onUpdate, onPlaceTrap }: SceneProps) {
       )
       updates.crashed = true
 
+      // Find the index of the first derailed car (the impact point)
+      let firstDerailIdx = gs.cars.length
+      for (let i = 0; i < gs.cars.length; i++) {
+        if (derailedCarIds.includes(gs.cars[i].id)) {
+          firstDerailIdx = Math.min(firstDerailIdx, i)
+          break
+        }
+      }
+
       for (const carId of derailedCarIds) {
-        if (!derailAnimations.current[carId]) {
+        if (!derailBodies.current[carId]) {
+          const carIdx = gs.cars.findIndex((c) => c.id === carId)
+          const car = gs.cars[carIdx]
+          const cfg = CAR_CONFIG[car.type]
+          const mass = cfg.mass
+          const inverseMass = 1 / mass // lighter = more dramatic
+
           const force = dev.derailForce
           const spread = dev.derailSpread
-          // Inherit forward momentum from train speed at derailment
-          const forwardSpeed = speed * (0.7 + Math.random() * 0.6)
-          derailAnimations.current[carId] = {
-            x: 0, y: 0, z: 0,
+
+          // Cascade delay: each car behind the impact launches later
+          const distFromImpact = carIdx - firstDerailIdx
+          const cascadeDelay = distFromImpact * 0.12 // 120ms between each car
+
+          derailBodies.current[carId] = {
+            worldX: carPositions[carIdx],
+            y: 0, z: 0,
             rotX: 0, rotY: 0, rotZ: 0,
-            vx: forwardSpeed * (0.3 + Math.random() * 0.7),
-            vy: force * (0.6 + Math.random() * 0.8),
-            vz: (Math.random() - 0.5) * spread * 3,
-            vRotX: (Math.random() - 0.5) * spread * 3,
-            vRotY: (Math.random() - 0.5) * spread * 2,
-            vRotZ: (Math.random() - 0.5) * spread * 3,
+            // Mass-based launch: lighter cars fly higher and further
+            vx: 0, vy: 0, vz: 0,
+            vRotX: 0, vRotY: 0, vRotZ: 0,
+            mass,
+            width: cfg.width, height: cfg.height, length: cfg.length,
             grounded: false,
             settled: false,
+            cascadeDelay,
+            launched: false,
+            bounceCount: 0,
+          }
+
+          // Pre-compute launch velocities (applied after cascade delay)
+          const body = derailBodies.current[carId]
+          const forwardSpeed = speed * (0.7 + Math.random() * 0.6)
+          body.vx = forwardSpeed * (0.3 + Math.random() * 0.7) * inverseMass * 2
+          body.vy = force * (0.6 + Math.random() * 0.8) * inverseMass * 1.5
+          body.vz = (Math.random() - 0.5) * spread * 3 * inverseMass
+          body.vRotX = (Math.random() - 0.5) * spread * 3 * inverseMass
+          body.vRotY = (Math.random() - 0.5) * spread * 2 * inverseMass
+          body.vRotZ = (Math.random() - 0.5) * spread * 3 * inverseMass
+
+          // Spawn derailment debris particles
+          for (let p = 0; p < 8; p++) {
+            particles.current.push({
+              x: carPositions[carIdx], y: 0.5, z: 0,
+              vx: (Math.random() - 0.5) * 8,
+              vy: Math.random() * 6 + 2,
+              vz: (Math.random() - 0.5) * 8,
+              life: 1.5 + Math.random(),
+              maxLife: 2.5,
+              size: 0.15 + Math.random() * 0.15,
+              color: '#ffaa44',
+              type: 'debris',
+            })
           }
         }
       }
     }
 
-    // Animate derailed cars — independent tumbling physics
+    // ── Physics simulation for derailed cars ──
     const gravity = dev.gravity
     const bounce = dev.bounceRestitution
-    for (const [, anim] of Object.entries(derailAnimations.current)) {
-      if (anim.settled) continue
+    const bodyEntries = Object.entries(derailBodies.current)
+
+    for (const [carId, body] of bodyEntries) {
+      if (body.settled) continue
+
+      // Handle cascade delay — car stays on track until its turn
+      if (!body.launched) {
+        body.cascadeDelay -= delta
+        if (body.cascadeDelay > 0) {
+          // Still waiting — update worldX to track the decelerating train
+          const carIdx = gs.cars.findIndex((c) => c.id === carId)
+          if (carIdx >= 0) body.worldX = carPositions[carIdx]
+          continue
+        }
+        body.launched = true
+      }
 
       // Apply gravity
-      anim.vy -= gravity * delta
+      body.vy -= gravity * delta
 
       // Update positions
-      anim.x += anim.vx * delta
-      anim.y += anim.vy * delta
-      anim.z += anim.vz * delta
+      body.worldX += body.vx * delta
+      body.y += body.vy * delta
+      body.z += body.vz * delta
 
-      // Update rotations
-      anim.rotX += anim.vRotX * delta
-      anim.rotY += anim.vRotY * delta
-      anim.rotZ += anim.vRotZ * delta
+      // Update rotations (angular velocity dampens based on mass)
+      body.rotX += body.vRotX * delta
+      body.rotY += body.vRotY * delta
+      body.rotZ += body.vRotZ * delta
 
       // Ground collision
-      if (anim.y < 0) {
-        anim.y = 0
-        anim.vy = Math.abs(anim.vy) * bounce
-        anim.grounded = true
+      if (body.y < 0) {
+        body.y = 0
+        body.vy = Math.abs(body.vy) * bounce
+        body.grounded = true
+        body.bounceCount++
 
-        // Friction on ground contact
-        anim.vx *= 0.6
-        anim.vz *= 0.6
-        anim.vRotX *= 0.4
-        anim.vRotY *= 0.4
-        anim.vRotZ *= 0.4
+        // Mass-based friction: heavier cars slide further
+        const frictionMult = 0.5 + (body.mass / 16) // 0.5 – 1.0
+        body.vx *= frictionMult
+        body.vz *= 0.5
+        // Angular damping on impact — heavier = less spin loss
+        const angularDamp = 0.3 + (body.mass / 20)
+        body.vRotX *= angularDamp
+        body.vRotY *= angularDamp
+        body.vRotZ *= angularDamp
+
+        // Spawn sparks on ground impact
+        if (body.bounceCount <= 3) {
+          const sparkCount = Math.max(1, 6 - body.bounceCount * 2)
+          for (let p = 0; p < sparkCount; p++) {
+            particles.current.push({
+              x: body.worldX + (Math.random() - 0.5) * body.length,
+              y: 0.1,
+              z: body.z + (Math.random() - 0.5) * body.width,
+              vx: (Math.random() - 0.5) * 4,
+              vy: Math.random() * 3 + 1,
+              vz: (Math.random() - 0.5) * 4,
+              life: 0.4 + Math.random() * 0.6,
+              maxLife: 1.0,
+              size: 0.06 + Math.random() * 0.08,
+              color: '#ffdd66',
+              type: 'spark',
+            })
+          }
+        }
 
         // Settle when energy is low
-        const totalV = Math.abs(anim.vy) + Math.abs(anim.vx) + Math.abs(anim.vz)
-        const totalRot = Math.abs(anim.vRotX) + Math.abs(anim.vRotY) + Math.abs(anim.vRotZ)
+        const totalV = Math.abs(body.vy) + Math.abs(body.vx) + Math.abs(body.vz)
+        const totalRot = Math.abs(body.vRotX) + Math.abs(body.vRotY) + Math.abs(body.vRotZ)
         if (totalV < 0.4 && totalRot < 0.3) {
-          anim.vy = 0
-          anim.vx = 0
-          anim.vz = 0
-          anim.vRotX = 0
-          anim.vRotY = 0
-          anim.vRotZ = 0
-          anim.settled = true
+          body.vy = 0; body.vx = 0; body.vz = 0
+          body.vRotX = 0; body.vRotY = 0; body.vRotZ = 0
+          body.settled = true
         }
       }
 
-      // Air drag (slight)
-      if (!anim.grounded) {
-        anim.vx *= 0.998
-        anim.vz *= 0.998
+      // Air drag
+      if (!body.grounded) {
+        body.vx *= 0.998
+        body.vz *= 0.998
       }
-      anim.grounded = false
+      body.grounded = false
+    }
+
+    // ── Car-car collisions (simple sphere overlap) ──
+    for (let i = 0; i < bodyEntries.length; i++) {
+      const [, a] = bodyEntries[i]
+      if (a.settled || !a.launched) continue
+      for (let j = i + 1; j < bodyEntries.length; j++) {
+        const [, b] = bodyEntries[j]
+        if (b.settled || !b.launched) continue
+
+        const dx = a.worldX - b.worldX
+        const dy = a.y - b.y
+        const dz = a.z - b.z
+        const dist = Math.sqrt(dx * dx + dy * dy + dz * dz)
+        const minDist = (a.length + b.length) * 0.35 // rough collision radius
+
+        if (dist < minDist && dist > 0.01) {
+          // Push apart and transfer momentum
+          const nx = dx / dist
+          const ny = dy / dist
+          const nz = dz / dist
+
+          const totalMass = a.mass + b.mass
+          const relVx = a.vx - b.vx
+          const relVy = a.vy - b.vy
+          const relVz = a.vz - b.vz
+          const relDotN = relVx * nx + relVy * ny + relVz * nz
+
+          if (relDotN > 0) continue // moving apart
+
+          const impulse = (2 * relDotN) / totalMass * 0.8
+
+          a.vx -= impulse * b.mass * nx
+          a.vy -= impulse * b.mass * ny
+          a.vz -= impulse * b.mass * nz
+          b.vx += impulse * a.mass * nx
+          b.vy += impulse * a.mass * ny
+          b.vz += impulse * a.mass * nz
+
+          // Transfer some angular momentum too
+          a.vRotX += (Math.random() - 0.5) * 2 / a.mass
+          a.vRotZ += (Math.random() - 0.5) * 2 / a.mass
+          b.vRotX += (Math.random() - 0.5) * 2 / b.mass
+          b.vRotZ += (Math.random() - 0.5) * 2 / b.mass
+
+          // Separate overlapping bodies
+          const overlap = minDist - dist
+          const sepA = overlap * (b.mass / totalMass)
+          const sepB = overlap * (a.mass / totalMass)
+          a.worldX += nx * sepA
+          a.y += ny * sepA
+          a.z += nz * sepA
+          b.worldX -= nx * sepB
+          b.y -= ny * sepB
+          b.z -= nz * sepB
+        }
+      }
+    }
+
+    // ── Update particles ──
+    particles.current = particles.current.filter((p) => {
+      p.life -= delta
+      if (p.life <= 0) return false
+      p.vy -= 6 * delta // particle gravity
+      p.x += p.vx * delta
+      p.y += p.vy * delta
+      p.z += p.vz * delta
+      if (p.y < 0) { p.y = 0; p.vy = 0; p.vx *= 0.5; p.vz *= 0.5 }
+      return true
+    })
+    // Snapshot for rendering (avoid re-creating array every frame)
+    if (particles.current.length > 0 || particleSnapshot.length > 0) {
+      setParticleSnapshot([...particles.current])
     }
 
     const carsForScore = updates.cars ?? gs.cars
@@ -413,13 +628,32 @@ function Scene({ gameState, onUpdate, onPlaceTrap }: SceneProps) {
       <ClickPlane enabled={canPlace} onPlace={onPlaceTrap} />
 
       {gameState.cars.map((car, i) => {
-        const anim = derailAnimations.current[car.id] ?? { x: 0, y: 0, z: 0, rotX: 0, rotY: 0, rotZ: 0 }
-        return <TrainCarMesh key={car.id} car={car} x={carPositions[i]} derailOffset={anim} />
+        const body = derailBodies.current[car.id]
+        if (body && body.launched) {
+          return (
+            <TrainCarMesh
+              key={car.id}
+              car={car}
+              x={body.worldX}
+              derailOffset={{ x: 0, y: body.y, z: body.z, rotX: body.rotX, rotY: body.rotY, rotZ: body.rotZ }}
+            />
+          )
+        }
+        return (
+          <TrainCarMesh
+            key={car.id}
+            car={car}
+            x={carPositions[i]}
+            derailOffset={{ x: 0, y: 0, z: 0, rotX: 0, rotY: 0, rotZ: 0 }}
+          />
+        )
       })}
 
       {gameState.placedTraps.map((trap) => (
         <TrapMarker key={trap.id} trap={trap} />
       ))}
+
+      <Particles particles={particleSnapshot} />
     </>
   )
 }

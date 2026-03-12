@@ -78,12 +78,12 @@ export interface PlacedTrap {
   triggered: boolean
 }
 
-export const CAR_CONFIG: Record<CarType, { points: number; width: number; height: number; length: number; color: string }> = {
-  locomotive: { points: 50, width: 1.2, height: 1.8, length: 3.0, color: '#1a1a2e' },
-  boxcar: { points: 100, width: 1.1, height: 1.6, length: 2.8, color: '#8B4513' },
-  tanker: { points: 250, width: 1.0, height: 1.4, length: 2.6, color: '#708090' },
-  flatbed: { points: 75, width: 1.1, height: 0.6, length: 2.8, color: '#556B2F' },
-  caboose: { points: 150, width: 1.0, height: 1.5, length: 2.2, color: '#8B0000' },
+export const CAR_CONFIG: Record<CarType, { points: number; width: number; height: number; length: number; color: string; mass: number }> = {
+  locomotive: { points: 50, width: 1.2, height: 1.8, length: 3.0, color: '#1a1a2e', mass: 8 },
+  boxcar: { points: 100, width: 1.1, height: 1.6, length: 2.8, color: '#8B4513', mass: 3 },
+  tanker: { points: 250, width: 1.0, height: 1.4, length: 2.6, color: '#708090', mass: 6 },
+  flatbed: { points: 75, width: 1.1, height: 0.6, length: 2.8, color: '#556B2F', mass: 1.5 },
+  caboose: { points: 150, width: 1.0, height: 1.5, length: 2.2, color: '#8B0000', mass: 2 },
 }
 
 export const TOOL_CONFIG: Record<ToolType, { name: string; description: string }> = {
