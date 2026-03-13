@@ -47,22 +47,25 @@ export function simulateCouplings(
     carVelocities[i + 1] += (force / rearMass) * delta
   }
 
-  // Apply friction deceleration to cars behind broken couplings
+  // Apply friction deceleration to disconnected or derailed cars
   for (let i = 1; i < cars.length; i++) {
-    if (cars[i].derailed) continue
-    // Check if any coupling in the chain from loco to this car is broken
-    let connected = true
-    for (let j = 0; j < i; j++) {
-      if (!couplings[j].intact) { connected = false; break }
-    }
-    if (!connected) {
-      carVelocities[i] = Math.max(0, carVelocities[i] - 0.5 * delta)
+    if (cars[i].derailed) {
+      // Derailed cars coast and decelerate (still on spline during cascade delay)
+      carVelocities[i] = Math.max(0, carVelocities[i] - 1.5 * delta)
+    } else {
+      // Check if any coupling in the chain from loco to this car is broken
+      let connected = true
+      for (let j = 0; j < i; j++) {
+        if (!couplings[j].intact) { connected = false; break }
+      }
+      if (!connected) {
+        carVelocities[i] = Math.max(0, carVelocities[i] - 0.5 * delta)
+      }
     }
   }
 
-  // Update path distances from velocities
+  // Update path distances from velocities (including derailed cars still coasting)
   for (let i = 1; i < cars.length; i++) {
-    if (cars[i].derailed) continue
     carPathDistances[i] += carVelocities[i] * delta
   }
 

@@ -3,7 +3,7 @@
 import { useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
-import { GameState, DamageEvent, DerailBody, Particle, CargoBody, TerrainEffect } from '@/lib/studio/trainwreck/types'
+import { GameState, DamageEvent, DerailBody, Particle, CargoBody, CarPose } from '@/lib/studio/trainwreck/types'
 import { CAR_GAP } from '@/lib/studio/trainwreck/config'
 import {
   getLevel,
@@ -40,6 +40,8 @@ export function Scene({ gameState, onUpdate, onPlaceTrap, trackPath }: SceneProp
   const carPathDistances = useRef<number[]>([])
   const carVelocities = useRef<number[]>([])
   const couplingsInitialized = useRef(false)
+  // Store coupling-computed poses for render pass (avoids rigid-offset mismatch)
+  const latestCarPoses = useRef<CarPose[]>([])
 
   const stateRef = useRef(gameState)
   stateRef.current = gameState
@@ -54,6 +56,7 @@ export function Scene({ gameState, onUpdate, onPlaceTrap, trackPath }: SceneProp
     carPathDistances.current = []
     carVelocities.current = []
     couplingsInitialized.current = false
+    latestCarPoses.current = []
   }
   prevCrashed.current = gameState.crashed
 
@@ -96,6 +99,9 @@ export function Scene({ gameState, onUpdate, onPlaceTrap, trackPath }: SceneProp
     } else {
       carPoses = getCarPoses(gs.cars, headPose.pathDistance, trackPath)
     }
+
+    // Store for render pass
+    latestCarPoses.current = carPoses
 
     const { effects, terrainEffects: newTerrainEffects } = checkTrapCollisions(
       carPoses, gs.cars, gs.placedTraps, gs.couplings, speed, level.trainSpeed
@@ -246,8 +252,10 @@ export function Scene({ gameState, onUpdate, onPlaceTrap, trackPath }: SceneProp
     onUpdate(updates)
   })
 
-  const headPose = getTrainHeadPose(gameState.trainProgress, trackPath)
-  const carPoses = getCarPoses(gameState.cars, headPose.pathDistance, trackPath)
+  // Use coupling-computed poses if available, fall back to rigid offsets for first frame
+  const carPoses = latestCarPoses.current.length === gameState.cars.length
+    ? latestCarPoses.current
+    : getCarPoses(gameState.cars, getTrainHeadPose(gameState.trainProgress, trackPath).pathDistance, trackPath)
 
   const canPlace = gameState.status === 'playing' && !!gameState.selectedTool &&
     gameState.tools.some((t) => t.type === gameState.selectedTool && t.uses > 0)
