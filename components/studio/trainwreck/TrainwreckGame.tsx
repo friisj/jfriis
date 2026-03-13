@@ -1,7 +1,7 @@
 'use client'
 
 import { Canvas } from '@react-three/fiber'
-import { useState, useRef, useCallback, useMemo } from 'react'
+import { useState, useRef, useCallback, useMemo, useEffect } from 'react'
 import * as THREE from 'three'
 import {
   GameState,
@@ -12,7 +12,7 @@ import {
   DEFAULT_DEV_CONTROLS,
 } from '@/lib/studio/trainwreck/types'
 import { RAIL_HEIGHT } from '@/lib/studio/trainwreck/config'
-import { initLevel, getLevel, getTrainHeadPose } from '@/lib/studio/trainwreck/engine'
+import { initLevel, getLevel, getTrainHeadPose, validatePlacement } from '@/lib/studio/trainwreck/engine'
 import { createTrackPath, straightTrackPath } from '@/lib/studio/trainwreck/track'
 import { Scene } from './Scene'
 import { CameraController } from './CameraController'
@@ -59,6 +59,11 @@ export default function TrainwreckGame() {
         const lvl = getLevel(prev.level)
         const tp = lvl.trackPoints ? createTrackPath(lvl.trackPoints) : straightTrackPath(lvl.trackLength)
         const pathDistance = tp.closestDistance(worldPos)
+
+        // Validate placement
+        const validation = validatePlacement(prev.selectedTool, pathDistance, tp, prev.placedTraps)
+        if (!validation.valid) return prev
+
         const snapped = tp.getPointAt(pathDistance)
 
         const newTools = prev.tools.map((t, i) =>
@@ -131,6 +136,23 @@ export default function TrainwreckGame() {
     })
   }, [])
 
+  const handleUndoLastTrap = useCallback(() => {
+    setGameState((prev) => {
+      if (prev.placedTraps.length === 0) return prev
+      // Only allow undo if no traps have triggered
+      if (prev.placedTraps.some((t) => t.triggered)) return prev
+      const removed = prev.placedTraps[prev.placedTraps.length - 1]
+      const newTools = prev.tools.map((t) =>
+        t.type === removed.type ? { ...t, uses: t.uses + 1 } : t
+      )
+      return {
+        ...prev,
+        placedTraps: prev.placedTraps.slice(0, -1),
+        tools: newTools,
+      }
+    })
+  }, [])
+
   const handleRestart = useCallback(() => {
     setGameState((prev) => {
       const base = initLevel(prev.level)
@@ -144,7 +166,21 @@ export default function TrainwreckGame() {
     })
   }, [])
 
+  // Ctrl+Z / Cmd+Z undo shortcut
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'z') {
+        e.preventDefault()
+        handleUndoLastTrap()
+      }
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [handleUndoLastTrap])
+
   const headPose = getTrainHeadPose(gameState.trainProgress, trackPath)
+
+  const canUndo = gameState.placedTraps.length > 0 && !gameState.placedTraps.some((t) => t.triggered)
 
   return (
     <div className="relative h-screen w-screen bg-black">
@@ -189,6 +225,8 @@ export default function TrainwreckGame() {
         onNextLevel={handleNextLevel}
         onRestart={handleRestart}
         onSetCamera={handleSetCamera}
+        onUndo={handleUndoLastTrap}
+        canUndo={canUndo}
       />
 
       <DevPanel

@@ -198,6 +198,33 @@ export function processEffects(
           body.cascadeDelay = 0
           break
         }
+
+        case 'cattle': {
+          const fwd = forwardSpeed * 0.4 * inverseMass
+          const lat = (Math.random() > 0.5 ? 1 : -1) * spread * 1.2 * inverseMass
+          body.vx = tangent.x * fwd + binormal.x * lat
+          body.vy = force * 0.5 * inverseMass
+          body.vz = tangent.z * fwd + binormal.z * lat
+          body.vRotX = (Math.random() - 0.5) * spread * 1.5 * inverseMass
+          body.vRotY = (Math.random() - 0.5) * spread * inverseMass
+          body.vRotZ = (Math.random() - 0.5) * spread * 2 * inverseMass
+          body.cascadeDelay = 0
+          break
+        }
+
+        case 'landslide': {
+          // Lower vertical, stronger lateral scatter
+          const fwd = forwardSpeed * (0.2 + Math.random() * 0.4) * inverseMass * 2
+          const up = force * (0.3 + Math.random() * 0.4) * inverseMass
+          const lat = (Math.random() - 0.5) * spread * 4 * inverseMass
+          body.vx = tangent.x * fwd + binormal.x * lat
+          body.vy = up
+          body.vz = tangent.z * fwd + binormal.z * lat
+          body.vRotX = (Math.random() - 0.5) * spread * 2 * inverseMass
+          body.vRotY = (Math.random() - 0.5) * spread * 2 * inverseMass
+          body.vRotZ = (Math.random() - 0.5) * spread * 3 * inverseMass
+          break
+        }
       }
 
       derailBodies[carId] = body
@@ -217,6 +244,44 @@ export function processEffects(
           size: toolType === 'explosive' ? 0.2 + Math.random() * 0.2 : 0.15 + Math.random() * 0.15,
           color: particleColor,
           type: 'debris',
+        })
+      }
+    }
+
+    // Cattle/landslide: debris particles at trap position
+    if (toolType === 'cattle' || toolType === 'landslide') {
+      const debrisCount = toolType === 'landslide' ? 15 : 8
+      for (let p = 0; p < debrisCount; p++) {
+        particles.push({
+          x: trapWorldPos.x + (Math.random() - 0.5) * 2,
+          y: trapWorldPos.y + 0.3,
+          z: trapWorldPos.z + (Math.random() - 0.5) * 1.5,
+          vx: (Math.random() - 0.5) * 6,
+          vy: 2 + Math.random() * 4,
+          vz: (Math.random() - 0.5) * 6,
+          life: 1.0 + Math.random() * 0.5,
+          maxLife: 1.5,
+          size: 0.1 + Math.random() * 0.15,
+          color: toolType === 'landslide' ? '#8B7355' : '#b5651d',
+          type: 'debris',
+        })
+      }
+    }
+
+    // Explosive: shockwave ring particles
+    if (toolType === 'explosive') {
+      for (let p = 0; p < 15; p++) {
+        const angle = (p / 15) * Math.PI * 2
+        particles.push({
+          x: trapWorldPos.x, y: trapWorldPos.y + 0.5, z: trapWorldPos.z,
+          vx: Math.cos(angle) * 8,
+          vy: 0.5 + Math.random(),
+          vz: Math.sin(angle) * 8,
+          life: 0.8 + Math.random() * 0.4,
+          maxLife: 1.2,
+          size: 0.15 + Math.random() * 0.1,
+          color: '#cccccc',
+          type: 'smoke',
         })
       }
     }
@@ -255,6 +320,7 @@ export function simulateDerailBodies(
   particles: Particle[],
   gravity: number,
   bounce: number,
+  oilSlickZones?: { x: number; z: number; radius: number }[],
 ): void {
   const bodyEntries = Object.entries(derailBodies)
 
@@ -309,10 +375,23 @@ export function simulateDerailBodies(
         })
       }
 
-      // Mass-based friction: heavier cars slide further
-      const frictionMult = 0.5 + (body.mass / 16) // 0.5 – 1.0
+      // Check if body is in an oil slick zone
+      let inOil = false
+      if (oilSlickZones) {
+        for (const zone of oilSlickZones) {
+          const dx = body.worldX - zone.x
+          const dz = body.z - zone.z
+          if (Math.sqrt(dx * dx + dz * dz) < zone.radius) {
+            inOil = true
+            break
+          }
+        }
+      }
+
+      // Mass-based friction: heavier cars slide further. Oil reduces friction dramatically.
+      const frictionMult = inOil ? 0.95 : 0.5 + (body.mass / 16) // oil: near-zero friction
       body.vx *= frictionMult
-      body.vz *= 0.5
+      body.vz *= inOil ? 0.9 : 0.5
       // Angular damping on impact — heavier = less spin loss
       const angularDamp = 0.3 + (body.mass / 20)
       body.vRotX *= angularDamp

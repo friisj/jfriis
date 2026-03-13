@@ -45,10 +45,14 @@ export const TRAP_COLORS: Record<ToolType, string> = {
   'curve-tightener': '#aa44ff',
   'oil-slick': '#44ff88',
   'decoupler': '#ff44aa',
+  'cattle': '#b5651d',
+  'landslide': '#8B7355',
 }
 
 export function TrapMarker({ trap, trackPath }: { trap: PlacedTrap; trackPath: TrackPath }) {
   const meshRef = useRef<THREE.Mesh>(null)
+  const oilRef = useRef<THREE.Mesh>(null)
+  const triggerTime = useRef<number | null>(null)
   const baseColor = TRAP_COLORS[trap.type] ?? '#ffaa00'
   const color = trap.triggered ? '#ff0000' : baseColor
 
@@ -58,12 +62,59 @@ export function TrapMarker({ trap, trackPath }: { trap: PlacedTrap; trackPath: T
   }, [trackPath, trap.pathDistance])
 
   useFrame(({ clock }) => {
+    const t = clock.getElapsedTime()
+
+    // Curve-tightener stealth: near-invisible when untriggered, flash on trigger
+    if (trap.type === 'curve-tightener') {
+      if (meshRef.current) {
+        if (trap.triggered) {
+          if (triggerTime.current === null) triggerTime.current = t
+          const dt = t - triggerTime.current
+          const flash = dt < 0.3 ? 1.0 : 0.0
+          meshRef.current.visible = flash > 0
+        }
+      }
+      return
+    }
+
+    // Oil slick puddle spread on trigger
+    if (trap.type === 'oil-slick' && oilRef.current) {
+      if (trap.triggered) {
+        if (triggerTime.current === null) triggerTime.current = t
+        const dt = t - triggerTime.current
+        const r = Math.min(1.5 + dt * 1.5, 3.0)
+        oilRef.current.scale.set(r / 1.5, r / 1.5, 1)
+        const mat = oilRef.current.material as THREE.MeshStandardMaterial
+        mat.color.set('#226633')
+      }
+      return
+    }
+
+    // Cattle sway animation
+    if (trap.type === 'cattle' && meshRef.current && !trap.triggered) {
+      meshRef.current.rotation.y = Math.sin(t * 1.5) * 0.15
+      return
+    }
+
+    // Default pulse animation
     if (!meshRef.current || trap.triggered) return
-    const s = 1 + Math.sin(clock.getElapsedTime() * 4) * 0.15
+    const s = 1 + Math.sin(t * 4) * 0.15
     meshRef.current.scale.set(s, 1, s)
   })
 
   const pos = trap.position
+
+  // Curve-tightener: stealth rendering
+  if (trap.type === 'curve-tightener') {
+    return (
+      <group position={[pos[0], pos[1], pos[2]]} quaternion={trackQuat}>
+        <mesh ref={meshRef} position={[0, 0.05, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+          <ringGeometry args={[0.6, 0.9, 16]} />
+          <meshBasicMaterial color={baseColor} transparent opacity={0.15} side={THREE.DoubleSide} />
+        </mesh>
+      </group>
+    )
+  }
 
   return (
     <group position={[pos[0], pos[1], pos[2]]} quaternion={trackQuat}>
@@ -89,12 +140,10 @@ export function TrapMarker({ trap, trackPath }: { trap: PlacedTrap; trackPath: T
       ) : trap.type === 'ramp' ? (
         <RampWedge ref={meshRef} color={color} />
       ) : trap.type === 'oil-slick' ? (
-        <>
-          <mesh ref={meshRef} position={[0, 0.06, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-            <circleGeometry args={[1.5, 16]} />
-            <meshStandardMaterial color={color} metalness={0.9} roughness={0.05} transparent opacity={0.6} />
-          </mesh>
-        </>
+        <mesh ref={oilRef} position={[0, 0.06, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+          <circleGeometry args={[1.5, 16]} />
+          <meshStandardMaterial color={color} metalness={0.9} roughness={0.05} transparent opacity={0.6} />
+        </mesh>
       ) : trap.type === 'decoupler' ? (
         <>
           <mesh ref={meshRef} position={[0, 0.6, 0]}>
@@ -103,6 +152,45 @@ export function TrapMarker({ trap, trackPath }: { trap: PlacedTrap; trackPath: T
           </mesh>
           <pointLight position={[0, 0.5, 0]} color={color} intensity={2} distance={5} />
         </>
+      ) : trap.type === 'cattle' ? (
+        <group ref={meshRef} position={[0, 0, 0]}>
+          {/* Body — horizontal cylinder */}
+          <mesh position={[0, 0.5, 0]} rotation={[0, 0, Math.PI / 2]}>
+            <cylinderGeometry args={[0.25, 0.25, 0.8, 8]} />
+            <meshStandardMaterial color={color} roughness={0.8} />
+          </mesh>
+          {/* Head */}
+          <mesh position={[0, 0.55, 0.5]}>
+            <sphereGeometry args={[0.2, 8, 8]} />
+            <meshStandardMaterial color={color} roughness={0.8} />
+          </mesh>
+          {/* Legs */}
+          {[[-0.25, 0, -0.15], [-0.25, 0, 0.15], [0.25, 0, -0.15], [0.25, 0, 0.15]].map(([x, , z], i) => (
+            <mesh key={i} position={[x!, 0.15, z!]}>
+              <cylinderGeometry args={[0.04, 0.04, 0.3, 4]} />
+              <meshStandardMaterial color="#8B4513" />
+            </mesh>
+          ))}
+        </group>
+      ) : trap.type === 'landslide' ? (
+        <group>
+          <mesh position={[0, 0.35, 0]}>
+            <sphereGeometry args={[0.4, 8, 8]} />
+            <meshStandardMaterial color={color} roughness={0.9} />
+          </mesh>
+          <mesh position={[0.35, 0.2, 0.25]}>
+            <sphereGeometry args={[0.25, 8, 8]} />
+            <meshStandardMaterial color="#7a6548" roughness={0.9} />
+          </mesh>
+          <mesh position={[-0.25, 0.25, -0.2]}>
+            <sphereGeometry args={[0.3, 8, 8]} />
+            <meshStandardMaterial color="#9a8568" roughness={0.9} />
+          </mesh>
+          <mesh position={[0.1, 0.12, -0.35]}>
+            <sphereGeometry args={[0.2, 8, 8]} />
+            <meshStandardMaterial color={color} roughness={0.9} />
+          </mesh>
+        </group>
       ) : (
         <>
           <mesh ref={meshRef} position={[0, 2, 0]}>

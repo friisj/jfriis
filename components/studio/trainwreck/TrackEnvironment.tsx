@@ -10,6 +10,9 @@ import {
   GROUND_SIZE,
 } from '@/lib/studio/trainwreck/config'
 import { TrackPath } from '@/lib/studio/trainwreck/track'
+import { ToolType, PlacedTrap } from '@/lib/studio/trainwreck/types'
+import { validatePlacement } from '@/lib/studio/trainwreck/engine'
+import { TRAP_COLORS } from './TrapMarker'
 
 export function Ground() {
   return (
@@ -24,17 +27,29 @@ export function ClickPlane({
   enabled,
   onPlace,
   trackPath,
+  selectedTool,
+  existingTraps,
 }: {
   enabled: boolean
   onPlace: (worldPos: THREE.Vector3) => void
   trackPath: TrackPath
+  selectedTool: ToolType | null
+  existingTraps: PlacedTrap[]
 }) {
   const { camera, gl } = useThree()
-  const cursorRef = useRef<THREE.Mesh>(null)
+  const groupRef = useRef<THREE.Group>(null)
   const raycaster = useMemo(() => new THREE.Raycaster(), [])
   const groundPlane = useMemo(() => new THREE.Plane(new THREE.Vector3(0, 1, 0), 0), [])
   const pointerNDC = useRef(new THREE.Vector2())
   const pointerDownPos = useRef(new THREE.Vector2())
+  const isValid = useRef(true)
+  const currentPathDist = useRef(0)
+
+  // Store refs for validation in click handler
+  const existingTrapsRef = useRef(existingTraps)
+  const selectedToolRef = useRef(selectedTool)
+  useEffect(() => { existingTrapsRef.current = existingTraps }, [existingTraps])
+  useEffect(() => { selectedToolRef.current = selectedTool }, [selectedTool])
 
   useEffect(() => {
     const canvas = gl.domElement
@@ -57,6 +72,9 @@ export function ClickPlane({
       const dy = e.clientY - pointerDownPos.current.y
       if (Math.sqrt(dx * dx + dy * dy) > 5) return
 
+      // Check validation before placing
+      if (!isValid.current) return
+
       raycaster.setFromCamera(pointerNDC.current, camera)
       const hit = new THREE.Vector3()
       raycaster.ray.intersectPlane(groundPlane, hit)
@@ -76,27 +94,120 @@ export function ClickPlane({
   }, [gl, camera, raycaster, groundPlane, enabled, onPlace])
 
   useFrame(() => {
-    if (!enabled || !cursorRef.current) return
+    if (!enabled || !groupRef.current) return
     raycaster.setFromCamera(pointerNDC.current, camera)
     const hit = new THREE.Vector3()
     raycaster.ray.intersectPlane(groundPlane, hit)
     if (hit) {
-      // Snap cursor to nearest point on track
       const d = trackPath.closestDistance(hit)
+      currentPathDist.current = d
       const snapped = trackPath.getPointAt(d)
-      cursorRef.current.position.set(snapped.x, snapped.y + RAIL_HEIGHT + 0.05, snapped.z)
-      cursorRef.current.visible = true
+      const quat = trackPath.getQuaternionAt(d)
+      groupRef.current.position.set(snapped.x, snapped.y + RAIL_HEIGHT + 0.05, snapped.z)
+      groupRef.current.quaternion.copy(quat)
+      groupRef.current.visible = true
+
+      // Validate placement
+      const tool = selectedToolRef.current
+      if (tool) {
+        const result = validatePlacement(tool, d, trackPath, existingTrapsRef.current)
+        isValid.current = result.valid
+        // Tint children
+        groupRef.current.traverse((child) => {
+          if (child instanceof THREE.Mesh && child.material instanceof THREE.MeshBasicMaterial) {
+            child.material.color.set(result.valid ? '#44ff44' : '#ff4444')
+          }
+        })
+      }
     }
   })
 
-  if (!enabled) return null
+  if (!enabled || !selectedTool) return null
 
   return (
-    <mesh ref={cursorRef} rotation={[-Math.PI / 2, 0, 0]} visible={false}>
-      <ringGeometry args={[0.4, 0.6, 16]} />
-      <meshBasicMaterial color="#ffaa00" transparent opacity={0.8} side={THREE.DoubleSide} />
-    </mesh>
+    <group ref={groupRef} visible={false}>
+      <GhostPreview toolType={selectedTool} />
+    </group>
   )
+}
+
+function GhostPreview({ toolType }: { toolType: ToolType }) {
+  const color = TRAP_COLORS[toolType] ?? '#ffaa00'
+
+  switch (toolType) {
+    case 'rail-remover':
+      return (
+        <mesh position={[0, 2, 0]}>
+          <boxGeometry args={[0.3, 4, 0.3]} />
+          <meshBasicMaterial color={color} transparent opacity={0.4} />
+        </mesh>
+      )
+    case 'explosive':
+      return (
+        <mesh position={[0, 0.5, 0]}>
+          <cylinderGeometry args={[0.25, 0.3, 1.0, 8]} />
+          <meshBasicMaterial color={color} transparent opacity={0.4} />
+        </mesh>
+      )
+    case 'ramp':
+      return (
+        <mesh position={[0, 0.3, 0]}>
+          <boxGeometry args={[1.25, 0.6, 1.3]} />
+          <meshBasicMaterial color={color} transparent opacity={0.4} />
+        </mesh>
+      )
+    case 'curve-tightener':
+      return (
+        <mesh position={[0, 0.5, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+          <ringGeometry args={[0.6, 0.9, 16]} />
+          <meshBasicMaterial color={color} transparent opacity={0.4} side={THREE.DoubleSide} />
+        </mesh>
+      )
+    case 'oil-slick':
+      return (
+        <mesh position={[0, 0.02, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+          <circleGeometry args={[1.5, 16]} />
+          <meshBasicMaterial color={color} transparent opacity={0.4} side={THREE.DoubleSide} />
+        </mesh>
+      )
+    case 'decoupler':
+      return (
+        <mesh position={[0, 0.6, 0]}>
+          <boxGeometry args={[0.1, 1.2, 1.5]} />
+          <meshBasicMaterial color={color} transparent opacity={0.4} />
+        </mesh>
+      )
+    case 'cattle':
+      return (
+        <group position={[0, 0.4, 0]}>
+          <mesh>
+            <cylinderGeometry args={[0.25, 0.25, 0.8, 8]} />
+            <meshBasicMaterial color={color} transparent opacity={0.4} />
+          </mesh>
+          <mesh position={[0, 0, 0.5]}>
+            <sphereGeometry args={[0.2, 8, 8]} />
+            <meshBasicMaterial color={color} transparent opacity={0.4} />
+          </mesh>
+        </group>
+      )
+    case 'landslide':
+      return (
+        <group position={[0, 0, 0]}>
+          <mesh position={[0, 0.3, 0]}>
+            <sphereGeometry args={[0.4, 8, 8]} />
+            <meshBasicMaterial color={color} transparent opacity={0.4} />
+          </mesh>
+          <mesh position={[0.3, 0.15, 0.2]}>
+            <sphereGeometry args={[0.25, 8, 8]} />
+            <meshBasicMaterial color={color} transparent opacity={0.4} />
+          </mesh>
+          <mesh position={[-0.2, 0.2, -0.15]}>
+            <sphereGeometry args={[0.3, 8, 8]} />
+            <meshBasicMaterial color={color} transparent opacity={0.4} />
+          </mesh>
+        </group>
+      )
+  }
 }
 
 export function Track({ trackPath }: { trackPath: TrackPath }) {

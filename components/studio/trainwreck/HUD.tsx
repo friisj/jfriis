@@ -10,6 +10,8 @@ export function HUD({
   onNextLevel,
   onRestart,
   onSetCamera,
+  onUndo,
+  canUndo,
 }: {
   gameState: GameState
   onSelectTool: (tool: ToolType) => void
@@ -17,6 +19,8 @@ export function HUD({
   onNextLevel: () => void
   onRestart: () => void
   onSetCamera: (mode: CameraMode) => void
+  onUndo: () => void
+  canUndo: boolean
 }) {
   const level = getLevel(gameState.level)
   const cameraModes: { mode: CameraMode; label: string }[] = [
@@ -89,6 +93,15 @@ export function HUD({
               {tool.uses <= 0 && <span className="ml-2 opacity-40">used</span>}
             </button>
           ))}
+          {canUndo && (
+            <button
+              onClick={onUndo}
+              title="Undo last placement (Ctrl+Z)"
+              className="px-3 py-3 rounded-lg text-sm font-medium bg-black/70 text-white hover:bg-black/90 transition-all"
+            >
+              Undo
+            </button>
+          )}
         </div>
       )}
 

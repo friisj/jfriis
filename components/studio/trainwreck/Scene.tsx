@@ -3,7 +3,7 @@
 import { useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
-import { GameState, DamageEvent, DerailBody, Particle, CargoBody } from '@/lib/studio/trainwreck/types'
+import { GameState, DamageEvent, DerailBody, Particle, CargoBody, TerrainEffect } from '@/lib/studio/trainwreck/types'
 import { CAR_GAP } from '@/lib/studio/trainwreck/config'
 import {
   getLevel,
@@ -20,6 +20,7 @@ import { TrapMarker } from './TrapMarker'
 import { CouplingConnector } from './CouplingConnector'
 import { CargoPiece } from './CargoPiece'
 import { Particles } from './Particles'
+import { TerrainEffects } from './TerrainEffects'
 
 interface SceneProps {
   gameState: GameState
@@ -96,7 +97,9 @@ export function Scene({ gameState, onUpdate, onPlaceTrap, trackPath }: SceneProp
       carPoses = getCarPoses(gs.cars, headPose.pathDistance, trackPath)
     }
 
-    const { effects } = checkTrapCollisions(carPoses, gs.cars, gs.placedTraps, gs.couplings)
+    const { effects, terrainEffects: newTerrainEffects } = checkTrapCollisions(
+      carPoses, gs.cars, gs.placedTraps, gs.couplings, speed, level.trainSpeed
+    )
 
     const updates: Partial<GameState> = {
       trainProgress: newProgress,
@@ -122,6 +125,11 @@ export function Scene({ gameState, onUpdate, onPlaceTrap, trackPath }: SceneProp
       updates.placedTraps = gs.placedTraps.map((t) =>
         allTriggeredTrapIds.has(t.id) ? { ...t, triggered: true } : t
       )
+
+      // Accumulate terrain effects
+      if (newTerrainEffects.length > 0) {
+        updates.terrainEffects = [...(gs.terrainEffects ?? []), ...newTerrainEffects]
+      }
 
       if (totalSpeedBoost > 0) {
         updates.trainSpeed = Math.min(
@@ -177,10 +185,16 @@ export function Scene({ gameState, onUpdate, onPlaceTrap, trackPath }: SceneProp
     }
 
     // ── Physics simulation ──
+    // Collect oil slick zones from triggered traps
+    const oilSlickZones = (updates.placedTraps ?? gs.placedTraps)
+      .filter((t) => t.type === 'oil-slick' && t.triggered)
+      .map((t) => ({ x: t.position[0], z: t.position[2], radius: 3 }))
+
     simulateDerailBodies(
       delta, gs.cars, carPoses,
       derailBodies.current, carDamage.current, particles.current,
-      dev.gravity, dev.bounceRestitution
+      dev.gravity, dev.bounceRestitution,
+      oilSlickZones.length > 0 ? oilSlickZones : undefined
     )
     resolveCarCollisions(derailBodies.current, carDamage.current)
     simulateCargoBodies(cargoBodies.current, delta, dev.gravity, dev.bounceRestitution)
@@ -242,7 +256,14 @@ export function Scene({ gameState, onUpdate, onPlaceTrap, trackPath }: SceneProp
     <>
       <Ground />
       <Track trackPath={trackPath} />
-      <ClickPlane enabled={canPlace} onPlace={onPlaceTrap} trackPath={trackPath} />
+      <TerrainEffects effects={gameState.terrainEffects} />
+      <ClickPlane
+        enabled={canPlace}
+        onPlace={onPlaceTrap}
+        trackPath={trackPath}
+        selectedTool={gameState.selectedTool}
+        existingTraps={gameState.placedTraps}
+      />
 
       {gameState.cars.map((car, i) => {
         const body = derailBodies.current[car.id]

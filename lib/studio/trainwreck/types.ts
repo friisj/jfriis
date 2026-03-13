@@ -30,7 +30,7 @@ export interface Coupling {
   breakForce: number
 }
 
-export type ToolType = 'rail-remover' | 'explosive' | 'ramp' | 'curve-tightener' | 'oil-slick' | 'decoupler'
+export type ToolType = 'rail-remover' | 'explosive' | 'ramp' | 'curve-tightener' | 'oil-slick' | 'decoupler' | 'cattle' | 'landslide'
 
 export interface Tool {
   type: ToolType
@@ -72,6 +72,13 @@ export const DEFAULT_DEV_CONTROLS: DevControls = {
   toolUses: 1,
 }
 
+export interface TerrainEffect {
+  type: 'crater' | 'scorch' | 'puddle' | 'rail-gap' | 'rail-deform' | 'debris-pile'
+  position: [number, number, number]
+  pathDistance: number
+  radius: number
+}
+
 export interface GameState {
   status: 'idle' | 'playing' | 'won' | 'lost'
   level: number
@@ -85,6 +92,7 @@ export interface GameState {
   tools: Tool[]
   selectedTool: ToolType | null
   placedTraps: PlacedTrap[]
+  terrainEffects: TerrainEffect[]
   cameraMode: CameraMode
   devControls: DevControls
   endTimer: number // seconds remaining before showing end screen (0 = not counting)
@@ -191,4 +199,6 @@ export const TOOL_CONFIG: Record<ToolType, { name: string; description: string }
   'curve-tightener': { name: 'Curve Tightener', description: 'Sharpen a bend dangerously' },
   'oil-slick': { name: 'Oil Slick', description: 'Speeds up the train — harder to stop after a crash' },
   'decoupler': { name: 'Decoupler', description: 'Surgical — derails only the single car that hits it' },
+  'cattle': { name: 'Cattle', description: 'Blocks slow trains, derails fast ones' },
+  'landslide': { name: 'Landslide', description: 'Debris pile — derails hit car and one behind' },
 }
