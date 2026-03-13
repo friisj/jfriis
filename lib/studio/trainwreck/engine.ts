@@ -158,12 +158,12 @@ function processExplosive(
       derailedCarIds.push(cars[j].id)
       alreadyDerailed.add(cars[j].id)
 
-      const proximity = Math.max(0.2, 1 - dist / EXPLOSIVE_BLAST_RADIUS)
+      const proximity = Math.max(0.3, 1 - dist / EXPLOSIVE_BLAST_RADIUS)
       const dirX = dist < 0.1 ? (Math.random() - 0.5) * 2 : dd / dist
       blastForces[cars[j].id] = {
-        fx: dirX * proximity,
-        fy: proximity,
-        fz: (Math.random() - 0.5),
+        fx: dirX * proximity * 1.5,
+        fy: proximity * 1.5,
+        fz: (Math.random() - 0.5) * 1.5,
       }
     }
   }

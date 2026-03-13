@@ -141,8 +141,27 @@ export function processEffects(
 
       const forwardSpeed = speed * (0.7 + Math.random() * 0.6)
 
+      // Count how many explosive effects overlap this car (chain reaction multiplier)
+      const chainMultiplier = toolType === 'explosive'
+        ? effects.filter((e) => e.toolType === 'explosive' && e.derailedCarIds.includes(carId)).length
+        : 1
+
       switch (toolType) {
-        case 'rail-remover':
+        case 'rail-remover': {
+          // Rail gap — train drops into the hole. Minimal upward, strong forward + lateral tumble.
+          const fwd = forwardSpeed * (0.4 + Math.random() * 0.3) * inverseMass
+          const up = -1.5 + Math.random() * 0.5 // DROP into the gap
+          const lat = (Math.random() - 0.5) * spread * 2 * inverseMass
+          body.vx = tangent.x * fwd + binormal.x * lat
+          body.vy = up
+          body.vz = tangent.z * fwd + binormal.z * lat
+          // Strong nose-down rotation (pitching forward into gap)
+          body.vRotX = (Math.random() * 0.5 + 0.5) * spread * 2 * inverseMass
+          body.vRotY = (Math.random() - 0.5) * spread * inverseMass
+          body.vRotZ = (Math.random() - 0.5) * spread * 2 * inverseMass
+          break
+        }
+
         case 'oil-slick':
         case 'curve-tightener': {
           const fwd = forwardSpeed * (0.3 + Math.random() * 0.7) * inverseMass * 2
@@ -159,30 +178,31 @@ export function processEffects(
 
         case 'explosive': {
           const bf = effect.blastForces?.[carId] ?? { fx: 0, fy: 1, fz: 0 }
-          const blastMag = force * 3
-          // Map blast fx to tangent direction, fz to binormal
+          // Base blast force, multiplied by chain count for overlapping explosions
+          const blastMag = force * 5 * chainMultiplier
           const fwd = bf.fx * blastMag * inverseMass
-          const lat = bf.fz * spread * 4 * inverseMass
+          const lat = bf.fz * spread * 5 * inverseMass * chainMultiplier
           body.vx = tangent.x * fwd + binormal.x * lat
-          body.vy = bf.fy * blastMag * (1.5 + Math.random() * 1.0) * inverseMass
+          body.vy = bf.fy * blastMag * (2.0 + Math.random() * 1.5) * inverseMass
           body.vz = tangent.z * fwd + binormal.z * lat
-          body.vRotX = (Math.random() - 0.5) * spread * 5 * inverseMass
-          body.vRotY = (Math.random() - 0.5) * spread * 4 * inverseMass
-          body.vRotZ = (Math.random() - 0.5) * spread * 5 * inverseMass
+          body.vRotX = (Math.random() - 0.5) * spread * 6 * inverseMass * chainMultiplier
+          body.vRotY = (Math.random() - 0.5) * spread * 5 * inverseMass
+          body.vRotZ = (Math.random() - 0.5) * spread * 6 * inverseMass * chainMultiplier
           body.cascadeDelay = 0
           break
         }
 
         case 'ramp': {
-          const fwd = forwardSpeed * (0.8 + Math.random() * 0.4)
-          const up = forwardSpeed * (1.2 + Math.random() * 0.8) + force * 2
-          const lat = (Math.random() - 0.5) * spread * 0.4
+          // Ramp: moderate launch angle, mass matters. Heavy locomotive barely lifts, light cars soar.
+          const fwd = forwardSpeed * (0.6 + Math.random() * 0.3) * inverseMass
+          const up = (forwardSpeed * 0.4 + force * 0.8) * inverseMass
+          const lat = (Math.random() - 0.5) * spread * 0.3 * inverseMass
           body.vx = tangent.x * fwd + binormal.x * lat
           body.vy = up
           body.vz = tangent.z * fwd + binormal.z * lat
-          body.vRotX = (Math.random() - 0.5) * 1.5
-          body.vRotY = (Math.random() - 0.5) * 0.5
-          body.vRotZ = (Math.random() - 0.5) * spread * 3
+          body.vRotX = (Math.random() - 0.5) * 1.0 * inverseMass
+          body.vRotY = (Math.random() - 0.5) * 0.3
+          body.vRotZ = (Math.random() - 0.5) * spread * 1.5 * inverseMass
           break
         }
 
@@ -229,22 +249,41 @@ export function processEffects(
 
       derailBodies[carId] = body
 
-      const particleCount = toolType === 'explosive' ? 20 : toolType === 'ramp' ? 12 : 8
-      const particleColor = toolType === 'explosive' ? '#ff6622' : '#ffaa44'
-      const particleSpeed = toolType === 'explosive' ? 14 : 8
+      if (toolType === 'rail-remover') {
+        // Dust cloud from train dropping into gap
+        for (let p = 0; p < 12; p++) {
+          particles.push({
+            x: pose.position.x + (Math.random() - 0.5) * 2,
+            y: 0.1 + Math.random() * 0.3,
+            z: pose.position.z + (Math.random() - 0.5) * 1.5,
+            vx: (Math.random() - 0.5) * 3,
+            vy: 0.5 + Math.random() * 1.5,
+            vz: (Math.random() - 0.5) * 3,
+            life: 1.0 + Math.random() * 0.8,
+            maxLife: 1.8,
+            size: 0.12 + Math.random() * 0.1,
+            color: '#aa9977',
+            type: 'smoke',
+          })
+        }
+      } else {
+        const particleCount = toolType === 'explosive' ? 25 : toolType === 'ramp' ? 12 : 8
+        const particleColor = toolType === 'explosive' ? '#ff6622' : '#ffaa44'
+        const particleSpeed = toolType === 'explosive' ? 16 : 8
 
-      for (let p = 0; p < particleCount; p++) {
-        particles.push({
-          x: pose.position.x, y: pose.position.y + 0.5, z: pose.position.z,
-          vx: (Math.random() - 0.5) * particleSpeed,
-          vy: Math.random() * (particleSpeed * 0.8) + 2,
-          vz: (Math.random() - 0.5) * particleSpeed,
-          life: 1.5 + Math.random(),
-          maxLife: 2.5,
-          size: toolType === 'explosive' ? 0.2 + Math.random() * 0.2 : 0.15 + Math.random() * 0.15,
-          color: particleColor,
-          type: 'debris',
-        })
+        for (let p = 0; p < particleCount; p++) {
+          particles.push({
+            x: pose.position.x, y: pose.position.y + 0.5, z: pose.position.z,
+            vx: (Math.random() - 0.5) * particleSpeed,
+            vy: Math.random() * (particleSpeed * 0.8) + 2,
+            vz: (Math.random() - 0.5) * particleSpeed,
+            life: 1.5 + Math.random(),
+            maxLife: 2.5,
+            size: toolType === 'explosive' ? 0.25 + Math.random() * 0.2 : 0.15 + Math.random() * 0.15,
+            color: particleColor,
+            type: 'debris',
+          })
+        }
       }
     }
 
