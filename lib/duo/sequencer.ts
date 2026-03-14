@@ -117,7 +117,7 @@ export class DuoSequencerTransport {
       }
     }, events);
     part.loop = true;
-    part.loopEnd = `${STEP_COUNT} * 8n`;
+    part.loopEnd = '1m'; // 8 eighth-note steps = 1 measure
     return part;
   }
 
