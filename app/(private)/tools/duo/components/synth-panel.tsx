@@ -52,6 +52,24 @@ export function SynthPanel({ params, onParamChange, onTriggerKick, onTriggerSnar
           onChange={(v) => onParamChange('pulseWidth', v)}
           displayFn={(v) => `${Math.round(v * 100)}%`}
         />
+        <DuoKnob
+          label="LFO Spd"
+          value={params.lfoRate}
+          min={0.1}
+          max={10}
+          step={0.1}
+          onChange={(v) => onParamChange('lfoRate', v)}
+          displayFn={(v) => `${v.toFixed(1)}Hz`}
+        />
+        <DuoKnob
+          label="LFO Dep"
+          value={params.lfoDepth}
+          min={0}
+          max={1}
+          step={0.01}
+          onChange={(v) => onParamChange('lfoDepth', v)}
+          displayFn={(v) => (v === 0 ? 'Off' : `${Math.round(v * 100)}%`)}
+        />
       </Section>
 
       {/* Filter */}
@@ -97,6 +115,59 @@ export function SynthPanel({ params, onParamChange, onTriggerKick, onTriggerSnar
           step={0.01}
           onChange={(v) => onParamChange('decay', v)}
           displayFn={(v) => `${v.toFixed(2)}s`}
+        />
+      </Section>
+
+      {/* Chorus */}
+      <Section label="Chorus">
+        <DuoKnob
+          label="Rate"
+          value={params.chorusRate}
+          min={0.1}
+          max={8}
+          step={0.1}
+          onChange={(v) => onParamChange('chorusRate', v)}
+          displayFn={(v) => `${v.toFixed(1)}Hz`}
+        />
+        <DuoKnob
+          label="Depth"
+          value={params.chorusDepth}
+          min={0}
+          max={1}
+          step={0.01}
+          onChange={(v) => onParamChange('chorusDepth', v)}
+          displayFn={(v) => `${Math.round(v * 100)}%`}
+        />
+        <DuoKnob
+          label="Wet"
+          value={params.chorusWet}
+          min={0}
+          max={1}
+          step={0.01}
+          onChange={(v) => onParamChange('chorusWet', v)}
+          displayFn={(v) => (v === 0 ? 'Off' : `${Math.round(v * 100)}%`)}
+        />
+      </Section>
+
+      {/* Space */}
+      <Section label="Space">
+        <DuoKnob
+          label="Reverb"
+          value={params.reverbWet}
+          min={0}
+          max={1}
+          step={0.01}
+          onChange={(v) => onParamChange('reverbWet', v)}
+          displayFn={(v) => (v === 0 ? 'Off' : `${Math.round(v * 100)}%`)}
+        />
+        <DuoKnob
+          label="Decay"
+          value={params.reverbDecay}
+          min={0.5}
+          max={8}
+          step={0.1}
+          onChange={(v) => onParamChange('reverbDecay', v)}
+          displayFn={(v) => `${v.toFixed(1)}s`}
         />
       </Section>
 

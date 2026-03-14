@@ -21,6 +21,19 @@ export interface DuoSynthParams {
   delayFeedback: number;  // 0-0.95
   accent: number;         // 0-1
   glide: number;          // 0-0.5 seconds
+
+  // Chorus
+  chorusRate: number;     // Hz (0.1-8)
+  chorusDepth: number;    // 0-1
+  chorusWet: number;      // 0-1
+
+  // Reverb
+  reverbDecay: number;    // seconds (0.5-8)
+  reverbWet: number;      // 0-1
+
+  // PWM LFO
+  lfoRate: number;        // Hz (0.1-10)
+  lfoDepth: number;       // 0-1
 }
 
 export interface DuoStep {

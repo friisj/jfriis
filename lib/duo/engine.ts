@@ -2,7 +2,8 @@
  * DuoEngine: Web Audio synth engine inspired by the Dato DUO
  *
  * Signal flow:
- *   OSC1 (saw) + OSC2 (pulse/PWM) → mix → 2-pole LPF → VCA → bitcrusher → delay → master
+ *   OSC1 (saw) + OSC2 (pulse/PWM) → mix → 2-pole LPF → VCA → bitcrusher → chorus → delay → reverb → master
+ *   PWM LFO → osc2.width (via depth-scaling gain)
  *   Kick (MembraneSynth) + Snare (NoiseSynth) → drumBus → master
  */
 
@@ -21,6 +22,12 @@ export class DuoEngine {
   private delay: Tone.FeedbackDelay | null = null;
   private delayDry: Tone.Gain | null = null;
   private delayWet: Tone.Gain | null = null;
+  private chorus: Tone.Chorus | null = null;
+  private reverb: Tone.Reverb | null = null;
+  private reverbWetGain: Tone.Gain | null = null;
+  private reverbDryGain: Tone.Gain | null = null;
+  private lfo: Tone.LFO | null = null;
+  private lfoDepthGain: Tone.Gain | null = null;
   private master: Tone.Gain | null = null;
 
   private kick: Tone.MembraneSynth | null = null;
@@ -38,16 +45,36 @@ export class DuoEngine {
     // Master output
     this.master = new Tone.Gain(this.params.level).toDestination();
 
-    // Delay (wet/dry)
+    // Reverb (wet/dry mix — create first, needs async ready)
+    this.reverb = new Tone.Reverb(this.params.reverbDecay);
+    await this.reverb.ready;
+    this.reverbWetGain = new Tone.Gain(this.params.reverbWet).connect(this.master);
+    this.reverbDryGain = new Tone.Gain(1).connect(this.master);
+    this.reverb.connect(this.reverbWetGain);
+
+    // Delay (wet/dry) → reverb
     this.delay = new Tone.FeedbackDelay(this.params.delayTime, this.params.delayFeedback);
-    this.delayWet = new Tone.Gain(this.params.delayWet).connect(this.master);
-    this.delayDry = new Tone.Gain(1).connect(this.master);
+    this.delayWet = new Tone.Gain(this.params.delayWet);
+    this.delayDry = new Tone.Gain(1);
+    this.delayWet.connect(this.reverbDryGain);
+    this.delayWet.connect(this.reverb);
+    this.delayDry.connect(this.reverbDryGain);
+    this.delayDry.connect(this.reverb);
     this.delay.connect(this.delayWet);
 
-    // Bitcrusher
+    // Chorus → delay
+    this.chorus = new Tone.Chorus({
+      frequency: this.params.chorusRate,
+      delayTime: 3.5,
+      depth: this.params.chorusDepth,
+      wet: this.params.chorusWet,
+    }).start();
+    this.chorus.connect(this.delayDry);
+    this.chorus.connect(this.delay);
+
+    // Bitcrusher → chorus
     this.crusher = new Tone.BitCrusher(this.params.bitcrusherBits);
-    this.crusher.connect(this.delayDry);
-    this.crusher.connect(this.delay);
+    this.crusher.connect(this.chorus);
 
     // Envelope → crusher
     this.env = new Tone.AmplitudeEnvelope({
@@ -87,6 +114,17 @@ export class DuoEngine {
     });
     this.osc2.connect(this.osc2Gain);
     this.osc2.start();
+
+    // PWM LFO → osc2.width via depth-scaling gain
+    this.lfoDepthGain = new Tone.Gain(this.params.lfoDepth);
+    this.lfo = new Tone.LFO({
+      frequency: this.params.lfoRate,
+      min: -0.5,
+      max: 0.5,
+    });
+    this.lfo.connect(this.lfoDepthGain);
+    this.lfoDepthGain.connect(this.osc2.width);
+    if (this.params.lfoDepth > 0) this.lfo.start();
 
     // Drums
     this.drumBus = new Tone.Gain(0.8).connect(this.master);
@@ -191,6 +229,31 @@ export class DuoEngine {
       case 'delayFeedback':
         this.delay?.feedback.rampTo(value, 0.02);
         break;
+      case 'chorusRate':
+        if (this.chorus) this.chorus.frequency.rampTo(value, 0.05);
+        break;
+      case 'chorusDepth':
+        if (this.chorus) this.chorus.depth = value;
+        break;
+      case 'chorusWet':
+        if (this.chorus) this.chorus.wet.rampTo(value, 0.02);
+        break;
+      case 'reverbDecay':
+        // Reverb decay can't be ramped — update stored param for next init
+        break;
+      case 'reverbWet':
+        this.reverbWetGain?.gain.rampTo(value, 0.02);
+        break;
+      case 'lfoRate':
+        if (this.lfo) this.lfo.frequency.rampTo(value, 0.05);
+        break;
+      case 'lfoDepth':
+        this.lfoDepthGain?.gain.rampTo(value, 0.02);
+        if (this.lfo) {
+          if (value > 0 && this.lfo.state !== 'started') this.lfo.start();
+          else if (value === 0 && this.lfo.state === 'started') this.lfo.stop();
+        }
+        break;
       case 'accent':
       case 'glide':
         // Stored in params, read on note trigger
@@ -221,9 +284,16 @@ export class DuoEngine {
     this.filter?.dispose();
     this.env?.dispose();
     this.crusher?.dispose();
+    this.chorus?.dispose();
     this.delay?.dispose();
     this.delayWet?.dispose();
     this.delayDry?.dispose();
+    this.lfo?.stop();
+    this.lfo?.dispose();
+    this.lfoDepthGain?.dispose();
+    this.reverb?.dispose();
+    this.reverbWetGain?.dispose();
+    this.reverbDryGain?.dispose();
     this.master?.dispose();
     this.kick?.dispose();
     this.snare?.dispose();
