@@ -1,5 +1,6 @@
 'use client';
 
+import { useRef, useCallback } from 'react';
 import { cn } from '@/lib/utils';
 import type { DuoStep } from '@/lib/duo/types';
 
@@ -7,7 +8,9 @@ interface CircularSequencerProps {
   steps: DuoStep[];
   currentStep: number;
   playing: boolean;
+  inputStep: number;
   onToggleStep: (index: number) => void;
+  onSelectStep: (index: number) => void;
   onPlay: () => void;
   onStop: () => void;
 }
@@ -28,18 +31,47 @@ export function CircularSequencer({
   steps,
   currentStep,
   playing,
+  inputStep,
   onToggleStep,
+  onSelectStep,
   onPlay,
   onStop,
 }: CircularSequencerProps) {
   const size = (RADIUS + LED_RADIUS + 8) * 2;
   const center = size / 2;
+  const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const longPressTriggered = useRef(false);
+
+  const handlePointerDown = useCallback((i: number) => {
+    longPressTriggered.current = false;
+    longPressTimer.current = setTimeout(() => {
+      longPressTriggered.current = true;
+      onToggleStep(i);
+    }, 300);
+  }, [onToggleStep]);
+
+  const handlePointerUp = useCallback((i: number) => {
+    if (longPressTimer.current) {
+      clearTimeout(longPressTimer.current);
+      longPressTimer.current = null;
+    }
+    if (!longPressTriggered.current) {
+      onSelectStep(i);
+    }
+  }, [onSelectStep]);
+
+  const handlePointerCancel = useCallback(() => {
+    if (longPressTimer.current) {
+      clearTimeout(longPressTimer.current);
+      longPressTimer.current = null;
+    }
+  }, []);
 
   return (
     <div className="space-y-1.5">
       <h3 className="text-[10px] text-zinc-500 uppercase tracking-wider">Sequencer</h3>
       <div className="flex justify-center">
-        <svg width={size} height={size} className="overflow-visible">
+        <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="overflow-visible">
           {/* Connection ring */}
           <circle
             cx={center}
@@ -55,10 +87,22 @@ export function CircularSequencer({
           {steps.map((step, i) => {
             const pos = stepPosition(i, steps.length);
             const isCurrent = playing && i === currentStep;
+            const isInput = !playing && i === inputStep;
             const hasNote = step.note !== null;
 
             return (
               <g key={i} transform={`translate(${center + pos.x}, ${center + pos.y})`}>
+                {/* Input cursor ring (shown when not playing) */}
+                {isInput && (
+                  <circle
+                    r={LED_RADIUS + 3}
+                    fill="none"
+                    stroke="currentColor"
+                    className="text-purple-400"
+                    strokeWidth={1.5}
+                    strokeDasharray="3 3"
+                  />
+                )}
                 <circle
                   r={LED_RADIUS}
                   className={cn(
@@ -67,17 +111,28 @@ export function CircularSequencer({
                       ? 'fill-zinc-800 stroke-zinc-700'
                       : isCurrent
                         ? 'fill-amber-400 stroke-amber-300'
-                        : hasNote
-                          ? 'fill-zinc-600 stroke-zinc-500'
-                          : 'fill-zinc-800 stroke-zinc-700',
+                        : isInput
+                          ? hasNote
+                            ? 'fill-purple-700 stroke-purple-500'
+                            : 'fill-purple-900 stroke-purple-600'
+                          : hasNote
+                            ? 'fill-zinc-600 stroke-zinc-500'
+                            : 'fill-zinc-800 stroke-zinc-700',
                   )}
                   strokeWidth={1.5}
-                  onClick={() => onToggleStep(i)}
+                  onPointerDown={() => handlePointerDown(i)}
+                  onPointerUp={() => handlePointerUp(i)}
+                  onPointerCancel={handlePointerCancel}
+                  onPointerLeave={handlePointerCancel}
                   role="button"
-                  aria-label={`Step ${i + 1}: ${step.note ?? 'empty'}${!step.active ? ' (muted)' : ''}`}
+                  aria-label={`Step ${i + 1}: ${step.note ?? 'empty'}${isInput ? ' (input target)' : ''}${!step.active ? ' (muted)' : ''}`}
+                  aria-pressed={step.active}
                   tabIndex={0}
                   onKeyDown={(e) => {
                     if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      onSelectStep(i);
+                    } else if (e.key === 'Backspace' || e.key === 'Delete') {
                       e.preventDefault();
                       onToggleStep(i);
                     }
@@ -89,7 +144,7 @@ export function CircularSequencer({
                   dominantBaseline="central"
                   className={cn(
                     'text-[8px] font-mono pointer-events-none select-none',
-                    isCurrent ? 'fill-zinc-900' : !step.active ? 'fill-zinc-600' : 'fill-zinc-300',
+                    isCurrent ? 'fill-zinc-900' : !step.active ? 'fill-zinc-600' : isInput ? 'fill-purple-200' : 'fill-zinc-300',
                   )}
                 >
                   {hasNote ? step.note?.replace(/\d+$/, '') : i + 1}

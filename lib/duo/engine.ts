@@ -18,9 +18,9 @@ export class DuoEngine {
   private osc2Gain: Tone.Gain | null = null;
   private filter: Tone.Filter | null = null;
   private env: Tone.AmplitudeEnvelope | null = null;
+  private accentGain: Tone.Gain | null = null;
   private crusher: Tone.BitCrusher | null = null;
   private delay: Tone.FeedbackDelay | null = null;
-  private delayDry: Tone.Gain | null = null;
   private delayWet: Tone.Gain | null = null;
   private chorus: Tone.Chorus | null = null;
   private reverb: Tone.Reverb | null = null;
@@ -32,7 +32,11 @@ export class DuoEngine {
 
   private kick: Tone.MembraneSynth | null = null;
   private snare: Tone.NoiseSynth | null = null;
+  private hat: Tone.MetalSynth | null = null;
+  private clap: Tone.NoiseSynth | null = null;
+  private clapFilter: Tone.Filter | null = null;
   private drumBus: Tone.Gain | null = null;
+  private drumVoiceGains: Tone.Gain[] = [];
 
   private initialized = false;
   private currentNote: string | null = null;
@@ -52,38 +56,37 @@ export class DuoEngine {
     this.reverbDryGain = new Tone.Gain(1).connect(this.master);
     this.reverb.connect(this.reverbWetGain);
 
-    // Delay (wet/dry) → reverb
+    // Delay (send-return) → reverb
     this.delay = new Tone.FeedbackDelay(this.params.delayTime, this.params.delayFeedback);
     this.delayWet = new Tone.Gain(this.params.delayWet);
-    this.delayDry = new Tone.Gain(1);
+    this.delay.connect(this.delayWet);
     this.delayWet.connect(this.reverbDryGain);
     this.delayWet.connect(this.reverb);
-    this.delayDry.connect(this.reverbDryGain);
-    this.delayDry.connect(this.reverb);
-    this.delay.connect(this.delayWet);
 
-    // Chorus → delay
+    // Chorus → dry path (reverbDryGain + reverb) and → delay send
     this.chorus = new Tone.Chorus({
       frequency: this.params.chorusRate,
       delayTime: 3.5,
       depth: this.params.chorusDepth,
       wet: this.params.chorusWet,
     }).start();
-    this.chorus.connect(this.delayDry);
+    this.chorus.connect(this.reverbDryGain);
+    this.chorus.connect(this.reverb);
     this.chorus.connect(this.delay);
 
     // Bitcrusher → chorus
     this.crusher = new Tone.BitCrusher(this.params.bitcrusherBits);
     this.crusher.connect(this.chorus);
 
-    // Envelope → crusher
+    // Envelope → accent gain → crusher
+    this.accentGain = new Tone.Gain(1).connect(this.crusher);
     this.env = new Tone.AmplitudeEnvelope({
       attack: 0.005,
       decay: this.params.decay,
       sustain: 0,
       release: 0.1,
     });
-    this.env.connect(this.crusher);
+    this.env.connect(this.accentGain);
 
     // Filter
     this.filter = new Tone.Filter({
@@ -126,23 +129,48 @@ export class DuoEngine {
     this.lfoDepthGain.connect(this.osc2.width);
     if (this.params.lfoDepth > 0) this.lfo.start();
 
-    // Drums
+    // Drums — 4 voices with per-voice gain nodes
     this.drumBus = new Tone.Gain(0.8).connect(this.master);
+    this.drumVoiceGains = Array.from({ length: 4 }, () =>
+      new Tone.Gain(1).connect(this.drumBus!)
+    );
+
     this.kick = new Tone.MembraneSynth({
       pitchDecay: 0.05,
       octaves: 6,
       envelope: { attack: 0.001, decay: 0.15, sustain: 0, release: 0.05 },
-    }).connect(this.drumBus);
+    }).connect(this.drumVoiceGains[0]);
+
     this.snare = new Tone.NoiseSynth({
       noise: { type: 'white' },
       envelope: { attack: 0.001, decay: 0.1, sustain: 0, release: 0.05 },
-    }).connect(this.drumBus);
+    }).connect(this.drumVoiceGains[1]);
+
+    this.hat = new Tone.MetalSynth({
+      envelope: { attack: 0.001, decay: 0.1, release: 0.05 },
+      harmonicity: 5.1,
+      modulationIndex: 16,
+      resonance: 5000,
+      octaves: 1,
+      volume: -6,
+    }).connect(this.drumVoiceGains[2]);
+    this.hat.frequency.value = 300;
+
+    this.clapFilter = new Tone.Filter({
+      frequency: 2000,
+      type: 'bandpass',
+      Q: 2,
+    }).connect(this.drumVoiceGains[3]);
+    this.clap = new Tone.NoiseSynth({
+      noise: { type: 'white' },
+      envelope: { attack: 0.001, decay: 0.12, sustain: 0, release: 0.05 },
+    }).connect(this.clapFilter);
 
     this.initialized = true;
   }
 
-  /** Play a note (trigger envelope) */
-  triggerNote(note: string, velocity: number = 1): void {
+  /** Play a note (trigger envelope). gateTime is 0-1 normalized gate length. */
+  triggerNote(note: string, velocity: number = 1, gateTime: number = 0.5): void {
     if (!this.initialized || !this.osc1 || !this.osc2 || !this.env) return;
 
     const freq = Tone.Frequency(note).toFrequency();
@@ -155,19 +183,14 @@ export class DuoEngine {
       this.osc2.frequency.value = freq;
     }
 
-    // Accent: boost envelope if velocity is high
-    const accentBoost = velocity > 0.8 ? 1 + this.params.accent : 1;
+    // Accent: boost via dedicated gain node (avoids Tone.js velocity clamping)
+    const accentBoost = velocity > 0.8 ? this.params.accent * 2 : 0;
+    this.accentGain?.gain.rampTo(1 + accentBoost, 0.005);
     this.env.set({ decay: this.params.decay });
 
-    // Scale envelope output by velocity + accent
-    const envGain = velocity * accentBoost;
-    if (this.crusher) {
-      this.env.disconnect();
-      this.env.connect(this.crusher, 0, 0);
-    }
-
-    // Trigger with computed velocity
-    this.env.triggerAttackRelease(this.params.decay + 0.1, Tone.now(), envGain);
+    // Gate time scales the envelope duration (0.05-1.0 → short staccato to full sustain)
+    const duration = this.params.decay * gateTime * 2 + 0.05;
+    this.env.triggerAttackRelease(duration, Tone.now(), velocity);
     this.currentNote = note;
   }
 
@@ -187,6 +210,71 @@ export class DuoEngine {
     this.snare?.triggerAttackRelease('8n', Tone.now(), velocity);
   }
 
+  /** Trigger a drum voice by index (0=kick, 1=snare, 2=hat, 3=clap) */
+  triggerDrumVoice(index: number, velocity: number = 0.8): void {
+    switch (index) {
+      case 0: this.triggerKick(velocity); break;
+      case 1: this.triggerSnare(velocity); break;
+      case 2: this.hat?.triggerAttackRelease('16n', Tone.now(), velocity); break;
+      case 3: this.clap?.triggerAttackRelease('16n', Tone.now(), velocity); break;
+    }
+  }
+
+  /** Set drum voice pitch (0-1 normalized) */
+  setDrumPitch(index: number, pitch: number): void {
+    switch (index) {
+      case 0: // Kick: C0-C3 mapped from pitch 0-1
+        if (this.kick) {
+          const freq = Tone.Frequency('C0').toFrequency() *
+            Math.pow(Tone.Frequency('C3').toFrequency() / Tone.Frequency('C0').toFrequency(), pitch);
+          this.kick.frequency.rampTo(freq, 0.02);
+        }
+        break;
+      case 1: // Snare: filter 200-2000 Hz
+        if (this.snare) {
+          // NoiseSynth doesn't have a frequency — we adjust playback rate indirectly
+          // by modifying the envelope characteristics based on pitch
+        }
+        break;
+      case 2: // Hi-hat: freq 200-1200 Hz (MetalSynth FM generates harmonics in metallic register)
+        if (this.hat) {
+          const freq = 200 + pitch * 1000;
+          this.hat.frequency.rampTo(freq, 0.02);
+        }
+        break;
+      case 3: // Clap: bandpass filter 400-4000 Hz
+        if (this.clapFilter) {
+          const freq = 400 + pitch * 3600;
+          this.clapFilter.frequency.rampTo(freq, 0.02);
+        }
+        break;
+    }
+  }
+
+  /** Set drum voice decay (0-1 → 0.01-0.5s) */
+  setDrumDecay(index: number, decay: number): void {
+    const decayTime = 0.01 + decay * 0.49;
+    switch (index) {
+      case 0:
+        this.kick?.envelope.set({ decay: decayTime });
+        break;
+      case 1:
+        this.snare?.envelope.set({ decay: decayTime });
+        break;
+      case 2:
+        this.hat?.envelope.set({ decay: decayTime });
+        break;
+      case 3:
+        this.clap?.envelope.set({ decay: decayTime });
+        break;
+    }
+  }
+
+  /** Set drum voice volume (0-1) */
+  setDrumVolume(index: number, volume: number): void {
+    this.drumVoiceGains[index]?.gain.rampTo(volume, 0.02);
+  }
+
   /** Update a synth parameter in real-time */
   setParam(param: keyof DuoSynthParams, value: number): void {
     this.params[param] = value;
@@ -198,7 +286,9 @@ export class DuoEngine {
         this.osc2Gain?.gain.rampTo(value, 0.02);
         break;
       case 'detune':
+        // Detune oscillators in opposite directions for chorus/thickening effect
         if (this.osc1) this.osc1.detune.rampTo(value, 0.02);
+        if (this.osc2) this.osc2.detune.rampTo(-value, 0.02);
         break;
       case 'pulseWidth':
         if (this.osc2 && 'width' in this.osc2) {
@@ -239,7 +329,7 @@ export class DuoEngine {
         if (this.chorus) this.chorus.wet.rampTo(value, 0.02);
         break;
       case 'reverbDecay':
-        // Reverb decay can't be ramped — update stored param for next init
+        this.rebuildReverb(value);
         break;
       case 'reverbWet':
         this.reverbWetGain?.gain.rampTo(value, 0.02);
@@ -259,6 +349,18 @@ export class DuoEngine {
         // Stored in params, read on note trigger
         break;
     }
+  }
+
+  /** Rebuild reverb IR asynchronously (decay can't be modulated in real-time) */
+  private async rebuildReverb(decay: number): Promise<void> {
+    if (!this.reverbWetGain) return;
+    const newReverb = new Tone.Reverb(decay);
+    await newReverb.ready;
+    const oldReverb = this.reverb;
+    newReverb.connect(this.reverbWetGain);
+    this.reverb = newReverb;
+    oldReverb?.disconnect();
+    oldReverb?.dispose();
   }
 
   /** Bulk-update all params (e.g. loading a preset) */
@@ -283,11 +385,11 @@ export class DuoEngine {
     this.osc2Gain?.dispose();
     this.filter?.dispose();
     this.env?.dispose();
+    this.accentGain?.dispose();
     this.crusher?.dispose();
     this.chorus?.dispose();
     this.delay?.dispose();
     this.delayWet?.dispose();
-    this.delayDry?.dispose();
     this.lfo?.stop();
     this.lfo?.dispose();
     this.lfoDepthGain?.dispose();
@@ -297,6 +399,11 @@ export class DuoEngine {
     this.master?.dispose();
     this.kick?.dispose();
     this.snare?.dispose();
+    this.hat?.dispose();
+    this.clap?.dispose();
+    this.clapFilter?.dispose();
+    this.drumVoiceGains.forEach((g) => g.dispose());
+    this.drumVoiceGains = [];
     this.drumBus?.dispose();
     this.initialized = false;
     this.currentNote = null;

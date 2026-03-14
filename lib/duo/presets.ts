@@ -1,4 +1,4 @@
-import type { DuoSynthParams, DuoPreset } from './types';
+import type { DuoSynthParams, DuoPreset, DuoDrumState } from './types';
 
 export const DEFAULT_SYNTH: DuoSynthParams = {
   oscMix: 0.5,
@@ -23,6 +23,16 @@ export const DEFAULT_SYNTH: DuoSynthParams = {
   lfoDepth: 0,
 };
 
+/** Default drum pattern — four-on-the-floor (used by sequencer.ts createInitialDrumState) */
+export const DEFAULT_DRUM: DuoDrumState = {
+  voices: [
+    { name: 'Kick', steps: [true, false, false, false, true, false, false, false], pitch: 0.3, decay: 0.4, volume: 1 },
+    { name: 'Snare', steps: [false, false, true, false, false, false, true, false], pitch: 0.5, decay: 0.3, volume: 0.8 },
+    { name: 'Hi-Hat', steps: [true, true, true, true, true, true, true, true], pitch: 0.5, decay: 0.2, volume: 0.6 },
+    { name: 'Clap', steps: [false, false, false, true, false, false, false, false], pitch: 0.5, decay: 0.3, volume: 0.7 },
+  ],
+};
+
 export const PRESETS: DuoPreset[] = [
   {
     name: 'Init',
@@ -38,6 +48,14 @@ export const PRESETS: DuoPreset[] = [
       decay: 0.15,
       glide: 0.08,
       accent: 0.7,
+    },
+    drum: {
+      voices: [
+        { name: 'Kick', steps: [true, false, true, false, true, false, true, false], pitch: 0.25, decay: 0.3, volume: 1 },
+        { name: 'Snare', steps: [false, false, true, false, false, true, false, false], pitch: 0.6, decay: 0.2, volume: 0.7 },
+        { name: 'Hi-Hat', steps: [true, true, true, true, true, true, true, true], pitch: 0.7, decay: 0.1, volume: 0.5 },
+        { name: 'Clap', steps: [false, false, false, false, true, false, false, false], pitch: 0.4, decay: 0.2, volume: 0.6 },
+      ],
     },
   },
   {
@@ -88,6 +106,14 @@ export const PRESETS: DuoPreset[] = [
       delayWet: 0.6,
       delayFeedback: 0.7,
       delayTime: 0.125,
+    },
+    drum: {
+      voices: [
+        { name: 'Kick', steps: [true, false, false, true, false, false, true, false], pitch: 0.1, decay: 0.5, volume: 1 },
+        { name: 'Snare', steps: [false, true, false, false, true, false, false, true], pitch: 0.8, decay: 0.4, volume: 0.9 },
+        { name: 'Hi-Hat', steps: [true, false, true, false, true, false, true, false], pitch: 0.9, decay: 0.05, volume: 0.4 },
+        { name: 'Clap', steps: [false, false, true, false, false, false, true, false], pitch: 0.7, decay: 0.3, volume: 0.8 },
+      ],
     },
   },
   {
@@ -140,6 +166,32 @@ export const PRESETS: DuoPreset[] = [
       reverbWet: 0.5,      // half-wet cathedral
       lfoRate: 0.6,        // slow, breathing PWM
       lfoDepth: 0.8,       // heavy modulation
+    },
+  },
+  {
+    name: 'Celts',
+    synth: {
+      ...DEFAULT_SYNTH,
+      oscMix: 0.6,         // pulse-forward — Onder's sawtooth pad character
+      detune: 7,           // Onder's signature detune amount
+      pulseWidth: 0.3,     // hollow, voice-like harmonic content
+      filterCutoff: 800,   // warmth emphasis — Onder's 300-1200 Hz range, low end
+      filterResonance: 0.7, // gentle slope, no squelch
+      decay: 2.0,          // max sustain — notes bleed into reverb tail
+      level: 0.6,          // room for the effects to breathe
+      bitcrusherBits: 16,  // pristine
+      delayWet: 0.4,       // spacious delay
+      delayTime: 0.5,      // slow echoes — half-note feel
+      delayFeedback: 0.55, // long repeating tail, builds density
+      accent: 0,           // flat dynamics — everything even
+      glide: 0.12,         // legato portamento
+      chorusRate: 0.4,     // Onder's slow chorus rate
+      chorusDepth: 0.6,    // Onder's chorus depth
+      chorusWet: 0.65,     // prominent but not overwhelming
+      reverbDecay: 5.0,    // Onder's hall reverb (4-5s decay)
+      reverbWet: 0.65,     // Onder's high wetness (0.6-0.7)
+      lfoRate: 0.3,        // very slow — approaching Onder's 0.05Hz filter LFO
+      lfoDepth: 0.4,       // gentle PWM drift, not dramatic
     },
   },
 ];

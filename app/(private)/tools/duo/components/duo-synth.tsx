@@ -1,10 +1,11 @@
 'use client';
 
-import { useReducer, useRef, useEffect, useCallback, useState } from 'react';
+import { useReducer, useRef, useEffect, useLayoutEffect, useCallback, useState } from 'react';
 import { SequencerPanel } from './sequencer-panel';
 import { SynthPanel } from './synth-panel';
 import { DuoEngine } from '@/lib/duo/engine';
-import { DuoSequencerTransport, createInitialSequencerState, randomizeSteps } from '@/lib/duo/sequencer';
+import { DrumPanel } from './drum-panel';
+import { DuoSequencerTransport, createInitialSequencerState, createInitialDrumState, randomizeSteps, randomizeDrumSteps } from '@/lib/duo/sequencer';
 import { PRESETS, DEFAULT_SYNTH } from '@/lib/duo/presets';
 import type { DuoState, DuoAction, DuoSynthParams } from '@/lib/duo/types';
 
@@ -53,7 +54,40 @@ function duoReducer(state: DuoState, action: DuoAction): DuoState {
           ...state.sequencer,
           ...(action.preset.sequencer ?? {}),
         },
+        drum: action.preset.drum
+          ? { ...state.drum, ...action.preset.drum }
+          : state.drum,
       };
+    case 'DRUM_TOGGLE_STEP': {
+      const voices = [...state.drum.voices];
+      const voice = { ...voices[action.voiceIndex] };
+      const steps = [...voice.steps];
+      steps[action.step] = !steps[action.step];
+      voice.steps = steps;
+      voices[action.voiceIndex] = voice;
+      return { ...state, drum: { ...state.drum, voices } };
+    }
+    case 'DRUM_SET_PITCH': {
+      const voices = [...state.drum.voices];
+      voices[action.voiceIndex] = { ...voices[action.voiceIndex], pitch: action.pitch };
+      return { ...state, drum: { ...state.drum, voices } };
+    }
+    case 'DRUM_SET_DECAY': {
+      const voices = [...state.drum.voices];
+      voices[action.voiceIndex] = { ...voices[action.voiceIndex], decay: action.decay };
+      return { ...state, drum: { ...state.drum, voices } };
+    }
+    case 'DRUM_SET_VOLUME': {
+      const voices = [...state.drum.voices];
+      voices[action.voiceIndex] = { ...voices[action.voiceIndex], volume: action.volume };
+      return { ...state, drum: { ...state.drum, voices } };
+    }
+    case 'DRUM_RANDOMIZE':
+      return { ...state, drum: { ...state.drum, voices: randomizeDrumSteps() } };
+    case 'TOGGLE_MELODIC_MUTE':
+      return { ...state, melodicMuted: !state.melodicMuted };
+    case 'TOGGLE_DRUM_MUTE':
+      return { ...state, drumMuted: !state.drumMuted };
     default:
       return state;
   }
@@ -62,36 +96,59 @@ function duoReducer(state: DuoState, action: DuoAction): DuoState {
 const initialState: DuoState = {
   synth: { ...DEFAULT_SYNTH },
   sequencer: createInitialSequencerState(),
+  drum: createInitialDrumState(),
+  melodicMuted: false,
+  drumMuted: false,
 };
 
 export function DuoSynth() {
   const [state, dispatch] = useReducer(duoReducer, initialState);
   const [initialized, setInitialized] = useState(false);
+  const [inputStep, setInputStep] = useState(0);
+  const [presetIndex, setPresetIndex] = useState(0);
   const engineRef = useRef<DuoEngine | null>(null);
   const transportRef = useRef<DuoSequencerTransport | null>(null);
+  const initPromiseRef = useRef<Promise<void> | null>(null);
   const stateRef = useRef(state);
-  // Track which step to assign next keyboard note to
-  const inputStepRef = useRef(0);
-  stateRef.current = state;
 
-  // Initialize engine on first user interaction
+  // Sync stateRef outside of render phase
+  useLayoutEffect(() => {
+    stateRef.current = state;
+  });
+
+  // Initialize engine on first user interaction (serialized to prevent leaks)
   const ensureInit = useCallback(async () => {
     if (engineRef.current) return;
-    const engine = new DuoEngine();
-    await engine.init();
-    engineRef.current = engine;
+    if (initPromiseRef.current) return initPromiseRef.current;
 
-    const transport = new DuoSequencerTransport(
-      (step, note) => {
-        dispatch({ type: 'ADVANCE_STEP' });
-        if (note) {
-          engine.triggerNote(note, 1);
-        }
-      },
-      () => stateRef.current.sequencer,
-    );
-    transportRef.current = transport;
-    setInitialized(true);
+    initPromiseRef.current = (async () => {
+      const engine = new DuoEngine();
+      await engine.init();
+      // Sync engine to current UI state (user may have changed presets/knobs before init)
+      engine.setAllParams(stateRef.current.synth);
+      engineRef.current = engine;
+
+      const transport = new DuoSequencerTransport(
+        (step, note, noteLength) => {
+          dispatch({ type: 'ADVANCE_STEP' });
+          if (note && !stateRef.current.melodicMuted) {
+            engine.triggerNote(note, 1, noteLength);
+          }
+        },
+        () => stateRef.current.sequencer,
+        (_step, activeVoices) => {
+          if (stateRef.current.drumMuted) return;
+          for (const vi of activeVoices) {
+            engine.triggerDrumVoice(vi, stateRef.current.drum.voices[vi].volume);
+          }
+        },
+        () => stateRef.current.drum,
+      );
+      transportRef.current = transport;
+      setInitialized(true);
+    })();
+
+    return initPromiseRef.current;
   }, []);
 
   // Cleanup on unmount
@@ -113,16 +170,17 @@ export function DuoSynth() {
     transportRef.current?.setBPM(state.sequencer.bpm);
   }, [state.sequencer.bpm]);
 
-  // Keyboard note input — assigns to next step
+  // Keyboard note input — assigns to selected step, then advances cursor
   const handleNotePress = useCallback(async (note: string) => {
     await ensureInit();
-    // Assign note to current input step and advance
-    const step = inputStepRef.current;
-    dispatch({ type: 'SET_NOTE', step, note });
-    inputStepRef.current = (step + 1) % 8;
-    // Preview the note
+    dispatch({ type: 'SET_NOTE', step: inputStep, note });
+    setInputStep((inputStep + 1) % 8);
     engineRef.current?.triggerNote(note, 0.8);
-  }, [ensureInit]);
+  }, [ensureInit, inputStep]);
+
+  const handleSelectStep = useCallback((index: number) => {
+    setInputStep(index);
+  }, []);
 
   const handlePlay = useCallback(async () => {
     await ensureInit();
@@ -133,13 +191,13 @@ export function DuoSynth() {
   const handleStop = useCallback(() => {
     dispatch({ type: 'STOP' });
     transportRef.current?.stop();
-    inputStepRef.current = 0;
+    setInputStep(0);
   }, []);
 
   const handleRandomize = useCallback(async () => {
     await ensureInit();
     dispatch({ type: 'RANDOMIZE' });
-    inputStepRef.current = 0;
+    setInputStep(0);
   }, [ensureInit]);
 
   const handleBoostDown = useCallback(() => {
@@ -150,17 +208,37 @@ export function DuoSynth() {
     transportRef.current?.boost(false);
   }, []);
 
-  const handleTriggerKick = useCallback(async (velocity: number) => {
+  const handleDrumToggleStep = useCallback((voiceIndex: number, step: number) => {
+    dispatch({ type: 'DRUM_TOGGLE_STEP', voiceIndex, step });
+  }, []);
+
+  const handleDrumTriggerVoice = useCallback(async (voiceIndex: number) => {
     await ensureInit();
-    engineRef.current?.triggerKick(velocity);
+    engineRef.current?.triggerDrumVoice(voiceIndex, stateRef.current.drum.voices[voiceIndex].volume);
   }, [ensureInit]);
 
-  const handleTriggerSnare = useCallback(async (velocity: number) => {
+  const handleDrumSetPitch = useCallback((voiceIndex: number, pitch: number) => {
+    dispatch({ type: 'DRUM_SET_PITCH', voiceIndex, pitch });
+    engineRef.current?.setDrumPitch(voiceIndex, pitch);
+  }, []);
+
+  const handleDrumSetDecay = useCallback((voiceIndex: number, decay: number) => {
+    dispatch({ type: 'DRUM_SET_DECAY', voiceIndex, decay });
+    engineRef.current?.setDrumDecay(voiceIndex, decay);
+  }, []);
+
+  const handleDrumSetVolume = useCallback((voiceIndex: number, volume: number) => {
+    dispatch({ type: 'DRUM_SET_VOLUME', voiceIndex, volume });
+    engineRef.current?.setDrumVolume(voiceIndex, volume);
+  }, []);
+
+  const handleDrumRandomize = useCallback(async () => {
     await ensureInit();
-    engineRef.current?.triggerSnare(velocity);
+    dispatch({ type: 'DRUM_RANDOMIZE' });
   }, [ensureInit]);
 
   const handlePresetChange = useCallback(async (index: number) => {
+    setPresetIndex(index);
     await ensureInit();
     const preset = PRESETS[index];
     dispatch({ type: 'LOAD_PRESET', preset });
@@ -179,7 +257,7 @@ export function DuoSynth() {
         </div>
         {/* Preset selector */}
         <select
-          value={PRESETS.findIndex((p) => p.name === 'Init')}
+          value={presetIndex}
           onChange={(e) => handlePresetChange(Number(e.target.value))}
           className="text-xs bg-zinc-800 text-zinc-300 border border-zinc-700 rounded px-2 py-1
                      focus:ring-1 focus:ring-amber-400/50 outline-none"
@@ -193,14 +271,16 @@ export function DuoSynth() {
         </select>
       </div>
 
-      {/* Two-panel layout */}
+      {/* Three-panel layout */}
       <div className="flex flex-1 flex-col md:flex-row divide-y md:divide-y-0 md:divide-x divide-zinc-800 overflow-auto">
-        {/* Sequencer side */}
+        {/* Sequencer panel */}
         <div className="flex-1 min-w-0 overflow-auto">
           <SequencerPanel
             state={state.sequencer}
+            inputStep={inputStep}
             onNotePress={handleNotePress}
             onToggleStep={(i) => dispatch({ type: 'TOGGLE_STEP', step: i })}
+            onSelectStep={handleSelectStep}
             onPlay={handlePlay}
             onStop={handleStop}
             onBpmChange={(bpm) => dispatch({ type: 'SET_BPM', bpm })}
@@ -212,13 +292,26 @@ export function DuoSynth() {
           />
         </div>
 
-        {/* Synth side */}
+        {/* Synth panel */}
         <div className="flex-1 min-w-0 overflow-auto">
           <SynthPanel
             params={state.synth}
             onParamChange={handleParamChange}
-            onTriggerKick={handleTriggerKick}
-            onTriggerSnare={handleTriggerSnare}
+          />
+        </div>
+
+        {/* Drum machine panel */}
+        <div className="flex-1 min-w-0 overflow-auto">
+          <DrumPanel
+            drum={state.drum}
+            currentStep={state.sequencer.currentStep}
+            playing={state.sequencer.playing}
+            onToggleStep={handleDrumToggleStep}
+            onTriggerVoice={handleDrumTriggerVoice}
+            onSetPitch={handleDrumSetPitch}
+            onSetDecay={handleDrumSetDecay}
+            onSetVolume={handleDrumSetVolume}
+            onRandomize={handleDrumRandomize}
           />
         </div>
       </div>
@@ -233,9 +326,37 @@ export function DuoSynth() {
             Step {state.sequencer.currentStep + 1}/8
           </span>
         </div>
-        <span className="text-[10px] font-mono text-zinc-600">
-          {Math.round(state.sequencer.bpm)} BPM
-        </span>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => dispatch({ type: 'TOGGLE_MELODIC_MUTE' })}
+            className={`text-[10px] font-mono px-1.5 py-0.5 rounded transition-colors ${
+              state.melodicMuted
+                ? 'bg-zinc-700 text-zinc-400 line-through'
+                : 'bg-amber-900/40 text-amber-400'
+            }`}
+            aria-label={state.melodicMuted ? 'Unmute melodic' : 'Mute melodic'}
+            aria-pressed={!state.melodicMuted}
+          >
+            Synth
+          </button>
+          <button
+            type="button"
+            onClick={() => dispatch({ type: 'TOGGLE_DRUM_MUTE' })}
+            className={`text-[10px] font-mono px-1.5 py-0.5 rounded transition-colors ${
+              state.drumMuted
+                ? 'bg-zinc-700 text-zinc-400 line-through'
+                : 'bg-rose-900/40 text-rose-400'
+            }`}
+            aria-label={state.drumMuted ? 'Unmute drums' : 'Mute drums'}
+            aria-pressed={!state.drumMuted}
+          >
+            Drums
+          </button>
+          <span className="text-[10px] font-mono text-zinc-600">
+            {Math.round(state.sequencer.bpm)} BPM
+          </span>
+        </div>
       </div>
     </div>
   );
