@@ -48,6 +48,7 @@ export interface DuoSequencerState {
   noteLength: number;    // gate time 0.05-1.0
   transpose: number;     // semitones (-12 to +12)
   playing: boolean;
+  swing: number;         // -1 to +1 (0 = off)
 }
 
 export interface DuoDrumVoice {
@@ -91,6 +92,7 @@ export type DuoAction =
   | { type: 'SET_BPM'; bpm: number }
   | { type: 'SET_NOTE_LENGTH'; length: number }
   | { type: 'TRANSPOSE'; delta: number }
+  | { type: 'SET_SWING'; swing: number }
   | { type: 'RANDOMIZE' }
   | { type: 'PLAY' }
   | { type: 'STOP' }

@@ -30,6 +30,8 @@ function duoReducer(state: DuoState, action: DuoAction): DuoState {
       return { ...state, sequencer: { ...state.sequencer, bpm: action.bpm } };
     case 'SET_NOTE_LENGTH':
       return { ...state, sequencer: { ...state.sequencer, noteLength: action.length } };
+    case 'SET_SWING':
+      return { ...state, sequencer: { ...state.sequencer, swing: action.swing } };
     case 'TRANSPOSE': {
       const transpose = Math.max(-12, Math.min(12, state.sequencer.transpose + action.delta));
       return { ...state, sequencer: { ...state.sequencer, transpose } };
@@ -183,6 +185,11 @@ export function DuoSynth() {
     transportRef.current?.setBPM(state.sequencer.bpm);
   }, [state.sequencer.bpm]);
 
+  // Swing sync
+  useEffect(() => {
+    transportRef.current?.setSwing(state.sequencer.swing);
+  }, [state.sequencer.swing]);
+
   // Keyboard note input — assigns to selected step, then advances cursor
   const handleNotePress = useCallback(async (note: string) => {
     await ensureInit();
@@ -322,6 +329,7 @@ export function DuoSynth() {
             onBpmChange={(bpm) => dispatch({ type: 'SET_BPM', bpm })}
             onNoteLengthChange={(length) => dispatch({ type: 'SET_NOTE_LENGTH', length })}
             onTranspose={(delta) => dispatch({ type: 'TRANSPOSE', delta })}
+            onSwingChange={(swing) => dispatch({ type: 'SET_SWING', swing })}
             onRandomize={handleRandomize}
             onBoostDown={handleBoostDown}
             onBoostUp={handleBoostUp}

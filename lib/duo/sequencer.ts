@@ -20,6 +20,7 @@ export function createInitialSequencerState(): DuoSequencerState {
     noteLength: 0.5,
     transpose: 0,
     playing: false,
+    swing: 0,
   };
 }
 
@@ -31,11 +32,12 @@ type DrumStepCallback = (step: number, activeVoices: number[]) => void;
  * and calls back on each step with the note to play.
  */
 export class DuoSequencerTransport {
-  private repeatId: number | null = null;
+  private part: Tone.Part | null = null;
   private onStep: StepCallback;
   private getState: () => DuoSequencerState;
   private onDrumStep?: DrumStepCallback;
   private getDrumState?: () => DuoDrumState;
+  private currentSwing = 0;
 
   constructor(
     onStep: StepCallback,
@@ -49,16 +51,32 @@ export class DuoSequencerTransport {
     this.getDrumState = getDrumState;
   }
 
-  start(): void {
-    if (this.repeatId !== null) return;
+  /** Build step times with swing applied */
+  private buildStepTimes(swing: number): { time: string; step: number }[] {
+    const eighthNote = Tone.Time('8n').toSeconds();
+    const events: { time: string; step: number }[] = [];
+    const deadband = 0.12;
+    const effectiveSwing = Math.abs(swing) < deadband ? 0 : swing;
 
-    const state = this.getState();
-    Tone.getTransport().bpm.value = state.bpm;
+    for (let i = 0; i < STEP_COUNT; i++) {
+      let offset = i * eighthNote;
+      if (effectiveSwing !== 0) {
+        // swing > 0: delay odd steps; swing < 0: delay even steps
+        const isDelayed = effectiveSwing > 0 ? i % 2 === 1 : i % 2 === 0;
+        if (isDelayed) {
+          offset += Math.abs(effectiveSwing) * 0.67 * eighthNote;
+        }
+      }
+      events.push({ time: `${offset.toFixed(6)}`, step: i });
+    }
+    return events;
+  }
 
-    // Schedule repeating event every 8th note (1 step)
-    this.repeatId = Tone.getTransport().scheduleRepeat(() => {
+  private createPart(swing: number): Tone.Part {
+    const events = this.buildStepTimes(swing);
+    const part = new Tone.Part((_time, ev: { step: number }) => {
       const s = this.getState();
-      const step = s.currentStep;
+      const step = ev.step;
       const stepData = s.steps[step];
 
       if (stepData.active && stepData.note) {
@@ -67,7 +85,6 @@ export class DuoSequencerTransport {
         this.onStep(step, null, s.noteLength);
       }
 
-      // Fire drum triggers for active steps
       if (this.onDrumStep && this.getDrumState) {
         const drumState = this.getDrumState();
         const activeVoices = drumState.voices
@@ -77,21 +94,49 @@ export class DuoSequencerTransport {
           this.onDrumStep(step, activeVoices);
         }
       }
-    }, '8n');
+    }, events);
+    part.loop = true;
+    part.loopEnd = `${STEP_COUNT} * 8n`;
+    return part;
+  }
 
+  start(): void {
+    if (this.part) return;
+
+    const state = this.getState();
+    Tone.getTransport().bpm.value = state.bpm;
+    this.currentSwing = state.swing;
+
+    this.part = this.createPart(state.swing);
+    this.part.start(0);
     Tone.getTransport().start();
   }
 
   stop(): void {
-    if (this.repeatId !== null) {
-      Tone.getTransport().clear(this.repeatId);
-      this.repeatId = null;
+    if (this.part) {
+      this.part.stop();
+      this.part.dispose();
+      this.part = null;
     }
     Tone.getTransport().stop();
   }
 
   setBPM(bpm: number): void {
     Tone.getTransport().bpm.rampTo(bpm, 0.1);
+  }
+
+  /** Update swing — rebuilds Part with new step times */
+  setSwing(swing: number): void {
+    this.currentSwing = swing;
+    if (!this.part) return;
+    // Rebuild Part with new timing
+    const wasStarted = this.part !== null;
+    this.part.stop();
+    this.part.dispose();
+    this.part = this.createPart(swing);
+    if (wasStarted) {
+      this.part.start(0);
+    }
   }
 
   /** Momentary 2x tempo (boost button) */
