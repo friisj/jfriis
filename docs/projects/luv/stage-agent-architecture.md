@@ -116,34 +116,46 @@ Prompt Playground                    Reinforcement Review
 
 Both scenes read/write the same tables. No direct coupling.
 
-## Implementation Sequence
+## Implementation Status
 
-### Phase 1: Persist generation results
-- Migration: `luv_generation_results` + `luv_parameter_annotations` tables
-- Modify prompt playground to persist results on generation (replace local React state)
-- Scene loads past results from DB on mount
+### Phase 1: Persist generation results — COMPLETE
+- Migration `20260312100000_luv_generation_results.sql`: `luv_generation_results` + `luv_parameter_annotations` tables with RLS
+- Prompt playground persists results via `POST /api/luv/generate` on every generation
+- Scene loads past results from DB on mount (`scene.tsx` lines 133–177)
+- Module snapshot frozen at generation time (`buildModuleSnapshot()`, line 65)
 
-### Phase 2: Parameter-level annotation UI
-- Replace thumbs up/down with per-parameter annotation
-- Show module parameter snapshot alongside generated image
-- Click parameter → toggle accurate/inaccurate/uncertain
+### Phase 2: Parameter-level annotation UI — COMPLETE
+- Per-parameter accurate/inaccurate/uncertain ratings persisted to `luv_parameter_annotations`
+- Module snapshot displayed alongside generated image
+- `annotateParameter()` upserts to DB with unique constraint on (result, module, param, source)
 
-### Phase 3: Agent-composed prompts
-- `POST /api/luv/compose-prompt` endpoint
-- Scene UI: "Compose with Luv" button next to textarea
-- Endpoint reads module params + past annotations to generate better prompts
+### Phase 3: Agent-composed prompts — COMPLETE
+- `POST /api/luv/compose-prompt` endpoint (`app/api/luv/compose-prompt/route.ts`)
+- "Compose with Luv" button in prompt playground scene
+- Endpoint reads module params + past annotations via single-shot `generateText()` (claude-sonnet)
+- Returns `{ prompt: string }`, scene populates textarea for user editing before generation
+- Existing prompt text is passed as optional context to guide composition
 
-### Phase 4: Agent tools for generation results
-- `view_generation_result`, `annotate_parameter`, `save_prompt_template`
-- Process protocol for prompt-playground scene
-- Agent can review results and annotate in chat
+### Phase 4: Agent tools for generation results — COMPLETE
+- `view_generation_result` — vision tool, loads image + annotations + snapshot (`luv-playground-tools.ts` lines 15–110)
+- `annotate_parameter` — writes agent-source annotations (`luv-playground-tools.ts` lines 116–162)
+- `save_prompt_template` — persists with version tracking (`luv-playground-tools.ts` lines 168–225)
+- `list_generation_results` — browse/filter recent generations (`luv-playground-tools.ts` lines 231–262)
+- Process protocol for prompt-playground defined in `lib/luv/process-context.ts` lines 92–132
+- All registered in `luv-tools.ts` as `...luvPlaygroundTools`
 
-### Phase 5: Cross-scene integration
-- Reinforcement review queries `luv_generation_results` (add as source option alongside upload)
-- Annotation data informs prompt composition
+### Phase 5: Cross-scene integration — COMPLETE
+- `POST /api/luv/review-import` endpoint (`app/api/luv/review-import/route.ts`)
+- `<ImportFromGenerations>` component in review scene (tab alongside `<UploadZone>`)
+- Thumbnail grid of recent generations with multi-select, imports into review session
+- `module_links` pre-populated from generation's `module_slugs`
+- Annotation data informs prompt composition via Phase 3 endpoint
 
-## What to delete
+## Remaining cleanup
 
-- `lib/luv/stage/prompt-composer.ts` — `composeInitialPrompt()` replaced by compose-prompt API
-- Local `annotation: 'up' | 'down'` state in prompt playground — replaced by persisted parameter annotations
-- The prompt playground's current pattern of managing results in React state — replaced by DB persistence
+All three items from the original "What to delete" section are already resolved:
+- `lib/luv/stage/prompt-composer.ts` — never existed / already removed
+- Local annotation state — already replaced by DB-persisted annotations
+- React-only generation results — already DB-backed (local state is UI cache only)
+
+No deletions needed. Per-scene tool gating (mentioned in Principles) is deferred — tools are clearly named and don't conflict across scenes today.
