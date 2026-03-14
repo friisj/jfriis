@@ -1,0 +1,706 @@
+import { GameState, TrainCar, Coupling, DamageEvent, DerailBody, Particle, CarPose, CAR_CONFIG, TrapEffect, CargoBody } from './types'
+import { TrackPath } from './track'
+import { CAR_GAP, COUPLING_STIFFNESS, COUPLING_DAMPING, COUPLING_BREAK_FORCE } from './config'
+
+/**
+ * Simulate spring-damper couplings between cars.
+ * Locomotive is driven by headDistance; each subsequent car follows via spring forces.
+ * Returns updated CarPose[] for all cars.
+ */
+export function simulateCouplings(
+  cars: TrainCar[],
+  couplings: Coupling[],
+  headDistance: number,
+  trackPath: TrackPath,
+  carPathDistances: number[],
+  carVelocities: number[],
+  delta: number,
+  baseSpeed: number,
+): CarPose[] {
+  // Locomotive always driven by head distance
+  carPathDistances[0] = headDistance - cars[0].length / 2
+  carVelocities[0] = baseSpeed
+
+  // Apply spring-damper forces between coupled cars
+  for (let i = 0; i < couplings.length; i++) {
+    const coupling = couplings[i]
+    if (!coupling.intact) continue
+    if (cars[i].derailed || cars[i + 1].derailed) continue
+
+    const frontD = carPathDistances[i]
+    const rearD = carPathDistances[i + 1]
+    const restLength = cars[i].length / 2 + CAR_GAP + cars[i + 1].length / 2
+    const actualDist = frontD - rearD
+    const extension = actualDist - restLength
+    coupling.extension = extension
+
+    const relVel = carVelocities[i] - carVelocities[i + 1]
+    const force = COUPLING_STIFFNESS * extension + COUPLING_DAMPING * relVel
+
+    if (Math.abs(force) > COUPLING_BREAK_FORCE) {
+      coupling.intact = false
+      continue
+    }
+
+    // Apply force to rear car (front car is pulled by locomotive chain)
+    const rearMass = CAR_CONFIG[cars[i + 1].type].mass
+    carVelocities[i + 1] += (force / rearMass) * delta
+  }
+
+  // Apply friction deceleration to disconnected or derailed cars
+  for (let i = 1; i < cars.length; i++) {
+    if (cars[i].derailed) {
+      // Derailed cars coast and decelerate (still on spline during cascade delay)
+      carVelocities[i] = Math.max(0, carVelocities[i] - 1.5 * delta)
+    } else {
+      // Check if any coupling in the chain from loco to this car is broken
+      let connected = true
+      for (let j = 0; j < i; j++) {
+        if (!couplings[j].intact) { connected = false; break }
+      }
+      if (!connected) {
+        carVelocities[i] = Math.max(0, carVelocities[i] - 0.5 * delta)
+      }
+    }
+  }
+
+  // Update path distances from velocities (including derailed cars still coasting)
+  for (let i = 1; i < cars.length; i++) {
+    carPathDistances[i] += carVelocities[i] * delta
+  }
+
+  // Build poses from individual path distances
+  const poses: CarPose[] = []
+  for (let i = 0; i < cars.length; i++) {
+    const d = carPathDistances[i]
+    poses.push({
+      position: trackPath.getPointAt(d),
+      quaternion: trackPath.getQuaternionAt(d),
+      pathDistance: d,
+    })
+  }
+  return poses
+}
+
+/**
+ * Process trap effects — creates DerailBodies and particles for newly derailed cars.
+ * Launch velocities are rotated into the car's spline-tangent frame.
+ * Mutates derailBodies and particles refs directly.
+ */
+export function processEffects(
+  effects: TrapEffect[],
+  gameState: GameState,
+  carPoses: CarPose[],
+  speed: number,
+  derailBodies: Record<string, DerailBody>,
+  particles: Particle[],
+  trackPath: TrackPath,
+): void {
+  const dev = gameState.devControls
+  const force = dev.derailForce
+  const spread = dev.derailSpread
+
+  for (const effect of effects) {
+    const { toolType, impactCarIdx, derailedCarIds } = effect
+    const trapWorldPos = effect.trapWorldPos
+
+    for (const carId of derailedCarIds) {
+      if (derailBodies[carId]) continue
+
+      const carIdx = gameState.cars.findIndex((c) => c.id === carId)
+      const car = gameState.cars[carIdx]
+      const cfg = CAR_CONFIG[car.type]
+      const mass = cfg.mass
+      const inverseMass = 1 / mass
+      const pose = carPoses[carIdx]
+
+      // Get spline frame at car's position for tangent-aligned launch
+      const frame = trackPath.getFrameAt(pose.pathDistance)
+      const tangent = frame.tangent  // forward along track
+      const binormal = frame.binormal  // lateral
+
+      const distFromImpact = Math.abs(carIdx - impactCarIdx)
+      const cascadeDelay = distFromImpact * 0.12
+
+      const body: DerailBody = {
+        worldX: pose.position.x,
+        y: pose.position.y,
+        z: pose.position.z,
+        rotX: 0, rotY: 0, rotZ: 0,
+        vx: 0, vy: 0, vz: 0,
+        vRotX: 0, vRotY: 0, vRotZ: 0,
+        mass,
+        width: cfg.width, height: cfg.height, length: cfg.length,
+        grounded: false,
+        settled: false,
+        cascadeDelay,
+        launched: false,
+        bounceCount: 0,
+        carType: car.type,
+        ruptured: false,
+        burning: false,
+        secondaryTimer: 0,
+      }
+
+      const forwardSpeed = speed * (0.7 + Math.random() * 0.6)
+
+      // Count how many explosive effects overlap this car (chain reaction multiplier)
+      const chainMultiplier = toolType === 'explosive'
+        ? effects.filter((e) => e.toolType === 'explosive' && e.derailedCarIds.includes(carId)).length
+        : 1
+
+      switch (toolType) {
+        case 'rail-remover': {
+          // Rail gap — train drops into the hole. Minimal upward, strong forward + lateral tumble.
+          const fwd = forwardSpeed * (0.4 + Math.random() * 0.3) * inverseMass
+          const up = -1.5 + Math.random() * 0.5 // DROP into the gap
+          const lat = (Math.random() - 0.5) * spread * 2 * inverseMass
+          body.vx = tangent.x * fwd + binormal.x * lat
+          body.vy = up
+          body.vz = tangent.z * fwd + binormal.z * lat
+          // Strong nose-down rotation (pitching forward into gap)
+          body.vRotX = (Math.random() * 0.5 + 0.5) * spread * 2 * inverseMass
+          body.vRotY = (Math.random() - 0.5) * spread * inverseMass
+          body.vRotZ = (Math.random() - 0.5) * spread * 2 * inverseMass
+          break
+        }
+
+        case 'oil-slick':
+        case 'curve-tightener': {
+          const fwd = forwardSpeed * (0.3 + Math.random() * 0.7) * inverseMass * 2
+          const up = force * (0.6 + Math.random() * 0.8) * inverseMass * 1.5
+          const lat = (Math.random() - 0.5) * spread * 3 * inverseMass
+          body.vx = tangent.x * fwd + binormal.x * lat
+          body.vy = up
+          body.vz = tangent.z * fwd + binormal.z * lat
+          body.vRotX = (Math.random() - 0.5) * spread * 3 * inverseMass
+          body.vRotY = (Math.random() - 0.5) * spread * 2 * inverseMass
+          body.vRotZ = (Math.random() - 0.5) * spread * 3 * inverseMass
+          break
+        }
+
+        case 'explosive': {
+          const bf = effect.blastForces?.[carId] ?? { fx: 0, fy: 1, fz: 0 }
+          // Base blast force, multiplied by chain count for overlapping explosions
+          const blastMag = force * 5 * chainMultiplier
+          const fwd = bf.fx * blastMag * inverseMass
+          const lat = bf.fz * spread * 5 * inverseMass * chainMultiplier
+          body.vx = tangent.x * fwd + binormal.x * lat
+          body.vy = bf.fy * blastMag * (2.0 + Math.random() * 1.5) * inverseMass
+          body.vz = tangent.z * fwd + binormal.z * lat
+          body.vRotX = (Math.random() - 0.5) * spread * 6 * inverseMass * chainMultiplier
+          body.vRotY = (Math.random() - 0.5) * spread * 5 * inverseMass
+          body.vRotZ = (Math.random() - 0.5) * spread * 6 * inverseMass * chainMultiplier
+          body.cascadeDelay = 0
+          break
+        }
+
+        case 'ramp': {
+          // Ramp: moderate launch angle, mass matters. Heavy locomotive barely lifts, light cars soar.
+          const fwd = forwardSpeed * (0.6 + Math.random() * 0.3) * inverseMass
+          const up = (forwardSpeed * 0.4 + force * 0.8) * inverseMass
+          const lat = (Math.random() - 0.5) * spread * 0.3 * inverseMass
+          body.vx = tangent.x * fwd + binormal.x * lat
+          body.vy = up
+          body.vz = tangent.z * fwd + binormal.z * lat
+          body.vRotX = (Math.random() - 0.5) * 1.0 * inverseMass
+          body.vRotY = (Math.random() - 0.5) * 0.3
+          body.vRotZ = (Math.random() - 0.5) * spread * 1.5 * inverseMass
+          break
+        }
+
+        case 'decoupler': {
+          const fwd = forwardSpeed * 0.3 * inverseMass
+          const lat = (Math.random() > 0.5 ? 1 : -1) * spread * 1.5 * inverseMass
+          body.vx = tangent.x * fwd + binormal.x * lat
+          body.vy = force * 0.4 * inverseMass
+          body.vz = tangent.z * fwd + binormal.z * lat
+          body.vRotX = (Math.random() - 0.5) * spread * 1.0 * inverseMass
+          body.vRotY = 0
+          body.vRotZ = (Math.random() - 0.5) * spread * 2 * inverseMass
+          body.cascadeDelay = 0
+          break
+        }
+
+        case 'cattle': {
+          const fwd = forwardSpeed * 0.4 * inverseMass
+          const lat = (Math.random() > 0.5 ? 1 : -1) * spread * 1.2 * inverseMass
+          body.vx = tangent.x * fwd + binormal.x * lat
+          body.vy = force * 0.5 * inverseMass
+          body.vz = tangent.z * fwd + binormal.z * lat
+          body.vRotX = (Math.random() - 0.5) * spread * 1.5 * inverseMass
+          body.vRotY = (Math.random() - 0.5) * spread * inverseMass
+          body.vRotZ = (Math.random() - 0.5) * spread * 2 * inverseMass
+          body.cascadeDelay = 0
+          break
+        }
+
+        case 'landslide': {
+          // Lower vertical, stronger lateral scatter
+          const fwd = forwardSpeed * (0.2 + Math.random() * 0.4) * inverseMass * 2
+          const up = force * (0.3 + Math.random() * 0.4) * inverseMass
+          const lat = (Math.random() - 0.5) * spread * 4 * inverseMass
+          body.vx = tangent.x * fwd + binormal.x * lat
+          body.vy = up
+          body.vz = tangent.z * fwd + binormal.z * lat
+          body.vRotX = (Math.random() - 0.5) * spread * 2 * inverseMass
+          body.vRotY = (Math.random() - 0.5) * spread * 2 * inverseMass
+          body.vRotZ = (Math.random() - 0.5) * spread * 3 * inverseMass
+          break
+        }
+      }
+
+      derailBodies[carId] = body
+
+      if (toolType === 'rail-remover') {
+        // Dust cloud from train dropping into gap
+        for (let p = 0; p < 12; p++) {
+          particles.push({
+            x: pose.position.x + (Math.random() - 0.5) * 2,
+            y: 0.1 + Math.random() * 0.3,
+            z: pose.position.z + (Math.random() - 0.5) * 1.5,
+            vx: (Math.random() - 0.5) * 3,
+            vy: 0.5 + Math.random() * 1.5,
+            vz: (Math.random() - 0.5) * 3,
+            life: 1.0 + Math.random() * 0.8,
+            maxLife: 1.8,
+            size: 0.12 + Math.random() * 0.1,
+            color: '#aa9977',
+            type: 'smoke',
+          })
+        }
+      } else {
+        const particleCount = toolType === 'explosive' ? 25 : toolType === 'ramp' ? 12 : 8
+        const particleColor = toolType === 'explosive' ? '#ff6622' : '#ffaa44'
+        const particleSpeed = toolType === 'explosive' ? 16 : 8
+
+        for (let p = 0; p < particleCount; p++) {
+          particles.push({
+            x: pose.position.x, y: pose.position.y + 0.5, z: pose.position.z,
+            vx: (Math.random() - 0.5) * particleSpeed,
+            vy: Math.random() * (particleSpeed * 0.8) + 2,
+            vz: (Math.random() - 0.5) * particleSpeed,
+            life: 1.5 + Math.random(),
+            maxLife: 2.5,
+            size: toolType === 'explosive' ? 0.25 + Math.random() * 0.2 : 0.15 + Math.random() * 0.15,
+            color: particleColor,
+            type: 'debris',
+          })
+        }
+      }
+    }
+
+    // Cattle/landslide: debris particles at trap position
+    if (toolType === 'cattle' || toolType === 'landslide') {
+      const debrisCount = toolType === 'landslide' ? 15 : 8
+      for (let p = 0; p < debrisCount; p++) {
+        particles.push({
+          x: trapWorldPos.x + (Math.random() - 0.5) * 2,
+          y: trapWorldPos.y + 0.3,
+          z: trapWorldPos.z + (Math.random() - 0.5) * 1.5,
+          vx: (Math.random() - 0.5) * 6,
+          vy: 2 + Math.random() * 4,
+          vz: (Math.random() - 0.5) * 6,
+          life: 1.0 + Math.random() * 0.5,
+          maxLife: 1.5,
+          size: 0.1 + Math.random() * 0.15,
+          color: toolType === 'landslide' ? '#8B7355' : '#b5651d',
+          type: 'debris',
+        })
+      }
+    }
+
+    // Explosive: shockwave ring particles
+    if (toolType === 'explosive') {
+      for (let p = 0; p < 15; p++) {
+        const angle = (p / 15) * Math.PI * 2
+        particles.push({
+          x: trapWorldPos.x, y: trapWorldPos.y + 0.5, z: trapWorldPos.z,
+          vx: Math.cos(angle) * 8,
+          vy: 0.5 + Math.random(),
+          vz: Math.sin(angle) * 8,
+          life: 0.8 + Math.random() * 0.4,
+          maxLife: 1.2,
+          size: 0.15 + Math.random() * 0.1,
+          color: '#cccccc',
+          type: 'smoke',
+        })
+      }
+    }
+
+    // Oil slick: splash particles
+    if (toolType === 'oil-slick') {
+      for (let p = 0; p < 10; p++) {
+        particles.push({
+          x: trapWorldPos.x + (Math.random() - 0.5) * 2,
+          y: trapWorldPos.y + 0.1,
+          z: trapWorldPos.z + (Math.random() - 0.5) * 1.5,
+          vx: (Math.random() - 0.5) * 3,
+          vy: Math.random() * 2 + 0.5,
+          vz: (Math.random() - 0.5) * 3,
+          life: 0.6 + Math.random() * 0.4,
+          maxLife: 1.0,
+          size: 0.08 + Math.random() * 0.06,
+          color: '#44ff88',
+          type: 'debris',
+        })
+      }
+    }
+  }
+}
+
+/**
+ * Simulate derailed car bodies — gravity, bounce, friction, ground collision.
+ * Mutates derailBodies and carDamage refs directly.
+ */
+export function simulateDerailBodies(
+  delta: number,
+  cars: TrainCar[],
+  carPoses: CarPose[],
+  derailBodies: Record<string, DerailBody>,
+  carDamage: Record<string, DamageEvent[]>,
+  particles: Particle[],
+  gravity: number,
+  bounce: number,
+  oilSlickZones?: { x: number; z: number; radius: number }[],
+): void {
+  const bodyEntries = Object.entries(derailBodies)
+
+  for (const [carId, body] of bodyEntries) {
+    if (body.settled) continue
+
+    // Handle cascade delay — car stays on track until its turn
+    if (!body.launched) {
+      body.cascadeDelay -= delta
+      if (body.cascadeDelay > 0) {
+        // Still waiting — update position to track the decelerating train
+        const carIdx = cars.findIndex((c) => c.id === carId)
+        if (carIdx >= 0) {
+          body.worldX = carPoses[carIdx].position.x
+          body.y = carPoses[carIdx].position.y
+          body.z = carPoses[carIdx].position.z
+        }
+        continue
+      }
+      body.launched = true
+    }
+
+    // Apply gravity
+    body.vy -= gravity * delta
+
+    // Update positions
+    body.worldX += body.vx * delta
+    body.y += body.vy * delta
+    body.z += body.vz * delta
+
+    // Update rotations (angular velocity dampens based on mass)
+    body.rotX += body.vRotX * delta
+    body.rotY += body.vRotY * delta
+    body.rotZ += body.vRotZ * delta
+
+    // Ground collision
+    if (body.y < 0) {
+      body.y = 0
+      body.vy = Math.abs(body.vy) * bounce
+      body.grounded = true
+      body.bounceCount++
+
+      // Record damage event — impact on the underside, biased by velocity
+      const impactForce = Math.sqrt(body.vx * body.vx + body.vz * body.vz) + Math.abs(body.vy) * 0.5
+      if (impactForce > 0.5) {
+        if (!carDamage[carId]) carDamage[carId] = []
+        carDamage[carId].push({
+          localX: (Math.random() - 0.5) * body.length * 0.8,
+          localY: -body.height / 2 + (Math.random() - 0.5) * body.height * 0.3,
+          localZ: (Math.random() - 0.5) * body.width * 0.8,
+          force: Math.min(impactForce, 5),
+        })
+      }
+
+      // Check if body is in an oil slick zone
+      let inOil = false
+      if (oilSlickZones) {
+        for (const zone of oilSlickZones) {
+          const dx = body.worldX - zone.x
+          const dz = body.z - zone.z
+          if (Math.sqrt(dx * dx + dz * dz) < zone.radius) {
+            inOil = true
+            break
+          }
+        }
+      }
+
+      // Mass-based friction: heavier cars slide further. Oil reduces friction dramatically.
+      const frictionMult = inOil ? 0.95 : 0.5 + (body.mass / 16) // oil: near-zero friction
+      body.vx *= frictionMult
+      body.vz *= inOil ? 0.9 : 0.5
+      // Angular damping on impact — heavier = less spin loss
+      const angularDamp = 0.3 + (body.mass / 20)
+      body.vRotX *= angularDamp
+      body.vRotY *= angularDamp
+      body.vRotZ *= angularDamp
+
+      // Spawn sparks on ground impact
+      if (body.bounceCount <= 3) {
+        const sparkCount = Math.max(1, 6 - body.bounceCount * 2)
+        for (let p = 0; p < sparkCount; p++) {
+          particles.push({
+            x: body.worldX + (Math.random() - 0.5) * body.length,
+            y: 0.1,
+            z: body.z + (Math.random() - 0.5) * body.width,
+            vx: (Math.random() - 0.5) * 4,
+            vy: Math.random() * 3 + 1,
+            vz: (Math.random() - 0.5) * 4,
+            life: 0.4 + Math.random() * 0.6,
+            maxLife: 1.0,
+            size: 0.06 + Math.random() * 0.08,
+            color: '#ffdd66',
+            type: 'spark',
+          })
+        }
+      }
+
+      // Tanker: rupture on hard ground impact
+      if (body.carType === 'tanker' && !body.ruptured) {
+        const impactForce = Math.sqrt(body.vx * body.vx + body.vz * body.vz) + Math.abs(body.vy) * 0.5
+        if (impactForce > 3) {
+          body.ruptured = true
+          body.secondaryTimer = 3 // delay before secondary explosion
+        }
+      }
+
+      // Settle when energy is low
+      const totalV = Math.abs(body.vy) + Math.abs(body.vx) + Math.abs(body.vz)
+      const totalRot = Math.abs(body.vRotX) + Math.abs(body.vRotY) + Math.abs(body.vRotZ)
+      if (totalV < 0.4 && totalRot < 0.3) {
+        body.vy = 0; body.vx = 0; body.vz = 0
+        body.vRotX = 0; body.vRotY = 0; body.vRotZ = 0
+        body.settled = true
+      }
+    }
+
+    // Tanker: drip liquid while ruptured and not yet exploded
+    if (body.carType === 'tanker' && body.ruptured && !body.burning) {
+      // Spawn liquid drip particles
+      if (Math.random() < 0.6) {
+        particles.push({
+          x: body.worldX + (Math.random() - 0.5) * body.length * 0.6,
+          y: body.y + 0.1,
+          z: body.z + (Math.random() - 0.5) * body.width * 0.6,
+          vx: (Math.random() - 0.5) * 0.5,
+          vy: -0.5 - Math.random(),
+          vz: (Math.random() - 0.5) * 0.5,
+          life: 2 + Math.random() * 2,
+          maxLife: 4,
+          size: 0.08 + Math.random() * 0.06,
+          color: '#557744',
+          type: 'liquid',
+        })
+      }
+
+      // Countdown to secondary explosion
+      body.secondaryTimer -= delta
+      if (body.secondaryTimer <= 0) {
+        body.burning = true
+        // Secondary explosion — spawn fire particles
+        for (let p = 0; p < 25; p++) {
+          particles.push({
+            x: body.worldX + (Math.random() - 0.5) * 1.5,
+            y: body.y + 0.5 + Math.random() * 1.5,
+            z: body.z + (Math.random() - 0.5) * 1.5,
+            vx: (Math.random() - 0.5) * 8,
+            vy: 3 + Math.random() * 6,
+            vz: (Math.random() - 0.5) * 8,
+            life: 1.5 + Math.random(),
+            maxLife: 2.5,
+            size: 0.2 + Math.random() * 0.2,
+            color: '#ff4400',
+            type: 'fire',
+          })
+        }
+
+        // Apply blast to nearby derail bodies
+        for (const [otherId, other] of bodyEntries) {
+          if (otherId === carId || other.settled) continue
+          const dx = other.worldX - body.worldX
+          const dy = other.y - body.y
+          const dz = other.z - body.z
+          const dist = Math.sqrt(dx * dx + dy * dy + dz * dz)
+          if (dist < 6 && dist > 0.1) {
+            const force = (1 - dist / 6) * 5
+            other.vx += (dx / dist) * force / other.mass
+            other.vy += Math.max(force / other.mass, 2)
+            other.vz += (dz / dist) * force / other.mass
+            other.settled = false
+          }
+        }
+      }
+    }
+
+    // Tanker: emit fire particles while burning
+    if (body.carType === 'tanker' && body.burning && Math.random() < 0.3) {
+      particles.push({
+        x: body.worldX + (Math.random() - 0.5) * body.length * 0.5,
+        y: body.y + 0.3 + Math.random() * 0.5,
+        z: body.z + (Math.random() - 0.5) * body.width * 0.5,
+        vx: (Math.random() - 0.5) * 1.5,
+        vy: 1 + Math.random() * 2,
+        vz: (Math.random() - 0.5) * 1.5,
+        life: 0.5 + Math.random() * 0.5,
+        maxLife: 1.0,
+        size: 0.1 + Math.random() * 0.1,
+        color: '#ff6600',
+        type: 'fire',
+      })
+    }
+
+    // Air drag
+    if (!body.grounded) {
+      body.vx *= 0.998
+      body.vz *= 0.998
+    }
+    body.grounded = false
+  }
+}
+
+/**
+ * Resolve car-car collisions using simple sphere overlap.
+ * Mutates derailBodies and carDamage refs directly.
+ */
+export function resolveCarCollisions(
+  derailBodies: Record<string, DerailBody>,
+  carDamage: Record<string, DamageEvent[]>,
+): void {
+  const bodyEntries = Object.entries(derailBodies)
+
+  for (let i = 0; i < bodyEntries.length; i++) {
+    const [idA, a] = bodyEntries[i]
+    if (a.settled || !a.launched) continue
+    for (let j = i + 1; j < bodyEntries.length; j++) {
+      const [idB, b] = bodyEntries[j]
+      if (b.settled || !b.launched) continue
+
+      const dx = a.worldX - b.worldX
+      const dy = a.y - b.y
+      const dz = a.z - b.z
+      const dist = Math.sqrt(dx * dx + dy * dy + dz * dz)
+      const minDist = (a.length + b.length) * 0.35 // rough collision radius
+
+      if (dist < minDist && dist > 0.01) {
+        // Push apart and transfer momentum
+        const nx = dx / dist
+        const ny = dy / dist
+        const nz = dz / dist
+
+        const totalMass = a.mass + b.mass
+        const relVx = a.vx - b.vx
+        const relVy = a.vy - b.vy
+        const relVz = a.vz - b.vz
+        const relDotN = relVx * nx + relVy * ny + relVz * nz
+
+        if (relDotN > 0) continue // moving apart
+
+        const impulse = (2 * relDotN) / totalMass * 0.8
+
+        a.vx -= impulse * b.mass * nx
+        a.vy -= impulse * b.mass * ny
+        a.vz -= impulse * b.mass * nz
+        b.vx += impulse * a.mass * nx
+        b.vy += impulse * a.mass * ny
+        b.vz += impulse * a.mass * nz
+
+        // Transfer some angular momentum too
+        a.vRotX += (Math.random() - 0.5) * 2 / a.mass
+        a.vRotZ += (Math.random() - 0.5) * 2 / a.mass
+        b.vRotX += (Math.random() - 0.5) * 2 / b.mass
+        b.vRotZ += (Math.random() - 0.5) * 2 / b.mass
+
+        // Separate overlapping bodies
+        const overlap = minDist - dist
+        const sepA = overlap * (b.mass / totalMass)
+        const sepB = overlap * (a.mass / totalMass)
+        a.worldX += nx * sepA
+        a.y += ny * sepA
+        a.z += nz * sepA
+        b.worldX -= nx * sepB
+        b.y -= ny * sepB
+        b.z -= nz * sepB
+
+        // Record collision damage on both cars
+        const collisionForce = Math.abs(relDotN) * 0.5
+        if (collisionForce > 0.3) {
+          if (!carDamage[idA]) carDamage[idA] = []
+          if (!carDamage[idB]) carDamage[idB] = []
+          carDamage[idA].push({
+            localX: -nx * a.length * 0.3,
+            localY: -ny * a.height * 0.3,
+            localZ: -nz * a.width * 0.3,
+            force: Math.min(collisionForce / a.mass * 3, 4),
+          })
+          carDamage[idB].push({
+            localX: nx * b.length * 0.3,
+            localY: ny * b.height * 0.3,
+            localZ: nz * b.width * 0.3,
+            force: Math.min(collisionForce / b.mass * 3, 4),
+          })
+        }
+      }
+    }
+  }
+}
+
+/**
+ * Simulate cargo body physics — gravity, bounce, friction, settling.
+ */
+export function simulateCargoBodies(
+  bodies: CargoBody[],
+  delta: number,
+  gravity: number,
+  bounce: number,
+): void {
+  for (const body of bodies) {
+    if (body.settled) continue
+
+    body.vy -= gravity * delta
+    body.x += body.vx * delta
+    body.y += body.vy * delta
+    body.z += body.vz * delta
+    body.rotX += body.vRotX * delta
+    body.rotY += body.vRotY * delta
+    body.rotZ += body.vRotZ * delta
+
+    if (body.y < 0) {
+      body.y = 0
+      body.vy = Math.abs(body.vy) * bounce * 0.6
+      body.vx *= 0.5
+      body.vz *= 0.5
+      body.vRotX *= 0.3
+      body.vRotY *= 0.3
+      body.vRotZ *= 0.3
+
+      const totalV = Math.abs(body.vy) + Math.abs(body.vx) + Math.abs(body.vz)
+      if (totalV < 0.3) {
+        body.vy = 0; body.vx = 0; body.vz = 0
+        body.vRotX = 0; body.vRotY = 0; body.vRotZ = 0
+        body.settled = true
+      }
+    }
+  }
+}
+
+/**
+ * Update particle positions and lifetimes.
+ * Returns the filtered (still-alive) particles array.
+ */
+export function updateParticles(particles: Particle[], delta: number): Particle[] {
+  return particles.filter((p) => {
+    p.life -= delta
+    if (p.life <= 0) return false
+    p.vy -= 6 * delta // particle gravity
+    p.x += p.vx * delta
+    p.y += p.vy * delta
+    p.z += p.vz * delta
+    if (p.y < 0) { p.y = 0; p.vy = 0; p.vx *= 0.5; p.vz *= 0.5 }
+    return true
+  })
+}
