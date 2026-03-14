@@ -291,6 +291,31 @@ Multi-stage project building toward a tool with parametric controls that combine
 
 ---
 
+### Chroma
+**Status**: Phase 1 (Exploration) - Initial research and concept definition
+**Location**: `/components/studio/prototypes/chroma/` + `/docs/studio/chroma/`
+**Focus**: Multi-space color analysis toolkit for validating AI-generated imagery against parametric specifications
+
+**Current State**:
+- ✅ Project scaffolding and initial research brief
+- ⏳ Exploring multi-space color analysis pipeline (RGB + HSV + CIELAB)
+- ⏳ Designing regional sampling and lighting compensation approach
+
+**Concept**:
+Vision models fail at precise color analysis — they misclassify amber eyes as green under cool lighting, can't separate undertones from overtones, and reduce complex color interactions to simple labels. Chroma proposes a multi-space eye-dropper analysis pipeline that extracts precise color data from defined image regions, compensates for lighting artifacts, and correlates results against parametric specifications (e.g. Luv chassis parameters).
+
+**Key Relationship**: Primary consumer is **Luv** — Chroma addresses the amber-vs-green eye color misclassification problem discovered during Luv's image generation validation.
+
+**Next Steps**:
+1. Complete initial research on color space conversion libraries
+2. Define minimum viable color space set for lighting compensation
+3. Prototype canvas-based pixel sampling with multi-space output
+4. Validate against Luv-generated images with known chassis parameters
+
+**Documents**: `/docs/studio/chroma/exploration/` (research.md, definitions.md)
+
+---
+
 ### Remix
 **Status**: Phase 1 (Exploration) - Initial scaffold, awaiting pipeline technical design
 **Location**: `/components/studio/prototypes/remix/` + `/docs/studio/remix/`
