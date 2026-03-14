@@ -127,6 +127,7 @@ export function createInitialDrumState(): DuoDrumState {
       { name: DRUM_VOICE_NAMES[2], steps: [true, true, true, true, true, true, true, true], pitch: 0.5, decay: 0.2, volume: 0.6 },
       { name: DRUM_VOICE_NAMES[3], steps: [false, false, false, true, false, false, false, false], pitch: 0.5, decay: 0.3, volume: 0.7 },
     ],
+    effects: { crush: 0, filterCutoff: 1 },
   };
 }
 

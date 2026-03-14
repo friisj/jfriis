@@ -15,6 +15,8 @@ interface DrumPanelProps {
   onSetPitch: (voiceIndex: number, pitch: number) => void;
   onSetDecay: (voiceIndex: number, decay: number) => void;
   onSetVolume: (voiceIndex: number, volume: number) => void;
+  onSetCrush: (value: number) => void;
+  onSetFilter: (value: number) => void;
   onRandomize: () => void;
 }
 
@@ -27,6 +29,8 @@ export function DrumPanel({
   onSetPitch,
   onSetDecay,
   onSetVolume,
+  onSetCrush,
+  onSetFilter,
   onRandomize,
 }: DrumPanelProps) {
   return (
@@ -96,6 +100,36 @@ export function DrumPanel({
               color={VOICE_COLORS[i]}
             />
           ))}
+        </div>
+      </div>
+
+      {/* Drum effects */}
+      <div className="space-y-2">
+        <h3 className="text-[10px] text-zinc-500 uppercase tracking-wider">Effects</h3>
+        <div className="flex items-start justify-center gap-2">
+          <DuoKnob
+            label="Crush"
+            value={drum.effects.crush}
+            min={0}
+            max={1}
+            step={0.01}
+            onChange={onSetCrush}
+            displayFn={(v) => v < 0.01 ? 'Off' : `${Math.round(v * 100)}%`}
+            color="#a855f7"
+          />
+          <DuoKnob
+            label="Filter"
+            value={drum.effects.filterCutoff}
+            min={0}
+            max={1}
+            step={0.01}
+            onChange={onSetFilter}
+            displayFn={(v) => {
+              const freq = 400 * Math.pow(20000 / 400, v);
+              return freq >= 1000 ? `${(freq / 1000).toFixed(1)}k` : `${Math.round(freq)}`;
+            }}
+            color="#a855f7"
+          />
         </div>
       </div>
 

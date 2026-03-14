@@ -58,8 +58,14 @@ export interface DuoDrumVoice {
   volume: number;     // 0-1
 }
 
+export interface DuoDrumEffects {
+  crush: number;        // 0-1: 0 = transparent (16-bit), 1 = destroyed (5-bit)
+  filterCutoff: number; // 0-1: 1 = fully open (20kHz), 0 = closed (400Hz)
+}
+
 export interface DuoDrumState {
   voices: DuoDrumVoice[];  // always 4
+  effects: DuoDrumEffects;
 }
 
 export interface DuoState {
@@ -94,5 +100,7 @@ export type DuoAction =
   | { type: 'DRUM_SET_DECAY'; voiceIndex: number; decay: number }
   | { type: 'DRUM_SET_VOLUME'; voiceIndex: number; volume: number }
   | { type: 'DRUM_RANDOMIZE' }
+  | { type: 'DRUM_SET_CRUSH'; value: number }
+  | { type: 'DRUM_SET_FILTER'; value: number }
   | { type: 'TOGGLE_MELODIC_MUTE' }
   | { type: 'TOGGLE_DRUM_MUTE' };

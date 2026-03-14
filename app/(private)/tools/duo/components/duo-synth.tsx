@@ -84,6 +84,10 @@ function duoReducer(state: DuoState, action: DuoAction): DuoState {
     }
     case 'DRUM_RANDOMIZE':
       return { ...state, drum: { ...state.drum, voices: randomizeDrumSteps() } };
+    case 'DRUM_SET_CRUSH':
+      return { ...state, drum: { ...state.drum, effects: { ...state.drum.effects, crush: action.value } } };
+    case 'DRUM_SET_FILTER':
+      return { ...state, drum: { ...state.drum, effects: { ...state.drum.effects, filterCutoff: action.value } } };
     case 'TOGGLE_MELODIC_MUTE':
       return { ...state, melodicMuted: !state.melodicMuted };
     case 'TOGGLE_DRUM_MUTE':
@@ -232,6 +236,16 @@ export function DuoSynth() {
     engineRef.current?.setDrumVolume(voiceIndex, volume);
   }, []);
 
+  const handleDrumSetCrush = useCallback((value: number) => {
+    dispatch({ type: 'DRUM_SET_CRUSH', value });
+    engineRef.current?.setDrumCrush(value);
+  }, []);
+
+  const handleDrumSetFilter = useCallback((value: number) => {
+    dispatch({ type: 'DRUM_SET_FILTER', value });
+    engineRef.current?.setDrumFilter(value);
+  }, []);
+
   const handleDrumRandomize = useCallback(async () => {
     await ensureInit();
     dispatch({ type: 'DRUM_RANDOMIZE' });
@@ -311,6 +325,8 @@ export function DuoSynth() {
             onSetPitch={handleDrumSetPitch}
             onSetDecay={handleDrumSetDecay}
             onSetVolume={handleDrumSetVolume}
+            onSetCrush={handleDrumSetCrush}
+            onSetFilter={handleDrumSetFilter}
             onRandomize={handleDrumRandomize}
           />
         </div>

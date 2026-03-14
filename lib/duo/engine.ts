@@ -36,6 +36,8 @@ export class DuoEngine {
   private clap: Tone.NoiseSynth | null = null;
   private clapFilter: Tone.Filter | null = null;
   private drumBus: Tone.Gain | null = null;
+  private drumCrusher: Tone.BitCrusher | null = null;
+  private drumFilter: Tone.Filter | null = null;
   private drumVoiceGains: Tone.Gain[] = [];
 
   private initialized = false;
@@ -129,8 +131,15 @@ export class DuoEngine {
     this.lfoDepthGain.connect(this.osc2.width);
     if (this.params.lfoDepth > 0) this.lfo.start();
 
-    // Drums — 4 voices with per-voice gain nodes
-    this.drumBus = new Tone.Gain(0.8).connect(this.master);
+    // Drums — 4 voices with per-voice gain nodes, effects chain: drumBus → crusher → filter → master
+    this.drumFilter = new Tone.Filter({
+      frequency: 20000,
+      type: 'lowpass',
+      rolloff: -12,
+      Q: 0.5,
+    }).connect(this.master);
+    this.drumCrusher = new Tone.BitCrusher(16).connect(this.drumFilter);
+    this.drumBus = new Tone.Gain(0.8).connect(this.drumCrusher);
     this.drumVoiceGains = Array.from({ length: 4 }, () =>
       new Tone.Gain(1).connect(this.drumBus!)
     );
@@ -275,6 +284,25 @@ export class DuoEngine {
     this.drumVoiceGains[index]?.gain.rampTo(volume, 0.02);
   }
 
+  /** Set drum bus crush amount (0 = transparent 16-bit, 1 = destroyed 5-bit) */
+  setDrumCrush(value: number): void {
+    if (this.drumCrusher) {
+      const bits = 16 - value * 11; // 16 → 5
+      this.drumCrusher.bits.value = Math.max(5, Math.min(16, bits));
+    }
+  }
+
+  /** Set drum bus filter cutoff (0 = closed 400Hz, 1 = fully open 20kHz) */
+  setDrumFilter(value: number): void {
+    if (this.drumFilter) {
+      const freq = 400 * Math.pow(20000 / 400, value); // log scale 400-20000Hz
+      this.drumFilter.frequency.rampTo(freq, 0.02);
+      // Auto-link resonance inversely to cutoff (Dato hardware behavior)
+      const q = 0.5 + (1 - value) * 8;
+      this.drumFilter.Q.rampTo(q, 0.02);
+    }
+  }
+
   /** Update a synth parameter in real-time */
   setParam(param: keyof DuoSynthParams, value: number): void {
     this.params[param] = value;
@@ -405,6 +433,8 @@ export class DuoEngine {
     this.drumVoiceGains.forEach((g) => g.dispose());
     this.drumVoiceGains = [];
     this.drumBus?.dispose();
+    this.drumCrusher?.dispose();
+    this.drumFilter?.dispose();
     this.initialized = false;
     this.currentNote = null;
   }

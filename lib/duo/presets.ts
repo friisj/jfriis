@@ -31,6 +31,7 @@ export const DEFAULT_DRUM: DuoDrumState = {
     { name: 'Hi-Hat', steps: [true, true, true, true, true, true, true, true], pitch: 0.5, decay: 0.2, volume: 0.6 },
     { name: 'Clap', steps: [false, false, false, true, false, false, false, false], pitch: 0.5, decay: 0.3, volume: 0.7 },
   ],
+  effects: { crush: 0, filterCutoff: 1 },
 };
 
 export const PRESETS: DuoPreset[] = [
