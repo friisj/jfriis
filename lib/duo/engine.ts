@@ -236,9 +236,9 @@ export class DuoEngine {
           // by modifying the envelope characteristics based on pitch
         }
         break;
-      case 2: // Hi-hat: freq 100-800 Hz
+      case 2: // Hi-hat: freq 200-1200 Hz (MetalSynth FM generates harmonics in metallic register)
         if (this.hat) {
-          const freq = 100 + pitch * 700;
+          const freq = 200 + pitch * 1000;
           this.hat.frequency.rampTo(freq, 0.02);
         }
         break;
@@ -286,7 +286,9 @@ export class DuoEngine {
         this.osc2Gain?.gain.rampTo(value, 0.02);
         break;
       case 'detune':
+        // Detune oscillators in opposite directions for chorus/thickening effect
         if (this.osc1) this.osc1.detune.rampTo(value, 0.02);
+        if (this.osc2) this.osc2.detune.rampTo(-value, 0.02);
         break;
       case 'pulseWidth':
         if (this.osc2 && 'width' in this.osc2) {

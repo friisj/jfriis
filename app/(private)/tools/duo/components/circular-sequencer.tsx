@@ -71,7 +71,7 @@ export function CircularSequencer({
     <div className="space-y-1.5">
       <h3 className="text-[10px] text-zinc-500 uppercase tracking-wider">Sequencer</h3>
       <div className="flex justify-center">
-        <svg width={size} height={size} className="overflow-visible">
+        <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="overflow-visible">
           {/* Connection ring */}
           <circle
             cx={center}

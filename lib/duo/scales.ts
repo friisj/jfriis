@@ -9,8 +9,24 @@ const BASE_NOTES = [
   'C4', 'Eb4', 'F4', 'G4', 'Bb4',
 ];
 
-// All chromatic note names for transposition
+// All chromatic note names for transposition (canonical: prefer flats for display)
 const CHROMATIC = ['C', 'C#', 'D', 'Eb', 'E', 'F', 'F#', 'G', 'Ab', 'A', 'Bb', 'B'];
+
+// Map enharmonic equivalents to their canonical semitone offset
+const NOTE_TO_SEMITONE: Record<string, number> = {
+  'C': 0, 'B#': 0,
+  'C#': 1, 'Db': 1,
+  'D': 2,
+  'D#': 3, 'Eb': 3,
+  'E': 4, 'Fb': 4,
+  'F': 5, 'E#': 5,
+  'F#': 6, 'Gb': 6,
+  'G': 7,
+  'G#': 8, 'Ab': 8,
+  'A': 9,
+  'A#': 10, 'Bb': 10,
+  'B': 11, 'Cb': 11,
+};
 
 /**
  * Parse a note string like "C4" into { name, octave, midi }
@@ -20,7 +36,9 @@ function parseNote(note: string): { name: string; octave: number; midi: number }
   if (!match) throw new Error(`Invalid note: ${note}`);
   const name = match[1];
   const octave = parseInt(match[2]);
-  const midi = (octave + 1) * 12 + CHROMATIC.indexOf(name);
+  const semitone = NOTE_TO_SEMITONE[name];
+  if (semitone === undefined) throw new Error(`Unknown note name: ${name}`);
+  const midi = (octave + 1) * 12 + semitone;
   return { name, octave, midi };
 }
 

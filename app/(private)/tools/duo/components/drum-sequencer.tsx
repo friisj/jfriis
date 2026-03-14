@@ -46,7 +46,7 @@ export function DrumSequencer({
 
   return (
     <div className="flex justify-center">
-      <svg width={size} height={size} className="overflow-visible">
+      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="overflow-visible">
         {/* Concentric ring guides */}
         {RING_RADII.map((r, i) => (
           <circle

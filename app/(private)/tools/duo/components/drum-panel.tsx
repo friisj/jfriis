@@ -102,6 +102,7 @@ export function DrumPanel({
       {/* Random button */}
       <div className="flex justify-center">
         <button
+          type="button"
           onClick={onRandomize}
           className="px-3 py-1.5 text-[10px] uppercase tracking-wider text-zinc-400
                      bg-zinc-800 hover:bg-zinc-700 rounded border border-zinc-700
