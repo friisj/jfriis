@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { IconSquare } from '@tabler/icons-react';
+import { IconSquare, IconLayoutGrid, IconMusic } from '@tabler/icons-react';
+import Link from 'next/link';
 import { SamplerEngine } from '@/lib/sampler-engine';
 import { updatePad, expandGrid, uploadAudio, createSound } from '@/lib/sampler';
 import { encodeWav } from '@/lib/sampler-wav';
@@ -595,8 +596,22 @@ export function CollectionGrid({ collection }: CollectionGridProps) {
               className="w-8 h-8 flex items-center justify-center rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
               title="Stop all (Esc)"
             >
-              <IconSquare size={16}  />
+              <IconSquare size={16} />
             </button>
+            <Link
+              href="/tools/sampler"
+              className="w-8 h-8 flex items-center justify-center rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+              title="Collections"
+            >
+              <IconLayoutGrid size={16} />
+            </Link>
+            <Link
+              href="/tools/sampler/sounds"
+              className="w-8 h-8 flex items-center justify-center rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+              title="Sounds"
+            >
+              <IconMusic size={16} />
+            </Link>
           </div>
           <div className="flex-1 h-full flex flex-col">
             {batchItems && (
