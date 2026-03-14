@@ -1,10 +1,15 @@
+import dynamic from "next/dynamic";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/studio/chalk/supabase/server";
 import {
   getOrCreateUserProject,
   getOrCreateProjectBoard,
 } from "@/lib/studio/chalk/supabase/db";
-import { MainCanvas } from "@/components/studio/chalk/canvas/MainCanvas";
+
+const MainCanvas = dynamic(
+  () => import("@/components/studio/chalk/canvas/MainCanvas").then(mod => mod.MainCanvas),
+  { ssr: false }
+);
 
 export default async function HomePage() {
   const supabase = await createClient();

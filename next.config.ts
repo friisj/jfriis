@@ -12,7 +12,13 @@ const nextConfig: NextConfig = {
       bodySizeLimit: '10mb',
     },
   },
-  serverExternalPackages: ['@phosphor-icons/react'],
+  serverExternalPackages: [
+    '@phosphor-icons/react',
+    '@ai-sdk/anthropic',
+    '@ai-sdk/openai',
+    '@ai-sdk/google',
+    '@anthropic-ai/sdk',
+  ],
   webpack: (config, { isServer, webpack }) => {
     if (!isServer) {
       // ElevenLabs SDK imports node:child_process, node:events, node:stream
