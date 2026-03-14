@@ -14,6 +14,7 @@ interface DrumPanelProps {
   playing: boolean;
   onToggleStep: (voiceIndex: number, step: number) => void;
   onTriggerVoice: (voiceIndex: number) => void;
+  onRetrigger: (voiceIndex: number | null, substep: boolean) => void;
   onSetRecipe: (voiceIndex: number, recipeIndex: number) => void;
   onSetPitch: (voiceIndex: number, pitch: number) => void;
   onSetDecay: (voiceIndex: number, decay: number) => void;
@@ -31,6 +32,7 @@ export function DrumPanel({
   playing,
   onToggleStep,
   onTriggerVoice,
+  onRetrigger,
   onSetRecipe,
   onSetPitch,
   onSetDecay,
@@ -49,6 +51,7 @@ export function DrumPanel({
         playing={playing}
         onToggleStep={onToggleStep}
         onTriggerVoice={onTriggerVoice}
+        onRetrigger={onRetrigger}
       />
 
       {/* Voice selector — per-voice recipe picker */}

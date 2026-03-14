@@ -158,6 +158,10 @@ export function DuoSynth() {
           }
         },
         () => stateRef.current.drum,
+        (voiceIndex: number) => {
+          if (stateRef.current.drumMuted) return;
+          engine.triggerDrumVoice(voiceIndex, stateRef.current.drum.voices[voiceIndex].volume);
+        },
       );
       transportRef.current = transport;
       setInitialized(true);
@@ -267,6 +271,10 @@ export function DuoSynth() {
     engineRef.current?.setDrumFilter(value);
   }, []);
 
+  const handleDrumRetrigger = useCallback((voiceIndex: number | null, substep: boolean) => {
+    transportRef.current?.setRetrigger(voiceIndex, substep);
+  }, []);
+
   const handleDrumRandomize = useCallback(async () => {
     await ensureInit();
     dispatch({ type: 'DRUM_RANDOMIZE' });
@@ -352,6 +360,7 @@ export function DuoSynth() {
             playing={state.sequencer.playing}
             onToggleStep={handleDrumToggleStep}
             onTriggerVoice={handleDrumTriggerVoice}
+            onRetrigger={handleDrumRetrigger}
             onSetRecipe={handleDrumSetRecipe}
             onSetPitch={handleDrumSetPitch}
             onSetDecay={handleDrumSetDecay}

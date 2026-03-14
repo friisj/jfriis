@@ -1,5 +1,6 @@
 'use client';
 
+import { useRef, useCallback } from 'react';
 import { cn } from '@/lib/utils';
 import type { DuoDrumVoice } from '@/lib/duo/types';
 
@@ -9,6 +10,7 @@ interface DrumSequencerProps {
   playing: boolean;
   onToggleStep: (voiceIndex: number, step: number) => void;
   onTriggerVoice: (voiceIndex: number) => void;
+  onRetrigger: (voiceIndex: number | null, substep: boolean) => void;
 }
 
 const RING_RADII = [140, 112, 84, 56];
@@ -30,6 +32,7 @@ export function DrumSequencer({
   playing,
   onToggleStep,
   onTriggerVoice,
+  onRetrigger,
 }: DrumSequencerProps) {
   const size = (RING_RADII[0] + DOT_RADIUS + 8) * 2;
   const center = size / 2;
@@ -95,25 +98,79 @@ export function DrumSequencer({
       {/* Trigger pads — 4-column row below rings */}
       <div className="flex gap-2">
         {voices.map((voice, i) => (
-          <button
+          <RetriggerPad
             key={`pad-${i}`}
-            type="button"
-            onClick={() => onTriggerVoice(i)}
-            className="w-12 h-12 rounded-lg text-[10px] font-mono font-medium
-                       border transition-colors active:scale-95 active:brightness-125
-                       focus-visible:ring-2 focus-visible:ring-amber-400/50 outline-none
-                       touch-none select-none"
-            style={{
-              backgroundColor: VOICE_COLORS_DIM[i],
-              borderColor: VOICE_COLORS[i],
-              color: VOICE_COLORS[i],
-            }}
-            aria-label={`Trigger ${voice.name}`}
-          >
-            {voice.name}
-          </button>
+            voiceIndex={i}
+            voiceName={voice.name}
+            onTrigger={onTriggerVoice}
+            onRetrigger={onRetrigger}
+          />
         ))}
       </div>
     </div>
+  );
+}
+
+/** Pad with retrigger: hold = retrigger on every step, long hold (300ms) = substep retrigger */
+function RetriggerPad({
+  voiceIndex,
+  voiceName,
+  onTrigger,
+  onRetrigger,
+}: {
+  voiceIndex: number;
+  voiceName: string;
+  onTrigger: (voiceIndex: number) => void;
+  onRetrigger: (voiceIndex: number | null, substep: boolean) => void;
+}) {
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const holdingRef = useRef(false);
+
+  const handlePointerDown = useCallback(() => {
+    holdingRef.current = true;
+    onTrigger(voiceIndex);
+    // Start normal retrigger immediately
+    onRetrigger(voiceIndex, false);
+    // After 300ms, upgrade to substep retrigger
+    timerRef.current = setTimeout(() => {
+      if (holdingRef.current) {
+        onRetrigger(voiceIndex, true);
+      }
+    }, 300);
+  }, [voiceIndex, onTrigger, onRetrigger]);
+
+  const handlePointerUp = useCallback(() => {
+    holdingRef.current = false;
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
+    onRetrigger(null, false);
+  }, [onRetrigger]);
+
+  const handleContextMenu = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+  }, []);
+
+  return (
+    <button
+      type="button"
+      onPointerDown={handlePointerDown}
+      onPointerUp={handlePointerUp}
+      onPointerLeave={handlePointerUp}
+      onContextMenu={handleContextMenu}
+      className="w-12 h-12 rounded-lg text-[10px] font-mono font-medium
+                 border transition-colors active:scale-95 active:brightness-125
+                 focus-visible:ring-2 focus-visible:ring-amber-400/50 outline-none
+                 touch-none select-none"
+      style={{
+        backgroundColor: VOICE_COLORS_DIM[voiceIndex],
+        borderColor: VOICE_COLORS[voiceIndex],
+        color: VOICE_COLORS[voiceIndex],
+      }}
+      aria-label={`Trigger ${voiceName} (hold for retrigger)`}
+    >
+      {voiceName}
+    </button>
   );
 }

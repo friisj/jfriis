@@ -38,17 +38,22 @@ export class DuoSequencerTransport {
   private onDrumStep?: DrumStepCallback;
   private getDrumState?: () => DuoDrumState;
   private currentSwing = 0;
+  private retriggerVoice: number | null = null;
+  private retriggerSubstep = false;
+  private onDrumRetrigger?: (voiceIndex: number) => void;
 
   constructor(
     onStep: StepCallback,
     getState: () => DuoSequencerState,
     onDrumStep?: DrumStepCallback,
     getDrumState?: () => DuoDrumState,
+    onDrumRetrigger?: (voiceIndex: number) => void,
   ) {
     this.onStep = onStep;
     this.getState = getState;
     this.onDrumStep = onDrumStep;
     this.getDrumState = getDrumState;
+    this.onDrumRetrigger = onDrumRetrigger;
   }
 
   /** Build step times with swing applied */
@@ -90,8 +95,24 @@ export class DuoSequencerTransport {
         const activeVoices = drumState.voices
           .map((v, i) => (v.steps[step] ? i : -1))
           .filter((i) => i >= 0);
+
+        // Add retrigger voice if held (normal = every step)
+        if (this.retriggerVoice !== null && !activeVoices.includes(this.retriggerVoice)) {
+          activeVoices.push(this.retriggerVoice);
+        }
+
         if (activeVoices.length > 0) {
           this.onDrumStep(step, activeVoices);
+        }
+
+        // Substep retrigger: fire extra trigger halfway through the step
+        if (this.retriggerSubstep && this.retriggerVoice !== null && this.onDrumRetrigger) {
+          const halfStep = Tone.Time('16n').toSeconds();
+          const vi = this.retriggerVoice;
+          const cb = this.onDrumRetrigger;
+          Tone.getTransport().scheduleOnce(() => {
+            cb(vi);
+          }, `+${halfStep}`);
         }
       }
     }, events);
@@ -137,6 +158,12 @@ export class DuoSequencerTransport {
     if (wasStarted) {
       this.part.start(0);
     }
+  }
+
+  /** Set retrigger state — hold pad to retrigger voice on every step */
+  setRetrigger(voiceIndex: number | null, substep: boolean = false): void {
+    this.retriggerVoice = voiceIndex;
+    this.retriggerSubstep = substep;
   }
 
   /** Momentary 2x tempo (boost button) */
