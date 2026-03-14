@@ -11,8 +11,8 @@ interface DrumSequencerProps {
   onTriggerVoice: (voiceIndex: number) => void;
 }
 
-const RING_RADII = [80, 62, 44, 26];
-const DOT_RADIUS = 8;
+const RING_RADII = [140, 112, 84, 56];
+const DOT_RADIUS = 11;
 const VOICE_COLORS = ['#f43f5e', '#38bdf8', '#34d399', '#fbbf24']; // rose, sky, emerald, amber
 const VOICE_COLORS_DIM = ['#4c1420', '#0c3049', '#0c3326', '#422d08'];
 
@@ -34,18 +34,8 @@ export function DrumSequencer({
   const size = (RING_RADII[0] + DOT_RADIUS + 8) * 2;
   const center = size / 2;
 
-  // Center trigger pads — 2×2 layout
-  const padSize = 18;
-  const padGap = 4;
-  const padOffsets = [
-    { x: -(padSize + padGap / 2), y: -(padSize + padGap / 2) }, // top-left = kick
-    { x: padGap / 2, y: -(padSize + padGap / 2) },              // top-right = snare
-    { x: -(padSize + padGap / 2), y: padGap / 2 },              // bottom-left = hat
-    { x: padGap / 2, y: padGap / 2 },                           // bottom-right = clap
-  ];
-
   return (
-    <div className="flex justify-center">
+    <div className="flex flex-col items-center gap-3">
       <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="overflow-visible">
         {/* Concentric ring guides */}
         {RING_RADII.map((r, i) => (
@@ -72,7 +62,7 @@ export function DrumSequencer({
                 key={`${vi}-${si}`}
                 cx={center + pos.x}
                 cy={center + pos.y}
-                r={DOT_RADIUS - vi * 0.5} // slightly smaller for inner rings
+                r={DOT_RADIUS - vi * 0.5}
                 fill={
                   isCurrent && active
                     ? VOICE_COLORS[vi]
@@ -100,47 +90,30 @@ export function DrumSequencer({
             );
           }),
         )}
-
-        {/* Center trigger pads — 2×2 */}
-        {padOffsets.map((offset, i) => (
-          <rect
-            key={`pad-${i}`}
-            x={center + offset.x}
-            y={center + offset.y}
-            width={padSize}
-            height={padSize}
-            rx={3}
-            fill={VOICE_COLORS_DIM[i]}
-            stroke={VOICE_COLORS[i]}
-            strokeWidth={1}
-            className="cursor-pointer active:opacity-80"
-            onClick={() => onTriggerVoice(i)}
-            role="button"
-            aria-label={`Trigger ${voices[i]?.name ?? `Voice ${i + 1}`}`}
-            tabIndex={0}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' || e.key === ' ') {
-                e.preventDefault();
-                onTriggerVoice(i);
-              }
-            }}
-          />
-        ))}
-
-        {/* Pad labels */}
-        {padOffsets.map((offset, i) => (
-          <text
-            key={`label-${i}`}
-            x={center + offset.x + padSize / 2}
-            y={center + offset.y + padSize / 2}
-            textAnchor="middle"
-            dominantBaseline="central"
-            className="text-[7px] font-mono fill-zinc-400 pointer-events-none select-none"
-          >
-            {voices[i]?.name?.[0] ?? ''}
-          </text>
-        ))}
       </svg>
+
+      {/* Trigger pads — 4-column row below rings */}
+      <div className="flex gap-2">
+        {voices.map((voice, i) => (
+          <button
+            key={`pad-${i}`}
+            type="button"
+            onClick={() => onTriggerVoice(i)}
+            className="w-12 h-12 rounded-lg text-[10px] font-mono font-medium
+                       border transition-colors active:scale-95 active:brightness-125
+                       focus-visible:ring-2 focus-visible:ring-amber-400/50 outline-none
+                       touch-none select-none"
+            style={{
+              backgroundColor: VOICE_COLORS_DIM[i],
+              borderColor: VOICE_COLORS[i],
+              color: VOICE_COLORS[i],
+            }}
+            aria-label={`Trigger ${voice.name}`}
+          >
+            {voice.name}
+          </button>
+        ))}
+      </div>
     </div>
   );
 }
