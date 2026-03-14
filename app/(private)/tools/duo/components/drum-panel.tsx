@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useCallback } from 'react';
+import { useRef, useCallback, useEffect } from 'react';
 import { DrumSequencer } from './drum-sequencer';
 import { DuoKnob } from './knob';
 import type { DuoDrumState } from '@/lib/duo/types';
@@ -209,6 +209,10 @@ export function DrumPanel({
 function RandomButton({ onOffset, onFlip }: { onOffset: () => void; onFlip: () => void }) {
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const firedRef = useRef(false);
+
+  useEffect(() => {
+    return () => { if (timerRef.current) clearTimeout(timerRef.current); };
+  }, []);
 
   const handlePointerDown = useCallback(() => {
     firedRef.current = false;

@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useCallback } from 'react';
+import { useRef, useCallback, useEffect } from 'react';
 import { cn } from '@/lib/utils';
 import type { DuoDrumVoice } from '@/lib/duo/types';
 
@@ -125,6 +125,10 @@ function RetriggerPad({
 }) {
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const holdingRef = useRef(false);
+
+  useEffect(() => {
+    return () => { if (timerRef.current) clearTimeout(timerRef.current); };
+  }, []);
 
   const handlePointerDown = useCallback(() => {
     holdingRef.current = true;
