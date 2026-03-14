@@ -198,11 +198,11 @@ export class DuoEngine {
     this.drumVoices[index]?.setDecay(decay);
   }
 
-  /** Hot-swap a drum voice recipe mid-playback */
-  setDrumRecipe(voiceIndex: number, categoryIndex: number, recipeIndex: number): void {
+  /** Hot-swap a drum voice recipe mid-playback. Category is derived from voice slot (0=kick, 1=snare, 2=hat, 3=perc). */
+  setDrumRecipe(voiceIndex: number, recipeIndex: number): void {
     const oldVoice = this.drumVoices[voiceIndex];
     oldVoice?.dispose();
-    const newVoice = createDrumVoice(categoryIndex, recipeIndex);
+    const newVoice = createDrumVoice(voiceIndex, recipeIndex);
     if (this.drumVoiceGains[voiceIndex]) {
       newVoice.connect(this.drumVoiceGains[voiceIndex]);
     }

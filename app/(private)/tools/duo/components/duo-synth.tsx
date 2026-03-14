@@ -258,7 +258,7 @@ export function DuoSynth() {
 
   const handleDrumSetRecipe = useCallback((voiceIndex: number, recipeIndex: number) => {
     dispatch({ type: 'DRUM_SET_RECIPE', voiceIndex, recipeIndex });
-    engineRef.current?.setDrumRecipe(voiceIndex, voiceIndex, recipeIndex);
+    engineRef.current?.setDrumRecipe(voiceIndex, recipeIndex);
   }, []);
 
   const handleDrumSetCrush = useCallback((value: number) => {
