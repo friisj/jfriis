@@ -146,18 +146,18 @@ export class DuoSequencerTransport {
     Tone.getTransport().bpm.rampTo(bpm, 0.1);
   }
 
-  /** Update swing — rebuilds Part with new step times */
+  /** Update swing — rebuilds Part with new step times, preserving playback position */
   setSwing(swing: number): void {
     this.currentSwing = swing;
     if (!this.part) return;
-    // Rebuild Part with new timing
-    const wasStarted = this.part !== null;
+    // Capture current transport position before rebuilding
+    const position = Tone.getTransport().seconds;
     this.part.stop();
     this.part.dispose();
     this.part = this.createPart(swing);
-    if (wasStarted) {
-      this.part.start(0);
-    }
+    this.part.start(0);
+    // Nudge transport to maintain position continuity (avoids audible stutter)
+    Tone.getTransport().seconds = position;
   }
 
   /** Set retrigger state — hold pad to retrigger voice on every step */
