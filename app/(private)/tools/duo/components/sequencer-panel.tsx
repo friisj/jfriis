@@ -15,6 +15,7 @@ interface SequencerPanelProps {
   onStop: () => void;
   onBpmChange: (bpm: number) => void;
   onNoteLengthChange: (length: number) => void;
+  onSwingChange: (swing: number) => void;
   onTranspose: (delta: number) => void;
   onRandomize: () => void;
   onBoostDown: () => void;
@@ -31,6 +32,7 @@ export function SequencerPanel({
   onStop,
   onBpmChange,
   onNoteLengthChange,
+  onSwingChange,
   onTranspose,
   onRandomize,
   onBoostDown,
@@ -77,6 +79,19 @@ export function SequencerPanel({
             step={0.01}
             onChange={onNoteLengthChange}
             displayFn={(v) => `${Math.round(v * 100)}%`}
+          />
+          <DuoKnob
+            label="Swing"
+            value={state.swing}
+            min={-1}
+            max={1}
+            step={0.01}
+            onChange={onSwingChange}
+            displayFn={(v) => {
+              if (Math.abs(v) < 0.12) return 'Off';
+              const pct = Math.round(Math.abs(v) * 100);
+              return v < 0 ? `L ${pct}%` : `R ${pct}%`;
+            }}
           />
         </div>
 

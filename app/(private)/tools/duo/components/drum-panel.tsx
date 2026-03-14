@@ -1,8 +1,10 @@
 'use client';
 
+import { useRef, useCallback, useEffect } from 'react';
 import { DrumSequencer } from './drum-sequencer';
 import { DuoKnob } from './knob';
 import type { DuoDrumState } from '@/lib/duo/types';
+import { DRUM_RECIPES } from '@/lib/duo/drum-voices';
 
 const VOICE_COLORS = ['#f43f5e', '#38bdf8', '#34d399', '#fbbf24'];
 
@@ -12,10 +14,16 @@ interface DrumPanelProps {
   playing: boolean;
   onToggleStep: (voiceIndex: number, step: number) => void;
   onTriggerVoice: (voiceIndex: number) => void;
+  onRetrigger: (voiceIndex: number | null, substep: boolean) => void;
+  onSetRecipe: (voiceIndex: number, recipeIndex: number) => void;
   onSetPitch: (voiceIndex: number, pitch: number) => void;
   onSetDecay: (voiceIndex: number, decay: number) => void;
   onSetVolume: (voiceIndex: number, volume: number) => void;
+  onSetCrush: (value: number) => void;
+  onSetFilter: (value: number) => void;
   onRandomize: () => void;
+  onRandomOffset: () => void;
+  onRandomFlip: () => void;
 }
 
 export function DrumPanel({
@@ -24,10 +32,16 @@ export function DrumPanel({
   playing,
   onToggleStep,
   onTriggerVoice,
+  onRetrigger,
+  onSetRecipe,
   onSetPitch,
   onSetDecay,
   onSetVolume,
+  onSetCrush,
+  onSetFilter,
   onRandomize,
+  onRandomOffset,
+  onRandomFlip,
 }: DrumPanelProps) {
   return (
     <div className="flex flex-col gap-4 p-4">
@@ -37,7 +51,51 @@ export function DrumPanel({
         playing={playing}
         onToggleStep={onToggleStep}
         onTriggerVoice={onTriggerVoice}
+        onRetrigger={onRetrigger}
       />
+
+      {/* Voice selector — per-voice recipe picker */}
+      <div className="space-y-2">
+        <h3 className="text-[10px] text-zinc-500 uppercase tracking-wider">Voice</h3>
+        <div className="flex flex-col gap-1">
+          {drum.voices.map((voice, i) => {
+            const recipes = DRUM_RECIPES[i];
+            const currentRecipe = recipes[voice.recipeIndex];
+            return (
+              <div key={`recipe-${i}`} className="flex items-center justify-center gap-1">
+                <button
+                  type="button"
+                  onClick={() => onSetRecipe(i, (voice.recipeIndex - 1 + recipes.length) % recipes.length)}
+                  className="w-8 h-8 flex items-center justify-center rounded text-xs
+                             bg-zinc-800 hover:bg-zinc-700 transition-colors
+                             focus-visible:ring-2 focus-visible:ring-amber-400/50 outline-none"
+                  style={{ color: VOICE_COLORS[i] }}
+                  aria-label={`Previous ${voice.name} recipe`}
+                >
+                  ‹
+                </button>
+                <span
+                  className="text-[11px] font-mono w-20 text-center truncate"
+                  style={{ color: VOICE_COLORS[i] }}
+                >
+                  {currentRecipe?.name ?? 'Classic'}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => onSetRecipe(i, (voice.recipeIndex + 1) % recipes.length)}
+                  className="w-8 h-8 flex items-center justify-center rounded text-xs
+                             bg-zinc-800 hover:bg-zinc-700 transition-colors
+                             focus-visible:ring-2 focus-visible:ring-amber-400/50 outline-none"
+                  style={{ color: VOICE_COLORS[i] }}
+                  aria-label={`Next ${voice.name} recipe`}
+                >
+                  ›
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      </div>
 
       {/* Per-voice pitch knobs */}
       <div className="space-y-2">
@@ -99,19 +157,100 @@ export function DrumPanel({
         </div>
       </div>
 
-      {/* Random button */}
-      <div className="flex justify-center">
+      {/* Drum effects */}
+      <div className="space-y-2">
+        <h3 className="text-[10px] text-zinc-500 uppercase tracking-wider">Effects</h3>
+        <div className="flex items-start justify-center gap-2">
+          <DuoKnob
+            label="Crush"
+            value={drum.effects.crush}
+            min={0}
+            max={1}
+            step={0.01}
+            onChange={onSetCrush}
+            displayFn={(v) => v < 0.01 ? 'Off' : `${Math.round(v * 100)}%`}
+            color="#a855f7"
+          />
+          <DuoKnob
+            label="Filter"
+            value={drum.effects.filterCutoff}
+            min={0}
+            max={1}
+            step={0.01}
+            onChange={onSetFilter}
+            displayFn={(v) => {
+              const freq = 400 * Math.pow(20000 / 400, v);
+              return freq >= 1000 ? `${(freq / 1000).toFixed(1)}k` : `${Math.round(freq)}`;
+            }}
+            color="#a855f7"
+          />
+        </div>
+      </div>
+
+      {/* Random buttons — click = offset, long press = flip, full random */}
+      <div className="flex justify-center gap-2">
+        <RandomButton onOffset={onRandomOffset} onFlip={onRandomFlip} />
         <button
           type="button"
           onClick={onRandomize}
           className="px-3 py-1.5 text-[10px] uppercase tracking-wider text-zinc-400
                      bg-zinc-800 hover:bg-zinc-700 rounded border border-zinc-700
                      transition-colors"
-          aria-label="Randomize drum pattern"
+          aria-label="Full randomize drum pattern"
         >
-          Random
+          Reset
         </button>
       </div>
     </div>
+  );
+}
+
+/** Click = offset shift, long press (300ms) = probability flip */
+function RandomButton({ onOffset, onFlip }: { onOffset: () => void; onFlip: () => void }) {
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const firedRef = useRef(false);
+
+  useEffect(() => {
+    return () => { if (timerRef.current) clearTimeout(timerRef.current); };
+  }, []);
+
+  const handlePointerDown = useCallback(() => {
+    firedRef.current = false;
+    timerRef.current = setTimeout(() => {
+      firedRef.current = true;
+      onFlip();
+    }, 300);
+  }, [onFlip]);
+
+  const handlePointerUp = useCallback(() => {
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
+    if (!firedRef.current) {
+      onOffset();
+    }
+  }, [onOffset]);
+
+  const handlePointerLeave = useCallback(() => {
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
+  }, []);
+
+  return (
+    <button
+      type="button"
+      onPointerDown={handlePointerDown}
+      onPointerUp={handlePointerUp}
+      onPointerLeave={handlePointerLeave}
+      className="px-3 py-1.5 text-[10px] uppercase tracking-wider text-zinc-400
+                 bg-zinc-800 hover:bg-zinc-700 rounded border border-zinc-700
+                 transition-colors select-none touch-none"
+      aria-label="Random: click to shift, hold to flip"
+    >
+      Random
+    </button>
   );
 }

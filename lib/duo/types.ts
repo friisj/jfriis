@@ -48,6 +48,7 @@ export interface DuoSequencerState {
   noteLength: number;    // gate time 0.05-1.0
   transpose: number;     // semitones (-12 to +12)
   playing: boolean;
+  swing: number;         // -1 to +1 (0 = off)
 }
 
 export interface DuoDrumVoice {
@@ -56,10 +57,17 @@ export interface DuoDrumVoice {
   pitch: number;      // 0-1 normalized
   decay: number;      // 0-1 normalized
   volume: number;     // 0-1
+  recipeIndex: number; // index into DRUM_RECIPES[categoryIndex]
+}
+
+export interface DuoDrumEffects {
+  crush: number;        // 0-1: 0 = transparent (16-bit), 1 = destroyed (5-bit)
+  filterCutoff: number; // 0-1: 1 = fully open (20kHz), 0 = closed (400Hz)
 }
 
 export interface DuoDrumState {
   voices: DuoDrumVoice[];  // always 4
+  effects: DuoDrumEffects;
 }
 
 export interface DuoState {
@@ -84,6 +92,7 @@ export type DuoAction =
   | { type: 'SET_BPM'; bpm: number }
   | { type: 'SET_NOTE_LENGTH'; length: number }
   | { type: 'TRANSPOSE'; delta: number }
+  | { type: 'SET_SWING'; swing: number }
   | { type: 'RANDOMIZE' }
   | { type: 'PLAY' }
   | { type: 'STOP' }
@@ -94,5 +103,10 @@ export type DuoAction =
   | { type: 'DRUM_SET_DECAY'; voiceIndex: number; decay: number }
   | { type: 'DRUM_SET_VOLUME'; voiceIndex: number; volume: number }
   | { type: 'DRUM_RANDOMIZE' }
+  | { type: 'DRUM_RANDOM_OFFSET' }
+  | { type: 'DRUM_RANDOM_FLIP' }
+  | { type: 'DRUM_SET_RECIPE'; voiceIndex: number; recipeIndex: number }
+  | { type: 'DRUM_SET_CRUSH'; value: number }
+  | { type: 'DRUM_SET_FILTER'; value: number }
   | { type: 'TOGGLE_MELODIC_MUTE' }
   | { type: 'TOGGLE_DRUM_MUTE' };

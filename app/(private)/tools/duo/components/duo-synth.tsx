@@ -5,7 +5,7 @@ import { SequencerPanel } from './sequencer-panel';
 import { SynthPanel } from './synth-panel';
 import { DuoEngine } from '@/lib/duo/engine';
 import { DrumPanel } from './drum-panel';
-import { DuoSequencerTransport, createInitialSequencerState, createInitialDrumState, randomizeSteps, randomizeDrumSteps } from '@/lib/duo/sequencer';
+import { DuoSequencerTransport, createInitialSequencerState, createInitialDrumState, randomizeSteps, randomizeDrumSteps, randomOffsetDrumSteps, randomFlipDrumSteps } from '@/lib/duo/sequencer';
 import { PRESETS, DEFAULT_SYNTH } from '@/lib/duo/presets';
 import type { DuoState, DuoAction, DuoSynthParams } from '@/lib/duo/types';
 
@@ -30,6 +30,8 @@ function duoReducer(state: DuoState, action: DuoAction): DuoState {
       return { ...state, sequencer: { ...state.sequencer, bpm: action.bpm } };
     case 'SET_NOTE_LENGTH':
       return { ...state, sequencer: { ...state.sequencer, noteLength: action.length } };
+    case 'SET_SWING':
+      return { ...state, sequencer: { ...state.sequencer, swing: action.swing } };
     case 'TRANSPOSE': {
       const transpose = Math.max(-12, Math.min(12, state.sequencer.transpose + action.delta));
       return { ...state, sequencer: { ...state.sequencer, transpose } };
@@ -82,8 +84,21 @@ function duoReducer(state: DuoState, action: DuoAction): DuoState {
       voices[action.voiceIndex] = { ...voices[action.voiceIndex], volume: action.volume };
       return { ...state, drum: { ...state.drum, voices } };
     }
+    case 'DRUM_RANDOM_OFFSET':
+      return { ...state, drum: { ...state.drum, voices: randomOffsetDrumSteps(state.drum.voices) } };
+    case 'DRUM_RANDOM_FLIP':
+      return { ...state, drum: { ...state.drum, voices: randomFlipDrumSteps(state.drum.voices) } };
+    case 'DRUM_SET_RECIPE': {
+      const voices = [...state.drum.voices];
+      voices[action.voiceIndex] = { ...voices[action.voiceIndex], recipeIndex: action.recipeIndex };
+      return { ...state, drum: { ...state.drum, voices } };
+    }
     case 'DRUM_RANDOMIZE':
-      return { ...state, drum: { ...state.drum, voices: randomizeDrumSteps() } };
+      return { ...state, drum: { ...state.drum, voices: randomizeDrumSteps(state.drum.voices) } };
+    case 'DRUM_SET_CRUSH':
+      return { ...state, drum: { ...state.drum, effects: { ...state.drum.effects, crush: action.value } } };
+    case 'DRUM_SET_FILTER':
+      return { ...state, drum: { ...state.drum, effects: { ...state.drum.effects, filterCutoff: action.value } } };
     case 'TOGGLE_MELODIC_MUTE':
       return { ...state, melodicMuted: !state.melodicMuted };
     case 'TOGGLE_DRUM_MUTE':
@@ -143,6 +158,10 @@ export function DuoSynth() {
           }
         },
         () => stateRef.current.drum,
+        (voiceIndex: number) => {
+          if (stateRef.current.drumMuted) return;
+          engine.triggerDrumVoice(voiceIndex, stateRef.current.drum.voices[voiceIndex].volume);
+        },
       );
       transportRef.current = transport;
       setInitialized(true);
@@ -169,6 +188,11 @@ export function DuoSynth() {
   useEffect(() => {
     transportRef.current?.setBPM(state.sequencer.bpm);
   }, [state.sequencer.bpm]);
+
+  // Swing sync
+  useEffect(() => {
+    transportRef.current?.setSwing(state.sequencer.swing);
+  }, [state.sequencer.swing]);
 
   // Keyboard note input — assigns to selected step, then advances cursor
   const handleNotePress = useCallback(async (note: string) => {
@@ -232,10 +256,37 @@ export function DuoSynth() {
     engineRef.current?.setDrumVolume(voiceIndex, volume);
   }, []);
 
+  const handleDrumSetRecipe = useCallback((voiceIndex: number, recipeIndex: number) => {
+    dispatch({ type: 'DRUM_SET_RECIPE', voiceIndex, recipeIndex });
+    engineRef.current?.setDrumRecipe(voiceIndex, recipeIndex);
+  }, []);
+
+  const handleDrumSetCrush = useCallback((value: number) => {
+    dispatch({ type: 'DRUM_SET_CRUSH', value });
+    engineRef.current?.setDrumCrush(value);
+  }, []);
+
+  const handleDrumSetFilter = useCallback((value: number) => {
+    dispatch({ type: 'DRUM_SET_FILTER', value });
+    engineRef.current?.setDrumFilter(value);
+  }, []);
+
+  const handleDrumRetrigger = useCallback((voiceIndex: number | null, substep: boolean) => {
+    transportRef.current?.setRetrigger(voiceIndex, substep);
+  }, []);
+
   const handleDrumRandomize = useCallback(async () => {
     await ensureInit();
     dispatch({ type: 'DRUM_RANDOMIZE' });
   }, [ensureInit]);
+
+  const handleDrumRandomOffset = useCallback(() => {
+    dispatch({ type: 'DRUM_RANDOM_OFFSET' });
+  }, []);
+
+  const handleDrumRandomFlip = useCallback(() => {
+    dispatch({ type: 'DRUM_RANDOM_FLIP' });
+  }, []);
 
   const handlePresetChange = useCallback(async (index: number) => {
     setPresetIndex(index);
@@ -286,6 +337,7 @@ export function DuoSynth() {
             onBpmChange={(bpm) => dispatch({ type: 'SET_BPM', bpm })}
             onNoteLengthChange={(length) => dispatch({ type: 'SET_NOTE_LENGTH', length })}
             onTranspose={(delta) => dispatch({ type: 'TRANSPOSE', delta })}
+            onSwingChange={(swing) => dispatch({ type: 'SET_SWING', swing })}
             onRandomize={handleRandomize}
             onBoostDown={handleBoostDown}
             onBoostUp={handleBoostUp}
@@ -308,10 +360,16 @@ export function DuoSynth() {
             playing={state.sequencer.playing}
             onToggleStep={handleDrumToggleStep}
             onTriggerVoice={handleDrumTriggerVoice}
+            onRetrigger={handleDrumRetrigger}
+            onSetRecipe={handleDrumSetRecipe}
             onSetPitch={handleDrumSetPitch}
             onSetDecay={handleDrumSetDecay}
             onSetVolume={handleDrumSetVolume}
+            onSetCrush={handleDrumSetCrush}
+            onSetFilter={handleDrumSetFilter}
             onRandomize={handleDrumRandomize}
+            onRandomOffset={handleDrumRandomOffset}
+            onRandomFlip={handleDrumRandomFlip}
           />
         </div>
       </div>
