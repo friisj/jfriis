@@ -4,6 +4,7 @@
 
 import * as Tone from 'tone';
 import type { DuoStep, DuoSequencerState, DuoDrumState, DuoDrumVoice } from './types';
+import { DRUM_CATEGORIES } from './drum-voices';
 import { getRandomNote } from './scales';
 
 export const STEP_COUNT = 8;
@@ -188,7 +189,7 @@ export function randomizeSteps(transpose: number): DuoStep[] {
   }));
 }
 
-const DRUM_VOICE_NAMES = ['Kick', 'Snare', 'Hi-Hat', 'Clap'];
+const DRUM_VOICE_NAMES = DRUM_CATEGORIES;
 
 /** Default four-on-the-floor drum pattern */
 export function createInitialDrumState(): DuoDrumState {
