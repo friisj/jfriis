@@ -1,15 +1,10 @@
-import dynamic from "next/dynamic";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/studio/chalk/supabase/server";
 import {
   getOrCreateUserProject,
   getOrCreateProjectBoard,
 } from "@/lib/studio/chalk/supabase/db";
-
-const MainCanvas = dynamic(
-  () => import("@/components/studio/chalk/canvas/MainCanvas").then(mod => mod.MainCanvas),
-  { ssr: false }
-);
+import { ChalkCanvas } from "./chalk-canvas";
 
 export default async function HomePage() {
   const supabase = await createClient();
@@ -47,7 +42,7 @@ export default async function HomePage() {
       </header>
 
       {/* Canvas with Chat */}
-      <MainCanvas
+      <ChalkCanvas
         boardId={board.id}
         userId={user.id}
         initialSnapshot={board.tldraw_snapshot}

@@ -12,7 +12,7 @@ import { DEFAULT_SYNTH } from './presets';
 
 export class DuoEngine {
   private osc1: Tone.Oscillator | null = null;
-  private osc2: Tone.Oscillator | null = null;
+  private osc2: Tone.PulseOscillator | null = null;
   private osc1Gain: Tone.Gain | null = null;
   private osc2Gain: Tone.Gain | null = null;
   private filter: Tone.Filter | null = null;
@@ -80,15 +80,11 @@ export class DuoEngine {
     this.osc1.connect(this.osc1Gain);
     this.osc1.start();
 
-    // OSC2: Pulse (use 'pulse' type)
-    this.osc2 = new Tone.Oscillator({
-      type: 'pulse',
+    // OSC2: Pulse with PWM
+    this.osc2 = new Tone.PulseOscillator({
       frequency: 440,
+      width: this.params.pulseWidth,
     });
-    // Set pulse width via the width property if available
-    if ('width' in this.osc2) {
-      (this.osc2 as Tone.PulseOscillator).width.value = this.params.pulseWidth;
-    }
     this.osc2.connect(this.osc2Gain);
     this.osc2.start();
 
