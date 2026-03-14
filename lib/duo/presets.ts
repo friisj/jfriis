@@ -14,6 +14,13 @@ export const DEFAULT_SYNTH: DuoSynthParams = {
   delayFeedback: 0.3,
   accent: 0.3,
   glide: 0,
+  chorusRate: 1.5,
+  chorusDepth: 0.7,
+  chorusWet: 0,
+  reverbDecay: 2.5,
+  reverbWet: 0,
+  lfoRate: 2.0,
+  lfoDepth: 0,
 };
 
 export const PRESETS: DuoPreset[] = [
@@ -81,6 +88,58 @@ export const PRESETS: DuoPreset[] = [
       delayWet: 0.6,
       delayFeedback: 0.7,
       delayTime: 0.125,
+    },
+  },
+  {
+    name: 'Orinoco',
+    synth: {
+      ...DEFAULT_SYNTH,
+      oscMix: 0.65,        // lean into pulse — the Juno's PWM heart
+      detune: 8,           // chorus-like shimmer (Juno chorus I/II)
+      pulseWidth: 0.35,    // narrower pulse = hollow, choir-like harmonic content
+      filterCutoff: 1500,  // warm, rolled-off — nothing harsh
+      filterResonance: 0.8, // smooth, no squelch
+      decay: 2.0,          // maximum sustain — let it breathe
+      level: 0.7,
+      bitcrusherBits: 14,  // clean — no lo-fi artifacts
+      delayWet: 0.35,      // spacious but not washed out
+      delayTime: 0.375,    // dotted-eighth feel, builds atmosphere
+      delayFeedback: 0.4,  // enough repeats for depth
+      accent: 0.1,         // even dynamics — everything flows
+      glide: 0.05,         // subtle legato portamento
+      chorusRate: 0.8,     // slow Juno-I style chorus
+      chorusDepth: 0.7,
+      chorusWet: 0.7,      // prominent chorus shimmer
+      reverbDecay: 3.5,    // spacious tail
+      reverbWet: 0.3,      // present but not drowning
+      lfoRate: 1.2,        // gentle PWM movement
+      lfoDepth: 0.5,       // moderate — adds life without wobble
+    },
+  },
+  {
+    name: 'Watermark',
+    synth: {
+      ...DEFAULT_SYNTH,
+      oscMix: 0.75,        // heavy pulse for max PWM effect
+      detune: 12,          // wide detune for thickness
+      pulseWidth: 0.4,     // starting width for LFO to sweep
+      filterCutoff: 1800,  // warm but open
+      filterResonance: 0.5, // no resonance — pure pad
+      decay: 2.0,          // full sustain
+      level: 0.65,
+      bitcrusherBits: 16,  // pristine
+      delayWet: 0.25,      // subtle delay
+      delayTime: 0.5,      // half-note echoes
+      delayFeedback: 0.35,
+      accent: 0,           // no dynamics
+      glide: 0.1,          // smooth legato
+      chorusRate: 1.2,     // deep ensemble chorus
+      chorusDepth: 0.9,
+      chorusWet: 0.85,     // drenched
+      reverbDecay: 6.0,    // cavernous
+      reverbWet: 0.5,      // half-wet cathedral
+      lfoRate: 0.6,        // slow, breathing PWM
+      lfoDepth: 0.8,       // heavy modulation
     },
   },
 ];
