@@ -269,14 +269,18 @@ function SessionDetail({
         </div>
       </div>
 
-      {/* Upload Zone (only for active sessions) */}
+      {/* Add images (only for active sessions) */}
       {session.status === 'active' && (
-        <UploadZone
+        <AddImages
           sessionId={session.id}
           currentCount={items.length}
-          onUploaded={(newItems) => {
+          onAppended={(newItems) => {
             setItems([...items, ...newItems]);
             onSessionUpdate({ ...session, image_count: items.length + newItems.length });
+          }}
+          onReplaced={(allItems) => {
+            setItems(allItems);
+            onSessionUpdate({ ...session, image_count: allItems.length });
           }}
         />
       )}
@@ -307,6 +311,59 @@ function SessionDetail({
         <p className="text-xs text-muted-foreground text-center py-4">
           Upload images to begin the review.
         </p>
+      )}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Add Images — tabs for Upload vs Import from Generations
+// ---------------------------------------------------------------------------
+
+type AddMode = 'upload' | 'import';
+
+function AddImages({
+  sessionId,
+  currentCount,
+  onAppended,
+  onReplaced,
+}: {
+  sessionId: string;
+  currentCount: number;
+  onAppended: (items: ReviewItem[]) => void;
+  onReplaced: (items: ReviewItem[]) => void;
+}) {
+  const [mode, setMode] = useState<AddMode>('upload');
+
+  return (
+    <div className="space-y-2">
+      <div className="flex gap-1">
+        {(['upload', 'import'] as const).map((m) => (
+          <button
+            key={m}
+            type="button"
+            onClick={() => setMode(m)}
+            className={`px-3 py-1 rounded text-xs transition-colors ${
+              mode === m
+                ? 'bg-primary text-primary-foreground'
+                : 'bg-muted hover:bg-muted/80 text-muted-foreground'
+            }`}
+          >
+            {m === 'upload' ? 'Upload Files' : 'Import from Generations'}
+          </button>
+        ))}
+      </div>
+      {mode === 'upload' ? (
+        <UploadZone
+          sessionId={sessionId}
+          currentCount={currentCount}
+          onUploaded={onAppended}
+        />
+      ) : (
+        <ImportFromGenerations
+          sessionId={sessionId}
+          onImported={onReplaced}
+        />
       )}
     </div>
   );
@@ -431,6 +488,159 @@ function UploadZone({
           e.target.value = '';
         }}
       />
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Import from Generations
+// ---------------------------------------------------------------------------
+
+interface GenerationRow {
+  id: string;
+  storage_path: string;
+  prompt_text: string;
+  module_slugs: string[];
+  created_at: string;
+}
+
+function ImportFromGenerations({
+  sessionId,
+  onImported,
+}: {
+  sessionId: string;
+  onImported: (items: ReviewItem[]) => void;
+}) {
+  const [generations, setGenerations] = useState<GenerationRow[]>([]);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [loading, setLoading] = useState(true);
+  const [importing, setImporting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    async function load() {
+      setLoading(true);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data } = await (supabase as any)
+        .from('luv_generation_results')
+        .select('id, storage_path, prompt_text, module_slugs, created_at')
+        .order('created_at', { ascending: false })
+        .limit(50);
+      setGenerations(data ?? []);
+      setLoading(false);
+    }
+    load();
+  }, []);
+
+  function toggle(id: string) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  async function handleImport() {
+    if (selected.size === 0) return;
+    setImporting(true);
+    setError(null);
+    try {
+      const res = await fetch('/api/luv/review-import', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sessionId,
+          generationResultIds: [...selected],
+        }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        setError(err.error || `Import failed (${res.status})`);
+        return;
+      }
+      await res.json(); // consume body
+      // Reload all session items from DB
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data: freshItems } = await (supabase as any)
+        .from('luv_review_items')
+        .select('*')
+        .eq('session_id', sessionId)
+        .order('sequence', { ascending: true });
+      onImported(freshItems ?? []);
+      setSelected(new Set());
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unknown error');
+    } finally {
+      setImporting(false);
+    }
+  }
+
+  if (loading) {
+    return <p className="text-xs text-muted-foreground py-2">Loading generations...</p>;
+  }
+
+  if (generations.length === 0) {
+    return (
+      <p className="text-xs text-muted-foreground py-4 text-center">
+        No generation results yet. Generate images in the Prompt Playground first.
+      </p>
+    );
+  }
+
+  return (
+    <div className="space-y-2">
+      <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 gap-2">
+        {generations.map((gen) => {
+          const isSelected = selected.has(gen.id);
+          return (
+            <button
+              key={gen.id}
+              type="button"
+              onClick={() => toggle(gen.id)}
+              className={`relative aspect-square rounded-md overflow-hidden border-2 transition-all ${
+                isSelected
+                  ? 'border-primary ring-1 ring-primary'
+                  : 'border-transparent hover:border-muted-foreground/30'
+              }`}
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={getPublicUrl(gen.storage_path)}
+                alt="Generation"
+                className="w-full h-full object-cover"
+              />
+              {isSelected && (
+                <span className="absolute top-0.5 right-0.5 w-4 h-4 bg-primary rounded-full flex items-center justify-center">
+                  <span className="text-[9px] text-primary-foreground font-bold">&#10003;</span>
+                </span>
+              )}
+              <span className="absolute bottom-0.5 left-0.5 text-[8px] bg-black/60 text-white px-1 rounded max-w-[90%] truncate">
+                {gen.module_slugs?.join(', ') || 'all'}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+
+      {error && (
+        <div className="rounded-md border border-destructive/50 bg-destructive/5 px-3 py-1.5 text-xs text-destructive">
+          {error}
+        </div>
+      )}
+
+      <div className="flex items-center justify-between">
+        <span className="text-[10px] text-muted-foreground">
+          {selected.size} selected
+        </span>
+        <Button
+          size="sm"
+          onClick={handleImport}
+          disabled={importing || selected.size === 0}
+        >
+          {importing ? 'Importing...' : `Import ${selected.size} image${selected.size !== 1 ? 's' : ''}`}
+        </Button>
+      </div>
     </div>
   );
 }
