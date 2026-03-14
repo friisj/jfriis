@@ -17,13 +17,19 @@ import type {
   AuthenticationResponseJSON,
   AuthenticatorTransportFuture,
 } from '@simplewebauthn/server'
-import { createClient } from '@supabase/supabase-js'
+import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 import { rpName, rpID, origin } from './config'
 
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
+let _supabaseAdmin: SupabaseClient | null = null
+function getSupabaseAdmin() {
+  if (!_supabaseAdmin) {
+    _supabaseAdmin = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    )
+  }
+  return _supabaseAdmin
+}
 
 const CHALLENGE_TTL_MS = 5 * 60 * 1000 // 5 minutes
 
@@ -34,10 +40,10 @@ export async function createRegistrationOptions(
   userEmail: string
 ) {
   // Clean up expired challenges
-  await supabaseAdmin.rpc('cleanup_expired_webauthn_challenges')
+  await getSupabaseAdmin().rpc('cleanup_expired_webauthn_challenges')
 
   // Get existing credentials to exclude (prevent re-registration)
-  const { data: existing } = await supabaseAdmin
+  const { data: existing } = await getSupabaseAdmin()
     .from('webauthn_credentials')
     .select('id, transports')
     .eq('user_id', userId)
@@ -60,7 +66,7 @@ export async function createRegistrationOptions(
   })
 
   // Store challenge for verification
-  await supabaseAdmin.from('webauthn_challenges').insert({
+  await getSupabaseAdmin().from('webauthn_challenges').insert({
     challenge: options.challenge,
     user_id: userId,
     type: 'registration',
@@ -76,7 +82,7 @@ export async function verifyRegistration(
   friendlyName?: string
 ) {
   // Retrieve and consume the challenge (single-use)
-  const { data: challenges } = await supabaseAdmin
+  const { data: challenges } = await getSupabaseAdmin()
     .from('webauthn_challenges')
     .select('id, challenge')
     .eq('user_id', userId)
@@ -91,7 +97,7 @@ export async function verifyRegistration(
   }
 
   // Delete the challenge (single-use)
-  await supabaseAdmin
+  await getSupabaseAdmin()
     .from('webauthn_challenges')
     .delete()
     .eq('id', challenge.id)
@@ -112,7 +118,7 @@ export async function verifyRegistration(
     verification.registrationInfo
 
   // Store the credential
-  const { error } = await supabaseAdmin
+  const { error } = await getSupabaseAdmin()
     .from('webauthn_credentials')
     .insert({
       id: credential.id,
@@ -140,10 +146,10 @@ export async function verifyRegistration(
 
 export async function createAuthenticationOptions() {
   // Clean up expired challenges
-  await supabaseAdmin.rpc('cleanup_expired_webauthn_challenges')
+  await getSupabaseAdmin().rpc('cleanup_expired_webauthn_challenges')
 
   // Get all credentials (single-user site)
-  const { data: credentials } = await supabaseAdmin
+  const { data: credentials } = await getSupabaseAdmin()
     .from('webauthn_credentials')
     .select('id, transports')
 
@@ -159,7 +165,7 @@ export async function createAuthenticationOptions() {
   })
 
   // Store challenge for verification
-  await supabaseAdmin.from('webauthn_challenges').insert({
+  await getSupabaseAdmin().from('webauthn_challenges').insert({
     challenge: options.challenge,
     type: 'authentication',
     expires_at: new Date(Date.now() + CHALLENGE_TTL_MS).toISOString(),
@@ -172,7 +178,7 @@ export async function verifyAuthentication(
   response: AuthenticationResponseJSON
 ) {
   // Find the credential being used
-  const { data: credentialRow } = await supabaseAdmin
+  const { data: credentialRow } = await getSupabaseAdmin()
     .from('webauthn_credentials')
     .select('id, user_id, public_key, counter, transports')
     .eq('id', response.id)
@@ -183,7 +189,7 @@ export async function verifyAuthentication(
   }
 
   // Retrieve and consume a matching challenge (single-use)
-  const { data: challenges } = await supabaseAdmin
+  const { data: challenges } = await getSupabaseAdmin()
     .from('webauthn_challenges')
     .select('id, challenge')
     .eq('type', 'authentication')
@@ -233,13 +239,13 @@ export async function verifyAuthentication(
   }
 
   // Delete the consumed challenge
-  await supabaseAdmin
+  await getSupabaseAdmin()
     .from('webauthn_challenges')
     .delete()
     .eq('id', matchedChallengeId)
 
   // Update counter and last_used_at
-  await supabaseAdmin
+  await getSupabaseAdmin()
     .from('webauthn_credentials')
     .update({
       counter: verification.authenticationInfo.newCounter,
@@ -248,7 +254,7 @@ export async function verifyAuthentication(
     .eq('id', credentialRow.id)
 
   // Look up the user's email for session creation
-  const { data: userData } = await supabaseAdmin.auth.admin.getUserById(
+  const { data: userData } = await getSupabaseAdmin().auth.admin.getUserById(
     credentialRow.user_id
   )
 
@@ -265,7 +271,7 @@ export async function verifyAuthentication(
 // --- Credential Management ---
 
 export async function listCredentials(userId: string) {
-  const { data, error } = await supabaseAdmin
+  const { data, error } = await getSupabaseAdmin()
     .from('webauthn_credentials')
     .select('id, name, device_type, backed_up, transports, created_at, last_used_at')
     .eq('user_id', userId)
@@ -279,7 +285,7 @@ export async function listCredentials(userId: string) {
 }
 
 export async function deleteCredential(userId: string, credentialId: string) {
-  const { error } = await supabaseAdmin
+  const { error } = await getSupabaseAdmin()
     .from('webauthn_credentials')
     .delete()
     .eq('id', credentialId)
@@ -295,7 +301,7 @@ export async function renameCredential(
   credentialId: string,
   name: string
 ) {
-  const { error } = await supabaseAdmin
+  const { error } = await getSupabaseAdmin()
     .from('webauthn_credentials')
     .update({ name })
     .eq('id', credentialId)

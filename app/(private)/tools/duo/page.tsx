@@ -1,4 +1,4 @@
-import { DuoSynth } from './components/duo-synth';
+import { DuoClient } from './duo-client';
 
 export const metadata = {
   title: 'DUO — Browser Synthesizer',
@@ -8,7 +8,7 @@ export const metadata = {
 export default function DuoPage() {
   return (
     <div className="h-[calc(100vh-3rem)]">
-      <DuoSynth />
+      <DuoClient />
     </div>
   );
 }
