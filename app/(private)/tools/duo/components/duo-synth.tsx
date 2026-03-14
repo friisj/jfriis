@@ -1,6 +1,6 @@
 'use client';
 
-import { useReducer, useRef, useEffect, useCallback, useState } from 'react';
+import { useReducer, useRef, useEffect, useLayoutEffect, useCallback, useState } from 'react';
 import { SequencerPanel } from './sequencer-panel';
 import { SynthPanel } from './synth-panel';
 import { DuoEngine } from '@/lib/duo/engine';
@@ -107,34 +107,47 @@ export function DuoSynth() {
   const [inputStep, setInputStep] = useState(0);
   const engineRef = useRef<DuoEngine | null>(null);
   const transportRef = useRef<DuoSequencerTransport | null>(null);
+  const initPromiseRef = useRef<Promise<void> | null>(null);
   const stateRef = useRef(state);
-  stateRef.current = state;
 
-  // Initialize engine on first user interaction
+  // Sync stateRef outside of render phase
+  useLayoutEffect(() => {
+    stateRef.current = state;
+  });
+
+  // Initialize engine on first user interaction (serialized to prevent leaks)
   const ensureInit = useCallback(async () => {
     if (engineRef.current) return;
-    const engine = new DuoEngine();
-    await engine.init();
-    engineRef.current = engine;
+    if (initPromiseRef.current) return initPromiseRef.current;
 
-    const transport = new DuoSequencerTransport(
-      (step, note) => {
-        dispatch({ type: 'ADVANCE_STEP' });
-        if (note && !stateRef.current.melodicMuted) {
-          engine.triggerNote(note, 1);
-        }
-      },
-      () => stateRef.current.sequencer,
-      (_step, activeVoices) => {
-        if (stateRef.current.drumMuted) return;
-        for (const vi of activeVoices) {
-          engine.triggerDrumVoice(vi, stateRef.current.drum.voices[vi].volume);
-        }
-      },
-      () => stateRef.current.drum,
-    );
-    transportRef.current = transport;
-    setInitialized(true);
+    initPromiseRef.current = (async () => {
+      const engine = new DuoEngine();
+      await engine.init();
+      // Sync engine to current UI state (user may have changed presets/knobs before init)
+      engine.setAllParams(stateRef.current.synth);
+      engineRef.current = engine;
+
+      const transport = new DuoSequencerTransport(
+        (step, note, noteLength) => {
+          dispatch({ type: 'ADVANCE_STEP' });
+          if (note && !stateRef.current.melodicMuted) {
+            engine.triggerNote(note, 1, noteLength);
+          }
+        },
+        () => stateRef.current.sequencer,
+        (_step, activeVoices) => {
+          if (stateRef.current.drumMuted) return;
+          for (const vi of activeVoices) {
+            engine.triggerDrumVoice(vi, stateRef.current.drum.voices[vi].volume);
+          }
+        },
+        () => stateRef.current.drum,
+      );
+      transportRef.current = transport;
+      setInitialized(true);
+    })();
+
+    return initPromiseRef.current;
   }, []);
 
   // Cleanup on unmount

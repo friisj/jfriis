@@ -18,6 +18,7 @@ export class DuoEngine {
   private osc2Gain: Tone.Gain | null = null;
   private filter: Tone.Filter | null = null;
   private env: Tone.AmplitudeEnvelope | null = null;
+  private accentGain: Tone.Gain | null = null;
   private crusher: Tone.BitCrusher | null = null;
   private delay: Tone.FeedbackDelay | null = null;
   private delayDry: Tone.Gain | null = null;
@@ -80,14 +81,15 @@ export class DuoEngine {
     this.crusher = new Tone.BitCrusher(this.params.bitcrusherBits);
     this.crusher.connect(this.chorus);
 
-    // Envelope → crusher
+    // Envelope → accent gain → crusher
+    this.accentGain = new Tone.Gain(1).connect(this.crusher);
     this.env = new Tone.AmplitudeEnvelope({
       attack: 0.005,
       decay: this.params.decay,
       sustain: 0,
       release: 0.1,
     });
-    this.env.connect(this.crusher);
+    this.env.connect(this.accentGain);
 
     // Filter
     this.filter = new Tone.Filter({
@@ -170,8 +172,8 @@ export class DuoEngine {
     this.initialized = true;
   }
 
-  /** Play a note (trigger envelope) */
-  triggerNote(note: string, velocity: number = 1): void {
+  /** Play a note (trigger envelope). gateTime is 0-1 normalized gate length. */
+  triggerNote(note: string, velocity: number = 1, gateTime: number = 0.5): void {
     if (!this.initialized || !this.osc1 || !this.osc2 || !this.env) return;
 
     const freq = Tone.Frequency(note).toFrequency();
@@ -184,19 +186,14 @@ export class DuoEngine {
       this.osc2.frequency.value = freq;
     }
 
-    // Accent: boost envelope if velocity is high
-    const accentBoost = velocity > 0.8 ? 1 + this.params.accent : 1;
+    // Accent: boost via dedicated gain node (avoids Tone.js velocity clamping)
+    const accentBoost = velocity > 0.8 ? this.params.accent * 2 : 0;
+    this.accentGain?.gain.rampTo(1 + accentBoost, 0.005);
     this.env.set({ decay: this.params.decay });
 
-    // Scale envelope output by velocity + accent
-    const envGain = velocity * accentBoost;
-    if (this.crusher) {
-      this.env.disconnect();
-      this.env.connect(this.crusher, 0, 0);
-    }
-
-    // Trigger with computed velocity
-    this.env.triggerAttackRelease(this.params.decay + 0.1, Tone.now(), envGain);
+    // Gate time scales the envelope duration (0.05-1.0 → short staccato to full sustain)
+    const duration = this.params.decay * gateTime * 2 + 0.05;
+    this.env.triggerAttackRelease(duration, Tone.now(), velocity);
     this.currentNote = note;
   }
 
@@ -377,6 +374,7 @@ export class DuoEngine {
     this.osc2Gain?.dispose();
     this.filter?.dispose();
     this.env?.dispose();
+    this.accentGain?.dispose();
     this.crusher?.dispose();
     this.chorus?.dispose();
     this.delay?.dispose();

@@ -23,7 +23,7 @@ export function createInitialSequencerState(): DuoSequencerState {
   };
 }
 
-type StepCallback = (step: number, note: string | null) => void;
+type StepCallback = (step: number, note: string | null, noteLength: number) => void;
 type DrumStepCallback = (step: number, activeVoices: number[]) => void;
 
 /**
@@ -62,9 +62,9 @@ export class DuoSequencerTransport {
       const stepData = s.steps[step];
 
       if (stepData.active && stepData.note) {
-        this.onStep(step, stepData.note);
+        this.onStep(step, stepData.note, s.noteLength);
       } else {
-        this.onStep(step, null);
+        this.onStep(step, null, s.noteLength);
       }
 
       // Fire drum triggers for active steps
