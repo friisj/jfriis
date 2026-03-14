@@ -22,6 +22,7 @@ const registry: Record<string, React.ComponentType> = {
   'chalk/annotation-markup': dynamic(() => import('@/components/studio/prototypes/chalk/annotation-markup'), { ssr: false }),
   'chalk/voice-annotation': dynamic(() => import('@/components/studio/prototypes/chalk/voice-annotation'), { ssr: false }),
   'chalk/vision-iteration': dynamic(() => import('@/components/studio/prototypes/chalk/vision-iteration'), { ssr: false }),
+  'iris/iris-shader': dynamic(() => import('@/components/studio/prototypes/iris/iris-shader'), { ssr: false }),
 }
 
 export function PrototypeRenderer({ prototypeKey }: { prototypeKey: string }) {
