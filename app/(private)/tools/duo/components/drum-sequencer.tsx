@@ -88,6 +88,7 @@ export function DrumSequencer({
                 onClick={() => onToggleStep(vi, si)}
                 role="button"
                 aria-label={`${voice.name} step ${si + 1}: ${active ? 'on' : 'off'}`}
+                aria-pressed={active}
                 tabIndex={0}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' || e.key === ' ') {

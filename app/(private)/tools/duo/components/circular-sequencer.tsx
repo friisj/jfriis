@@ -1,5 +1,6 @@
 'use client';
 
+import { useRef, useCallback } from 'react';
 import { cn } from '@/lib/utils';
 import type { DuoStep } from '@/lib/duo/types';
 
@@ -38,6 +39,33 @@ export function CircularSequencer({
 }: CircularSequencerProps) {
   const size = (RADIUS + LED_RADIUS + 8) * 2;
   const center = size / 2;
+  const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const longPressTriggered = useRef(false);
+
+  const handlePointerDown = useCallback((i: number) => {
+    longPressTriggered.current = false;
+    longPressTimer.current = setTimeout(() => {
+      longPressTriggered.current = true;
+      onToggleStep(i);
+    }, 300);
+  }, [onToggleStep]);
+
+  const handlePointerUp = useCallback((i: number) => {
+    if (longPressTimer.current) {
+      clearTimeout(longPressTimer.current);
+      longPressTimer.current = null;
+    }
+    if (!longPressTriggered.current) {
+      onSelectStep(i);
+    }
+  }, [onSelectStep]);
+
+  const handlePointerCancel = useCallback(() => {
+    if (longPressTimer.current) {
+      clearTimeout(longPressTimer.current);
+      longPressTimer.current = null;
+    }
+  }, []);
 
   return (
     <div className="space-y-1.5">
@@ -92,10 +120,13 @@ export function CircularSequencer({
                             : 'fill-zinc-800 stroke-zinc-700',
                   )}
                   strokeWidth={1.5}
-                  onClick={() => onSelectStep(i)}
-                  onDoubleClick={() => onToggleStep(i)}
+                  onPointerDown={() => handlePointerDown(i)}
+                  onPointerUp={() => handlePointerUp(i)}
+                  onPointerCancel={handlePointerCancel}
+                  onPointerLeave={handlePointerCancel}
                   role="button"
                   aria-label={`Step ${i + 1}: ${step.note ?? 'empty'}${isInput ? ' (input target)' : ''}${!step.active ? ' (muted)' : ''}`}
+                  aria-pressed={step.active}
                   tabIndex={0}
                   onKeyDown={(e) => {
                     if (e.key === 'Enter' || e.key === ' ') {

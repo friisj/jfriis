@@ -105,6 +105,7 @@ export function DuoSynth() {
   const [state, dispatch] = useReducer(duoReducer, initialState);
   const [initialized, setInitialized] = useState(false);
   const [inputStep, setInputStep] = useState(0);
+  const [presetIndex, setPresetIndex] = useState(0);
   const engineRef = useRef<DuoEngine | null>(null);
   const transportRef = useRef<DuoSequencerTransport | null>(null);
   const initPromiseRef = useRef<Promise<void> | null>(null);
@@ -216,23 +217,20 @@ export function DuoSynth() {
     engineRef.current?.triggerDrumVoice(voiceIndex, stateRef.current.drum.voices[voiceIndex].volume);
   }, [ensureInit]);
 
-  const handleDrumSetPitch = useCallback(async (voiceIndex: number, pitch: number) => {
-    await ensureInit();
+  const handleDrumSetPitch = useCallback((voiceIndex: number, pitch: number) => {
     dispatch({ type: 'DRUM_SET_PITCH', voiceIndex, pitch });
     engineRef.current?.setDrumPitch(voiceIndex, pitch);
-  }, [ensureInit]);
+  }, []);
 
-  const handleDrumSetDecay = useCallback(async (voiceIndex: number, decay: number) => {
-    await ensureInit();
+  const handleDrumSetDecay = useCallback((voiceIndex: number, decay: number) => {
     dispatch({ type: 'DRUM_SET_DECAY', voiceIndex, decay });
     engineRef.current?.setDrumDecay(voiceIndex, decay);
-  }, [ensureInit]);
+  }, []);
 
-  const handleDrumSetVolume = useCallback(async (voiceIndex: number, volume: number) => {
-    await ensureInit();
+  const handleDrumSetVolume = useCallback((voiceIndex: number, volume: number) => {
     dispatch({ type: 'DRUM_SET_VOLUME', voiceIndex, volume });
     engineRef.current?.setDrumVolume(voiceIndex, volume);
-  }, [ensureInit]);
+  }, []);
 
   const handleDrumRandomize = useCallback(async () => {
     await ensureInit();
@@ -240,6 +238,7 @@ export function DuoSynth() {
   }, [ensureInit]);
 
   const handlePresetChange = useCallback(async (index: number) => {
+    setPresetIndex(index);
     await ensureInit();
     const preset = PRESETS[index];
     dispatch({ type: 'LOAD_PRESET', preset });
@@ -258,7 +257,7 @@ export function DuoSynth() {
         </div>
         {/* Preset selector */}
         <select
-          value={PRESETS.findIndex((p) => p.name === 'Init')}
+          value={presetIndex}
           onChange={(e) => handlePresetChange(Number(e.target.value))}
           className="text-xs bg-zinc-800 text-zinc-300 border border-zinc-700 rounded px-2 py-1
                      focus:ring-1 focus:ring-amber-400/50 outline-none"
@@ -329,6 +328,7 @@ export function DuoSynth() {
         </div>
         <div className="flex items-center gap-2">
           <button
+            type="button"
             onClick={() => dispatch({ type: 'TOGGLE_MELODIC_MUTE' })}
             className={`text-[10px] font-mono px-1.5 py-0.5 rounded transition-colors ${
               state.melodicMuted
@@ -336,10 +336,12 @@ export function DuoSynth() {
                 : 'bg-amber-900/40 text-amber-400'
             }`}
             aria-label={state.melodicMuted ? 'Unmute melodic' : 'Mute melodic'}
+            aria-pressed={!state.melodicMuted}
           >
             Synth
           </button>
           <button
+            type="button"
             onClick={() => dispatch({ type: 'TOGGLE_DRUM_MUTE' })}
             className={`text-[10px] font-mono px-1.5 py-0.5 rounded transition-colors ${
               state.drumMuted
@@ -347,6 +349,7 @@ export function DuoSynth() {
                 : 'bg-rose-900/40 text-rose-400'
             }`}
             aria-label={state.drumMuted ? 'Unmute drums' : 'Mute drums'}
+            aria-pressed={!state.drumMuted}
           >
             Drums
           </button>

@@ -21,7 +21,6 @@ export class DuoEngine {
   private accentGain: Tone.Gain | null = null;
   private crusher: Tone.BitCrusher | null = null;
   private delay: Tone.FeedbackDelay | null = null;
-  private delayDry: Tone.Gain | null = null;
   private delayWet: Tone.Gain | null = null;
   private chorus: Tone.Chorus | null = null;
   private reverb: Tone.Reverb | null = null;
@@ -57,24 +56,22 @@ export class DuoEngine {
     this.reverbDryGain = new Tone.Gain(1).connect(this.master);
     this.reverb.connect(this.reverbWetGain);
 
-    // Delay (wet/dry) → reverb
+    // Delay (send-return) → reverb
     this.delay = new Tone.FeedbackDelay(this.params.delayTime, this.params.delayFeedback);
     this.delayWet = new Tone.Gain(this.params.delayWet);
-    this.delayDry = new Tone.Gain(1);
+    this.delay.connect(this.delayWet);
     this.delayWet.connect(this.reverbDryGain);
     this.delayWet.connect(this.reverb);
-    this.delayDry.connect(this.reverbDryGain);
-    this.delayDry.connect(this.reverb);
-    this.delay.connect(this.delayWet);
 
-    // Chorus → delay
+    // Chorus → dry path (reverbDryGain + reverb) and → delay send
     this.chorus = new Tone.Chorus({
       frequency: this.params.chorusRate,
       delayTime: 3.5,
       depth: this.params.chorusDepth,
       wet: this.params.chorusWet,
     }).start();
-    this.chorus.connect(this.delayDry);
+    this.chorus.connect(this.reverbDryGain);
+    this.chorus.connect(this.reverb);
     this.chorus.connect(this.delay);
 
     // Bitcrusher → chorus
@@ -330,7 +327,7 @@ export class DuoEngine {
         if (this.chorus) this.chorus.wet.rampTo(value, 0.02);
         break;
       case 'reverbDecay':
-        // Reverb decay can't be ramped — update stored param for next init
+        this.rebuildReverb(value);
         break;
       case 'reverbWet':
         this.reverbWetGain?.gain.rampTo(value, 0.02);
@@ -350,6 +347,18 @@ export class DuoEngine {
         // Stored in params, read on note trigger
         break;
     }
+  }
+
+  /** Rebuild reverb IR asynchronously (decay can't be modulated in real-time) */
+  private async rebuildReverb(decay: number): Promise<void> {
+    if (!this.reverbWetGain) return;
+    const newReverb = new Tone.Reverb(decay);
+    await newReverb.ready;
+    const oldReverb = this.reverb;
+    newReverb.connect(this.reverbWetGain);
+    this.reverb = newReverb;
+    oldReverb?.disconnect();
+    oldReverb?.dispose();
   }
 
   /** Bulk-update all params (e.g. loading a preset) */
@@ -379,7 +388,6 @@ export class DuoEngine {
     this.chorus?.dispose();
     this.delay?.dispose();
     this.delayWet?.dispose();
-    this.delayDry?.dispose();
     this.lfo?.stop();
     this.lfo?.dispose();
     this.lfoDepthGain?.dispose();
