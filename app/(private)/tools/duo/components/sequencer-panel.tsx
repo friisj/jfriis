@@ -7,8 +7,10 @@ import type { DuoSequencerState } from '@/lib/duo/types';
 
 interface SequencerPanelProps {
   state: DuoSequencerState;
+  inputStep: number;
   onNotePress: (note: string) => void;
   onToggleStep: (index: number) => void;
+  onSelectStep: (index: number) => void;
   onPlay: () => void;
   onStop: () => void;
   onBpmChange: (bpm: number) => void;
@@ -21,8 +23,10 @@ interface SequencerPanelProps {
 
 export function SequencerPanel({
   state,
+  inputStep,
   onNotePress,
   onToggleStep,
+  onSelectStep,
   onPlay,
   onStop,
   onBpmChange,
@@ -46,7 +50,9 @@ export function SequencerPanel({
         steps={state.steps}
         currentStep={state.currentStep}
         playing={state.playing}
+        inputStep={inputStep}
         onToggleStep={onToggleStep}
+        onSelectStep={onSelectStep}
         onPlay={onPlay}
         onStop={onStop}
       />

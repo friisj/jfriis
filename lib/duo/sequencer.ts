@@ -3,7 +3,7 @@
  */
 
 import * as Tone from 'tone';
-import type { DuoStep, DuoSequencerState } from './types';
+import type { DuoStep, DuoSequencerState, DuoDrumState, DuoDrumVoice } from './types';
 import { getRandomNote } from './scales';
 
 export const STEP_COUNT = 8;
@@ -24,6 +24,7 @@ export function createInitialSequencerState(): DuoSequencerState {
 }
 
 type StepCallback = (step: number, note: string | null) => void;
+type DrumStepCallback = (step: number, activeVoices: number[]) => void;
 
 /**
  * DuoSequencerTransport manages the Tone.js Transport loop
@@ -33,10 +34,19 @@ export class DuoSequencerTransport {
   private repeatId: number | null = null;
   private onStep: StepCallback;
   private getState: () => DuoSequencerState;
+  private onDrumStep?: DrumStepCallback;
+  private getDrumState?: () => DuoDrumState;
 
-  constructor(onStep: StepCallback, getState: () => DuoSequencerState) {
+  constructor(
+    onStep: StepCallback,
+    getState: () => DuoSequencerState,
+    onDrumStep?: DrumStepCallback,
+    getDrumState?: () => DuoDrumState,
+  ) {
     this.onStep = onStep;
     this.getState = getState;
+    this.onDrumStep = onDrumStep;
+    this.getDrumState = getDrumState;
   }
 
   start(): void {
@@ -46,16 +56,26 @@ export class DuoSequencerTransport {
     Tone.getTransport().bpm.value = state.bpm;
 
     // Schedule repeating event every 8th note (1 step)
-    this.repeatId = Tone.getTransport().scheduleRepeat((time) => {
+    this.repeatId = Tone.getTransport().scheduleRepeat(() => {
       const s = this.getState();
       const step = s.currentStep;
       const stepData = s.steps[step];
 
       if (stepData.active && stepData.note) {
-        // Apply transpose to the stored note
         this.onStep(step, stepData.note);
       } else {
         this.onStep(step, null);
+      }
+
+      // Fire drum triggers for active steps
+      if (this.onDrumStep && this.getDrumState) {
+        const drumState = this.getDrumState();
+        const activeVoices = drumState.voices
+          .map((v, i) => (v.steps[step] ? i : -1))
+          .filter((i) => i >= 0);
+        if (activeVoices.length > 0) {
+          this.onDrumStep(step, activeVoices);
+        }
       }
     }, '8n');
 
@@ -93,5 +113,32 @@ export function randomizeSteps(transpose: number): DuoStep[] {
   return Array.from({ length: STEP_COUNT }, () => ({
     note: Math.random() > 0.2 ? getRandomNote(transpose) : null,
     active: true,
+  }));
+}
+
+const DRUM_VOICE_NAMES = ['Kick', 'Snare', 'Hi-Hat', 'Clap'];
+
+/** Default four-on-the-floor drum pattern */
+export function createInitialDrumState(): DuoDrumState {
+  return {
+    voices: [
+      { name: DRUM_VOICE_NAMES[0], steps: [true, false, false, false, true, false, false, false], pitch: 0.3, decay: 0.4, volume: 1 },
+      { name: DRUM_VOICE_NAMES[1], steps: [false, false, true, false, false, false, true, false], pitch: 0.5, decay: 0.3, volume: 0.8 },
+      { name: DRUM_VOICE_NAMES[2], steps: [true, true, true, true, true, true, true, true], pitch: 0.5, decay: 0.2, volume: 0.6 },
+      { name: DRUM_VOICE_NAMES[3], steps: [false, false, false, true, false, false, false, false], pitch: 0.5, decay: 0.3, volume: 0.7 },
+    ],
+  };
+}
+
+/** Voice-appropriate density randomization */
+const DRUM_DENSITIES = [0.3, 0.25, 0.6, 0.15]; // kick, snare, hat, clap
+
+export function randomizeDrumSteps(): DuoDrumVoice[] {
+  return DRUM_VOICE_NAMES.map((name, i) => ({
+    name,
+    steps: Array.from({ length: STEP_COUNT }, () => Math.random() < DRUM_DENSITIES[i]),
+    pitch: 0.3 + Math.random() * 0.4,
+    decay: 0.2 + Math.random() * 0.3,
+    volume: 0.6 + Math.random() * 0.4,
   }));
 }

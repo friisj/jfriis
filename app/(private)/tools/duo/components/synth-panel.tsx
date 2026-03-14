@@ -1,14 +1,11 @@
 'use client';
 
 import { DuoKnob, logMapTo01, logMapFrom01 } from './knob';
-import { DrumPad } from './drum-pad';
 import type { DuoSynthParams } from '@/lib/duo/types';
 
 interface SynthPanelProps {
   params: DuoSynthParams;
   onParamChange: (param: keyof DuoSynthParams, value: number) => void;
-  onTriggerKick: (velocity: number) => void;
-  onTriggerSnare: (velocity: number) => void;
 }
 
 function Section({ label, children }: { label: string; children: React.ReactNode }) {
@@ -20,7 +17,7 @@ function Section({ label, children }: { label: string; children: React.ReactNode
   );
 }
 
-export function SynthPanel({ params, onParamChange, onTriggerKick, onTriggerSnare }: SynthPanelProps) {
+export function SynthPanel({ params, onParamChange }: SynthPanelProps) {
   return (
     <div className="flex flex-col gap-5 p-4">
       {/* Oscillators */}
@@ -211,11 +208,6 @@ export function SynthPanel({ params, onParamChange, onTriggerKick, onTriggerSnar
         />
       </Section>
 
-      {/* Drums */}
-      <Section label="Drums">
-        <DrumPad label="Kick" onTrigger={onTriggerKick} color="bg-rose-800 hover:bg-rose-700" />
-        <DrumPad label="Snare" onTrigger={onTriggerSnare} color="bg-sky-800 hover:bg-sky-700" />
-      </Section>
     </div>
   );
 }

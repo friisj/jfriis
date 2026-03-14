@@ -50,15 +50,31 @@ export interface DuoSequencerState {
   playing: boolean;
 }
 
+export interface DuoDrumVoice {
+  name: string;
+  steps: boolean[];   // 8 booleans
+  pitch: number;      // 0-1 normalized
+  decay: number;      // 0-1 normalized
+  volume: number;     // 0-1
+}
+
+export interface DuoDrumState {
+  voices: DuoDrumVoice[];  // always 4
+}
+
 export interface DuoState {
   synth: DuoSynthParams;
   sequencer: DuoSequencerState;
+  drum: DuoDrumState;
+  melodicMuted: boolean;
+  drumMuted: boolean;
 }
 
 export interface DuoPreset {
   name: string;
   synth: DuoSynthParams;
   sequencer?: Partial<DuoSequencerState>;
+  drum?: Partial<DuoDrumState>;
 }
 
 export type DuoAction =
@@ -72,4 +88,11 @@ export type DuoAction =
   | { type: 'PLAY' }
   | { type: 'STOP' }
   | { type: 'ADVANCE_STEP' }
-  | { type: 'LOAD_PRESET'; preset: DuoPreset };
+  | { type: 'LOAD_PRESET'; preset: DuoPreset }
+  | { type: 'DRUM_TOGGLE_STEP'; voiceIndex: number; step: number }
+  | { type: 'DRUM_SET_PITCH'; voiceIndex: number; pitch: number }
+  | { type: 'DRUM_SET_DECAY'; voiceIndex: number; decay: number }
+  | { type: 'DRUM_SET_VOLUME'; voiceIndex: number; volume: number }
+  | { type: 'DRUM_RANDOMIZE' }
+  | { type: 'TOGGLE_MELODIC_MUTE' }
+  | { type: 'TOGGLE_DRUM_MUTE' };
