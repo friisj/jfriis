@@ -111,6 +111,10 @@ export default function PromptPlaygroundScene({
   const [aspectRatio, setAspectRatio] = useState<AspectRatio>('1:1');
   const [count, setCount] = useState(1);
 
+  // Compose state
+  const [composing, setComposing] = useState(false);
+  const [composeError, setComposeError] = useState<string | null>(null);
+
   // Generation state
   const [generating, setGenerating] = useState(false);
   const [generationError, setGenerationError] = useState<string | null>(null);
@@ -210,6 +214,36 @@ export default function PromptPlaygroundScene({
   // Insert variable at cursor
   function insertVariable(varKey: string) {
     setPromptText((prev) => prev + `{{${varKey}}}`);
+  }
+
+  // Compose prompt via Luv
+  async function handleCompose() {
+    setComposing(true);
+    setComposeError(null);
+    try {
+      const res = await fetch('/api/luv/compose-prompt', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          moduleSlugs,
+          focusModule: focusModule ?? undefined,
+          context: promptText.trim() || undefined,
+        }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        setComposeError(err.error || `Compose failed (${res.status})`);
+        return;
+      }
+      const data = await res.json();
+      if (data.prompt) {
+        setPromptText(data.prompt);
+      }
+    } catch (err) {
+      setComposeError(err instanceof Error ? err.message : 'Unknown error');
+    } finally {
+      setComposing(false);
+    }
   }
 
   // Generate images
@@ -402,7 +436,20 @@ export default function PromptPlaygroundScene({
           >
             {savingTemplate ? 'Saving...' : 'Save'}
           </Button>
+          <Button
+            size="sm"
+            variant="secondary"
+            onClick={handleCompose}
+            disabled={composing}
+          >
+            {composing ? 'Composing...' : 'Compose with Luv'}
+          </Button>
         </div>
+        {composeError && (
+          <div className="rounded-md border border-destructive/50 bg-destructive/5 px-3 py-1.5 text-xs text-destructive">
+            {composeError}
+          </div>
+        )}
       </div>
 
       {/* Generation Controls */}
