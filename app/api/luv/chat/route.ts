@@ -135,7 +135,10 @@ async function augmentImagesWithGeminiVision(
     if (typeof data === 'string') return data;
     if (data instanceof URL) return null;
     if (Buffer.isBuffer(data)) return data.toString('base64');
-    if (data instanceof Uint8Array || data instanceof ArrayBuffer) {
+    if (data instanceof Uint8Array) {
+      return Buffer.from(data.buffer, data.byteOffset, data.byteLength).toString('base64');
+    }
+    if (data instanceof ArrayBuffer) {
       return Buffer.from(data).toString('base64');
     }
     return null;
