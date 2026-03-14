@@ -267,6 +267,30 @@ Arena applies reinforcement learning patterns to design system creation. Users t
 
 ---
 
+### Iris
+**Status**: Phase 1 (Exploration) - Initial research and concept definition
+**Location**: `/components/studio/prototypes/iris/` + `/docs/studio/iris/`
+**Focus**: Parametric photorealistic ocular iris generator combining WebGL shaders with generative AI
+
+**Current State**:
+- ✅ Project scaffolding and initial research structure
+- ⏳ Researching iris anatomy, microstructure, and procedural rendering approaches
+- ⏳ Surveying prior art in real-time eye rendering (game/film VFX, medical imaging)
+
+**Concept**:
+Multi-stage project building toward a tool with parametric controls that combines WebGL shaders and image/video generation models to create natural language or parametrically defined eyes with complete dynamic, scientifically accurate iris anatomy. Stages progress from procedural iris shaders through full 3D eye geometry to AI-augmented photorealistic rendering.
+
+**Next Steps**:
+1. Research iris anatomy and microstructure in detail
+2. Survey existing procedural iris rendering approaches
+3. Define parametric dimensions (color, pattern density, limbal ring, pupil dilation, crypts, collarette)
+4. Build first procedural iris shader prototype
+5. Collect macro photography references for validation
+
+**Documents**: `/docs/studio/iris/exploration/` (research.md, definitions.md)
+
+---
+
 ### Remix
 **Status**: Phase 1 (Exploration) - Initial scaffold, awaiting pipeline technical design
 **Location**: `/components/studio/prototypes/remix/` + `/docs/studio/remix/`
