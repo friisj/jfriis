@@ -1,5 +1,6 @@
 'use client';
 
+import { useRef, useCallback } from 'react';
 import { DrumSequencer } from './drum-sequencer';
 import { DuoKnob } from './knob';
 import type { DuoDrumState } from '@/lib/duo/types';
@@ -20,6 +21,8 @@ interface DrumPanelProps {
   onSetCrush: (value: number) => void;
   onSetFilter: (value: number) => void;
   onRandomize: () => void;
+  onRandomOffset: () => void;
+  onRandomFlip: () => void;
 }
 
 export function DrumPanel({
@@ -35,6 +38,8 @@ export function DrumPanel({
   onSetCrush,
   onSetFilter,
   onRandomize,
+  onRandomOffset,
+  onRandomFlip,
 }: DrumPanelProps) {
   return (
     <div className="flex flex-col gap-4 p-4">
@@ -179,19 +184,66 @@ export function DrumPanel({
         </div>
       </div>
 
-      {/* Random button */}
-      <div className="flex justify-center">
+      {/* Random buttons — click = offset, long press = flip, full random */}
+      <div className="flex justify-center gap-2">
+        <RandomButton onOffset={onRandomOffset} onFlip={onRandomFlip} />
         <button
           type="button"
           onClick={onRandomize}
           className="px-3 py-1.5 text-[10px] uppercase tracking-wider text-zinc-400
                      bg-zinc-800 hover:bg-zinc-700 rounded border border-zinc-700
                      transition-colors"
-          aria-label="Randomize drum pattern"
+          aria-label="Full randomize drum pattern"
         >
-          Random
+          Reset
         </button>
       </div>
     </div>
+  );
+}
+
+/** Click = offset shift, long press (300ms) = probability flip */
+function RandomButton({ onOffset, onFlip }: { onOffset: () => void; onFlip: () => void }) {
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const firedRef = useRef(false);
+
+  const handlePointerDown = useCallback(() => {
+    firedRef.current = false;
+    timerRef.current = setTimeout(() => {
+      firedRef.current = true;
+      onFlip();
+    }, 300);
+  }, [onFlip]);
+
+  const handlePointerUp = useCallback(() => {
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
+    if (!firedRef.current) {
+      onOffset();
+    }
+  }, [onOffset]);
+
+  const handlePointerLeave = useCallback(() => {
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
+  }, []);
+
+  return (
+    <button
+      type="button"
+      onPointerDown={handlePointerDown}
+      onPointerUp={handlePointerUp}
+      onPointerLeave={handlePointerLeave}
+      className="px-3 py-1.5 text-[10px] uppercase tracking-wider text-zinc-400
+                 bg-zinc-800 hover:bg-zinc-700 rounded border border-zinc-700
+                 transition-colors select-none touch-none"
+      aria-label="Random: click to shift, hold to flip"
+    >
+      Random
+    </button>
   );
 }

@@ -5,7 +5,7 @@ import { SequencerPanel } from './sequencer-panel';
 import { SynthPanel } from './synth-panel';
 import { DuoEngine } from '@/lib/duo/engine';
 import { DrumPanel } from './drum-panel';
-import { DuoSequencerTransport, createInitialSequencerState, createInitialDrumState, randomizeSteps, randomizeDrumSteps } from '@/lib/duo/sequencer';
+import { DuoSequencerTransport, createInitialSequencerState, createInitialDrumState, randomizeSteps, randomizeDrumSteps, randomOffsetDrumSteps, randomFlipDrumSteps } from '@/lib/duo/sequencer';
 import { PRESETS, DEFAULT_SYNTH } from '@/lib/duo/presets';
 import type { DuoState, DuoAction, DuoSynthParams } from '@/lib/duo/types';
 
@@ -82,6 +82,10 @@ function duoReducer(state: DuoState, action: DuoAction): DuoState {
       voices[action.voiceIndex] = { ...voices[action.voiceIndex], volume: action.volume };
       return { ...state, drum: { ...state.drum, voices } };
     }
+    case 'DRUM_RANDOM_OFFSET':
+      return { ...state, drum: { ...state.drum, voices: randomOffsetDrumSteps(state.drum.voices) } };
+    case 'DRUM_RANDOM_FLIP':
+      return { ...state, drum: { ...state.drum, voices: randomFlipDrumSteps(state.drum.voices) } };
     case 'DRUM_SET_RECIPE': {
       const voices = [...state.drum.voices];
       voices[action.voiceIndex] = { ...voices[action.voiceIndex], recipeIndex: action.recipeIndex };
@@ -261,6 +265,14 @@ export function DuoSynth() {
     dispatch({ type: 'DRUM_RANDOMIZE' });
   }, [ensureInit]);
 
+  const handleDrumRandomOffset = useCallback(() => {
+    dispatch({ type: 'DRUM_RANDOM_OFFSET' });
+  }, []);
+
+  const handleDrumRandomFlip = useCallback(() => {
+    dispatch({ type: 'DRUM_RANDOM_FLIP' });
+  }, []);
+
   const handlePresetChange = useCallback(async (index: number) => {
     setPresetIndex(index);
     await ensureInit();
@@ -339,6 +351,8 @@ export function DuoSynth() {
             onSetCrush={handleDrumSetCrush}
             onSetFilter={handleDrumSetFilter}
             onRandomize={handleDrumRandomize}
+            onRandomOffset={handleDrumRandomOffset}
+            onRandomFlip={handleDrumRandomFlip}
           />
         </div>
       </div>

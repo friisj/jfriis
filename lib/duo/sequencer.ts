@@ -134,6 +134,25 @@ export function createInitialDrumState(): DuoDrumState {
 /** Voice-appropriate density randomization */
 const DRUM_DENSITIES = [0.3, 0.25, 0.6, 0.15]; // kick, snare, hat, clap
 
+/** Offset mode — shift each voice's step array by a random offset (1-7 positions) */
+export function randomOffsetDrumSteps(voices: DuoDrumVoice[]): DuoDrumVoice[] {
+  return voices.map((voice) => {
+    const offset = 1 + Math.floor(Math.random() * 7); // 1-7
+    const steps = voice.steps.map((_, i) => voice.steps[(i + offset) % voice.steps.length]);
+    return { ...voice, steps };
+  });
+}
+
+/** Probability flip — randomly toggle ~30% of steps */
+export function randomFlipDrumSteps(voices: DuoDrumVoice[]): DuoDrumVoice[] {
+  return voices.map((voice) => {
+    const steps = voice.steps.map((active) =>
+      Math.random() < 0.3 ? !active : active
+    );
+    return { ...voice, steps };
+  });
+}
+
 export function randomizeDrumSteps(existingVoices?: DuoDrumVoice[]): DuoDrumVoice[] {
   return DRUM_VOICE_NAMES.map((name, i) => ({
     name,
