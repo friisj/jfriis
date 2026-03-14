@@ -82,8 +82,13 @@ function duoReducer(state: DuoState, action: DuoAction): DuoState {
       voices[action.voiceIndex] = { ...voices[action.voiceIndex], volume: action.volume };
       return { ...state, drum: { ...state.drum, voices } };
     }
+    case 'DRUM_SET_RECIPE': {
+      const voices = [...state.drum.voices];
+      voices[action.voiceIndex] = { ...voices[action.voiceIndex], recipeIndex: action.recipeIndex };
+      return { ...state, drum: { ...state.drum, voices } };
+    }
     case 'DRUM_RANDOMIZE':
-      return { ...state, drum: { ...state.drum, voices: randomizeDrumSteps() } };
+      return { ...state, drum: { ...state.drum, voices: randomizeDrumSteps(state.drum.voices) } };
     case 'DRUM_SET_CRUSH':
       return { ...state, drum: { ...state.drum, effects: { ...state.drum.effects, crush: action.value } } };
     case 'DRUM_SET_FILTER':
@@ -236,6 +241,11 @@ export function DuoSynth() {
     engineRef.current?.setDrumVolume(voiceIndex, volume);
   }, []);
 
+  const handleDrumSetRecipe = useCallback((voiceIndex: number, recipeIndex: number) => {
+    dispatch({ type: 'DRUM_SET_RECIPE', voiceIndex, recipeIndex });
+    engineRef.current?.setDrumRecipe(voiceIndex, voiceIndex, recipeIndex);
+  }, []);
+
   const handleDrumSetCrush = useCallback((value: number) => {
     dispatch({ type: 'DRUM_SET_CRUSH', value });
     engineRef.current?.setDrumCrush(value);
@@ -322,6 +332,7 @@ export function DuoSynth() {
             playing={state.sequencer.playing}
             onToggleStep={handleDrumToggleStep}
             onTriggerVoice={handleDrumTriggerVoice}
+            onSetRecipe={handleDrumSetRecipe}
             onSetPitch={handleDrumSetPitch}
             onSetDecay={handleDrumSetDecay}
             onSetVolume={handleDrumSetVolume}

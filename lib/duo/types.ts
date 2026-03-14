@@ -56,6 +56,7 @@ export interface DuoDrumVoice {
   pitch: number;      // 0-1 normalized
   decay: number;      // 0-1 normalized
   volume: number;     // 0-1
+  recipeIndex: number; // index into DRUM_RECIPES[categoryIndex]
 }
 
 export interface DuoDrumEffects {
@@ -100,6 +101,7 @@ export type DuoAction =
   | { type: 'DRUM_SET_DECAY'; voiceIndex: number; decay: number }
   | { type: 'DRUM_SET_VOLUME'; voiceIndex: number; volume: number }
   | { type: 'DRUM_RANDOMIZE' }
+  | { type: 'DRUM_SET_RECIPE'; voiceIndex: number; recipeIndex: number }
   | { type: 'DRUM_SET_CRUSH'; value: number }
   | { type: 'DRUM_SET_FILTER'; value: number }
   | { type: 'TOGGLE_MELODIC_MUTE' }

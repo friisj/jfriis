@@ -122,10 +122,10 @@ const DRUM_VOICE_NAMES = ['Kick', 'Snare', 'Hi-Hat', 'Clap'];
 export function createInitialDrumState(): DuoDrumState {
   return {
     voices: [
-      { name: DRUM_VOICE_NAMES[0], steps: [true, false, false, false, true, false, false, false], pitch: 0.3, decay: 0.4, volume: 1 },
-      { name: DRUM_VOICE_NAMES[1], steps: [false, false, true, false, false, false, true, false], pitch: 0.5, decay: 0.3, volume: 0.8 },
-      { name: DRUM_VOICE_NAMES[2], steps: [true, true, true, true, true, true, true, true], pitch: 0.5, decay: 0.2, volume: 0.6 },
-      { name: DRUM_VOICE_NAMES[3], steps: [false, false, false, true, false, false, false, false], pitch: 0.5, decay: 0.3, volume: 0.7 },
+      { name: DRUM_VOICE_NAMES[0], steps: [true, false, false, false, true, false, false, false], pitch: 0.3, decay: 0.4, volume: 1, recipeIndex: 0 },
+      { name: DRUM_VOICE_NAMES[1], steps: [false, false, true, false, false, false, true, false], pitch: 0.5, decay: 0.3, volume: 0.8, recipeIndex: 0 },
+      { name: DRUM_VOICE_NAMES[2], steps: [true, true, true, true, true, true, true, true], pitch: 0.5, decay: 0.2, volume: 0.6, recipeIndex: 0 },
+      { name: DRUM_VOICE_NAMES[3], steps: [false, false, false, true, false, false, false, false], pitch: 0.5, decay: 0.3, volume: 0.7, recipeIndex: 0 },
     ],
     effects: { crush: 0, filterCutoff: 1 },
   };
@@ -134,12 +134,13 @@ export function createInitialDrumState(): DuoDrumState {
 /** Voice-appropriate density randomization */
 const DRUM_DENSITIES = [0.3, 0.25, 0.6, 0.15]; // kick, snare, hat, clap
 
-export function randomizeDrumSteps(): DuoDrumVoice[] {
+export function randomizeDrumSteps(existingVoices?: DuoDrumVoice[]): DuoDrumVoice[] {
   return DRUM_VOICE_NAMES.map((name, i) => ({
     name,
     steps: Array.from({ length: STEP_COUNT }, () => Math.random() < DRUM_DENSITIES[i]),
     pitch: 0.3 + Math.random() * 0.4,
     decay: 0.2 + Math.random() * 0.3,
     volume: 0.6 + Math.random() * 0.4,
+    recipeIndex: existingVoices?.[i]?.recipeIndex ?? 0,
   }));
 }

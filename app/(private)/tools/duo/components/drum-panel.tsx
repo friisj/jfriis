@@ -12,6 +12,7 @@ interface DrumPanelProps {
   playing: boolean;
   onToggleStep: (voiceIndex: number, step: number) => void;
   onTriggerVoice: (voiceIndex: number) => void;
+  onSetRecipe: (voiceIndex: number, recipeIndex: number) => void;
   onSetPitch: (voiceIndex: number, pitch: number) => void;
   onSetDecay: (voiceIndex: number, decay: number) => void;
   onSetVolume: (voiceIndex: number, volume: number) => void;
@@ -26,6 +27,7 @@ export function DrumPanel({
   playing,
   onToggleStep,
   onTriggerVoice,
+  onSetRecipe,
   onSetPitch,
   onSetDecay,
   onSetVolume,

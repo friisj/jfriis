@@ -26,10 +26,10 @@ export const DEFAULT_SYNTH: DuoSynthParams = {
 /** Default drum pattern — four-on-the-floor (used by sequencer.ts createInitialDrumState) */
 export const DEFAULT_DRUM: DuoDrumState = {
   voices: [
-    { name: 'Kick', steps: [true, false, false, false, true, false, false, false], pitch: 0.3, decay: 0.4, volume: 1 },
-    { name: 'Snare', steps: [false, false, true, false, false, false, true, false], pitch: 0.5, decay: 0.3, volume: 0.8 },
-    { name: 'Hi-Hat', steps: [true, true, true, true, true, true, true, true], pitch: 0.5, decay: 0.2, volume: 0.6 },
-    { name: 'Clap', steps: [false, false, false, true, false, false, false, false], pitch: 0.5, decay: 0.3, volume: 0.7 },
+    { name: 'Kick', steps: [true, false, false, false, true, false, false, false], pitch: 0.3, decay: 0.4, volume: 1, recipeIndex: 0 },
+    { name: 'Snare', steps: [false, false, true, false, false, false, true, false], pitch: 0.5, decay: 0.3, volume: 0.8, recipeIndex: 0 },
+    { name: 'Hi-Hat', steps: [true, true, true, true, true, true, true, true], pitch: 0.5, decay: 0.2, volume: 0.6, recipeIndex: 0 },
+    { name: 'Clap', steps: [false, false, false, true, false, false, false, false], pitch: 0.5, decay: 0.3, volume: 0.7, recipeIndex: 0 },
   ],
   effects: { crush: 0, filterCutoff: 1 },
 };
@@ -52,10 +52,10 @@ export const PRESETS: DuoPreset[] = [
     },
     drum: {
       voices: [
-        { name: 'Kick', steps: [true, false, true, false, true, false, true, false], pitch: 0.25, decay: 0.3, volume: 1 },
-        { name: 'Snare', steps: [false, false, true, false, false, true, false, false], pitch: 0.6, decay: 0.2, volume: 0.7 },
-        { name: 'Hi-Hat', steps: [true, true, true, true, true, true, true, true], pitch: 0.7, decay: 0.1, volume: 0.5 },
-        { name: 'Clap', steps: [false, false, false, false, true, false, false, false], pitch: 0.4, decay: 0.2, volume: 0.6 },
+        { name: 'Kick', steps: [true, false, true, false, true, false, true, false], pitch: 0.25, decay: 0.3, volume: 1, recipeIndex: 0 },
+        { name: 'Snare', steps: [false, false, true, false, false, true, false, false], pitch: 0.6, decay: 0.2, volume: 0.7, recipeIndex: 0 },
+        { name: 'Hi-Hat', steps: [true, true, true, true, true, true, true, true], pitch: 0.7, decay: 0.1, volume: 0.5, recipeIndex: 0 },
+        { name: 'Clap', steps: [false, false, false, false, true, false, false, false], pitch: 0.4, decay: 0.2, volume: 0.6, recipeIndex: 0 },
       ],
     },
   },
@@ -110,10 +110,10 @@ export const PRESETS: DuoPreset[] = [
     },
     drum: {
       voices: [
-        { name: 'Kick', steps: [true, false, false, true, false, false, true, false], pitch: 0.1, decay: 0.5, volume: 1 },
-        { name: 'Snare', steps: [false, true, false, false, true, false, false, true], pitch: 0.8, decay: 0.4, volume: 0.9 },
-        { name: 'Hi-Hat', steps: [true, false, true, false, true, false, true, false], pitch: 0.9, decay: 0.05, volume: 0.4 },
-        { name: 'Clap', steps: [false, false, true, false, false, false, true, false], pitch: 0.7, decay: 0.3, volume: 0.8 },
+        { name: 'Kick', steps: [true, false, false, true, false, false, true, false], pitch: 0.1, decay: 0.5, volume: 1, recipeIndex: 0 },
+        { name: 'Snare', steps: [false, true, false, false, true, false, false, true], pitch: 0.8, decay: 0.4, volume: 0.9, recipeIndex: 0 },
+        { name: 'Hi-Hat', steps: [true, false, true, false, true, false, true, false], pitch: 0.9, decay: 0.05, volume: 0.4, recipeIndex: 0 },
+        { name: 'Clap', steps: [false, false, true, false, false, false, true, false], pitch: 0.7, decay: 0.3, volume: 0.8, recipeIndex: 0 },
       ],
     },
   },

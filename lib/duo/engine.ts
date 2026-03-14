@@ -10,6 +10,7 @@
 import * as Tone from 'tone';
 import type { DuoSynthParams } from './types';
 import { DEFAULT_SYNTH } from './presets';
+import { createDrumVoice, type DrumVoiceInstance } from './drum-voices';
 
 export class DuoEngine {
   private osc1: Tone.Oscillator | null = null;
@@ -30,11 +31,7 @@ export class DuoEngine {
   private lfoDepthGain: Tone.Gain | null = null;
   private master: Tone.Gain | null = null;
 
-  private kick: Tone.MembraneSynth | null = null;
-  private snare: Tone.NoiseSynth | null = null;
-  private hat: Tone.MetalSynth | null = null;
-  private clap: Tone.NoiseSynth | null = null;
-  private clapFilter: Tone.Filter | null = null;
+  private drumVoices: DrumVoiceInstance[] = [];
   private drumBus: Tone.Gain | null = null;
   private drumCrusher: Tone.BitCrusher | null = null;
   private drumFilter: Tone.Filter | null = null;
@@ -144,36 +141,12 @@ export class DuoEngine {
       new Tone.Gain(1).connect(this.drumBus!)
     );
 
-    this.kick = new Tone.MembraneSynth({
-      pitchDecay: 0.05,
-      octaves: 6,
-      envelope: { attack: 0.001, decay: 0.15, sustain: 0, release: 0.05 },
-    }).connect(this.drumVoiceGains[0]);
-
-    this.snare = new Tone.NoiseSynth({
-      noise: { type: 'white' },
-      envelope: { attack: 0.001, decay: 0.1, sustain: 0, release: 0.05 },
-    }).connect(this.drumVoiceGains[1]);
-
-    this.hat = new Tone.MetalSynth({
-      envelope: { attack: 0.001, decay: 0.1, release: 0.05 },
-      harmonicity: 5.1,
-      modulationIndex: 16,
-      resonance: 5000,
-      octaves: 1,
-      volume: -6,
-    }).connect(this.drumVoiceGains[2]);
-    this.hat.frequency.value = 300;
-
-    this.clapFilter = new Tone.Filter({
-      frequency: 2000,
-      type: 'bandpass',
-      Q: 2,
-    }).connect(this.drumVoiceGains[3]);
-    this.clap = new Tone.NoiseSynth({
-      noise: { type: 'white' },
-      envelope: { attack: 0.001, decay: 0.12, sustain: 0, release: 0.05 },
-    }).connect(this.clapFilter);
+    // Create default drum voices (recipe index 0 for each category)
+    for (let i = 0; i < 4; i++) {
+      const voice = createDrumVoice(i, 0);
+      voice.connect(this.drumVoiceGains[i]);
+      this.drumVoices.push(voice);
+    }
 
     this.initialized = true;
   }
@@ -209,74 +182,30 @@ export class DuoEngine {
     this.currentNote = null;
   }
 
-  /** Trigger kick drum */
-  triggerKick(velocity: number = 0.8): void {
-    this.kick?.triggerAttackRelease('C1', '8n', Tone.now(), velocity);
-  }
-
-  /** Trigger snare drum */
-  triggerSnare(velocity: number = 0.8): void {
-    this.snare?.triggerAttackRelease('8n', Tone.now(), velocity);
-  }
-
-  /** Trigger a drum voice by index (0=kick, 1=snare, 2=hat, 3=clap) */
+  /** Trigger a drum voice by index */
   triggerDrumVoice(index: number, velocity: number = 0.8): void {
-    switch (index) {
-      case 0: this.triggerKick(velocity); break;
-      case 1: this.triggerSnare(velocity); break;
-      case 2: this.hat?.triggerAttackRelease('16n', Tone.now(), velocity); break;
-      case 3: this.clap?.triggerAttackRelease('16n', Tone.now(), velocity); break;
-    }
+    this.drumVoices[index]?.trigger(velocity);
   }
 
   /** Set drum voice pitch (0-1 normalized) */
   setDrumPitch(index: number, pitch: number): void {
-    switch (index) {
-      case 0: // Kick: C0-C3 mapped from pitch 0-1
-        if (this.kick) {
-          const freq = Tone.Frequency('C0').toFrequency() *
-            Math.pow(Tone.Frequency('C3').toFrequency() / Tone.Frequency('C0').toFrequency(), pitch);
-          this.kick.frequency.rampTo(freq, 0.02);
-        }
-        break;
-      case 1: // Snare: filter 200-2000 Hz
-        if (this.snare) {
-          // NoiseSynth doesn't have a frequency — we adjust playback rate indirectly
-          // by modifying the envelope characteristics based on pitch
-        }
-        break;
-      case 2: // Hi-hat: freq 200-1200 Hz (MetalSynth FM generates harmonics in metallic register)
-        if (this.hat) {
-          const freq = 200 + pitch * 1000;
-          this.hat.frequency.rampTo(freq, 0.02);
-        }
-        break;
-      case 3: // Clap: bandpass filter 400-4000 Hz
-        if (this.clapFilter) {
-          const freq = 400 + pitch * 3600;
-          this.clapFilter.frequency.rampTo(freq, 0.02);
-        }
-        break;
-    }
+    this.drumVoices[index]?.setPitch(pitch);
   }
 
-  /** Set drum voice decay (0-1 → 0.01-0.5s) */
+  /** Set drum voice decay (0-1 normalized) */
   setDrumDecay(index: number, decay: number): void {
-    const decayTime = 0.01 + decay * 0.49;
-    switch (index) {
-      case 0:
-        this.kick?.envelope.set({ decay: decayTime });
-        break;
-      case 1:
-        this.snare?.envelope.set({ decay: decayTime });
-        break;
-      case 2:
-        this.hat?.envelope.set({ decay: decayTime });
-        break;
-      case 3:
-        this.clap?.envelope.set({ decay: decayTime });
-        break;
+    this.drumVoices[index]?.setDecay(decay);
+  }
+
+  /** Hot-swap a drum voice recipe mid-playback */
+  setDrumRecipe(voiceIndex: number, categoryIndex: number, recipeIndex: number): void {
+    const oldVoice = this.drumVoices[voiceIndex];
+    oldVoice?.dispose();
+    const newVoice = createDrumVoice(categoryIndex, recipeIndex);
+    if (this.drumVoiceGains[voiceIndex]) {
+      newVoice.connect(this.drumVoiceGains[voiceIndex]);
     }
+    this.drumVoices[voiceIndex] = newVoice;
   }
 
   /** Set drum voice volume (0-1) */
@@ -425,11 +354,8 @@ export class DuoEngine {
     this.reverbWetGain?.dispose();
     this.reverbDryGain?.dispose();
     this.master?.dispose();
-    this.kick?.dispose();
-    this.snare?.dispose();
-    this.hat?.dispose();
-    this.clap?.dispose();
-    this.clapFilter?.dispose();
+    this.drumVoices.forEach((v) => v.dispose());
+    this.drumVoices = [];
     this.drumVoiceGains.forEach((g) => g.dispose());
     this.drumVoiceGains = [];
     this.drumBus?.dispose();
