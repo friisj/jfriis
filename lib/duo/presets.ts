@@ -142,4 +142,30 @@ export const PRESETS: DuoPreset[] = [
       lfoDepth: 0.8,       // heavy modulation
     },
   },
+  {
+    name: 'Celts',
+    synth: {
+      ...DEFAULT_SYNTH,
+      oscMix: 0.6,         // pulse-forward — Onder's sawtooth pad character
+      detune: 7,           // Onder's signature detune amount
+      pulseWidth: 0.3,     // hollow, voice-like harmonic content
+      filterCutoff: 800,   // warmth emphasis — Onder's 300-1200 Hz range, low end
+      filterResonance: 0.7, // gentle slope, no squelch
+      decay: 2.0,          // max sustain — notes bleed into reverb tail
+      level: 0.6,          // room for the effects to breathe
+      bitcrusherBits: 16,  // pristine
+      delayWet: 0.4,       // spacious delay
+      delayTime: 0.5,      // slow echoes — half-note feel
+      delayFeedback: 0.55, // long repeating tail, builds density
+      accent: 0,           // flat dynamics — everything even
+      glide: 0.12,         // legato portamento
+      chorusRate: 0.4,     // Onder's slow chorus rate
+      chorusDepth: 0.6,    // Onder's chorus depth
+      chorusWet: 0.65,     // prominent but not overwhelming
+      reverbDecay: 5.0,    // Onder's hall reverb (4-5s decay)
+      reverbWet: 0.65,     // Onder's high wetness (0.6-0.7)
+      lfoRate: 0.3,        // very slow — approaching Onder's 0.05Hz filter LFO
+      lfoDepth: 0.4,       // gentle PWM drift, not dramatic
+    },
+  },
 ];
