@@ -16,7 +16,7 @@ interface AnalyzeImageOptions {
   mediaType: string;
   prompt: string;
   modelKey?: string;
-  maxTokens?: number;
+  maxOutputTokens?: number;
   timeoutMs?: number;
 }
 
@@ -29,7 +29,7 @@ export async function analyzeImageWithGemini({
   mediaType,
   prompt,
   modelKey = 'gemini-flash',
-  maxTokens = 800,
+  maxOutputTokens = 800,
   timeoutMs = DEFAULT_TIMEOUT_MS,
 }: AnalyzeImageOptions): Promise<string | null> {
   try {
@@ -51,7 +51,7 @@ export async function analyzeImageWithGemini({
           ],
         },
       ],
-      maxTokens,
+      maxOutputTokens,
       abortSignal: controller.signal,
     });
 
