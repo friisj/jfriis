@@ -1,0 +1,138 @@
+'use client';
+
+import { cn } from '@/lib/utils';
+import type { DuoStep } from '@/lib/duo/types';
+
+interface CircularSequencerProps {
+  steps: DuoStep[];
+  currentStep: number;
+  playing: boolean;
+  onToggleStep: (index: number) => void;
+  onPlay: () => void;
+  onStop: () => void;
+}
+
+const RADIUS = 60;
+const LED_RADIUS = 12;
+
+function stepPosition(index: number, total: number) {
+  // Start from top (-90°), go clockwise
+  const angle = ((index / total) * 360 - 90) * (Math.PI / 180);
+  return {
+    x: RADIUS * Math.cos(angle),
+    y: RADIUS * Math.sin(angle),
+  };
+}
+
+export function CircularSequencer({
+  steps,
+  currentStep,
+  playing,
+  onToggleStep,
+  onPlay,
+  onStop,
+}: CircularSequencerProps) {
+  const size = (RADIUS + LED_RADIUS + 8) * 2;
+  const center = size / 2;
+
+  return (
+    <div className="space-y-1.5">
+      <h3 className="text-[10px] text-zinc-500 uppercase tracking-wider">Sequencer</h3>
+      <div className="flex justify-center">
+        <svg width={size} height={size} className="overflow-visible">
+          {/* Connection ring */}
+          <circle
+            cx={center}
+            cy={center}
+            r={RADIUS}
+            fill="none"
+            stroke="currentColor"
+            className="text-zinc-800"
+            strokeWidth={1}
+          />
+
+          {/* Step LEDs */}
+          {steps.map((step, i) => {
+            const pos = stepPosition(i, steps.length);
+            const isCurrent = playing && i === currentStep;
+            const hasNote = step.note !== null;
+
+            return (
+              <g key={i} transform={`translate(${center + pos.x}, ${center + pos.y})`}>
+                <circle
+                  r={LED_RADIUS}
+                  className={cn(
+                    'cursor-pointer transition-colors duration-75',
+                    !step.active
+                      ? 'fill-zinc-800 stroke-zinc-700'
+                      : isCurrent
+                        ? 'fill-amber-400 stroke-amber-300'
+                        : hasNote
+                          ? 'fill-zinc-600 stroke-zinc-500'
+                          : 'fill-zinc-800 stroke-zinc-700',
+                  )}
+                  strokeWidth={1.5}
+                  onClick={() => onToggleStep(i)}
+                  role="button"
+                  aria-label={`Step ${i + 1}: ${step.note ?? 'empty'}${!step.active ? ' (muted)' : ''}`}
+                  tabIndex={0}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      onToggleStep(i);
+                    }
+                  }}
+                />
+                {/* Step number or note */}
+                <text
+                  textAnchor="middle"
+                  dominantBaseline="central"
+                  className={cn(
+                    'text-[8px] font-mono pointer-events-none select-none',
+                    isCurrent ? 'fill-zinc-900' : !step.active ? 'fill-zinc-600' : 'fill-zinc-300',
+                  )}
+                >
+                  {hasNote ? step.note?.replace(/\d+$/, '') : i + 1}
+                </text>
+              </g>
+            );
+          })}
+
+          {/* Center play/stop button */}
+          <g
+            className="cursor-pointer"
+            onClick={playing ? onStop : onPlay}
+            role="button"
+            aria-label={playing ? 'Stop' : 'Play'}
+            tabIndex={0}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                playing ? onStop() : onPlay();
+              }
+            }}
+          >
+            <circle cx={center} cy={center} r={20} className="fill-zinc-800 stroke-zinc-600" strokeWidth={1.5} />
+            {playing ? (
+              // Stop icon (square)
+              <rect
+                x={center - 6}
+                y={center - 6}
+                width={12}
+                height={12}
+                rx={1}
+                className="fill-amber-400"
+              />
+            ) : (
+              // Play icon (triangle)
+              <polygon
+                points={`${center - 5},${center - 7} ${center - 5},${center + 7} ${center + 7},${center}`}
+                className="fill-zinc-400"
+              />
+            )}
+          </g>
+        </svg>
+      </div>
+    </div>
+  );
+}

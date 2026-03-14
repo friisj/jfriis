@@ -54,6 +54,13 @@ export const toolsRegistry: ToolRegistryEntry[] = [
     path: '/sampler',
     visible: true,
   },
+  {
+    id: 'duo',
+    title: 'DUO',
+    description: 'Collaborative synth + sequencer',
+    path: '/duo',
+    visible: true,
+  },
   // Example hidden tool (in development)
   // {
   //   id: 'fitness',
