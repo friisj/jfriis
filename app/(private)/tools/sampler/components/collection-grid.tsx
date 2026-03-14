@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { IconSquare } from '@tabler/icons-react';
+import { SamplerSidebar } from './sampler-sidebar';
 import { SamplerEngine } from '@/lib/sampler-engine';
 import { updatePad, expandGrid, uploadAudio, createSound } from '@/lib/sampler';
 import { encodeWav } from '@/lib/sampler-wav';
@@ -589,15 +590,15 @@ export function CollectionGrid({ collection }: CollectionGridProps) {
       {/* Grid + Config via Resizable Panels */}
       <ResizablePanelGroup direction="horizontal" className="flex-1">
         <ResizablePanel minSize={40} className="flex">
-          <div className="w-10 shrink-0 flex flex-col items-center pt-1 gap-1 border-r">
+          <SamplerSidebar>
             <button
               onClick={stopAll}
               className="w-8 h-8 flex items-center justify-center rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
               title="Stop all (Esc)"
             >
-              <IconSquare size={16}  />
+              <IconSquare size={16} />
             </button>
-          </div>
+          </SamplerSidebar>
           <div className="flex-1 h-full flex flex-col">
             {batchItems && (
               <BatchStatus
