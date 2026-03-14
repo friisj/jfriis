@@ -40,6 +40,7 @@ export class DuoEngine {
   private initialized = false;
   private currentNote: string | null = null;
   private params: DuoSynthParams = { ...DEFAULT_SYNTH };
+  private reverbGeneration = 0;
 
   async init(): Promise<void> {
     if (this.initialized) return;
@@ -308,14 +309,27 @@ export class DuoEngine {
     }
   }
 
-  /** Rebuild reverb IR asynchronously (decay can't be modulated in real-time) */
+  /**
+   * Rebuild reverb IR asynchronously (decay can't be modulated in real-time).
+   * Uses a generation counter to handle concurrent calls from rapid knob movements
+   * and to guard against dispose() being called during the async wait.
+   */
   private async rebuildReverb(decay: number): Promise<void> {
     if (!this.reverbWetGain) return;
+    const generation = ++this.reverbGeneration;
     const newReverb = new Tone.Reverb(decay);
     await newReverb.ready;
+    // Bail if another rebuild started or engine was disposed during await
+    if (generation !== this.reverbGeneration || !this.reverbWetGain) {
+      newReverb.dispose();
+      return;
+    }
     const oldReverb = this.reverb;
     newReverb.connect(this.reverbWetGain);
     this.reverb = newReverb;
+    // Reconnect chorus and delay sends to the new reverb instance
+    this.chorus?.connect(this.reverb);
+    this.delayWet?.connect(this.reverb);
     oldReverb?.disconnect();
     oldReverb?.dispose();
   }
