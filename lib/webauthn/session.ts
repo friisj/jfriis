@@ -9,10 +9,16 @@
 
 import { createClient } from '@supabase/supabase-js'
 
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
+let _supabaseAdmin: ReturnType<typeof createClient> | null = null
+function getSupabaseAdmin() {
+  if (!_supabaseAdmin) {
+    _supabaseAdmin = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    )
+  }
+  return _supabaseAdmin
+}
 
 /**
  * Generate a hashed token that can be exchanged for a Supabase session.
@@ -20,7 +26,7 @@ const supabaseAdmin = createClient(
  * the token hash for immediate exchange via verifyOtp.
  */
 export async function generateSessionToken(email: string): Promise<string> {
-  const { data, error } = await supabaseAdmin.auth.admin.generateLink({
+  const { data, error } = await getSupabaseAdmin().auth.admin.generateLink({
     type: 'magiclink',
     email,
   })
