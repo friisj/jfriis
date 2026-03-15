@@ -15,18 +15,15 @@ export function useAuth() {
       setUser(session?.user ?? null)
 
       if (session?.user) {
-        // Fetch admin status
+        // Check admin status via DB function (consistent with RLS policies)
         supabase
-          .from('profiles')
-          .select('is_admin')
-          .eq('id', session.user.id)
-          .single()
+          .rpc('is_admin')
           .then(({ data, error }) => {
             if (error) {
               setLoading(false)
               return
             }
-            setIsAdmin(data?.is_admin ?? false)
+            setIsAdmin(data ?? false)
             setLoading(false)
           })
       } else {
@@ -42,12 +39,9 @@ export function useAuth() {
 
       if (session?.user) {
         supabase
-          .from('profiles')
-          .select('is_admin')
-          .eq('id', session.user.id)
-          .single()
+          .rpc('is_admin')
           .then(({ data }) => {
-            setIsAdmin(data?.is_admin ?? false)
+            setIsAdmin(data ?? false)
             setLoading(false)
           })
       } else {
