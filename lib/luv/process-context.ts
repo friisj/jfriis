@@ -174,6 +174,7 @@ export function resolveProcessProtocol(pageContext: LuvPageContext | null): stri
 
 interface ProcessStateOptions {
   pageContext: LuvPageContext | null;
+  turnCount?: number;
 }
 
 /**
@@ -220,6 +221,12 @@ export async function resolveProcessState(options: ProcessStateOptions): Promise
       // Degrade gracefully
       parts.push(`ACTIVE REVIEW SESSION: "${reviewSession.title}" (${reviewSession.id})`);
     }
+  }
+
+  // Turn count
+  const { turnCount } = options;
+  if (turnCount !== undefined && turnCount > 0) {
+    parts.push(`CONVERSATION TURN: ${turnCount}`);
   }
 
   // Current page context summary
