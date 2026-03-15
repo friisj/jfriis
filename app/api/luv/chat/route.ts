@@ -30,11 +30,12 @@ export async function POST(request: Request) {
 
   try {
     const body = await request.json();
-    const { messages, modelKey = 'claude-sonnet', pageContext = null, thinking = false } = body as {
+    const { messages, modelKey = 'claude-sonnet', pageContext = null, thinking = false, seedContext = null } = body as {
       messages: UIMessage[];
       modelKey?: string;
       pageContext?: LuvPageContext | null;
       thinking?: boolean;
+      seedContext?: string | null;
     };
 
     if (!messages || messages.length === 0) {
@@ -80,6 +81,7 @@ export async function POST(request: Request) {
       research: researchSummary,
       processProtocol,
       processState,
+      seedContext,
     });
 
     // Convert UI-format messages (from useChat) to model-format messages (for streamText)

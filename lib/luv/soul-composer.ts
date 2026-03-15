@@ -26,6 +26,8 @@ export interface ComposeOptions {
   research?: ResearchSummary;
   processProtocol?: string | null;
   processState?: string | null;
+  /** Compact summary from a prior conversation, injected as seed context */
+  seedContext?: string | null;
 }
 
 /**
@@ -262,6 +264,44 @@ export function composeLayers(soulData: LuvSoulData, options?: ComposeOptions): 
       priority: LAYER_REGISTRY.process_protocol.priority,
       content: options.processProtocol,
       source: 'page_context',
+      enabled: true,
+    });
+  }
+
+  // Layer: Session Context (compact summary from a prior conversation)
+  if (options?.seedContext) {
+    let seedContent: string;
+    try {
+      const parsed = JSON.parse(options.seedContext) as {
+        carry_forward_summary?: string;
+        goals?: string[];
+        open_threads?: string[];
+        decisions?: string[];
+        important_context?: string[];
+      };
+      const parts: string[] = ['## Prior Session Context\n'];
+      if (parsed.carry_forward_summary) {
+        parts.push(parsed.carry_forward_summary);
+      }
+      if (parsed.goals?.length) {
+        parts.push(`\n**Goals carried forward:** ${parsed.goals.join('; ')}`);
+      }
+      if (parsed.open_threads?.length) {
+        parts.push(`\n**Open threads:** ${parsed.open_threads.join('; ')}`);
+      }
+      if (parsed.important_context?.length) {
+        parts.push(`\n**Established context:** ${parsed.important_context.join('; ')}`);
+      }
+      seedContent = parts.join('\n');
+    } catch {
+      seedContent = `## Prior Session Context\n\n${options.seedContext}`;
+    }
+    layers.push({
+      id: 'session_context',
+      type: 'session_context',
+      priority: LAYER_REGISTRY.session_context.priority,
+      content: seedContent,
+      source: 'compact_summary',
       enabled: true,
     });
   }
