@@ -201,7 +201,7 @@ export async function verifyAuthentication(
     throw new Error('No valid authentication challenge found')
   }
 
-  // The credential's public key is stored as base64, convert to Uint8Array
+  // The credential's public key is stored as base64 text
   const publicKeyBytes = Buffer.from(credentialRow.public_key, 'base64')
 
   const credential = {
