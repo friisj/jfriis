@@ -20,7 +20,7 @@ import remarkGfm from 'remark-gfm';
 import { IconArrowUp, IconBrain, IconChevronDown, IconChevronRight, IconDots, IconPhotoPlus, IconTrash, IconX } from '@tabler/icons-react';
 import { composeLayers } from '@/lib/luv/soul-composer';
 import { LAYER_REGISTRY } from '@/lib/luv/soul-layers';
-import { useLuvChatSession, MODEL_OPTIONS, getMessageText } from './use-luv-chat-session';
+import { useLuvChatSession, MODEL_OPTIONS, getMessageText, type ContextPressure } from './use-luv-chat-session';
 import { ToolCallCard } from './tool-call-card';
 import { ProposalCard } from './proposal-card';
 import { RecentConversations } from './recent-conversations';
@@ -41,6 +41,7 @@ export function ChatDrawer() {
     isActive,
     soulData,
     soulLoaded,
+    contextPressure,
     scrollContainerRef,
     messagesEndRef,
     textareaRef,
@@ -94,6 +95,7 @@ export function ChatDrawer() {
 
       {/* Input */}
       <div className="border-t shrink-0 space-y-1.5">
+        <ContextPressureBar pressure={contextPressure} />
         {/* Pending image thumbnails */}
         {pendingFiles.length > 0 && (
           <div className="flex gap-1.5 flex-wrap">
@@ -318,6 +320,38 @@ function MessageBubble({
           return null;
         })}
       </div>
+    </div>
+  );
+}
+
+const PRESSURE_COLORS: Record<string, string> = {
+  medium: 'bg-amber-400',
+  high: 'bg-orange-500',
+  critical: 'bg-red-500',
+};
+
+function ContextPressureBar({ pressure }: { pressure: ContextPressure }) {
+  if (pressure.level === 'low') return null;
+
+  const pct = Math.round(pressure.ratio * 100);
+  const label =
+    pressure.level === 'critical'
+      ? `~${pct}% context used · consider compacting`
+      : pressure.level === 'high'
+        ? `~${pct}% context used`
+        : null;
+
+  return (
+    <div className="relative h-0.5 w-full overflow-hidden" title={`~${pct}% context used`}>
+      <div
+        className={`h-full transition-all duration-500 ${PRESSURE_COLORS[pressure.level] ?? 'bg-muted'}`}
+        style={{ width: `${pct}%` }}
+      />
+      {label && (
+        <span className="absolute right-2 -top-4 text-[9px] text-muted-foreground">
+          {label}
+        </span>
+      )}
     </div>
   );
 }

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import { useState, useRef, useEffect, useCallback, useMemo, useDeferredValue } from 'react';
 import { useChat } from '@ai-sdk/react';
 import { DefaultChatTransport } from 'ai';
 import type { UIMessage, FileUIPart } from 'ai';
@@ -25,6 +25,25 @@ export function getMessageText(msg: UIMessage): string {
     .filter((p): p is { type: 'text'; text: string } => p.type === 'text')
     .map((p) => p.text)
     .join('');
+}
+
+// ~600k chars ≈ practical message budget for Claude Sonnet (200k token window minus system prompt)
+const CONTEXT_CHAR_BUDGET = 600_000;
+
+export type ContextPressureLevel = 'low' | 'medium' | 'high' | 'critical';
+
+export interface ContextPressure {
+  ratio: number;
+  level: ContextPressureLevel;
+  charCount: number;
+}
+
+export function computeContextPressure(messages: UIMessage[]): ContextPressure {
+  const charCount = messages.reduce((sum, m) => sum + getMessageText(m).length, 0);
+  const ratio = Math.min(charCount / CONTEXT_CHAR_BUDGET, 1);
+  const level: ContextPressureLevel =
+    ratio >= 0.85 ? 'critical' : ratio >= 0.65 ? 'high' : ratio >= 0.4 ? 'medium' : 'low';
+  return { ratio, level, charCount };
 }
 
 export function useLuvChatSession() {
@@ -97,6 +116,13 @@ export function useLuvChatSession() {
   }, [activeConversationId, resumedConversationId, setMessages]);
 
   const isActive = status === 'streaming' || status === 'submitted';
+
+  // Deferred so pressure updates don't block streaming renders
+  const deferredMessages = useDeferredValue(messages);
+  const contextPressure = useMemo(
+    () => computeContextPressure(deferredMessages),
+    [deferredMessages]
+  );
   const prevStatusRef = useRef(status);
   const savingRef = useRef(false);
 
@@ -315,6 +341,7 @@ export function useLuvChatSession() {
     messagesEndRef,
     textareaRef,
     fileInputRef,
+    contextPressure,
     // Actions
     handleSend,
     handleKeyDown,
