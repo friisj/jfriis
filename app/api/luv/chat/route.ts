@@ -65,10 +65,13 @@ export async function POST(request: Request) {
       totalEntries: allResearch.length,
     };
 
+    // Count user turns (number of user messages in conversation history)
+    const turnCount = messages.filter((m: UIMessage) => m.role === 'user').length;
+
     // Resolve page-aware process protocol and active state
     const [processProtocol, processState] = await Promise.all([
       Promise.resolve(resolveProcessProtocol(pageContext)),
-      resolveProcessState({ pageContext }),
+      resolveProcessState({ pageContext, turnCount }),
     ]);
 
     const systemPrompt = composeSoulSystemPrompt(soulData, {
