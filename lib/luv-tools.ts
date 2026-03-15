@@ -787,6 +787,80 @@ export const proposeFacetChange = tool({
 });
 
 // ============================================================================
+// Conversation Tools (read past conversations)
+// ============================================================================
+
+export const listConversations = tool({
+  description:
+    'List saved conversations with title, model, and date. Use this to find past sessions worth referencing before starting or continuing work.',
+  inputSchema: zodSchema(
+    z.object({
+      limit: z
+        .number()
+        .int()
+        .min(1)
+        .max(50)
+        .optional()
+        .describe('Max conversations to return (default 20)'),
+    })
+  ),
+  execute: async ({ limit = 20 }) => {
+    const { getLuvConversationsServer } = await import('./luv-server');
+    const all = await getLuvConversationsServer();
+    const conversations = all.slice(0, limit).map((c) => ({
+      id: c.id,
+      title: c.title ?? 'Untitled',
+      model: c.model,
+      created_at: c.created_at,
+      updated_at: c.updated_at,
+    }));
+    return { conversations, total: all.length };
+  },
+});
+
+export const readConversation = tool({
+  description:
+    'Read the messages from a saved conversation. When the conversation is long, the most recent messages are returned. Use list_conversations first to find the conversation ID.',
+  inputSchema: zodSchema(
+    z.object({
+      conversationId: z.string().describe('UUID of the conversation to read'),
+      messageLimit: z
+        .number()
+        .int()
+        .min(1)
+        .max(100)
+        .optional()
+        .describe('Max messages to return, taken from the end (default 40)'),
+    })
+  ),
+  execute: async ({ conversationId, messageLimit = 40 }) => {
+    const { getLuvConversationServer, getLuvMessagesServer } = await import('./luv-server');
+    const [conversation, allMessages] = await Promise.all([
+      getLuvConversationServer(conversationId),
+      getLuvMessagesServer(conversationId),
+    ]);
+
+    const truncated = allMessages.length > messageLimit;
+    const messages = allMessages.slice(-messageLimit).map((m) => ({
+      role: m.role,
+      content: m.content,
+      created_at: m.created_at,
+    }));
+
+    return {
+      id: conversation.id,
+      title: conversation.title ?? 'Untitled',
+      model: conversation.model,
+      created_at: conversation.created_at,
+      total_messages: allMessages.length,
+      truncated,
+      ...(truncated && { note: `Showing last ${messageLimit} of ${allMessages.length} messages` }),
+      messages,
+    };
+  },
+});
+
+// ============================================================================
 // Context Tool (factory — needs pageContext injected at request time)
 // ============================================================================
 
@@ -834,6 +908,8 @@ export const luvTools = {
   list_memories: listMemories,
   save_memory: saveMemory,
   propose_facet_change: proposeFacetChange,
+  list_conversations: listConversations,
+  read_conversation: readConversation,
   ...luvResearchTools,
   ...luvArtifactTools,
   ...luvReviewTools,
