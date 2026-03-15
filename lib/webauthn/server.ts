@@ -201,8 +201,13 @@ export async function verifyAuthentication(
     throw new Error('No valid authentication challenge found')
   }
 
-  // The credential's public key is stored as base64, convert to Uint8Array
-  const publicKeyBytes = Buffer.from(credentialRow.public_key, 'base64')
+  // The credential's public key is stored as base64 text (or legacy BYTEA
+  // returned as hex by PostgREST). Decode either format to a Uint8Array.
+  const rawKey = credentialRow.public_key as string
+  const publicKeyBytes =
+    typeof rawKey === 'string' && rawKey.startsWith('\\x')
+      ? Buffer.from(rawKey.slice(2), 'hex')
+      : Buffer.from(rawKey, 'base64')
 
   const credential = {
     id: credentialRow.id,
