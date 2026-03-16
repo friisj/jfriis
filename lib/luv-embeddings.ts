@@ -2,13 +2,13 @@
  * Luv Memory Embeddings
  *
  * Generates and queries vector embeddings for semantic memory retrieval.
- * Uses OpenAI text-embedding-3-small (1536 dimensions) via Vercel AI SDK.
+ * Uses Google text-embedding-004 (768 dimensions) via Vercel AI SDK.
  */
 
 import { embed } from 'ai'
-import { getOpenAI } from './ai/providers'
+import { getGoogle } from './ai/providers'
 
-const EMBEDDING_MODEL = 'text-embedding-3-small'
+const EMBEDDING_MODEL = 'gemini-embedding-001'
 
 /**
  * Generate a vector embedding for a text string.
@@ -17,9 +17,9 @@ const EMBEDDING_MODEL = 'text-embedding-3-small'
 export async function generateMemoryEmbedding(
   text: string
 ): Promise<number[]> {
-  const openai = getOpenAI()
+  const google = getGoogle()
   const { embedding } = await embed({
-    model: openai.embedding(EMBEDDING_MODEL),
+    model: google.textEmbeddingModel(EMBEDDING_MODEL),
     value: text,
   })
   return embedding
