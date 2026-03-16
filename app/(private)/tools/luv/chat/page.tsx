@@ -1,12 +1,11 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useCallback } from 'react';
 import { isToolUIPart, getToolName } from 'ai';
 import type { UIMessage } from 'ai';
 import { IconArrowUp, IconDots, IconPhotoPlus, IconTrash, IconX } from '@tabler/icons-react';
 import { usePrivateHeader } from '@/components/layout/private-header-context';
 import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -56,8 +55,28 @@ export default function LuvChatPage() {
     addFilesFromFileList,
   } = useLuvChatSession();
 
+  const autoResize = useCallback((el: HTMLTextAreaElement) => {
+    el.style.height = 'auto';
+    el.style.height = `${Math.min(el.scrollHeight, 160)}px`;
+  }, []);
+
+  const handleInputChange = useCallback(
+    (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+      setInput(e.target.value);
+      autoResize(e.target);
+    },
+    [setInput, autoResize],
+  );
+
+  // Reset textarea height when input is cleared (e.g. after send)
+  useEffect(() => {
+    if (!input && textareaRef.current) {
+      textareaRef.current.style.height = 'auto';
+    }
+  }, [input, textareaRef]);
+
   return (
-    <div className="h-dvh flex flex-col bg-background">
+    <div className="h-dvh flex flex-col bg-background overflow-hidden">
 
       {/* Messages */}
       <div
@@ -66,7 +85,7 @@ export default function LuvChatPage() {
         onDrop={handleDrop}
         onDragOver={(e) => e.preventDefault()}
       >
-        <div className="max-w-3xl mx-auto px-4 py-6 space-y-4">
+        <div className="max-w-3xl mx-auto px-3 sm:px-4 py-6 space-y-4 min-w-0">
           {!soulLoaded && (
             <p className="text-sm text-muted-foreground text-center py-8">
               Loading...
@@ -99,17 +118,17 @@ export default function LuvChatPage() {
       </div>
 
       {/* Input */}
-      <div className="border-t shrink-0">
-        <div className="max-w-3xl mx-auto">
+      <div className="border-t shrink-0 pb-[env(safe-area-inset-bottom)] min-w-0">
+        <div className="max-w-3xl mx-auto min-w-0">
           {pendingFiles.length > 0 && (
-            <div className="flex gap-2 flex-wrap px-4 pt-3">
+            <div className="flex gap-2 flex-wrap px-3 sm:px-4 pt-3">
               {pendingFiles.map((f, i) => (
                 <div key={i} className="relative group">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={f.url}
                     alt={f.filename ?? 'Attached image'}
-                    className="h-16 w-16 object-cover rounded border"
+                    className="h-14 w-14 sm:h-16 sm:w-16 object-cover rounded border"
                   />
                   <button
                     type="button"
@@ -122,19 +141,19 @@ export default function LuvChatPage() {
               ))}
             </div>
           )}
-          <div className="flex flex-col">
-            <Textarea
+          <div className="flex flex-col min-w-0">
+            <textarea
               ref={textareaRef}
               value={input}
-              onChange={(e) => setInput(e.target.value)}
+              onChange={handleInputChange}
               onKeyDown={handleKeyDown}
               onPaste={handlePaste}
               placeholder="Message Luv..."
-              rows={3}
-              className="resize-none text-sm border-none rounded-none px-4 py-3 focus-visible:ring-0 focus-visible:ring-offset-0 bg-transparent shadow-none"
+              rows={1}
+              className="w-full min-w-0 resize-none text-base sm:text-sm border-none rounded-none px-3 sm:px-4 py-3 bg-transparent outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50"
               disabled={isActive || !soulLoaded}
             />
-            <div className="flex justify-between items-end px-4 pb-3">
+            <div className="flex justify-between items-end px-3 sm:px-4 pb-3">
               <div className="flex gap-2">
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
@@ -224,7 +243,7 @@ function FullscreenMessageBubble({
     );
     return (
       <div className="flex justify-end">
-        <div className="max-w-[85%] sm:max-w-[75%] rounded-lg px-4 py-3 text-sm whitespace-pre-wrap bg-primary text-primary-foreground break-words">
+        <div className="max-w-[90%] sm:max-w-[75%] rounded-lg px-3 sm:px-4 py-2.5 sm:py-3 text-sm whitespace-pre-wrap bg-primary text-primary-foreground break-words">
           {fileParts.length > 0 && (
             <div className="flex gap-2 flex-wrap mb-2">
               {fileParts.map((f, i) => (
@@ -245,14 +264,14 @@ function FullscreenMessageBubble({
   }
 
   return (
-    <div className="flex justify-start">
-      <div className="max-w-[85%] sm:max-w-[75%] space-y-2">
+    <div className="flex justify-start min-w-0">
+      <div className="sm:max-w-[75%] space-y-2 min-w-0">
         {message.parts.map((part, i) => {
           if (part.type === 'text' && part.text) {
             return (
               <div
                 key={i}
-                className="rounded-lg px-4 py-3 text-sm bg-muted prose prose-sm dark:prose-invert prose-p:my-1.5 prose-ul:my-1.5 prose-ol:my-1.5 prose-li:my-0.5 prose-headings:my-2 prose-pre:my-1.5 max-w-none break-words [&_pre]:overflow-x-auto [&_pre]:max-w-[calc(100vw-6rem)]"
+                className="rounded-lg px-3 sm:px-4 py-2.5 sm:py-3 text-sm bg-muted prose prose-sm dark:prose-invert prose-p:my-1.5 prose-ul:my-1.5 prose-ol:my-1.5 prose-li:my-0.5 prose-headings:my-2 prose-pre:my-1.5 max-w-none break-words [&_pre]:overflow-x-auto [&_pre]:max-w-full"
               >
                 <ReactMarkdown remarkPlugins={[remarkGfm]}>
                   {part.text}
