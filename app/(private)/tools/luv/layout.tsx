@@ -45,7 +45,7 @@ function LuvHeaderActions() {
 
   // Inject sidebar into mobile nav sheet
   useEffect(() => {
-    setMobileNav(<LuvContextNav />);
+    setMobileNav(() => <LuvContextNav />);
     return () => setMobileNav(null);
   }, [setMobileNav]);
 

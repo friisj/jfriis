@@ -12,7 +12,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 
 function PrivateHeader() {
-  const { hidden, actions, hardNavigation, mobileNav } = usePrivateHeader()
+  const { hidden, actions, hardNavigation, renderMobileNav } = usePrivateHeader()
   const pathname = usePathname()
   const [sheetOpen, setSheetOpen] = useState(false)
 
@@ -89,7 +89,7 @@ function PrivateHeader() {
 
       {/* Mobile navigation sheet */}
       <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
-        <SheetContent side="left" className="w-64 p-0">
+        <SheetContent side="left" className="w-64 p-0" showCloseButton={false}>
           <VisuallyHidden><SheetTitle>Navigation</SheetTitle></VisuallyHidden>
 
           {/* Breadcrumb trail */}
@@ -119,9 +119,9 @@ function PrivateHeader() {
           </nav>
 
           {/* Injected mobile nav (e.g., Luv sidebar) */}
-          {mobileNav && (
+          {renderMobileNav && (
             <div className="flex-1 overflow-y-auto" onClick={() => setSheetOpen(false)}>
-              {mobileNav}
+              {renderMobileNav()}
             </div>
           )}
         </SheetContent>
