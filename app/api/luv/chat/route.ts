@@ -4,7 +4,11 @@ import { requireAuth } from '@/lib/ai/auth';
 import { checkAIRateLimit, getAIRateLimitHeaders } from '@/lib/ai/rate-limit';
 import { getModel } from '@/lib/ai/models';
 import { composeSoulSystemPrompt } from '@/lib/luv-prompt-composer';
-import { getLuvCharacterServer, getLuvMemoriesServer } from '@/lib/luv-server';
+import {
+  getLuvCharacterServer,
+  getLuvMemoriesServer,
+  searchMemoriesBySimilarityServer,
+} from '@/lib/luv-server';
 import { getChassisModulesServer } from '@/lib/luv-chassis-server';
 import { listLuvResearchServer } from '@/lib/luv-research-server';
 import { luvTools, createCurrentContextTool } from '@/lib/luv-tools';
@@ -42,11 +46,10 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Messages required' }, { status: 400 });
     }
 
-    // Load soul + chassis modules + memories + research server-side
-    const [character, chassisModules, memories, allResearch] = await Promise.all([
+    // Load soul + chassis modules + research server-side
+    const [character, chassisModules, allResearch] = await Promise.all([
       getLuvCharacterServer(),
       getChassisModulesServer(),
-      getLuvMemoriesServer(true),
       listLuvResearchServer(),
     ]);
     const soulData = character?.soul_data ?? {};
@@ -56,10 +59,9 @@ export async function POST(request: Request) {
       category: m.category,
       paramCount: Object.keys(m.parameters ?? {}).length,
     }));
-    const memoryItems = memories.map((m) => ({
-      content: m.content,
-      category: m.category,
-    }));
+
+    // Semantic memory retrieval: embed recent conversation context, find relevant memories
+    const memoryItems = await retrieveRelevantMemories(messages);
     const researchSummary = {
       openHypotheses: allResearch.filter((r) => r.kind === 'hypothesis' && r.status === 'open').length,
       activeExperiments: allResearch.filter((r) => r.kind === 'experiment' && r.status === 'active').length,
@@ -119,6 +121,62 @@ export async function POST(request: Request) {
     const message = err instanceof Error ? err.message : 'Unknown error';
     return NextResponse.json({ error: message }, { status: 500 });
   }
+}
+
+/**
+ * Retrieve memories relevant to the current conversation via semantic search.
+ * Falls back to all active memories if embedding/search fails or returns too few.
+ */
+const MEMORY_MATCH_COUNT = 15;
+const MEMORY_MIN_RESULTS = 3;
+const MEMORY_SIMILARITY_THRESHOLD = 0.4;
+
+async function retrieveRelevantMemories(
+  messages: UIMessage[]
+): Promise<Array<{ content: string; category: string }>> {
+  // Extract text from recent messages for context embedding
+  const recentText = messages
+    .slice(-6)
+    .map((m) => {
+      if (Array.isArray(m.parts)) {
+        return m.parts
+          .filter((p): p is { type: 'text'; text: string } => p.type === 'text')
+          .map((p) => p.text)
+          .join(' ');
+      }
+      return '';
+    })
+    .filter(Boolean)
+    .join('\n');
+
+  if (!recentText.trim()) {
+    return fallbackToAllMemories();
+  }
+
+  try {
+    const matches = await searchMemoriesBySimilarityServer(
+      recentText,
+      MEMORY_MATCH_COUNT,
+      MEMORY_SIMILARITY_THRESHOLD
+    );
+
+    if (matches.length >= MEMORY_MIN_RESULTS) {
+      return matches.map((m) => ({ content: m.content, category: m.category }));
+    }
+
+    // Too few semantic results — fall back to all active memories
+    return fallbackToAllMemories();
+  } catch {
+    // Embedding or search failure — fall back gracefully
+    return fallbackToAllMemories();
+  }
+}
+
+async function fallbackToAllMemories(): Promise<
+  Array<{ content: string; category: string }>
+> {
+  const memories = await getLuvMemoriesServer({ activeOnly: true });
+  return memories.map((m) => ({ content: m.content, category: m.category }));
 }
 
 /**

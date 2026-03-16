@@ -332,6 +332,8 @@ export interface LuvMemory {
   category: string;
   source_conversation_id: string | null;
   active: boolean;
+  archived_at: string | null;
+  updated_count: number;
   created_at: string;
   updated_at: string;
   created_by: string | null;
@@ -348,6 +350,31 @@ export type UpdateLuvMemoryInput = Partial<{
   category: string;
   active: boolean;
 }>;
+
+export type LuvMemoryOperationType =
+  | 'create'
+  | 'update'
+  | 'archive'
+  | 'restore'
+  | 'merge'
+  | 'delete';
+
+export interface LuvMemoryOperation {
+  id: string;
+  memory_id: string;
+  operation_type: LuvMemoryOperationType;
+  reason: string | null;
+  metadata: Record<string, unknown>;
+  created_at: string;
+}
+
+/** Result from pgvector similarity search */
+export interface LuvMemoryMatch {
+  id: string;
+  content: string;
+  category: string;
+  similarity: number;
+}
 
 // ============================================================================
 // Research

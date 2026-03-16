@@ -112,6 +112,6 @@ export const LAYER_REGISTRY: Record<
   memory: {
     label: 'Memory',
     priority: 70,
-    description: 'Persistent facts from past conversations (additive only)',
+    description: 'Persistent facts from past conversations with lifecycle management tools',
   },
 };

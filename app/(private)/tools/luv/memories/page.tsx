@@ -2,7 +2,7 @@ import { getLuvMemoriesServer } from '@/lib/luv-server';
 import { MemoryManager } from '../components/memory-manager';
 
 export default async function LuvMemoriesPage() {
-  const memories = await getLuvMemoriesServer();
+  const memories = await getLuvMemoriesServer({ includeArchived: true });
 
   return (
     <div className="container px-4 py-8">

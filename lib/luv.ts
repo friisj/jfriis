@@ -31,6 +31,7 @@ import type {
   LuvMessage,
   CreateLuvMessageInput,
   LuvMemory,
+  LuvMemoryOperation,
   CreateLuvMemoryInput,
   UpdateLuvMemoryInput,
 } from './types/luv';
@@ -594,4 +595,29 @@ export async function deleteLuvMemory(id: string): Promise<void> {
     .eq('id', id);
 
   if (error) throw error;
+}
+
+export async function restoreLuvMemory(id: string): Promise<LuvMemory> {
+  const { data, error } = await (supabase as any)
+    .from('luv_memories')
+    .update({ archived_at: null, active: true, updated_at: new Date().toISOString() })
+    .eq('id', id)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data as LuvMemory;
+}
+
+export async function getLuvMemoryOperations(
+  limit = 30
+): Promise<LuvMemoryOperation[]> {
+  const { data, error } = await (supabase as any)
+    .from('luv_memory_operations')
+    .select('*')
+    .order('created_at', { ascending: false })
+    .limit(limit);
+
+  if (error) throw error;
+  return data as LuvMemoryOperation[];
 }

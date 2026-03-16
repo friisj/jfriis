@@ -684,11 +684,11 @@ export const reviewChassisModule = tool({
 
 export const listMemories = tool({
   description:
-    'List all active memories. Use this to check what you already know before saving a duplicate.',
+    'List all active memories. Use this to check what you already know before saving a duplicate. For a full audit with metadata and operations history, use review_memories instead.',
   inputSchema: zodSchema(z.object({})),
   execute: async () => {
     const { getLuvMemoriesServer } = await import('./luv-server');
-    const memories = await getLuvMemoriesServer(true);
+    const memories = await getLuvMemoriesServer({ activeOnly: true });
     return {
       memories: memories.map((m) => ({
         id: m.id,
@@ -729,6 +729,139 @@ export const saveMemory = tool({
       id: memory.id,
       content: memory.content,
       category: memory.category,
+    };
+  },
+});
+
+// ============================================================================
+// Memory Lifecycle Tools
+// ============================================================================
+
+export const updateMemory = tool({
+  description:
+    'Update an existing memory — change its content or category. Use this when a fact you previously saved needs correction, refinement, or reclassification. Always provide a reason explaining why.',
+  inputSchema: zodSchema(
+    z.object({
+      id: z.string().describe('UUID of the memory to update'),
+      content: z.string().optional().describe('Updated content (the revised fact)'),
+      category: z.string().optional().describe('Updated category'),
+      reason: z.string().describe('Why this memory is being updated'),
+    })
+  ),
+  execute: async ({ id, content, category, reason }) => {
+    const { updateLuvMemoryServer } = await import('./luv-server');
+    const updates: { content?: string; category?: string } = {};
+    if (content) updates.content = content;
+    if (category) updates.category = category;
+    if (Object.keys(updates).length === 0) {
+      return { error: 'Provide at least content or category to update' };
+    }
+    const memory = await updateLuvMemoryServer(id, updates, reason);
+    return {
+      updated: true,
+      id: memory.id,
+      content: memory.content,
+      category: memory.category,
+      updated_count: memory.updated_count,
+    };
+  },
+});
+
+export const archiveMemory = tool({
+  description:
+    'Archive a memory that is no longer relevant or accurate. Archived memories are excluded from the system prompt but can be restored later. Prefer this over deletion — it preserves the audit trail.',
+  inputSchema: zodSchema(
+    z.object({
+      id: z.string().describe('UUID of the memory to archive'),
+      reason: z.string().describe('Why this memory is being archived'),
+    })
+  ),
+  execute: async ({ id, reason }) => {
+    const { archiveLuvMemoryServer } = await import('./luv-server');
+    const memory = await archiveLuvMemoryServer(id, reason);
+    return {
+      archived: true,
+      id: memory.id,
+      content: memory.content,
+    };
+  },
+});
+
+export const mergeMemories = tool({
+  description:
+    'Merge two or more related memories into a single, better-organized memory. The source memories are archived and a new merged memory is created. Use this to consolidate duplicates or combine related facts.',
+  inputSchema: zodSchema(
+    z.object({
+      source_ids: z
+        .array(z.string())
+        .min(2)
+        .describe('UUIDs of the memories to merge (minimum 2)'),
+      merged_content: z
+        .string()
+        .describe('The combined content for the new memory'),
+      category: z
+        .string()
+        .describe('Category for the merged memory'),
+      reason: z
+        .string()
+        .describe('Why these memories are being merged'),
+    })
+  ),
+  execute: async ({ source_ids, merged_content, category, reason }) => {
+    const { mergeLuvMemoriesServer } = await import('./luv-server');
+    const memory = await mergeLuvMemoriesServer(
+      source_ids,
+      merged_content,
+      category,
+      reason
+    );
+    return {
+      merged: true,
+      new_memory_id: memory.id,
+      content: memory.content,
+      category: memory.category,
+      archived_source_ids: source_ids,
+    };
+  },
+});
+
+export const reviewMemories = tool({
+  description:
+    'Review all active memories with full metadata. Use this for self-directed memory audits — to identify stale, duplicate, contradictory, or poorly categorized memories, then act on them with update/archive/merge tools.',
+  inputSchema: zodSchema(z.object({})),
+  execute: async () => {
+    const { getLuvMemoriesServer, getMemoryOperationsServer } = await import(
+      './luv-server'
+    );
+    const [active, archived, recentOps] = await Promise.all([
+      getLuvMemoriesServer({ activeOnly: true }),
+      getLuvMemoriesServer({ includeArchived: true }).then((all) =>
+        all.filter((m) => m.archived_at !== null)
+      ),
+      getMemoryOperationsServer(undefined, 20),
+    ]);
+
+    return {
+      active_memories: active.map((m) => ({
+        id: m.id,
+        content: m.content,
+        category: m.category,
+        updated_count: m.updated_count,
+        created_at: m.created_at,
+        updated_at: m.updated_at,
+      })),
+      archived_count: archived.length,
+      recent_operations: recentOps.map((op) => ({
+        memory_id: op.memory_id,
+        operation: op.operation_type,
+        reason: op.reason,
+        created_at: op.created_at,
+      })),
+      summary: {
+        total_active: active.length,
+        total_archived: archived.length,
+        categories: [...new Set(active.map((m) => m.category))],
+      },
     };
   },
 });
@@ -907,6 +1040,10 @@ export const luvTools = {
   review_chassis_module: reviewChassisModule,
   list_memories: listMemories,
   save_memory: saveMemory,
+  update_memory: updateMemory,
+  archive_memory: archiveMemory,
+  merge_memories: mergeMemories,
+  review_memories: reviewMemories,
   propose_facet_change: proposeFacetChange,
   list_conversations: listConversations,
   read_conversation: readConversation,
