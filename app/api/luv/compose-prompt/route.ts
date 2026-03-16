@@ -43,7 +43,7 @@ export async function POST(request: Request) {
       getLuvCharacterServer(),
       getChassisModulesServer(),
       getChassisModulesBySlugsServer(moduleSlugs),
-      getLuvMemoriesServer(true),
+      getLuvMemoriesServer({ activeOnly: true }),
       listLuvResearchServer(),
     ]);
 

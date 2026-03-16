@@ -227,23 +227,42 @@ export function composeLayers(soulData: LuvSoulData, options?: ComposeOptions): 
 
   // Layer 7: Memory
   const memories = options?.memories;
-  if (memories && memories.length > 0) {
-    const byCategory = new Map<string, string[]>();
-    for (const m of memories) {
-      const cat = m.category || 'general';
-      if (!byCategory.has(cat)) byCategory.set(cat, []);
-      byCategory.get(cat)!.push(m.content);
-    }
+  {
+    const guidancePreamble = [
+      'You have autonomous control over your persistent memory. Beyond saving new memories, you can:',
+      '- **update_memory**: Correct or refine a fact you previously saved',
+      '- **archive_memory**: Remove a stale or inaccurate memory (reversible)',
+      '- **merge_memories**: Consolidate duplicates or related facts into one',
+      '- **review_memories**: Audit your full memory store with metadata',
+      '',
+      'Periodically review your memories for accuracy, relevance, and organization.',
+      'When you notice contradictions, duplicates, or outdated facts — act on them.',
+      'All operations are logged for research purposes.',
+    ].join('\n');
 
     let memoryContent: string;
-    if (byCategory.size === 1) {
-      memoryContent = memories.map((m) => `- ${m.content}`).join('\n');
-    } else {
-      const sections: string[] = [];
-      for (const [cat, items] of byCategory) {
-        sections.push(`**${cat}**\n${items.map((c) => `- ${c}`).join('\n')}`);
+    if (memories && memories.length > 0) {
+      const byCategory = new Map<string, string[]>();
+      for (const m of memories) {
+        const cat = m.category || 'general';
+        if (!byCategory.has(cat)) byCategory.set(cat, []);
+        byCategory.get(cat)!.push(m.content);
       }
-      memoryContent = sections.join('\n\n');
+
+      let factsContent: string;
+      if (byCategory.size === 1) {
+        factsContent = memories.map((m) => `- ${m.content}`).join('\n');
+      } else {
+        const sections: string[] = [];
+        for (const [cat, items] of byCategory) {
+          sections.push(`**${cat}**\n${items.map((c) => `- ${c}`).join('\n')}`);
+        }
+        factsContent = sections.join('\n\n');
+      }
+
+      memoryContent = `${guidancePreamble}\n\n### Active Memories (${memories.length})\n\n${factsContent}`;
+    } else {
+      memoryContent = `${guidancePreamble}\n\nNo memories saved yet.`;
     }
 
     layers.push({
