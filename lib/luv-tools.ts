@@ -684,7 +684,7 @@ export const reviewChassisModule = tool({
 
 export const listMemories = tool({
   description:
-    'List all active memories. Use this to check what you already know before saving a duplicate.',
+    'List all active memories. Use this to check what you already know before saving a duplicate. For a full audit with metadata and operations history, use review_memories instead.',
   inputSchema: zodSchema(z.object({})),
   execute: async () => {
     const { getLuvMemoriesServer } = await import('./luv-server');

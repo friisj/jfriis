@@ -1,5 +1,10 @@
 -- Fix embedding dimension: gemini-embedding-001 produces 3072, not 768
 -- No data loss — no embeddings have been populated yet.
+--
+-- WARNING: Once embeddings are populated, changing the dimension requires
+-- dropping and recreating the column, which destroys all stored vectors.
+-- A model change would need a backfill of every memory. Do not change the
+-- embedding model without planning a full re-embedding migration.
 
 drop index if exists idx_luv_memories_embedding;
 alter table luv_memories drop column if exists embedding;
