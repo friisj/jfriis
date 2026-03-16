@@ -252,12 +252,21 @@ export async function updateLuvMemoryServer(
     }
   }
 
+  // Fetch current updated_count for atomic increment
+  const { data: current, error: fetchError } = await (client as any)
+    .from('luv_memories')
+    .select('updated_count')
+    .eq('id', id)
+    .single();
+
+  if (fetchError) throw fetchError;
+
   const { data, error } = await (client as any)
     .from('luv_memories')
     .update({
       ...updates,
       ...(embedding && { embedding: JSON.stringify(embedding) }),
-      updated_count: (client as any).rpc ? undefined : undefined, // handled below
+      updated_count: (current.updated_count ?? 0) + 1,
       updated_at: new Date().toISOString(),
     })
     .eq('id', id)
@@ -266,15 +275,9 @@ export async function updateLuvMemoryServer(
 
   if (error) throw error;
 
-  // Increment updated_count via raw update
-  await (client as any)
-    .from('luv_memories')
-    .update({ updated_count: (data.updated_count || 0) + 1 })
-    .eq('id', id);
-
   await logMemoryOperationServer(id, 'update', reason, updates);
 
-  return { ...data, updated_count: (data.updated_count || 0) + 1 } as LuvMemory;
+  return data as LuvMemory;
 }
 
 export async function archiveLuvMemoryServer(
@@ -348,10 +351,12 @@ export async function mergeLuvMemoriesServer(
 
   // Archive source memories
   for (const sourceId of sourceIds) {
-    await (client as any)
+    const { error: archiveError } = await (client as any)
       .from('luv_memories')
       .update({ archived_at: new Date().toISOString(), active: false })
       .eq('id', sourceId);
+
+    if (archiveError) throw archiveError;
 
     await logMemoryOperationServer(sourceId, 'merge', reason, {
       merged_into: merged.id,
@@ -410,7 +415,7 @@ export async function getMemoryOperationsServer(
 // Semantic Memory Search
 // ============================================================================
 
-export async function searchMemoriesBySimularityServer(
+export async function searchMemoriesBySimilarityServer(
   queryText: string,
   matchCount = 10,
   similarityThreshold = 0.5

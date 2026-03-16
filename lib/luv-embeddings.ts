@@ -1,8 +1,13 @@
 /**
  * Luv Memory Embeddings
  *
- * Generates and queries vector embeddings for semantic memory retrieval.
- * Uses Google text-embedding-004 (768 dimensions) via Vercel AI SDK.
+ * Generates vector embeddings for semantic memory retrieval.
+ * Model: gemini-embedding-001 (3072 dimensions)
+ *
+ * The DB column dimension (3072) exceeds pgvector's 2000-dim index limit,
+ * so similarity search uses brute-force scan. This is fine for Luv's
+ * expected memory scale (<1000 rows). Changing the dimension requires a
+ * destructive migration once embeddings are populated.
  */
 
 import { embed } from 'ai'

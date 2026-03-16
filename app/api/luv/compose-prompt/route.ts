@@ -38,7 +38,8 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'moduleSlugs required' }, { status: 400 });
     }
 
-    // Load character context (same as chat route)
+    // Load character context — intentionally uses all active memories (not semantic
+    // retrieval like chat/route.ts) because prompt composition is context-agnostic.
     const [character, allModules, scopedModules, memories, allResearch] = await Promise.all([
       getLuvCharacterServer(),
       getChassisModulesServer(),

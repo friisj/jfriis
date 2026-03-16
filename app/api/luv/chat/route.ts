@@ -7,7 +7,7 @@ import { composeSoulSystemPrompt } from '@/lib/luv-prompt-composer';
 import {
   getLuvCharacterServer,
   getLuvMemoriesServer,
-  searchMemoriesBySimularityServer,
+  searchMemoriesBySimilarityServer,
 } from '@/lib/luv-server';
 import { getChassisModulesServer } from '@/lib/luv-chassis-server';
 import { listLuvResearchServer } from '@/lib/luv-research-server';
@@ -154,7 +154,7 @@ async function retrieveRelevantMemories(
   }
 
   try {
-    const matches = await searchMemoriesBySimularityServer(
+    const matches = await searchMemoriesBySimilarityServer(
       recentText,
       MEMORY_MATCH_COUNT,
       MEMORY_SIMILARITY_THRESHOLD
