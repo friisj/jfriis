@@ -11,6 +11,7 @@ import {
 } from '@/lib/luv-server';
 import { getChassisModulesServer } from '@/lib/luv-chassis-server';
 import { listLuvResearchServer } from '@/lib/luv-research-server';
+import { getLuvChangelogServer } from '@/lib/luv-changelog-server';
 import { luvTools, createCurrentContextTool } from '@/lib/luv-tools';
 import { getAnthropic } from '@/lib/ai/providers';
 import { analyzeImageWithGemini, buildGeneralVisionPrompt } from '@/lib/ai/gemini-vision';
@@ -46,11 +47,12 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Messages required' }, { status: 400 });
     }
 
-    // Load soul + chassis modules + research server-side
-    const [character, chassisModules, allResearch] = await Promise.all([
+    // Load soul + chassis modules + research + changelog server-side
+    const [character, chassisModules, allResearch, recentChangelog] = await Promise.all([
       getLuvCharacterServer(),
       getChassisModulesServer(),
       listLuvResearchServer(),
+      getLuvChangelogServer(8),
     ]);
     const soulData = character?.soul_data ?? {};
     const chassisModuleSummaries: ChassisModuleSummary[] = chassisModules.map((m) => ({
@@ -81,6 +83,7 @@ export async function POST(request: Request) {
       chassisModuleSummaries,
       memories: memoryItems,
       research: researchSummary,
+      changelog: recentChangelog,
       processProtocol,
       processState,
       seedContext,

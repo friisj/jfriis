@@ -12,6 +12,7 @@ import { luvResearchTools } from './luv-research-tools';
 import { luvArtifactTools } from './luv-artifact-tools';
 import { luvReviewTools } from './luv-review-tools';
 import { luvPlaygroundTools } from './luv-playground-tools';
+import { luvChangelogTools } from './luv-changelog-tools';
 
 // ============================================================================
 // Read Tools (execute server-side, no approval needed)
@@ -1051,4 +1052,5 @@ export const luvTools = {
   ...luvArtifactTools,
   ...luvReviewTools,
   ...luvPlaygroundTools,
+  ...luvChangelogTools,
 };

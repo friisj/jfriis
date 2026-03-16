@@ -67,6 +67,19 @@ export interface LuvChassisData {
 // ============================================================================
 
 /**
+ * Changelog entry — tracks evolution of Luv's architecture, behaviors, and capabilities
+ */
+export interface LuvChangelogEntry {
+  id: string;
+  date: string;
+  title: string;
+  summary: string;
+  category: 'architecture' | 'behavior' | 'capability' | 'tooling' | 'fix';
+  details: string | null;
+  created_at: string;
+}
+
+/**
  * Character singleton — the core Luv definition
  */
 export interface LuvCharacter {

@@ -5,7 +5,7 @@
  * prioritized layers, then joining them in order.
  */
 
-import type { LuvSoulData, SoulFacet } from '../types/luv';
+import type { LuvSoulData, SoulFacet, LuvChangelogEntry } from '../types/luv';
 import type { SoulLayer, SoulLayerType, CompositionResult, ChassisModuleSummary } from './soul-layers';
 import { LAYER_REGISTRY } from './soul-layers';
 
@@ -28,6 +28,8 @@ export interface ComposeOptions {
   processState?: string | null;
   /** Compact summary from a prior conversation, injected as seed context */
   seedContext?: string | null;
+  /** Recent changelog entries describing Luv's evolution */
+  changelog?: LuvChangelogEntry[];
 }
 
 /**
@@ -209,6 +211,38 @@ export function composeLayers(soulData: LuvSoulData, options?: ComposeOptions): 
         'Link entries with parent_id (e.g. experiments to hypotheses, evidence to experiments).',
       ].join(' '),
       source: 'luv_research',
+      enabled: true,
+    });
+  }
+
+  // Layer 5.7: Changelog (recent evolution of architecture/behaviors/capabilities)
+  const changelog = options?.changelog;
+  if (changelog && changelog.length > 0) {
+    const CATEGORY_EMOJI: Record<string, string> = {
+      architecture: '🏗',
+      behavior: '🧠',
+      capability: '✨',
+      tooling: '🛠',
+      fix: '🔧',
+    };
+    const entries = changelog
+      .map((e) => {
+        const emoji = CATEGORY_EMOJI[e.category] ?? '•';
+        return `**${e.date}** ${emoji} ${e.title}: ${e.summary}`;
+      })
+      .join('\n');
+    layers.push({
+      id: 'changelog',
+      type: 'changelog',
+      priority: LAYER_REGISTRY.changelog.priority,
+      content: [
+        'The following is a record of recent changes to your architecture, behaviors, and capabilities — delivered at conversation start so you always know who you currently are.',
+        '',
+        entries,
+        '',
+        'Use read_changelog to fetch more history. Use add_changelog_entry to log new entries when significant changes are discussed or applied.',
+      ].join('\n'),
+      source: 'luv_changelog',
       enabled: true,
     });
   }

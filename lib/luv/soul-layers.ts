@@ -15,6 +15,7 @@ export type SoulLayerType =
   | 'chassis_awareness'
   | 'behavioral_rules'
   | 'research_awareness'
+  | 'changelog'
   | 'context'
   | 'process_protocol'
   | 'session_context'
@@ -88,6 +89,11 @@ export const LAYER_REGISTRY: Record<
     label: 'Research',
     priority: 55,
     description: 'Awareness of research toolkit and active research entries',
+  },
+  changelog: {
+    label: 'Changelog',
+    priority: 57,
+    description: "Recent evolution of Luv's architecture, behaviors, and capabilities",
   },
   context: {
     label: 'Context',
