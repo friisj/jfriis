@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
-import { createClient } from '@/lib/supabase-server'
+import { createServerClient } from '@supabase/ssr'
 import { verifyAuthentication } from '@/lib/webauthn/server'
 import { generateSessionToken } from '@/lib/webauthn/session'
 
@@ -28,11 +28,35 @@ export async function POST(request: NextRequest) {
     )
   }
 
-  // Step 2: Generate a session token and set auth cookies
+  // Step 2: Generate a session token and exchange for cookies
+  // Use a response-bound Supabase client so Set-Cookie headers are written
+  // directly onto the NextResponse (not via cookies() from next/headers,
+  // which is unreliable in Route Handlers returning NextResponse.json()).
+  const successResponse = NextResponse.json({
+    success: true,
+    redirectTo: '/admin',
+  })
+
   try {
     const tokenHash = await generateSessionToken(email)
 
-    const supabase = await createClient()
+    const supabase = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          getAll() {
+            return request.cookies.getAll()
+          },
+          setAll(cookiesToSet) {
+            cookiesToSet.forEach(({ name, value, options }) => {
+              successResponse.cookies.set(name, value, options)
+            })
+          },
+        },
+      }
+    )
+
     const { error: otpError } = await supabase.auth.verifyOtp({
       token_hash: tokenHash,
       type: 'magiclink',
@@ -53,8 +77,5 @@ export async function POST(request: NextRequest) {
     )
   }
 
-  return NextResponse.json({
-    success: true,
-    redirectTo: '/admin',
-  })
+  return successResponse
 }
