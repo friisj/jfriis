@@ -9,6 +9,8 @@ type PrivateHeaderContextType = {
   setHidden: (hidden: boolean) => void
   hardNavigation: boolean
   setHardNavigation: (hard: boolean) => void
+  mobileNav: React.ReactNode | null
+  setMobileNav: (nav: React.ReactNode | null) => void
 }
 
 const PrivateHeaderContext = createContext<PrivateHeaderContextType | undefined>(undefined)
@@ -17,6 +19,7 @@ export function PrivateHeaderProvider({ children }: { children: React.ReactNode 
   const [actions, setActions] = useState<React.ReactNode | null>(null)
   const [hidden, setHidden] = useState(false)
   const [hardNavigation, setHardNavigation] = useState(false)
+  const [mobileNav, setMobileNav] = useState<React.ReactNode | null>(null)
 
   const value = useMemo(
     () => ({
@@ -26,8 +29,10 @@ export function PrivateHeaderProvider({ children }: { children: React.ReactNode 
       setHidden,
       hardNavigation,
       setHardNavigation,
+      mobileNav,
+      setMobileNav,
     }),
-    [actions, hidden, hardNavigation],
+    [actions, hidden, hardNavigation, mobileNav],
   )
 
   return <PrivateHeaderContext.Provider value={value}>{children}</PrivateHeaderContext.Provider>

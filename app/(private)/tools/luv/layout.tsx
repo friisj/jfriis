@@ -9,13 +9,16 @@ import {
   ResizablePanel,
   ResizableHandle,
 } from '@/components/ui/resizable';
+import { Drawer, DrawerContent, DrawerTitle } from '@/components/ui/drawer';
+import { VisuallyHidden } from '@radix-ui/react-visually-hidden';
 import { cn } from '@/lib/utils';
+import { useIsMobile } from '@/lib/hooks/useIsMobile';
 import { LuvContextNav } from './components/luv-context-nav';
 import { ChatDrawer } from './components/chat-drawer';
 import { LuvChatProvider, useLuvChat } from './components/luv-chat-context';
 
 function LuvHeaderActions() {
-  const { setActions } = usePrivateHeader();
+  const { setActions, setMobileNav } = usePrivateHeader();
   const { chatOpen, setChatOpen } = useLuvChat();
 
   const onChatToggle = useCallback(() => setChatOpen(!chatOpen), [chatOpen, setChatOpen]);
@@ -40,12 +43,19 @@ function LuvHeaderActions() {
     return () => setActions(null);
   }, [chatOpen, onChatToggle, setActions]);
 
+  // Inject sidebar into mobile nav sheet
+  useEffect(() => {
+    setMobileNav(<LuvContextNav />);
+    return () => setMobileNav(null);
+  }, [setMobileNav]);
+
   return null;
 }
 
 function LuvLayoutInner({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const { chatOpen } = useLuvChat();
+  const { chatOpen, setChatOpen } = useLuvChat();
+  const isMobile = useIsMobile();
 
   // Fullscreen chat route — bypass panels, sidebar, and drawer
   if (pathname.startsWith('/tools/luv/chat')) {
@@ -55,21 +65,39 @@ function LuvLayoutInner({ children }: { children: React.ReactNode }) {
   return (
     <>
       <LuvHeaderActions />
-      <div className="flex h-full">
-        <div className="w-60 shrink-0">
+      <div className="flex h-full min-w-0">
+        {/* Desktop sidebar */}
+        <div className="hidden md:block w-60 shrink-0">
           <LuvContextNav />
         </div>
-        <ResizablePanelGroup direction="horizontal" className="flex-1">
-          <ResizablePanel>{children}</ResizablePanel>
-          {chatOpen && (
-            <>
-              <ResizableHandle withHandle />
-              <ResizablePanel defaultSize={30} minSize={20}>
-                <ChatDrawer />
-              </ResizablePanel>
-            </>
-          )}
-        </ResizablePanelGroup>
+
+        {isMobile ? (
+          <>
+            <div className="flex-1 min-w-0 overflow-auto">
+              {children}
+            </div>
+            <Drawer open={chatOpen} onOpenChange={setChatOpen}>
+              <DrawerContent className="h-[85dvh]">
+                <VisuallyHidden><DrawerTitle>Chat</DrawerTitle></VisuallyHidden>
+                <div className="flex-1 min-h-0 overflow-hidden">
+                  <ChatDrawer />
+                </div>
+              </DrawerContent>
+            </Drawer>
+          </>
+        ) : (
+          <ResizablePanelGroup direction="horizontal" className="flex-1">
+            <ResizablePanel>{children}</ResizablePanel>
+            {chatOpen && (
+              <>
+                <ResizableHandle withHandle />
+                <ResizablePanel defaultSize={30} minSize={20}>
+                  <ChatDrawer />
+                </ResizablePanel>
+              </>
+            )}
+          </ResizablePanelGroup>
+        )}
       </div>
     </>
   );
