@@ -12,8 +12,10 @@ import type { LuvChangelogEntry } from '@/lib/types/luv';
  * Fetch recent changelog entries, newest first.
  */
 export async function getLuvChangelogServer(limit = 10): Promise<LuvChangelogEntry[]> {
-  const supabase = createClient();
-  const { data, error } = await supabase
+  const supabase = await createClient();
+  // luv_changelog is not yet in generated types — cast to bypass
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data, error } = await (supabase as any)
     .from('luv_changelog')
     .select('*')
     .order('date', { ascending: false })
@@ -30,8 +32,10 @@ export async function getLuvChangelogServer(limit = 10): Promise<LuvChangelogEnt
 export async function createLuvChangelogEntryServer(
   entry: Omit<LuvChangelogEntry, 'id' | 'created_at'>
 ): Promise<LuvChangelogEntry> {
-  const supabase = createClient();
-  const { data, error } = await supabase
+  const supabase = await createClient();
+  // luv_changelog is not yet in generated types — cast to bypass
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data, error } = await (supabase as any)
     .from('luv_changelog')
     .insert(entry)
     .select()
