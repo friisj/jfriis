@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { isToolUIPart, getToolName } from 'ai';
 import type { UIMessage } from 'ai';
 import { Button } from '@/components/ui/button';
@@ -17,10 +17,11 @@ import {
 } from '@/components/ui/dropdown-menu';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { IconArrowUp, IconBrain, IconChevronDown, IconChevronRight, IconDots, IconPhotoPlus, IconTrash, IconX } from '@tabler/icons-react';
+import { IconArrowUp, IconBrain, IconChevronDown, IconChevronRight, IconDots, IconGitBranch, IconLoader2, IconPhotoPlus, IconSparkles, IconTrash, IconX } from '@tabler/icons-react';
 import { composeLayers } from '@/lib/luv/soul-composer';
 import { LAYER_REGISTRY } from '@/lib/luv/soul-layers';
-import { useLuvChatSession, MODEL_OPTIONS, getMessageText } from './use-luv-chat-session';
+import { useLuvChatSession, MODEL_OPTIONS, getMessageText, type ContextPressure } from './use-luv-chat-session';
+import { useLuvChat } from './luv-chat-context';
 import { ToolCallCard } from './tool-call-card';
 import { ProposalCard } from './proposal-card';
 import { RecentConversations } from './recent-conversations';
@@ -41,6 +42,9 @@ export function ChatDrawer() {
     isActive,
     soulData,
     soulLoaded,
+    contextPressure,
+    resumedConversationId,
+    compactSummary,
     scrollContainerRef,
     messagesEndRef,
     textareaRef,
@@ -52,6 +56,49 @@ export function ChatDrawer() {
     handleClear,
     addFilesFromFileList,
   } = useLuvChatSession();
+
+  const { resumeConversation } = useLuvChat();
+  const [compacting, setCompacting] = useState(false);
+  const [branching, setBranching] = useState(false);
+
+  const handleCompact = useCallback(async () => {
+    if (!resumedConversationId || compacting) return;
+    setCompacting(true);
+    try {
+      const res = await fetch('/api/luv/compact-conversation', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ conversationId: resumedConversationId, modelKey }),
+      });
+      if (!res.ok) throw new Error(await res.text());
+      // Reload the conversation to pick up the new compact_summary
+      resumeConversation(resumedConversationId);
+    } catch (err) {
+      console.error('Compact failed:', err);
+    } finally {
+      setCompacting(false);
+    }
+  }, [resumedConversationId, modelKey, compacting, resumeConversation]);
+
+  const handleBranch = useCallback(async () => {
+    if (!resumedConversationId || branching) return;
+    setBranching(true);
+    try {
+      const res = await fetch('/api/luv/branch-conversation', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ conversationId: resumedConversationId }),
+      });
+      if (!res.ok) throw new Error(await res.text());
+      const { conversationId: newId } = await res.json() as { conversationId: string };
+      handleClear();
+      resumeConversation(newId);
+    } catch (err) {
+      console.error('Branch failed:', err);
+    } finally {
+      setBranching(false);
+    }
+  }, [resumedConversationId, branching, handleClear, resumeConversation]);
 
   const isClaudeModel = modelKey.startsWith('claude-');
 
@@ -92,8 +139,14 @@ export function ChatDrawer() {
       {/* Scroll indicator */}
       <ScrollIndicator scrollContainerRef={scrollContainerRef} messagesEndRef={messagesEndRef} />
 
+      {/* Compact summary seed card — shown when this conversation has seed context */}
+      {compactSummary && messages.length === 0 && (
+        <CompactSeedCard summary={compactSummary} onBranch={handleBranch} branching={branching} />
+      )}
+
       {/* Input */}
       <div className="border-t shrink-0 space-y-1.5">
+        <ContextPressureBar pressure={contextPressure} />
         {/* Pending image thumbnails */}
         {pendingFiles.length > 0 && (
           <div className="flex gap-1.5 flex-wrap">
@@ -160,6 +213,38 @@ export function ChatDrawer() {
                         <IconBrain size={14} className={thinking ? 'text-violet-500 mr-2' : 'mr-2'} />
                         Thinking {thinking ? 'on' : 'off'}
                       </DropdownMenuItem>
+                    </>
+                  )}
+                  {messages.length >= 20 && resumedConversationId && (
+                    <>
+                      <DropdownMenuSeparator />
+                      {!compactSummary ? (
+                        <DropdownMenuItem
+                          className="text-xs"
+                          onClick={handleCompact}
+                          disabled={isActive || compacting}
+                        >
+                          {compacting ? (
+                            <IconLoader2 size={14} className="mr-2 animate-spin" />
+                          ) : (
+                            <IconSparkles size={14} className="mr-2" />
+                          )}
+                          {compacting ? 'Analysing…' : 'Compact conversation'}
+                        </DropdownMenuItem>
+                      ) : (
+                        <DropdownMenuItem
+                          className="text-xs"
+                          onClick={handleBranch}
+                          disabled={isActive || branching}
+                        >
+                          {branching ? (
+                            <IconLoader2 size={14} className="mr-2 animate-spin" />
+                          ) : (
+                            <IconGitBranch size={14} className="mr-2" />
+                          )}
+                          {branching ? 'Branching…' : 'Branch conversation'}
+                        </DropdownMenuItem>
+                      )}
                     </>
                   )}
                   {messages.length > 0 && (
@@ -318,6 +403,86 @@ function MessageBubble({
           return null;
         })}
       </div>
+    </div>
+  );
+}
+
+function CompactSeedCard({
+  summary,
+  onBranch,
+  branching,
+}: {
+  summary: import('@/lib/types/luv').LuvCompactSummary;
+  onBranch: () => void;
+  branching: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="mx-3 mb-2 rounded-lg border border-violet-200 dark:border-violet-800/50 bg-violet-50/50 dark:bg-violet-950/20 text-xs overflow-hidden">
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        className="w-full flex items-center gap-1.5 px-2.5 py-1.5 text-left text-violet-600 dark:text-violet-400 hover:bg-violet-100/50 transition-colors"
+      >
+        <IconSparkles size={12} className="shrink-0" />
+        {open ? <IconChevronDown size={12} className="shrink-0" /> : <IconChevronRight size={12} className="shrink-0" />}
+        <span className="text-[10px] font-medium">Seeded from compacted session</span>
+      </button>
+      {open && (
+        <div className="px-2.5 pb-2.5 space-y-2">
+          <p className="text-[10px] text-violet-700 dark:text-violet-300 leading-relaxed">
+            {summary.carry_forward_summary}
+          </p>
+          {summary.goals.length > 0 && (
+            <div>
+              <p className="text-[10px] font-medium text-violet-600 dark:text-violet-400 mb-0.5">Goals</p>
+              <ul className="text-[10px] text-violet-700 dark:text-violet-300 space-y-0.5 list-disc list-inside">
+                {summary.goals.map((g, i) => <li key={i}>{g}</li>)}
+              </ul>
+            </div>
+          )}
+          {summary.open_threads.length > 0 && (
+            <div>
+              <p className="text-[10px] font-medium text-violet-600 dark:text-violet-400 mb-0.5">Open threads</p>
+              <ul className="text-[10px] text-violet-700 dark:text-violet-300 space-y-0.5 list-disc list-inside">
+                {summary.open_threads.map((t, i) => <li key={i}>{t}</li>)}
+              </ul>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+const PRESSURE_COLORS: Record<string, string> = {
+  medium: 'bg-amber-400',
+  high: 'bg-orange-500',
+  critical: 'bg-red-500',
+};
+
+function ContextPressureBar({ pressure }: { pressure: ContextPressure }) {
+  if (pressure.level === 'low') return null;
+
+  const pct = Math.round(pressure.ratio * 100);
+  const label =
+    pressure.level === 'critical'
+      ? `~${pct}% context used · consider compacting`
+      : pressure.level === 'high'
+        ? `~${pct}% context used`
+        : null;
+
+  return (
+    <div className="relative h-0.5 w-full overflow-hidden" title={`~${pct}% context used`}>
+      <div
+        className={`h-full transition-all duration-500 ${PRESSURE_COLORS[pressure.level] ?? 'bg-muted'}`}
+        style={{ width: `${pct}%` }}
+      />
+      {label && (
+        <span className="absolute right-2 -top-4 text-[9px] text-muted-foreground">
+          {label}
+        </span>
+      )}
     </div>
   );
 }

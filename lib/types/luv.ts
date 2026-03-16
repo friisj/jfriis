@@ -264,6 +264,17 @@ export type UpdateLuvTrainingSetItemInput = Partial<{
 }>;
 
 /**
+ * Structured output from agent-driven compaction.
+ */
+export interface LuvCompactSummary {
+  goals: string[];
+  decisions: string[];
+  important_context: string[];
+  open_threads: string[];
+  carry_forward_summary: string;
+}
+
+/**
  * Conversation — chat sandbox session
  */
 export interface LuvConversation {
@@ -271,6 +282,9 @@ export interface LuvConversation {
   title: string | null;
   soul_snapshot: LuvSoulData;
   model: string;
+  compact_summary: string | null;
+  parent_conversation_id: string | null;
+  is_compacted: boolean;
   created_at: string;
   updated_at: string;
   created_by: string | null;
@@ -280,10 +294,14 @@ export type CreateLuvConversationInput = {
   title?: string;
   soul_snapshot: LuvSoulData;
   model: string;
+  parent_conversation_id?: string;
+  compact_summary?: string;
 };
 
 export type UpdateLuvConversationInput = Partial<{
   title: string | null;
+  compact_summary: string | null;
+  is_compacted: boolean;
 }>;
 
 /**

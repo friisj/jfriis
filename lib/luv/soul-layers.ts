@@ -17,6 +17,7 @@ export type SoulLayerType =
   | 'research_awareness'
   | 'context'
   | 'process_protocol'
+  | 'session_context'
   | 'process_state'
   | 'memory';
 
@@ -97,6 +98,11 @@ export const LAYER_REGISTRY: Record<
     label: 'Process Protocol',
     priority: 65,
     description: 'Page-aware workflow instructions for the current context',
+  },
+  session_context: {
+    label: 'Session Context',
+    priority: 63,
+    description: 'Compact summary from a prior conversation, seeding this session',
   },
   process_state: {
     label: 'Active Processes',

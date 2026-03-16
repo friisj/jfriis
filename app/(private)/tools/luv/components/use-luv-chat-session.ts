@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import { useState, useRef, useEffect, useCallback, useMemo, useDeferredValue } from 'react';
 import { useChat } from '@ai-sdk/react';
 import { DefaultChatTransport } from 'ai';
 import type { UIMessage, FileUIPart } from 'ai';
@@ -10,6 +10,7 @@ import {
   getLuvConversation,
   getLuvMessages,
 } from '@/lib/luv';
+import type { LuvCompactSummary } from '@/lib/types/luv';
 import { useLuvChat } from './luv-chat-context';
 
 export const MODEL_OPTIONS = [
@@ -27,6 +28,25 @@ export function getMessageText(msg: UIMessage): string {
     .join('');
 }
 
+// ~600k chars ≈ practical message budget for Claude Sonnet (200k token window minus system prompt)
+const CONTEXT_CHAR_BUDGET = 600_000;
+
+export type ContextPressureLevel = 'low' | 'medium' | 'high' | 'critical';
+
+export interface ContextPressure {
+  ratio: number;
+  level: ContextPressureLevel;
+  charCount: number;
+}
+
+export function computeContextPressure(messages: UIMessage[]): ContextPressure {
+  const charCount = messages.reduce((sum, m) => sum + getMessageText(m).length, 0);
+  const ratio = Math.min(charCount / CONTEXT_CHAR_BUDGET, 1);
+  const level: ContextPressureLevel =
+    ratio >= 0.85 ? 'critical' : ratio >= 0.65 ? 'high' : ratio >= 0.4 ? 'medium' : 'low';
+  return { ratio, level, charCount };
+}
+
 export function useLuvChatSession() {
   const { activeConversationId, clearActiveConversation, soulData, soulLoaded, pageContext } =
     useLuvChat();
@@ -34,6 +54,8 @@ export function useLuvChatSession() {
   const [modelKey, setModelKey] = useState('claude-sonnet');
   const [thinking, setThinking] = useState(false);
   const [resumedConversationId, setResumedConversationId] = useState<string | null>(null);
+  const [seedContext, setSeedContext] = useState<string | null>(null);
+  const [compactSummary, setCompactSummary] = useState<LuvCompactSummary | null>(null);
   const [input, setInput] = useState('');
   const [pendingFiles, setPendingFiles] = useState<FileUIPart[]>([]);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -52,10 +74,11 @@ export function useLuvChatSession() {
           modelKey,
           pageContext,
           thinking,
+          seedContext,
         },
       }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [modelKey, thinking, pageContext.pathname, pageDataKey]
+    [modelKey, thinking, pageContext.pathname, pageDataKey, seedContext]
   );
 
   const { messages, sendMessage, setMessages, status, error } = useChat({
@@ -78,6 +101,19 @@ export function useLuvChatSession() {
         setModelKey(conv.model);
         setResumedConversationId(activeConversationId);
 
+        // Load compact summary as seed context if present
+        if (conv.compact_summary) {
+          setSeedContext(conv.compact_summary);
+          try {
+            setCompactSummary(JSON.parse(conv.compact_summary) as LuvCompactSummary);
+          } catch {
+            setCompactSummary(null);
+          }
+        } else {
+          setSeedContext(null);
+          setCompactSummary(null);
+        }
+
         const uiMessages: UIMessage[] = msgs
           .filter((m) => m.role === 'user' || m.role === 'assistant')
           .map((m) => ({
@@ -97,6 +133,13 @@ export function useLuvChatSession() {
   }, [activeConversationId, resumedConversationId, setMessages]);
 
   const isActive = status === 'streaming' || status === 'submitted';
+
+  // Deferred so pressure updates don't block streaming renders
+  const deferredMessages = useDeferredValue(messages);
+  const contextPressure = useMemo(
+    () => computeContextPressure(deferredMessages),
+    [deferredMessages]
+  );
   const prevStatusRef = useRef(status);
   const savingRef = useRef(false);
 
@@ -291,6 +334,8 @@ export function useLuvChatSession() {
     setInput('');
     setPendingFiles([]);
     setResumedConversationId(null);
+    setSeedContext(null);
+    setCompactSummary(null);
     clearActiveConversation();
   }, [setMessages, clearActiveConversation]);
 
@@ -315,6 +360,9 @@ export function useLuvChatSession() {
     messagesEndRef,
     textareaRef,
     fileInputRef,
+    contextPressure,
+    resumedConversationId,
+    compactSummary,
     // Actions
     handleSend,
     handleKeyDown,
