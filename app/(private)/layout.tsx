@@ -94,16 +94,16 @@ function PrivateHeader() {
 
           {/* Breadcrumb trail */}
           <nav className="flex flex-col border-b">
-            <Link
+            <NavLink
               href="/"
               onClick={() => setSheetOpen(false)}
               className="px-4 py-2.5 text-sm text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
             >
               Home
-            </Link>
+            </NavLink>
             {segments.map((segment, index) => (
-              <Link
-                key={index}
+              <NavLink
+                key={buildHref(index)}
                 href={buildHref(index)}
                 onClick={() => setSheetOpen(false)}
                 className={`px-4 py-2.5 text-sm transition-colors ${
@@ -114,7 +114,7 @@ function PrivateHeader() {
                 style={{ paddingLeft: `${(index + 2) * 12}px` }}
               >
                 {formatSegment(segment, index)}
-              </Link>
+              </NavLink>
             ))}
           </nav>
 

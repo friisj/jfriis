@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useCallback } from 'react';
+import { useEffect, useCallback, useRef, useState } from 'react';
 import { usePathname } from 'next/navigation';
 import { IconMessage } from '@tabler/icons-react';
 import { usePrivateHeader } from '@/components/layout/private-header-context';
@@ -56,10 +56,41 @@ function LuvLayoutInner({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const { chatOpen, setChatOpen } = useLuvChat();
   const isMobile = useIsMobile();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => setMounted(true), []);
+
+  // Close chat when viewport crosses the breakpoint to prevent
+  // desktop ResizablePanel appearing after a mobile Drawer session
+  const prevIsMobile = useRef(isMobile);
+  useEffect(() => {
+    if (prevIsMobile.current !== isMobile) {
+      setChatOpen(false);
+      prevIsMobile.current = isMobile;
+    }
+  }, [isMobile, setChatOpen]);
 
   // Fullscreen chat route — bypass panels, sidebar, and drawer
   if (pathname.startsWith('/tools/luv/chat')) {
     return <>{children}</>;
+  }
+
+  // Render a stable shell until useIsMobile resolves to avoid
+  // hydration mismatch and child remount flash
+  if (!mounted) {
+    return (
+      <>
+        <LuvHeaderActions />
+        <div className="flex h-full min-w-0">
+          <div className="hidden md:block w-60 shrink-0">
+            <LuvContextNav />
+          </div>
+          <div className="flex-1 min-w-0 overflow-auto">
+            {children}
+          </div>
+        </div>
+      </>
+    );
   }
 
   return (
