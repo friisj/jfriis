@@ -463,13 +463,17 @@ export async function getLuvConversation(
 export async function createLuvConversation(
   input: CreateLuvConversationInput
 ): Promise<LuvConversation> {
+  const row: Record<string, unknown> = {
+    title: input.title || null,
+    soul_snapshot: input.soul_snapshot,
+    model: input.model,
+  };
+  if (input.parent_conversation_id) row.parent_conversation_id = input.parent_conversation_id;
+  if (input.compact_summary) row.compact_summary = input.compact_summary;
+
   const { data, error } = await (supabase as any)
     .from('luv_conversations')
-    .insert({
-      title: input.title || null,
-      soul_snapshot: input.soul_snapshot,
-      model: input.model,
-    })
+    .insert(row)
     .select()
     .single();
 
@@ -521,13 +525,16 @@ export async function getLuvMessages(
 export async function createLuvMessage(
   input: CreateLuvMessageInput
 ): Promise<LuvMessage> {
+  const row: Record<string, unknown> = {
+    conversation_id: input.conversation_id,
+    role: input.role,
+    content: input.content,
+  };
+  if (input.parts) row.parts = input.parts;
+
   const { data, error } = await (supabase as any)
     .from('luv_messages')
-    .insert({
-      conversation_id: input.conversation_id,
-      role: input.role,
-      content: input.content,
-    })
+    .insert(row)
     .select()
     .single();
 

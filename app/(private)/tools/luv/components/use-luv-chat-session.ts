@@ -21,15 +21,24 @@ export const MODEL_OPTIONS = [
   { key: 'gemini-flash', label: 'Gemini', vision: true },
 ];
 
+/** Model context window sizes in tokens */
+const MODEL_TOKEN_BUDGETS: Record<string, number> = {
+  'claude-sonnet': 200_000,
+  'claude-haiku': 200_000,
+  'claude-opus': 200_000,
+  'gpt-4o': 128_000,
+  'gemini-flash': 1_000_000,
+};
+
+/** Estimated system prompt overhead in tokens (soul, chassis, memory, research, changelog, tools) */
+const SYSTEM_PROMPT_OVERHEAD_TOKENS = 8_000;
+
 export function getMessageText(msg: UIMessage): string {
   return msg.parts
     .filter((p): p is { type: 'text'; text: string } => p.type === 'text')
     .map((p) => p.text)
     .join('');
 }
-
-// ~600k chars ≈ practical message budget for Claude Sonnet (200k token window minus system prompt)
-const CONTEXT_CHAR_BUDGET = 600_000;
 
 export type ContextPressureLevel = 'low' | 'medium' | 'high' | 'critical';
 
@@ -39,12 +48,50 @@ export interface ContextPressure {
   charCount: number;
 }
 
-export function computeContextPressure(messages: UIMessage[]): ContextPressure {
+export function computeContextPressure(messages: UIMessage[], modelKey: string): ContextPressure {
   const charCount = messages.reduce((sum, m) => sum + getMessageText(m).length, 0);
-  const ratio = Math.min(charCount / CONTEXT_CHAR_BUDGET, 1);
+  const tokenBudget = MODEL_TOKEN_BUDGETS[modelKey] ?? 200_000;
+  // ~4 chars per token; subtract system prompt overhead
+  const availableTokens = tokenBudget - SYSTEM_PROMPT_OVERHEAD_TOKENS;
+  const charBudget = availableTokens * 4;
+  const ratio = Math.min(charCount / charBudget, 1);
   const level: ContextPressureLevel =
     ratio >= 0.85 ? 'critical' : ratio >= 0.65 ? 'high' : ratio >= 0.4 ? 'medium' : 'low';
   return { ratio, level, charCount };
+}
+
+/**
+ * Serialize UIMessage parts to a JSON-safe array for database storage.
+ * Strips non-serializable data (functions, blobs) and keeps text, tool calls, and reasoning.
+ */
+function serializeParts(msg: UIMessage): object[] | null {
+  const hasNonText = msg.parts.some((p) => p.type !== 'text');
+  if (!hasNonText) return null; // plain text — content column is sufficient
+
+  return msg.parts.map((p) => {
+    if (p.type === 'text') return { type: 'text', text: (p as { text: string }).text };
+    // Preserve tool-invocation, reasoning, and other structured parts
+    return { ...p };
+  });
+}
+
+/**
+ * Deserialize stored message parts back to UIMessage format.
+ * Falls back to plain text if parts is null.
+ */
+function deserializeMessage(m: { id: string; role: string; content: string; parts?: object[] | null }): UIMessage {
+  if (m.parts && Array.isArray(m.parts) && m.parts.length > 0) {
+    return {
+      id: m.id,
+      role: m.role as 'user' | 'assistant',
+      parts: m.parts as UIMessage['parts'],
+    };
+  }
+  return {
+    id: m.id,
+    role: m.role as 'user' | 'assistant',
+    parts: [{ type: 'text' as const, text: m.content }],
+  };
 }
 
 export function useLuvChatSession() {
@@ -89,17 +136,19 @@ export function useLuvChatSession() {
   useEffect(() => {
     if (!activeConversationId || activeConversationId === resumedConversationId) return;
 
+    // Capture the ID we're loading — used for staleness check
+    const targetId = activeConversationId;
     let cancelled = false;
+
     (async () => {
       try {
         const [conv, msgs] = await Promise.all([
-          getLuvConversation(activeConversationId),
-          getLuvMessages(activeConversationId),
+          getLuvConversation(targetId),
+          getLuvMessages(targetId),
         ]);
         if (cancelled) return;
 
         setModelKey(conv.model);
-        setResumedConversationId(activeConversationId);
 
         // Load compact summary as seed context if present
         if (conv.compact_summary) {
@@ -116,13 +165,12 @@ export function useLuvChatSession() {
 
         const uiMessages: UIMessage[] = msgs
           .filter((m) => m.role === 'user' || m.role === 'assistant')
-          .map((m) => ({
-            id: m.id,
-            role: m.role as 'user' | 'assistant',
-            parts: [{ type: 'text' as const, text: m.content }],
-            createdAt: new Date(m.created_at),
-          }));
+          .map((m) => deserializeMessage(m));
+
+        if (cancelled) return;
         setMessages(uiMessages);
+        // Set resumedConversationId last — after messages are loaded
+        setResumedConversationId(targetId);
       } catch (err) {
         console.error('Failed to load conversation:', err);
       }
@@ -137,8 +185,8 @@ export function useLuvChatSession() {
   // Deferred so pressure updates don't block streaming renders
   const deferredMessages = useDeferredValue(messages);
   const contextPressure = useMemo(
-    () => computeContextPressure(deferredMessages),
-    [deferredMessages]
+    () => computeContextPressure(deferredMessages, modelKey),
+    [deferredMessages, modelKey]
   );
   const prevStatusRef = useRef(status);
   const savingRef = useRef(false);
@@ -155,19 +203,10 @@ export function useLuvChatSession() {
     savingRef.current = true;
     (async () => {
       try {
-        if (resumedConversationId) {
-          const existingMsgs = await getLuvMessages(resumedConversationId);
-          const existingIds = new Set(existingMsgs.map((m) => m.id));
-          for (const msg of messages) {
-            if ((msg.role === 'user' || msg.role === 'assistant') && !existingIds.has(msg.id)) {
-              await createLuvMessage({
-                conversation_id: resumedConversationId,
-                role: msg.role,
-                content: getMessageText(msg),
-              });
-            }
-          }
-        } else {
+        let convId = resumedConversationId;
+
+        if (!convId) {
+          // Create new conversation
           const firstUserMsg = messages.find((m) => m.role === 'user');
           const firstText = firstUserMsg ? getMessageText(firstUserMsg) : '';
           const title = firstText
@@ -179,18 +218,27 @@ export function useLuvChatSession() {
             soul_snapshot: soulData,
             model: modelKey,
           });
+          convId = conversation.id;
+        }
 
-          setResumedConversationId(conversation.id);
+        // Fetch existing message IDs to deduplicate
+        const existingMsgs = await getLuvMessages(convId);
+        const existingIds = new Set(existingMsgs.map((m) => m.id));
 
-          for (const msg of messages) {
-            if (msg.role === 'user' || msg.role === 'assistant') {
-              await createLuvMessage({
-                conversation_id: conversation.id,
-                role: msg.role,
-                content: getMessageText(msg),
-              });
-            }
+        for (const msg of messages) {
+          if ((msg.role === 'user' || msg.role === 'assistant') && !existingIds.has(msg.id)) {
+            await createLuvMessage({
+              conversation_id: convId,
+              role: msg.role,
+              content: getMessageText(msg),
+              parts: serializeParts(msg),
+            });
           }
+        }
+
+        // Set resumedConversationId AFTER all messages are inserted
+        if (!resumedConversationId) {
+          setResumedConversationId(convId);
         }
       } catch (err) {
         console.error('Failed to auto-save conversation:', err);
