@@ -69,7 +69,6 @@ export function CircularSequencer({
 
   return (
     <div className="space-y-1.5">
-      <h3 className="text-[10px] text-zinc-500 uppercase tracking-wider">Sequencer</h3>
       <div className="w-full max-w-sm mx-auto">
         <svg viewBox={`0 0 ${size} ${size}`} className="w-full h-auto overflow-visible">
           {/* Connection ring */}

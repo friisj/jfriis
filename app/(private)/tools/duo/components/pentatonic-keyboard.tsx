@@ -27,7 +27,6 @@ export function PentatonicKeyboard({ transpose, onNotePress, activeNote }: Penta
 
   return (
     <div className="space-y-1.5">
-      <h3 className="text-[10px] text-zinc-500 uppercase tracking-wider">Keyboard</h3>
       <div className="grid grid-cols-5 gap-1.5">
         {notes.map((note, i) => (
           <button
@@ -35,7 +34,7 @@ export function PentatonicKeyboard({ transpose, onNotePress, activeNote }: Penta
             type="button"
             onClick={() => onNotePress(note)}
             className={cn(
-              'h-10 rounded-lg text-[10px] font-bold text-white/90 shadow-sm',
+              'h-20 rounded-lg text-sm font-mono font-bold text-background shadow-sm',
               'transition-all duration-75 active:scale-95 active:shadow-none',
               'focus-visible:ring-2 focus-visible:ring-amber-400/50 outline-none',
               KEY_COLORS[i],

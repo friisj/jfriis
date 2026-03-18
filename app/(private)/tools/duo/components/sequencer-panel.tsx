@@ -41,25 +41,10 @@ export function SequencerPanel({
   const activeNote = state.steps[state.currentStep]?.note ?? null;
 
   return (
-    <div className="flex flex-col gap-5 p-4">
-      <CircularSequencer
-        steps={state.steps}
-        currentStep={state.currentStep}
-        playing={state.playing}
-        inputStep={inputStep}
-        onToggleStep={onToggleStep}
-        onSelectStep={onSelectStep}
-        onPlay={onPlay}
-        onStop={onStop}
-      />
+    <div className="flex flex-col p-4 h-full gap-4">
 
-      <PentatonicKeyboard
-        transpose={state.transpose}
-        onNotePress={onNotePress}
-        activeNote={state.playing ? activeNote : undefined}
-      />
 
-      <div className="space-y-3">
+      <div className="space-y-3 flex-1 flex flex-col justify-between">
         {/* Speed & Length knobs */}
         <div className="flex items-center justify-center gap-4">
           <DuoKnob
@@ -95,33 +80,6 @@ export function SequencerPanel({
           />
         </div>
 
-        {/* Pitch + Random + Boost buttons */}
-        <div className="flex items-center justify-center gap-2">
-          <button
-            type="button"
-            onClick={() => onTranspose(-1)}
-            className="h-8 px-3 rounded-lg bg-zinc-800 text-zinc-300 text-xs font-medium
-                       hover:bg-zinc-700 active:bg-zinc-600 transition-colors
-                       focus-visible:ring-2 focus-visible:ring-amber-400/50 outline-none"
-            aria-label="Pitch down"
-          >
-            Pitch -
-          </button>
-          <span className="text-[10px] font-mono text-zinc-500 w-6 text-center">
-            {state.transpose > 0 ? `+${state.transpose}` : state.transpose}
-          </span>
-          <button
-            type="button"
-            onClick={() => onTranspose(1)}
-            className="h-8 px-3 rounded-lg bg-zinc-800 text-zinc-300 text-xs font-medium
-                       hover:bg-zinc-700 active:bg-zinc-600 transition-colors
-                       focus-visible:ring-2 focus-visible:ring-amber-400/50 outline-none"
-            aria-label="Pitch up"
-          >
-            Pitch +
-          </button>
-        </div>
-
         <div className="flex items-center justify-center gap-2">
           <button
             type="button"
@@ -144,6 +102,23 @@ export function SequencerPanel({
             Boost
           </button>
         </div>
+      </div>
+      <CircularSequencer
+        steps={state.steps}
+        currentStep={state.currentStep}
+        playing={state.playing}
+        inputStep={inputStep}
+        onToggleStep={onToggleStep}
+        onSelectStep={onSelectStep}
+        onPlay={onPlay}
+        onStop={onStop}
+      />
+      <div className="flex-1 flex flex-col justify-end">
+        <PentatonicKeyboard
+          transpose={state.transpose}
+          onNotePress={onNotePress}
+          activeNote={state.playing ? activeNote : undefined}
+        />
       </div>
     </div>
   );
