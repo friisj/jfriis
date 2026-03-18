@@ -7,7 +7,7 @@ export const metadata = {
 
 export default function DuoPage() {
   return (
-    <div className="h-full relative">
+    <div className="h-[calc(100vh-3rem)]">
       <DuoClient />
     </div>
   );
