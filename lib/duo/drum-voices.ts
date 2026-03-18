@@ -232,7 +232,7 @@ function createSnareRim(): DrumVoiceInstance {
     modulationIndex: 4,
     resonance: 3000,
     octaves: 0.5,
-    volume: -8,
+    volume: -2,
   });
   return {
     trigger: (v) => synth.triggerAttackRelease('32n', Tone.now(), v),
@@ -280,7 +280,7 @@ function createSnareSnappy(): DrumVoiceInstance {
   const body = new Tone.MembraneSynth({
     pitchDecay: 0.01, octaves: 2,
     envelope: { attack: 0.001, decay: 0.08, sustain: 0, release: 0.02 },
-    volume: -6,
+    volume: -2,
   });
   const snap = new Tone.NoiseSynth({
     noise: { type: 'white' },
@@ -323,7 +323,7 @@ function createSnareRing(): DrumVoiceInstance {
     modulationIndex: 8,
     resonance: 2000,
     octaves: 1.5,
-    volume: -8,
+    volume: -2,
   });
   return {
     trigger: (v) => synth.triggerAttackRelease('16n', Tone.now(), v),
@@ -342,7 +342,7 @@ function createHatClosed(): DrumVoiceInstance {
     modulationIndex: 16,
     resonance: 5000,
     octaves: 1,
-    volume: -6,
+    volume: -2,
   });
   synth.frequency.value = 300;
   return {
@@ -361,7 +361,7 @@ function createHatOpen(): DrumVoiceInstance {
     modulationIndex: 16,
     resonance: 5000,
     octaves: 1,
-    volume: -6,
+    volume: -2,
   });
   synth.frequency.value = 300;
   return {
@@ -396,7 +396,7 @@ function createHatMetallic(): DrumVoiceInstance {
     modulationIndex: 32,
     resonance: 8000,
     octaves: 2,
-    volume: -8,
+    volume: -2,
   });
   synth.frequency.value = 400;
   return {
@@ -434,7 +434,7 @@ function createHatElectro(): DrumVoiceInstance {
     modulationIndex: 24,
     resonance: 6000,
     octaves: 1.5,
-    volume: -6,
+    volume: -2,
   });
   synth.frequency.value = 500;
   return {
@@ -453,7 +453,7 @@ function createHatPedal(): DrumVoiceInstance {
     modulationIndex: 10,
     resonance: 4000,
     octaves: 0.5,
-    volume: -6,
+    volume: -2,
   });
   synth.frequency.value = 250;
   return {
@@ -472,7 +472,7 @@ function createHatTrash(): DrumVoiceInstance {
     modulationIndex: 40,
     resonance: 3000,
     octaves: 3,
-    volume: -8,
+    volume: -2,
   });
   const crush = new Tone.BitCrusher(4);
   synth.connect(crush);
@@ -494,7 +494,7 @@ function createPercCowbell(): DrumVoiceInstance {
     modulationIndex: 10,
     resonance: 800,
     octaves: 0.5,
-    volume: -6,
+    volume: -2,
   });
   synth.frequency.value = 560;
   return {
@@ -513,7 +513,7 @@ function createPercClave(): DrumVoiceInstance {
     modulationIndex: 2,
     resonance: 2500,
     octaves: 0.3,
-    volume: -4,
+    volume: -2,
   });
   synth.frequency.value = 800;
   return {

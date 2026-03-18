@@ -42,12 +42,6 @@ export function SequencerPanel({
 
   return (
     <div className="flex flex-col gap-5 p-4">
-      <PentatonicKeyboard
-        transpose={state.transpose}
-        onNotePress={onNotePress}
-        activeNote={state.playing ? activeNote : undefined}
-      />
-
       <CircularSequencer
         steps={state.steps}
         currentStep={state.currentStep}
@@ -57,6 +51,12 @@ export function SequencerPanel({
         onSelectStep={onSelectStep}
         onPlay={onPlay}
         onStop={onStop}
+      />
+
+      <PentatonicKeyboard
+        transpose={state.transpose}
+        onNotePress={onNotePress}
+        activeNote={state.playing ? activeNote : undefined}
       />
 
       <div className="space-y-3">

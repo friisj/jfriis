@@ -15,8 +15,8 @@ interface CircularSequencerProps {
   onStop: () => void;
 }
 
-const RADIUS = 60;
-const LED_RADIUS = 12;
+const RADIUS = 85;
+const LED_RADIUS = 16;
 
 function stepPosition(index: number, total: number) {
   // Start from top (-90°), go clockwise
@@ -70,8 +70,8 @@ export function CircularSequencer({
   return (
     <div className="space-y-1.5">
       <h3 className="text-[10px] text-zinc-500 uppercase tracking-wider">Sequencer</h3>
-      <div className="flex justify-center">
-        <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="overflow-visible">
+      <div className="w-full max-w-sm mx-auto">
+        <svg viewBox={`0 0 ${size} ${size}`} className="w-full h-auto overflow-visible">
           {/* Connection ring */}
           <circle
             cx={center}
@@ -143,7 +143,7 @@ export function CircularSequencer({
                   textAnchor="middle"
                   dominantBaseline="central"
                   className={cn(
-                    'text-[8px] font-mono pointer-events-none select-none',
+                    'text-[10px] font-mono pointer-events-none select-none',
                     isCurrent ? 'fill-zinc-900' : !step.active ? 'fill-zinc-600' : isInput ? 'fill-purple-200' : 'fill-zinc-300',
                   )}
                 >

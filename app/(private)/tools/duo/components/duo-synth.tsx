@@ -121,6 +121,7 @@ export function DuoSynth() {
   const [initialized, setInitialized] = useState(false);
   const [inputStep, setInputStep] = useState(0);
   const [presetIndex, setPresetIndex] = useState(0);
+  const [helpOpen, setHelpOpen] = useState(false);
   const engineRef = useRef<DuoEngine | null>(null);
   const transportRef = useRef<DuoSequencerTransport | null>(null);
   const initPromiseRef = useRef<Promise<void> | null>(null);
@@ -345,7 +346,7 @@ export function DuoSynth() {
             Drums
           </button>
         </div>
-        <div className="flex items-center justify-end gap-4 px-4 py-1.5 flex-1">
+        <div className="flex items-center justify-end gap-4 px-4 py-1.5 flex-1 relative">
           <div className="flex items-center gap-4">
             <span className="text-[10px] font-mono text-zinc-500">
               {state.sequencer.playing ? 'Playing' : 'Stopped'}
@@ -359,6 +360,44 @@ export function DuoSynth() {
               {Math.round(state.sequencer.bpm)} BPM
             </span>
           </div>
+          <button
+            type="button"
+            onClick={() => setHelpOpen(!helpOpen)}
+            className="w-6 h-6 rounded-full text-[10px] font-bold
+                       bg-zinc-800 text-zinc-500 hover:text-zinc-300 hover:bg-zinc-700
+                       transition-colors focus-visible:ring-2 focus-visible:ring-amber-400/50 outline-none"
+            aria-label="How to use DUO"
+            aria-expanded={helpOpen}
+          >
+            ?
+          </button>
+          {helpOpen && (
+            <div
+              className="absolute right-4 top-full mt-1 z-20 w-64 p-3 rounded-lg
+                         bg-zinc-800 border border-zinc-700 shadow-xl text-[11px] text-zinc-300 space-y-2"
+              role="tooltip"
+            >
+              <p className="font-medium text-zinc-100">Sequencer</p>
+              <ul className="space-y-1.5 text-zinc-400">
+                <li><span className="text-purple-400">Tap a step</span> to select it as the input target (purple ring).</li>
+                <li><span className="text-amber-400">Press a key</span> on the keyboard to assign a note &mdash; the cursor advances automatically.</li>
+                <li><span className="text-zinc-300">Long-press a step</span> to mute/unmute it (dimmed = muted).</li>
+                <li>Centre button toggles <span className="text-amber-400">play/stop</span>.</li>
+              </ul>
+              <hr className="border-zinc-700" />
+              <p className="font-medium text-zinc-100">Drums</p>
+              <ul className="space-y-1.5 text-zinc-400">
+                <li><span className="text-zinc-300">Tap a cell</span> in the grid to toggle that step on/off.</li>
+                <li><span className="text-zinc-300">Hold a pad label</span> to retrigger that voice every step while held.</li>
+                <li><span className="text-zinc-300">Random</span>: tap to shift pattern, hold to flip random steps.</li>
+              </ul>
+              <hr className="border-zinc-700" />
+              <p className="font-medium text-zinc-100">Knobs</p>
+              <ul className="space-y-1.5 text-zinc-400">
+                <li><span className="text-zinc-300">Drag up/down</span> to adjust. Value shows below each knob.</li>
+              </ul>
+            </div>
+          )}
         </div>
       </div>
 
