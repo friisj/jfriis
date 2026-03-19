@@ -2,6 +2,7 @@
 
 import { useRef, useCallback } from 'react';
 import { cn } from '@/lib/utils';
+import { IconDice5Filled, IconBoltFilled } from '@tabler/icons-react';
 import type { DuoStep } from '@/lib/duo/types';
 
 interface CircularSequencerProps {
@@ -162,23 +163,12 @@ export function CircularSequencer({
           })}
 
           {/* Random button (left of center) */}
-          <g
-            className="cursor-pointer"
-            onClick={onRandomize}
-            role="button"
-            aria-label="Randomize sequence"
-            tabIndex={0}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' || e.key === ' ') {
-                e.preventDefault();
-                onRandomize();
-              }
-            }}
-          >
+          <g className="cursor-pointer" onClick={onRandomize} role="button" aria-label="Randomize sequence" tabIndex={0}
+            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onRandomize(); } }}>
             <circle cx={center - SIDE_OFFSET} cy={center} r={SIDE_R} className="fill-purple-900/80 stroke-purple-600/60" strokeWidth={1} />
-            {/* Dice icon — two dots */}
-            <circle cx={center - SIDE_OFFSET - 3} cy={center - 3} r={1.5} className="fill-purple-300" />
-            <circle cx={center - SIDE_OFFSET + 3} cy={center + 3} r={1.5} className="fill-purple-300" />
+            <foreignObject x={center - SIDE_OFFSET - 8} y={center - 8} width={16} height={16} className="pointer-events-none">
+              <IconDice5Filled size={16} className="text-purple-300" />
+            </foreignObject>
           </g>
 
           {/* Center play/stop button */}
@@ -216,21 +206,13 @@ export function CircularSequencer({
           </g>
 
           {/* Boost button (right of center) — hold to 2x speed */}
-          <g
-            className="cursor-pointer select-none"
-            onPointerDown={onBoostDown}
-            onPointerUp={onBoostUp}
-            onPointerLeave={onBoostUp}
-            role="button"
-            aria-label="Hold to boost tempo 2x"
-            tabIndex={0}
-          >
+          <g className="cursor-pointer select-none"
+            onPointerDown={onBoostDown} onPointerUp={onBoostUp} onPointerLeave={onBoostUp}
+            role="button" aria-label="Hold to boost tempo 2x" tabIndex={0}>
             <circle cx={center + SIDE_OFFSET} cy={center} r={SIDE_R} className="fill-amber-900/80 stroke-amber-600/60" strokeWidth={1} />
-            {/* Lightning bolt icon */}
-            <path
-              d={`M ${center + SIDE_OFFSET - 2} ${center - 6} L ${center + SIDE_OFFSET - 4} ${center + 1} L ${center + SIDE_OFFSET} ${center - 1} L ${center + SIDE_OFFSET + 2} ${center + 6} L ${center + SIDE_OFFSET + 4} ${center - 1} L ${center + SIDE_OFFSET} ${center + 1} Z`}
-              className="fill-amber-400"
-            />
+            <foreignObject x={center + SIDE_OFFSET - 8} y={center - 8} width={16} height={16} className="pointer-events-none">
+              <IconBoltFilled size={16} className="text-amber-400" />
+            </foreignObject>
           </g>
         </svg>
       </div>
