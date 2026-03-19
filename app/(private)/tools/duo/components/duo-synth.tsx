@@ -5,6 +5,7 @@ import { SequencerPanel } from './sequencer-panel';
 import { SynthPanel } from './synth-panel';
 import { DuoEngine } from '@/lib/duo/engine';
 import { DrumPanel } from './drum-panel';
+import { KnobSizeProvider } from './knob-size-context';
 import { DuoSequencerTransport, createInitialSequencerState, createInitialDrumState, randomizeSteps, randomizeDrumSteps, randomOffsetDrumSteps, randomFlipDrumSteps } from '@/lib/duo/sequencer';
 import { PRESETS, DEFAULT_SYNTH } from '@/lib/duo/presets';
 import type { DuoState, DuoAction, DuoSynthParams } from '@/lib/duo/types';
@@ -122,6 +123,7 @@ export function DuoSynth() {
   const [inputStep, setInputStep] = useState(0);
   const [presetIndex, setPresetIndex] = useState(0);
   const [helpOpen, setHelpOpen] = useState(false);
+  const synthPanelRef = useRef<HTMLDivElement>(null);
   const engineRef = useRef<DuoEngine | null>(null);
   const transportRef = useRef<DuoSequencerTransport | null>(null);
   const initPromiseRef = useRef<Promise<void> | null>(null);
@@ -402,6 +404,7 @@ export function DuoSynth() {
       </div>
 
       {/* Three-panel layout */}
+      <KnobSizeProvider measureRef={synthPanelRef}>
       <div className="flex flex-1 flex-col md:flex-row divide-y md:divide-y-0 md:divide-x divide-zinc-800 overflow-auto">
         {/* Sequencer panel */}
         <div className="flex-1 min-w-0 overflow-auto">
@@ -424,7 +427,7 @@ export function DuoSynth() {
         </div>
 
         {/* Synth panel */}
-        <div className="flex-1 min-w-0 overflow-auto divide-y divide-zinc-800">
+        <div ref={synthPanelRef} className="flex-1 min-w-0 overflow-auto">
           <SynthPanel
             params={state.synth}
             onParamChange={handleParamChange}
@@ -452,6 +455,7 @@ export function DuoSynth() {
           />
         </div>
       </div>
+      </KnobSizeProvider>
 
     </div>
   );

@@ -10,7 +10,7 @@ interface SynthPanelProps {
 
 function Section({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div className="space-x-4 flex relative p-2">
+    <div className="space-x-4 flex relative p-2 flex-1 min-h-0">
       <div className="flex w-3 h-full select-none">
         <span className="text-xs font-mono text-zinc-500 uppercase tracking-wider rotate-90 origin-top-left translate-x-3 translate-y-0.5">{label}</span>
       </div>
@@ -21,7 +21,7 @@ function Section({ label, children }: { label: string; children: React.ReactNode
 
 export function SynthPanel({ params, onParamChange }: SynthPanelProps) {
   return (
-    <div className="flex flex-col divide-y divide-zinc-800">
+    <div className="flex flex-col divide-y divide-zinc-800 h-full">
       {/* Oscillators */}
       <Section label="Oscillators">
         <DuoKnob
