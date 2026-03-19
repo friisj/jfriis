@@ -13,10 +13,16 @@ interface CircularSequencerProps {
   onSelectStep: (index: number) => void;
   onPlay: () => void;
   onStop: () => void;
+  onRandomize: () => void;
+  onBoostDown: () => void;
+  onBoostUp: () => void;
 }
 
 const RADIUS = 85;
 const LED_RADIUS = 16;
+const CENTER_R = 20;
+const SIDE_R = 14;
+const SIDE_OFFSET = 32; // horizontal offset from center for side buttons
 
 function stepPosition(index: number, total: number) {
   // Start from top (-90°), go clockwise
@@ -36,6 +42,9 @@ export function CircularSequencer({
   onSelectStep,
   onPlay,
   onStop,
+  onRandomize,
+  onBoostDown,
+  onBoostUp,
 }: CircularSequencerProps) {
   const size = (RADIUS + LED_RADIUS + 8) * 2;
   const center = size / 2;
@@ -152,6 +161,26 @@ export function CircularSequencer({
             );
           })}
 
+          {/* Random button (left of center) */}
+          <g
+            className="cursor-pointer"
+            onClick={onRandomize}
+            role="button"
+            aria-label="Randomize sequence"
+            tabIndex={0}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                onRandomize();
+              }
+            }}
+          >
+            <circle cx={center - SIDE_OFFSET} cy={center} r={SIDE_R} className="fill-purple-900/80 stroke-purple-600/60" strokeWidth={1} />
+            {/* Dice icon — two dots */}
+            <circle cx={center - SIDE_OFFSET - 3} cy={center - 3} r={1.5} className="fill-purple-300" />
+            <circle cx={center - SIDE_OFFSET + 3} cy={center + 3} r={1.5} className="fill-purple-300" />
+          </g>
+
           {/* Center play/stop button */}
           <g
             className="cursor-pointer"
@@ -166,7 +195,7 @@ export function CircularSequencer({
               }
             }}
           >
-            <circle cx={center} cy={center} r={20} className="fill-zinc-800 stroke-zinc-600" strokeWidth={1.5} />
+            <circle cx={center} cy={center} r={CENTER_R} className="fill-zinc-800 stroke-zinc-600" strokeWidth={1.5} />
             {playing ? (
               // Stop icon (square)
               <rect
@@ -184,6 +213,24 @@ export function CircularSequencer({
                 className="fill-zinc-400"
               />
             )}
+          </g>
+
+          {/* Boost button (right of center) — hold to 2x speed */}
+          <g
+            className="cursor-pointer select-none"
+            onPointerDown={onBoostDown}
+            onPointerUp={onBoostUp}
+            onPointerLeave={onBoostUp}
+            role="button"
+            aria-label="Hold to boost tempo 2x"
+            tabIndex={0}
+          >
+            <circle cx={center + SIDE_OFFSET} cy={center} r={SIDE_R} className="fill-amber-900/80 stroke-amber-600/60" strokeWidth={1} />
+            {/* Lightning bolt icon */}
+            <path
+              d={`M ${center + SIDE_OFFSET - 2} ${center - 6} L ${center + SIDE_OFFSET - 4} ${center + 1} L ${center + SIDE_OFFSET} ${center - 1} L ${center + SIDE_OFFSET + 2} ${center + 6} L ${center + SIDE_OFFSET + 4} ${center - 1} L ${center + SIDE_OFFSET} ${center + 1} Z`}
+              className="fill-amber-400"
+            />
           </g>
         </svg>
       </div>
