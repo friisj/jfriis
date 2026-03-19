@@ -406,6 +406,14 @@ export function DuoSynth() {
       {/* Three-panel layout */}
       <KnobSizeProvider measureRef={synthPanelRef}>
       <div className="flex flex-1 flex-col md:flex-row divide-y md:divide-y-0 md:divide-x divide-zinc-800 overflow-auto">
+        {/* Synth panel */}
+        <div ref={synthPanelRef} className="flex-1 min-w-0 overflow-auto">
+          <SynthPanel
+            params={state.synth}
+            onParamChange={handleParamChange}
+          />
+        </div>
+
         {/* Sequencer panel */}
         <div className="flex-1 min-w-0 overflow-auto">
           <SequencerPanel
@@ -423,14 +431,6 @@ export function DuoSynth() {
             onRandomize={handleRandomize}
             onBoostDown={handleBoostDown}
             onBoostUp={handleBoostUp}
-          />
-        </div>
-
-        {/* Synth panel */}
-        <div ref={synthPanelRef} className="flex-1 min-w-0 overflow-auto">
-          <SynthPanel
-            params={state.synth}
-            onParamChange={handleParamChange}
           />
         </div>
 
