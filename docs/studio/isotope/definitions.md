@@ -49,6 +49,32 @@ An AI feature that predicts and completes a partially-drawn isometric shape (e.g
 ### Component Suggestion
 An AI feature that recommends a named component based on what is being drawn (e.g. "this looks like a window — save as Window?"). Non-blocking; appears as a ghost suggestion the creator can accept or dismiss.
 
+### Pause Point
+A natural break in the sketching gesture where AI assistance can activate without interrupting flow. Three classes:
+- **End-of-stroke** — triggered when the pointer is lifted after a completed stroke
+- **Idle threshold** — triggered after a configurable period of inactivity (~1–2s)
+- **Explicit prompt** — triggered by a deliberate creator action (keyboard shortcut, UI button, text input)
+
+All AI features in Isotope must target one of these three classes. Mid-stroke activation is prohibited. See H5, H6.
+
+### Render-Out
+An AI feature that generates a high-quality rendered image from the current scene or a selection (via an image generation model — Flux, SDXL). Triggered as an explicit export action. Highest acceptable latency of any AI feature; quality over speed is the right trade-off here.
+
+### Text-to-Layout
+An AI feature that generates a scene arrangement from a natural language prompt (e.g. "fill this area with a city block", "add a warehouse complex"). Returns a structured scene graph that is placed into the composition for the creator to refine. Triggered by explicit prompt only.
+
+### H6 Experiment Series
+H6 is not a single experiment — it is a series, each isolating one AI capability at one pause point class. Proposed series:
+
+| Experiment | Capability | Pause point class | Success signal |
+|---|---|---|---|
+| H6-A | Shape completion | End-of-stroke | Creator accepts suggestion ≥60% of the time; sketch feel rating unchanged |
+| H6-B | Component suggestion | End-of-stroke | Creator accepts suggestion ≥40% of the time; no increase in interruption reports |
+| H6-C | Render-out | Explicit prompt | Creator rates output as "useful reference" ≥70% of the time |
+| H6-D | Text-to-layout | Explicit prompt | Generated layout requires ≤3 edits before creator is satisfied |
+
+H6 experiments are only valid after H1–H4 are at minimum partially validated — the base interaction model must be stable enough that AI signal is isolatable from interaction model noise.
+
 ---
 
 ## Performance Concepts

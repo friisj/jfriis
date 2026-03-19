@@ -38,6 +38,7 @@ Nothing else matters until this is answered. The hypotheses below are sequenced 
 | H3 | Sub-16ms input-to-render latency is the threshold for sketch feel (vs CAD feel) | proposed |
 | H4 | Component metaphor maps to the mental model of design-tool-familiar creators | proposed |
 | H5 | AI assistance must be non-blocking — any gesture interruption causes more harm than the help is worth | proposed |
+| H6 | AI assistance at natural pause points (end-of-stroke, idle, explicit prompt) measurably accelerates scene composition without reducing sketch feel rating | proposed |
 
 See [definitions.md](./definitions.md) for key terms.
 
