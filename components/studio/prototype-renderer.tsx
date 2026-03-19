@@ -23,6 +23,10 @@ const registry: Record<string, React.ComponentType> = {
   'chalk/voice-annotation': dynamic(() => import('@/components/studio/prototypes/chalk/voice-annotation'), { ssr: false }),
   'chalk/vision-iteration': dynamic(() => import('@/components/studio/prototypes/chalk/vision-iteration'), { ssr: false }),
   'iris/iris-shader': dynamic(() => import('@/components/studio/prototypes/iris/iris-shader'), { ssr: false }),
+  'isotope/fixed-perspective': dynamic(() => import('@/components/studio/prototypes/isotope/fixed-perspective'), { ssr: false }),
+  'isotope/snap-system': dynamic(() => import('@/components/studio/prototypes/isotope/snap-system'), { ssr: false }),
+  'isotope/stroke-latency': dynamic(() => import('@/components/studio/prototypes/isotope/stroke-latency'), { ssr: false }),
+  'isotope/component-system': dynamic(() => import('@/components/studio/prototypes/isotope/component-system'), { ssr: false }),
 }
 
 export function PrototypeRenderer({ prototypeKey }: { prototypeKey: string }) {
