@@ -10,16 +10,18 @@ interface SynthPanelProps {
 
 function Section({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div className="space-y-2">
-      <h3 className="text-[10px] text-zinc-500 uppercase tracking-wider">{label}</h3>
-      <div className="flex items-start justify-center gap-2 flex-wrap">{children}</div>
+    <div className="space-x-4 flex relative p-2">
+      <div className="flex w-3 h-full select-none">
+        <span className="text-xs font-mono text-zinc-500 uppercase tracking-wider rotate-90 origin-top-left translate-x-3 translate-y-0.5">{label}</span>
+      </div>
+      <div className="flex items-start justify-start gap-2 flex-wrap">{children}</div>
     </div>
   );
 }
 
 export function SynthPanel({ params, onParamChange }: SynthPanelProps) {
   return (
-    <div className="flex flex-col gap-5 p-4">
+    <div className="flex flex-col divide-y divide-zinc-800">
       {/* Oscillators */}
       <Section label="Oscillators">
         <DuoKnob

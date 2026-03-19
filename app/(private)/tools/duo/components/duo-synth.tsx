@@ -424,7 +424,7 @@ export function DuoSynth() {
         </div>
 
         {/* Synth panel */}
-        <div className="flex-1 min-w-0 overflow-auto">
+        <div className="flex-1 min-w-0 overflow-auto divide-y divide-zinc-800">
           <SynthPanel
             params={state.synth}
             onParamChange={handleParamChange}

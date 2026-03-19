@@ -95,7 +95,7 @@ export function DuoKnob({
 
   return (
     <div className="flex flex-col items-center gap-1.5 w-24">
-      <span className="text-[11px] text-zinc-500 uppercase tracking-wider leading-tight text-center truncate max-w-full">
+      <span className="text-xs text-zinc-500 uppercase tracking-wider font-mono leading-tight text-center truncate max-w-full">
         {label}
       </span>
       <KnobHeadless
