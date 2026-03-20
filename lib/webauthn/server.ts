@@ -201,8 +201,15 @@ export async function verifyAuthentication(
     throw new Error('No valid authentication challenge found')
   }
 
-  // The credential's public key is stored as base64 text
-  const publicKeyBytes = Buffer.from(credentialRow.public_key, 'base64')
+  // The public_key column is BYTEA. PostgREST returns BYTEA as hex (\xABCD...).
+  // The actual bytes are the ASCII chars of a base64 string (stored via
+  // Buffer.from(publicKey).toString('base64') on registration).
+  // Decode: hex → UTF-8 string (base64) → binary key bytes.
+  const rawPk: string = credentialRow.public_key
+  const base64Str = rawPk.startsWith('\\x')
+    ? Buffer.from(rawPk.slice(2), 'hex').toString('utf8')
+    : rawPk
+  const publicKeyBytes = Buffer.from(base64Str, 'base64')
 
   const credential = {
     id: credentialRow.id,
