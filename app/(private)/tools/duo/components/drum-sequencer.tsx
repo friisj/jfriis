@@ -2,7 +2,7 @@
 
 import { useRef, useCallback, useEffect } from 'react';
 import { cn } from '@/lib/utils';
-import { IconDice5Filled, IconRefresh } from '@tabler/icons-react';
+import { IconDice5Filled, IconRefresh, IconVolume, IconVolumeOff } from '@tabler/icons-react';
 import type { DuoDrumVoice } from '@/lib/duo/types';
 import { DRUM_RECIPES } from '@/lib/duo/drum-voices';
 
@@ -10,10 +10,12 @@ interface DrumSequencerProps {
   voices: DuoDrumVoice[];
   currentStep: number;
   playing: boolean;
+  muted: boolean;
   onToggleStep: (voiceIndex: number, step: number) => void;
   onTriggerVoice: (voiceIndex: number) => void;
   onRetrigger: (voiceIndex: number | null, substep: boolean) => void;
   onSetRecipe: (voiceIndex: number, recipeIndex: number) => void;
+  onToggleMute: () => void;
   onRandomize: () => void;
   onRandomOffset: () => void;
   onRandomFlip: () => void;
@@ -39,10 +41,12 @@ export function DrumSequencer({
   voices,
   currentStep,
   playing,
+  muted,
   onToggleStep,
   onTriggerVoice,
   onRetrigger,
   onSetRecipe,
+  onToggleMute,
   onRandomize,
   onRandomOffset,
   onRandomFlip,
@@ -114,6 +118,32 @@ export function DrumSequencer({
             <circle cx={center - SIDE_OFFSET} cy={center} r={SIDE_R} className="fill-purple-900/80 stroke-purple-600/60" strokeWidth={1} />
             <foreignObject x={center - SIDE_OFFSET - 7} y={center - 7} width={14} height={14} className="pointer-events-none">
               <IconDice5Filled size={14} className="text-purple-300" />
+            </foreignObject>
+          </g>
+
+          {/* Center mute toggle */}
+          <g
+            className="cursor-pointer"
+            onClick={onToggleMute}
+            role="button"
+            aria-label={muted ? 'Unmute drums' : 'Mute drums'}
+            aria-pressed={!muted}
+            tabIndex={0}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                onToggleMute();
+              }
+            }}
+          >
+            <circle cx={center} cy={center} r={CENTER_R}
+              className={muted ? 'fill-zinc-800 stroke-zinc-700' : 'fill-rose-900/60 stroke-rose-500/60'}
+              strokeWidth={1.5} />
+            <foreignObject x={center - 10} y={center - 10} width={20} height={20} className="pointer-events-none">
+              {muted
+                ? <IconVolumeOff size={20} className="text-zinc-500" />
+                : <IconVolume size={20} className="text-rose-400" />
+              }
             </foreignObject>
           </g>
 

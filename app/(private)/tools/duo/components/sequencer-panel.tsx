@@ -7,12 +7,12 @@ import type { DuoSequencerState } from '@/lib/duo/types';
 
 interface SequencerPanelProps {
   state: DuoSequencerState;
+  muted: boolean;
   inputStep: number;
   onNotePress: (note: string) => void;
   onToggleStep: (index: number) => void;
   onSelectStep: (index: number) => void;
-  onPlay: () => void;
-  onStop: () => void;
+  onToggleMute: () => void;
   onBpmChange: (bpm: number) => void;
   onNoteLengthChange: (length: number) => void;
   onSwingChange: (swing: number) => void;
@@ -24,12 +24,12 @@ interface SequencerPanelProps {
 
 export function SequencerPanel({
   state,
+  muted,
   inputStep,
   onNotePress,
   onToggleStep,
   onSelectStep,
-  onPlay,
-  onStop,
+  onToggleMute,
   onBpmChange,
   onNoteLengthChange,
   onSwingChange,
@@ -80,11 +80,11 @@ export function SequencerPanel({
         steps={state.steps}
         currentStep={state.currentStep}
         playing={state.playing}
+        muted={muted}
         inputStep={inputStep}
         onToggleStep={onToggleStep}
         onSelectStep={onSelectStep}
-        onPlay={onPlay}
-        onStop={onStop}
+        onToggleMute={onToggleMute}
         onRandomize={onRandomize}
         onBoostDown={onBoostDown}
         onBoostUp={onBoostUp}

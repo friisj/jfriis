@@ -16,6 +16,7 @@ interface DrumPanelProps {
   drum: DuoDrumState;
   currentStep: number;
   playing: boolean;
+  muted: boolean;
   onToggleStep: (voiceIndex: number, step: number) => void;
   onTriggerVoice: (voiceIndex: number) => void;
   onRetrigger: (voiceIndex: number | null, substep: boolean) => void;
@@ -25,6 +26,7 @@ interface DrumPanelProps {
   onSetVolume: (voiceIndex: number, volume: number) => void;
   onSetCrush: (value: number) => void;
   onSetFilter: (value: number) => void;
+  onToggleMute: () => void;
   onRandomize: () => void;
   onRandomOffset: () => void;
   onRandomFlip: () => void;
@@ -48,6 +50,7 @@ export function DrumPanel({
   drum,
   currentStep,
   playing,
+  muted,
   onToggleStep,
   onTriggerVoice,
   onRetrigger,
@@ -57,6 +60,7 @@ export function DrumPanel({
   onSetVolume,
   onSetCrush,
   onSetFilter,
+  onToggleMute,
   onRandomize,
   onRandomOffset,
   onRandomFlip,
@@ -144,10 +148,12 @@ export function DrumPanel({
           voices={drum.voices}
           currentStep={currentStep}
           playing={playing}
+          muted={muted}
           onToggleStep={onToggleStep}
           onTriggerVoice={onTriggerVoice}
           onRetrigger={onRetrigger}
           onSetRecipe={onSetRecipe}
+          onToggleMute={onToggleMute}
           onRandomize={onRandomize}
           onRandomOffset={onRandomOffset}
           onRandomFlip={onRandomFlip}

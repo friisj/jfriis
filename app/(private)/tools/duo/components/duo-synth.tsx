@@ -317,12 +317,12 @@ export function DuoSynth() {
         <div className="flex-1 min-w-0 overflow-auto">
           <SequencerPanel
             state={state.sequencer}
+            muted={state.melodicMuted}
             inputStep={inputStep}
             onNotePress={handleNotePress}
             onToggleStep={(i) => dispatch({ type: 'TOGGLE_STEP', step: i })}
             onSelectStep={handleSelectStep}
-            onPlay={handlePlay}
-            onStop={handleStop}
+            onToggleMute={() => dispatch({ type: 'TOGGLE_MELODIC_MUTE' })}
             onBpmChange={(bpm) => dispatch({ type: 'SET_BPM', bpm })}
             onNoteLengthChange={(length) => dispatch({ type: 'SET_NOTE_LENGTH', length })}
             onTranspose={(delta) => dispatch({ type: 'TRANSPOSE', delta })}
@@ -339,6 +339,7 @@ export function DuoSynth() {
             drum={state.drum}
             currentStep={state.sequencer.currentStep}
             playing={state.sequencer.playing}
+            muted={state.drumMuted}
             onToggleStep={handleDrumToggleStep}
             onTriggerVoice={handleDrumTriggerVoice}
             onRetrigger={handleDrumRetrigger}
@@ -348,6 +349,7 @@ export function DuoSynth() {
             onSetVolume={handleDrumSetVolume}
             onSetCrush={handleDrumSetCrush}
             onSetFilter={handleDrumSetFilter}
+            onToggleMute={() => dispatch({ type: 'TOGGLE_DRUM_MUTE' })}
             onRandomize={handleDrumRandomize}
             onRandomOffset={handleDrumRandomOffset}
             onRandomFlip={handleDrumRandomFlip}
@@ -374,33 +376,22 @@ export function DuoSynth() {
             ))}
           </select>
         </div>
-        <div className="flex-1 flex items-center justify-center gap-4">
+        <div className="flex-1 flex items-center justify-center gap-3">
           <button
             type="button"
-            onClick={() => dispatch({ type: 'TOGGLE_MELODIC_MUTE' })}
-            className={`text-[10px] font-mono px-1.5 py-0.5 rounded transition-colors ${
-              state.melodicMuted
-                ? 'bg-zinc-700 text-zinc-400 line-through'
-                : 'bg-amber-900/40 text-amber-400'
+            onClick={state.sequencer.playing ? handleStop : handlePlay}
+            className={`text-xs font-mono px-3 py-1 rounded transition-colors ${
+              state.sequencer.playing
+                ? 'bg-amber-600/80 text-white'
+                : 'bg-zinc-800 text-zinc-300 hover:bg-zinc-700'
             }`}
-            aria-label={state.melodicMuted ? 'Unmute melodic' : 'Mute melodic'}
-            aria-pressed={!state.melodicMuted}
+            aria-label={state.sequencer.playing ? 'Stop' : 'Play'}
           >
-            Synth
+            {state.sequencer.playing ? 'Stop' : 'Play'}
           </button>
-          <button
-            type="button"
-            onClick={() => dispatch({ type: 'TOGGLE_DRUM_MUTE' })}
-            className={`text-[10px] font-mono px-1.5 py-0.5 rounded transition-colors ${
-              state.drumMuted
-                ? 'bg-zinc-700 text-zinc-400 line-through'
-                : 'bg-rose-900/40 text-rose-400'
-            }`}
-            aria-label={state.drumMuted ? 'Unmute drums' : 'Mute drums'}
-            aria-pressed={!state.drumMuted}
-          >
-            Drums
-          </button>
+          <span className="text-[10px] font-mono text-zinc-600">
+            {Math.round(state.sequencer.bpm)} BPM
+          </span>
         </div>
         <div className="flex items-center justify-end gap-4 px-4 py-1.5 flex-1 relative">
           <button

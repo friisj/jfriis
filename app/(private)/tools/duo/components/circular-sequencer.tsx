@@ -2,18 +2,18 @@
 
 import { useRef, useCallback } from 'react';
 import { cn } from '@/lib/utils';
-import { IconDice5Filled, IconBoltFilled } from '@tabler/icons-react';
+import { IconDice5Filled, IconBoltFilled, IconVolume, IconVolumeOff } from '@tabler/icons-react';
 import type { DuoStep } from '@/lib/duo/types';
 
 interface CircularSequencerProps {
   steps: DuoStep[];
   currentStep: number;
   playing: boolean;
+  muted: boolean;
   inputStep: number;
   onToggleStep: (index: number) => void;
   onSelectStep: (index: number) => void;
-  onPlay: () => void;
-  onStop: () => void;
+  onToggleMute: () => void;
   onRandomize: () => void;
   onBoostDown: () => void;
   onBoostUp: () => void;
@@ -38,11 +38,11 @@ export function CircularSequencer({
   steps,
   currentStep,
   playing,
+  muted,
   inputStep,
   onToggleStep,
   onSelectStep,
-  onPlay,
-  onStop,
+  onToggleMute,
   onRandomize,
   onBoostDown,
   onBoostUp,
@@ -171,38 +171,30 @@ export function CircularSequencer({
             </foreignObject>
           </g>
 
-          {/* Center play/stop button */}
+          {/* Center mute toggle */}
           <g
             className="cursor-pointer"
-            onClick={playing ? onStop : onPlay}
+            onClick={onToggleMute}
             role="button"
-            aria-label={playing ? 'Stop' : 'Play'}
+            aria-label={muted ? 'Unmute synth' : 'Mute synth'}
+            aria-pressed={!muted}
             tabIndex={0}
             onKeyDown={(e) => {
               if (e.key === 'Enter' || e.key === ' ') {
                 e.preventDefault();
-                playing ? onStop() : onPlay();
+                onToggleMute();
               }
             }}
           >
-            <circle cx={center} cy={center} r={CENTER_R} className="fill-zinc-800 stroke-zinc-600" strokeWidth={1.5} />
-            {playing ? (
-              // Stop icon (square)
-              <rect
-                x={center - 6}
-                y={center - 6}
-                width={12}
-                height={12}
-                rx={1}
-                className="fill-amber-400"
-              />
-            ) : (
-              // Play icon (triangle)
-              <polygon
-                points={`${center - 5},${center - 7} ${center - 5},${center + 7} ${center + 7},${center}`}
-                className="fill-zinc-400"
-              />
-            )}
+            <circle cx={center} cy={center} r={CENTER_R}
+              className={muted ? 'fill-zinc-800 stroke-zinc-700' : 'fill-amber-900/60 stroke-amber-500/60'}
+              strokeWidth={1.5} />
+            <foreignObject x={center - 10} y={center - 10} width={20} height={20} className="pointer-events-none">
+              {muted
+                ? <IconVolumeOff size={20} className="text-zinc-500" />
+                : <IconVolume size={20} className="text-amber-400" />
+              }
+            </foreignObject>
           </g>
 
           {/* Boost button (right of center) — hold to 2x speed */}
