@@ -104,6 +104,7 @@ export type DuoAction =
   | { type: 'DRUM_SET_DECAY'; voiceIndex: number; decay: number }
   | { type: 'DRUM_SET_VOLUME'; voiceIndex: number; volume: number }
   | { type: 'DRUM_RANDOMIZE' }
+  | { type: 'DRUM_RESET' }
   | { type: 'DRUM_RANDOM_OFFSET' }
   | { type: 'DRUM_RANDOM_FLIP' }
   | { type: 'DRUM_SET_RECIPE'; voiceIndex: number; recipeIndex: number }

@@ -100,6 +100,8 @@ function duoReducer(state: DuoState, action: DuoAction): DuoState {
     }
     case 'DRUM_RANDOMIZE':
       return { ...state, drum: { ...state.drum, voices: randomizeDrumSteps(state.drum.voices) } };
+    case 'DRUM_RESET':
+      return { ...state, drum: { ...state.drum, ...createInitialDrumState() } };
     case 'DRUM_SET_CRUSH':
       return { ...state, drum: { ...state.drum, effects: { ...state.drum.effects, crush: action.value } } };
     case 'DRUM_SET_FILTER':
@@ -287,13 +289,7 @@ export function DuoSynth() {
     dispatch({ type: 'DRUM_RANDOMIZE' });
   }, [ensureInit]);
 
-  const handleDrumRandomOffset = useCallback(() => {
-    dispatch({ type: 'DRUM_RANDOM_OFFSET' });
-  }, []);
 
-  const handleDrumRandomFlip = useCallback(() => {
-    dispatch({ type: 'DRUM_RANDOM_FLIP' });
-  }, []);
 
   const handlePresetChange = useCallback(async (index: number) => {
     setPresetIndex(index);
@@ -354,8 +350,7 @@ export function DuoSynth() {
             onSetFilter={handleDrumSetFilter}
             onToggleMute={() => dispatch({ type: 'TOGGLE_DRUM_MUTE' })}
             onRandomize={handleDrumRandomize}
-            onRandomOffset={handleDrumRandomOffset}
-            onRandomFlip={handleDrumRandomFlip}
+            onReset={() => dispatch({ type: 'DRUM_RESET' })}
           />
         </div>
       </div>

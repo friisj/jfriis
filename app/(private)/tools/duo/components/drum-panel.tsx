@@ -28,8 +28,7 @@ interface DrumPanelProps {
   onSetFilter: (value: number) => void;
   onToggleMute: () => void;
   onRandomize: () => void;
-  onRandomOffset: () => void;
-  onRandomFlip: () => void;
+  onReset: () => void;
 }
 
 function Section({ label, icon, children }: { label: string; icon: React.ReactNode; children: React.ReactNode }) {
@@ -62,8 +61,7 @@ export function DrumPanel({
   onSetFilter,
   onToggleMute,
   onRandomize,
-  onRandomOffset,
-  onRandomFlip,
+  onReset,
 }: DrumPanelProps) {
   return (
     <div className="flex flex-col divide-y divide-zinc-800 h-full">
@@ -155,8 +153,7 @@ export function DrumPanel({
           onSetRecipe={onSetRecipe}
           onToggleMute={onToggleMute}
           onRandomize={onRandomize}
-          onRandomOffset={onRandomOffset}
-          onRandomFlip={onRandomFlip}
+          onReset={onReset}
         />
       </div>
     </div>

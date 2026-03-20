@@ -17,8 +17,7 @@ interface DrumSequencerProps {
   onSetRecipe: (voiceIndex: number, recipeIndex: number) => void;
   onToggleMute: () => void;
   onRandomize: () => void;
-  onRandomOffset: () => void;
-  onRandomFlip: () => void;
+  onReset: () => void;
 }
 
 const RING_RADII = [120, 96, 72, 48];
@@ -48,8 +47,7 @@ export function DrumSequencer({
   onSetRecipe,
   onToggleMute,
   onRandomize,
-  onRandomOffset,
-  onRandomFlip,
+  onReset,
 }: DrumSequencerProps) {
   const size = (RING_RADII[0] + DOT_RADIUS + 8) * 2;
   const center = size / 2;
@@ -113,8 +111,8 @@ export function DrumSequencer({
           )}
 
           {/* Random button (left of center) */}
-          <g className="cursor-pointer" onClick={onRandomOffset} role="button" aria-label="Random offset" tabIndex={0}
-            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onRandomOffset(); } }}>
+          <g className="cursor-pointer" onClick={onRandomize} role="button" aria-label="Randomize pattern" tabIndex={0}
+            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onRandomize(); } }}>
             <circle cx={center - SIDE_OFFSET} cy={center} r={SIDE_R} className="fill-purple-900/80 stroke-purple-600/60" strokeWidth={1} />
             <foreignObject x={center - SIDE_OFFSET - 7} y={center - 7} width={14} height={14} className="pointer-events-none">
               <IconDice5Filled size={14} className="text-purple-300" />
@@ -148,8 +146,8 @@ export function DrumSequencer({
           </g>
 
           {/* Reset button (right of center) */}
-          <g className="cursor-pointer" onClick={onRandomize} role="button" aria-label="Full randomize" tabIndex={0}
-            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onRandomize(); } }}>
+          <g className="cursor-pointer" onClick={onReset} role="button" aria-label="Reset to default pattern" tabIndex={0}
+            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onReset(); } }}>
             <circle cx={center + SIDE_OFFSET} cy={center} r={SIDE_R} className="fill-zinc-800 stroke-zinc-600" strokeWidth={1} />
             <foreignObject x={center + SIDE_OFFSET - 7} y={center - 7} width={14} height={14} className="pointer-events-none">
               <IconRefresh size={14} className="text-zinc-400" />
