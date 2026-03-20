@@ -8,10 +8,27 @@ import {
   updateExperimentLearnings,
 } from '@/app/actions/studio'
 import { IconLayoutSidebarLeftExpand, IconEyeOff, IconPencil } from '@tabler/icons-react'
+import { SidebarProbes } from '@/components/studio/sidebar-probes'
 
 type OverlayState = 'expanded' | 'hidden'
 type ExperimentStatus = 'planned' | 'in_progress' | 'completed' | 'abandoned'
 type ExperimentOutcome = 'success' | 'failure' | 'inconclusive' | null
+
+interface ProbeData {
+  id: string
+  question: string
+  context: string | null
+  response_type: 'text' | 'rating' | 'choice' | 'boolean'
+  choices: string[] | null
+  rating_min: number | null
+  rating_max: number | null
+  rating_labels: Record<string, string> | null
+  response: string | number | boolean | null
+  responded_at: string | null
+  sequence: number
+  phase: 'pre' | 'during' | 'post'
+  generated_by: 'auto' | 'manual'
+}
 
 interface ExperimentPrototypeViewProps {
   experiment: {
@@ -28,6 +45,7 @@ interface ExperimentPrototypeViewProps {
   }
   project: { slug: string; name: string }
   hypothesis: { sequence: number; statement: string; validation_criteria: string | null } | null
+  probes?: ProbeData[]
   children: React.ReactNode
 }
 
@@ -101,6 +119,7 @@ export function ExperimentPrototypeView({
   experiment,
   project,
   hypothesis,
+  probes,
   children,
 }: ExperimentPrototypeViewProps) {
   const [overlayState, setOverlayState] = useState<OverlayState>('expanded')
@@ -234,6 +253,11 @@ export function ExperimentPrototypeView({
                     </p>
                   )}
                 </div>
+              )}
+
+              {/* Probes */}
+              {probes && probes.length > 0 && (
+                <SidebarProbes probes={probes} />
               )}
 
               {/* Learnings */}

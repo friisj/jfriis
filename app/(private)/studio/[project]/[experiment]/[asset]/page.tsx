@@ -66,6 +66,17 @@ export default async function AssetPage({ params }: Props) {
 
     if (!link) notFound()
 
+    // Fetch unanswered probes for sidebar
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: probesData } = await (supabase as any)
+      .from('studio_experiment_probes')
+      .select('*')
+      .eq('experiment_id', experiment.id)
+      .is('response', null)
+      .order('sequence')
+
+    const unansweredProbes = probesData ?? []
+
     // Render fullscreen spike view (same as old prototype view)
     return (
       <ExperimentPrototypeView
@@ -83,6 +94,7 @@ export default async function AssetPage({ params }: Props) {
         }}
         project={{ slug: project.slug, name: project.name }}
         hypothesis={hypothesis}
+        probes={unansweredProbes}
       >
         <PrototypeRenderer prototypeKey={spike.component_key} />
       </ExperimentPrototypeView>
