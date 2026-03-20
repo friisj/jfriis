@@ -2,6 +2,8 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase-server'
 import { notFound } from 'next/navigation'
 import { ExperimentStatusSelect } from '@/components/studio/experiment-status-select'
+import { ExperimentProbes } from '@/components/studio/experiment-probes'
+import { FeedbackManager } from '@/components/admin/feedback-manager'
 import { EXPERIMENT_TYPE_LABELS } from '@/lib/boundary-objects/studio-experiments'
 import { IconBolt, IconBox } from '@tabler/icons-react'
 
@@ -91,6 +93,30 @@ export default async function ExperimentPage({ params }: Props) {
       .in('id', protoIds)
     prototypes = data ?? []
   }
+
+  // Fetch probes (table not in generated types)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: probesData } = await (supabase as any)
+    .from('studio_experiment_probes')
+    .select('*')
+    .eq('experiment_id', experiment.id)
+    .order('sequence')
+
+  const probes = (probesData ?? []) as Array<{
+    id: string
+    question: string
+    context: string | null
+    response_type: 'text' | 'rating' | 'choice' | 'boolean'
+    choices: string[] | null
+    rating_min: number | null
+    rating_max: number | null
+    rating_labels: Record<string, string> | null
+    response: string | number | boolean | null
+    responded_at: string | null
+    sequence: number
+    phase: 'pre' | 'during' | 'post'
+    generated_by: 'auto' | 'manual'
+  }>
 
   const hasAssets = spikes.length > 0 || prototypes.length > 0
   const typeLabel = EXPERIMENT_TYPE_LABELS[experiment.type as keyof typeof EXPERIMENT_TYPE_LABELS] ?? experiment.type
@@ -194,6 +220,22 @@ export default async function ExperimentPage({ params }: Props) {
             </div>
           </section>
         )}
+
+        {/* Probes */}
+        <section className="mb-12">
+          <h2 className="text-2xl font-bold mb-6 border-b-2 border-black pb-2">Probes</h2>
+          <ExperimentProbes probes={probes} experimentId={experiment.id} />
+        </section>
+
+        {/* Evidence / Feedback */}
+        <section className="mb-12">
+          <h2 className="text-2xl font-bold mb-6 border-b-2 border-black pb-2">Evidence</h2>
+          <FeedbackManager
+            entityType="experiment"
+            entityId={experiment.id}
+            label="Experiment Evidence"
+          />
+        </section>
 
         {/* Outcome & Learnings */}
         {(experiment.outcome || experiment.learnings) && (
