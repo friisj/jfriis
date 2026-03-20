@@ -328,8 +328,6 @@ export function DuoSynth() {
             onTranspose={(delta) => dispatch({ type: 'TRANSPOSE', delta })}
             onSwingChange={(swing) => dispatch({ type: 'SET_SWING', swing })}
             onRandomize={handleRandomize}
-            onBoostDown={handleBoostDown}
-            onBoostUp={handleBoostUp}
           />
         </div>
 
@@ -388,6 +386,17 @@ export function DuoSynth() {
             aria-label={state.sequencer.playing ? 'Stop' : 'Play'}
           >
             {state.sequencer.playing ? 'Stop' : 'Play'}
+          </button>
+          <button
+            type="button"
+            onPointerDown={handleBoostDown}
+            onPointerUp={handleBoostUp}
+            onPointerLeave={handleBoostUp}
+            className="text-xs font-mono px-3 py-1 rounded select-none touch-none
+                       bg-amber-900/40 text-amber-400 hover:bg-amber-800/50 active:bg-amber-700/60 transition-colors"
+            aria-label="Hold to boost tempo 2x"
+          >
+            Boost
           </button>
           <span className="text-[10px] font-mono text-zinc-600">
             {Math.round(state.sequencer.bpm)} BPM

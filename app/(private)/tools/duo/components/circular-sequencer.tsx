@@ -2,7 +2,7 @@
 
 import { useRef, useCallback } from 'react';
 import { cn } from '@/lib/utils';
-import { IconDice5Filled, IconBoltFilled, IconVolume, IconVolumeOff } from '@tabler/icons-react';
+import { IconDice5Filled, IconVolume, IconVolumeOff } from '@tabler/icons-react';
 import type { DuoStep } from '@/lib/duo/types';
 
 interface CircularSequencerProps {
@@ -15,8 +15,6 @@ interface CircularSequencerProps {
   onSelectStep: (index: number) => void;
   onToggleMute: () => void;
   onRandomize: () => void;
-  onBoostDown: () => void;
-  onBoostUp: () => void;
 }
 
 const RADIUS = 85;
@@ -44,8 +42,6 @@ export function CircularSequencer({
   onSelectStep,
   onToggleMute,
   onRandomize,
-  onBoostDown,
-  onBoostUp,
 }: CircularSequencerProps) {
   const size = (RADIUS + LED_RADIUS + 8) * 2;
   const center = size / 2;
@@ -197,15 +193,6 @@ export function CircularSequencer({
             </foreignObject>
           </g>
 
-          {/* Boost button (right of center) — hold to 2x speed */}
-          <g className="cursor-pointer select-none"
-            onPointerDown={onBoostDown} onPointerUp={onBoostUp} onPointerLeave={onBoostUp}
-            role="button" aria-label="Hold to boost tempo 2x" tabIndex={0}>
-            <circle cx={center + SIDE_OFFSET} cy={center} r={SIDE_R} className="fill-amber-900/80 stroke-amber-600/60" strokeWidth={1} />
-            <foreignObject x={center + SIDE_OFFSET - 8} y={center - 8} width={16} height={16} className="pointer-events-none">
-              <IconBoltFilled size={16} className="text-amber-400" />
-            </foreignObject>
-          </g>
         </svg>
       </div>
     </div>

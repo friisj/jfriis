@@ -18,8 +18,6 @@ interface SequencerPanelProps {
   onSwingChange: (swing: number) => void;
   onTranspose: (delta: number) => void;
   onRandomize: () => void;
-  onBoostDown: () => void;
-  onBoostUp: () => void;
 }
 
 export function SequencerPanel({
@@ -35,8 +33,6 @@ export function SequencerPanel({
   onSwingChange,
   onTranspose,
   onRandomize,
-  onBoostDown,
-  onBoostUp,
 }: SequencerPanelProps) {
   const activeNote = state.steps[state.currentStep]?.note ?? null;
 
@@ -86,8 +82,6 @@ export function SequencerPanel({
         onSelectStep={onSelectStep}
         onToggleMute={onToggleMute}
         onRandomize={onRandomize}
-        onBoostDown={onBoostDown}
-        onBoostUp={onBoostUp}
       />
 
       <div className="flex-1 flex flex-col justify-end">
