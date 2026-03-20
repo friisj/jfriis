@@ -8,7 +8,7 @@
 import * as Tone from 'tone';
 
 export interface DrumVoiceInstance {
-  trigger(velocity: number): void;
+  trigger(velocity: number, time?: number): void;
   setPitch(value: number): void;  // 0-1 normalized
   setDecay(value: number): void;  // 0-1 normalized → 0.01-0.5s
   connect(node: Tone.InputNode): void;
@@ -84,7 +84,7 @@ function createKickClassic(): DrumVoiceInstance {
     envelope: { attack: 0.001, decay: 0.15, sustain: 0, release: 0.05 },
   });
   return {
-    trigger: (v) => synth.triggerAttackRelease('C1', '8n', Tone.now(), v),
+    trigger: (v, t) => synth.triggerAttackRelease('C1', '8n', t ?? Tone.now(), v),
     setPitch: (p) => { synth.frequency.rampTo(Tone.Frequency('C0').toFrequency() * Math.pow(Tone.Frequency('C3').toFrequency() / Tone.Frequency('C0').toFrequency(), p), 0.02); },
     setDecay: (d) => synth.envelope.set({ decay: decayToSeconds(d) }),
     connect: (n) => synth.connect(n),
@@ -98,7 +98,7 @@ function createKick808(): DrumVoiceInstance {
     envelope: { attack: 0.001, decay: 0.4, sustain: 0, release: 0.1 },
   });
   return {
-    trigger: (v) => synth.triggerAttackRelease('C1', '4n', Tone.now(), v),
+    trigger: (v, t) => synth.triggerAttackRelease('C1', '4n', t ?? Tone.now(), v),
     setPitch: (p) => { const f = 30 + p * 40; synth.frequency.rampTo(f, 0.02); },
     setDecay: (d) => synth.envelope.set({ decay: 0.1 + d * 0.8 }),
     connect: (n) => synth.connect(n),
@@ -112,7 +112,7 @@ function createKickDeep(): DrumVoiceInstance {
     envelope: { attack: 0.001, decay: 0.3, sustain: 0, release: 0.08 },
   });
   return {
-    trigger: (v) => synth.triggerAttackRelease('A0', '8n', Tone.now(), v),
+    trigger: (v, t) => synth.triggerAttackRelease('A0', '8n', t ?? Tone.now(), v),
     setPitch: (p) => { const f = 20 + p * 30; synth.frequency.rampTo(f, 0.02); },
     setDecay: (d) => synth.envelope.set({ decay: decayToSeconds(d) }),
     connect: (n) => synth.connect(n),
@@ -126,7 +126,7 @@ function createKickPunchy(): DrumVoiceInstance {
     envelope: { attack: 0.001, decay: 0.08, sustain: 0, release: 0.02 },
   });
   return {
-    trigger: (v) => synth.triggerAttackRelease('D1', '16n', Tone.now(), v),
+    trigger: (v, t) => synth.triggerAttackRelease('D1', '16n', t ?? Tone.now(), v),
     setPitch: (p) => { const f = 40 + p * 60; synth.frequency.rampTo(f, 0.02); },
     setDecay: (d) => synth.envelope.set({ decay: 0.02 + d * 0.15 }),
     connect: (n) => synth.connect(n),
@@ -140,7 +140,7 @@ function createKickClick(): DrumVoiceInstance {
     envelope: { attack: 0.001, decay: 0.03, sustain: 0, release: 0.01 },
   });
   return {
-    trigger: (v) => synth.triggerAttackRelease('E2', '32n', Tone.now(), v),
+    trigger: (v, t) => synth.triggerAttackRelease('E2', '32n', t ?? Tone.now(), v),
     setPitch: (p) => { const f = 60 + p * 200; synth.frequency.rampTo(f, 0.02); },
     setDecay: (d) => synth.envelope.set({ decay: 0.01 + d * 0.06 }),
     connect: (n) => synth.connect(n),
@@ -154,7 +154,7 @@ function createKickSub(): DrumVoiceInstance {
     envelope: { attack: 0.005, decay: 0.5, sustain: 0, release: 0.15 },
   });
   return {
-    trigger: (v) => synth.triggerAttackRelease('G0', '4n', Tone.now(), v),
+    trigger: (v, t) => synth.triggerAttackRelease('G0', '4n', t ?? Tone.now(), v),
     setPitch: (p) => { const f = 18 + p * 25; synth.frequency.rampTo(f, 0.02); },
     setDecay: (d) => synth.envelope.set({ decay: 0.2 + d * 0.8 }),
     connect: (n) => synth.connect(n),
@@ -170,7 +170,7 @@ function createKickDistort(): DrumVoiceInstance {
   const dist = new Tone.Distortion(0.8);
   synth.connect(dist);
   return {
-    trigger: (v) => synth.triggerAttackRelease('C1', '8n', Tone.now(), v),
+    trigger: (v, t) => synth.triggerAttackRelease('C1', '8n', t ?? Tone.now(), v),
     setPitch: (p) => { synth.frequency.rampTo(Tone.Frequency('C0').toFrequency() * Math.pow(Tone.Frequency('C3').toFrequency() / Tone.Frequency('C0').toFrequency(), p), 0.02); },
     setDecay: (d) => synth.envelope.set({ decay: decayToSeconds(d) }),
     connect: (n) => dist.connect(n),
@@ -186,7 +186,7 @@ function createKickTape(): DrumVoiceInstance {
   const lpf = new Tone.Filter({ frequency: 2000, type: 'lowpass', rolloff: -24 });
   synth.connect(lpf);
   return {
-    trigger: (v) => synth.triggerAttackRelease('C1', '8n', Tone.now(), v),
+    trigger: (v, t) => synth.triggerAttackRelease('C1', '8n', t ?? Tone.now(), v),
     setPitch: (p) => { synth.frequency.rampTo(Tone.Frequency('C0').toFrequency() * Math.pow(Tone.Frequency('C3').toFrequency() / Tone.Frequency('C0').toFrequency(), p), 0.02); },
     setDecay: (d) => synth.envelope.set({ decay: decayToSeconds(d) }),
     connect: (n) => lpf.connect(n),
@@ -201,7 +201,7 @@ function createSnareClassic(): DrumVoiceInstance {
     envelope: { attack: 0.001, decay: 0.1, sustain: 0, release: 0.05 },
   });
   return {
-    trigger: (v) => synth.triggerAttackRelease('8n', Tone.now(), v),
+    trigger: (v, t) => synth.triggerAttackRelease('8n', t ?? Tone.now(), v),
     setPitch: () => {},
     setDecay: (d) => synth.envelope.set({ decay: decayToSeconds(d) }),
     connect: (n) => synth.connect(n),
@@ -217,7 +217,7 @@ function createSnareTight(): DrumVoiceInstance {
   const hpf = new Tone.Filter({ frequency: 1000, type: 'highpass' });
   synth.connect(hpf);
   return {
-    trigger: (v) => synth.triggerAttackRelease('16n', Tone.now(), v),
+    trigger: (v, t) => synth.triggerAttackRelease('16n', t ?? Tone.now(), v),
     setPitch: (p) => hpf.frequency.rampTo(500 + p * 3000, 0.02),
     setDecay: (d) => synth.envelope.set({ decay: 0.02 + d * 0.1 }),
     connect: (n) => hpf.connect(n),
@@ -235,7 +235,7 @@ function createSnareRim(): DrumVoiceInstance {
     volume: -2,
   });
   return {
-    trigger: (v) => synth.triggerAttackRelease('32n', Tone.now(), v),
+    trigger: (v, t) => synth.triggerAttackRelease('32n', t ?? Tone.now(), v),
     setPitch: (p) => synth.frequency.rampTo(200 + p * 600, 0.02),
     setDecay: (d) => synth.envelope.set({ decay: 0.02 + d * 0.1 }),
     connect: (n) => synth.connect(n),
@@ -251,7 +251,7 @@ function createSnareClap(): DrumVoiceInstance {
   const bpf = new Tone.Filter({ frequency: 2000, type: 'bandpass', Q: 2 });
   synth.connect(bpf);
   return {
-    trigger: (v) => synth.triggerAttackRelease('16n', Tone.now(), v),
+    trigger: (v, t) => synth.triggerAttackRelease('16n', t ?? Tone.now(), v),
     setPitch: (p) => bpf.frequency.rampTo(400 + p * 3600, 0.02),
     setDecay: (d) => synth.envelope.set({ decay: decayToSeconds(d) }),
     connect: (n) => bpf.connect(n),
@@ -267,7 +267,7 @@ function createSnareBrush(): DrumVoiceInstance {
   const lpf = new Tone.Filter({ frequency: 3000, type: 'lowpass' });
   synth.connect(lpf);
   return {
-    trigger: (v) => synth.triggerAttackRelease('8n', Tone.now(), v),
+    trigger: (v, t) => synth.triggerAttackRelease('8n', t ?? Tone.now(), v),
     setPitch: (p) => lpf.frequency.rampTo(1000 + p * 5000, 0.02),
     setDecay: (d) => synth.envelope.set({ decay: decayToSeconds(d) }),
     connect: (n) => lpf.connect(n),
@@ -292,7 +292,7 @@ function createSnareSnappy(): DrumVoiceInstance {
   body.connect(mix);
   hpf.connect(mix);
   return {
-    trigger: (v) => { body.triggerAttackRelease('E2', '16n', Tone.now(), v); snap.triggerAttackRelease('16n', Tone.now(), v); },
+    trigger: (v, t) => { body.triggerAttackRelease('E2', '16n', t ?? Tone.now(), v); snap.triggerAttackRelease('16n', t ?? Tone.now(), v); },
     setPitch: (p) => { body.frequency.rampTo(100 + p * 200, 0.02); hpf.frequency.rampTo(1000 + p * 4000, 0.02); },
     setDecay: (d) => { body.envelope.set({ decay: 0.02 + d * 0.15 }); snap.envelope.set({ decay: 0.02 + d * 0.1 }); },
     connect: (n) => mix.connect(n),
@@ -308,7 +308,7 @@ function createSnareLoFi(): DrumVoiceInstance {
   const crush = new Tone.BitCrusher(6);
   synth.connect(crush);
   return {
-    trigger: (v) => synth.triggerAttackRelease('8n', Tone.now(), v),
+    trigger: (v, t) => synth.triggerAttackRelease('8n', t ?? Tone.now(), v),
     setPitch: () => {},
     setDecay: (d) => synth.envelope.set({ decay: decayToSeconds(d) }),
     connect: (n) => crush.connect(n),
@@ -326,7 +326,7 @@ function createSnareRing(): DrumVoiceInstance {
     volume: -2,
   });
   return {
-    trigger: (v) => synth.triggerAttackRelease('16n', Tone.now(), v),
+    trigger: (v, t) => synth.triggerAttackRelease('16n', t ?? Tone.now(), v),
     setPitch: (p) => synth.frequency.rampTo(100 + p * 400, 0.02),
     setDecay: (d) => synth.envelope.set({ decay: decayToSeconds(d) }),
     connect: (n) => synth.connect(n),
@@ -346,7 +346,7 @@ function createHatClosed(): DrumVoiceInstance {
   });
   synth.frequency.value = 300;
   return {
-    trigger: (v) => synth.triggerAttackRelease('32n', Tone.now(), v),
+    trigger: (v, t) => synth.triggerAttackRelease('32n', t ?? Tone.now(), v),
     setPitch: (p) => synth.frequency.rampTo(200 + p * 1000, 0.02),
     setDecay: (d) => synth.envelope.set({ decay: 0.02 + d * 0.1 }),
     connect: (n) => synth.connect(n),
@@ -365,7 +365,7 @@ function createHatOpen(): DrumVoiceInstance {
   });
   synth.frequency.value = 300;
   return {
-    trigger: (v) => synth.triggerAttackRelease('8n', Tone.now(), v),
+    trigger: (v, t) => synth.triggerAttackRelease('8n', t ?? Tone.now(), v),
     setPitch: (p) => synth.frequency.rampTo(200 + p * 1000, 0.02),
     setDecay: (d) => synth.envelope.set({ decay: 0.1 + d * 0.5 }),
     connect: (n) => synth.connect(n),
@@ -381,7 +381,7 @@ function createHatShaker(): DrumVoiceInstance {
   const bpf = new Tone.Filter({ frequency: 8000, type: 'bandpass', Q: 1.5 });
   synth.connect(bpf);
   return {
-    trigger: (v) => synth.triggerAttackRelease('32n', Tone.now(), v),
+    trigger: (v, t) => synth.triggerAttackRelease('32n', t ?? Tone.now(), v),
     setPitch: (p) => bpf.frequency.rampTo(4000 + p * 8000, 0.02),
     setDecay: (d) => synth.envelope.set({ decay: 0.02 + d * 0.08 }),
     connect: (n) => bpf.connect(n),
@@ -400,7 +400,7 @@ function createHatMetallic(): DrumVoiceInstance {
   });
   synth.frequency.value = 400;
   return {
-    trigger: (v) => synth.triggerAttackRelease('16n', Tone.now(), v),
+    trigger: (v, t) => synth.triggerAttackRelease('16n', t ?? Tone.now(), v),
     setPitch: (p) => synth.frequency.rampTo(200 + p * 800, 0.02),
     setDecay: (d) => synth.envelope.set({ decay: decayToSeconds(d) }),
     connect: (n) => synth.connect(n),
@@ -419,7 +419,7 @@ function createHatAnalog(): DrumVoiceInstance {
   const gain = new Tone.Gain(0.3);
   hpf.connect(gain);
   return {
-    trigger: (v) => env.triggerAttackRelease(0.04, Tone.now(), v),
+    trigger: (v, t) => env.triggerAttackRelease(0.04, t ?? Tone.now(), v),
     setPitch: (p) => osc.frequency.rampTo(3000 + p * 9000, 0.02),
     setDecay: (d) => env.set({ decay: 0.01 + d * 0.08 }),
     connect: (n) => gain.connect(n),
@@ -438,7 +438,7 @@ function createHatElectro(): DrumVoiceInstance {
   });
   synth.frequency.value = 500;
   return {
-    trigger: (v) => synth.triggerAttackRelease('16n', Tone.now(), v),
+    trigger: (v, t) => synth.triggerAttackRelease('16n', t ?? Tone.now(), v),
     setPitch: (p) => synth.frequency.rampTo(300 + p * 700, 0.02),
     setDecay: (d) => synth.envelope.set({ decay: 0.02 + d * 0.15 }),
     connect: (n) => synth.connect(n),
@@ -457,7 +457,7 @@ function createHatPedal(): DrumVoiceInstance {
   });
   synth.frequency.value = 250;
   return {
-    trigger: (v) => synth.triggerAttackRelease('32n', Tone.now(), v),
+    trigger: (v, t) => synth.triggerAttackRelease('32n', t ?? Tone.now(), v),
     setPitch: (p) => synth.frequency.rampTo(150 + p * 500, 0.02),
     setDecay: (d) => synth.envelope.set({ decay: 0.01 + d * 0.05 }),
     connect: (n) => synth.connect(n),
@@ -478,7 +478,7 @@ function createHatTrash(): DrumVoiceInstance {
   synth.connect(crush);
   synth.frequency.value = 300;
   return {
-    trigger: (v) => synth.triggerAttackRelease('16n', Tone.now(), v),
+    trigger: (v, t) => synth.triggerAttackRelease('16n', t ?? Tone.now(), v),
     setPitch: (p) => synth.frequency.rampTo(200 + p * 600, 0.02),
     setDecay: (d) => synth.envelope.set({ decay: decayToSeconds(d) }),
     connect: (n) => crush.connect(n),
@@ -498,7 +498,7 @@ function createPercCowbell(): DrumVoiceInstance {
   });
   synth.frequency.value = 560;
   return {
-    trigger: (v) => synth.triggerAttackRelease('16n', Tone.now(), v),
+    trigger: (v, t) => synth.triggerAttackRelease('16n', t ?? Tone.now(), v),
     setPitch: (p) => synth.frequency.rampTo(400 + p * 400, 0.02),
     setDecay: (d) => synth.envelope.set({ decay: decayToSeconds(d) }),
     connect: (n) => synth.connect(n),
@@ -517,7 +517,7 @@ function createPercClave(): DrumVoiceInstance {
   });
   synth.frequency.value = 800;
   return {
-    trigger: (v) => synth.triggerAttackRelease('32n', Tone.now(), v),
+    trigger: (v, t) => synth.triggerAttackRelease('32n', t ?? Tone.now(), v),
     setPitch: (p) => synth.frequency.rampTo(500 + p * 800, 0.02),
     setDecay: (d) => synth.envelope.set({ decay: 0.01 + d * 0.05 }),
     connect: (n) => synth.connect(n),
@@ -531,7 +531,7 @@ function createPercTom(): DrumVoiceInstance {
     envelope: { attack: 0.001, decay: 0.12, sustain: 0, release: 0.05 },
   });
   return {
-    trigger: (v) => synth.triggerAttackRelease('G2', '16n', Tone.now(), v),
+    trigger: (v, t) => synth.triggerAttackRelease('G2', '16n', t ?? Tone.now(), v),
     setPitch: (p) => { const f = 60 + p * 200; synth.frequency.rampTo(f, 0.02); },
     setDecay: (d) => synth.envelope.set({ decay: decayToSeconds(d) }),
     connect: (n) => synth.connect(n),
@@ -545,7 +545,7 @@ function createPercZap(): DrumVoiceInstance {
     envelope: { attack: 0.001, decay: 0.04, sustain: 0, release: 0.01 },
   });
   return {
-    trigger: (v) => synth.triggerAttackRelease('C5', '32n', Tone.now(), v),
+    trigger: (v, t) => synth.triggerAttackRelease('C5', '32n', t ?? Tone.now(), v),
     setPitch: (p) => { const f = 200 + p * 2000; synth.frequency.rampTo(f, 0.02); },
     setDecay: (d) => synth.envelope.set({ decay: 0.01 + d * 0.08 }),
     connect: (n) => synth.connect(n),
@@ -559,7 +559,7 @@ function createPercClick(): DrumVoiceInstance {
   osc.connect(env);
   osc.start();
   return {
-    trigger: (v) => env.triggerAttackRelease(0.01, Tone.now(), v),
+    trigger: (v, t) => env.triggerAttackRelease(0.01, t ?? Tone.now(), v),
     setPitch: (p) => osc.frequency.rampTo(800 + p * 3000, 0.02),
     setDecay: (d) => env.set({ decay: 0.005 + d * 0.03 }),
     connect: (n) => env.connect(n),
@@ -573,7 +573,7 @@ function createPercBongo(): DrumVoiceInstance {
     envelope: { attack: 0.001, decay: 0.1, sustain: 0, release: 0.05 },
   });
   return {
-    trigger: (v) => synth.triggerAttackRelease('D3', '16n', Tone.now(), v),
+    trigger: (v, t) => synth.triggerAttackRelease('D3', '16n', t ?? Tone.now(), v),
     setPitch: (p) => { const f = 150 + p * 300; synth.frequency.rampTo(f, 0.02); },
     setDecay: (d) => synth.envelope.set({ decay: decayToSeconds(d) }),
     connect: (n) => synth.connect(n),
@@ -587,7 +587,7 @@ function createPercConga(): DrumVoiceInstance {
     envelope: { attack: 0.001, decay: 0.15, sustain: 0, release: 0.08 },
   });
   return {
-    trigger: (v) => synth.triggerAttackRelease('C3', '16n', Tone.now(), v),
+    trigger: (v, t) => synth.triggerAttackRelease('C3', '16n', t ?? Tone.now(), v),
     setPitch: (p) => { const f = 100 + p * 250; synth.frequency.rampTo(f, 0.02); },
     setDecay: (d) => synth.envelope.set({ decay: decayToSeconds(d) }),
     connect: (n) => synth.connect(n),
@@ -603,7 +603,7 @@ function createPercShaker(): DrumVoiceInstance {
   const bpf = new Tone.Filter({ frequency: 10000, type: 'bandpass', Q: 2 });
   synth.connect(bpf);
   return {
-    trigger: (v) => synth.triggerAttackRelease('32n', Tone.now(), v),
+    trigger: (v, t) => synth.triggerAttackRelease('32n', t ?? Tone.now(), v),
     setPitch: (p) => bpf.frequency.rampTo(5000 + p * 10000, 0.02),
     setDecay: (d) => synth.envelope.set({ decay: 0.01 + d * 0.06 }),
     connect: (n) => bpf.connect(n),

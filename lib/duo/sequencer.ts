@@ -25,8 +25,8 @@ export function createInitialSequencerState(): DuoSequencerState {
   };
 }
 
-type StepCallback = (step: number, note: string | null, noteLength: number) => void;
-type DrumStepCallback = (step: number, activeVoices: number[]) => void;
+type StepCallback = (step: number, note: string | null, noteLength: number, time: number) => void;
+type DrumStepCallback = (step: number, activeVoices: number[], time: number) => void;
 
 /**
  * DuoSequencerTransport manages the Tone.js Transport loop
@@ -80,15 +80,15 @@ export class DuoSequencerTransport {
 
   private createPart(swing: number): Tone.Part {
     const events = this.buildStepTimes(swing);
-    const part = new Tone.Part((_time, ev: { step: number }) => {
+    const part = new Tone.Part((time, ev: { step: number }) => {
       const s = this.getState();
       const step = ev.step;
       const stepData = s.steps[step];
 
       if (stepData.active && stepData.note) {
-        this.onStep(step, stepData.note, s.noteLength);
+        this.onStep(step, stepData.note, s.noteLength, time);
       } else {
-        this.onStep(step, null, s.noteLength);
+        this.onStep(step, null, s.noteLength, time);
       }
 
       if (this.onDrumStep && this.getDrumState) {
@@ -103,7 +103,7 @@ export class DuoSequencerTransport {
         }
 
         if (activeVoices.length > 0) {
-          this.onDrumStep(step, activeVoices);
+          this.onDrumStep(step, activeVoices, time);
         }
 
         // Substep retrigger: fire extra trigger halfway through the step

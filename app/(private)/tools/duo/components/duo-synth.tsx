@@ -147,17 +147,17 @@ export function DuoSynth() {
       engineRef.current = engine;
 
       const transport = new DuoSequencerTransport(
-        (step, note, noteLength) => {
+        (step, note, noteLength, time) => {
           dispatch({ type: 'ADVANCE_STEP' });
           if (note && !stateRef.current.melodicMuted) {
             engine.triggerNote(note, 1, noteLength);
           }
         },
         () => stateRef.current.sequencer,
-        (_step, activeVoices) => {
+        (_step, activeVoices, time) => {
           if (stateRef.current.drumMuted) return;
           for (const vi of activeVoices) {
-            engine.triggerDrumVoice(vi, stateRef.current.drum.voices[vi].volume);
+            engine.triggerDrumVoice(vi, stateRef.current.drum.voices[vi].volume, time);
           }
         },
         () => stateRef.current.drum,
