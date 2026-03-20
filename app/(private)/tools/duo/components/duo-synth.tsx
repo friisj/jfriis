@@ -100,8 +100,13 @@ function duoReducer(state: DuoState, action: DuoAction): DuoState {
     }
     case 'DRUM_RANDOMIZE':
       return { ...state, drum: { ...state.drum, voices: randomizeDrumSteps(state.drum.voices) } };
-    case 'DRUM_RESET':
-      return { ...state, drum: createInitialDrumState() };
+    case 'DRUM_RESET': {
+      const clearedVoices = state.drum.voices.map(v => ({
+        ...v,
+        steps: v.steps.map(() => false),
+      }));
+      return { ...state, drum: { ...state.drum, voices: clearedVoices } };
+    }
     case 'DRUM_SET_CRUSH':
       return { ...state, drum: { ...state.drum, effects: { ...state.drum.effects, crush: action.value } } };
     case 'DRUM_SET_FILTER':
