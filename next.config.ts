@@ -2,6 +2,11 @@ import type { NextConfig } from "next";
 import path from "path";
 
 const nextConfig: NextConfig = {
+  typescript: {
+    // Type-checking runs in pre-commit hook (tsc --noEmit).
+    // Running it again inside next build causes OOM on Vercel's 8GB machines.
+    ignoreBuildErrors: true,
+  },
   eslint: {
     // ESLint runs in pre-commit hook via lint-staged; skip during next build
     // to avoid blocking on pre-existing warnings in unmodified files
