@@ -97,8 +97,8 @@ export function DuoKnob({
   });
 
   return (
-    <div className="flex flex-col items-center gap-1" style={{ width: size + 8 }}>
-      <span className="text-xs text-zinc-500 uppercase tracking-wider font-mono leading-tight text-center truncate max-w-full">
+    <div className="flex flex-col items-center gap-2" style={{ width: size + 8 }}>
+      <span className="text-[10px] text-zinc-500 tracking-wider font-mono leading-tight text-center truncate max-w-full">
         {label}
       </span>
       <KnobHeadless
@@ -158,7 +158,7 @@ export function DuoKnob({
           />
         </svg>
       </KnobHeadless>
-      <span className="text-xs font-mono text-zinc-500 leading-tight">{displayFn(value)}</span>
+      <span className="text-[10px] font-mono tabular-nums tracking-wider text-zinc-500 leading-tight">{displayFn(value)}</span>
     </div>
   );
 }

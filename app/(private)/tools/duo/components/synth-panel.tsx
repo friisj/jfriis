@@ -18,12 +18,14 @@ interface SynthPanelProps {
 
 function Section({ label, icon, children }: { label: string; icon: React.ReactNode; children: React.ReactNode }) {
   return (
-    <div className="space-x-4 flex relative p-2 flex-1 min-h-0">
-      <div className="flex flex-col items-center w-5 pt-1 gap-1 select-none">
-        <div className="text-zinc-600">{icon}</div>
-        <span className="text-[9px] font-mono text-zinc-600 uppercase tracking-wider rotate-90 origin-top-left translate-x-4 translate-y-0.5 whitespace-nowrap">{label}</span>
+    <div className="flex justify-between relative flex-1 min-h-0">
+      <div className="flex flex-col items-center justify-start w-8 gap-2 pt-2 select-none">
+        <div className="text-zinc-500">{icon}</div>
+        <div className="rotate-90 size-2.5 flex items-center">
+          <span className="text-[10px] font-mono text-zinc-500 uppercase tracking-wider whitespace-nowrap ">{label}</span>
+        </div>
       </div>
-      <div className="flex items-start justify-start gap-2 flex-wrap">{children}</div>
+      <div className="flex items-center justify-start gap-2 flex-wrap py-2 px-2">{children}</div>
     </div>
   );
 }
@@ -32,7 +34,7 @@ export function SynthPanel({ params, onParamChange }: SynthPanelProps) {
   return (
     <div className="flex flex-col divide-y divide-zinc-800 h-full">
       {/* Oscillators */}
-      <Section label="Oscillators" icon={<IconWaveSine size={14} />}>
+      <Section label="Oscillators" icon={<IconWaveSine size={16} stroke={1} />}>
         <DuoKnob
           label="Mix"
           value={params.oscMix}
@@ -81,7 +83,7 @@ export function SynthPanel({ params, onParamChange }: SynthPanelProps) {
       </Section>
 
       {/* Filter */}
-      <Section label="Filter" icon={<IconAdjustmentsHorizontal size={14} />}>
+      <Section label="Filter" icon={<IconAdjustmentsHorizontal size={16} stroke={1} />}>
         <DuoKnob
           label="Cutoff"
           value={params.filterCutoff}
@@ -105,7 +107,7 @@ export function SynthPanel({ params, onParamChange }: SynthPanelProps) {
       </Section>
 
       {/* Amp */}
-      <Section label="Amp" icon={<IconVolume size={14} />}>
+      <Section label="Amp" icon={<IconVolume size={16} stroke={1} />}>
         <DuoKnob
           label="Level"
           value={params.level}
@@ -127,7 +129,7 @@ export function SynthPanel({ params, onParamChange }: SynthPanelProps) {
       </Section>
 
       {/* Chorus */}
-      <Section label="Chorus" icon={<IconRipple size={14} />}>
+      <Section label="Chorus" icon={<IconRipple size={16} stroke={1} />}>
         <DuoKnob
           label="Rate"
           value={params.chorusRate}
@@ -158,7 +160,7 @@ export function SynthPanel({ params, onParamChange }: SynthPanelProps) {
       </Section>
 
       {/* Space */}
-      <Section label="Space" icon={<IconPlanet size={14} />}>
+      <Section label="Space" icon={<IconPlanet size={16} stroke={1} />}>
         <DuoKnob
           label="Reverb"
           value={params.reverbWet}
@@ -180,7 +182,7 @@ export function SynthPanel({ params, onParamChange }: SynthPanelProps) {
       </Section>
 
       {/* Effects */}
-      <Section label="Effects" icon={<IconWand size={14} />}>
+      <Section label="Effects" icon={<IconWand size={16} stroke={1} />}>
         <DuoKnob
           label="Crush"
           value={params.bitcrusherBits}
