@@ -123,10 +123,15 @@ export function LoginForm() {
         {/* Combined error display */}
         {(error || passkey.error) && (
           <div
-            className="p-3 rounded-lg bg-destructive/10 text-destructive text-sm"
+            className="p-3 rounded-lg bg-destructive/10 text-destructive text-sm space-y-1"
             role="alert"
           >
-            {error || passkey.error}
+            <p>{error || passkey.error?.message}</p>
+            {passkey.error?.detail && (
+              <p className="text-xs opacity-70 font-mono break-all">
+                [{passkey.error.step}] {passkey.error.detail}
+              </p>
+            )}
           </div>
         )}
 

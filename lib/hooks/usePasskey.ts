@@ -11,9 +11,15 @@ import {
 
 type AuthStatus = 'idle' | 'loading' | 'error' | 'success'
 
+export interface PasskeyError {
+  message: string
+  step: 'options' | 'ceremony' | 'verify' | 'unknown'
+  detail?: string
+}
+
 export function usePasskeyAuth() {
   const [status, setStatus] = useState<AuthStatus>('idle')
-  const [error, setError] = useState<string | null>(null)
+  const [error, setError] = useState<PasskeyError | null>(null)
   const [isAvailable, setIsAvailable] = useState(false)
   const [hasCredentials, setHasCredentials] = useState(false)
 
@@ -28,7 +34,6 @@ export function usePasskeyAuth() {
           setIsAvailable(true)
           setHasCredentials(true)
         } else if (!data.error) {
-          // WebAuthn supported but no credentials registered
           setIsAvailable(false)
           setHasCredentials(false)
         }
@@ -43,18 +48,32 @@ export function usePasskeyAuth() {
     setError(null)
 
     try {
-      // Get authentication options
+      // Step 1: Get authentication options
       const optionsRes = await fetch('/api/auth/passkey/authenticate/options')
       const optionsJSON = await optionsRes.json()
 
       if (optionsJSON.error) {
-        throw new Error(optionsJSON.error)
+        setError({ message: 'Failed to get passkey options', step: 'options', detail: optionsJSON.error })
+        setStatus('error')
+        return null
       }
 
-      // Start the browser ceremony
-      const authResponse = await startAuthentication({ optionsJSON })
+      // Step 2: Browser ceremony
+      let authResponse
+      try {
+        authResponse = await startAuthentication({ optionsJSON })
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err)
+        if (msg.includes('cancelled') || msg.includes('abort')) {
+          setStatus('idle')
+          return null
+        }
+        setError({ message: 'Passkey ceremony failed', step: 'ceremony', detail: msg })
+        setStatus('error')
+        return null
+      }
 
-      // Verify on server
+      // Step 3: Verify on server
       const verifyRes = await fetch('/api/auth/passkey/authenticate/verify', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -64,20 +83,20 @@ export function usePasskeyAuth() {
       const result = await verifyRes.json()
 
       if (!verifyRes.ok || !result.success) {
-        throw new Error(result.error || 'Authentication failed')
+        setError({
+          message: result.error || 'Authentication failed',
+          step: 'verify',
+          detail: result.step ? `step=${result.step}${result.code ? ` code=${result.code}` : ''}` : undefined,
+        })
+        setStatus('error')
+        return null
       }
 
       setStatus('success')
       return result.redirectTo ?? '/admin'
     } catch (err) {
-      const message =
-        err instanceof Error ? err.message : 'Authentication failed'
-      // Don't show error for user-cancelled ceremonies
-      if (message.includes('cancelled') || message.includes('abort')) {
-        setStatus('idle')
-        return null
-      }
-      setError(message)
+      const msg = err instanceof Error ? err.message : 'Authentication failed'
+      setError({ message: msg, step: 'unknown' })
       setStatus('error')
       return null
     }

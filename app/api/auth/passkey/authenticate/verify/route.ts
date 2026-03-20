@@ -10,7 +10,7 @@ export async function POST(request: NextRequest) {
 
   if (!response) {
     return NextResponse.json(
-      { error: 'Missing authentication response' },
+      { error: 'Missing authentication response', step: 'parse' },
       { status: 400 }
     )
   }
@@ -20,26 +20,36 @@ export async function POST(request: NextRequest) {
   try {
     const result = await verifyAuthentication(response)
     email = result.email
+    console.log('[passkey:verify] WebAuthn OK for', email)
   } catch (error) {
-    console.error('[passkey:verify] WebAuthn verification failed:', error)
+    const msg = error instanceof Error ? error.message : String(error)
+    console.error('[passkey:verify] WebAuthn failed:', msg)
     return NextResponse.json(
-      { error: 'Authentication failed' },
+      { error: `WebAuthn verification failed: ${msg}`, step: 'webauthn' },
       { status: 401 }
     )
   }
 
   // Step 2: Generate a session token and exchange for cookies
-  // Use a response-bound Supabase client so Set-Cookie headers are written
-  // directly onto the NextResponse (not via cookies() from next/headers,
-  // which is unreliable in Route Handlers returning NextResponse.json()).
   const successResponse = NextResponse.json({
     success: true,
     redirectTo: '/admin',
   })
 
+  let tokenHash: string
   try {
-    const tokenHash = await generateSessionToken(email)
+    tokenHash = await generateSessionToken(email)
+    console.log('[passkey:verify] Token generated for', email)
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : String(error)
+    console.error('[passkey:verify] Token generation failed:', msg)
+    return NextResponse.json(
+      { error: `Session token generation failed: ${msg}`, step: 'token' },
+      { status: 500 }
+    )
+  }
 
+  try {
     const supabase = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -49,6 +59,7 @@ export async function POST(request: NextRequest) {
             return request.cookies.getAll()
           },
           setAll(cookiesToSet) {
+            console.log('[passkey:verify] Setting', cookiesToSet.length, 'cookies')
             cookiesToSet.forEach(({ name, value, options }) => {
               successResponse.cookies.set(name, value, options)
             })
@@ -63,16 +74,19 @@ export async function POST(request: NextRequest) {
     })
 
     if (otpError) {
-      console.error('[passkey:verify] OTP exchange failed:', otpError)
+      console.error('[passkey:verify] OTP exchange failed:', otpError.message, otpError.status)
       return NextResponse.json(
-        { error: 'Failed to establish session' },
+        { error: `OTP exchange failed: ${otpError.message}`, step: 'otp', code: otpError.status },
         { status: 500 }
       )
     }
+
+    console.log('[passkey:verify] Session established for', email)
   } catch (error) {
-    console.error('[passkey:verify] Session creation failed:', error)
+    const msg = error instanceof Error ? error.message : String(error)
+    console.error('[passkey:verify] Session creation failed:', msg)
     return NextResponse.json(
-      { error: 'Failed to establish session' },
+      { error: `Session creation failed: ${msg}`, step: 'session' },
       { status: 500 }
     )
   }

@@ -215,6 +215,7 @@ export async function verifyAuthentication(
   // Try each challenge — the client could have requested options multiple times
   let verification
   let matchedChallengeId: string | undefined
+  const challengeErrors: string[] = []
 
   for (const ch of challenges) {
     try {
@@ -228,14 +229,17 @@ export async function verifyAuthentication(
       })
       matchedChallengeId = ch.id
       break
-    } catch {
-      // Try next challenge
+    } catch (err) {
+      challengeErrors.push(err instanceof Error ? err.message : String(err))
       continue
     }
   }
 
   if (!verification?.verified || !matchedChallengeId) {
-    throw new Error('Authentication verification failed')
+    const detail = challengeErrors.length > 0
+      ? `Tried ${challenges.length} challenge(s): ${challengeErrors[0]}`
+      : 'No challenges available'
+    throw new Error(`Authentication verification failed. ${detail}`)
   }
 
   // Delete the consumed challenge
