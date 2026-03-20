@@ -137,7 +137,7 @@ export class DuoEngine {
       Q: 0.5,
     }).connect(this.master);
     this.drumCrusher = new Tone.BitCrusher(16).connect(this.drumFilter);
-    this.drumBus = new Tone.Gain(0.8).connect(this.drumCrusher);
+    this.drumBus = new Tone.Gain(1.4).connect(this.drumCrusher);
     this.drumVoiceGains = Array.from({ length: 4 }, () =>
       new Tone.Gain(1).connect(this.drumBus!)
     );
@@ -184,8 +184,8 @@ export class DuoEngine {
   }
 
   /** Trigger a drum voice by index */
-  triggerDrumVoice(index: number, velocity: number = 0.8): void {
-    this.drumVoices[index]?.trigger(velocity);
+  triggerDrumVoice(index: number, velocity: number = 0.8, time?: number): void {
+    this.drumVoices[index]?.trigger(velocity, time);
   }
 
   /** Set drum voice pitch (0-1 normalized) */

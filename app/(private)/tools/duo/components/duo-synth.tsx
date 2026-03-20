@@ -1,10 +1,12 @@
 'use client';
 
-import { useReducer, useRef, useEffect, useLayoutEffect, useCallback, useState } from 'react';
+import { useReducer, useRef, useEffect, useLayoutEffect, useCallback, useState, useMemo } from 'react';
 import { SequencerPanel } from './sequencer-panel';
 import { SynthPanel } from './synth-panel';
 import { DuoEngine } from '@/lib/duo/engine';
 import { DrumPanel } from './drum-panel';
+import { KnobSizeProvider } from './knob-size-context';
+import { IconChevronLeft, IconChevronRight } from '@tabler/icons-react';
 import { DuoSequencerTransport, createInitialSequencerState, createInitialDrumState, randomizeSteps, randomizeDrumSteps, randomOffsetDrumSteps, randomFlipDrumSteps } from '@/lib/duo/sequencer';
 import { PRESETS, DEFAULT_SYNTH } from '@/lib/duo/presets';
 import type { DuoState, DuoAction, DuoSynthParams } from '@/lib/duo/types';
@@ -38,6 +40,10 @@ function duoReducer(state: DuoState, action: DuoAction): DuoState {
     }
     case 'RANDOMIZE': {
       const steps = randomizeSteps(state.sequencer.transpose);
+      return { ...state, sequencer: { ...state.sequencer, steps } };
+    }
+    case 'CLEAR_STEPS': {
+      const steps = state.sequencer.steps.map(() => ({ note: null, active: true }));
       return { ...state, sequencer: { ...state.sequencer, steps } };
     }
     case 'PLAY':
@@ -95,6 +101,13 @@ function duoReducer(state: DuoState, action: DuoAction): DuoState {
     }
     case 'DRUM_RANDOMIZE':
       return { ...state, drum: { ...state.drum, voices: randomizeDrumSteps(state.drum.voices) } };
+    case 'DRUM_RESET': {
+      const clearedVoices = state.drum.voices.map(v => ({
+        ...v,
+        steps: v.steps.map(() => false),
+      }));
+      return { ...state, drum: { ...state.drum, voices: clearedVoices } };
+    }
     case 'DRUM_SET_CRUSH':
       return { ...state, drum: { ...state.drum, effects: { ...state.drum.effects, crush: action.value } } };
     case 'DRUM_SET_FILTER':
@@ -121,6 +134,10 @@ export function DuoSynth() {
   const [initialized, setInitialized] = useState(false);
   const [inputStep, setInputStep] = useState(0);
   const [presetIndex, setPresetIndex] = useState(0);
+  const [helpOpen, setHelpOpen] = useState(false);
+  const synthPanelRef = useRef<HTMLDivElement>(null);
+  const carouselRef = useRef<HTMLDivElement>(null);
+  const [activePanel, setActivePanel] = useState(1); // 0=synth, 1=seq, 2=drums
   const engineRef = useRef<DuoEngine | null>(null);
   const transportRef = useRef<DuoSequencerTransport | null>(null);
   const initPromiseRef = useRef<Promise<void> | null>(null);
@@ -144,17 +161,17 @@ export function DuoSynth() {
       engineRef.current = engine;
 
       const transport = new DuoSequencerTransport(
-        (step, note, noteLength) => {
+        (step, note, noteLength, time) => {
           dispatch({ type: 'ADVANCE_STEP' });
           if (note && !stateRef.current.melodicMuted) {
             engine.triggerNote(note, 1, noteLength);
           }
         },
         () => stateRef.current.sequencer,
-        (_step, activeVoices) => {
+        (_step, activeVoices, time) => {
           if (stateRef.current.drumMuted) return;
           for (const vi of activeVoices) {
-            engine.triggerDrumVoice(vi, stateRef.current.drum.voices[vi].volume);
+            engine.triggerDrumVoice(vi, stateRef.current.drum.voices[vi].volume, time);
           }
         },
         () => stateRef.current.drum,
@@ -280,13 +297,7 @@ export function DuoSynth() {
     dispatch({ type: 'DRUM_RANDOMIZE' });
   }, [ensureInit]);
 
-  const handleDrumRandomOffset = useCallback(() => {
-    dispatch({ type: 'DRUM_RANDOM_OFFSET' });
-  }, []);
 
-  const handleDrumRandomFlip = useCallback(() => {
-    dispatch({ type: 'DRUM_RANDOM_FLIP' });
-  }, []);
 
   const handlePresetChange = useCallback(async (index: number) => {
     setPresetIndex(index);
@@ -296,68 +307,70 @@ export function DuoSynth() {
     engineRef.current?.setAllParams(preset.synth);
   }, [ensureInit]);
 
+  const panelNames = useMemo(() => ['Synth', 'Seq', 'Drums'], []);
+
+  // Track active panel from scroll position
+  const handleCarouselScroll = useCallback(() => {
+    const el = carouselRef.current;
+    if (!el) return;
+    const scrollLeft = el.scrollLeft;
+    const panelWidth = el.clientWidth;
+    const index = Math.round(scrollLeft / panelWidth);
+    setActivePanel(Math.min(2, Math.max(0, index)));
+  }, []);
+
+  const scrollToPanel = useCallback((index: number) => {
+    const el = carouselRef.current;
+    if (!el) return;
+    el.scrollTo({ left: index * el.clientWidth, behavior: 'smooth' });
+  }, []);
+
   return (
-    <div className="flex flex-col h-full bg-zinc-950">
-      {/* Header bar */}
-      <div className="flex items-center justify-between px-4 py-2 border-b border-zinc-800 bg-zinc-900/50">
-        <div className="flex items-center gap-3">
-          <h1 className="text-sm font-bold text-zinc-200 tracking-wide">DUO</h1>
-          {!initialized && (
-            <span className="text-[10px] text-zinc-500">Click any control to start audio</span>
-          )}
-        </div>
-        {/* Preset selector */}
-        <select
-          value={presetIndex}
-          onChange={(e) => handlePresetChange(Number(e.target.value))}
-          className="text-xs bg-zinc-800 text-zinc-300 border border-zinc-700 rounded px-2 py-1
-                     focus:ring-1 focus:ring-amber-400/50 outline-none"
-          aria-label="Select preset"
-        >
-          {PRESETS.map((preset, i) => (
-            <option key={preset.name} value={i}>
-              {preset.name}
-            </option>
-          ))}
-        </select>
-      </div>
+    <div className="flex flex-col h-full bg-zinc-950 overflow-hidden">
 
-      {/* Three-panel layout */}
-      <div className="flex flex-1 flex-col md:flex-row divide-y md:divide-y-0 md:divide-x divide-zinc-800 overflow-auto">
-        {/* Sequencer panel */}
-        <div className="flex-1 min-w-0 overflow-auto">
-          <SequencerPanel
-            state={state.sequencer}
-            inputStep={inputStep}
-            onNotePress={handleNotePress}
-            onToggleStep={(i) => dispatch({ type: 'TOGGLE_STEP', step: i })}
-            onSelectStep={handleSelectStep}
-            onPlay={handlePlay}
-            onStop={handleStop}
-            onBpmChange={(bpm) => dispatch({ type: 'SET_BPM', bpm })}
-            onNoteLengthChange={(length) => dispatch({ type: 'SET_NOTE_LENGTH', length })}
-            onTranspose={(delta) => dispatch({ type: 'TRANSPOSE', delta })}
-            onSwingChange={(swing) => dispatch({ type: 'SET_SWING', swing })}
-            onRandomize={handleRandomize}
-            onBoostDown={handleBoostDown}
-            onBoostUp={handleBoostUp}
-          />
-        </div>
-
+      {/* Three-panel layout: carousel on mobile, side-by-side on md+ */}
+      <KnobSizeProvider measureRef={synthPanelRef}>
+      <div
+        ref={carouselRef}
+        onScroll={handleCarouselScroll}
+        className="flex flex-1 overflow-x-auto overflow-y-hidden snap-x snap-mandatory
+                   md:overflow-x-hidden md:divide-x divide-zinc-800"
+        style={{ scrollbarWidth: 'none' }}
+      >
         {/* Synth panel */}
-        <div className="flex-1 min-w-0 overflow-auto">
+        <div ref={synthPanelRef} className="w-full flex-shrink-0 snap-center md:flex-1 md:w-auto md:flex-shrink overflow-y-auto">
           <SynthPanel
             params={state.synth}
             onParamChange={handleParamChange}
           />
         </div>
 
+        {/* Sequencer panel */}
+        <div className="w-full flex-shrink-0 snap-center md:flex-1 md:w-auto md:flex-shrink overflow-y-auto">
+          <SequencerPanel
+            state={state.sequencer}
+            muted={state.melodicMuted}
+            inputStep={inputStep}
+            onNotePress={handleNotePress}
+            onToggleStep={(i) => dispatch({ type: 'TOGGLE_STEP', step: i })}
+            onSelectStep={handleSelectStep}
+            onToggleMute={() => dispatch({ type: 'TOGGLE_MELODIC_MUTE' })}
+            onBpmChange={(bpm) => dispatch({ type: 'SET_BPM', bpm })}
+            onNoteLengthChange={(length) => dispatch({ type: 'SET_NOTE_LENGTH', length })}
+            onTranspose={(delta) => dispatch({ type: 'TRANSPOSE', delta })}
+            onSwingChange={(swing) => dispatch({ type: 'SET_SWING', swing })}
+            onRandomize={handleRandomize}
+            onReset={() => dispatch({ type: 'CLEAR_STEPS' })}
+          />
+        </div>
+
         {/* Drum machine panel */}
-        <div className="flex-1 min-w-0 overflow-auto">
+        <div className="w-full flex-shrink-0 snap-center md:flex-1 md:w-auto md:flex-shrink overflow-y-auto">
           <DrumPanel
             drum={state.drum}
             currentStep={state.sequencer.currentStep}
             playing={state.sequencer.playing}
+            muted={state.drumMuted}
             onToggleStep={handleDrumToggleStep}
             onTriggerVoice={handleDrumTriggerVoice}
             onRetrigger={handleDrumRetrigger}
@@ -367,55 +380,125 @@ export function DuoSynth() {
             onSetVolume={handleDrumSetVolume}
             onSetCrush={handleDrumSetCrush}
             onSetFilter={handleDrumSetFilter}
+            onToggleMute={() => dispatch({ type: 'TOGGLE_DRUM_MUTE' })}
             onRandomize={handleDrumRandomize}
-            onRandomOffset={handleDrumRandomOffset}
-            onRandomFlip={handleDrumRandomFlip}
+            onReset={() => dispatch({ type: 'DRUM_RESET' })}
           />
         </div>
       </div>
+      </KnobSizeProvider>
 
-      {/* Status bar */}
-      <div className="flex items-center justify-between px-4 py-1.5 border-t border-zinc-800 bg-zinc-900/50">
-        <div className="flex items-center gap-3">
-          <span className="text-[10px] font-mono text-zinc-500">
-            {state.sequencer.playing ? 'Playing' : 'Stopped'}
-          </span>
-          <span className="text-[10px] font-mono text-zinc-600">
-            Step {state.sequencer.currentStep + 1}/8
-          </span>
+      <div className="flex items-center justify-between px-4 py-2 border-t border-zinc-800 bg-zinc-900/50">
+        <div className="flex items-center gap-3 flex-1">
+          {/* Mobile carousel nav */}
+          <div className="flex md:hidden items-center gap-1.5">
+            <button type="button" onClick={() => scrollToPanel(Math.max(0, activePanel - 1))}
+              className="w-5 h-5 flex items-center justify-center text-zinc-500 hover:text-zinc-300 transition-colors"
+              aria-label="Previous panel" disabled={activePanel === 0}>
+              <IconChevronLeft size={14} />
+            </button>
+            {panelNames.map((name, i) => (
+              <button key={name} type="button" onClick={() => scrollToPanel(i)}
+                className={`text-[9px] font-mono px-1.5 py-0.5 rounded transition-colors ${
+                  i === activePanel ? 'bg-zinc-700 text-zinc-200' : 'text-zinc-600 hover:text-zinc-400'
+                }`}
+                aria-label={`Go to ${name} panel`}
+                aria-current={i === activePanel ? 'true' : undefined}>
+                {name}
+              </button>
+            ))}
+            <button type="button" onClick={() => scrollToPanel(Math.min(2, activePanel + 1))}
+              className="w-5 h-5 flex items-center justify-center text-zinc-500 hover:text-zinc-300 transition-colors"
+              aria-label="Next panel" disabled={activePanel === 2}>
+              <IconChevronRight size={14} />
+            </button>
+          </div>
+          {/* Desktop: DUO title + preset */}
+          <h1 className="text-sm font-bold text-zinc-200 tracking-wide hidden md:block">DUO</h1>
+          <select
+            value={presetIndex}
+            onChange={(e) => handlePresetChange(Number(e.target.value))}
+            className="text-xs bg-zinc-800 text-zinc-300 border border-zinc-700 rounded px-2 py-1
+                      focus:ring-1 focus:ring-amber-400/50 outline-none"
+            aria-label="Select preset"
+          >
+            {PRESETS.map((preset, i) => (
+              <option key={preset.name} value={i}>
+                {preset.name}
+              </option>
+            ))}
+          </select>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex-1 flex items-center justify-center gap-3">
           <button
             type="button"
-            onClick={() => dispatch({ type: 'TOGGLE_MELODIC_MUTE' })}
-            className={`text-[10px] font-mono px-1.5 py-0.5 rounded transition-colors ${
-              state.melodicMuted
-                ? 'bg-zinc-700 text-zinc-400 line-through'
-                : 'bg-amber-900/40 text-amber-400'
+            onClick={state.sequencer.playing ? handleStop : handlePlay}
+            className={`text-xs font-mono px-3 py-1 rounded transition-colors ${
+              state.sequencer.playing
+                ? 'bg-amber-600/80 text-white'
+                : 'bg-zinc-800 text-zinc-300 hover:bg-zinc-700'
             }`}
-            aria-label={state.melodicMuted ? 'Unmute melodic' : 'Mute melodic'}
-            aria-pressed={!state.melodicMuted}
+            aria-label={state.sequencer.playing ? 'Stop' : 'Play'}
           >
-            Synth
+            {state.sequencer.playing ? 'Stop' : 'Play'}
           </button>
           <button
             type="button"
-            onClick={() => dispatch({ type: 'TOGGLE_DRUM_MUTE' })}
-            className={`text-[10px] font-mono px-1.5 py-0.5 rounded transition-colors ${
-              state.drumMuted
-                ? 'bg-zinc-700 text-zinc-400 line-through'
-                : 'bg-rose-900/40 text-rose-400'
-            }`}
-            aria-label={state.drumMuted ? 'Unmute drums' : 'Mute drums'}
-            aria-pressed={!state.drumMuted}
+            onPointerDown={handleBoostDown}
+            onPointerUp={handleBoostUp}
+            onPointerLeave={handleBoostUp}
+            className="text-xs font-mono px-3 py-1 rounded select-none touch-none
+                       bg-amber-900/40 text-amber-400 hover:bg-amber-800/50 active:bg-amber-700/60 transition-colors"
+            aria-label="Hold to boost tempo 2x"
           >
-            Drums
+            Boost
           </button>
           <span className="text-[10px] font-mono text-zinc-600">
             {Math.round(state.sequencer.bpm)} BPM
           </span>
         </div>
+        <div className="flex items-center justify-end gap-4 px-4 py-1.5 flex-1 relative">
+          <button
+            type="button"
+            onClick={() => setHelpOpen(!helpOpen)}
+            className="w-6 h-6 rounded-full text-[10px] font-bold
+                       bg-zinc-800 text-zinc-500 hover:text-zinc-300 hover:bg-zinc-700
+                       transition-colors focus-visible:ring-2 focus-visible:ring-amber-400/50 outline-none"
+            aria-label="How to use DUO"
+            aria-expanded={helpOpen}
+          >
+            ?
+          </button>
+          {helpOpen && (
+            <div
+              className="absolute right-4 top-full mt-1 z-20 w-64 p-3 rounded-lg
+                         bg-zinc-800 border border-zinc-700 shadow-xl text-[11px] text-zinc-300 space-y-2"
+              role="tooltip"
+            >
+              <p className="font-medium text-zinc-100">Sequencer</p>
+              <ul className="space-y-1.5 text-zinc-400">
+                <li><span className="text-purple-400">Tap a step</span> to select it as the input target (purple ring).</li>
+                <li><span className="text-amber-400">Press a key</span> on the keyboard to assign a note &mdash; the cursor advances automatically.</li>
+                <li><span className="text-zinc-300">Long-press a step</span> to mute/unmute it (dimmed = muted).</li>
+                <li>Centre button toggles <span className="text-amber-400">play/stop</span>.</li>
+              </ul>
+              <hr className="border-zinc-700" />
+              <p className="font-medium text-zinc-100">Drums</p>
+              <ul className="space-y-1.5 text-zinc-400">
+                <li><span className="text-zinc-300">Tap a cell</span> in the grid to toggle that step on/off.</li>
+                <li><span className="text-zinc-300">Hold a pad label</span> to retrigger that voice every step while held.</li>
+                <li><span className="text-zinc-300">Random</span>: tap to shift pattern, hold to flip random steps.</li>
+              </ul>
+              <hr className="border-zinc-700" />
+              <p className="font-medium text-zinc-100">Knobs</p>
+              <ul className="space-y-1.5 text-zinc-400">
+                <li><span className="text-zinc-300">Drag up/down</span> to adjust. Value shows below each knob.</li>
+              </ul>
+            </div>
+          )}
+        </div>
       </div>
+
     </div>
   );
 }

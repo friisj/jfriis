@@ -3,6 +3,7 @@
 import { useId, useCallback } from 'react';
 import { KnobHeadless, useKnobKeyboardControls } from 'react-knob-headless';
 import { cn } from '@/lib/utils';
+import { useKnobSize } from './knob-size-context';
 
 interface KnobProps {
   label: string;
@@ -20,7 +21,7 @@ interface KnobProps {
 
 const SWEEP = 270;
 const GAP_DEG = (360 - SWEEP) / 2;
-const START_ANGLE = 90 + GAP_DEG;
+const START_ANGLE = 180 + GAP_DEG;
 
 function polarToXY(cx: number, cy: number, r: number, deg: number) {
   const rad = ((deg - 90) * Math.PI) / 180;
@@ -54,9 +55,11 @@ export function DuoKnob({
   displayFn = defaultDisplay,
   mapTo01,
   mapFrom01,
-  size = 44,
+  size: sizeProp,
   color,
 }: KnobProps) {
+  const contextSize = useKnobSize();
+  const size = sizeProp ?? contextSize;
   const id = useId();
   const norm = (mapTo01 ?? defaultMapTo01)(value, min, max);
   const angle = START_ANGLE + norm * SWEEP;
@@ -94,8 +97,8 @@ export function DuoKnob({
   });
 
   return (
-    <div className="flex flex-col items-center gap-1 w-14">
-      <span className="text-[9px] text-zinc-500 uppercase tracking-wider leading-tight text-center truncate max-w-full">
+    <div className="flex flex-col items-center gap-2" style={{ width: size + 8 }}>
+      <span className="text-[10px] text-zinc-500 tracking-wider font-mono leading-tight text-center truncate max-w-full">
         {label}
       </span>
       <KnobHeadless
@@ -155,7 +158,7 @@ export function DuoKnob({
           />
         </svg>
       </KnobHeadless>
-      <span className="text-[10px] font-mono text-zinc-500 leading-tight">{displayFn(value)}</span>
+      <span className="text-[10px] font-mono tabular-nums tracking-wider text-zinc-500 leading-tight">{displayFn(value)}</span>
     </div>
   );
 }
