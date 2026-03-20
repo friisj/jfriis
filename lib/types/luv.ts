@@ -327,6 +327,7 @@ export interface LuvMessage {
   conversation_id: string;
   role: LuvMessageRole;
   content: string;
+  parts?: object[] | null;
   created_at: string;
 }
 
@@ -334,6 +335,7 @@ export type CreateLuvMessageInput = {
   conversation_id: string;
   role: LuvMessageRole;
   content: string;
+  parts?: object[] | null;
 };
 
 /**

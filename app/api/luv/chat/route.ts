@@ -52,7 +52,7 @@ export async function POST(request: Request) {
       getLuvCharacterServer(),
       getChassisModulesServer(),
       listLuvResearchServer(),
-      getLuvChangelogServer(8),
+      getLuvChangelogServer(8).catch(() => []),
     ]);
     const soulData = character?.soul_data ?? {};
     const chassisModuleSummaries: ChassisModuleSummary[] = chassisModules.map((m) => ({

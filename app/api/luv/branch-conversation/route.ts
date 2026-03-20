@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/ai/auth';
-import { getLuvConversationServer } from '@/lib/luv-server';
+import { getLuvConversationServer, getLuvMessagesServer } from '@/lib/luv-server';
 import { createLuvConversation } from '@/lib/luv';
 
 export async function POST(request: Request) {
@@ -19,11 +19,27 @@ export async function POST(request: Request) {
 
     const source = await getLuvConversationServer(conversationId);
 
-    if (!source.compact_summary) {
-      return NextResponse.json(
-        { error: 'Source conversation must be compacted before branching' },
-        { status: 400 }
-      );
+    // If the source has a compact summary, use it as seed context.
+    // Otherwise, build a lightweight seed from the last few messages.
+    let seedSummary = source.compact_summary;
+
+    if (!seedSummary) {
+      const messages = await getLuvMessagesServer(conversationId);
+      const recent = messages
+        .filter((m) => m.role === 'user' || m.role === 'assistant')
+        .slice(-10);
+
+      if (recent.length > 0) {
+        seedSummary = JSON.stringify({
+          carry_forward_summary: `Branched from "${source.title ?? 'Untitled'}". Recent context follows.`,
+          goals: [],
+          decisions: [],
+          important_context: recent.map(
+            (m) => `${m.role === 'user' ? 'Jon' : 'Luv'}: ${m.content.slice(0, 200)}`
+          ),
+          open_threads: [],
+        });
+      }
     }
 
     const branch = await createLuvConversation({
@@ -31,7 +47,7 @@ export async function POST(request: Request) {
       soul_snapshot: source.soul_snapshot,
       model: source.model,
       parent_conversation_id: source.id,
-      compact_summary: source.compact_summary,
+      compact_summary: seedSummary ?? undefined,
     });
 
     return NextResponse.json({ conversationId: branch.id });

@@ -67,11 +67,24 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'No messages to compact' }, { status: 400 });
     }
 
-    // Format the conversation as a readable transcript for the agent
-    const transcript = messages
-      .filter((m) => m.role === 'user' || m.role === 'assistant')
-      .map((m) => `${m.role === 'user' ? 'Jon' : 'Luv'}: ${m.content}`)
-      .join('\n\n');
+    // Format the conversation as a readable transcript for the agent.
+    // For long conversations, keep the first 5 + last 40 messages to fit
+    // within model context while capturing both the opening context and
+    // the most recent work.
+    const filtered = messages.filter((m) => m.role === 'user' || m.role === 'assistant');
+    let formattedLines: string[];
+    if (filtered.length > 50) {
+      const head = filtered.slice(0, 5);
+      const tail = filtered.slice(-40);
+      formattedLines = [
+        ...head.map((m) => `${m.role === 'user' ? 'Jon' : 'Luv'}: ${m.content}`),
+        `[... ${filtered.length - 45} messages omitted ...]`,
+        ...tail.map((m) => `${m.role === 'user' ? 'Jon' : 'Luv'}: ${m.content}`),
+      ];
+    } else {
+      formattedLines = filtered.map((m) => `${m.role === 'user' ? 'Jon' : 'Luv'}: ${m.content}`);
+    }
+    const transcript = formattedLines.join('\n\n');
 
     const { object } = await generateObject({
       model: getModel(modelKey),

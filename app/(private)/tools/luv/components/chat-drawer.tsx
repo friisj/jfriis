@@ -215,10 +215,10 @@ export function ChatDrawer() {
                       </DropdownMenuItem>
                     </>
                   )}
-                  {messages.length >= 20 && resumedConversationId && (
+                  {messages.length >= 6 && resumedConversationId && (
                     <>
                       <DropdownMenuSeparator />
-                      {!compactSummary ? (
+                      {!compactSummary && (
                         <DropdownMenuItem
                           className="text-xs"
                           onClick={handleCompact}
@@ -231,20 +231,19 @@ export function ChatDrawer() {
                           )}
                           {compacting ? 'Analysing…' : 'Compact conversation'}
                         </DropdownMenuItem>
-                      ) : (
-                        <DropdownMenuItem
-                          className="text-xs"
-                          onClick={handleBranch}
-                          disabled={isActive || branching}
-                        >
-                          {branching ? (
-                            <IconLoader2 size={14} className="mr-2 animate-spin" />
-                          ) : (
-                            <IconGitBranch size={14} className="mr-2" />
-                          )}
-                          {branching ? 'Branching…' : 'Branch conversation'}
-                        </DropdownMenuItem>
                       )}
+                      <DropdownMenuItem
+                        className="text-xs"
+                        onClick={handleBranch}
+                        disabled={isActive || branching}
+                      >
+                        {branching ? (
+                          <IconLoader2 size={14} className="mr-2 animate-spin" />
+                        ) : (
+                          <IconGitBranch size={14} className="mr-2" />
+                        )}
+                        {branching ? 'Branching…' : 'Branch conversation'}
+                      </DropdownMenuItem>
                     </>
                   )}
                   {messages.length > 0 && (
