@@ -111,46 +111,35 @@ export function DrumSequencer({
           )}
 
           {/* Random button (left of center) */}
-          <g className="cursor-pointer" onClick={onRandomize} role="button" aria-label="Randomize pattern" tabIndex={0}
+          <g className="cursor-pointer" role="button" aria-label="Randomize pattern" tabIndex={0}
             onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onRandomize(); } }}>
-            <circle cx={center - SIDE_OFFSET} cy={center} r={SIDE_R} className="fill-purple-900/80 stroke-purple-600/60" strokeWidth={1} />
-            <foreignObject x={center - SIDE_OFFSET - 7} y={center - 7} width={14} height={14} className="pointer-events-none">
-              <IconDice5Filled size={14} className="text-purple-300" />
+            <circle cx={center - SIDE_OFFSET} cy={center} r={SIDE_R} className="fill-purple-900/80 stroke-purple-600/60" strokeWidth={1} onClick={onRandomize} />
+            <foreignObject x={center - SIDE_OFFSET - 7} y={center - 7} width={14} height={14} style={{ pointerEvents: 'none' }}>
+              <div style={{ pointerEvents: 'none' }}><IconDice5Filled size={14} className="text-purple-300" /></div>
             </foreignObject>
           </g>
 
           {/* Center mute toggle */}
-          <g
-            className="cursor-pointer"
-            onClick={onToggleMute}
-            role="button"
-            aria-label={muted ? 'Unmute drums' : 'Mute drums'}
-            aria-pressed={!muted}
-            tabIndex={0}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' || e.key === ' ') {
-                e.preventDefault();
-                onToggleMute();
-              }
-            }}
-          >
+          <g className="cursor-pointer" role="button" aria-label={muted ? 'Unmute drums' : 'Mute drums'} aria-pressed={!muted} tabIndex={0}
+            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onToggleMute(); } }}>
             <circle cx={center} cy={center} r={CENTER_R}
               className={muted ? 'fill-zinc-800 stroke-zinc-700' : 'fill-rose-900/60 stroke-rose-500/60'}
-              strokeWidth={1.5} />
-            <foreignObject x={center - 10} y={center - 10} width={20} height={20} className="pointer-events-none">
-              {muted
-                ? <IconVolumeOff size={20} className="text-zinc-500" />
-                : <IconVolume size={20} className="text-rose-400" />
-              }
+              strokeWidth={1.5} onClick={onToggleMute} />
+            <foreignObject x={center - 10} y={center - 10} width={20} height={20} style={{ pointerEvents: 'none' }}>
+              <div style={{ pointerEvents: 'none' }}>
+                {muted ? <IconVolumeOff size={20} className="text-zinc-500" /> : <IconVolume size={20} className="text-rose-400" />}
+              </div>
             </foreignObject>
           </g>
 
           {/* Reset button (right of center) */}
-          <g className="cursor-pointer" onClick={onReset} role="button" aria-label="Reset to default pattern" tabIndex={0}
+          <g className="cursor-pointer" role="button" aria-label="Reset to default pattern" tabIndex={0}
             onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onReset(); } }}>
-            <circle cx={center + SIDE_OFFSET} cy={center} r={SIDE_R} className="fill-zinc-800 stroke-zinc-600" strokeWidth={1} />
-            <foreignObject x={center + SIDE_OFFSET - 7} y={center - 7} width={14} height={14} className="pointer-events-none">
-              <IconRefresh size={14} className="text-zinc-400" />
+            <circle cx={center + SIDE_OFFSET} cy={center} r={SIDE_R} className="fill-zinc-800 stroke-zinc-600" strokeWidth={1} onClick={onReset} />
+            <foreignObject x={center + SIDE_OFFSET - 7} y={center - 7} width={14} height={14} style={{ pointerEvents: 'none' }}>
+              <div style={{ pointerEvents: 'none' }}>
+                <IconRefresh size={14} className="text-zinc-400" />
+              </div>
             </foreignObject>
           </g>
         </svg>
