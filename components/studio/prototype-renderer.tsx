@@ -35,6 +35,7 @@ const registry: Record<string, React.ComponentType> = {
   'isotope/snap-iso-draw': dynamic(() => import('@/components/studio/prototypes/isotope/snap-iso-draw'), { ssr: false }),
   'isotope/diagonal-angle': dynamic(() => import('@/components/studio/prototypes/isotope/diagonal-angle'), { ssr: false }),
   'isotope/arc-circle': dynamic(() => import('@/components/studio/prototypes/isotope/arc-circle'), { ssr: false }),
+  'isotope/shape-deform': dynamic(() => import('@/components/studio/prototypes/isotope/shape-deform'), { ssr: false }),
 }
 
 export function PrototypeRenderer({ prototypeKey }: { prototypeKey: string }) {
