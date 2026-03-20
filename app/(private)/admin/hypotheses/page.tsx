@@ -22,7 +22,7 @@ export default async function HypothesesPage() {
   const projects = projectsRes.data || []
 
   return (
-    <div className="p-8">
+    <div className="p-8 border border-red-500">
       <div className="max-w-4xl mx-auto">
         <div className="flex items-center justify-between mb-8">
           <div>

@@ -97,7 +97,7 @@ export default async function ExperimentPage({ params }: Props) {
   const outcomeDisplay = getOutcomeDisplay(experiment.outcome ?? undefined)
 
   return (
-    <div className="min-h-screen bg-white text-black p-8">
+    <div className="min-h-screen bg-white text-black p-8 overflow-y-scroll">
       <div className="max-w-4xl mx-auto">
         {/* Breadcrumb */}
         <nav className="mb-8 text-sm flex items-center justify-between">

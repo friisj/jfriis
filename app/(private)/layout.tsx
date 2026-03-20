@@ -137,7 +137,7 @@ export default function PrivateLayout({ children }: { children: React.ReactNode 
         <PrivateHeaderProvider>
           <div className="min-h-screen flex flex-col h-dvh">
             <PrivateHeader />
-            <main className="flex-1 flex flex-col overflow-hidden relative">
+            <main className="flex-1 flex flex-col overflow-y-scroll relative">
               {children}
             </main>
           </div>
