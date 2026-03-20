@@ -18,7 +18,7 @@
  */
 
 import { useRef, useState, useCallback, useEffect, useMemo } from 'react'
-import { Canvas, useThree, useFrame } from '@react-three/fiber'
+import { Canvas, useThree } from '@react-three/fiber'
 import { Line, OrbitControls } from '@react-three/drei'
 import * as THREE from 'three'
 
@@ -56,6 +56,52 @@ function snapVal(value: number, granularity: number): number {
 
 function snapVec3(v: THREE.Vector3, g: number): THREE.Vector3 {
   return new THREE.Vector3(snapVal(v.x, g), snapVal(v.y, g), snapVal(v.z, g))
+}
+
+/** Screen-space pixel threshold for vertex snap inference */
+const VERTEX_SNAP_PX = 12
+
+/** Collect all unique vertex positions from completed strokes */
+function collectVertices(strokes: Stroke3D[]): THREE.Vector3[] {
+  const seen = new Set<string>()
+  const verts: THREE.Vector3[] = []
+  for (const stroke of strokes) {
+    for (const pt of stroke.points) {
+      const key = `${pt.x.toFixed(4)},${pt.y.toFixed(4)},${pt.z.toFixed(4)}`
+      if (!seen.has(key)) {
+        seen.add(key)
+        verts.push(pt)
+      }
+    }
+  }
+  return verts
+}
+
+/** Find the nearest existing vertex in screen space within VERTEX_SNAP_PX */
+function findNearestVertex(
+  cursorNDC: THREE.Vector2,
+  vertices: THREE.Vector3[],
+  camera: THREE.Camera,
+  canvasSize: { width: number; height: number },
+): THREE.Vector3 | null {
+  if (vertices.length === 0) return null
+
+  let best: THREE.Vector3 | null = null
+  let bestDist = Infinity
+  // Convert threshold from pixels to NDC (approximate)
+  const threshNDC = (VERTEX_SNAP_PX / Math.min(canvasSize.width, canvasSize.height)) * 2
+
+  for (const v of vertices) {
+    const projected = v.clone().project(camera)
+    const dx = projected.x - cursorNDC.x
+    const dy = projected.y - cursorNDC.y
+    const dist = Math.sqrt(dx * dx + dy * dy)
+    if (dist < threshNDC && dist < bestDist) {
+      bestDist = dist
+      best = v
+    }
+  }
+  return best
 }
 
 // ─── Inner Three.js components ───────────────────────────────────────────────
@@ -168,6 +214,30 @@ function AxisGuide({
   )
 }
 
+/** Visual indicator when cursor is near an existing vertex */
+function VertexSnapIndicator({ position }: { position: THREE.Vector3 | null }) {
+  if (!position) return null
+  return (
+    <group position={position}>
+      {/* Ring around the vertex */}
+      <mesh rotation={[-Math.PI / 2, 0, 0]}>
+        <ringGeometry args={[0.1, 0.15, 16]} />
+        <meshBasicMaterial color="#f59e0b" side={THREE.DoubleSide} />
+      </mesh>
+      {/* Vertical ring for depth */}
+      <mesh>
+        <ringGeometry args={[0.1, 0.15, 16]} />
+        <meshBasicMaterial color="#f59e0b" side={THREE.DoubleSide} transparent opacity={0.5} />
+      </mesh>
+      {/* Small sphere at vertex */}
+      <mesh>
+        <sphereGeometry args={[0.05, 8, 8]} />
+        <meshBasicMaterial color="#f59e0b" />
+      </mesh>
+    </group>
+  )
+}
+
 /** Faint reference lines along all 3 axes from a point */
 function OriginAxes({ origin }: { origin: THREE.Vector3 }) {
   const len = 20
@@ -213,19 +283,23 @@ function LineToolController({
   snapEnabled,
   granularity,
   lineOrigin,
+  strokes,
   onAxisUpdate,
   onLinePreview,
   onSegmentPlace,
   onOriginSet,
+  onVertexSnap,
   enabled,
 }: {
   snapEnabled: boolean
   granularity: number
   lineOrigin: THREE.Vector3 | null
+  strokes: Stroke3D[]
   onAxisUpdate: (axis: Axis | null, endPoint: THREE.Vector3 | null) => void
   onLinePreview: (points: THREE.Vector3[]) => void
   onSegmentPlace: (from: THREE.Vector3, to: THREE.Vector3) => void
   onOriginSet: (point: THREE.Vector3) => void
+  onVertexSnap: (vertex: THREE.Vector3 | null) => void
   enabled: boolean
 }) {
   const { camera, gl, size } = useThree()
@@ -237,6 +311,8 @@ function LineToolController({
   granRef.current = granularity
   const enabledRef = useRef(enabled)
   enabledRef.current = enabled
+  const strokesRef = useRef(strokes)
+  strokesRef.current = strokes
 
   // Stable refs for callbacks
   const onAxisUpdateRef = useRef(onAxisUpdate)
@@ -247,6 +323,8 @@ function LineToolController({
   onSegmentPlaceRef.current = onSegmentPlace
   const onOriginSetRef = useRef(onOriginSet)
   onOriginSetRef.current = onOriginSet
+  const onVertexSnapRef = useRef(onVertexSnap)
+  onVertexSnapRef.current = onVertexSnap
 
   // Project a world point to NDC
   const toNDC = useCallback(
@@ -328,8 +406,26 @@ function LineToolController({
     }
 
     const handleMove = (e: MouseEvent) => {
-      if (!enabledRef.current || !originRef.current) return
+      if (!enabledRef.current) return
       const ndc = getNDC(e)
+      const vertices = collectVertices(strokesRef.current)
+      const nearVert = findNearestVertex(ndc, vertices, camera, size)
+
+      if (!originRef.current) {
+        // No origin yet — just show vertex snap indicator if near one
+        onVertexSnapRef.current(nearVert)
+        return
+      }
+
+      // Check if cursor is near a vertex for endpoint snap
+      if (nearVert) {
+        onVertexSnapRef.current(nearVert)
+        onAxisUpdateRef.current(null, nearVert)
+        onLinePreviewRef.current([originRef.current, nearVert])
+        return
+      }
+
+      onVertexSnapRef.current(null)
       const { axis, endPoint } = computeAxisLock(ndc, originRef.current)
       onAxisUpdateRef.current(axis, endPoint)
       if (endPoint && originRef.current) {
@@ -341,9 +437,16 @@ function LineToolController({
       if (!enabledRef.current) return
 
       const ndc = getNDC(e)
+      const vertices = collectVertices(strokesRef.current)
+      const nearVert = findNearestVertex(ndc, vertices, camera, size)
 
       if (!originRef.current) {
-        // First click: set origin via ground plane raycast
+        // First click: snap to nearby vertex, or fall back to ground plane raycast
+        if (nearVert) {
+          onOriginSetRef.current(nearVert.clone())
+          onVertexSnapRef.current(null)
+          return
+        }
         raycaster.setFromCamera(ndc, camera)
         const target = new THREE.Vector3()
         const hit = raycaster.ray.intersectPlane(groundPlane, target)
@@ -355,7 +458,14 @@ function LineToolController({
           onOriginSetRef.current(snapped)
         }
       } else {
-        // Subsequent click: place segment
+        // Subsequent click: snap to vertex if near, otherwise axis-lock
+        if (nearVert) {
+          if (originRef.current.distanceTo(nearVert) > 0.01) {
+            onSegmentPlaceRef.current(originRef.current.clone(), nearVert.clone())
+          }
+          onVertexSnapRef.current(null)
+          return
+        }
         const { endPoint } = computeAxisLock(ndc, originRef.current)
         if (endPoint && originRef.current.distanceTo(endPoint) > 0.01) {
           onSegmentPlaceRef.current(originRef.current.clone(), endPoint.clone())
@@ -589,6 +699,7 @@ export default function SnapIsoDraw() {
   const [lineOrigin, setLineOrigin] = useState<THREE.Vector3 | null>(null)
   const [lockedAxis, setLockedAxis] = useState<Axis | null>(null)
   const [lineEndPoint, setLineEndPoint] = useState<THREE.Vector3 | null>(null)
+  const [vertexSnapTarget, setVertexSnapTarget] = useState<THREE.Vector3 | null>(null)
 
   // Cursor info for HUD
   const [cursorInfo, setCursorInfo] = useState<{
@@ -643,9 +754,14 @@ export default function SnapIsoDraw() {
       setLockedAxis(null)
       setLineEndPoint(null)
       setActivePoints([])
+      setVertexSnapTarget(null)
     },
     [activeColor, strokeWidth]
   )
+
+  const handleVertexSnap = useCallback((vertex: THREE.Vector3 | null) => {
+    setVertexSnapTarget(vertex)
+  }, [])
 
   // Escape key to cancel line chain
   useEffect(() => {
@@ -730,16 +846,23 @@ export default function SnapIsoDraw() {
             </>
           )}
 
+          {/* Vertex snap indicator */}
+          {drawMode === 'line' && (
+            <VertexSnapIndicator position={vertexSnapTarget} />
+          )}
+
           {/* Line tool controller */}
           {drawMode === 'line' && (
             <LineToolController
               snapEnabled={snapEnabled}
               granularity={granularity}
               lineOrigin={lineOrigin}
+              strokes={strokes}
               onAxisUpdate={handleAxisUpdate}
               onLinePreview={handleLinePreview}
               onSegmentPlace={handleSegmentPlace}
               onOriginSet={handleOriginSet}
+              onVertexSnap={handleVertexSnap}
               enabled={drawingEnabled}
             />
           )}
@@ -784,7 +907,13 @@ export default function SnapIsoDraw() {
               </span>
             </div>
           )}
-          {drawMode === 'line' && lockedAxis && (
+          {drawMode === 'line' && vertexSnapTarget && (
+            <div className="flex justify-between gap-4">
+              <span className="text-gray-400">Snap</span>
+              <span className="text-amber-400 font-semibold">Vertex</span>
+            </div>
+          )}
+          {drawMode === 'line' && lockedAxis && !vertexSnapTarget && (
             <div className="flex justify-between gap-4">
               <span className="text-gray-400">Axis</span>
               <span style={{ color: AXIS_COLORS[lockedAxis] }} className="font-semibold uppercase">
@@ -843,8 +972,8 @@ export default function SnapIsoDraw() {
             'Drag to orbit · Scroll to zoom · Right-drag to pan'
           ) : drawMode === 'line' ? (
             lineOrigin
-              ? 'Move to infer axis · Click to place segment · Dbl-click/Esc to end chain'
-              : 'Click to set line origin'
+              ? 'Move to infer axis · Click to place segment · Snap to vertices · Dbl-click/Esc to end'
+              : 'Click to set origin (snaps to existing vertices)'
           ) : (
             'Click and drag to draw · Scroll to zoom'
           )}
