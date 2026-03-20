@@ -4,7 +4,6 @@ import { useRef, useCallback, useEffect } from 'react';
 import { DrumSequencer } from './drum-sequencer';
 import { DuoKnob } from './knob';
 import type { DuoDrumState } from '@/lib/duo/types';
-import { DRUM_RECIPES } from '@/lib/duo/drum-voices';
 
 const VOICE_COLORS = ['#f43f5e', '#38bdf8', '#34d399', '#fbbf24'];
 
@@ -52,50 +51,8 @@ export function DrumPanel({
         onToggleStep={onToggleStep}
         onTriggerVoice={onTriggerVoice}
         onRetrigger={onRetrigger}
+        onSetRecipe={onSetRecipe}
       />
-
-      {/* Voice selector — per-voice recipe picker */}
-      <div className="space-y-2">
-        <h3 className="text-[10px] text-zinc-500 uppercase tracking-wider">Voice</h3>
-        <div className="flex flex-col gap-1">
-          {drum.voices.map((voice, i) => {
-            const recipes = DRUM_RECIPES[i];
-            const currentRecipe = recipes[voice.recipeIndex];
-            return (
-              <div key={`recipe-${i}`} className="flex items-center justify-center gap-1">
-                <button
-                  type="button"
-                  onClick={() => onSetRecipe(i, (voice.recipeIndex - 1 + recipes.length) % recipes.length)}
-                  className="w-8 h-8 flex items-center justify-center rounded text-xs
-                             bg-zinc-800 hover:bg-zinc-700 transition-colors
-                             focus-visible:ring-2 focus-visible:ring-amber-400/50 outline-none"
-                  style={{ color: VOICE_COLORS[i] }}
-                  aria-label={`Previous ${voice.name} recipe`}
-                >
-                  ‹
-                </button>
-                <span
-                  className="text-[11px] font-mono w-20 text-center truncate"
-                  style={{ color: VOICE_COLORS[i] }}
-                >
-                  {currentRecipe?.name ?? 'Classic'}
-                </span>
-                <button
-                  type="button"
-                  onClick={() => onSetRecipe(i, (voice.recipeIndex + 1) % recipes.length)}
-                  className="w-8 h-8 flex items-center justify-center rounded text-xs
-                             bg-zinc-800 hover:bg-zinc-700 transition-colors
-                             focus-visible:ring-2 focus-visible:ring-amber-400/50 outline-none"
-                  style={{ color: VOICE_COLORS[i] }}
-                  aria-label={`Next ${voice.name} recipe`}
-                >
-                  ›
-                </button>
-              </div>
-            );
-          })}
-        </div>
-      </div>
 
       {/* Per-voice pitch knobs */}
       <div className="space-y-2">

@@ -3,6 +3,7 @@
 import { useRef, useCallback, useEffect } from 'react';
 import { cn } from '@/lib/utils';
 import type { DuoDrumVoice } from '@/lib/duo/types';
+import { DRUM_RECIPES } from '@/lib/duo/drum-voices';
 
 interface DrumSequencerProps {
   voices: DuoDrumVoice[];
@@ -11,6 +12,7 @@ interface DrumSequencerProps {
   onToggleStep: (voiceIndex: number, step: number) => void;
   onTriggerVoice: (voiceIndex: number) => void;
   onRetrigger: (voiceIndex: number | null, substep: boolean) => void;
+  onSetRecipe: (voiceIndex: number, recipeIndex: number) => void;
 }
 
 const RING_RADII = [140, 112, 84, 56];
@@ -33,6 +35,7 @@ export function DrumSequencer({
   onToggleStep,
   onTriggerVoice,
   onRetrigger,
+  onSetRecipe,
 }: DrumSequencerProps) {
   const size = (RING_RADII[0] + DOT_RADIUS + 8) * 2;
   const center = size / 2;
@@ -95,15 +98,16 @@ export function DrumSequencer({
         )}
       </svg>
 
-      {/* Trigger pads — 4-column row below rings */}
+      {/* Trigger pads with integrated voice selector */}
       <div className="flex gap-2">
         {voices.map((voice, i) => (
-          <RetriggerPad
+          <VoicePad
             key={`pad-${i}`}
             voiceIndex={i}
-            voiceName={voice.name}
+            voice={voice}
             onTrigger={onTriggerVoice}
             onRetrigger={onRetrigger}
+            onSetRecipe={onSetRecipe}
           />
         ))}
       </div>
@@ -111,20 +115,24 @@ export function DrumSequencer({
   );
 }
 
-/** Pad with retrigger: hold = retrigger on every step, long hold (300ms) = substep retrigger */
-function RetriggerPad({
+/** Pad with recipe name, prev/next arrows, trigger on press, retrigger on hold */
+function VoicePad({
   voiceIndex,
-  voiceName,
+  voice,
   onTrigger,
   onRetrigger,
+  onSetRecipe,
 }: {
   voiceIndex: number;
-  voiceName: string;
+  voice: DuoDrumVoice;
   onTrigger: (voiceIndex: number) => void;
   onRetrigger: (voiceIndex: number | null, substep: boolean) => void;
+  onSetRecipe: (voiceIndex: number, recipeIndex: number) => void;
 }) {
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const holdingRef = useRef(false);
+  const recipes = DRUM_RECIPES[voiceIndex];
+  const recipeName = recipes[voice.recipeIndex]?.name ?? 'Classic';
 
   useEffect(() => {
     return () => { if (timerRef.current) clearTimeout(timerRef.current); };
@@ -133,9 +141,7 @@ function RetriggerPad({
   const handlePointerDown = useCallback(() => {
     holdingRef.current = true;
     onTrigger(voiceIndex);
-    // Start normal retrigger immediately
     onRetrigger(voiceIndex, false);
-    // After 300ms, upgrade to substep retrigger
     timerRef.current = setTimeout(() => {
       if (holdingRef.current) {
         onRetrigger(voiceIndex, true);
@@ -156,25 +162,58 @@ function RetriggerPad({
     e.preventDefault();
   }, []);
 
+  const prevRecipe = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    onSetRecipe(voiceIndex, (voice.recipeIndex - 1 + recipes.length) % recipes.length);
+  }, [voiceIndex, voice.recipeIndex, recipes.length, onSetRecipe]);
+
+  const nextRecipe = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    onSetRecipe(voiceIndex, (voice.recipeIndex + 1) % recipes.length);
+  }, [voiceIndex, voice.recipeIndex, recipes.length, onSetRecipe]);
+
   return (
-    <button
-      type="button"
-      onPointerDown={handlePointerDown}
-      onPointerUp={handlePointerUp}
-      onPointerLeave={handlePointerUp}
-      onContextMenu={handleContextMenu}
-      className="w-12 h-12 rounded-lg text-[10px] font-mono font-medium
-                 border transition-colors active:scale-95 active:brightness-125
-                 focus-visible:ring-2 focus-visible:ring-amber-400/50 outline-none
-                 touch-none select-none"
-      style={{
-        backgroundColor: VOICE_COLORS_DIM[voiceIndex],
-        borderColor: VOICE_COLORS[voiceIndex],
-        color: VOICE_COLORS[voiceIndex],
-      }}
-      aria-label={`Trigger ${voiceName} (hold for retrigger)`}
-    >
-      {voiceName}
-    </button>
+    <div className="flex items-center gap-0.5">
+      <button
+        type="button"
+        onClick={prevRecipe}
+        className="w-5 h-10 flex items-center justify-center rounded-l text-[10px]
+                   bg-zinc-800/60 hover:bg-zinc-700 transition-colors outline-none"
+        style={{ color: VOICE_COLORS[voiceIndex] }}
+        aria-label={`Previous ${voice.name} recipe`}
+      >
+        ‹
+      </button>
+      <button
+        type="button"
+        onPointerDown={handlePointerDown}
+        onPointerUp={handlePointerUp}
+        onPointerLeave={handlePointerUp}
+        onContextMenu={handleContextMenu}
+        className="h-10 px-2 min-w-[3.5rem] text-[9px] font-mono font-medium
+                   border-y transition-colors active:scale-95 active:brightness-125
+                   focus-visible:ring-2 focus-visible:ring-amber-400/50 outline-none
+                   touch-none select-none flex flex-col items-center justify-center leading-tight"
+        style={{
+          backgroundColor: VOICE_COLORS_DIM[voiceIndex],
+          borderColor: VOICE_COLORS[voiceIndex],
+          color: VOICE_COLORS[voiceIndex],
+        }}
+        aria-label={`Trigger ${voice.name} — ${recipeName} (hold for retrigger)`}
+      >
+        <span className="text-[8px] opacity-60">{voice.name}</span>
+        <span>{recipeName}</span>
+      </button>
+      <button
+        type="button"
+        onClick={nextRecipe}
+        className="w-5 h-10 flex items-center justify-center rounded-r text-[10px]
+                   bg-zinc-800/60 hover:bg-zinc-700 transition-colors outline-none"
+        style={{ color: VOICE_COLORS[voiceIndex] }}
+        aria-label={`Next ${voice.name} recipe`}
+      >
+        ›
+      </button>
+    </div>
   );
 }
