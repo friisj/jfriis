@@ -756,13 +756,12 @@ export default function ShapeDeform() {
           <CameraRig zoom={zoom} />
           <CameraResetBridge resetRef={resetCameraRef} />
           <WheelZoom onZoom={handleZoom} enabled={true} />
-          {/* Always-on orbit: middle-mouse to rotate, shift+middle to pan.
-              Left-click passes through to vertex handles and ground click. */}
+          {/* Orbit enabled when no vertices are selected.
+              When vertices are selected, left-drag is reserved for vertex manipulation. */}
           <OrbitControls
-            enablePan
+            enablePan={selectedVerts.size === 0}
             enableZoom={false}
-            enableRotate
-            mouseButtons={{ LEFT: undefined as unknown as THREE.MOUSE, MIDDLE: THREE.MOUSE.ROTATE, RIGHT: THREE.MOUSE.PAN }}
+            enableRotate={selectedVerts.size === 0}
             target={[0, 0, 0]}
           />
 
@@ -867,8 +866,10 @@ export default function ShapeDeform() {
 
         <div className="absolute bottom-3 left-3 text-xs text-gray-400 pointer-events-none">
           {mode === 'object'
-            ? 'Click to place box · Click box to edit · Middle-drag to orbit · Scroll to zoom'
-            : 'Click vertex to select · Drag to move · Middle-drag to orbit · Shift+click multi · A = all · Esc = exit'}
+            ? 'Click to place box · Click box to edit · Drag to orbit · Scroll to zoom'
+            : selectedVerts.size > 0
+              ? 'Drag to move vertex · Shift+click multi · Click empty to deselect · A = all · Esc = exit'
+              : 'Click vertex to select · Drag to orbit · A = all · Esc = exit'}
         </div>
       </div>
 
@@ -882,7 +883,7 @@ export default function ShapeDeform() {
           >
             Reset to ISO View
           </button>
-          <p className="text-xs text-muted-foreground mt-1">Middle-drag to orbit freely. Right-drag to pan.</p>
+          <p className="text-xs text-muted-foreground mt-1">Drag to orbit. Deselect vertices to orbit in edit mode.</p>
         </div>
 
         {/* Mode indicator + exit */}
