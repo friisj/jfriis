@@ -60,7 +60,7 @@ export default async function ProjectPage({ params }: Props) {
   const sortedHypotheses = [...(hypotheses || [])].sort((a, b) => a.sequence - b.sequence)
 
   return (
-    <div className="min-h-screen bg-white text-black p-8">
+    <div className="min-h-screen bg-white text-black p-8 border border-cyan-500 overflow-y-scroll">
       <div className="max-w-4xl mx-auto">
         {/* Header */}
         <header className="mb-12">

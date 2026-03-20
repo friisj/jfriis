@@ -29,7 +29,7 @@ const quickActions = [
 
 export default function AdminDashboard() {
   return (
-    <div className="p-8">
+    <div className="p-8 overflow-y-scroll flex-1">
       <div className="max-w-7xl mx-auto">
         <div className="mb-8">
           <h1 className="text-3xl font-bold mb-2">Dashboard</h1>

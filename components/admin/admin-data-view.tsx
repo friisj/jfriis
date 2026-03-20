@@ -54,7 +54,7 @@ export function AdminDataView<T extends { id: string }>({
   }
 
   return (
-    <div>
+    <div className="border border-blue-500">
       <ViewSwitcher
         availableViews={availableViews}
         defaultView={defaultView}
