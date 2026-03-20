@@ -224,17 +224,29 @@ function buildEdges(box: EditableBox): [number, number][] {
 
 // ─── Three.js components ────────────────────────────────────────────────────
 
-function CameraRig({ zoom, freeCamera }: { zoom: number; freeCamera: boolean }) {
+function CameraRig({ zoom }: { zoom: number }) {
   const { camera } = useThree()
   useEffect(() => {
-    if (freeCamera) return
-    camera.position.copy(ISO_POS)
-    camera.lookAt(0, 0, 0)
     if (camera instanceof THREE.OrthographicCamera) {
       camera.zoom = zoom
       camera.updateProjectionMatrix()
     }
-  }, [camera, zoom, freeCamera])
+  }, [camera, zoom])
+  return null
+}
+
+/** Exposes camera reset to parent via a ref */
+function CameraResetBridge({ resetRef }: { resetRef: React.MutableRefObject<(() => void) | null> }) {
+  const { camera } = useThree()
+  useEffect(() => {
+    resetRef.current = () => {
+      camera.position.copy(ISO_POS)
+      camera.lookAt(0, 0, 0)
+      if (camera instanceof THREE.OrthographicCamera) {
+        camera.updateProjectionMatrix()
+      }
+    }
+  }, [camera, resetRef])
   return null
 }
 
@@ -368,7 +380,7 @@ function EditModeView({
   )
 }
 
-/** Draggable vertex handle */
+/** Draggable vertex handle with axis-lock-on-first-drag */
 function VertexHandle({
   index,
   position,
@@ -391,79 +403,87 @@ function VertexHandle({
   const dragStartScreen = useRef({ x: 0, y: 0 })
   const dragStartWorld = useRef(position.clone())
   const hasMoved = useRef(false)
+  const lockedAxis = useRef<Axis | null>(null) // Lock axis after initial movement
 
   const handlePointerDown = useCallback((e: THREE.Event & { nativeEvent: PointerEvent; stopPropagation: () => void }) => {
     e.stopPropagation()
     isDragging.current = true
     hasMoved.current = false
+    lockedAxis.current = null // Reset axis lock for new drag
     dragStartScreen.current = { x: e.nativeEvent.clientX, y: e.nativeEvent.clientY }
     dragStartWorld.current = position.clone()
     ;(gl.domElement as HTMLElement).setPointerCapture(e.nativeEvent.pointerId)
     onDragStart(index)
 
+    const toNDCpt = (p: THREE.Vector3) => {
+      const proj = p.clone().project(camera)
+      return new THREE.Vector2(proj.x, proj.y)
+    }
+
+    // Pre-compute axis screen directions once at drag start
+    const worldPos = dragStartWorld.current.clone()
+    const originNDC = toNDCpt(worldPos)
+    const axisScreenDirs = new Map<Axis, THREE.Vector2>()
+    for (const axis of ['x', 'y', 'z'] as Axis[]) {
+      const dir = new THREE.Vector3(
+        axis === 'x' ? 1 : 0,
+        axis === 'y' ? 1 : 0,
+        axis === 'z' ? 1 : 0,
+      )
+      const axisEndNDC = toNDCpt(worldPos.clone().add(dir))
+      axisScreenDirs.set(axis, axisEndNDC.clone().sub(originNDC))
+    }
+
+    const rect = gl.domElement.getBoundingClientRect()
+    const startNDC = new THREE.Vector2(
+      ((dragStartScreen.current.x - rect.left) / rect.width) * 2 - 1,
+      -((dragStartScreen.current.y - rect.top) / rect.height) * 2 + 1,
+    )
+
     const handleMove = (me: PointerEvent) => {
       if (!isDragging.current) return
       const dx = me.clientX - dragStartScreen.current.x
       const dy = me.clientY - dragStartScreen.current.y
-      if (Math.sqrt(dx * dx + dy * dy) > 3) hasMoved.current = true
+      const screenDist = Math.sqrt(dx * dx + dy * dy)
+      if (screenDist > 3) hasMoved.current = true
       if (!hasMoved.current) return
 
-      // Project screen delta to world axes and pick dominant
-      const rect = gl.domElement.getBoundingClientRect()
-      const startNDC = new THREE.Vector2(
-        ((dragStartScreen.current.x - rect.left) / rect.width) * 2 - 1,
-        -((dragStartScreen.current.y - rect.top) / rect.height) * 2 + 1,
-      )
       const curNDC = new THREE.Vector2(
         ((me.clientX - rect.left) / rect.width) * 2 - 1,
         -((me.clientY - rect.top) / rect.height) * 2 + 1,
       )
-
       const deltaNDC = curNDC.clone().sub(startNDC)
       if (deltaNDC.length() < 0.005) return
 
-      // Project each axis to screen, find best match
-      // Need world position of the vertex for projection
-      const worldPos = dragStartWorld.current.clone()
+      // Determine axis: lock on first significant movement, then keep it
+      if (!lockedAxis.current && screenDist > 8) {
+        let bestAxis: Axis = 'x'
+        let bestScore = 0
 
-      // Temporarily need origin - we handle this via the parent group transform
-      const toNDCpt = (p: THREE.Vector3) => {
-        const proj = p.clone().project(camera)
-        return new THREE.Vector2(proj.x, proj.y)
-      }
-
-      const originNDC = toNDCpt(worldPos)
-      const axes: Axis[] = ['x', 'y', 'z']
-      let bestAxis: Axis = 'x'
-      let bestT = 0
-      let bestScore = 0
-
-      for (const axis of axes) {
-        const dir = new THREE.Vector3(
-          axis === 'x' ? 1 : 0,
-          axis === 'y' ? 1 : 0,
-          axis === 'z' ? 1 : 0,
-        )
-        const axisEndNDC = toNDCpt(worldPos.clone().add(dir))
-        const axisDirNDC = axisEndNDC.clone().sub(originNDC)
-        if (axisDirNDC.length() < 0.0001) continue
-
-        const t = deltaNDC.dot(axisDirNDC) / axisDirNDC.dot(axisDirNDC)
-        const projected = axisDirNDC.clone().multiplyScalar(t)
-        const residual = deltaNDC.clone().sub(projected).length()
-        const score = Math.abs(t) / (residual + 0.001)
-
-        if (score > bestScore) {
-          bestScore = score
-          bestAxis = axis
-          bestT = t
+        for (const [axis, axisDirNDC] of axisScreenDirs) {
+          if (axisDirNDC.length() < 0.0001) continue
+          const t = deltaNDC.dot(axisDirNDC) / axisDirNDC.dot(axisDirNDC)
+          const projected = axisDirNDC.clone().multiplyScalar(t)
+          const residual = deltaNDC.clone().sub(projected).length()
+          const score = Math.abs(t) / (residual + 0.001)
+          if (score > bestScore) {
+            bestScore = score
+            bestAxis = axis
+          }
         }
+        lockedAxis.current = bestAxis
       }
+
+      if (!lockedAxis.current) return
+
+      // Project delta onto the locked axis only
+      const axisDirNDC = axisScreenDirs.get(lockedAxis.current)!
+      const t = deltaNDC.dot(axisDirNDC) / axisDirNDC.dot(axisDirNDC)
 
       const worldDelta = new THREE.Vector3(
-        bestAxis === 'x' ? bestT : 0,
-        bestAxis === 'y' ? bestT : 0,
-        bestAxis === 'z' ? bestT : 0,
+        lockedAxis.current === 'x' ? t : 0,
+        lockedAxis.current === 'y' ? t : 0,
+        lockedAxis.current === 'z' ? t : 0,
       )
 
       onDrag(index, worldDelta)
@@ -471,6 +491,7 @@ function VertexHandle({
 
     const handleUp = () => {
       isDragging.current = false
+      lockedAxis.current = null
       if (!hasMoved.current) {
         // It was a click, not a drag
         const shiftKey = (window.event as KeyboardEvent | null)?.shiftKey ?? false
@@ -572,7 +593,6 @@ export default function ShapeDeform() {
   const [boxHeight, setBoxHeight] = useState(1)
   const [boxDepth, setBoxDepth] = useState(1)
   const [zoom, setZoom] = useState(50)
-  const [freeCamera, setFreeCamera] = useState(false)
   const [snapEnabled, setSnapEnabled] = useState(true)
   const [granularity, setGranularity] = useState(0.5)
   const [dragAxis, setDragAxis] = useState<Axis | null>(null)
@@ -721,7 +741,8 @@ export default function ShapeDeform() {
     return () => window.removeEventListener('keydown', handler)
   }, [mode, editBox, handleExitEdit])
 
-  const drawingEnabled = !freeCamera
+  // Camera reset function ref — populated by ResetCameraButton inside Canvas
+  const resetCameraRef = useRef<(() => void) | null>(null)
 
   return (
     <div className="relative w-full h-full flex overflow-hidden">
@@ -730,11 +751,20 @@ export default function ShapeDeform() {
           orthographic
           shadows
           camera={{ position: [ISO_DIST, ISO_DIST, ISO_DIST], zoom, near: 0.1, far: 500 }}
-          style={{ cursor: freeCamera ? 'grab' : mode === 'edit' ? 'default' : 'crosshair' }}
+          style={{ cursor: mode === 'edit' ? 'default' : 'crosshair' }}
         >
-          <CameraRig zoom={zoom} freeCamera={freeCamera} />
-          <WheelZoom onZoom={handleZoom} enabled={!freeCamera} />
-          {freeCamera && <OrbitControls enablePan enableZoom enableRotate target={[0, 0, 0]} />}
+          <CameraRig zoom={zoom} />
+          <CameraResetBridge resetRef={resetCameraRef} />
+          <WheelZoom onZoom={handleZoom} enabled={true} />
+          {/* Always-on orbit: middle-mouse to rotate, shift+middle to pan.
+              Left-click passes through to vertex handles and ground click. */}
+          <OrbitControls
+            enablePan
+            enableZoom={false}
+            enableRotate
+            mouseButtons={{ LEFT: undefined as unknown as THREE.MOUSE, MIDDLE: THREE.MOUSE.ROTATE, RIGHT: THREE.MOUSE.PAN }}
+            target={[0, 0, 0]}
+          />
 
           <ambientLight intensity={0.65} />
           <directionalLight position={[8, 12, 4]} intensity={0.9} castShadow />
@@ -789,18 +819,12 @@ export default function ShapeDeform() {
                 </group>
               ))}
 
-          <GroundClickHandler enabled={mode === 'object' && drawingEnabled} onPlace={handlePlace} />
+          <GroundClickHandler enabled={mode === 'object'} onPlace={handlePlace} />
         </Canvas>
 
         {/* HUD */}
         <div className="absolute top-3 left-3 bg-gray-900/85 text-gray-100 rounded-lg p-3 text-xs font-mono pointer-events-none space-y-0.5 min-w-[170px]">
           <div className="text-gray-400 font-bold tracking-wider text-[10px] mb-1">SHAPE DEFORM</div>
-          <div className="flex justify-between gap-4">
-            <span className="text-gray-400">Camera</span>
-            <span className={freeCamera ? 'text-amber-400 font-semibold' : 'text-green-400 font-semibold'}>
-              {freeCamera ? 'Free Orbit' : 'Fixed ISO'}
-            </span>
-          </div>
           <div className="flex justify-between gap-4">
             <span className="text-gray-400">Mode</span>
             <span className={mode === 'edit' ? 'text-blue-400 font-semibold' : 'text-green-400 font-semibold'}>
@@ -842,11 +866,9 @@ export default function ShapeDeform() {
         </div>
 
         <div className="absolute bottom-3 left-3 text-xs text-gray-400 pointer-events-none">
-          {freeCamera
-            ? 'Drag to orbit · Scroll to zoom'
-            : mode === 'object'
-              ? 'Click to place box · Click box to edit · Scroll to zoom'
-              : 'Click vertex to select · Drag to move · Shift+click multi-select · A to select all · Esc to exit'}
+          {mode === 'object'
+            ? 'Click to place box · Click box to edit · Middle-drag to orbit · Scroll to zoom'
+            : 'Click vertex to select · Drag to move · Middle-drag to orbit · Shift+click multi · A = all · Esc = exit'}
         </div>
       </div>
 
@@ -854,10 +876,13 @@ export default function ShapeDeform() {
       <div className="w-60 border-l bg-card p-4 flex flex-col gap-4 shrink-0 overflow-y-auto">
         <div>
           <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Camera</h2>
-          <div className="flex gap-1">
-            <button onClick={() => setFreeCamera(false)} className={`flex-1 py-2 text-xs rounded transition-colors font-medium ${!freeCamera ? 'bg-primary text-primary-foreground' : 'bg-muted hover:bg-muted/80'}`}>Fixed ISO</button>
-            <button onClick={() => setFreeCamera(true)} className={`flex-1 py-2 text-xs rounded transition-colors font-medium ${freeCamera ? 'bg-amber-500 text-white' : 'bg-muted hover:bg-muted/80'}`}>Free Orbit</button>
-          </div>
+          <button
+            onClick={() => resetCameraRef.current?.()}
+            className="w-full py-2 text-xs rounded transition-colors font-medium bg-muted hover:bg-muted/80"
+          >
+            Reset to ISO View
+          </button>
+          <p className="text-xs text-muted-foreground mt-1">Middle-drag to orbit freely. Right-drag to pan.</p>
         </div>
 
         {/* Mode indicator + exit */}
@@ -997,13 +1022,11 @@ export default function ShapeDeform() {
           </>
         )}
 
-        {!freeCamera && (
-          <div>
-            <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Zoom</h2>
-            <input type="range" min="15" max="150" step="5" value={zoom} onChange={(e) => setZoom(Number(e.target.value))} className="w-full" />
-            <div className="text-xs text-muted-foreground mt-1">{zoom}x</div>
-          </div>
-        )}
+        <div>
+          <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Zoom</h2>
+          <input type="range" min="15" max="150" step="5" value={zoom} onChange={(e) => setZoom(Number(e.target.value))} className="w-full" />
+          <div className="text-xs text-muted-foreground mt-1">{zoom}x</div>
+        </div>
 
         <div className="mt-auto pt-4 border-t">
           <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Hypothesis</h2>
