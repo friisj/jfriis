@@ -27,6 +27,8 @@ const registry: Record<string, React.ComponentType> = {
   'isotope/snap-system': dynamic(() => import('@/components/studio/prototypes/isotope/snap-system'), { ssr: false }),
   'isotope/stroke-latency': dynamic(() => import('@/components/studio/prototypes/isotope/stroke-latency'), { ssr: false }),
   'isotope/component-system': dynamic(() => import('@/components/studio/prototypes/isotope/component-system'), { ssr: false }),
+  'isotope/fixed-perspective-r3f': dynamic(() => import('@/components/studio/prototypes/isotope/fixed-perspective-r3f'), { ssr: false }),
+  'isotope/stroke-latency-raf': dynamic(() => import('@/components/studio/prototypes/isotope/stroke-latency-raf'), { ssr: false }),
 }
 
 export function PrototypeRenderer({ prototypeKey }: { prototypeKey: string }) {
