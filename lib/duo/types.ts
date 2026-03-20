@@ -94,6 +94,7 @@ export type DuoAction =
   | { type: 'TRANSPOSE'; delta: number }
   | { type: 'SET_SWING'; swing: number }
   | { type: 'RANDOMIZE' }
+  | { type: 'CLEAR_STEPS' }
   | { type: 'PLAY' }
   | { type: 'STOP' }
   | { type: 'ADVANCE_STEP' }

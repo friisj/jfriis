@@ -2,7 +2,7 @@
 
 import { useRef, useCallback } from 'react';
 import { cn } from '@/lib/utils';
-import { IconDice5Filled, IconVolume, IconVolumeOff } from '@tabler/icons-react';
+import { IconDice5Filled, IconRefresh, IconVolume, IconVolumeOff } from '@tabler/icons-react';
 import type { DuoStep } from '@/lib/duo/types';
 
 interface CircularSequencerProps {
@@ -15,6 +15,7 @@ interface CircularSequencerProps {
   onSelectStep: (index: number) => void;
   onToggleMute: () => void;
   onRandomize: () => void;
+  onReset: () => void;
 }
 
 const RADIUS = 85;
@@ -42,6 +43,7 @@ export function CircularSequencer({
   onSelectStep,
   onToggleMute,
   onRandomize,
+  onReset,
 }: CircularSequencerProps) {
   const size = (RADIUS + LED_RADIUS + 8) * 2;
   const center = size / 2;
@@ -193,6 +195,14 @@ export function CircularSequencer({
             </foreignObject>
           </g>
 
+          {/* Reset button (right of center) */}
+          <g className="cursor-pointer" onClick={onReset} role="button" aria-label="Clear all notes" tabIndex={0}
+            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onReset(); } }}>
+            <circle cx={center + SIDE_OFFSET} cy={center} r={SIDE_R} className="fill-zinc-800 stroke-zinc-600" strokeWidth={1} />
+            <foreignObject x={center + SIDE_OFFSET - 7} y={center - 7} width={14} height={14} className="pointer-events-none">
+              <IconRefresh size={14} className="text-zinc-400" />
+            </foreignObject>
+          </g>
         </svg>
       </div>
     </div>

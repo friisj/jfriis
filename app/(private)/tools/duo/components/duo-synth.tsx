@@ -41,6 +41,10 @@ function duoReducer(state: DuoState, action: DuoAction): DuoState {
       const steps = randomizeSteps(state.sequencer.transpose);
       return { ...state, sequencer: { ...state.sequencer, steps } };
     }
+    case 'CLEAR_STEPS': {
+      const steps = state.sequencer.steps.map(() => ({ note: null, active: true }));
+      return { ...state, sequencer: { ...state.sequencer, steps } };
+    }
     case 'PLAY':
       return { ...state, sequencer: { ...state.sequencer, playing: true } };
     case 'STOP':
@@ -328,6 +332,7 @@ export function DuoSynth() {
             onTranspose={(delta) => dispatch({ type: 'TRANSPOSE', delta })}
             onSwingChange={(swing) => dispatch({ type: 'SET_SWING', swing })}
             onRandomize={handleRandomize}
+            onReset={() => dispatch({ type: 'CLEAR_STEPS' })}
           />
         </div>
 
