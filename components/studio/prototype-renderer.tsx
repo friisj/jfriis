@@ -31,6 +31,7 @@ const registry: Record<string, React.ComponentType> = {
   'isotope/stroke-latency-raf': dynamic(() => import('@/components/studio/prototypes/isotope/stroke-latency-raf'), { ssr: false }),
   'isotope/snap-2d': dynamic(() => import('@/components/studio/prototypes/isotope/snap-2d'), { ssr: false }),
   'isotope/snap-iso': dynamic(() => import('@/components/studio/prototypes/isotope/snap-iso'), { ssr: false }),
+  'isotope/component-system-r3f': dynamic(() => import('@/components/studio/prototypes/isotope/component-system-r3f'), { ssr: false }),
 }
 
 export function PrototypeRenderer({ prototypeKey }: { prototypeKey: string }) {
