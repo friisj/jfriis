@@ -16,12 +16,15 @@ command=$(echo "$input" | jq -r '.tool_input.command // ""')
 current_branch=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "unknown")
 
 if [[ "$current_branch" == "main" || "$current_branch" == "master" ]]; then
-  # Block any push on main/master (all work goes through feature branches)
-  if echo "$command" | grep -qE 'git\s+push'; then
+  # Warn about pushing directly to main/master
+  # Skip warning for: git push origin --delete (branch cleanup), git push origin --tags
+  if echo "$command" | grep -qE 'git\s+push' && ! echo "$command" | grep -qE 'git\s+push\s+\S+\s+--delete|git\s+push\s+--delete|git\s+push\s+\S+\s+--tags'; then
     cat <<EOF
 {
-  "decision": "block",
-  "reason": "BLOCKED: Pushing to '$current_branch' is not allowed. All work must go through feature branches."
+  "hookSpecificOutput": {
+    "hookEventName": "PreToolUse",
+    "additionalContext": "WARNING: You are pushing directly to '$current_branch'. Consider using a feature branch for non-trivial changes."
+  }
 }
 EOF
     exit 0
