@@ -1,11 +1,12 @@
 'use client';
 
-import { useReducer, useRef, useEffect, useLayoutEffect, useCallback, useState } from 'react';
+import { useReducer, useRef, useEffect, useLayoutEffect, useCallback, useState, useMemo } from 'react';
 import { SequencerPanel } from './sequencer-panel';
 import { SynthPanel } from './synth-panel';
 import { DuoEngine } from '@/lib/duo/engine';
 import { DrumPanel } from './drum-panel';
 import { KnobSizeProvider } from './knob-size-context';
+import { IconChevronLeft, IconChevronRight } from '@tabler/icons-react';
 import { DuoSequencerTransport, createInitialSequencerState, createInitialDrumState, randomizeSteps, randomizeDrumSteps, randomOffsetDrumSteps, randomFlipDrumSteps } from '@/lib/duo/sequencer';
 import { PRESETS, DEFAULT_SYNTH } from '@/lib/duo/presets';
 import type { DuoState, DuoAction, DuoSynthParams } from '@/lib/duo/types';
@@ -135,6 +136,8 @@ export function DuoSynth() {
   const [presetIndex, setPresetIndex] = useState(0);
   const [helpOpen, setHelpOpen] = useState(false);
   const synthPanelRef = useRef<HTMLDivElement>(null);
+  const carouselRef = useRef<HTMLDivElement>(null);
+  const [activePanel, setActivePanel] = useState(1); // 0=synth, 1=seq, 2=drums
   const engineRef = useRef<DuoEngine | null>(null);
   const transportRef = useRef<DuoSequencerTransport | null>(null);
   const initPromiseRef = useRef<Promise<void> | null>(null);
@@ -304,14 +307,38 @@ export function DuoSynth() {
     engineRef.current?.setAllParams(preset.synth);
   }, [ensureInit]);
 
+  const panelNames = useMemo(() => ['Synth', 'Seq', 'Drums'], []);
+
+  // Track active panel from scroll position
+  const handleCarouselScroll = useCallback(() => {
+    const el = carouselRef.current;
+    if (!el) return;
+    const scrollLeft = el.scrollLeft;
+    const panelWidth = el.clientWidth;
+    const index = Math.round(scrollLeft / panelWidth);
+    setActivePanel(Math.min(2, Math.max(0, index)));
+  }, []);
+
+  const scrollToPanel = useCallback((index: number) => {
+    const el = carouselRef.current;
+    if (!el) return;
+    el.scrollTo({ left: index * el.clientWidth, behavior: 'smooth' });
+  }, []);
+
   return (
     <div className="flex flex-col h-full bg-zinc-950 overflow-hidden">
 
-      {/* Three-panel layout */}
+      {/* Three-panel layout: carousel on mobile, side-by-side on md+ */}
       <KnobSizeProvider measureRef={synthPanelRef}>
-      <div className="flex flex-1 flex-col md:flex-row divide-y md:divide-y-0 md:divide-x divide-zinc-800 overflow-auto">
+      <div
+        ref={carouselRef}
+        onScroll={handleCarouselScroll}
+        className="flex flex-1 overflow-x-auto overflow-y-hidden snap-x snap-mandatory
+                   md:overflow-x-hidden md:divide-x divide-zinc-800"
+        style={{ scrollbarWidth: 'none' }}
+      >
         {/* Synth panel */}
-        <div ref={synthPanelRef} className="flex-1 min-w-0 overflow-auto">
+        <div ref={synthPanelRef} className="w-full flex-shrink-0 snap-center md:flex-1 md:w-auto md:flex-shrink overflow-y-auto">
           <SynthPanel
             params={state.synth}
             onParamChange={handleParamChange}
@@ -319,7 +346,7 @@ export function DuoSynth() {
         </div>
 
         {/* Sequencer panel */}
-        <div className="flex-1 min-w-0 overflow-auto">
+        <div className="w-full flex-shrink-0 snap-center md:flex-1 md:w-auto md:flex-shrink overflow-y-auto">
           <SequencerPanel
             state={state.sequencer}
             muted={state.melodicMuted}
@@ -338,7 +365,7 @@ export function DuoSynth() {
         </div>
 
         {/* Drum machine panel */}
-        <div className="flex-1 min-w-0 overflow-auto">
+        <div className="w-full flex-shrink-0 snap-center md:flex-1 md:w-auto md:flex-shrink overflow-y-auto">
           <DrumPanel
             drum={state.drum}
             currentStep={state.sequencer.currentStep}
@@ -362,9 +389,32 @@ export function DuoSynth() {
       </KnobSizeProvider>
 
       <div className="flex items-center justify-between px-4 py-2 border-t border-zinc-800 bg-zinc-900/50">
-        <div className="flex items-center gap-4 flex-1">
-          <h1 className="text-sm font-bold text-zinc-200 tracking-wide">DUO</h1>
-          {/* Preset selector */}
+        <div className="flex items-center gap-3 flex-1">
+          {/* Mobile carousel nav */}
+          <div className="flex md:hidden items-center gap-1.5">
+            <button type="button" onClick={() => scrollToPanel(Math.max(0, activePanel - 1))}
+              className="w-5 h-5 flex items-center justify-center text-zinc-500 hover:text-zinc-300 transition-colors"
+              aria-label="Previous panel" disabled={activePanel === 0}>
+              <IconChevronLeft size={14} />
+            </button>
+            {panelNames.map((name, i) => (
+              <button key={name} type="button" onClick={() => scrollToPanel(i)}
+                className={`text-[9px] font-mono px-1.5 py-0.5 rounded transition-colors ${
+                  i === activePanel ? 'bg-zinc-700 text-zinc-200' : 'text-zinc-600 hover:text-zinc-400'
+                }`}
+                aria-label={`Go to ${name} panel`}
+                aria-current={i === activePanel ? 'true' : undefined}>
+                {name}
+              </button>
+            ))}
+            <button type="button" onClick={() => scrollToPanel(Math.min(2, activePanel + 1))}
+              className="w-5 h-5 flex items-center justify-center text-zinc-500 hover:text-zinc-300 transition-colors"
+              aria-label="Next panel" disabled={activePanel === 2}>
+              <IconChevronRight size={14} />
+            </button>
+          </div>
+          {/* Desktop: DUO title + preset */}
+          <h1 className="text-sm font-bold text-zinc-200 tracking-wide hidden md:block">DUO</h1>
           <select
             value={presetIndex}
             onChange={(e) => handlePresetChange(Number(e.target.value))}
