@@ -124,29 +124,47 @@ Projects and experiments are automatically available via dynamic routes:
 
 **No scaffolding required** - as soon as you create records in the database, the pages render dynamically.
 
-### Mount Prototype Components
+### Mount Spike Components
 
-For `prototype` type experiments, create a React component and register it:
+Experiments display linked spike assets on their page. Each spike is a mountable React component rendered fullscreen at `/studio/{project}/{experiment}/{spike}`. Wiring a spike requires four records:
 
-1. **Create the component**:
+> **Shortcut:** Run `/scaffold-experiment-prototype {project-slug} {spike-name}` to create all four in one step.
+
+**Manual procedure (if not using the skill):**
+
+1. **Create the component file**:
    ```tsx
-   // components/studio/prototypes/{project-slug}/{experiment-slug}.tsx
+   // components/studio/prototypes/{project-slug}/{spike-slug}.tsx
    'use client'
 
-   export default function MyPrototype() {
-     // Your prototype implementation
+   export default function MySpike() {
+     // Your spike implementation
    }
    ```
 
-2. **Register in the prototype registry**:
+2. **Register in the prototype renderer** (`components/studio/prototype-renderer.tsx`):
    ```tsx
-   // app/(private)/studio/[project]/[experiment]/page.tsx
-   const prototypeRegistry: Record<string, React.ComponentType<any>> = {
-     'my-project/my-experiment': dynamic(() => import('@/components/studio/prototypes/my-project/my-experiment')),
-   }
+   '{project-slug}/{spike-slug}': dynamic(() => import('@/components/studio/prototypes/{project-slug}/{spike-slug}'), { ssr: false }),
    ```
 
-The experiment page will automatically mount your component when viewing `/studio/my-project/my-experiment`.
+3. **Create a spike asset record** in `studio_asset_spikes`:
+   ```bash
+   scripts/sb create studio_asset_spikes '{"project_id":"<project-id>","slug":"<spike-slug>","name":"<Spike Name>","description":"...","component_key":"<project-slug>/<spike-slug>"}'
+   ```
+
+4. **Create an entity link** connecting the experiment to the spike:
+   ```bash
+   scripts/sb create entity_links '{"source_type":"experiment","source_id":"<experiment-id>","target_type":"asset_spike","target_id":"<spike-id>"}'
+   ```
+
+**How it works at runtime:**
+- Experiment page (`[experiment]/page.tsx`) queries `entity_links` for `target_type=asset_spike` and displays linked spike cards
+- Clicking a spike navigates to `[asset]/page.tsx`, which looks up `studio_asset_spikes.component_key`
+- `PrototypeRenderer` maps `component_key` → dynamic import → fullscreen render
+
+**Multiple spikes per hypothesis:** A single hypothesis can have multiple experiments, and each experiment can have multiple linked spikes. This supports iterative exploration with alternate approaches side-by-side.
+
+**Do not create standalone pages** outside the studio route system (e.g., at `/apps/{slug}/spikes/`). All spike prototypes must be wired through the asset system so they appear on experiment pages and are discoverable via the studio UI.
 
 ### Record Experiment Outcomes
 
@@ -240,7 +258,9 @@ For abandoned projects:
 | `studio_projects` | Main project records with PRD fields |
 | `studio_hypotheses` | Testable hypotheses per project |
 | `studio_experiments` | Experiments that test hypotheses |
-| `entity_links` | Universal relationship table (projects can link to ventures, canvases, journeys, blueprints, story maps, etc.) |
+| `studio_asset_spikes` | Spike assets with `component_key` for rendering via `PrototypeRenderer` |
+| `studio_asset_prototypes` | Prototype app assets with `app_path` for external linking |
+| `entity_links` | Universal relationship table — connects experiments to assets, projects to ventures, etc. |
 
 ---
 
@@ -303,10 +323,11 @@ For abandoned projects:
 
 ## Quick Reference
 
-### View Projects and Experiments
+### View Projects, Experiments, and Spikes
 ```
-/studio/{project-slug}                     # Project homepage
-/studio/{project-slug}/{experiment-slug}   # Experiment page
+/studio/{project-slug}                                      # Project homepage
+/studio/{project-slug}/{experiment-slug}                    # Experiment page (lists linked spike assets)
+/studio/{project-slug}/{experiment-slug}/{spike-slug}       # Spike asset (fullscreen component render)
 ```
 
 ### Dynamic Routes
@@ -316,34 +337,50 @@ app/(private)/studio/
 ├── [project]/
 │   ├── page.tsx                           # Project view (queries DB)
 │   └── [experiment]/
-│       └── page.tsx                       # Experiment view (queries DB)
+│       ├── page.tsx                       # Experiment view (queries entity_links for assets)
+│       └── [asset]/
+│           └── page.tsx                   # Asset view (renders via PrototypeRenderer)
 ```
 
-### Prototype Components
+### Spike Components
 ```
-components/studio/prototypes/
-└── {project-slug}/
-    └── {experiment-slug}.tsx              # Register in experiment page
+components/studio/
+├── prototype-renderer.tsx                 # Registry: component_key → dynamic import
+└── prototypes/
+    └── {project-slug}/
+        └── {spike-slug}.tsx               # Spike component (default export, 'use client')
 ```
 
-### Create Records via MCP
-```typescript
-// Create project
-db_create('studio_projects', { slug: 'my-project', name: 'My Project', status: 'draft' })
+### Wiring Chain (all four are required for a spike to render)
+```
+studio_experiments  →  entity_links  →  studio_asset_spikes  →  prototype-renderer.tsx
+   (experiment)     source→target      (component_key)         (dynamic import registry)
+```
 
-// Create hypothesis
-db_create('studio_hypotheses', { project_id: '...', statement: '...', sequence: 1 })
+### Create Records via scripts/sb
+```bash
+# Create project
+scripts/sb create studio_projects '{"slug":"my-project","name":"My Project","status":"draft"}'
 
-// Create experiment
-db_create('studio_experiments', { project_id: '...', slug: 'exp-1', name: '...', type: 'prototype' })
+# Create hypothesis
+scripts/sb create studio_hypotheses '{"project_id":"...","statement":"...","sequence":1}'
 
-// Link to other entities via entity_links
-db_create('entity_links', {
-  source_table: 'studio_projects', source_id: '...',
-  target_table: 'ventures', target_id: '...'
-})
+# Create experiment
+scripts/sb create studio_experiments '{"project_id":"...","slug":"exp-1","name":"...","type":"prototype"}'
+
+# Create spike asset
+scripts/sb create studio_asset_spikes '{"project_id":"...","slug":"exp-1","name":"...","component_key":"my-project/exp-1"}'
+
+# Link experiment → spike
+scripts/sb create entity_links '{"source_type":"experiment","source_id":"...","target_type":"asset_spike","target_id":"..."}'
+```
+
+### Skills
+```
+/scaffold-experiment-prototype {project-slug} {spike-name}   # Creates all 4 records + component file
+/studio-project-setup {project-name}                         # Creates project + hypothesis + docs scaffold
 ```
 
 ---
 
-*Protocol version: 5.0 | Last updated: 2026-01-13*
+*Protocol version: 6.0 | Last updated: 2026-03-20*
