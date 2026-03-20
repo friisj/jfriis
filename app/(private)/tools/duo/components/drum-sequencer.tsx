@@ -2,6 +2,7 @@
 
 import { useRef, useCallback, useEffect } from 'react';
 import { cn } from '@/lib/utils';
+import { IconDice5Filled, IconRefresh } from '@tabler/icons-react';
 import type { DuoDrumVoice } from '@/lib/duo/types';
 import { DRUM_RECIPES } from '@/lib/duo/drum-voices';
 
@@ -13,12 +14,18 @@ interface DrumSequencerProps {
   onTriggerVoice: (voiceIndex: number) => void;
   onRetrigger: (voiceIndex: number | null, substep: boolean) => void;
   onSetRecipe: (voiceIndex: number, recipeIndex: number) => void;
+  onRandomize: () => void;
+  onRandomOffset: () => void;
+  onRandomFlip: () => void;
 }
 
-const RING_RADII = [140, 112, 84, 56];
-const DOT_RADIUS = 11;
-const VOICE_COLORS = ['#f43f5e', '#38bdf8', '#34d399', '#fbbf24']; // rose, sky, emerald, amber
+const RING_RADII = [120, 96, 72, 48];
+const DOT_RADIUS = 10;
+const VOICE_COLORS = ['#f43f5e', '#38bdf8', '#34d399', '#fbbf24'];
 const VOICE_COLORS_DIM = ['#4c1420', '#0c3049', '#0c3326', '#422d08'];
+const CENTER_R = 18;
+const SIDE_R = 12;
+const SIDE_OFFSET = 28;
 
 function stepPosition(index: number, total: number, radius: number) {
   const angle = ((index / total) * 360 - 90) * (Math.PI / 180);
@@ -36,69 +43,92 @@ export function DrumSequencer({
   onTriggerVoice,
   onRetrigger,
   onSetRecipe,
+  onRandomize,
+  onRandomOffset,
+  onRandomFlip,
 }: DrumSequencerProps) {
   const size = (RING_RADII[0] + DOT_RADIUS + 8) * 2;
   const center = size / 2;
 
   return (
     <div className="flex flex-col items-center gap-3">
-      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="overflow-visible">
-        {/* Concentric ring guides */}
-        {RING_RADII.map((r, i) => (
-          <circle
-            key={`ring-${i}`}
-            cx={center}
-            cy={center}
-            r={r}
-            fill="none"
-            stroke={VOICE_COLORS_DIM[i]}
-            strokeWidth={1}
-            opacity={0.5}
-          />
-        ))}
+      <div className="w-full max-w-sm mx-auto">
+        <svg viewBox={`0 0 ${size} ${size}`} className="w-full h-auto overflow-visible">
+          {/* Concentric ring guides */}
+          {RING_RADII.map((r, i) => (
+            <circle
+              key={`ring-${i}`}
+              cx={center}
+              cy={center}
+              r={r}
+              fill="none"
+              stroke={VOICE_COLORS_DIM[i]}
+              strokeWidth={1}
+              opacity={0.5}
+            />
+          ))}
 
-        {/* Step dots — 4 rings × 8 steps */}
-        {voices.map((voice, vi) =>
-          voice.steps.map((active, si) => {
-            const pos = stepPosition(si, voice.steps.length, RING_RADII[vi]);
-            const isCurrent = playing && si === currentStep;
+          {/* Step dots — 4 rings × 8 steps */}
+          {voices.map((voice, vi) =>
+            voice.steps.map((active, si) => {
+              const pos = stepPosition(si, voice.steps.length, RING_RADII[vi]);
+              const isCurrent = playing && si === currentStep;
 
-            return (
-              <circle
-                key={`${vi}-${si}`}
-                cx={center + pos.x}
-                cy={center + pos.y}
-                r={DOT_RADIUS - vi * 0.5}
-                fill={
-                  isCurrent && active
-                    ? VOICE_COLORS[vi]
-                    : isCurrent
-                      ? `${VOICE_COLORS[vi]}66`
-                      : active
-                        ? `${VOICE_COLORS[vi]}99`
-                        : VOICE_COLORS_DIM[vi]
-                }
-                stroke={isCurrent ? VOICE_COLORS[vi] : 'transparent'}
-                strokeWidth={isCurrent ? 1.5 : 0}
-                className={cn('cursor-pointer transition-colors duration-75')}
-                onClick={() => onToggleStep(vi, si)}
-                role="button"
-                aria-label={`${voice.name} step ${si + 1}: ${active ? 'on' : 'off'}`}
-                aria-pressed={active}
-                tabIndex={0}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault();
-                    onToggleStep(vi, si);
+              return (
+                <circle
+                  key={`${vi}-${si}`}
+                  cx={center + pos.x}
+                  cy={center + pos.y}
+                  r={DOT_RADIUS - vi * 0.5}
+                  fill={
+                    isCurrent && active
+                      ? VOICE_COLORS[vi]
+                      : isCurrent
+                        ? `${VOICE_COLORS[vi]}66`
+                        : active
+                          ? `${VOICE_COLORS[vi]}99`
+                          : VOICE_COLORS_DIM[vi]
                   }
-                }}
-              />
-            );
-          }),
-        )}
-      </svg>
+                  stroke={isCurrent ? VOICE_COLORS[vi] : 'transparent'}
+                  strokeWidth={isCurrent ? 1.5 : 0}
+                  className={cn('cursor-pointer transition-colors duration-75')}
+                  onClick={() => onToggleStep(vi, si)}
+                  role="button"
+                  aria-label={`${voice.name} step ${si + 1}: ${active ? 'on' : 'off'}`}
+                  aria-pressed={active}
+                  tabIndex={0}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      onToggleStep(vi, si);
+                    }
+                  }}
+                />
+              );
+            }),
+          )}
 
-      {/* Trigger pads with integrated voice selector */}
+          {/* Random button (left of center) */}
+          <g className="cursor-pointer" onClick={onRandomOffset} role="button" aria-label="Random offset" tabIndex={0}
+            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onRandomOffset(); } }}>
+            <circle cx={center - SIDE_OFFSET} cy={center} r={SIDE_R} className="fill-purple-900/80 stroke-purple-600/60" strokeWidth={1} />
+            <foreignObject x={center - SIDE_OFFSET - 7} y={center - 7} width={14} height={14} className="pointer-events-none">
+              <IconDice5Filled size={14} className="text-purple-300" />
+            </foreignObject>
+          </g>
+
+          {/* Reset button (right of center) */}
+          <g className="cursor-pointer" onClick={onRandomize} role="button" aria-label="Full randomize" tabIndex={0}
+            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onRandomize(); } }}>
+            <circle cx={center + SIDE_OFFSET} cy={center} r={SIDE_R} className="fill-zinc-800 stroke-zinc-600" strokeWidth={1} />
+            <foreignObject x={center + SIDE_OFFSET - 7} y={center - 7} width={14} height={14} className="pointer-events-none">
+              <IconRefresh size={14} className="text-zinc-400" />
+            </foreignObject>
+          </g>
+        </svg>
+      </div>
+
+      {/* Voice pads with recipe selector */}
       <div className="flex gap-2">
         {voices.map((voice, i) => (
           <VoicePad
