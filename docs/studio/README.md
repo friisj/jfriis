@@ -316,6 +316,30 @@ Vision models fail at precise color analysis — they misclassify amber eyes as 
 
 ---
 
+### Bug
+**Status**: Phase 1 (Exploration) - Initial setup and concept definition
+**Location**: `/components/studio/prototypes/bug/` + `/docs/studio/bug/`
+**Focus**: AI-augmented intelligence tool for tracking public figures and organizations
+
+**Current State**:
+- ✅ Project scaffolding and initial research structure
+- ⏳ Defining entity model, source connector interface, and analysis pipeline
+- ⏳ Surveying OSINT / media monitoring landscape
+
+**Concept**:
+Bug tracks public figures and organizations across news, social media, and other data sources. It uses AI analysis pipelines to extrapolate or infer positions on topics, surface insights, answer questions, and generate structured data. Key components: entity management, grouping, modular source connectors, fetch orchestration, collation/ranking, and AI analysis tools.
+
+**Next Steps**:
+1. Complete landscape research (existing tools, APIs, data sources)
+2. Define entity model and source connector interface
+3. Design "bug configuration" — how users decide what to monitor
+4. Prototype minimal source connector + entity resolution
+5. Validate position inference with real data
+
+**Documents**: `/docs/studio/bug/exploration/` (research.md, definitions.md)
+
+---
+
 ### Remix
 **Status**: Phase 1 (Exploration) - Initial scaffold, awaiting pipeline technical design
 **Location**: `/components/studio/prototypes/remix/` + `/docs/studio/remix/`
