@@ -224,11 +224,14 @@ function computeSuggestions(strokes: Stroke3D[]): SuggestedEdge[] {
           const offset = normal.clone().multiplyScalar(depth)
           const quadVerts = [v, va, vc, vb]
 
-          // Check if ANY connecting edge already exists — if so, this face
-          // is already extruded (part of a complete box), skip it
+          // Check if ANY connecting edge already exists in EITHER normal direction.
+          // If edges exist in +normal OR -normal, this face is already part of a
+          // 3D form and should not be extruded again.
+          const negOffset = offset.clone().negate()
           const alreadyExtruded = quadVerts.some((vert) => {
-            const extruded = vert.clone().add(offset)
-            return edgeExists(vert, extruded)
+            const extPos = vert.clone().add(offset)
+            const extNeg = vert.clone().add(negOffset)
+            return edgeExists(vert, extPos) || edgeExists(vert, extNeg)
           })
           if (alreadyExtruded) continue
 
