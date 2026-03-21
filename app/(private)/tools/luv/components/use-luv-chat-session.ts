@@ -73,8 +73,9 @@ export function useLuvChatSession() {
   const isStuckToBottom = useRef(true);
 
   // Ref for chatId so the transport closure always reads the current value
+  // Set synchronously at render time to avoid useEffect timing gap
   const chatIdRef = useRef<string | null>(null);
-  useEffect(() => { chatIdRef.current = resumedConversationId; }, [resumedConversationId]);
+  chatIdRef.current = resumedConversationId;
 
   // Serialize pageData to detect changes within the same pathname (e.g. opening a review session)
   const pageDataKey = JSON.stringify(pageContext.pageData ?? null);

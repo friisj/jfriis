@@ -18,10 +18,10 @@ function makeToolResultMessage(): ModelMessage {
         type: 'tool-result',
         toolCallId: 'call_123',
         toolName: 'test_tool',
-        result: { bigData: 'x'.repeat(10000) },
-      },
+        output: { bigData: 'x'.repeat(10000) },
+      } as ModelMessage['content'] extends Array<infer P> ? P : never,
     ],
-  };
+  } as ModelMessage;
 }
 
 describe('applyMessageWindowing', () => {
@@ -56,8 +56,8 @@ describe('applyMessageWindowing', () => {
     );
     expect(toolMsg).toBeDefined();
     if (toolMsg && Array.isArray(toolMsg.content)) {
-      const part = toolMsg.content[0] as { result: unknown };
-      expect(part.result).toBe('[cleared]');
+      const part = toolMsg.content[0] as { output: unknown };
+      expect(part.output).toBe('[cleared]');
     }
   });
 

@@ -45,7 +45,7 @@ export function applyMessageWindowing(
       if (part.type === 'tool-result') {
         return {
           ...part,
-          result: '[cleared]',
+          output: '[cleared]',
         };
       }
       // Strip image data

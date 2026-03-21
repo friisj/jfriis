@@ -38,6 +38,11 @@ export function serializeParts(msg: UIMessage): object[] | null {
 
   return msg.parts.map((p) => {
     if (p.type === 'text') return { type: 'text', text: (p as { text: string }).text };
+    // Strip base64 image data from file parts — keep metadata only
+    if (p.type === 'file') {
+      const fp = p as { type: string; mediaType?: string; filename?: string };
+      return { type: 'file', mediaType: fp.mediaType, filename: fp.filename, stored: false };
+    }
     // Preserve tool-invocation, reasoning, and other structured parts
     return { ...p };
   });
@@ -78,9 +83,9 @@ export function serializeOnFinishParts(event: { text: string; steps: any[] }): o
           toolInvocation: {
             toolCallId: call.toolCallId,
             toolName: call.toolName,
-            args: call.args ?? null,
+            args: call.input ?? null,
             state: 'result',
-            result: matchingResult?.result ?? null,
+            result: matchingResult?.output ?? null,
           },
         });
       }
