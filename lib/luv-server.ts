@@ -19,6 +19,8 @@ import type {
   LuvMemoryOperationType,
   LuvMemoryMatch,
   CreateLuvMemoryInput,
+  CreateLuvConversationInput,
+  CreateLuvMessageInput,
 } from './types/luv';
 import { generateMemoryEmbedding } from './luv-embeddings';
 
@@ -81,6 +83,75 @@ export async function getLuvMessagesServer(
 
   if (error) throw error;
   return data as LuvMessage[];
+}
+
+export async function createLuvConversationServer(
+  input: CreateLuvConversationInput
+): Promise<LuvConversation> {
+  const client = await createClient();
+  const row: Record<string, unknown> = {
+    title: input.title || null,
+    soul_snapshot: input.soul_snapshot,
+    model: input.model,
+  };
+  if (input.parent_conversation_id) row.parent_conversation_id = input.parent_conversation_id;
+  if (input.compact_summary) row.compact_summary = input.compact_summary;
+
+  const { data, error } = await (client as any)
+    .from('luv_conversations')
+    .insert(row)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data as LuvConversation;
+}
+
+export async function createLuvMessageServer(
+  input: CreateLuvMessageInput
+): Promise<LuvMessage> {
+  const client = await createClient();
+  const row: Record<string, unknown> = {
+    conversation_id: input.conversation_id,
+    role: input.role,
+    content: input.content,
+  };
+  if (input.parts) row.parts = input.parts;
+
+  const { data, error } = await (client as any)
+    .from('luv_messages')
+    .insert(row)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data as LuvMessage;
+}
+
+export async function incrementTurnCountServer(
+  conversationId: string
+): Promise<void> {
+  const client = await createClient();
+  const { error } = await (client as any).rpc('increment_counter', {
+    row_id: conversationId,
+    table_name: 'luv_conversations',
+    column_name: 'turn_count',
+  });
+
+  // Fallback: if RPC doesn't exist, do read-then-write
+  if (error) {
+    const { data: conv, error: fetchErr } = await (client as any)
+      .from('luv_conversations')
+      .select('turn_count')
+      .eq('id', conversationId)
+      .single();
+    if (fetchErr) throw fetchErr;
+    const { error: updateErr } = await (client as any)
+      .from('luv_conversations')
+      .update({ turn_count: (conv.turn_count ?? 0) + 1 })
+      .eq('id', conversationId);
+    if (updateErr) throw updateErr;
+  }
 }
 
 // ============================================================================

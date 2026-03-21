@@ -6,10 +6,10 @@ import { DefaultChatTransport } from 'ai';
 import type { UIMessage, FileUIPart } from 'ai';
 import {
   createLuvConversation,
-  createLuvMessage,
   getLuvConversation,
   getLuvMessages,
 } from '@/lib/luv';
+import { deserializeMessage, getMessageText } from '@/lib/luv-message-utils';
 import type { LuvCompactSummary } from '@/lib/types/luv';
 import { useLuvChat } from './luv-chat-context';
 
@@ -33,12 +33,7 @@ const MODEL_TOKEN_BUDGETS: Record<string, number> = {
 /** Estimated system prompt overhead in tokens (soul, chassis, memory, research, changelog, tools) */
 const SYSTEM_PROMPT_OVERHEAD_TOKENS = 8_000;
 
-export function getMessageText(msg: UIMessage): string {
-  return msg.parts
-    .filter((p): p is { type: 'text'; text: string } => p.type === 'text')
-    .map((p) => p.text)
-    .join('');
-}
+export { getMessageText } from '@/lib/luv-message-utils';
 
 export type ContextPressureLevel = 'low' | 'medium' | 'high' | 'critical';
 
@@ -46,36 +41,6 @@ export interface ContextPressure {
   ratio: number;
   level: ContextPressureLevel;
   charCount: number;
-}
-
-/**
- * Trim older messages to keep the request payload under Vercel's 4.5 MB limit.
- * Strips tool-invocation results and file data from all but the most recent messages,
- * preserving the full content for recent context and display.
- */
-const KEEP_FULL_COUNT = 10;
-
-function trimMessagesForTransport(messages: UIMessage[]): UIMessage[] {
-  if (messages.length <= KEEP_FULL_COUNT) return messages;
-
-  const cutoff = messages.length - KEEP_FULL_COUNT;
-  return messages.map((msg, i) => {
-    if (i >= cutoff) return msg; // keep recent messages intact
-
-    const trimmedParts = msg.parts.map((part) => {
-      // Strip tool-invocation results (can be very large JSON)
-      if (part.type === 'tool-invocation') {
-        return { ...part, result: '[trimmed]' };
-      }
-      // Strip file/image data URLs from older messages
-      if (part.type === 'file') {
-        return { ...part, url: '', data: undefined };
-      }
-      return part;
-    });
-
-    return { ...msg, parts: trimmedParts } as UIMessage;
-  });
 }
 
 export function computeContextPressure(messages: UIMessage[], modelKey: string): ContextPressure {
@@ -88,40 +53,6 @@ export function computeContextPressure(messages: UIMessage[], modelKey: string):
   const level: ContextPressureLevel =
     ratio >= 0.85 ? 'critical' : ratio >= 0.65 ? 'high' : ratio >= 0.4 ? 'medium' : 'low';
   return { ratio, level, charCount };
-}
-
-/**
- * Serialize UIMessage parts to a JSON-safe array for database storage.
- * Strips non-serializable data (functions, blobs) and keeps text, tool calls, and reasoning.
- */
-function serializeParts(msg: UIMessage): object[] | null {
-  const hasNonText = msg.parts.some((p) => p.type !== 'text');
-  if (!hasNonText) return null; // plain text — content column is sufficient
-
-  return msg.parts.map((p) => {
-    if (p.type === 'text') return { type: 'text', text: (p as { text: string }).text };
-    // Preserve tool-invocation, reasoning, and other structured parts
-    return { ...p };
-  });
-}
-
-/**
- * Deserialize stored message parts back to UIMessage format.
- * Falls back to plain text if parts is null.
- */
-function deserializeMessage(m: { id: string; role: string; content: string; parts?: object[] | null }): UIMessage {
-  if (m.parts && Array.isArray(m.parts) && m.parts.length > 0) {
-    return {
-      id: m.id,
-      role: m.role as 'user' | 'assistant',
-      parts: m.parts as UIMessage['parts'],
-    };
-  }
-  return {
-    id: m.id,
-    role: m.role as 'user' | 'assistant',
-    parts: [{ type: 'text' as const, text: m.content }],
-  };
 }
 
 export function useLuvChatSession() {
@@ -141,6 +72,10 @@ export function useLuvChatSession() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const isStuckToBottom = useRef(true);
 
+  // Ref for chatId so the transport closure always reads the current value
+  const chatIdRef = useRef<string | null>(null);
+  useEffect(() => { chatIdRef.current = resumedConversationId; }, [resumedConversationId]);
+
   // Serialize pageData to detect changes within the same pathname (e.g. opening a review session)
   const pageDataKey = JSON.stringify(pageContext.pageData ?? null);
   const transport = useMemo(
@@ -150,7 +85,8 @@ export function useLuvChatSession() {
         prepareSendMessagesRequest: ({ messages: msgs, body: extraBody, headers, credentials, api }) => ({
           body: {
             ...extraBody,
-            messages: trimMessagesForTransport(msgs),
+            latestMessage: msgs[msgs.length - 1],
+            chatId: chatIdRef.current,
           },
           headers,
           credentials,
@@ -227,65 +163,6 @@ export function useLuvChatSession() {
     () => computeContextPressure(deferredMessages, modelKey),
     [deferredMessages, modelKey]
   );
-  const prevStatusRef = useRef(status);
-  const savingRef = useRef(false);
-
-  // Auto-save after each completed exchange
-  useEffect(() => {
-    const prev = prevStatusRef.current;
-    prevStatusRef.current = status;
-
-    const justFinished =
-      (prev === 'streaming' || prev === 'submitted') && status === 'ready';
-    if (!justFinished || messages.length === 0 || savingRef.current) return;
-
-    savingRef.current = true;
-    (async () => {
-      try {
-        let convId = resumedConversationId;
-
-        if (!convId) {
-          // Create new conversation
-          const firstUserMsg = messages.find((m) => m.role === 'user');
-          const firstText = firstUserMsg ? getMessageText(firstUserMsg) : '';
-          const title = firstText
-            ? firstText.slice(0, 60) + (firstText.length > 60 ? '...' : '')
-            : 'Untitled conversation';
-
-          const conversation = await createLuvConversation({
-            title,
-            soul_snapshot: soulData,
-            model: modelKey,
-          });
-          convId = conversation.id;
-        }
-
-        // Fetch existing message IDs to deduplicate
-        const existingMsgs = await getLuvMessages(convId);
-        const existingIds = new Set(existingMsgs.map((m) => m.id));
-
-        for (const msg of messages) {
-          if ((msg.role === 'user' || msg.role === 'assistant') && !existingIds.has(msg.id)) {
-            await createLuvMessage({
-              conversation_id: convId,
-              role: msg.role,
-              content: getMessageText(msg),
-              parts: serializeParts(msg),
-            });
-          }
-        }
-
-        // Set resumedConversationId AFTER all messages are inserted
-        if (!resumedConversationId) {
-          setResumedConversationId(convId);
-        }
-      } catch (err) {
-        console.error('Failed to auto-save conversation:', err);
-      } finally {
-        savingRef.current = false;
-      }
-    })();
-  }, [status, messages, resumedConversationId, modelKey, soulData]);
 
   // Track whether user has scrolled away from bottom
   useEffect(() => {
@@ -374,12 +251,27 @@ export function useLuvChatSession() {
   const handleSend = useCallback(async () => {
     const trimmed = input.trim();
     if ((!trimmed && pendingFiles.length === 0) || isActive) return;
+
+    // Eagerly create conversation before first send so server has a chatId
+    if (!chatIdRef.current) {
+      const title = trimmed
+        ? trimmed.slice(0, 60) + (trimmed.length > 60 ? '...' : '')
+        : 'Untitled conversation';
+      const conv = await createLuvConversation({
+        title,
+        soul_snapshot: soulData,
+        model: modelKey,
+      });
+      setResumedConversationId(conv.id);
+      chatIdRef.current = conv.id;
+    }
+
     const files = pendingFiles.length > 0 ? [...pendingFiles] : undefined;
     setInput('');
     setPendingFiles([]);
     isStuckToBottom.current = true;
     await sendMessage({ text: trimmed || ' ', files });
-  }, [input, pendingFiles, isActive, sendMessage]);
+  }, [input, pendingFiles, isActive, sendMessage, soulData, modelKey]);
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -421,6 +313,7 @@ export function useLuvChatSession() {
     setInput('');
     setPendingFiles([]);
     setResumedConversationId(null);
+    chatIdRef.current = null;
     setSeedContext(null);
     setCompactSummary(null);
     clearActiveConversation();
