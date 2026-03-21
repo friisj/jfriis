@@ -99,160 +99,119 @@ function vecKey(v: THREE.Vector3): string {
  * 2. Depth extrusion: if a planar face exists, suggest extruding it along the normal
  * 3. Mirror: if a face is drawn on one side, suggest the parallel face
  */
+/**
+ * Simplified completion engine — only analyzes edges involving the LAST
+ * placed edge's vertices. This prevents cascading suggestions.
+ *
+ * Rule 1: Rectangle closure — if the last edge + another edge share a vertex
+ *         and form an L-shape, suggest the two edges that close the rectangle.
+ * Rule 2: Depth extrusion — if the last edge completes a closed rectangle
+ *         (all 4 edges exist), suggest extruding that face by 1 unit.
+ */
 function computeSuggestions(strokes: Stroke3D[]): SuggestedEdge[] {
   const solidStrokes = strokes.filter((s) => !s.isGhost)
   if (solidStrokes.length < 2) return []
 
-  // Collect all edges as vertex pairs
   const edges: Array<{ from: THREE.Vector3; to: THREE.Vector3 }> = []
   for (const stroke of solidStrokes) {
     if (stroke.points.length === 2) {
       edges.push({ from: stroke.points[0], to: stroke.points[1] })
     }
   }
-
   if (edges.length < 2) return []
 
-  const suggestions: SuggestedEdge[] = []
   const existingEdgeKeys = new Set<string>()
   for (const e of edges) {
-    const k1 = `${vecKey(e.from)}-${vecKey(e.to)}`
-    const k2 = `${vecKey(e.to)}-${vecKey(e.from)}`
-    existingEdgeKeys.add(k1)
-    existingEdgeKeys.add(k2)
+    existingEdgeKeys.add(`${vecKey(e.from)}-${vecKey(e.to)}`)
+    existingEdgeKeys.add(`${vecKey(e.to)}-${vecKey(e.from)}`)
+  }
+  const edgeExists = (a: THREE.Vector3, b: THREE.Vector3): boolean =>
+    existingEdgeKeys.has(`${vecKey(a)}-${vecKey(b)}`)
+
+  const suggestions: SuggestedEdge[] = []
+  const addSuggestion = (a: THREE.Vector3, b: THREE.Vector3, rule: string) => {
+    if (edgeExists(a, b)) return
+    const ak = vecKey(a), bk = vecKey(b)
+    if (suggestions.some((s) => (vecKey(s.from) === ak && vecKey(s.to) === bk) || (vecKey(s.from) === bk && vecKey(s.to) === ak))) return
+    suggestions.push({ from: a.clone(), to: b.clone(), rule })
   }
 
-  const edgeExists = (a: THREE.Vector3, b: THREE.Vector3): boolean => {
-    return existingEdgeKeys.has(`${vecKey(a)}-${vecKey(b)}`)
+  // Only look at edges that share a vertex with the LAST placed edge
+  const lastEdge = edges[edges.length - 1]
+  const lastVerts = [lastEdge.from, lastEdge.to]
+
+  // Rule 1: Rectangle closure
+  for (const lv of lastVerts) {
+    const lvKey = vecKey(lv)
+    const otherLv = lv === lastEdge.from ? lastEdge.to : lastEdge.from
+
+    // Find other edges that share this vertex
+    for (const e of edges) {
+      if (e === lastEdge) continue
+      let shared: THREE.Vector3 | null = null
+      let eOther: THREE.Vector3 | null = null
+
+      if (vecKey(e.from) === lvKey) { shared = e.from; eOther = e.to }
+      else if (vecKey(e.to) === lvKey) { shared = e.to; eOther = e.from }
+      if (!shared || !eOther) continue
+
+      // L-shape: shared → otherLv and shared → eOther
+      // Fourth corner completes the rectangle
+      const fourth = otherLv.clone().add(eOther).sub(shared)
+      addSuggestion(otherLv, fourth, 'Close rectangle')
+      addSuggestion(eOther, fourth, 'Close rectangle')
+    }
   }
 
-  const suggestionExists = (a: THREE.Vector3, b: THREE.Vector3): boolean => {
-    return suggestions.some(
-      (s) =>
-        (vecKey(s.from) === vecKey(a) && vecKey(s.to) === vecKey(b)) ||
-        (vecKey(s.from) === vecKey(b) && vecKey(s.to) === vecKey(a))
-    )
-  }
-
-  // Build adjacency for closed-quad detection
+  // Rule 2: If the last edge completed a rectangle, suggest depth extrusion
+  // Check if both vertices of the last edge are part of a closed quad
   const vertexMap = new Map<string, THREE.Vector3[]>()
   for (const e of edges) {
-    const fk = vecKey(e.from)
-    const tk = vecKey(e.to)
+    const fk = vecKey(e.from), tk = vecKey(e.to)
     if (!vertexMap.has(fk)) vertexMap.set(fk, [])
     if (!vertexMap.has(tk)) vertexMap.set(tk, [])
     vertexMap.get(fk)!.push(e.to)
     vertexMap.get(tk)!.push(e.from)
   }
 
-  // Rule 1: Rectangle closure
-  // Only suggest closure when exactly 1 edge is missing from a rectangle
-  // (2 edges sharing a vertex with the 4th corner unconnected)
-  for (let i = 0; i < edges.length; i++) {
-    for (let j = i + 1; j < edges.length; j++) {
-      const e1 = edges[i]
-      const e2 = edges[j]
+  // From lastEdge.from, try to find a closed quad path back to lastEdge.to
+  const fromConnected = vertexMap.get(vecKey(lastEdge.from)) ?? []
+  const toConnected = vertexMap.get(vecKey(lastEdge.to)) ?? []
 
-      let shared: THREE.Vector3 | null = null
-      let e1other: THREE.Vector3 | null = null
-      let e2other: THREE.Vector3 | null = null
+  for (const mid of fromConnected) {
+    if (vecKey(mid) === vecKey(lastEdge.to)) continue
+    // Check if mid connects to lastEdge.to via one more vertex
+    const midConnected = vertexMap.get(vecKey(mid)) ?? []
+    for (const corner of midConnected) {
+      if (vecKey(corner) === vecKey(lastEdge.from) || vecKey(corner) === vecKey(mid)) continue
+      if (!toConnected.some((x) => vecKey(x) === vecKey(corner))) continue
 
-      if (vecKey(e1.from) === vecKey(e2.from)) {
-        shared = e1.from; e1other = e1.to; e2other = e2.to
-      } else if (vecKey(e1.from) === vecKey(e2.to)) {
-        shared = e1.from; e1other = e1.to; e2other = e2.from
-      } else if (vecKey(e1.to) === vecKey(e2.from)) {
-        shared = e1.to; e1other = e1.from; e2other = e2.to
-      } else if (vecKey(e1.to) === vecKey(e2.to)) {
-        shared = e1.to; e1other = e1.from; e2other = e2.from
+      // Found closed quad: lastEdge.from → mid → corner → lastEdge.to
+      const quadVerts = [lastEdge.from, mid, corner, lastEdge.to]
+      const e1 = mid.clone().sub(lastEdge.from)
+      const e2 = lastEdge.to.clone().sub(lastEdge.from)
+      const normal = e1.clone().cross(e2).normalize()
+      if (normal.length() < 0.01) continue
+
+      // Only suggest extrusion if no connecting edges exist yet
+      const offset = normal.clone().multiplyScalar(1)
+      const negOffset = offset.clone().negate()
+      const alreadyExtruded = quadVerts.some((vert) =>
+        edgeExists(vert, vert.clone().add(offset)) || edgeExists(vert, vert.clone().add(negOffset))
+      )
+      if (alreadyExtruded) continue
+
+      // Suggest the extrusion (connecting + back face)
+      for (const vert of quadVerts) {
+        addSuggestion(vert, vert.clone().add(offset), 'Extrude depth')
+      }
+      const extVerts = quadVerts.map((v) => v.clone().add(offset))
+      for (let i = 0; i < extVerts.length; i++) {
+        addSuggestion(extVerts[i], extVerts[(i + 1) % extVerts.length], 'Back face')
       }
 
-      if (!shared || !e1other || !e2other) continue
-
-      const fourth = e1other.clone().add(e2other).sub(shared)
-
-      // Count how many of the 4 edges already exist
-      const has12 = edgeExists(e1other, fourth)
-      const has22 = edgeExists(e2other, fourth)
-
-      // Only suggest if exactly 1 or 2 edges are missing (not 0 — already complete)
-      const missingCount = (has12 ? 0 : 1) + (has22 ? 0 : 1)
-      if (missingCount === 0) continue // rectangle already closed
-      if (missingCount > 0) {
-        if (!has12 && !suggestionExists(e1other, fourth)) {
-          suggestions.push({ from: e1other.clone(), to: fourth.clone(), rule: 'Close rectangle' })
-        }
-        if (!has22 && !suggestionExists(e2other, fourth)) {
-          suggestions.push({ from: e2other.clone(), to: fourth.clone(), rule: 'Close rectangle' })
-        }
-      }
-    }
-  }
-
-  // Rule 2: Depth extrusion — only for faces that have NO edges on the opposite side yet
-  const vertices = collectVertices(solidStrokes)
-  const extrudedFaces = new Set<string>() // track which quads we've already processed
-
-  for (const v of vertices) {
-    const connected = vertexMap.get(vecKey(v)) ?? []
-    if (connected.length < 2) continue
-
-    for (let a = 0; a < connected.length; a++) {
-      for (let b = a + 1; b < connected.length; b++) {
-        const va = connected[a]
-        const vb = connected[b]
-
-        const vaConnected = vertexMap.get(vecKey(va)) ?? []
-        const vbConnected = vertexMap.get(vecKey(vb)) ?? []
-
-        for (const vc of vaConnected) {
-          if (vecKey(vc) === vecKey(v) || vecKey(vc) === vecKey(vb)) continue
-          if (!vbConnected.some((x) => vecKey(x) === vecKey(vc))) continue
-
-          // Found a quad: v → va → vc → vb
-          // Deduplicate: sort vertex keys to create a canonical face ID
-          const faceKey = [vecKey(v), vecKey(va), vecKey(vc), vecKey(vb)].sort().join('|')
-          if (extrudedFaces.has(faceKey)) continue
-          extrudedFaces.add(faceKey)
-
-          const edge1 = va.clone().sub(v)
-          const edge2 = vb.clone().sub(v)
-          const normal = edge1.clone().cross(edge2).normalize()
-          if (normal.length() < 0.01) continue
-
-          const depth = 1
-          const offset = normal.clone().multiplyScalar(depth)
-          const quadVerts = [v, va, vc, vb]
-
-          // Check if ANY connecting edge already exists in EITHER normal direction.
-          // If edges exist in +normal OR -normal, this face is already part of a
-          // 3D form and should not be extruded again.
-          const negOffset = offset.clone().negate()
-          const alreadyExtruded = quadVerts.some((vert) => {
-            const extPos = vert.clone().add(offset)
-            const extNeg = vert.clone().add(negOffset)
-            return edgeExists(vert, extPos) || edgeExists(vert, extNeg)
-          })
-          if (alreadyExtruded) continue
-
-          // Suggest connecting edges
-          for (const vert of quadVerts) {
-            const extruded = vert.clone().add(offset)
-            if (!suggestionExists(vert, extruded)) {
-              suggestions.push({ from: vert.clone(), to: extruded, rule: 'Extrude depth' })
-            }
-          }
-
-          // Suggest back face edges
-          const extVerts = quadVerts.map((vt) => vt.clone().add(offset))
-          for (let idx = 0; idx < extVerts.length; idx++) {
-            const next = (idx + 1) % extVerts.length
-            if (!edgeExists(extVerts[idx], extVerts[next]) && !suggestionExists(extVerts[idx], extVerts[next])) {
-              suggestions.push({ from: extVerts[idx].clone(), to: extVerts[next].clone(), rule: 'Back face' })
-            }
-          }
-        }
-      }
+      // Only suggest one extrusion direction (first found)
+      return suggestions
     }
   }
 
