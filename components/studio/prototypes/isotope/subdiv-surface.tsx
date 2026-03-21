@@ -235,6 +235,61 @@ function VertexHandle({
   )
 }
 
+/** Per-box renderer — extracted to avoid hooks-in-map violation */
+function BoxRenderer({
+  box, isEdit, isEditing, displayMode, subdivLevel, smoothOpacity,
+  selectedVerts, onObjectClick, onVertexSelect, onVertexDragStart, onVertexDrag, onVertexDragEnd,
+}: {
+  box: CageBox; isEdit: boolean; isEditing: boolean; displayMode: DisplayMode
+  subdivLevel: number; smoothOpacity: number; selectedVerts: Set<number>
+  onObjectClick: (id: string) => void
+  onVertexSelect: (i: number, shift: boolean) => void
+  onVertexDragStart: (i: number) => void; onVertexDrag: (i: number, d: THREE.Vector3) => void; onVertexDragEnd: () => void
+}) {
+  const showCage = displayMode === 'cage' || displayMode === 'both'
+  const showSmooth = displayMode === 'smooth' || displayMode === 'both'
+  const mouseDown = useRef({ x: 0, y: 0 })
+
+  const cageGeo = useMemo(() => buildGeometry(box.vertices, box.faces), [box.vertices, box.faces])
+  const cageEdges = useMemo(() => buildEdges(box.vertices, box.faces), [box.vertices, box.faces])
+  const smoothData = useMemo(() => multiSubdivide(box.vertices, box.faces, subdivLevel), [box.vertices, box.faces, subdivLevel])
+  const smoothGeo = useMemo(() => buildGeometry(smoothData.verts, smoothData.faces), [smoothData])
+
+  return (
+    <group position={box.origin}>
+      {showSmooth && (
+        <mesh geometry={smoothGeo} castShadow receiveShadow>
+          <meshStandardMaterial color={box.color} transparent opacity={isEdit ? smoothOpacity : 0.85} side={THREE.DoubleSide} />
+        </mesh>
+      )}
+      {showCage && cageEdges.map(([a, b], i) => (
+        <Line key={i} points={[[a.x, a.y, a.z], [b.x, b.y, b.z]]}
+          color={isEdit ? '#f59e0b' : '#1a1a1a'} lineWidth={isEdit ? 1.5 : 1}
+          transparent opacity={isEdit ? 1 : 0.4}
+        />
+      ))}
+      {!isEditing && (
+        <mesh geometry={cageGeo}
+          onPointerDown={(e) => { mouseDown.current = { x: e.nativeEvent.clientX, y: e.nativeEvent.clientY } }}
+          onClick={(e) => {
+            if (Math.hypot(e.nativeEvent.clientX - mouseDown.current.x, e.nativeEvent.clientY - mouseDown.current.y) > 5) return
+            e.stopPropagation(); onObjectClick(box.id)
+          }}
+        >
+          <meshBasicMaterial transparent opacity={0} />
+        </mesh>
+      )}
+      {isEdit && Array.from({ length: vertCount(box.vertices) }, (_, i) => (
+        <VertexHandle key={i} index={i} position={getVert(box.vertices, i)}
+          selected={selectedVerts.has(i)}
+          onSelect={onVertexSelect} onDragStart={onVertexDragStart}
+          onDrag={onVertexDrag} onDragEnd={onVertexDragEnd}
+        />
+      ))}
+    </group>
+  )
+}
+
 // ─── Main component ─────────────────────────────────────────────────────────
 
 export default function SubdivSurface() {
@@ -347,62 +402,23 @@ export default function SubdivSurface() {
           <Line points={[[0, 0, -20], [0, 0, 20]]} color={AXIS_COLORS.z} lineWidth={0.5} transparent opacity={0.2} />
 
           {/* Render each box */}
-          {Array.from(boxes.values()).map((box) => {
-            const isEdit = box.id === editBoxId && isEditing
-            const showCage = displayMode === 'cage' || displayMode === 'both'
-            const showSmooth = displayMode === 'smooth' || displayMode === 'both'
-
-            const cageGeo = useMemo(() => buildGeometry(box.vertices, box.faces), [box])
-            const cageEdges = useMemo(() => buildEdges(box.vertices, box.faces), [box])
-            const smoothData = useMemo(() => multiSubdivide(box.vertices, box.faces, subdivLevel), [box, subdivLevel])
-            const smoothGeo = useMemo(() => buildGeometry(smoothData.verts, smoothData.faces), [smoothData])
-
-            return (
-              <group key={box.id} position={box.origin}>
-                {/* Smooth surface */}
-                {showSmooth && (
-                  <mesh geometry={smoothGeo} castShadow receiveShadow>
-                    <meshStandardMaterial color={box.color} transparent opacity={isEdit ? smoothOpacity : 0.85} side={THREE.DoubleSide} />
-                  </mesh>
-                )}
-
-                {/* Cage wireframe */}
-                {showCage && (
-                  <>
-                    {cageEdges.map(([a, b], i) => (
-                      <Line key={i} points={[[a.x, a.y, a.z], [b.x, b.y, b.z]]}
-                        color={isEdit ? '#f59e0b' : '#1a1a1a'} lineWidth={isEdit ? 1.5 : 1}
-                        transparent opacity={isEdit ? 1 : 0.4}
-                      />
-                    ))}
-                  </>
-                )}
-
-                {/* Cage mesh for clicking (object mode) */}
-                {!isEditing && (
-                  <mesh
-                    geometry={cageGeo}
-                    onPointerDown={(e) => { mouseDown.current = { x: e.nativeEvent.clientX, y: e.nativeEvent.clientY } }}
-                    onClick={(e) => {
-                      const d = Math.hypot(e.nativeEvent.clientX - mouseDown.current.x, e.nativeEvent.clientY - mouseDown.current.y)
-                      if (d > 5) return; e.stopPropagation(); handleObjectClick(box.id)
-                    }}
-                  >
-                    <meshBasicMaterial transparent opacity={0} />
-                  </mesh>
-                )}
-
-                {/* Edit mode: vertex handles */}
-                {isEdit && Array.from({ length: vertCount(box.vertices) }, (_, i) => (
-                  <VertexHandle key={i} index={i} position={getVert(box.vertices, i)}
-                    selected={selectedVerts.has(i)}
-                    onSelect={handleVertexSelect} onDragStart={handleVertexDragStart}
-                    onDrag={handleVertexDrag} onDragEnd={handleVertexDragEnd}
-                  />
-                ))}
-              </group>
-            )
-          })}
+          {Array.from(boxes.values()).map((box) => (
+            <BoxRenderer
+              key={box.id}
+              box={box}
+              isEdit={box.id === editBoxId && isEditing}
+              isEditing={isEditing}
+              displayMode={displayMode}
+              subdivLevel={subdivLevel}
+              smoothOpacity={smoothOpacity}
+              selectedVerts={selectedVerts}
+              onObjectClick={handleObjectClick}
+              onVertexSelect={handleVertexSelect}
+              onVertexDragStart={handleVertexDragStart}
+              onVertexDrag={handleVertexDrag}
+              onVertexDragEnd={handleVertexDragEnd}
+            />
+          ))}
 
           {/* Ground click for placing */}
           {!isEditing && (
