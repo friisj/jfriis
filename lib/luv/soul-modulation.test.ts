@@ -144,7 +144,7 @@ describe('renderTraitsAsText', () => {
     const text = renderTraitsAsText(DEFAULT_TRAITS);
     for (const key of SOUL_TRAITS) {
       // Each trait name or label should appear in the output
-      expect(text.toLowerCase()).toContain(key.replace('_', '/').split('_')[0]);
+      expect(text.toLowerCase()).toContain(key.replace('_', '-').split('_')[0]);
     }
   });
 

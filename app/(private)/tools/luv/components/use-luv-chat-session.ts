@@ -48,6 +48,36 @@ export interface ContextPressure {
   charCount: number;
 }
 
+/**
+ * Trim older messages to keep the request payload under Vercel's 4.5 MB limit.
+ * Strips tool-invocation results and file data from all but the most recent messages,
+ * preserving the full content for recent context and display.
+ */
+const KEEP_FULL_COUNT = 10;
+
+function trimMessagesForTransport(messages: UIMessage[]): UIMessage[] {
+  if (messages.length <= KEEP_FULL_COUNT) return messages;
+
+  const cutoff = messages.length - KEEP_FULL_COUNT;
+  return messages.map((msg, i) => {
+    if (i >= cutoff) return msg; // keep recent messages intact
+
+    const trimmedParts = msg.parts.map((part) => {
+      // Strip tool-invocation results (can be very large JSON)
+      if (part.type === 'tool-invocation') {
+        return { ...part, result: '[trimmed]' };
+      }
+      // Strip file/image data URLs from older messages
+      if (part.type === 'file') {
+        return { ...part, url: '', data: undefined };
+      }
+      return part;
+    });
+
+    return { ...msg, parts: trimmedParts } as UIMessage;
+  });
+}
+
 export function computeContextPressure(messages: UIMessage[], modelKey: string): ContextPressure {
   const charCount = messages.reduce((sum, m) => sum + getMessageText(m).length, 0);
   const tokenBudget = MODEL_TOKEN_BUDGETS[modelKey] ?? 200_000;
@@ -117,6 +147,15 @@ export function useLuvChatSession() {
     () =>
       new DefaultChatTransport({
         api: '/api/luv/chat',
+        prepareSendMessagesRequest: ({ messages: msgs, body: extraBody, headers, credentials, api }) => ({
+          body: {
+            ...extraBody,
+            messages: trimMessagesForTransport(msgs),
+          },
+          headers,
+          credentials,
+          api,
+        }),
         body: {
           modelKey,
           pageContext,
