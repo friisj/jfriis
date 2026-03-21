@@ -298,6 +298,7 @@ export interface LuvConversation {
   compact_summary: string | null;
   parent_conversation_id: string | null;
   is_compacted: boolean;
+  turn_count: number;
   created_at: string;
   updated_at: string;
   created_by: string | null;

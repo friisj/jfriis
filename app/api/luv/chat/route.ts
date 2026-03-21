@@ -8,6 +8,10 @@ import {
   getLuvCharacterServer,
   getLuvMemoriesServer,
   searchMemoriesBySimilarityServer,
+  getLuvConversationServer,
+  getLuvMessagesServer,
+  createLuvMessageServer,
+  incrementTurnCountServer,
 } from '@/lib/luv-server';
 import { getChassisModulesServer } from '@/lib/luv-chassis-server';
 import { listLuvResearchServer } from '@/lib/luv-research-server';
@@ -19,6 +23,8 @@ import { analyzeImageWithGemini, buildGeneralVisionPrompt } from '@/lib/ai/gemin
 import { resolveProcessProtocol, resolveProcessState } from '@/lib/luv/process-context';
 import type { ChassisModuleSummary } from '@/lib/luv/soul-layers';
 import type { LuvPageContext } from '@/lib/types/luv';
+import { deserializeMessage, getMessageText, serializeOnFinishParts, serializeParts } from '@/lib/luv-message-utils';
+import { applyMessageWindowing } from '@/lib/luv-chat-windowing';
 
 export async function POST(request: Request) {
   const { user, error } = await requireAuth();
@@ -36,8 +42,19 @@ export async function POST(request: Request) {
 
   try {
     const body = await request.json();
-    const { messages, modelKey = 'claude-sonnet', pageContext = null, thinking = false, seedContext = null, sessionId } = body as {
-      messages: UIMessage[];
+    const {
+      messages: legacyMessages,
+      chatId,
+      latestMessage,
+      modelKey = 'claude-sonnet',
+      pageContext = null,
+      thinking = false,
+      seedContext = null,
+      sessionId,
+    } = body as {
+      messages?: UIMessage[];
+      chatId?: string;
+      latestMessage?: UIMessage;
       modelKey?: string;
       pageContext?: LuvPageContext | null;
       thinking?: boolean;
@@ -45,7 +62,41 @@ export async function POST(request: Request) {
       sessionId?: string;
     };
 
-    if (!messages || messages.length === 0) {
+    // Resolve conversation messages: server-side state (new) or client payload (legacy)
+    let messages: UIMessage[];
+    let convId: string | null = null;
+    let turnCount: number;
+
+    if (chatId && latestMessage) {
+      // New flow: load history from DB, persist user message server-side
+      convId = chatId;
+      const [conv, dbMessages] = await Promise.all([
+        getLuvConversationServer(chatId),
+        getLuvMessagesServer(chatId),
+      ]);
+
+      // Persist user message
+      await createLuvMessageServer({
+        conversation_id: chatId,
+        role: latestMessage.role,
+        content: getMessageText(latestMessage),
+        parts: serializeParts(latestMessage),
+      });
+
+      // Increment turn count (persisted, survives compaction)
+      await incrementTurnCountServer(chatId);
+      turnCount = conv.turn_count + 1;
+
+      // Reconstruct full message history
+      const historicalMessages = dbMessages
+        .filter((m) => m.role === 'user' || m.role === 'assistant')
+        .map((m) => deserializeMessage(m));
+      messages = [...historicalMessages, latestMessage];
+    } else if (legacyMessages && legacyMessages.length > 0) {
+      // Legacy flow: full message array from client (backward compat)
+      messages = legacyMessages;
+      turnCount = messages.filter((m) => m.role === 'user').length;
+    } else {
       return NextResponse.json({ error: 'Messages required' }, { status: 400 });
     }
 
@@ -77,9 +128,6 @@ export async function POST(request: Request) {
       totalEntries: allResearch.length,
     };
 
-    // Count user turns (number of user messages in conversation history)
-    const turnCount = messages.filter((m: UIMessage) => m.role === 'user').length;
-
     // Resolve page-aware process protocol and active state
     const [processProtocol, processState] = await Promise.all([
       Promise.resolve(resolveProcessProtocol(pageContext)),
@@ -101,12 +149,42 @@ export async function POST(request: Request) {
     // Convert UI-format messages (from useChat) to model-format messages (for streamText)
     const modelMessages = await convertToModelMessages(messages);
 
+    // Apply server-side windowing to trim older tool results and image data
+    const windowedMessages = applyMessageWindowing(modelMessages);
+
     // Pre-process user-uploaded images through Gemini vision
-    const augmentedMessages = await augmentImagesWithGeminiVision(modelMessages);
+    const augmentedMessages = await augmentImagesWithGeminiVision(windowedMessages);
 
     // Enable extended thinking for Claude models when toggled on
     const isClaudeModel = modelKey.startsWith('claude-');
     const thinkingEnabled = thinking && isClaudeModel;
+
+    // Anthropic-specific provider options: context management + optional thinking
+    const providerOptions = isClaudeModel ? {
+      anthropic: {
+        ...(thinkingEnabled && {
+          thinking: { type: 'enabled', budgetTokens: 10000 },
+        }),
+        contextManagement: {
+          edits: [
+            {
+              type: 'clear_tool_uses_20250919',
+              trigger: { type: 'input_tokens', value: 80000 },
+              keep: { type: 'tool_uses', value: 5 },
+              clearAtLeast: { type: 'input_tokens', value: 5000 },
+              excludeTools: [
+                'save_memory', 'update_memory', 'archive_memory', 'merge_memories',
+                'review_memories', 'list_memories',
+              ],
+            },
+            ...(thinkingEnabled ? [{
+              type: 'clear_thinking_20251015' as const,
+              keep: { type: 'thinking_turns' as const, value: 2 },
+            }] : []),
+          ],
+        },
+      },
+    } : undefined;
 
     const result = streamText({
       model: getModel(modelKey),
@@ -118,13 +196,20 @@ export async function POST(request: Request) {
         web_search: getAnthropic().tools.webSearch_20250305({ maxUses: 3 }),
       } as ToolSet,
       stopWhen: stepCountIs(5),
-      ...(thinkingEnabled && {
-        providerOptions: {
-          anthropic: {
-            thinking: { type: 'enabled', budgetTokens: 10000 },
-          },
-        },
-      }),
+      providerOptions,
+      onFinish: async (event) => {
+        if (!convId) return;
+        try {
+          await createLuvMessageServer({
+            conversation_id: convId,
+            role: 'assistant',
+            content: event.text,
+            parts: serializeOnFinishParts(event),
+          });
+        } catch (err) {
+          console.error('[luv/chat] Failed to persist assistant message:', err);
+        }
+      },
     });
 
     return result.toUIMessageStreamResponse();
