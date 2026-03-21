@@ -8,6 +8,8 @@
 import type { LuvSoulData, SoulFacet, LuvChangelogEntry } from '../types/luv';
 import type { SoulLayer, SoulLayerType, CompositionResult, ChassisModuleSummary } from './soul-layers';
 import { LAYER_REGISTRY } from './soul-layers';
+import type { SoulTraits } from './soul-modulation';
+import { renderTraitsAsText } from './soul-modulation';
 
 export interface MemoryItem {
   content: string;
@@ -30,6 +32,10 @@ export interface ComposeOptions {
   seedContext?: string | null;
   /** Recent changelog entries describing Luv's evolution */
   changelog?: LuvChangelogEntry[];
+  /** Current soul trait configuration from the DSMS */
+  soulTraits?: SoulTraits | null;
+  /** Preset name active at time of composition, for display in the layer */
+  soulPresetName?: string | null;
 }
 
 /**
@@ -243,6 +249,29 @@ export function composeLayers(soulData: LuvSoulData, options?: ComposeOptions): 
         'Use read_changelog to fetch more history. Use add_changelog_entry to log new entries when significant changes are discussed or applied.',
       ].join('\n'),
       source: 'luv_changelog',
+      enabled: true,
+    });
+  }
+
+  // Layer 5.8: Soul Modulation (current trait configuration)
+  if (options?.soulTraits) {
+    const traitText = renderTraitsAsText(options.soulTraits);
+    const presetNote = options.soulPresetName
+      ? ` (preset: ${options.soulPresetName})`
+      : '';
+    layers.push({
+      id: 'soul_modulation',
+      type: 'soul_modulation',
+      priority: LAYER_REGISTRY.soul_modulation.priority,
+      content: [
+        `Your current personality trait configuration${presetNote}:`,
+        '',
+        traitText,
+        '',
+        'These traits describe how you are currently calibrated. Traits in the 1–4 range lean toward the lower descriptor; 7–10 toward the higher; 5–6 are balanced.',
+        'You may be asked to adjust traits in real time — always acknowledge the change and adapt immediately.',
+      ].join('\n'),
+      source: 'luv_soul_configs',
       enabled: true,
     });
   }
