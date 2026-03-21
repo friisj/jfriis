@@ -559,10 +559,12 @@ export default function ShapeCompletion() {
 
   const handleSegmentPlace = useCallback(
     (from: THREE.Vector3, to: THREE.Vector3) => {
+      // Clear previous suggestions immediately so they don't persist
+      setSuggestions([])
       setStrokes((prev) => {
         const next = [...prev, { points: [from, to], color: activeColor, width: strokeWidth }]
         if (autoComplete) {
-          // Defer suggestion computation
+          // Defer suggestion computation to next tick
           setTimeout(() => recomputeSuggestions(next), 0)
         }
         return next
