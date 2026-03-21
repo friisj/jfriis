@@ -361,6 +361,19 @@ export default function SubdivSurface() {
 
   const handleVertexDragEnd = useCallback(() => { preDragPositions.current.clear() }, [])
 
+  const handleSubdivideCage = useCallback(() => {
+    if (!editBoxId) return
+    setBoxes((prev) => {
+      const box = prev.get(editBoxId)
+      if (!box) return prev
+      const { verts, faces } = subdivide(box.vertices, box.faces)
+      const next = new Map(prev)
+      next.set(editBoxId, { ...box, vertices: verts, faces })
+      return next
+    })
+    setSelectedVerts(new Set())
+  }, [editBoxId])
+
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (e.key === 'Escape' && isEditing) handleExitEdit()
@@ -482,6 +495,16 @@ export default function SubdivSurface() {
             <div>
               <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Editing</h2>
               <button onClick={handleExitEdit} className="w-full px-3 py-1.5 text-xs bg-muted hover:bg-muted/80 rounded">Exit Edit (Esc)</button>
+            </div>
+            <div>
+              <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Cage Mesh</h2>
+              <button
+                onClick={handleSubdivideCage}
+                className="w-full px-3 py-2 text-xs bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 rounded transition-colors font-medium"
+              >
+                Subdivide Cage ({editBox ? vertCount(editBox.vertices) : 0} → {editBox ? vertCount(editBox.vertices) * 4 : 0} verts)
+              </button>
+              <p className="text-xs text-muted-foreground mt-1">Adds control points for finer deformation. The smooth surface responds to cage vertex positions.</p>
             </div>
             <div>
               <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Selection</h2>
