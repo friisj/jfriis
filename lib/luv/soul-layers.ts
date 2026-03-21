@@ -16,6 +16,7 @@ export type SoulLayerType =
   | 'behavioral_rules'
   | 'research_awareness'
   | 'changelog'
+  | 'soul_modulation'
   | 'context'
   | 'process_protocol'
   | 'session_context'
@@ -94,6 +95,11 @@ export const LAYER_REGISTRY: Record<
     label: 'Changelog',
     priority: 57,
     description: "Recent evolution of Luv's architecture, behaviors, and capabilities",
+  },
+  soul_modulation: {
+    label: 'Soul Modulation',
+    priority: 58,
+    description: 'Current parametric personality trait configuration (1–10 scale)',
   },
   context: {
     label: 'Context',

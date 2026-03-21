@@ -12,6 +12,7 @@ import {
 import { getChassisModulesServer } from '@/lib/luv-chassis-server';
 import { listLuvResearchServer } from '@/lib/luv-research-server';
 import { getLuvChangelogServer } from '@/lib/luv-changelog-server';
+import { getCurrentSoulConfigServer } from '@/lib/luv-soul-modulation-server';
 import { luvTools, createCurrentContextTool } from '@/lib/luv-tools';
 import { getAnthropic } from '@/lib/ai/providers';
 import { analyzeImageWithGemini, buildGeneralVisionPrompt } from '@/lib/ai/gemini-vision';
@@ -35,19 +36,20 @@ export async function POST(request: Request) {
 
   try {
     const body = await request.json();
-    const { messages, modelKey = 'claude-sonnet', pageContext = null, thinking = false, seedContext = null } = body as {
+    const { messages, modelKey = 'claude-sonnet', pageContext = null, thinking = false, seedContext = null, sessionId } = body as {
       messages: UIMessage[];
       modelKey?: string;
       pageContext?: LuvPageContext | null;
       thinking?: boolean;
       seedContext?: string | null;
+      sessionId?: string;
     };
 
     if (!messages || messages.length === 0) {
       return NextResponse.json({ error: 'Messages required' }, { status: 400 });
     }
 
-    // Load soul + chassis modules + research + changelog server-side
+    // Load soul + chassis modules + research + changelog + soul traits server-side
     const [character, chassisModules, allResearch, recentChangelog] = await Promise.all([
       getLuvCharacterServer(),
       getChassisModulesServer(),
@@ -61,6 +63,11 @@ export async function POST(request: Request) {
       category: m.category,
       paramCount: Object.keys(m.parameters ?? {}).length,
     }));
+
+    // Load current soul trait config (falls back to defaults gracefully)
+    const soulModulation = character?.id
+      ? await getCurrentSoulConfigServer(character.id, sessionId).catch(() => null)
+      : null;
 
     // Semantic memory retrieval: embed recent conversation context, find relevant memories
     const memoryItems = await retrieveRelevantMemories(messages);
@@ -87,6 +94,8 @@ export async function POST(request: Request) {
       processProtocol,
       processState,
       seedContext,
+      soulTraits: soulModulation?.traits ?? null,
+      soulPresetName: soulModulation?.preset?.name ?? null,
     });
 
     // Convert UI-format messages (from useChat) to model-format messages (for streamText)
