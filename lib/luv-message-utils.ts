@@ -29,6 +29,7 @@ function migrateToolPart(p: Record<string, unknown>): Record<string, unknown> {
     input: inv.args ?? {},
     output: inv.result ?? null,
     state: inv.state === 'result' ? 'output-available' : (inv.state as string),
+    providerExecuted: true, // tells convertToModelMessages to emit tool-result inline
   };
 }
 
@@ -126,6 +127,7 @@ export function serializeOnFinishParts(event: { text: string; steps: any[] }): o
           input: call.input ?? {},
           output: matchingResult?.output ?? null,
           state: 'output-available',
+          providerExecuted: true,
         });
       }
     }
