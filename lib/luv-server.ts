@@ -132,27 +132,18 @@ export async function incrementTurnCountServer(
   conversationId: string
 ): Promise<void> {
   const client = await createClient();
-  // Atomic increment via raw SQL to avoid TOCTOU race
-  const { error } = await (client as any).rpc('raw_sql', {
-    query: 'UPDATE luv_conversations SET turn_count = turn_count + 1 WHERE id = $1',
-    params: [conversationId],
-  }).catch(() => ({ error: 'rpc_unavailable' }));
-
-  // Fallback: direct update (still atomic via PostgREST expression)
-  if (error) {
-    // Read current value, then update — acceptable for single-user
-    const { data: conv, error: fetchErr } = await (client as any)
-      .from('luv_conversations')
-      .select('turn_count')
-      .eq('id', conversationId)
-      .single();
-    if (fetchErr) throw fetchErr;
-    const { error: updateErr } = await (client as any)
-      .from('luv_conversations')
-      .update({ turn_count: (conv.turn_count ?? 0) + 1 })
-      .eq('id', conversationId);
-    if (updateErr) throw updateErr;
-  }
+  // Read-then-write increment — acceptable for single-user, no concurrency risk
+  const { data: conv, error: fetchErr } = await (client as any)
+    .from('luv_conversations')
+    .select('turn_count')
+    .eq('id', conversationId)
+    .single();
+  if (fetchErr) throw fetchErr;
+  const { error: updateErr } = await (client as any)
+    .from('luv_conversations')
+    .update({ turn_count: (conv.turn_count ?? 0) + 1 })
+    .eq('id', conversationId);
+  if (updateErr) throw updateErr;
 }
 
 // ============================================================================
