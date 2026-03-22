@@ -147,7 +147,21 @@ export async function POST(request: Request) {
     });
 
     // Convert UI-format messages (from useChat) to model-format messages (for streamText)
-    const modelMessages = await convertToModelMessages(messages);
+    // Old conversations may have stored parts that don't match the current SDK schema.
+    // If conversion fails, strip to text-only parts and retry.
+    let modelMessages: ModelMessage[];
+    try {
+      modelMessages = await convertToModelMessages(messages);
+    } catch (convErr) {
+      console.warn('[luv/chat] convertToModelMessages failed, retrying with text-only parts:', convErr);
+      const textOnlyMessages: UIMessage[] = messages.map((m) => ({
+        ...m,
+        parts: m.parts
+          .filter((p): p is { type: 'text'; text: string } => p.type === 'text')
+          .map((p) => ({ type: 'text' as const, text: p.text })),
+      })).filter((m) => m.parts.length > 0);
+      modelMessages = await convertToModelMessages(textOnlyMessages);
+    }
 
     // Apply server-side windowing to trim older tool results and image data
     const windowedMessages = applyMessageWindowing(modelMessages);
