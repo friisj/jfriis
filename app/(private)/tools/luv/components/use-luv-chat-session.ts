@@ -348,6 +348,7 @@ export function useLuvChatSession() {
     compactSummary,
     // Actions
     handleSend,
+    sendMessage,
     handleKeyDown,
     handlePaste,
     handleDrop,
