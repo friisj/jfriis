@@ -11,7 +11,7 @@
 
 import { NextResponse } from 'next/server'
 import { generateText } from 'ai'
-import { getAnthropic } from '@/lib/ai/providers'
+import { getModel } from '@/lib/ai/models'
 import { requireAuth } from '@/lib/ai/auth'
 
 export async function POST(request: Request) {
@@ -19,17 +19,14 @@ export async function POST(request: Request) {
   if (authError) return authError
 
   try {
-    const { messages, model } = await request.json()
+    const { messages, modelKey = 'claude-sonnet' } = await request.json()
 
     if (!messages || !Array.isArray(messages) || messages.length === 0) {
       return NextResponse.json({ error: 'messages array is required' }, { status: 400 })
     }
 
-    const anthropic = getAnthropic()
-    const modelId = model || 'claude-sonnet-4-20250514'
-
     const result = await generateText({
-      model: anthropic(modelId),
+      model: getModel(modelKey),
       messages,
     })
 

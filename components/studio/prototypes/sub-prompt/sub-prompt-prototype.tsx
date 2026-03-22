@@ -66,7 +66,7 @@ export default function SubPromptPrototype() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             messages: [{ role: 'user', content: input }],
-            model: parentModelKey === 'claude-sonnet' ? 'claude-sonnet-4-20250514' : undefined,
+            modelKey: parentModelKey,
           }),
         })
         const data = await res.json()
@@ -111,6 +111,7 @@ export default function SubPromptPrototype() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           messages: [{ role: 'user', content: expanded }],
+          modelKey: parentModelKey,
         }),
       })
       const chatData = await chatRes.json()
