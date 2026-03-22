@@ -13,7 +13,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Textarea } from '@/components/ui/textarea'
 import { parseSubPrompts, getDepthMap, getDelimiters } from '@/lib/studio/sub-prompt/parser'
-import type { NotationStyle, SubPromptExpression, Resolution } from '@/lib/studio/sub-prompt/types'
+import type { NotationStyle, Resolution } from '@/lib/studio/sub-prompt/types'
 
 const NOTATIONS: { style: NotationStyle; label: string; example: string }[] = [
   { style: 'bracket', label: 'Square Brackets', example: '[what is the term for X?]' },

@@ -15,7 +15,6 @@ import { Badge } from '@/components/ui/badge'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { parseSubPrompts, replaceExpressions } from '@/lib/studio/sub-prompt/parser'
-import { getModelDisplayName } from '@/lib/studio/sub-prompt/model-options'
 import type { SubPromptExpression, Resolution } from '@/lib/studio/sub-prompt/types'
 
 type Mode = 'eager' | 'interactive' | 'streaming' | 'ghost'

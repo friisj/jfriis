@@ -16,7 +16,7 @@ import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { parseSubPrompts, replaceExpressions, getDepthMap } from '@/lib/studio/sub-prompt/parser'
 import { getModelOptions, getModelDisplayName } from '@/lib/studio/sub-prompt/model-options'
-import type { SubPromptExpression, Resolution } from '@/lib/studio/sub-prompt/types'
+import type { Resolution } from '@/lib/studio/sub-prompt/types'
 
 const MODEL_OPTIONS = getModelOptions()
 
@@ -24,7 +24,6 @@ export default function SubPromptPrototype() {
   const [input, setInput] = useState('')
   const [resolverModelKey, setResolverModelKey] = useState('claude-haiku')
   const [parentModelKey, setParentModelKey] = useState('claude-sonnet')
-  const [expressions, setExpressions] = useState<SubPromptExpression[]>([])
   const [resolutions, setResolutions] = useState<Resolution[]>([])
   const [expandedPrompt, setExpandedPrompt] = useState('')
   const [parentResponse, setParentResponse] = useState('')
@@ -56,7 +55,6 @@ export default function SubPromptPrototype() {
   const handleResolveAndSend = useCallback(async () => {
     setError(null)
     const parsed = parseSubPrompts(input)
-    setExpressions(parsed)
 
     if (parsed.length === 0) {
       // No sub-prompts — send directly to parent model
@@ -127,7 +125,6 @@ export default function SubPromptPrototype() {
   }, [input, resolverModelKey, parentModelKey])
 
   const handleClear = useCallback(() => {
-    setExpressions([])
     setResolutions([])
     setExpandedPrompt('')
     setParentResponse('')

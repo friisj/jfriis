@@ -8,7 +8,7 @@
  * Prompt diff view showing original vs. expanded prompt.
  */
 
-import { useState, useCallback, useMemo } from 'react'
+import { useState, useCallback } from 'react'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { Badge } from '@/components/ui/badge'
@@ -16,7 +16,7 @@ import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/componen
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { parseSubPrompts, replaceExpressions } from '@/lib/studio/sub-prompt/parser'
-import { getModelOptions, getModelDisplayName } from '@/lib/studio/sub-prompt/model-options'
+import { getModelOptions } from '@/lib/studio/sub-prompt/model-options'
 import type { SubPromptExpression, Resolution, ResolutionTrace } from '@/lib/studio/sub-prompt/types'
 
 const MODEL_OPTIONS = getModelOptions()

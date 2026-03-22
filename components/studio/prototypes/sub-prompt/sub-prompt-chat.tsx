@@ -16,7 +16,6 @@ import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/componen
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { parseSubPrompts, replaceExpressions, getDepthMap } from '@/lib/studio/sub-prompt/parser'
-import { BUILT_IN_AGENTS } from '@/lib/studio/sub-prompt/agents'
 import { getModelOptions, getModelDisplayName } from '@/lib/studio/sub-prompt/model-options'
 import type { SubPromptExpression, Resolution, ResolutionTrace } from '@/lib/studio/sub-prompt/types'
 
