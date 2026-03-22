@@ -46,6 +46,7 @@ const registry: Record<string, React.ComponentType> = {
   'sub-prompt/sub-prompt-prototype': dynamic(() => import('@/components/studio/prototypes/sub-prompt/sub-prompt-prototype'), { ssr: false }),
   'sub-prompt/notation-playground': dynamic(() => import('@/components/studio/prototypes/sub-prompt/notation-playground'), { ssr: false }),
   'sub-prompt/multi-model-router': dynamic(() => import('@/components/studio/prototypes/sub-prompt/multi-model-router'), { ssr: false }),
+  'sub-prompt/trace-viewer': dynamic(() => import('@/components/studio/prototypes/sub-prompt/trace-viewer'), { ssr: false }),
 }
 
 export function PrototypeRenderer({ prototypeKey }: { prototypeKey: string }) {
