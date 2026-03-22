@@ -35,6 +35,12 @@ const nextConfig: NextConfig = {
         )
       );
     }
+    // Exclude Claude worktrees from Webpack file watching to prevent
+    // divergent copies from causing duplicate module resolution
+    config.watchOptions = {
+      ...config.watchOptions,
+      ignored: [...(Array.isArray(config.watchOptions?.ignored) ? config.watchOptions.ignored : []), '**/.claude/**'],
+    };
     return config;
   },
   images: {
