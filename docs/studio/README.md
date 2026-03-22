@@ -340,6 +340,29 @@ Bug tracks public figures and organizations across news, social media, and other
 
 ---
 
+### Sub-Prompt
+**Status**: Phase 1 (Exploration) - Initial research and concept definition
+**Location**: `/components/studio/prototypes/sub-prompt/` + `/docs/studio/sub-prompt/`
+**Focus**: Nested prompt resolution — bracket notation for inline sub-queries that execute before the parent prompt
+
+**Current State**:
+- ✅ Project scaffolding and initial research
+- ⏳ Surveying prior art (macro expansion, query planning, prompt chaining)
+- ⏳ Mapping the design space (notation, resolution strategies, nesting, error handling)
+
+**Concept**:
+Sub-Prompt explores a notation system (e.g., `[square brackets]`) for embedding inline sub-queries within a text prompt. Sub-prompts resolve first — the result replaces the bracket expression — and the parent prompt executes with precise terminology or knowledge injected. Addresses the problem of diffused inference when users have embedded knowledge gaps.
+
+**Next Steps**:
+1. Complete prior art survey (macro expansion, SQL subqueries, shell substitution, prompt chaining)
+2. Define key terms and interaction semantics
+3. Map design space (notation options, resolution strategies, nesting, error handling, model routing)
+4. Design and validate core mechanic through prototype
+
+**Documents**: `/docs/studio/sub-prompt/exploration/` (research.md, definitions.md)
+
+---
+
 ### Remix
 **Status**: Phase 1 (Exploration) - Initial scaffold, awaiting pipeline technical design
 **Location**: `/components/studio/prototypes/remix/` + `/docs/studio/remix/`
