@@ -33,7 +33,9 @@ const MODEL_TOKEN_BUDGETS: Record<string, number> = {
 /** Estimated system prompt overhead in tokens (soul, chassis, memory, research, changelog, tools) */
 const SYSTEM_PROMPT_OVERHEAD_TOKENS = 8_000;
 
-export { getMessageText } from '@/lib/luv-message-utils';
+// Re-export for consumers (chat page, chat drawer)
+// Note: getMessageText is also imported above for internal use
+export { getMessageText };
 
 export type ContextPressureLevel = 'low' | 'medium' | 'high' | 'critical';
 
