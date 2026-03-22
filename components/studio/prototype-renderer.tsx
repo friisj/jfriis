@@ -48,6 +48,7 @@ const registry: Record<string, React.ComponentType> = {
   'sub-prompt/multi-model-router': dynamic(() => import('@/components/studio/prototypes/sub-prompt/multi-model-router'), { ssr: false }),
   'sub-prompt/trace-viewer': dynamic(() => import('@/components/studio/prototypes/sub-prompt/trace-viewer'), { ssr: false }),
   'sub-prompt/interaction-modes': dynamic(() => import('@/components/studio/prototypes/sub-prompt/interaction-modes'), { ssr: false }),
+  'sub-prompt/sub-prompt-chat': dynamic(() => import('@/components/studio/prototypes/sub-prompt/sub-prompt-chat'), { ssr: false }),
 }
 
 export function PrototypeRenderer({ prototypeKey }: { prototypeKey: string }) {
