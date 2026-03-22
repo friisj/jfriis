@@ -44,6 +44,7 @@ const registry: Record<string, React.ComponentType> = {
   'isotope/subdiv-surface': dynamic(() => import('@/components/studio/prototypes/isotope/subdiv-surface'), { ssr: false }),
   'isotope/gestural-ops': dynamic(() => import('@/components/studio/prototypes/isotope/gestural-ops'), { ssr: false }),
   'sub-prompt/sub-prompt-prototype': dynamic(() => import('@/components/studio/prototypes/sub-prompt/sub-prompt-prototype'), { ssr: false }),
+  'sub-prompt/notation-playground': dynamic(() => import('@/components/studio/prototypes/sub-prompt/notation-playground'), { ssr: false }),
 }
 
 export function PrototypeRenderer({ prototypeKey }: { prototypeKey: string }) {
