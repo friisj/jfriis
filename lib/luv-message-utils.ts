@@ -8,6 +8,11 @@ import type { UIMessage } from 'ai';
  * Deserialize a stored database message back to UIMessage format.
  * Falls back to plain text if parts is null.
  */
+/** Part types that convertToModelMessages can handle */
+const VALID_PART_TYPES = new Set([
+  'text', 'tool-invocation', 'reasoning', 'file', 'source',
+]);
+
 export function deserializeMessage(m: {
   id: string;
   role: string;
@@ -15,11 +20,27 @@ export function deserializeMessage(m: {
   parts?: object[] | null;
 }): UIMessage {
   if (m.parts && Array.isArray(m.parts) && m.parts.length > 0) {
-    return {
-      id: m.id,
-      role: m.role as 'user' | 'assistant',
-      parts: m.parts as UIMessage['parts'],
-    };
+    // Filter out part types that convertToModelMessages doesn't understand
+    // (e.g., 'step-start' from older stored messages)
+    const validParts = m.parts.filter((p) => {
+      const type = (p as { type?: string }).type;
+      if (!type || !VALID_PART_TYPES.has(type)) return false;
+      // Skip empty reasoning parts (reasoning: [])
+      if (type === 'reasoning') {
+        const reasoning = (p as { reasoning?: unknown }).reasoning;
+        if (Array.isArray(reasoning) && reasoning.length === 0) return false;
+      }
+      return true;
+    });
+
+    // If we have valid parts, use them; otherwise fall back to text content
+    if (validParts.length > 0) {
+      return {
+        id: m.id,
+        role: m.role as 'user' | 'assistant',
+        parts: validParts as UIMessage['parts'],
+      };
+    }
   }
   return {
     id: m.id,
