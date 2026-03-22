@@ -11,8 +11,26 @@ import type { UIMessage } from 'ai';
  * (e.g., 'step-start' and empty reasoning arrays from older stored messages).
  */
 const VALID_PART_TYPES = new Set([
-  'text', 'tool-invocation', 'reasoning', 'file', 'source',
+  'text', 'tool-invocation', 'tool-call', 'reasoning', 'file', 'source',
 ]);
+
+/**
+ * Transform a legacy `tool-invocation` part (stored by older serializeParts)
+ * into the current AI SDK v6 flat format that convertToModelMessages expects.
+ */
+function migrateToolPart(p: Record<string, unknown>): Record<string, unknown> {
+  if (p.type !== 'tool-invocation') return p;
+  const inv = p.toolInvocation as Record<string, unknown> | undefined;
+  if (!inv) return p;
+  return {
+    type: `tool-${inv.toolName}` as string, // SDK checks type.startsWith('tool-')
+    toolCallId: inv.toolCallId,
+    toolName: inv.toolName,
+    input: inv.args ?? {},
+    output: inv.result ?? null,
+    state: inv.state === 'result' ? 'output-available' : (inv.state as string),
+  };
+}
 
 export function deserializeMessage(m: {
   id: string;
@@ -21,16 +39,20 @@ export function deserializeMessage(m: {
   parts?: object[] | null;
 }): UIMessage {
   if (m.parts && Array.isArray(m.parts) && m.parts.length > 0) {
-    const validParts = m.parts.filter((p) => {
-      const type = (p as { type?: string }).type;
-      if (!type || !VALID_PART_TYPES.has(type)) return false;
-      // Skip empty reasoning parts (reasoning: [])
-      if (type === 'reasoning') {
-        const reasoning = (p as { reasoning?: unknown }).reasoning;
-        if (Array.isArray(reasoning) && reasoning.length === 0) return false;
-      }
-      return true;
-    });
+    const validParts = m.parts
+      .map((p) => migrateToolPart(p as Record<string, unknown>))
+      .filter((p) => {
+        const type = p.type as string | undefined;
+        if (!type) return false;
+        // Accept anything that starts with 'tool-' (SDK v6 convention) or is in our allowlist
+        if (!type.startsWith('tool-') && !VALID_PART_TYPES.has(type)) return false;
+        // Skip empty reasoning parts (reasoning: [])
+        if (type === 'reasoning') {
+          const reasoning = p.reasoning;
+          if (Array.isArray(reasoning) && reasoning.length === 0) return false;
+        }
+        return true;
+      });
 
     if (validParts.length > 0) {
       return {
@@ -91,21 +113,19 @@ export function serializeOnFinishParts(event: { text: string; steps: any[] }): o
       parts.push({ type: 'reasoning', reasoning: step.reasoning });
     }
 
-    // Add tool invocations
+    // Add tool calls in SDK v6 flat format (type: 'tool-{name}', flat fields)
     if (Array.isArray(step.toolCalls)) {
       for (const call of step.toolCalls) {
         const matchingResult = Array.isArray(step.toolResults)
           ? step.toolResults.find((r: { toolCallId: string }) => r.toolCallId === call.toolCallId)
           : undefined;
         parts.push({
-          type: 'tool-invocation',
-          toolInvocation: {
-            toolCallId: call.toolCallId,
-            toolName: call.toolName,
-            args: call.input ?? null,
-            state: 'result',
-            result: matchingResult?.output ?? null,
-          },
+          type: `tool-${call.toolName}`,
+          toolCallId: call.toolCallId,
+          toolName: call.toolName,
+          input: call.input ?? {},
+          output: matchingResult?.output ?? null,
+          state: 'output-available',
         });
       }
     }
