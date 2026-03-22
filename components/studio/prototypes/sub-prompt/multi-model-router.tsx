@@ -66,7 +66,7 @@ export default function MultiModelRouter() {
         const res = await fetch('/api/ai/chat', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ messages: [{ role: 'user', content: input }] }),
+          body: JSON.stringify({ messages: [{ role: 'user', content: input }], modelKey: parentModelKey }),
         })
         const data = await res.json()
         if (!res.ok) throw new Error(data.error || 'Chat failed')
@@ -102,7 +102,7 @@ export default function MultiModelRouter() {
       const chatRes = await fetch('/api/ai/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages: [{ role: 'user', content: expanded }] }),
+        body: JSON.stringify({ messages: [{ role: 'user', content: expanded }], modelKey: parentModelKey }),
       })
       const chatData = await chatRes.json()
       if (!chatRes.ok) throw new Error(chatData.error || 'Chat failed')
@@ -113,7 +113,7 @@ export default function MultiModelRouter() {
       setIsResolving(false)
       setIsExecuting(false)
     }
-  }, [input, defaultResolverKey])
+  }, [input, defaultResolverKey, parentModelKey])
 
   return (
     <div className="h-full flex bg-background text-foreground">

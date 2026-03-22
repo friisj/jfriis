@@ -277,6 +277,7 @@ export default function SubPromptChat() {
             ...messages.map(m => ({ role: m.role, content: m.content })),
             { role: 'user', content: expandedText },
           ],
+          modelKey: parentModelKey,
         }),
       })
       const chatData = await chatRes.json()

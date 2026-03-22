@@ -30,11 +30,11 @@ async function resolveExpressions(expressions: SubPromptExpression[]): Promise<R
   return data.resolutions
 }
 
-async function sendToParent(prompt: string): Promise<string> {
+async function sendToParent(prompt: string, modelKey = 'claude-sonnet'): Promise<string> {
   const res = await fetch('/api/ai/chat', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ messages: [{ role: 'user', content: prompt }] }),
+    body: JSON.stringify({ messages: [{ role: 'user', content: prompt }], modelKey }),
   })
   const data = await res.json()
   if (!res.ok) throw new Error(data.error || 'Chat failed')
