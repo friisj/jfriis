@@ -1,27 +1,14 @@
 'use client';
 
-import { useEffect, useCallback } from 'react';
-import { isToolUIPart, getToolName } from 'ai';
-import type { UIMessage } from 'ai';
-import { IconArrowUp, IconDots, IconPhotoPlus, IconTrash, IconX } from '@tabler/icons-react';
+import { useState, useCallback, useEffect } from 'react';
 import { usePrivateHeader } from '@/components/layout/private-header-context';
-import { Button } from '@/components/ui/button';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-  DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
-} from '@/components/ui/dropdown-menu';
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
-import { useLuvChatSession, MODEL_OPTIONS, getMessageText } from '../components/use-luv-chat-session';
-import { ToolCallCard } from '../components/tool-call-card';
-import { ProposalCard } from '../components/proposal-card';
-import { RecentConversations } from '../components/recent-conversations';
+import { useLuvChatSession } from '../components/use-luv-chat-session';
+import { SoulTraitPanel } from '../components/soul-trait-panel';
+import { MessageBubble } from '../components/shared/message-bubble';
+import { ChatInputToolbar } from '../components/shared/chat-input-toolbar';
+import { ScrollIndicator } from '../components/shared/scroll-indicator';
+import { CompactSeedCard } from '../components/shared/compact-seed-card';
+import { EmptyState } from '../components/shared/empty-state';
 
 export default function LuvChatPage() {
   const { setHidden } = usePrivateHeader();
@@ -31,294 +18,97 @@ export default function LuvChatPage() {
     return () => setHidden(false);
   }, [setHidden]);
 
-  const {
-    modelKey,
-    setModelKey,
-    input,
-    setInput,
-    pendingFiles,
-    setPendingFiles,
-    messages,
-    status,
-    error,
-    isActive,
-    soulLoaded,
-    scrollContainerRef,
-    messagesEndRef,
-    textareaRef,
-    fileInputRef,
-    handleSend,
-    handleKeyDown,
-    handlePaste,
-    handleDrop,
-    handleClear,
-    addFilesFromFileList,
-  } = useLuvChatSession();
+  const session = useLuvChatSession();
+  const [traitPanelOpen, setTraitPanelOpen] = useState(false);
 
-  const autoResize = useCallback((el: HTMLTextAreaElement) => {
-    el.style.height = 'auto';
-    el.style.height = `${Math.min(el.scrollHeight, 160)}px`;
-  }, []);
-
-  const handleInputChange = useCallback(
-    (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-      setInput(e.target.value);
-      autoResize(e.target);
+  const handleTraitsApplied = useCallback(
+    (changes: string) => {
+      if (session.resumedConversationId) {
+        session.sendMessage({ text: `[Soul traits adjusted: ${changes}]` });
+      }
     },
-    [setInput, autoResize],
+    [session.sendMessage, session.resumedConversationId]
   );
 
-  // Reset textarea height when input is cleared (e.g. after send)
-  useEffect(() => {
-    if (!input && textareaRef.current) {
-      textareaRef.current.style.height = 'auto';
-    }
-  }, [input, textareaRef]);
-
   return (
-    <div className="h-dvh flex flex-col bg-background overflow-hidden">
+    <div className="h-dvh flex flex-col bg-background overflow-hidden relative">
+      {traitPanelOpen && (
+        <SoulTraitPanel
+          onClose={() => setTraitPanelOpen(false)}
+          onTraitsApplied={handleTraitsApplied}
+        />
+      )}
 
       {/* Messages */}
       <div
-        ref={scrollContainerRef}
+        ref={session.scrollContainerRef}
         className="flex-1 overflow-y-auto min-h-0"
-        onDrop={handleDrop}
+        onDrop={session.handleDrop}
         onDragOver={(e) => e.preventDefault()}
       >
         <div className="max-w-3xl mx-auto px-3 sm:px-4 py-6 space-y-4 min-w-0">
-          {!soulLoaded && (
-            <p className="text-sm text-muted-foreground text-center py-8">
-              Loading...
-            </p>
+          {!session.soulLoaded && (
+            <p className="text-sm text-muted-foreground text-center py-8">Loading...</p>
           )}
-          {soulLoaded && messages.length === 0 && (
-            <div className="text-center py-8">
-              <p className="text-sm text-muted-foreground">
-                Start a conversation with Luv.
-              </p>
-              <RecentConversations />
-            </div>
+          {session.soulLoaded && session.messages.length === 0 && (
+            <EmptyState soulData={session.soulData} modelKey={session.modelKey} thinking={session.thinking} />
           )}
-          {messages.map((msg) => (
-            <FullscreenMessageBubble
+          {session.messages.map((msg) => (
+            <MessageBubble
               key={msg.id}
               message={msg}
-              isLast={msg.id === messages[messages.length - 1]?.id}
-              isActive={isActive}
+              isLast={msg.id === session.messages[session.messages.length - 1]?.id}
+              isActive={session.isActive}
             />
           ))}
-          {status === 'error' && error && (
+          {session.status === 'error' && session.error && (
             <div className="rounded-lg px-4 py-3 text-sm bg-destructive/10 text-destructive border border-destructive/20">
               <p className="font-medium">Error</p>
-              <p className="mt-1 opacity-80">{error.message}</p>
+              <p className="mt-1 opacity-80">{session.error.message}</p>
             </div>
           )}
-          <div ref={messagesEndRef} />
+          <div ref={session.messagesEndRef} />
         </div>
       </div>
 
-      {/* Input */}
-      <div className="border-t shrink-0 pb-[env(safe-area-inset-bottom)] min-w-0">
-        <div className="max-w-3xl mx-auto min-w-0">
-          {pendingFiles.length > 0 && (
-            <div className="flex gap-2 flex-wrap px-3 sm:px-4 pt-3">
-              {pendingFiles.map((f, i) => (
-                <div key={i} className="relative group">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={f.url}
-                    alt={f.filename ?? 'Attached image'}
-                    className="h-14 w-14 sm:h-16 sm:w-16 object-cover rounded border"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setPendingFiles((prev) => prev.filter((_, j) => j !== i))}
-                    className="absolute -top-1.5 -right-1.5 bg-destructive text-destructive-foreground rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
-                  >
-                    <IconX size={12}  />
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
-          <div className="flex flex-col min-w-0">
-            <textarea
-              ref={textareaRef}
-              value={input}
-              onChange={handleInputChange}
-              onKeyDown={handleKeyDown}
-              onPaste={handlePaste}
-              placeholder="Message Luv..."
-              rows={1}
-              className="w-full min-w-0 resize-none text-base sm:text-sm border-none rounded-none px-3 sm:px-4 py-3 bg-transparent outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50"
-              disabled={isActive || !soulLoaded}
-            />
-            <div className="flex justify-between items-end px-3 sm:px-4 pb-3">
-              <div className="flex gap-2">
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <button
-                      className="shrink-0 p-0 hover:bg-transparent active:bg-transparent"
-                      title="Chat menu"
-                    >
-                      <IconDots size={20}  />
-                    </button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent side="top" align="start" className="w-48">
-                    <DropdownMenuLabel className="text-[10px]">Model</DropdownMenuLabel>
-                    <DropdownMenuRadioGroup value={modelKey} onValueChange={setModelKey}>
-                      {MODEL_OPTIONS.map((opt) => (
-                        <DropdownMenuRadioItem key={opt.key} value={opt.key} className="text-xs">
-                          {opt.label}
-                        </DropdownMenuRadioItem>
-                      ))}
-                    </DropdownMenuRadioGroup>
-                    {messages.length > 0 && (
-                      <>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem
-                          className="text-xs"
-                          onClick={handleClear}
-                          disabled={isActive}
-                        >
-                          <IconTrash size={14} className="mr-2" />
-                          New conversation
-                        </DropdownMenuItem>
-                      </>
-                    )}
-                  </DropdownMenuContent>
-                </DropdownMenu>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/*"
-                  multiple
-                  className="hidden"
-                  onChange={(e) => {
-                    if (e.target.files) addFilesFromFileList(Array.from(e.target.files));
-                    e.target.value = '';
-                  }}
-                />
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-auto self-end px-1.5 shrink-0"
-                  onClick={() => fileInputRef.current?.click()}
-                  disabled={isActive || !soulLoaded}
-                  title="Attach image"
-                >
-                  <IconPhotoPlus size={20}  />
-                </Button>
-              </div>
-              <Button
-                onClick={handleSend}
-                disabled={isActive || (!input.trim() && pendingFiles.length === 0) || !soulLoaded}
-                size="sm"
-                className="h-auto self-end size-8 p-2"
-              >
-                <IconArrowUp size={16}  />
-              </Button>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
+      <ScrollIndicator scrollContainerRef={session.scrollContainerRef} messagesEndRef={session.messagesEndRef} />
 
-function FullscreenMessageBubble({
-  message,
-  isLast,
-  isActive,
-}: {
-  message: UIMessage;
-  isLast: boolean;
-  isActive: boolean;
-}) {
-  if (message.role === 'user') {
-    const text = getMessageText(message);
-    const fileParts = message.parts.filter(
-      (p): p is { type: 'file'; mediaType: string; url: string; filename?: string } =>
-        p.type === 'file'
-    );
-    return (
-      <div className="flex justify-end">
-        <div className="max-w-[90%] sm:max-w-[75%] rounded-lg px-3 sm:px-4 py-2.5 sm:py-3 text-sm whitespace-pre-wrap bg-primary text-primary-foreground break-words">
-          {fileParts.length > 0 && (
-            <div className="flex gap-2 flex-wrap mb-2">
-              {fileParts.map((f, i) => (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  key={i}
-                  src={f.url}
-                  alt={f.filename ?? 'User image'}
-                  className="max-h-64 rounded-lg object-contain"
-                />
-              ))}
-            </div>
-          )}
-          {text}
-        </div>
-      </div>
-    );
-  }
+      {session.compactSummary && session.messages.length === 0 && (
+        <CompactSeedCard summary={session.compactSummary} onBranch={session.handleBranch} branching={session.branching} />
+      )}
 
-  return (
-    <div className="flex justify-start min-w-0">
-      <div className="sm:max-w-[75%] space-y-2 min-w-0">
-        {message.parts.map((part, i) => {
-          if (part.type === 'text' && part.text) {
-            return (
-              <div
-                key={i}
-                className="rounded-lg px-3 sm:px-4 py-2.5 sm:py-3 text-sm bg-muted prose prose-sm dark:prose-invert prose-p:my-1.5 prose-ul:my-1.5 prose-ol:my-1.5 prose-li:my-0.5 prose-headings:my-2 prose-pre:my-1.5 max-w-none break-words [&_pre]:overflow-x-auto [&_pre]:max-w-full"
-              >
-                <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                  {part.text}
-                </ReactMarkdown>
-                {isActive && isLast && i === message.parts.length - 1 && (
-                  <span className="inline-block w-1.5 h-4 bg-current animate-pulse ml-0.5" />
-                )}
-              </div>
-            );
-          }
-
-          if (isToolUIPart(part)) {
-            const toolName = getToolName(part);
-            const toolCallId = part.toolCallId;
-            const output = 'output' in part ? part.output : undefined;
-            const state = part.state;
-
-            if (
-              output &&
-              typeof output === 'object' &&
-              'type' in (output as Record<string, unknown>) &&
-              ((output as Record<string, unknown>).type === 'soul_change_proposal' ||
-                (output as Record<string, unknown>).type === 'chassis_change_proposal' ||
-                (output as Record<string, unknown>).type === 'module_change_proposal' ||
-                (output as Record<string, unknown>).type === 'batch_module_change_proposal' ||
-                (output as Record<string, unknown>).type === 'facet_change_proposal')
-            ) {
-              return (
-                <ProposalCard
-                  key={toolCallId}
-                  proposal={output as Parameters<typeof ProposalCard>[0]['proposal']}
-                />
-              );
-            }
-
-            return (
-              <ToolCallCard
-                key={toolCallId}
-                toolName={toolName}
-                state={state}
-                result={output}
-              />
-            );
-          }
-
-          return null;
-        })}
+      {/* Input — centered with max-width wrapper */}
+      <div className="max-w-3xl mx-auto w-full min-w-0">
+        <ChatInputToolbar
+          autoResize
+          input={session.input}
+          setInput={session.setInput}
+          pendingFiles={session.pendingFiles}
+          setPendingFiles={session.setPendingFiles}
+          modelKey={session.modelKey}
+          setModelKey={session.setModelKey}
+          thinking={session.thinking}
+          setThinking={session.setThinking}
+          isActive={session.isActive}
+          soulLoaded={session.soulLoaded}
+          messages={session.messages}
+          contextPressure={session.contextPressure}
+          resumedConversationId={session.resumedConversationId}
+          compactSummary={session.compactSummary}
+          textareaRef={session.textareaRef}
+          fileInputRef={session.fileInputRef}
+          handleSend={session.handleSend}
+          handleKeyDown={session.handleKeyDown}
+          handlePaste={session.handlePaste}
+          handleClear={session.handleClear}
+          handleCompact={session.handleCompact}
+          handleBranch={session.handleBranch}
+          compacting={session.compacting}
+          branching={session.branching}
+          addFilesFromFileList={session.addFilesFromFileList}
+          traitPanelOpen={traitPanelOpen}
+          onToggleTraitPanel={() => setTraitPanelOpen((o) => !o)}
+        />
       </div>
     </div>
   );

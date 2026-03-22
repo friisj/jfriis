@@ -58,11 +58,13 @@ export function computeContextPressure(messages: UIMessage[], modelKey: string):
 }
 
 export function useLuvChatSession() {
-  const { activeConversationId, clearActiveConversation, soulData, soulLoaded, pageContext } =
+  const { activeConversationId, clearActiveConversation, resumeConversation, soulData, soulLoaded, pageContext } =
     useLuvChat();
 
   const [modelKey, setModelKey] = useState('claude-sonnet');
   const [thinking, setThinking] = useState(false);
+  const [compacting, setCompacting] = useState(false);
+  const [branching, setBranching] = useState(false);
   const [resumedConversationId, setResumedConversationId] = useState<string | null>(null);
   const [seedContext, setSeedContext] = useState<string | null>(null);
   const [compactSummary, setCompactSummary] = useState<LuvCompactSummary | null>(null);
@@ -311,6 +313,51 @@ export function useLuvChatSession() {
     [addFilesFromFileList]
   );
 
+  const handleCompact = useCallback(async () => {
+    if (!resumedConversationId || compacting) return;
+    setCompacting(true);
+    try {
+      const res = await fetch('/api/luv/compact-conversation', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ conversationId: resumedConversationId, modelKey }),
+      });
+      if (!res.ok) throw new Error(await res.text());
+      resumeConversation(resumedConversationId);
+    } catch (err) {
+      console.error('Compact failed:', err);
+    } finally {
+      setCompacting(false);
+    }
+  }, [resumedConversationId, modelKey, compacting, resumeConversation]);
+
+  const handleBranch = useCallback(async () => {
+    if (!resumedConversationId || branching) return;
+    setBranching(true);
+    try {
+      const res = await fetch('/api/luv/branch-conversation', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ conversationId: resumedConversationId }),
+      });
+      if (!res.ok) throw new Error(await res.text());
+      const { conversationId: newId } = await res.json() as { conversationId: string };
+      setMessages([]);
+      setInput('');
+      setPendingFiles([]);
+      setResumedConversationId(null);
+      chatIdRef.current = null;
+      setSeedContext(null);
+      setCompactSummary(null);
+      clearActiveConversation();
+      resumeConversation(newId);
+    } catch (err) {
+      console.error('Branch failed:', err);
+    } finally {
+      setBranching(false);
+    }
+  }, [resumedConversationId, branching, setMessages, clearActiveConversation, resumeConversation]);
+
   const handleClear = useCallback(() => {
     setMessages([]);
     setInput('');
@@ -353,6 +400,10 @@ export function useLuvChatSession() {
     handlePaste,
     handleDrop,
     handleClear,
+    handleCompact,
+    handleBranch,
+    compacting,
+    branching,
     addFilesFromFileList,
   };
 }
