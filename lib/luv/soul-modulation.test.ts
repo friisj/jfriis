@@ -68,6 +68,7 @@ describe('validateTraits', () => {
       formality: 10,
       enthusiasm: 1,
       risk_taking: 10,
+      charm: 5,
     };
     expect(validateTraits(boundary).valid).toBe(true);
   });
@@ -140,7 +141,7 @@ describe('applyTraitPatch', () => {
 // ============================================================================
 
 describe('renderTraitsAsText', () => {
-  it('renders all 6 traits', () => {
+  it('renders all 7 traits', () => {
     const text = renderTraitsAsText(DEFAULT_TRAITS);
     for (const key of SOUL_TRAITS) {
       // Each trait name or label should appear in the output
@@ -166,8 +167,8 @@ describe('renderTraitsAsText', () => {
     expect(text).toContain('balanced');
   });
 
-  it('returns a multi-line string with 6 lines', () => {
+  it('returns a multi-line string with 7 lines', () => {
     const lines = renderTraitsAsText(DEFAULT_TRAITS).split('\n');
-    expect(lines).toHaveLength(6);
+    expect(lines).toHaveLength(7);
   });
 });

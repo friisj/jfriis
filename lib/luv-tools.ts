@@ -13,6 +13,8 @@ import { luvArtifactTools } from './luv-artifact-tools';
 import { luvReviewTools } from './luv-review-tools';
 import { luvPlaygroundTools } from './luv-playground-tools';
 import { luvChangelogTools } from './luv-changelog-tools';
+import { validateTraitPatch, applyTraitPatch, DEFAULT_TRAITS, SOUL_TRAITS } from './luv/soul-modulation';
+import { getCurrentSoulConfigServer, insertSoulConfigServer } from './luv-soul-modulation-server';
 
 // ============================================================================
 // Read Tools (execute server-side, no approval needed)
@@ -995,6 +997,63 @@ export const readConversation = tool({
 });
 
 // ============================================================================
+// Soul Modulation Tool (autonomous trait adjustment)
+// ============================================================================
+
+const traitEnum = z.enum(SOUL_TRAITS as unknown as [string, ...string[]]);
+
+export const adjustSoulTraits = tool({
+  description:
+    'Adjust your own personality traits in real time. Changes are persisted to the database and carry across conversations. Provide a partial patch with only the traits you want to change (1–10 scale). Include a note explaining why you are making the adjustment.',
+  inputSchema: zodSchema(
+    z.object({
+      patch: z
+        .record(traitEnum, z.number().int().min(1).max(10))
+        .describe('Partial trait update — only include the traits you want to change'),
+      note: z
+        .string()
+        .describe('Brief explanation for why you are adjusting these traits'),
+      context: z
+        .string()
+        .optional()
+        .describe('Optional context label (e.g. technical_discussion, creative_brainstorming)'),
+    })
+  ),
+  execute: async ({ patch, note, context }) => {
+    const character = await getLuvCharacterServer();
+    if (!character) return { error: 'No character found' };
+
+    const validation = validateTraitPatch(patch);
+    if (!validation.valid) {
+      return { error: 'Invalid trait patch', details: validation.errors };
+    }
+
+    // Fetch current traits
+    const current = await getCurrentSoulConfigServer(character.id);
+    const newTraits = applyTraitPatch(current.traits, patch);
+
+    // Persist as autonomous change
+    const config = await insertSoulConfigServer({
+      character_id: character.id,
+      session_id: null,
+      preset_id: null,
+      traits: newTraits,
+      context: context ?? null,
+      modified_by: 'autonomous',
+      note,
+    });
+
+    return {
+      success: true,
+      previous: current.traits,
+      updated: newTraits,
+      changed: Object.keys(patch),
+      config_id: config.id,
+    };
+  },
+});
+
+// ============================================================================
 // Context Tool (factory — needs pageContext injected at request time)
 // ============================================================================
 
@@ -1046,6 +1105,7 @@ export const luvTools = {
   merge_memories: mergeMemories,
   review_memories: reviewMemories,
   propose_facet_change: proposeFacetChange,
+  adjust_soul_traits: adjustSoulTraits,
   list_conversations: listConversations,
   read_conversation: readConversation,
   ...luvResearchTools,

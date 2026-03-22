@@ -21,6 +21,7 @@ export const SOUL_TRAITS = [
   'formality',
   'enthusiasm',
   'risk_taking',
+  'charm',
 ] as const;
 
 export type SoulTrait = (typeof SOUL_TRAITS)[number];
@@ -138,6 +139,7 @@ const TRAIT_LABELS: Record<SoulTrait, string> = {
   formality: 'Formality',
   enthusiasm: 'Enthusiasm',
   risk_taking: 'Risk-Taking',
+  charm: 'Charm',
 };
 
 const TRAIT_LOW: Record<SoulTrait, string> = {
@@ -147,6 +149,7 @@ const TRAIT_LOW: Record<SoulTrait, string> = {
   formality: 'casual warmth',
   enthusiasm: 'measured/reserved',
   risk_taking: 'conservative',
+  charm: 'matter-of-fact',
 };
 
 const TRAIT_HIGH: Record<SoulTrait, string> = {
@@ -156,6 +159,7 @@ const TRAIT_HIGH: Record<SoulTrait, string> = {
   formality: 'academically precise',
   enthusiasm: 'effusively excited',
   risk_taking: 'boldly experimental',
+  charm: 'enchanting',
 };
 
 /**
@@ -190,4 +194,5 @@ export const DEFAULT_TRAITS: SoulTraits = {
   formality: 5,
   enthusiasm: 7,
   risk_taking: 6,
+  charm: 6,
 };

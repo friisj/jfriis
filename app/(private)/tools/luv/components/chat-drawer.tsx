@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { isToolUIPart, getToolName } from 'ai';
 import type { UIMessage } from 'ai';
+import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import {
@@ -17,7 +18,8 @@ import {
 } from '@/components/ui/dropdown-menu';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { IconArrowUp, IconBrain, IconChevronDown, IconChevronRight, IconDots, IconGitBranch, IconLoader2, IconPhotoPlus, IconSparkles, IconTrash, IconX } from '@tabler/icons-react';
+import { IconAdjustments, IconArrowUp, IconBrain, IconChevronDown, IconChevronRight, IconDots, IconGitBranch, IconLoader2, IconPhotoPlus, IconSparkles, IconTrash, IconX } from '@tabler/icons-react';
+import { SoulTraitPanel } from './soul-trait-panel';
 import { composeLayers } from '@/lib/luv/soul-composer';
 import { LAYER_REGISTRY } from '@/lib/luv/soul-layers';
 import { useLuvChatSession, MODEL_OPTIONS, getMessageText, type ContextPressure } from './use-luv-chat-session';
@@ -50,6 +52,7 @@ export function ChatDrawer() {
     textareaRef,
     fileInputRef,
     handleSend,
+    sendMessage,
     handleKeyDown,
     handlePaste,
     handleDrop,
@@ -60,6 +63,17 @@ export function ChatDrawer() {
   const { resumeConversation } = useLuvChat();
   const [compacting, setCompacting] = useState(false);
   const [branching, setBranching] = useState(false);
+  const [traitPanelOpen, setTraitPanelOpen] = useState(false);
+
+  const handleTraitsApplied = useCallback(
+    (changes: string) => {
+      // Only notify Luv in-chat if there's an active conversation
+      if (resumedConversationId) {
+        sendMessage({ text: `[Soul traits adjusted: ${changes}]` });
+      }
+    },
+    [sendMessage, resumedConversationId]
+  );
 
   const handleCompact = useCallback(async () => {
     if (!resumedConversationId || compacting) return;
@@ -104,6 +118,14 @@ export function ChatDrawer() {
 
   return (
     <div className="flex flex-col h-full relative">
+      {/* Soul Trait Panel overlay */}
+      {traitPanelOpen && (
+        <SoulTraitPanel
+          onClose={() => setTraitPanelOpen(false)}
+          onTraitsApplied={handleTraitsApplied}
+        />
+      )}
+
       {/* Messages */}
       <div
         ref={scrollContainerRef}
@@ -261,6 +283,18 @@ export function ChatDrawer() {
                   )}
                 </DropdownMenuContent>
               </DropdownMenu>
+              <Button
+                variant="ghost"
+                size="sm"
+                className={cn(
+                  'h-auto self-end px-1.5 shrink-0',
+                  traitPanelOpen && 'text-foreground bg-accent',
+                )}
+                onClick={() => setTraitPanelOpen((o) => !o)}
+                title="Soul modulation"
+              >
+                <IconAdjustments size={16} />
+              </Button>
               <Button
                 variant="ghost"
                 size="sm"
