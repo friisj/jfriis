@@ -269,7 +269,7 @@ export function composeLayers(soulData: LuvSoulData, options?: ComposeOptions): 
         traitText,
         '',
         'These traits describe how you are currently calibrated. Traits in the 1–4 range lean toward the lower descriptor; 7–10 toward the higher; 5–6 are balanced.',
-        'You may be asked to adjust traits in real time — always acknowledge the change and adapt immediately.',
+        'You can adjust your own traits in real time using the adjust_soul_traits tool — changes are persisted across conversations. Use it when the conversation context calls for a different mode, or when asked to shift.',
       ].join('\n'),
       source: 'luv_soul_configs',
       enabled: true,
