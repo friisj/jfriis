@@ -43,6 +43,12 @@ const registry: Record<string, React.ComponentType> = {
   'isotope/face-fill': dynamic(() => import('@/components/studio/prototypes/isotope/face-fill'), { ssr: false }),
   'isotope/subdiv-surface': dynamic(() => import('@/components/studio/prototypes/isotope/subdiv-surface'), { ssr: false }),
   'isotope/gestural-ops': dynamic(() => import('@/components/studio/prototypes/isotope/gestural-ops'), { ssr: false }),
+  'sub-prompt/sub-prompt-prototype': dynamic(() => import('@/components/studio/prototypes/sub-prompt/sub-prompt-prototype'), { ssr: false }),
+  'sub-prompt/notation-playground': dynamic(() => import('@/components/studio/prototypes/sub-prompt/notation-playground'), { ssr: false }),
+  'sub-prompt/multi-model-router': dynamic(() => import('@/components/studio/prototypes/sub-prompt/multi-model-router'), { ssr: false }),
+  'sub-prompt/trace-viewer': dynamic(() => import('@/components/studio/prototypes/sub-prompt/trace-viewer'), { ssr: false }),
+  'sub-prompt/interaction-modes': dynamic(() => import('@/components/studio/prototypes/sub-prompt/interaction-modes'), { ssr: false }),
+  'sub-prompt/sub-prompt-chat': dynamic(() => import('@/components/studio/prototypes/sub-prompt/sub-prompt-chat'), { ssr: false }),
 }
 
 export function PrototypeRenderer({ prototypeKey }: { prototypeKey: string }) {
