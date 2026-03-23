@@ -1,26 +1,53 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { useLuvChatSession } from './use-luv-chat-session';
 import { SoulTraitPanel } from './soul-trait-panel';
+import { ChatOverlay } from './shared/chat-overlay';
 import { MessageBubble } from './shared/message-bubble';
 import { ChatInputToolbar } from './shared/chat-input-toolbar';
 import { ScrollIndicator } from './shared/scroll-indicator';
 import { CompactSeedCard } from './shared/compact-seed-card';
 import { EmptyState } from './shared/empty-state';
 import { ThinkingIndicator, StepLimitMessage, wasStepLimitHit } from './shared/status-indicators';
+import { getLuvCharacter } from '@/lib/luv';
 
 export function ChatDrawer() {
   const session = useLuvChatSession();
-  const [traitPanelOpen, setTraitPanelOpen] = useState(false);
+  const [activePanel, setActivePanel] = useState<'traits' | null>(null);
+  const [activePresetId, setActivePresetId] = useState<string | null>(null);
+
+  const handleApplyPreset = useCallback(async (presetId: string) => {
+    const char = await getLuvCharacter();
+    if (!char) return;
+    const res = await fetch('/api/luv/soul/config', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ characterId: char.id, presetId }),
+    });
+    if (res.ok) {
+      setActivePresetId(presetId);
+      setActivePanel(null);
+    }
+  }, []);
+
+  const closePanel = useCallback(() => setActivePanel(null), []);
+
+  const panelConfig = {
+    traits: { title: 'Custom Modulation' },
+  } as const;
 
   return (
     <div className="flex flex-col h-full relative">
-      {traitPanelOpen && (
-        <SoulTraitPanel
-          onClose={() => setTraitPanelOpen(false)}
-          onTraitsApplied={session.handleTraitsApplied}
-        />
+      {activePanel && (
+        <ChatOverlay title={panelConfig[activePanel].title} onClose={closePanel}>
+          {activePanel === 'traits' && (
+            <SoulTraitPanel
+              onClose={closePanel}
+              onTraitsApplied={session.handleTraitsApplied}
+            />
+          )}
+        </ChatOverlay>
       )}
 
       {/* Messages */}
@@ -34,7 +61,7 @@ export function ChatDrawer() {
           <p className="text-xs text-muted-foreground text-center py-4">Loading...</p>
         )}
         {session.soulLoaded && session.messages.length === 0 && (
-          <EmptyState soulData={session.soulData} modelKey={session.modelKey} thinking={session.thinking} compact />
+          <EmptyState compact />
         )}
         {session.messages.map((msg) => (
           <MessageBubble
@@ -93,8 +120,10 @@ export function ChatDrawer() {
         compacting={session.compacting}
         branching={session.branching}
         addFilesFromFileList={session.addFilesFromFileList}
-        traitPanelOpen={traitPanelOpen}
-        onToggleTraitPanel={() => setTraitPanelOpen((o) => !o)}
+        traitPanelOpen={activePanel === 'traits'}
+        onToggleTraitPanel={() => setActivePanel((p) => p === 'traits' ? null : 'traits')}
+        onApplyPreset={handleApplyPreset}
+        activePresetId={activePresetId}
       />
     </div>
   );

@@ -31,6 +31,14 @@ import {
 import { MODEL_OPTIONS, type ContextPressure } from '../use-luv-chat-session';
 import type { LuvCompactSummary } from '@/lib/types/luv';
 
+interface SoulPreset {
+  id: string;
+  slug: string;
+  name: string;
+  description: string | null;
+  is_default: boolean;
+}
+
 export interface ChatInputToolbarProps {
   // State
   input: string;
@@ -63,6 +71,8 @@ export interface ChatInputToolbarProps {
   // Soul traits
   traitPanelOpen: boolean;
   onToggleTraitPanel: () => void;
+  onApplyPreset: (presetId: string) => void;
+  activePresetId: string | null;
   // Sizing
   compact?: boolean;
   autoResize?: boolean;
@@ -96,11 +106,22 @@ export function ChatInputToolbar({
   addFilesFromFileList,
   traitPanelOpen,
   onToggleTraitPanel,
+  onApplyPreset,
+  activePresetId,
   compact = false,
   autoResize = false,
 }: ChatInputToolbarProps) {
   const isClaudeModel = modelKey.startsWith('claude-');
   const iconSize = compact ? 16 : 20;
+  const [presets, setPresets] = useState<SoulPreset[]>([]);
+
+  // Fetch presets once
+  useEffect(() => {
+    fetch('/api/luv/soul/presets')
+      .then((r) => r.json())
+      .then((d) => setPresets(d.presets ?? []))
+      .catch(() => {});
+  }, []);
 
   // Auto-resize textarea (fullscreen only)
   const autoResizeFn = useCallback((el: HTMLTextAreaElement) => {
@@ -124,7 +145,7 @@ export function ChatInputToolbar({
   }, [autoResize, input, textareaRef]);
 
   return (
-    <div className={cn('border-t shrink-0', compact ? 'space-y-1.5' : 'pb-[env(safe-area-inset-bottom)]')}>
+    <div className={cn('shrink-0', compact ? 'space-y-1.5' : 'pb-[env(safe-area-inset-bottom)]')}>
       <ContextPressureBar pressure={contextPressure} />
 
       {/* Pending image thumbnails */}
@@ -177,25 +198,24 @@ export function ChatInputToolbar({
             onPaste={handlePaste}
             placeholder="Message Luv..."
             rows={1}
-            className="w-full min-w-0 resize-none text-base sm:text-sm border-none rounded-none px-3 sm:px-4 py-3 bg-transparent outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50"
+            className="w-full min-w-0 resize-none text-base sm:text-sm border-none rounded-none px-4 sm:px-8 py-6 bg-transparent outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50"
             disabled={isActive || !soulLoaded}
           />
         )}
 
-        <div className={cn('flex justify-between items-end', compact ? 'px-4 pb-4' : 'px-3 sm:px-4 pb-3')}>
-          <div className="flex gap-2">
+        <div className={cn('flex justify-between items-start px-4', compact ? 'pb-4' : 'pb-4')}>
+          <div className="flex">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button
-                  className="shrink-0 p-0 hover:bg-transparent active:bg-transparent"
-                  aria-label="Chat menu"
-                  title="Chat menu"
+                  className="flex items-center justify-center size-12 text-muted-foreground"
+                  aria-label="Options"
+                  title="Options"
                 >
                   <IconDots size={iconSize} />
                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent side="top" align="start" className="w-48">
-                <DropdownMenuLabel className="text-[10px]">Model</DropdownMenuLabel>
                 <DropdownMenuRadioGroup value={modelKey} onValueChange={setModelKey}>
                   {MODEL_OPTIONS.map((opt) => (
                     <DropdownMenuRadioItem key={opt.key} value={opt.key} className="text-xs">
@@ -210,8 +230,8 @@ export function ChatInputToolbar({
                       className="text-xs"
                       onClick={() => setThinking((t) => !t)}
                     >
-                      <IconBrain size={14} className={thinking ? 'text-violet-500 mr-2' : 'mr-2'} />
-                      Thinking {thinking ? 'on' : 'off'}
+                      <IconBrain size={iconSize} stroke={1.5} />
+                      Thinking {thinking ? 'on' : 'off'}  
                     </DropdownMenuItem>
                   </>
                 )}
@@ -267,25 +287,57 @@ export function ChatInputToolbar({
                       onClick={() => navigator.clipboard.writeText(resumedConversationId)}
                     >
                       <IconCopy size={14} className="mr-2" />
-                      Copy conversation trace ID
+                      Copy trace ID
                     </DropdownMenuItem>
                   </>
                 )}
               </DropdownMenuContent>
             </DropdownMenu>
 
-            <Button
-              variant="ghost"
-              size="sm"
-              className={cn(
-                'h-auto self-end px-1.5 shrink-0',
-                traitPanelOpen && 'text-foreground bg-accent',
-              )}
-              onClick={onToggleTraitPanel}
-              title="Soul modulation"
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  className={cn(
+                    'flex items-center justify-center size-12 text-muted-foreground',
+                    (traitPanelOpen || activePresetId) && 'text-foreground',
+                  )}
+                  title="Soul modulation"
+                >
+                  <IconAdjustments size={iconSize} stroke={1.5} />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent side="top" align="start" className="w-48">
+                {presets.map((p) => (
+                  <DropdownMenuItem
+                    key={p.id}
+                    className="text-xs"
+                    onClick={() => onApplyPreset(p.id)}
+                  >
+                    {p.name}
+                    {activePresetId === p.id && (
+                      <span className="ml-auto text-[10px] text-muted-foreground">active</span>
+                    )}
+                  </DropdownMenuItem>
+                ))}
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  className="text-xs"
+                  onClick={onToggleTraitPanel}
+                >
+                  Custom{!activePresetId && traitPanelOpen ? '' : ''}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+
+
+            <button
+              className="flex items-center justify-center size-12 text-muted-foreground"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={isActive || !soulLoaded}
+              title="Attach image"
             >
-              <IconAdjustments size={iconSize} />
-            </Button>
+              <IconPhotoPlus size={iconSize} stroke={1.5} />
+            </button>
 
             <input
               ref={fileInputRef}
@@ -298,26 +350,16 @@ export function ChatInputToolbar({
                 e.target.value = '';
               }}
             />
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-auto self-end px-1.5 shrink-0"
-              onClick={() => fileInputRef.current?.click()}
-              disabled={isActive || !soulLoaded}
-              title="Attach image"
-            >
-              <IconPhotoPlus size={iconSize} />
-            </Button>
           </div>
-
-          <Button
-            onClick={handleSend}
-            disabled={isActive || (!input.trim() && pendingFiles.length === 0) || !soulLoaded}
-            size="sm"
-            className="h-auto self-end size-8 p-2"
-          >
-            <IconArrowUp size={16} />
-          </Button>
+          <div className="p-1">
+            <button
+              onClick={handleSend}
+              disabled={isActive || (!input.trim() && pendingFiles.length === 0) || !soulLoaded}
+              className="flex items-center justify-center size-10 bg-amber-400 hover:bg-amber-500 active:bg-amber-500 rounded-full  cursor-pointer"
+            >
+              <IconArrowUp size={iconSize} stroke={1.5} />
+            </button>
+          </div>
         </div>
       </div>
     </div>

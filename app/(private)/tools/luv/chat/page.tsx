@@ -1,15 +1,17 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { usePrivateHeader } from '@/components/layout/private-header-context';
 import { useLuvChatSession } from '../components/use-luv-chat-session';
 import { SoulTraitPanel } from '../components/soul-trait-panel';
+import { ChatOverlay } from '../components/shared/chat-overlay';
 import { MessageBubble } from '../components/shared/message-bubble';
 import { ChatInputToolbar } from '../components/shared/chat-input-toolbar';
 import { ScrollIndicator } from '../components/shared/scroll-indicator';
 import { CompactSeedCard } from '../components/shared/compact-seed-card';
 import { EmptyState } from '../components/shared/empty-state';
 import { ThinkingIndicator, StepLimitMessage, wasStepLimitHit } from '../components/shared/status-indicators';
+import { getLuvCharacter } from '@/lib/luv';
 
 export default function LuvChatPage() {
   const { setHidden } = usePrivateHeader();
@@ -20,30 +22,57 @@ export default function LuvChatPage() {
   }, [setHidden]);
 
   const session = useLuvChatSession();
-  const [traitPanelOpen, setTraitPanelOpen] = useState(false);
+  const [activePanel, setActivePanel] = useState<'traits' | null>(null);
+  const [activePresetId, setActivePresetId] = useState<string | null>(null);
+
+  const handleApplyPreset = useCallback(async (presetId: string) => {
+    const char = await getLuvCharacter();
+    if (!char) return;
+    const res = await fetch('/api/luv/soul/config', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ characterId: char.id, presetId }),
+    });
+    if (res.ok) {
+      setActivePresetId(presetId);
+      setActivePanel(null);
+    }
+  }, []);
+
+  const closePanel = useCallback(() => setActivePanel(null), []);
+
+  const panelConfig = {
+    traits: { title: 'Custom Modulation' },
+  } as const;
 
   return (
     <div className="h-dvh flex flex-col bg-background overflow-hidden relative">
-      {traitPanelOpen && (
-        <SoulTraitPanel
-          onClose={() => setTraitPanelOpen(false)}
-          onTraitsApplied={session.handleTraitsApplied}
-        />
+
+      {activePanel && (
+        <ChatOverlay title={panelConfig[activePanel].title} onClose={closePanel}>
+          {activePanel === 'traits' && (
+            <SoulTraitPanel
+              onClose={closePanel}
+              onTraitsApplied={session.handleTraitsApplied}
+            />
+          )}
+        </ChatOverlay>
       )}
 
       {/* Messages */}
       <div
         ref={session.scrollContainerRef}
-        className="flex-1 overflow-y-auto min-h-0"
+        className="flex-1 overflow-y-auto min-h-0 relative"
         onDrop={session.handleDrop}
         onDragOver={(e) => e.preventDefault()}
       >
-        <div className="max-w-3xl mx-auto px-3 sm:px-4 py-6 space-y-4 min-w-0">
+        <div className="max-w-4xl mx-auto px-3 sm:px-4 py-6 space-y-4 min-w-0">
+          
           {!session.soulLoaded && (
             <p className="text-sm text-muted-foreground text-center py-8">Loading...</p>
           )}
           {session.soulLoaded && session.messages.length === 0 && (
-            <EmptyState soulData={session.soulData} modelKey={session.modelKey} thinking={session.thinking} />
+            <EmptyState />
           )}
           {session.messages.map((msg) => (
             <MessageBubble
@@ -76,7 +105,7 @@ export default function LuvChatPage() {
       )}
 
       {/* Input — centered with max-width wrapper */}
-      <div className="max-w-3xl mx-auto w-full min-w-0">
+      <div className="max-w-4xl mx-auto w-full min-w-0">
         <ChatInputToolbar
           autoResize
           input={session.input}
@@ -104,8 +133,10 @@ export default function LuvChatPage() {
           compacting={session.compacting}
           branching={session.branching}
           addFilesFromFileList={session.addFilesFromFileList}
-          traitPanelOpen={traitPanelOpen}
-          onToggleTraitPanel={() => setTraitPanelOpen((o) => !o)}
+          traitPanelOpen={activePanel === 'traits'}
+          onToggleTraitPanel={() => setActivePanel((p) => p === 'traits' ? null : 'traits')}
+          onApplyPreset={handleApplyPreset}
+          activePresetId={activePresetId}
         />
       </div>
     </div>
