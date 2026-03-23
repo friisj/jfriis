@@ -52,6 +52,8 @@ export function deserializeMessage(m: {
           const reasoning = p.reasoning;
           if (Array.isArray(reasoning) && reasoning.length === 0) return false;
         }
+        // Skip file parts with no content (stored: false — base64 stripped during serialization)
+        if (type === 'file' && (p as Record<string, unknown>).stored === false) return false;
         return true;
       });
 
