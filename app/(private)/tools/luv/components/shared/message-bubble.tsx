@@ -1,11 +1,17 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { isToolUIPart, getToolName } from 'ai';
 import type { UIMessage } from 'ai';
-import { IconBrain, IconChevronDown, IconChevronRight } from '@tabler/icons-react';
+import { IconBrain, IconChevronDown, IconChevronRight, IconCopy } from '@tabler/icons-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import {
+  ContextMenu,
+  ContextMenuTrigger,
+  ContextMenuContent,
+  ContextMenuItem,
+} from '@/components/ui/context-menu';
 import { getMessageText } from '../use-luv-chat-session';
 import { ToolCallCard } from '../tool-call-card';
 import { ProposalCard } from '../proposal-card';
@@ -19,10 +25,27 @@ interface MessageBubbleProps {
 }
 
 export function MessageBubble({ message, isLast, isActive, compact = false }: MessageBubbleProps) {
-  if (message.role === 'user') {
-    return <UserBubble message={message} compact={compact} />;
-  }
-  return <AssistantBubble message={message} isLast={isLast} isActive={isActive} compact={compact} />;
+  const handleCopyId = useCallback(() => {
+    navigator.clipboard.writeText(message.id);
+  }, [message.id]);
+
+  const inner = message.role === 'user'
+    ? <UserBubble message={message} compact={compact} />
+    : <AssistantBubble message={message} isLast={isLast} isActive={isActive} compact={compact} />;
+
+  return (
+    <ContextMenu>
+      <ContextMenuTrigger asChild>
+        <div>{inner}</div>
+      </ContextMenuTrigger>
+      <ContextMenuContent className="w-48">
+        <ContextMenuItem className="text-xs" onClick={handleCopyId}>
+          <IconCopy size={14} className="mr-2" />
+          Copy message trace ID
+        </ContextMenuItem>
+      </ContextMenuContent>
+    </ContextMenu>
+  );
 }
 
 function UserBubble({ message, compact }: { message: UIMessage; compact: boolean }) {
