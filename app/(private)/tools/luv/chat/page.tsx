@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { usePrivateHeader } from '@/components/layout/private-header-context';
 import { useLuvChatSession } from '../components/use-luv-chat-session';
 import { SoulTraitPanel } from '../components/soul-trait-panel';
@@ -21,21 +21,12 @@ export default function LuvChatPage() {
   const session = useLuvChatSession();
   const [traitPanelOpen, setTraitPanelOpen] = useState(false);
 
-  const handleTraitsApplied = useCallback(
-    (changes: string) => {
-      if (session.resumedConversationId) {
-        session.sendMessage({ text: `[Soul traits adjusted: ${changes}]` });
-      }
-    },
-    [session.sendMessage, session.resumedConversationId]
-  );
-
   return (
     <div className="h-dvh flex flex-col bg-background overflow-hidden relative">
       {traitPanelOpen && (
         <SoulTraitPanel
           onClose={() => setTraitPanelOpen(false)}
-          onTraitsApplied={handleTraitsApplied}
+          onTraitsApplied={session.handleTraitsApplied}
         />
       )}
 

@@ -33,6 +33,7 @@ export function ScrollIndicator({
       onClick={() =>
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
       }
+      aria-label="Scroll to bottom"
       className="flex items-center justify-center w-6 h-6 rounded-full bg-muted border absolute bottom-20 left-1/2 -translate-x-1/2 shadow-sm hover:bg-accent transition-colors"
     >
       <IconChevronDown size={14} />

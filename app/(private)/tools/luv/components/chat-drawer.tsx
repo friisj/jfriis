@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState } from 'react';
 import { useLuvChatSession } from './use-luv-chat-session';
 import { SoulTraitPanel } from './soul-trait-panel';
 import { MessageBubble } from './shared/message-bubble';
@@ -13,21 +13,12 @@ export function ChatDrawer() {
   const session = useLuvChatSession();
   const [traitPanelOpen, setTraitPanelOpen] = useState(false);
 
-  const handleTraitsApplied = useCallback(
-    (changes: string) => {
-      if (session.resumedConversationId) {
-        session.sendMessage({ text: `[Soul traits adjusted: ${changes}]` });
-      }
-    },
-    [session.sendMessage, session.resumedConversationId]
-  );
-
   return (
     <div className="flex flex-col h-full relative">
       {traitPanelOpen && (
         <SoulTraitPanel
           onClose={() => setTraitPanelOpen(false)}
-          onTraitsApplied={handleTraitsApplied}
+          onTraitsApplied={session.handleTraitsApplied}
         />
       )}
 

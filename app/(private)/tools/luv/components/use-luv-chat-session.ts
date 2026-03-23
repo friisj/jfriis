@@ -358,6 +358,15 @@ export function useLuvChatSession() {
     }
   }, [resumedConversationId, branching, setMessages, clearActiveConversation, resumeConversation]);
 
+  const handleTraitsApplied = useCallback(
+    (changes: string) => {
+      if (chatIdRef.current) {
+        sendMessage({ text: `[Soul traits adjusted: ${changes}]` });
+      }
+    },
+    [sendMessage]
+  );
+
   const handleClear = useCallback(() => {
     setMessages([]);
     setInput('');
@@ -402,6 +411,7 @@ export function useLuvChatSession() {
     handleClear,
     handleCompact,
     handleBranch,
+    handleTraitsApplied,
     compacting,
     branching,
     addFilesFromFileList,

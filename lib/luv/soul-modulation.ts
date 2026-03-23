@@ -65,7 +65,7 @@ export interface TraitValidationResult {
   errors: string[];
 }
 
-/** Validate a full SoulTraits object — all 6 keys, integer 1–10 */
+/** Validate a full SoulTraits object — all 7 keys, integer 1–10 */
 export function validateTraits(traits: unknown): TraitValidationResult {
   const errors: string[] = [];
 

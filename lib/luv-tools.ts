@@ -1000,6 +1000,8 @@ export const readConversation = tool({
 // Soul Modulation Tool (autonomous trait adjustment)
 // ============================================================================
 
+// SOUL_TRAITS is a readonly const tuple — z.enum requires a mutable tuple type.
+// This cast is safe because the underlying values are never mutated.
 const traitEnum = z.enum(SOUL_TRAITS as unknown as [string, ...string[]]);
 
 export const adjustSoulTraits = tool({

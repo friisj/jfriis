@@ -187,6 +187,7 @@ export function ChatInputToolbar({
               <DropdownMenuTrigger asChild>
                 <button
                   className="shrink-0 p-0 hover:bg-transparent active:bg-transparent"
+                  aria-label="Chat menu"
                   title="Chat menu"
                 >
                   <IconDots size={iconSize} />
