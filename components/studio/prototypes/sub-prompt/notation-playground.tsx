@@ -182,10 +182,9 @@ export default function NotationPlayground() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ expressions, defaultModelKey: 'claude-haiku' }),
       })
+      if (!res.ok) return
       const data = await res.json()
-      if (res.ok) {
-        setResolutions(prev => ({ ...prev, [style]: data.resolutions }))
-      }
+      setResolutions(prev => ({ ...prev, [style]: data.resolutions }))
     } finally {
       setResolving(null)
     }
