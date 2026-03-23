@@ -13,7 +13,7 @@ import { luvArtifactTools } from './luv-artifact-tools';
 import { luvReviewTools } from './luv-review-tools';
 import { luvPlaygroundTools } from './luv-playground-tools';
 import { luvChangelogTools } from './luv-changelog-tools';
-import { luvImageGenTools } from './luv-image-gen-tools';
+import { listGenerations } from './luv-image-gen-tools';
 import { validateTraitPatch, applyTraitPatch, DEFAULT_TRAITS, SOUL_TRAITS } from './luv/soul-modulation';
 import { getCurrentSoulConfigServer, insertSoulConfigServer } from './luv-soul-modulation-server';
 
@@ -1116,5 +1116,5 @@ export const luvTools = {
   ...luvReviewTools,
   ...luvPlaygroundTools,
   ...luvChangelogTools,
-  ...luvImageGenTools,
+  list_generations: listGenerations,
 };
