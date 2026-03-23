@@ -43,7 +43,7 @@ export default function LuvChatPage() {
             <p className="text-sm text-muted-foreground text-center py-8">Loading...</p>
           )}
           {session.soulLoaded && session.messages.length === 0 && (
-            <EmptyState soulData={session.soulData} modelKey={session.modelKey} thinking={session.thinking} />
+            <EmptyState />
           )}
           {session.messages.map((msg) => (
             <MessageBubble

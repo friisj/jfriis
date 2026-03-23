@@ -34,7 +34,7 @@ export function ChatDrawer() {
           <p className="text-xs text-muted-foreground text-center py-4">Loading...</p>
         )}
         {session.soulLoaded && session.messages.length === 0 && (
-          <EmptyState soulData={session.soulData} modelKey={session.modelKey} thinking={session.thinking} compact />
+          <EmptyState compact />
         )}
         {session.messages.map((msg) => (
           <MessageBubble
