@@ -9,6 +9,7 @@ import { ChatInputToolbar } from '../components/shared/chat-input-toolbar';
 import { ScrollIndicator } from '../components/shared/scroll-indicator';
 import { CompactSeedCard } from '../components/shared/compact-seed-card';
 import { EmptyState } from '../components/shared/empty-state';
+import { ThinkingIndicator, StepLimitMessage, wasStepLimitHit } from '../components/shared/status-indicators';
 
 export default function LuvChatPage() {
   const { setHidden } = usePrivateHeader();
@@ -52,11 +53,17 @@ export default function LuvChatPage() {
               isActive={session.isActive}
             />
           ))}
+          {session.isActive && session.status === 'submitted' && (
+            <ThinkingIndicator />
+          )}
           {session.status === 'error' && session.error && (
             <div className="rounded-lg px-4 py-3 text-sm bg-destructive/10 text-destructive border border-destructive/20">
               <p className="font-medium">Error</p>
               <p className="mt-1 opacity-80">{session.error.message}</p>
             </div>
+          )}
+          {wasStepLimitHit(session.status, session.messages) && (
+            <StepLimitMessage />
           )}
           <div ref={session.messagesEndRef} />
         </div>
