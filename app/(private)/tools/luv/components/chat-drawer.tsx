@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { useLuvChatSession } from './use-luv-chat-session';
 import { SoulTraitPanel } from './soul-trait-panel';
 import { MessageBubble } from './shared/message-bubble';
@@ -9,10 +9,26 @@ import { ScrollIndicator } from './shared/scroll-indicator';
 import { CompactSeedCard } from './shared/compact-seed-card';
 import { EmptyState } from './shared/empty-state';
 import { ThinkingIndicator, StepLimitMessage, wasStepLimitHit } from './shared/status-indicators';
+import { getLuvCharacter } from '@/lib/luv';
 
 export function ChatDrawer() {
   const session = useLuvChatSession();
   const [traitPanelOpen, setTraitPanelOpen] = useState(false);
+  const [activePresetId, setActivePresetId] = useState<string | null>(null);
+
+  const handleApplyPreset = useCallback(async (presetId: string) => {
+    const char = await getLuvCharacter();
+    if (!char) return;
+    const res = await fetch('/api/luv/soul/config', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ characterId: char.id, presetId }),
+    });
+    if (res.ok) {
+      setActivePresetId(presetId);
+      setTraitPanelOpen(false);
+    }
+  }, []);
 
   return (
     <div className="flex flex-col h-full relative">
@@ -95,6 +111,8 @@ export function ChatDrawer() {
         addFilesFromFileList={session.addFilesFromFileList}
         traitPanelOpen={traitPanelOpen}
         onToggleTraitPanel={() => setTraitPanelOpen((o) => !o)}
+        onApplyPreset={handleApplyPreset}
+        activePresetId={activePresetId}
       />
     </div>
   );

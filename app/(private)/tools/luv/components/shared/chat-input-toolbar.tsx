@@ -31,6 +31,14 @@ import {
 import { MODEL_OPTIONS, type ContextPressure } from '../use-luv-chat-session';
 import type { LuvCompactSummary } from '@/lib/types/luv';
 
+interface SoulPreset {
+  id: string;
+  slug: string;
+  name: string;
+  description: string | null;
+  is_default: boolean;
+}
+
 export interface ChatInputToolbarProps {
   // State
   input: string;
@@ -63,6 +71,8 @@ export interface ChatInputToolbarProps {
   // Soul traits
   traitPanelOpen: boolean;
   onToggleTraitPanel: () => void;
+  onApplyPreset: (presetId: string) => void;
+  activePresetId: string | null;
   // Sizing
   compact?: boolean;
   autoResize?: boolean;
@@ -96,11 +106,22 @@ export function ChatInputToolbar({
   addFilesFromFileList,
   traitPanelOpen,
   onToggleTraitPanel,
+  onApplyPreset,
+  activePresetId,
   compact = false,
   autoResize = false,
 }: ChatInputToolbarProps) {
   const isClaudeModel = modelKey.startsWith('claude-');
   const iconSize = compact ? 16 : 20;
+  const [presets, setPresets] = useState<SoulPreset[]>([]);
+
+  // Fetch presets once
+  useEffect(() => {
+    fetch('/api/luv/soul/presets')
+      .then((r) => r.json())
+      .then((d) => setPresets(d.presets ?? []))
+      .catch(() => {});
+  }, []);
 
   // Auto-resize textarea (fullscreen only)
   const autoResizeFn = useCallback((el: HTMLTextAreaElement) => {
@@ -273,16 +294,40 @@ export function ChatInputToolbar({
               </DropdownMenuContent>
             </DropdownMenu>
 
-            <button
-              className={cn(
-                'flex items-center justify-center size-12 text-muted-foreground',
-                traitPanelOpen && 'text-foreground',
-              )}
-              onClick={onToggleTraitPanel}
-              title="Soul modulation"
-            >
-              <IconAdjustments size={iconSize} stroke={1.5} />
-            </button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  className={cn(
+                    'flex items-center justify-center size-12 text-muted-foreground',
+                    (traitPanelOpen || activePresetId) && 'text-foreground',
+                  )}
+                  title="Soul modulation"
+                >
+                  <IconAdjustments size={iconSize} stroke={1.5} />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent side="top" align="start" className="w-48">
+                {presets.map((p) => (
+                  <DropdownMenuItem
+                    key={p.id}
+                    className="text-xs"
+                    onClick={() => onApplyPreset(p.id)}
+                  >
+                    {p.name}
+                    {activePresetId === p.id && (
+                      <span className="ml-auto text-[10px] text-muted-foreground">active</span>
+                    )}
+                  </DropdownMenuItem>
+                ))}
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  className="text-xs"
+                  onClick={onToggleTraitPanel}
+                >
+                  Custom{!activePresetId && traitPanelOpen ? '' : ''}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
 
 
             <button

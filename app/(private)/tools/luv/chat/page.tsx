@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { usePrivateHeader } from '@/components/layout/private-header-context';
 import { useLuvChatSession } from '../components/use-luv-chat-session';
 import { SoulTraitPanel } from '../components/soul-trait-panel';
@@ -10,6 +10,7 @@ import { ScrollIndicator } from '../components/shared/scroll-indicator';
 import { CompactSeedCard } from '../components/shared/compact-seed-card';
 import { EmptyState } from '../components/shared/empty-state';
 import { ThinkingIndicator, StepLimitMessage, wasStepLimitHit } from '../components/shared/status-indicators';
+import { getLuvCharacter } from '@/lib/luv';
 
 export default function LuvChatPage() {
   const { setHidden } = usePrivateHeader();
@@ -21,6 +22,21 @@ export default function LuvChatPage() {
 
   const session = useLuvChatSession();
   const [traitPanelOpen, setTraitPanelOpen] = useState(false);
+  const [activePresetId, setActivePresetId] = useState<string | null>(null);
+
+  const handleApplyPreset = useCallback(async (presetId: string) => {
+    const char = await getLuvCharacter();
+    if (!char) return;
+    const res = await fetch('/api/luv/soul/config', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ characterId: char.id, presetId }),
+    });
+    if (res.ok) {
+      setActivePresetId(presetId);
+      setTraitPanelOpen(false);
+    }
+  }, []);
 
   return (
     <div className="h-dvh flex flex-col bg-background overflow-hidden relative">
@@ -106,6 +122,8 @@ export default function LuvChatPage() {
           addFilesFromFileList={session.addFilesFromFileList}
           traitPanelOpen={traitPanelOpen}
           onToggleTraitPanel={() => setTraitPanelOpen((o) => !o)}
+          onApplyPreset={handleApplyPreset}
+          activePresetId={activePresetId}
         />
       </div>
     </div>
