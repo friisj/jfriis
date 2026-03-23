@@ -11,6 +11,26 @@ interface ToolCallCardProps {
   result: unknown;
 }
 
+interface ImageGenResult {
+  type: 'image_generation_result';
+  success: boolean;
+  imageUrl?: string;
+  prompt?: string;
+  model?: string;
+  aspectRatio?: string;
+  imageSize?: string;
+  durationMs?: number;
+  error?: string;
+}
+
+function isImageGenResult(v: unknown): v is ImageGenResult {
+  return (
+    typeof v === 'object' &&
+    v !== null &&
+    (v as Record<string, unknown>).type === 'image_generation_result'
+  );
+}
+
 const toolLabels: Record<string, string> = {
   read_soul: 'Read Soul Data',
   read_chassis: 'Read Chassis Data',
@@ -24,6 +44,8 @@ const toolLabels: Record<string, string> = {
   compose_context_pack: 'Compose Context Pack',
   evaluate_generation: 'Evaluate Generation',
   get_current_context: 'Get Current Context',
+  generate_image: 'Generate Image',
+  list_generations: 'List Generations',
   create_research: 'Create Research Entry',
   update_research: 'Update Research Entry',
   delete_research: 'Delete Research Entry',
@@ -115,6 +137,10 @@ export function ToolCallCard({ toolName, state, result }: ToolCallCardProps) {
   const label = toolLabels[toolName] ?? toolName;
   const isComplete = state === 'output-available';
   const linkableEntries = isComplete ? extractLinkableEntries(toolName, result) : [];
+  const imageResult = isComplete && isImageGenResult(result) ? result : null;
+
+  // Auto-expand image generation results
+  const showExpanded = expanded || (imageResult?.success && isComplete);
 
   return (
     <div className="rounded border bg-muted/50 text-xs my-1">
@@ -130,24 +156,57 @@ export function ToolCallCard({ toolName, state, result }: ToolCallCardProps) {
         <IconChevronRight
           className={cn(
             'size-3 shrink-0 transition-transform',
-            expanded && 'rotate-90'
+            showExpanded && 'rotate-90'
           )}
         />
         <span className="font-medium">{label}</span>
         {!isComplete && (
           <span className="ml-auto text-muted-foreground animate-pulse">
-            running...
+            {toolName === 'generate_image' ? 'generating...' : 'running...'}
           </span>
         )}
-        {isComplete && linkableEntries.length > 0 && !expanded && (
+        {isComplete && imageResult && !imageResult.success && (
+          <span className="ml-auto text-destructive">failed</span>
+        )}
+        {isComplete && imageResult?.success && imageResult.durationMs && (
+          <span className="ml-auto text-muted-foreground">
+            {(imageResult.durationMs / 1000).toFixed(1)}s
+          </span>
+        )}
+        {isComplete && linkableEntries.length > 0 && !showExpanded && (
           <span className="ml-auto text-muted-foreground">
             {linkableEntries.length} {linkableEntries.length === 1 ? 'entry' : 'entries'}
           </span>
         )}
       </button>
 
+      {/* Image generation result — auto-expanded */}
+      {showExpanded && imageResult && (
+        <div className="border-t">
+          {imageResult.success && imageResult.imageUrl ? (
+            <div className="p-2 space-y-1.5">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={imageResult.imageUrl}
+                alt={imageResult.prompt ?? 'Generated image'}
+                className="rounded max-w-full max-h-96 object-contain"
+              />
+              <div className="flex gap-2 text-[10px] text-muted-foreground">
+                {imageResult.model && <span>{imageResult.model.replace('gemini-', '').replace('-preview', '')}</span>}
+                {imageResult.aspectRatio && <span>{imageResult.aspectRatio}</span>}
+                {imageResult.imageSize && <span>{imageResult.imageSize}</span>}
+              </div>
+            </div>
+          ) : (
+            <div className="px-2 py-1.5 text-destructive">
+              {imageResult.error ?? 'Image generation failed'}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Linkable entries shown when expanded */}
-      {expanded && linkableEntries.length > 0 && (
+      {showExpanded && linkableEntries.length > 0 && (
         <div className="border-t py-1">
           {linkableEntries.map((entry) => (
             <EntryLink key={entry.id} entry={entry} />
@@ -155,8 +214,8 @@ export function ToolCallCard({ toolName, state, result }: ToolCallCardProps) {
         </div>
       )}
 
-      {/* Raw JSON fallback */}
-      {expanded && result != null && (
+      {/* Raw JSON fallback (not for image results — already rendered above) */}
+      {showExpanded && result != null && !imageResult && (
         <div className={cn('border-t px-2 py-1.5 max-h-48 overflow-auto', linkableEntries.length > 0 && 'opacity-50')}>
           <pre className="text-[10px] text-muted-foreground whitespace-pre-wrap break-all">
             {JSON.stringify(result, null, 2)}
