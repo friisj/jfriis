@@ -60,6 +60,42 @@ function UserBubble({ message, compact }: { message: UIMessage; compact: boolean
   );
 }
 
+type PartGroup =
+  | { type: 'text'; texts: string[]; lastIndex: number }
+  | { type: 'reasoning'; text: string }
+  | { type: 'tool'; toolName: string; toolCallId: string; output: unknown; state: string };
+
+/** Coalesce consecutive text parts into single groups so they render as one bubble. */
+function groupParts(parts: UIMessage['parts']): PartGroup[] {
+  const groups: PartGroup[] = [];
+
+  for (let i = 0; i < parts.length; i++) {
+    const part = parts[i];
+
+    if (part.type === 'text' && part.text) {
+      const last = groups[groups.length - 1];
+      if (last && last.type === 'text') {
+        last.texts.push(part.text);
+        last.lastIndex = i;
+      } else {
+        groups.push({ type: 'text', texts: [part.text], lastIndex: i });
+      }
+    } else if (part.type === 'reasoning' && 'text' in part && part.text) {
+      groups.push({ type: 'reasoning', text: part.text as string });
+    } else if (isToolUIPart(part)) {
+      groups.push({
+        type: 'tool',
+        toolName: getToolName(part),
+        toolCallId: part.toolCallId,
+        output: 'output' in part ? part.output : undefined,
+        state: part.state,
+      });
+    }
+  }
+
+  return groups;
+}
+
 function AssistantBubble({
   message,
   isLast,
@@ -71,14 +107,21 @@ function AssistantBubble({
   isActive: boolean;
   compact: boolean;
 }) {
+  // Group consecutive text parts into single bubbles so streaming fragments
+  // separated by tool calls don't each get their own card.
+  const groups = groupParts(message.parts);
+  const lastPartIndex = message.parts.length - 1;
+
   return (
     <div className={compact ? 'flex justify-start' : 'flex justify-start min-w-0'}>
       <div className={compact ? 'max-w-[85%] space-y-1' : 'sm:max-w-[75%] space-y-2 min-w-0'}>
-        {message.parts.map((part, i) => {
-          if (part.type === 'text' && part.text) {
+        {groups.map((group, gi) => {
+          if (group.type === 'text') {
+            const combinedText = group.texts.join('\n\n');
+            const isLastGroup = group.lastIndex === lastPartIndex;
             return (
               <div
-                key={i}
+                key={`text-${gi}`}
                 className={
                   compact
                     ? 'rounded-lg px-3 py-2 text-xs bg-muted prose prose-sm dark:prose-invert prose-p:my-1 prose-ul:my-1 prose-ol:my-1 prose-li:my-0 prose-headings:my-1.5 prose-pre:my-1 max-w-none'
@@ -86,9 +129,9 @@ function AssistantBubble({
                 }
               >
                 <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                  {part.text}
+                  {combinedText}
                 </ReactMarkdown>
-                {isActive && isLast && i === message.parts.length - 1 && (
+                {isActive && isLast && isLastGroup && (
                   <span
                     className={
                       compact
@@ -101,15 +144,12 @@ function AssistantBubble({
             );
           }
 
-          if (part.type === 'reasoning' && 'text' in part && part.text) {
-            return <ReasoningDisclosure key={i} text={part.text as string} />;
+          if (group.type === 'reasoning') {
+            return <ReasoningDisclosure key={`reason-${gi}`} text={group.text} />;
           }
 
-          if (isToolUIPart(part)) {
-            const toolName = getToolName(part);
-            const toolCallId = part.toolCallId;
-            const output = 'output' in part ? part.output : undefined;
-            const state = part.state;
+          if (group.type === 'tool') {
+            const { toolName, toolCallId, output, state } = group;
 
             if (
               output &&
