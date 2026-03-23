@@ -13,8 +13,10 @@ import { getAgentMap } from '@/lib/studio/sub-prompt/agents'
 import type { SubPromptExpression } from '@/lib/studio/sub-prompt/types'
 
 export async function POST(request: Request) {
-  const authError = await requireAuth()
-  if (authError) return authError
+  const { user, error: authError } = await requireAuth()
+  if (!user) {
+    return NextResponse.json({ error: authError }, { status: 401 })
+  }
 
   try {
     const body = await request.json()

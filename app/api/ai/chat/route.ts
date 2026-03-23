@@ -15,8 +15,10 @@ import { getModel } from '@/lib/ai/models'
 import { requireAuth } from '@/lib/ai/auth'
 
 export async function POST(request: Request) {
-  const authError = await requireAuth()
-  if (authError) return authError
+  const { user, error: authError } = await requireAuth()
+  if (!user) {
+    return NextResponse.json({ error: authError }, { status: 401 })
+  }
 
   try {
     const { messages, modelKey = 'claude-sonnet' } = await request.json()
