@@ -25,8 +25,8 @@ async function resolveExpressions(expressions: SubPromptExpression[]): Promise<R
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ expressions, defaultModelKey: 'claude-haiku' }),
   })
+  if (!res.ok) throw new Error(await res.text() || `Resolution failed (${res.status})`)
   const data = await res.json()
-  if (!res.ok) throw new Error(data.error || 'Resolution failed')
   return data.resolutions
 }
 
@@ -36,8 +36,8 @@ async function sendToParent(prompt: string, modelKey = 'claude-sonnet'): Promise
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ messages: [{ role: 'user', content: prompt }], modelKey }),
   })
+  if (!res.ok) throw new Error(await res.text() || `Chat failed (${res.status})`)
   const data = await res.json()
-  if (!res.ok) throw new Error(data.error || 'Chat failed')
   return data.content
 }
 

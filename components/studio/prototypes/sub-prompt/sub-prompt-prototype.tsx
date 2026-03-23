@@ -69,8 +69,8 @@ export default function SubPromptPrototype() {
             modelKey: parentModelKey,
           }),
         })
+        if (!res.ok) throw new Error(await res.text() || `Chat failed (${res.status})`)
         const data = await res.json()
-        if (!res.ok) throw new Error(data.error || 'Chat failed')
         setParentResponse(data.content)
       } catch (e) {
         setError(e instanceof Error ? e.message : 'Failed')
@@ -91,8 +91,8 @@ export default function SubPromptPrototype() {
           defaultModelKey: resolverModelKey,
         }),
       })
+      if (!res.ok) throw new Error(await res.text() || `Resolution failed (${res.status})`)
       const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'Resolution failed')
 
       const resolvedList: Resolution[] = data.resolutions
       setResolutions(resolvedList)
@@ -114,8 +114,8 @@ export default function SubPromptPrototype() {
           modelKey: parentModelKey,
         }),
       })
+      if (!chatRes.ok) throw new Error(await chatRes.text() || `Chat failed (${chatRes.status})`)
       const chatData = await chatRes.json()
-      if (!chatRes.ok) throw new Error(chatData.error || 'Chat failed')
       setParentResponse(chatData.content)
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed')
