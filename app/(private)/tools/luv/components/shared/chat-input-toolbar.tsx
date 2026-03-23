@@ -24,6 +24,7 @@ import {
   IconLoader2,
   IconPhotoPlus,
   IconSparkles,
+  IconCopy,
   IconTrash,
   IconX,
 } from '@tabler/icons-react';
@@ -255,6 +256,18 @@ export function ChatInputToolbar({
                     >
                       <IconTrash size={14} className="mr-2" />
                       New conversation
+                    </DropdownMenuItem>
+                  </>
+                )}
+                {resumedConversationId && (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      className="text-xs"
+                      onClick={() => navigator.clipboard.writeText(resumedConversationId)}
+                    >
+                      <IconCopy size={14} className="mr-2" />
+                      Copy conversation trace ID
                     </DropdownMenuItem>
                   </>
                 )}
