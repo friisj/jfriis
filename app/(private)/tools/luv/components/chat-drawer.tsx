@@ -14,7 +14,7 @@ import { getLuvCharacter } from '@/lib/luv';
 
 export function ChatDrawer() {
   const session = useLuvChatSession();
-  const [traitPanelOpen, setTraitPanelOpen] = useState(false);
+  const [activePanel, setActivePanel] = useState<'traits' | null>(null);
   const [activePresetId, setActivePresetId] = useState<string | null>(null);
 
   const handleApplyPreset = useCallback(async (presetId: string) => {
@@ -27,18 +27,26 @@ export function ChatDrawer() {
     });
     if (res.ok) {
       setActivePresetId(presetId);
-      setTraitPanelOpen(false);
+      setActivePanel(null);
     }
   }, []);
 
+  const closePanel = useCallback(() => setActivePanel(null), []);
+
+  const panelConfig = {
+    traits: { title: 'Custom Modulation' },
+  } as const;
+
   return (
     <div className="flex flex-col h-full relative">
-      {traitPanelOpen && (
-        <ChatOverlay title="Custom Modulation" onClose={() => setTraitPanelOpen(false)}>
-          <SoulTraitPanel
-            onClose={() => setTraitPanelOpen(false)}
-            onTraitsApplied={session.handleTraitsApplied}
-          />
+      {activePanel && (
+        <ChatOverlay title={panelConfig[activePanel].title} onClose={closePanel}>
+          {activePanel === 'traits' && (
+            <SoulTraitPanel
+              onClose={closePanel}
+              onTraitsApplied={session.handleTraitsApplied}
+            />
+          )}
         </ChatOverlay>
       )}
 
@@ -112,8 +120,8 @@ export function ChatDrawer() {
         compacting={session.compacting}
         branching={session.branching}
         addFilesFromFileList={session.addFilesFromFileList}
-        traitPanelOpen={traitPanelOpen}
-        onToggleTraitPanel={() => setTraitPanelOpen((o) => !o)}
+        traitPanelOpen={activePanel === 'traits'}
+        onToggleTraitPanel={() => setActivePanel((p) => p === 'traits' ? null : 'traits')}
         onApplyPreset={handleApplyPreset}
         activePresetId={activePresetId}
       />
