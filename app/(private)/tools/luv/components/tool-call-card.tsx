@@ -134,19 +134,29 @@ function EntryLink({ entry }: { entry: ResearchEntry }) {
 
 export function ToolCallCard({ toolName, state, result }: ToolCallCardProps) {
   const [expanded, setExpanded] = useState(false);
+  const [userCollapsed, setUserCollapsed] = useState(false);
   const label = toolLabels[toolName] ?? toolName;
   const isComplete = state === 'output-available';
   const linkableEntries = isComplete ? extractLinkableEntries(toolName, result) : [];
   const imageResult = isComplete && isImageGenResult(result) ? result : null;
 
-  // Auto-expand image generation results
-  const showExpanded = expanded || (imageResult?.success && isComplete);
+  // Auto-expand image generation results (unless user explicitly collapsed)
+  const showExpanded = expanded || (!userCollapsed && imageResult?.success && isComplete);
 
   return (
     <div className="rounded border bg-muted/50 text-xs my-1">
       <button
         type="button"
-        onClick={() => isComplete && setExpanded(!expanded)}
+        onClick={() => {
+          if (!isComplete) return;
+          if (showExpanded) {
+            setExpanded(false);
+            setUserCollapsed(true);
+          } else {
+            setExpanded(true);
+            setUserCollapsed(false);
+          }
+        }}
         className={cn(
           'flex items-center gap-1.5 w-full px-2 py-1.5 text-left',
           isComplete && 'hover:bg-muted cursor-pointer'
