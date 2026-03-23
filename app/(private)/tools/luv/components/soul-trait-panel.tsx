@@ -6,7 +6,6 @@ import { Slider } from '@/components/ui/slider';
 import { IconLoader2 } from '@tabler/icons-react';
 import { SOUL_TRAITS, type SoulTrait, type SoulTraits } from '@/lib/luv/soul-modulation';
 import { getLuvCharacter } from '@/lib/luv';
-import { ChatOverlay } from './shared/chat-overlay';
 
 const TRAIT_META: Record<SoulTrait, { label: string; low: string; high: string }> = {
   honesty: { label: 'Honesty', low: 'Diplomatic', high: 'Brutally direct' },
@@ -95,43 +94,16 @@ export function SoulTraitPanel({ onClose, onTraitsApplied }: SoulTraitPanelProps
 
   if (loading) {
     return (
-      <ChatOverlay title="Custom Modulation" onClose={onClose}>
-        <div className="flex items-center justify-center h-32">
-          <IconLoader2 size={20} className="animate-spin text-muted-foreground" />
-        </div>
-      </ChatOverlay>
+      <div className="flex items-center justify-center h-32">
+        <IconLoader2 size={20} className="animate-spin text-muted-foreground" />
+      </div>
     );
   }
 
   if (!traits) return null;
 
   return (
-    <ChatOverlay
-      title="Custom Modulation"
-      onClose={onClose}
-      actions={
-        <div className="flex gap-2 px-3 py-2">
-          <Button
-            variant="ghost"
-            size="sm"
-            className="text-xs h-7 flex-1"
-            onClick={handleReset}
-            disabled={!hasChanges || saving}
-          >
-            Reset
-          </Button>
-          <Button
-            size="sm"
-            className="text-xs h-7 flex-1"
-            onClick={handleSave}
-            disabled={!hasChanges || saving}
-          >
-            {saving ? <IconLoader2 size={12} className="animate-spin mr-1" /> : null}
-            Apply
-          </Button>
-        </div>
-      }
-    >
+    <>
       <div className="px-3 py-3 space-y-4">
         {SOUL_TRAITS.map((trait) => (
           <TraitSlider
@@ -143,7 +115,29 @@ export function SoulTraitPanel({ onClose, onTraitsApplied }: SoulTraitPanelProps
           />
         ))}
       </div>
-    </ChatOverlay>
+      {hasChanges && (
+        <div className="flex gap-2 px-3 py-2 border-t shrink-0">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="text-xs h-7 flex-1"
+            onClick={handleReset}
+            disabled={saving}
+          >
+            Reset
+          </Button>
+          <Button
+            size="sm"
+            className="text-xs h-7 flex-1"
+            onClick={handleSave}
+            disabled={saving}
+          >
+            {saving ? <IconLoader2 size={12} className="animate-spin mr-1" /> : null}
+            Apply
+          </Button>
+        </div>
+      )}
+    </>
   );
 }
 

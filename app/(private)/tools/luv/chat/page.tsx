@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { usePrivateHeader } from '@/components/layout/private-header-context';
 import { useLuvChatSession } from '../components/use-luv-chat-session';
 import { SoulTraitPanel } from '../components/soul-trait-panel';
+import { ChatOverlay } from '../components/shared/chat-overlay';
 import { MessageBubble } from '../components/shared/message-bubble';
 import { ChatInputToolbar } from '../components/shared/chat-input-toolbar';
 import { ScrollIndicator } from '../components/shared/scroll-indicator';
@@ -41,10 +42,12 @@ export default function LuvChatPage() {
   return (
     <div className="h-dvh flex flex-col bg-background overflow-hidden relative">
       {traitPanelOpen && (
-        <SoulTraitPanel
-          onClose={() => setTraitPanelOpen(false)}
-          onTraitsApplied={session.handleTraitsApplied}
-        />
+        <ChatOverlay title="Custom Modulation" onClose={() => setTraitPanelOpen(false)}>
+          <SoulTraitPanel
+            onClose={() => setTraitPanelOpen(false)}
+            onTraitsApplied={session.handleTraitsApplied}
+          />
+        </ChatOverlay>
       )}
 
       {/* Messages */}

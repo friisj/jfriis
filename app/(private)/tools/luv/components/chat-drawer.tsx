@@ -3,6 +3,7 @@
 import { useState, useCallback } from 'react';
 import { useLuvChatSession } from './use-luv-chat-session';
 import { SoulTraitPanel } from './soul-trait-panel';
+import { ChatOverlay } from './shared/chat-overlay';
 import { MessageBubble } from './shared/message-bubble';
 import { ChatInputToolbar } from './shared/chat-input-toolbar';
 import { ScrollIndicator } from './shared/scroll-indicator';
@@ -33,10 +34,12 @@ export function ChatDrawer() {
   return (
     <div className="flex flex-col h-full relative">
       {traitPanelOpen && (
-        <SoulTraitPanel
-          onClose={() => setTraitPanelOpen(false)}
-          onTraitsApplied={session.handleTraitsApplied}
-        />
+        <ChatOverlay title="Custom Modulation" onClose={() => setTraitPanelOpen(false)}>
+          <SoulTraitPanel
+            onClose={() => setTraitPanelOpen(false)}
+            onTraitsApplied={session.handleTraitsApplied}
+          />
+        </ChatOverlay>
       )}
 
       {/* Messages */}
