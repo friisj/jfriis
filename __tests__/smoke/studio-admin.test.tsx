@@ -11,9 +11,6 @@ import {
   FormActions,
   AdminTable,
   StatusBadge,
-  JourneysListSkeleton,
-  JourneyDetailSkeleton,
-  JourneyFormSkeleton,
   LoadingSpinner,
   PageLoading,
 } from '@/components/admin'
@@ -205,21 +202,6 @@ describe('StatusBadge', () => {
 // ============================================================================
 
 describe('Loading States', () => {
-  it('renders JourneysListSkeleton', () => {
-    const { container } = render(<JourneysListSkeleton />)
-    expect(container.firstChild).not.toBeNull()
-  })
-
-  it('renders JourneyDetailSkeleton', () => {
-    const { container } = render(<JourneyDetailSkeleton />)
-    expect(container.firstChild).not.toBeNull()
-  })
-
-  it('renders JourneyFormSkeleton', () => {
-    const { container } = render(<JourneyFormSkeleton />)
-    expect(container.firstChild).not.toBeNull()
-  })
-
   it('renders LoadingSpinner', () => {
     const { container } = render(<LoadingSpinner />)
     expect(container.firstChild).not.toBeNull()

@@ -7,7 +7,7 @@ import { createClient } from '@/lib/supabase-server'
 import {
   AdminDetailLayout,
   AdminErrorBoundary,
-  JourneyDetailSkeleton,
+  PageLoading,
   ErrorState,
 } from '@/components/admin'
 import { JourneyDetailView } from '@/components/admin/views/journey-detail-view'
@@ -104,7 +104,7 @@ export default async function JourneyDetailPage({ params }: { params: Promise<{ 
       }
     >
       <AdminErrorBoundary>
-        <Suspense fallback={<JourneyDetailSkeleton />}>
+        <Suspense fallback={<PageLoading />}>
           <JourneyDetailView journey={journey as any} stages={stagesWithOrderedTouchpoints as any} />
         </Suspense>
       </AdminErrorBoundary>
