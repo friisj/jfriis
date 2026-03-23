@@ -195,8 +195,8 @@ export default function TraceViewer() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ messages: [{ role: 'user', content: input }], modelKey: parentModelKey }),
         })
+        if (!res.ok) throw new Error(await res.text() || `Request failed (${res.status})`)
         const data = await res.json()
-        if (!res.ok) throw new Error(data.error || 'Chat failed')
         setParentResponse(data.content)
       } catch (e) {
         setError(e instanceof Error ? e.message : 'Failed')
@@ -214,8 +214,8 @@ export default function TraceViewer() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ expressions: parsed, defaultModelKey: 'claude-haiku' }),
       })
+      if (!res.ok) throw new Error(await res.text() || `Resolution failed (${res.status})`)
       const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'Resolution failed')
 
       const resolutions: Resolution[] = data.resolutions
       const resMap = new Map(resolutions.map(r => [r.expressionId, r.resolvedValue]))
@@ -241,8 +241,8 @@ export default function TraceViewer() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ messages: [{ role: 'user', content: expanded }], modelKey: parentModelKey }),
       })
+      if (!chatRes.ok) throw new Error(await chatRes.text() || `Chat failed (${chatRes.status})`)
       const chatData = await chatRes.json()
-      if (!chatRes.ok) throw new Error(chatData.error || 'Chat failed')
       setParentResponse(chatData.content)
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed')
@@ -263,8 +263,8 @@ export default function TraceViewer() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ expressions: [expr], defaultModelKey: modelKey }),
       })
-      const data = await res.json()
       if (!res.ok) return
+      const data = await res.json()
 
       const newResolution: Resolution = data.resolutions[0]
       setTraces(prev => {

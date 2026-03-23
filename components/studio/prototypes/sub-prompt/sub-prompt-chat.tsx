@@ -232,8 +232,8 @@ export default function SubPromptChat() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ expressions: flatExprs, defaultModelKey: 'claude-haiku' }),
         })
+        if (!res.ok) throw new Error(await res.text() || `Resolution failed (${res.status})`)
         const data = await res.json()
-        if (!res.ok) throw new Error(data.error || 'Resolution failed')
 
         const resolutions: Resolution[] = data.resolutions
         const resMap = new Map(resolutions.map(r => [r.expressionId, r.resolvedValue]))
@@ -280,8 +280,8 @@ export default function SubPromptChat() {
           modelKey: parentModelKey,
         }),
       })
+      if (!chatRes.ok) throw new Error(await chatRes.text() || `Chat failed (${chatRes.status})`)
       const chatData = await chatRes.json()
-      if (!chatRes.ok) throw new Error(chatData.error || 'Chat failed')
 
       const assistantMsg: ChatMessage = {
         id: `msg-${Date.now()}`,
