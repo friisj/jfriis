@@ -156,12 +156,12 @@ function TraitSlider({
   const changed = value !== savedValue;
 
   return (
-    <div className="space-y-1">
-      <div className="flex items-center justify-between">
-        <span className={`text-[10px] font-medium ${changed ? 'text-foreground' : 'text-muted-foreground'}`}>
+    <div className="space-y-2">
+      <div className="flex items-center justify-between px-1 select-none">
+        <span className={`text-xs ${changed ? 'text-foreground' : 'text-muted-foreground'}`}>
           {meta.label}
         </span>
-        <span className={`text-[10px] tabular-nums ${changed ? 'text-foreground font-medium' : 'text-muted-foreground'}`}>
+        <span className={`font-mono text-xs tabular-nums ${changed ? 'text-foreground' : 'text-muted-foreground'}`}>
           {changed && <span className="text-muted-foreground line-through mr-1">{savedValue}</span>}
           {value}
         </span>
@@ -173,9 +173,9 @@ function TraitSlider({
         value={[value]}
         onValueChange={([v]) => onChange(trait, v)}
       />
-      <div className="flex justify-between">
-        <span className="text-[9px] text-muted-foreground">{meta.low}</span>
-        <span className="text-[9px] text-muted-foreground">{meta.high}</span>
+      <div className="flex justify-between px-1 select-none">
+        <span className="text-[10px] font-mono text-muted-foreground">{meta.low}</span>
+        <span className="text-[10px] font-mono text-muted-foreground">{meta.high}</span>
       </div>
     </div>
   );

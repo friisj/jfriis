@@ -11,7 +11,7 @@ interface ChatOverlayProps {
 
 export function ChatOverlay({ title, onClose, children, actions }: ChatOverlayProps) {
   return (
-    <div className="absolute inset-0 z-10 bg-background/95 backdrop-blur-sm flex flex-col">
+    <div className="absolute inset-0 z-10 bg-background/50 backdrop-blur-sm flex flex-col">
       <div className="flex items-center justify-between px-4 py-3 border-b shrink-0">
         <h3 className="text-xs font-medium">{title}</h3>
         <button type="button" onClick={onClose} className="text-muted-foreground hover:text-foreground">

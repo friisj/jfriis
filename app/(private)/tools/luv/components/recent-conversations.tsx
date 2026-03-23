@@ -17,10 +17,6 @@ function timeAgo(dateStr: string): string {
   return `${days}d ago`;
 }
 
-function modelLabel(key: string): string {
-  return MODEL_OPTIONS.find((o) => o.key === key)?.label ?? key;
-}
-
 export function RecentConversations({ compact }: { compact?: boolean }) {
   const { resumeConversation } = useLuvChat();
   const [conversations, setConversations] = useState<LuvConversation[] | null>(null);
@@ -34,22 +30,19 @@ export function RecentConversations({ compact }: { compact?: boolean }) {
   if (!conversations || conversations.length === 0) return null;
 
   return (
-    <div className={compact ? 'mt-2 space-y-1' : 'mt-4 space-y-1.5'}>
-      <p className={`text-muted-foreground font-medium ${compact ? 'text-[10px]' : 'text-xs'}`}>
-        Recent conversations
-      </p>
+    <div className="divide-y divide-y-border px-4">
       {conversations.map((conv) => (
         <button
           key={conv.id}
           type="button"
           onClick={() => resumeConversation(conv.id)}
-          className={`w-full text-left rounded-md border px-3 py-1.5 hover:bg-accent transition-colors flex items-center justify-between gap-2 ${compact ? 'text-xs' : 'text-sm'}`}
+          className={`w-full text-left py-3 cursor-pointer transition-colors flex items-center justify-between gap-2 ${compact ? 'text-xs' : 'text-sm'}`}
         >
           <span className="truncate min-w-0">
             {conv.title || 'Untitled'}
           </span>
           <span className={`shrink-0 text-muted-foreground ${compact ? 'text-[10px]' : 'text-xs'}`}>
-            {modelLabel(conv.model)} · {timeAgo(conv.created_at)}
+            {timeAgo(conv.created_at)}
           </span>
         </button>
       ))}

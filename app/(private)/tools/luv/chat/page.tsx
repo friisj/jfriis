@@ -47,6 +47,7 @@ export default function LuvChatPage() {
 
   return (
     <div className="h-dvh flex flex-col bg-background overflow-hidden relative">
+
       {activePanel && (
         <ChatOverlay title={panelConfig[activePanel].title} onClose={closePanel}>
           {activePanel === 'traits' && (
@@ -61,11 +62,12 @@ export default function LuvChatPage() {
       {/* Messages */}
       <div
         ref={session.scrollContainerRef}
-        className="flex-1 overflow-y-auto min-h-0"
+        className="flex-1 overflow-y-auto min-h-0 relative"
         onDrop={session.handleDrop}
         onDragOver={(e) => e.preventDefault()}
       >
-        <div className="max-w-3xl mx-auto px-3 sm:px-4 py-6 space-y-4 min-w-0">
+        <div className="max-w-4xl mx-auto px-3 sm:px-4 py-6 space-y-4 min-w-0">
+          
           {!session.soulLoaded && (
             <p className="text-sm text-muted-foreground text-center py-8">Loading...</p>
           )}
@@ -103,7 +105,7 @@ export default function LuvChatPage() {
       )}
 
       {/* Input — centered with max-width wrapper */}
-      <div className="max-w-3xl mx-auto w-full min-w-0">
+      <div className="max-w-4xl mx-auto w-full min-w-0">
         <ChatInputToolbar
           autoResize
           input={session.input}
