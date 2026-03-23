@@ -209,7 +209,7 @@ export async function POST(request: Request) {
         get_current_context: createCurrentContextTool(pageContext ?? null),
         web_search: getAnthropic().tools.webSearch_20250305({ maxUses: 3 }),
       } as ToolSet,
-      stopWhen: stepCountIs(5),
+      stopWhen: stepCountIs(15),
       providerOptions,
       onFinish: async (event) => {
         if (!convId) return;

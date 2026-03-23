@@ -8,6 +8,7 @@ import { ChatInputToolbar } from './shared/chat-input-toolbar';
 import { ScrollIndicator } from './shared/scroll-indicator';
 import { CompactSeedCard } from './shared/compact-seed-card';
 import { EmptyState } from './shared/empty-state';
+import { ThinkingIndicator, StepLimitMessage, wasStepLimitHit } from './shared/status-indicators';
 
 export function ChatDrawer() {
   const session = useLuvChatSession();
@@ -44,11 +45,17 @@ export function ChatDrawer() {
             compact
           />
         ))}
+        {session.isActive && session.status === 'submitted' && (
+          <ThinkingIndicator compact />
+        )}
         {session.status === 'error' && session.error && (
           <div className="rounded-lg px-3 py-2 text-xs bg-destructive/10 text-destructive border border-destructive/20">
             <p className="font-medium">Error</p>
             <p className="mt-0.5 opacity-80">{session.error.message}</p>
           </div>
+        )}
+        {wasStepLimitHit(session.status, session.messages) && (
+          <StepLimitMessage compact />
         )}
         <div ref={session.messagesEndRef} />
       </div>
