@@ -74,9 +74,13 @@ export const generateImage = tool({
         .enum(['nano-banana-2', 'nano-banana-pro'])
         .optional()
         .describe('Model: nano-banana-2 (fast, default) or nano-banana-pro (higher quality)'),
+      templateId: z
+        .string()
+        .optional()
+        .describe('UUID of a luv_prompt_templates row to merge with the prompt — use list_prompt_templates to find'),
     })
   ),
-  execute: async ({ prompt, referenceImageUrls, aspectRatio, imageSize, model }) => {
+  execute: async ({ prompt, referenceImageUrls, aspectRatio, imageSize, model, templateId }) => {
     try {
       // Resolve reference image URLs to base64
       const referenceImages = referenceImageUrls
@@ -89,6 +93,7 @@ export const generateImage = tool({
         aspectRatio,
         imageSize,
         model,
+        templateId,
       });
 
       return {
