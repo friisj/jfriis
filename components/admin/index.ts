@@ -21,9 +21,6 @@ export { type ViewType, VIEW_TYPES, isViewType } from './types'
 export { JourneyForm } from './journey-form'
 export { AdminErrorBoundary, ErrorState } from './error-boundary'
 export {
-  JourneysListSkeleton,
-  JourneyDetailSkeleton,
-  JourneyFormSkeleton,
   LoadingSpinner,
   PageLoading,
 } from './loading-states'

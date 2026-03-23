@@ -2,7 +2,7 @@ export const dynamic = 'force-dynamic'
 
 import { Suspense } from 'react'
 import { createClient } from '@/lib/supabase-server'
-import { AdminListLayout, AdminErrorBoundary, JourneysListSkeleton, ErrorState } from '@/components/admin'
+import { AdminListLayout, AdminErrorBoundary, PageLoading, ErrorState } from '@/components/admin'
 import { JourneysListView } from '@/components/admin/views/journeys-list-view'
 import type { BoundaryObjectStatus, ValidationStatus, JourneyType } from '@/lib/types/boundary-objects'
 
@@ -100,7 +100,7 @@ export default async function AdminJourneysPage({
       actionLabel="New Journey"
     >
       <AdminErrorBoundary>
-        <Suspense fallback={<JourneysListSkeleton />}>
+        <Suspense fallback={<PageLoading />}>
           <JourneysListView
             journeys={journeys as any}
             initialFilters={filters}

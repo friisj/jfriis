@@ -1,13 +1,8 @@
 'use client'
 
-/**
- * Protected Route Component
- *
- * Wrapper component that requires authentication
- */
-
 import Link from 'next/link'
 import { useRequireAuth } from '@/lib/hooks/useAuth'
+import { PageLoading } from '@/components/admin/loading-states'
 import { useRouter } from 'next/navigation'
 import { useEffect } from 'react'
 
@@ -26,34 +21,13 @@ export function ProtectedRoute({ children, redirectTo = '/login' }: ProtectedRou
     }
   }, [loading, user, redirectTo, router])
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-muted-foreground">Loading...</p>
-        </div>
-      </div>
-    )
-  }
-
-  if (!user) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-muted-foreground">Redirecting to login...</p>
-        </div>
-      </div>
-    )
+  if (loading || !user) {
+    return <PageLoading />
   }
 
   return <>{children}</>
 }
 
-/**
- * Admin-only route wrapper
- */
 interface AdminRouteProps {
   children: React.ReactNode
   redirectTo?: string
@@ -63,14 +37,7 @@ export function AdminRoute({ children, redirectTo = '/' }: AdminRouteProps) {
   const { user, loading, isAdmin } = useRequireAuth('/login')
 
   if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-muted-foreground">Loading...</p>
-        </div>
-      </div>
-    )
+    return <PageLoading />
   }
 
   if (!user || !isAdmin) {
