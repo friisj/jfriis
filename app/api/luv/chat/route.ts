@@ -76,22 +76,32 @@ export async function POST(request: Request) {
         getLuvMessagesServer(chatId),
       ]);
 
-      // Persist user message
-      await createLuvMessageServer({
-        conversation_id: chatId,
-        role: latestMessage.role,
-        content: getMessageText(latestMessage),
-        parts: serializeParts(latestMessage),
-      });
+      // Persist user message — skip if the last DB message is already a user message
+      // to prevent duplicate writes from network retries or double-submits.
+      const lastDbMessage = dbMessages[dbMessages.length - 1];
+      if (!lastDbMessage || lastDbMessage.role !== 'user') {
+        await createLuvMessageServer({
+          conversation_id: chatId,
+          role: latestMessage.role,
+          content: getMessageText(latestMessage),
+          parts: serializeParts(latestMessage),
+        });
+      }
 
       // Increment turn count (persisted, survives compaction)
       await incrementTurnCountServer(chatId);
       turnCount = conv.turn_count + 1;
 
-      // Reconstruct full message history
-      const historicalMessages = dbMessages
+      // Reconstruct full message history, collapsing any consecutive same-role messages
+      // that may have been written by duplicate requests (retries, double-submits, etc.)
+      const rawHistorical = dbMessages
         .filter((m) => m.role === 'user' || m.role === 'assistant')
         .map((m) => deserializeMessage(m));
+      const historicalMessages = rawHistorical.filter((m, i) => {
+        // Drop consecutive same-role: keep only the last message in each run
+        const next = rawHistorical[i + 1];
+        return !next || next.role !== m.role;
+      });
       messages = [...historicalMessages, latestMessage];
     } else if (legacyMessages && legacyMessages.length > 0) {
       // Legacy flow: full message array from client (backward compat)
