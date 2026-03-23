@@ -26,6 +26,8 @@ export interface LuvImageGenOptions {
   aspectRatio?: AspectRatio;
   imageSize?: ImageSize;
   model?: ModelAlias;
+  /** Pull a prompt template by ID and merge with the provided prompt */
+  templateId?: string;
 }
 
 export interface LuvImageGenResult {
@@ -55,11 +57,32 @@ export async function generateLuvImage(options: LuvImageGenOptions): Promise<Luv
     aspectRatio = '1:1',
     imageSize = '1K',
     model = 'nano-banana-2',
+    templateId,
   } = options;
 
   const apiKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY;
   if (!apiKey) {
     throw new Error('GOOGLE_GENERATIVE_AI_API_KEY not configured');
+  }
+
+  // Resolve prompt template if provided
+  let resolvedPrompt = prompt;
+  if (templateId) {
+    const client = serviceClient();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: template, error: tplError } = await (client as any)
+      .from('luv_prompt_templates')
+      .select('template, name')
+      .eq('id', templateId)
+      .single();
+
+    if (tplError || !template) {
+      console.warn('[luv-image-gen] Template not found:', templateId);
+    } else {
+      // Merge: template provides structure, user prompt provides specifics
+      resolvedPrompt = `${template.template}\n\nSpecific request: ${prompt}`;
+      console.log('[luv-image-gen] Applied template:', template.name);
+    }
   }
 
   const modelId = MODEL_IDS[model];
@@ -78,8 +101,8 @@ export async function generateLuvImage(options: LuvImageGenOptions): Promise<Luv
   }
 
   // Add reference markers if images present
-  let finalPrompt = prompt;
-  if (referenceImages.length > 0 && !/\[\d+\]/.test(prompt)) {
+  let finalPrompt = resolvedPrompt;
+  if (referenceImages.length > 0 && !/\[\d+\]/.test(resolvedPrompt)) {
     const markers = referenceImages.map((_, i) => `[${i + 1}]`).join(' ');
     finalPrompt = `${markers} ${prompt}`;
   }
