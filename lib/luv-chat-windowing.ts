@@ -41,11 +41,12 @@ export function applyMessageWindowing(
     if (typeof msg.content === 'string') return msg;
 
     const strippedContent = msg.content.map((part) => {
-      // Strip tool-result content
+      // Strip tool-result content — output must match OutputSchema (discriminated union),
+      // so wrap the cleared marker in a valid { type: 'text', value } object.
       if (part.type === 'tool-result') {
         return {
           ...part,
-          output: '[cleared]',
+          output: { type: 'text' as const, value: '[cleared]' },
         };
       }
       // Strip image data
