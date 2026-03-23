@@ -9,8 +9,16 @@ import { z } from 'zod';
 import { generateLuvImage, listLuvGenerations } from './luv-image-gen';
 
 /**
+ * Allowlisted origins for reference image fetching.
+ * Only Supabase storage URLs are permitted — prevents SSRF via LLM-supplied URLs.
+ */
+const ALLOWED_FETCH_ORIGINS = new Set([
+  new URL(process.env.NEXT_PUBLIC_SUPABASE_URL!).origin,
+]);
+
+/**
  * Fetch an image URL and return base64 data for use as a reference image.
- * Supports both data URLs (from chat) and HTTP URLs (from storage).
+ * Supports data URLs (from chat) and allowlisted HTTP URLs (Supabase storage only).
  */
 async function urlToBase64(url: string): Promise<{ base64: string; mimeType: string }> {
   // Handle data URLs directly
@@ -20,11 +28,26 @@ async function urlToBase64(url: string): Promise<{ base64: string; mimeType: str
     return { mimeType: match[1], base64: match[2] };
   }
 
-  // Fetch HTTP URL
+  // Validate URL origin against allowlist
+  let parsed: URL;
+  try {
+    parsed = new URL(url);
+  } catch {
+    throw new Error('Invalid URL for reference image');
+  }
+
+  if (!['https:', 'http:'].includes(parsed.protocol)) {
+    throw new Error(`Disallowed URL protocol: ${parsed.protocol}`);
+  }
+
+  if (!ALLOWED_FETCH_ORIGINS.has(parsed.origin)) {
+    throw new Error(`Reference image URL origin not allowed: ${parsed.origin}`);
+  }
+
   const res = await fetch(url);
   if (!res.ok) throw new Error(`Failed to fetch image: ${res.status}`);
   const buffer = Buffer.from(await res.arrayBuffer());
-  const mimeType = res.headers.get('content-type') || 'image/png';
+  const mimeType = res.headers.get('content-type')?.split(';')[0] || 'image/png';
   return { base64: buffer.toString('base64'), mimeType };
 }
 
