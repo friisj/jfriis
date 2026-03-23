@@ -98,21 +98,21 @@ export const models: Record<string, ModelConfig> = {
 
   // Google Models
   'gemini-flash': {
-    id: 'gemini-2.0-flash',
+    id: 'gemini-2.5-flash-preview-05-20',
     provider: 'google',
-    name: 'Gemini 2.0 Flash',
+    name: 'Gemini 2.5 Flash',
     description: 'Fast multimodal with large context',
     capabilities: ['fast', 'vision', 'long-context', 'structured'],
     contextWindow: 1000000,
     costTier: 'low',
   },
   'gemini-pro': {
-    id: 'gemini-1.5-pro',
+    id: 'gemini-2.5-pro-preview-05-06',
     provider: 'google',
-    name: 'Gemini 1.5 Pro',
+    name: 'Gemini 2.5 Pro',
     description: 'High capability with massive context window',
     capabilities: ['reasoning', 'coding', 'vision', 'long-context'],
-    contextWindow: 2000000,
+    contextWindow: 1000000,
     costTier: 'medium',
   },
   'gemini-thinking': {

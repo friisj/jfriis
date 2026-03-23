@@ -14,7 +14,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash-exp' });
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash-preview-05-20' });
 
     const systemPrompt = `You are an expert at writing detailed image generation prompts.
 Your task is to expand a simple user description into a comprehensive, detailed prompt that will produce high-quality images.
