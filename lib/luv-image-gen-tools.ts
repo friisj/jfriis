@@ -14,10 +14,17 @@ import { generateLuvImage, listLuvGenerations } from './luv-image-gen';
 /**
  * Allowlisted origins for reference image fetching.
  * Only Supabase storage URLs are permitted — prevents SSRF via LLM-supplied URLs.
+ * Lazy-initialized to avoid build-time evaluation when env var isn't available.
  */
-const ALLOWED_FETCH_ORIGINS = new Set([
-  new URL(process.env.NEXT_PUBLIC_SUPABASE_URL!).origin,
-]);
+let _allowedOrigins: Set<string> | null = null;
+function getAllowedFetchOrigins(): Set<string> {
+  if (!_allowedOrigins) {
+    _allowedOrigins = new Set([
+      new URL(process.env.NEXT_PUBLIC_SUPABASE_URL!).origin,
+    ]);
+  }
+  return _allowedOrigins;
+}
 
 /**
  * Fetch an image URL and return base64 data for use as a reference image.
@@ -43,7 +50,7 @@ async function urlToBase64(url: string): Promise<{ base64: string; mimeType: str
     throw new Error(`Disallowed URL protocol: ${parsed.protocol}`);
   }
 
-  if (!ALLOWED_FETCH_ORIGINS.has(parsed.origin)) {
+  if (!getAllowedFetchOrigins().has(parsed.origin)) {
     throw new Error(`Reference image URL origin not allowed: ${parsed.origin}`);
   }
 
