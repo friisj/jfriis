@@ -104,11 +104,13 @@ export async function generateLuvImage(options: LuvImageGenOptions): Promise<Luv
   let finalPrompt = resolvedPrompt;
   if (referenceImages.length > 0 && !/\[\d+\]/.test(resolvedPrompt)) {
     const markers = referenceImages.map((_, i) => `[${i + 1}]`).join(' ');
-    finalPrompt = `${markers} ${prompt}`;
+    finalPrompt = `${markers} ${resolvedPrompt}`;
   }
 
   parts.push({ text: finalPrompt });
 
+  // generationConfig structure matches the proven pattern in lib/ai/gemini-multimodal.ts
+  // (used by Cognitron pipeline for gemini-3-pro-image-preview)
   const requestBody = {
     contents: [{ parts }],
     generationConfig: {
@@ -190,9 +192,9 @@ export async function generateLuvImage(options: LuvImageGenOptions): Promise<Luv
 
   const publicUrl = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/${LUV_MEDIA_BUCKET}/${storagePath}`;
 
-  // Record in luv_generation_results
+  // Record in luv_generation_results (non-fatal — image is already in storage)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  await (client as any)
+  const { error: dbError } = await (client as any)
     .from('luv_generation_results')
     .insert({
       scene_slug: 'agent-generation',
@@ -209,6 +211,10 @@ export async function generateLuvImage(options: LuvImageGenOptions): Promise<Luv
       },
       module_snapshot: {},
     });
+
+  if (dbError) {
+    console.error('[luv-image-gen] DB insert failed:', dbError);
+  }
 
   console.log('[luv-image-gen] Complete:', { storagePath, durationMs, model: modelId });
 
