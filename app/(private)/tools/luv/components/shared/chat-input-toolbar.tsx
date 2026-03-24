@@ -22,6 +22,7 @@ import {
   IconDots,
   IconGitBranch,
   IconLoader2,
+  IconPhoto,
   IconPhotoPlus,
   IconSparkles,
   IconCopy,
@@ -73,6 +74,9 @@ export interface ChatInputToolbarProps {
   onToggleTraitPanel: () => void;
   onApplyPreset: (presetId: string) => void;
   activePresetId: string | null;
+  // Image picker
+  imagePickerOpen?: boolean;
+  onToggleImagePicker?: () => void;
   // Sizing
   compact?: boolean;
   autoResize?: boolean;
@@ -108,6 +112,8 @@ export function ChatInputToolbar({
   onToggleTraitPanel,
   onApplyPreset,
   activePresetId,
+  imagePickerOpen,
+  onToggleImagePicker,
   compact = false,
   autoResize = false,
 }: ChatInputToolbarProps) {
@@ -334,10 +340,24 @@ export function ChatInputToolbar({
               className="flex items-center justify-center size-12 text-muted-foreground"
               onClick={() => fileInputRef.current?.click()}
               disabled={isActive || !soulLoaded}
-              title="Attach image"
+              title="Upload image"
             >
               <IconPhotoPlus size={iconSize} stroke={1.5} />
             </button>
+
+            {onToggleImagePicker && (
+              <button
+                className={cn(
+                  'flex items-center justify-center size-12 text-muted-foreground',
+                  imagePickerOpen && 'text-foreground',
+                )}
+                onClick={onToggleImagePicker}
+                disabled={isActive || !soulLoaded}
+                title="Image library"
+              >
+                <IconPhoto size={iconSize} stroke={1.5} />
+              </button>
+            )}
 
             <input
               ref={fileInputRef}
