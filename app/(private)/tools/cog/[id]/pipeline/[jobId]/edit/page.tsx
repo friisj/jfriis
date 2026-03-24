@@ -4,7 +4,7 @@ import {
   getAllPhotographerConfigsServer,
   getAllDirectorConfigsServer,
   getAllProductionConfigsServer,
-} from '@/lib/cog-server';
+} from '@/lib/cog/server';
 import { notFound, redirect } from 'next/navigation';
 import Link from 'next/link';
 import { PipelineBuilderForm } from '../../new/pipeline-builder-form';

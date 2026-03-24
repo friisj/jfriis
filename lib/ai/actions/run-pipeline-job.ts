@@ -18,7 +18,7 @@ import {
   createImageServer,
   createPipelineStepOutputServer,
   createBaseCandidateServer,
-} from '@/lib/cog-server';
+} from '@/lib/cog/server';
 import {
   buildContextTranslationPrompt,
   buildInference1Prompt,

@@ -7,7 +7,7 @@ import {
   getGlobalTagsServer,
   getRemixJobsForSeriesServer,
   getThinkingJobsForSeriesServer,
-} from '@/lib/cog-server';
+} from '@/lib/cog/server';
 import { notFound } from 'next/navigation';
 import type {
   CogSeries,

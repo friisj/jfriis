@@ -1,5 +1,5 @@
 import { notFound } from 'next/navigation';
-import { getImageByIdServer, getGroupPrimaryImagesServer } from '@/lib/cog-server';
+import { getImageByIdServer, getGroupPrimaryImagesServer } from '@/lib/cog/server';
 import { ImageEditor } from './image-editor';
 
 interface EditorPageProps {

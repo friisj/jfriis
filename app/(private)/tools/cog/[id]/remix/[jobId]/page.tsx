@@ -1,4 +1,4 @@
-import { getRemixJobFullServer, getSeriesByIdServer } from '@/lib/cog-server';
+import { getRemixJobFullServer, getSeriesByIdServer } from '@/lib/cog/server';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { RemixExecutionMonitor } from './remix-execution-monitor';

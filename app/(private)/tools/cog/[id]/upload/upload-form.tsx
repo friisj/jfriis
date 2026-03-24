@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/lib/supabase';
 import { createImage } from '@/lib/cog';
-import { generateThumbnails } from '@/lib/cog-thumbnails';
+import { generateThumbnails } from '@/lib/cog/thumbnails';
 
 interface UploadFormProps {
   seriesId: string;

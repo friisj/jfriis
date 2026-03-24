@@ -1,12 +1,12 @@
 /**
- * Cog Image Service — Shared Primitives
+ * Cog Image Service
  *
- * These modules provide the image management infrastructure that can be used
- * by any tool (Cog, Luv, etc.). Import from '@/lib/cog' for client-side
- * operations, or from '@/lib/cog/server' for server-side.
+ * Modular image management infrastructure. Shared primitives (images, series,
+ * tags, groups, thumbnails) can be imported by any tool. Cog-specific modules
+ * (jobs, pipeline, configs, etc.) support the Cognitron generation workflows.
  *
- * Cog-specific operations (jobs, pipelines, configs, calibration, remix,
- * thinking) remain in '@/lib/cog-full' (the original monolith).
+ * Client-side: import from '@/lib/cog'
+ * Server-side: import from '@/lib/cog/server'
  */
 
 // Shared image infrastructure — usable by any tool
@@ -15,3 +15,12 @@ export * from './series';
 export * from './tags';
 export * from './groups';
 export { generateThumbnails, batchGenerateThumbnails } from './thumbnails';
+
+// Cog-specific operations
+export * from './jobs';
+export * from './pipeline';
+export * from './configs';
+export * from './calibration';
+export * from './remix';
+export * from './eval';
+export * from './thinking';

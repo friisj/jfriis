@@ -8,7 +8,7 @@ import { generateImageWithGemini3Pro, isGemini3ProConfigured, analyzeReferenceIm
 import { generateWithFlux, isFluxConfigured, type FluxAspectRatio, type FluxResolution } from '../replicate-flux';
 import { createClient } from '@/lib/supabase-server';
 import type { CogJobStep, CogImageModel, CogImageSize, CogAspectRatio } from '@/lib/types/cog';
-import { generateThumbnails } from '@/lib/cog-thumbnails';
+import { generateThumbnails } from '@/lib/cog/thumbnails';
 import { clampReferencesForModel, type ReferenceCapModel } from '@/lib/reference-images';
 
 type ResolvedImageModel = ReferenceCapModel;

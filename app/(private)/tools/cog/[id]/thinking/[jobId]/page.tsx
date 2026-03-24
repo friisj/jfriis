@@ -1,4 +1,4 @@
-import { getThinkingJobFullServer, getSeriesByIdServer } from '@/lib/cog-server';
+import { getThinkingJobFullServer, getSeriesByIdServer } from '@/lib/cog/server';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { ThinkingExecutionMonitor } from './thinking-execution-monitor';

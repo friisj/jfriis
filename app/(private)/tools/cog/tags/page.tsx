@@ -1,4 +1,4 @@
-import { getTagGroupsWithTagsServer, getUngroupedTagsServer } from '@/lib/cog-server';
+import { getTagGroupsWithTagsServer, getUngroupedTagsServer } from '@/lib/cog/server';
 import { TagManager } from './tag-manager';
 import type { CogTagGroupWithTags, CogTag } from '@/lib/types/cog';
 
