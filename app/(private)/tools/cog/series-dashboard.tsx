@@ -12,6 +12,9 @@ import {
   ContextMenuContent,
   ContextMenuItem,
   ContextMenuSeparator,
+  ContextMenuSub,
+  ContextMenuSubTrigger,
+  ContextMenuSubContent,
 } from '@/components/ui/context-menu';
 import { IconEye, IconPencil, IconTrash, IconLink, IconLinkOff } from '@tabler/icons-react';
 import { usePrivacyMode, filterPrivateRecords } from '@/lib/privacy-mode';
@@ -19,8 +22,7 @@ import { getCogThumbnailUrl, updateSeries, deleteSeriesWithCleanup } from '@/lib
 import { supabase } from '@/lib/supabase';
 import type { SeriesWithImage } from './types';
 import { PromptLibrary } from './config-library';
-
-const KNOWN_TOOLS = ['luv'] as const;
+import { toolsRegistry } from '../registry';
 
 interface SeriesDashboardProps {
   series: SeriesWithImage[];
@@ -238,19 +240,43 @@ export function SeriesDashboard({ series: initialSeries }: SeriesDashboardProps)
                       Rename
                     </ContextMenuItem>
                     <ContextMenuSeparator />
-                    {KNOWN_TOOLS.map((tool) => {
-                      const isLinked = (s.toolLinks ?? []).some((l) => l.sourceType === tool);
+                    {(() => {
+                      const linkedTools = new Set((s.toolLinks ?? []).map((l) => l.sourceType));
+                      const unlinkedTools = toolsRegistry.filter((t) => t.id !== 'cog' && !linkedTools.has(t.id));
                       return (
-                        <ContextMenuItem
-                          key={tool}
-                          className="text-xs"
-                          onClick={() => isLinked ? handleUnlinkTool(s.id, tool) : handleLinkTool(s.id, tool)}
-                        >
-                          {isLinked ? <IconLinkOff size={14} className="mr-2" /> : <IconLink size={14} className="mr-2" />}
-                          {isLinked ? `Unlink from ${tool}` : `Link to ${tool}`}
-                        </ContextMenuItem>
+                        <>
+                          {(s.toolLinks ?? []).map((l) => (
+                            <ContextMenuItem
+                              key={l.sourceType}
+                              className="text-xs"
+                              onClick={() => handleUnlinkTool(s.id, l.sourceType)}
+                            >
+                              <IconLinkOff size={14} className="mr-2" />
+                              Unlink from {l.sourceType}
+                            </ContextMenuItem>
+                          ))}
+                          {unlinkedTools.length > 0 && (
+                            <ContextMenuSub>
+                              <ContextMenuSubTrigger className="text-xs">
+                                <IconLink size={14} className="mr-2" />
+                                Link to...
+                              </ContextMenuSubTrigger>
+                              <ContextMenuSubContent className="w-40">
+                                {unlinkedTools.map((tool) => (
+                                  <ContextMenuItem
+                                    key={tool.id}
+                                    className="text-xs"
+                                    onClick={() => handleLinkTool(s.id, tool.id)}
+                                  >
+                                    {tool.title}
+                                  </ContextMenuItem>
+                                ))}
+                              </ContextMenuSubContent>
+                            </ContextMenuSub>
+                          )}
+                        </>
                       );
-                    })}
+                    })()}
                     <ContextMenuSeparator />
                     <ContextMenuItem
                       className="text-xs text-destructive focus:text-destructive"
