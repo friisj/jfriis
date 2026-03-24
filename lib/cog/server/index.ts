@@ -9,6 +9,7 @@ export * from './images';
 export * from './series';
 export * from './tags';
 export * from './groups';
+export { getCogImageUrl, getCogThumbnailUrl } from '../images';
 
 // Cog-specific operations
 export * from './jobs';
