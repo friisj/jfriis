@@ -1,24 +1,57 @@
 'use client';
 
-import { useState, useRef, useCallback } from 'react';
+import { useState, useMemo, useRef, useCallback } from 'react';
 import Link from 'next/link';
 import { getCogImageUrl, getCogThumbnailUrl } from '@/lib/cog/images';
 import { deleteImageWithCleanup } from '@/lib/cog/images';
+import { getImageTagsBatch } from '@/lib/cog/tags';
 import { supabase } from '@/lib/supabase';
 import { createImage } from '@/lib/cog/images';
 import { IconPhotoPlus, IconX } from '@tabler/icons-react';
-import type { CogImage } from '@/lib/types/cog';
+import { TagFilterBar } from '@/app/(private)/tools/cog/[id]/tag-filter-bar';
+import type { CogImage, CogTagWithGroup } from '@/lib/types/cog';
+import { useEffect } from 'react';
 
 interface SeriesImageGridProps {
   seriesId: string;
   initialImages: CogImage[];
   seriesTitle: string;
+  enabledTags?: CogTagWithGroup[];
 }
 
-export function SeriesImageGrid({ seriesId, initialImages, seriesTitle }: SeriesImageGridProps) {
+export function SeriesImageGrid({ seriesId, initialImages, seriesTitle, enabledTags = [] }: SeriesImageGridProps) {
   const [images, setImages] = useState(initialImages);
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Tag filter state
+  const [activeTagFilter, setActiveTagFilter] = useState<Set<string>>(new Set());
+  const [imageTagsMap, setImageTagsMap] = useState<Map<string, Set<string>>>(new Map());
+
+  // Load image tags when enabled tags exist
+  useEffect(() => {
+    if (!enabledTags.length || !images.length) return;
+    (async () => {
+      const tags = await getImageTagsBatch(images.map((img) => img.id));
+      const map = new Map<string, Set<string>>();
+      for (const [imageId, tagList] of tags) {
+        map.set(imageId, new Set(tagList.map((t) => t.id)));
+      }
+      setImageTagsMap(map);
+    })();
+  }, [enabledTags.length, images]);
+
+  const filteredImages = useMemo(() => {
+    if (activeTagFilter.size === 0) return images;
+    return images.filter((img) => {
+      const imgTags = imageTagsMap.get(img.id);
+      if (!imgTags) return false;
+      for (const tagId of activeTagFilter) {
+        if (imgTags.has(tagId)) return true;
+      }
+      return false;
+    });
+  }, [images, activeTagFilter, imageTagsMap]);
 
   const handleUpload = useCallback(async (files: FileList | File[]) => {
     const imageFiles = Array.from(files).filter((f) => f.type.startsWith('image/'));
@@ -70,6 +103,20 @@ export function SeriesImageGrid({ seriesId, initialImages, seriesTitle }: Series
 
   return (
     <div className="space-y-4">
+      <TagFilterBar
+        enabledTags={enabledTags}
+        activeTags={activeTagFilter}
+        onToggle={(tagId) => {
+          setActiveTagFilter((prev) => {
+            const next = new Set(prev);
+            if (next.has(tagId)) next.delete(tagId);
+            else next.add(tagId);
+            return next;
+          });
+        }}
+        onClear={() => setActiveTagFilter(new Set())}
+      />
+
       {/* Upload button */}
       <div className="flex items-center gap-2">
         <button
@@ -95,13 +142,13 @@ export function SeriesImageGrid({ seriesId, initialImages, seriesTitle }: Series
       </div>
 
       {/* Image grid */}
-      {images.length === 0 ? (
+      {filteredImages.length === 0 ? (
         <p className="text-sm text-muted-foreground text-center py-8">
-          No images in this series yet.
+          {activeTagFilter.size > 0 ? 'No images match the selected tags.' : 'No images in this series yet.'}
         </p>
       ) : (
         <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 gap-3">
-          {images.map((image) => (
+          {filteredImages.map((image) => (
             <div key={image.id} className="group relative">
               <Link href={`/tools/luv/media/${seriesId}/${image.id}`}>
                 {/* eslint-disable-next-line @next/next/no-img-element */}

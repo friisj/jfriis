@@ -1,4 +1,5 @@
 import { notFound } from 'next/navigation';
+import { createClient } from '@/lib/supabase-server';
 import { getSeriesByIdServer } from '@/lib/cog/server/series';
 import { getImageByIdServer, getSeriesImagesServer } from '@/lib/cog/server/images';
 import { LuvImageViewer } from './image-viewer';
@@ -17,9 +18,17 @@ export default async function LuvImageDetailPage({ params }: Props) {
     notFound();
   }
 
-  if (!series.tags?.includes('luv')) {
-    notFound();
-  }
+  // Validate this is a Luv-linked series
+  const supabase = await createClient();
+  const { data: link } = await (supabase as any)
+    .from('entity_links')
+    .select('id')
+    .eq('source_type', 'luv')
+    .eq('target_type', 'cog_series')
+    .eq('target_id', seriesId)
+    .limit(1)
+    .maybeSingle();
+  if (!link) notFound();
 
   let image;
   try {
