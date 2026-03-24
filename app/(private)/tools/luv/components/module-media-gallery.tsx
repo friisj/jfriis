@@ -3,18 +3,15 @@
 import { useState, useCallback, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { supabase } from '@/lib/supabase';
-import {
-  createChassisModuleMedia,
-  deleteChassisModuleMedia,
-} from '@/lib/luv-chassis';
 import { createLuvCogImage } from '@/lib/luv/cog-integration';
-import type { LuvChassisModuleMedia } from '@/lib/types/luv-chassis';
+import { getCogImageUrl } from '@/lib/cog/images';
+import { deleteImageWithCleanup } from '@/lib/cog/images';
+import type { CogImage } from '@/lib/types/cog';
 
 interface ModuleMediaGalleryProps {
   moduleId: string;
   moduleSlug: string;
-  initialMedia: LuvChassisModuleMedia[];
+  initialMedia: CogImage[];
   parameterKeys: string[];
 }
 
@@ -79,34 +76,21 @@ export function ModuleMediaGallery({
 
       try {
         const ext = f.file.name.split('.').pop() || 'jpg';
-        const path = `chassis-modules/${moduleSlug}/${f.parameterKey}/${Date.now()}-${i}.${ext}`;
-
-        const { error: uploadError } = await supabase.storage
-          .from('luv-images')
-          .upload(path, f.file);
-
-        if (uploadError) throw uploadError;
-
-        const record = await createChassisModuleMedia({
-          module_id: moduleId,
-          parameter_key: f.parameterKey,
-          type: f.file.type,
-          storage_path: path,
-          description: f.file.name,
-        });
-
-        // Dual-write: also create in cog_images via cog-images bucket
         const cogPath = `luv/modules/${moduleSlug}/${f.parameterKey}/${Date.now()}-${i}.${ext}`;
-        await createLuvCogImage({
+
+        const image = await createLuvCogImage({
           seriesKey: `module:${moduleSlug}`,
           file: f.file,
           filename: f.file.name,
           storagePath: cogPath,
           source: 'upload',
-          metadata: { luv_module_id: moduleId, luv_parameter_key: f.parameterKey, luv_media_id: record.id },
-        }).catch((err) => console.error('Cog dual-write failed (non-fatal):', err));
+          metadata: {
+            luv_module_id: moduleId,
+            luv_parameter_key: f.parameterKey,
+          },
+        });
 
-        setMedia((prev) => [...prev, record]);
+        setMedia((prev) => [image, ...prev]);
         setFiles((prev) =>
           prev.map((item, idx) =>
             idx === i ? { ...item, status: 'success' } : item
@@ -125,35 +109,29 @@ export function ModuleMediaGallery({
     setUploading(false);
   };
 
-  const handleDelete = async (item: LuvChassisModuleMedia) => {
+  const handleDelete = async (item: CogImage) => {
     if (!confirm('Delete this media?')) return;
     try {
-      await supabase.storage.from('luv-images').remove([item.storage_path]);
-      await deleteChassisModuleMedia(item.id);
+      await deleteImageWithCleanup(item.id);
       setMedia((prev) => prev.filter((m) => m.id !== item.id));
     } catch (err) {
       console.error('Failed to delete media:', err);
     }
   };
 
-  const getPublicUrl = (storagePath: string) => {
-    const { data } = supabase.storage
-      .from('luv-images')
-      .getPublicUrl(storagePath);
-    return data.publicUrl;
-  };
+  const getParamKey = (item: CogImage): string =>
+    (item.metadata as Record<string, unknown>)?.luv_parameter_key as string ?? '';
 
-  // Group media by parameter_key
+  // Group media by parameter_key from metadata
   const grouped = parameterKeys
     .map((key) => ({
       key,
-      items: media.filter((m) => m.parameter_key === key),
+      items: media.filter((m) => getParamKey(m) === key),
     }))
     .filter((g) => g.items.length > 0);
 
-  // Also include any media with keys not in parameterKeys
   const knownKeys = new Set(parameterKeys);
-  const ungrouped = media.filter((m) => !knownKeys.has(m.parameter_key));
+  const ungrouped = media.filter((m) => !knownKeys.has(getParamKey(m)));
 
   return (
     <div className="space-y-6">
@@ -289,8 +267,8 @@ export function ModuleMediaGallery({
             {items.map((item) => (
               <div key={item.id} className="group relative">
                 <img
-                  src={getPublicUrl(item.storage_path)}
-                  alt={item.description ?? ''}
+                  src={getCogImageUrl(item.storage_path)}
+                  alt={item.filename ?? ''}
                   className="w-full aspect-square object-cover rounded-md"
                 />
                 <button
@@ -300,11 +278,6 @@ export function ModuleMediaGallery({
                 >
                   &times;
                 </button>
-                {item.description && (
-                  <p className="text-xs text-muted-foreground mt-1 truncate">
-                    {item.description}
-                  </p>
-                )}
               </div>
             ))}
           </div>
@@ -318,13 +291,13 @@ export function ModuleMediaGallery({
             {ungrouped.map((item) => (
               <div key={item.id} className="group relative">
                 <img
-                  src={getPublicUrl(item.storage_path)}
-                  alt={item.description ?? ''}
+                  src={getCogImageUrl(item.storage_path)}
+                  alt={item.filename ?? ''}
                   className="w-full aspect-square object-cover rounded-md"
                 />
                 <div className="absolute bottom-1 left-1">
                   <Badge variant="secondary" className="text-[10px]">
-                    {item.parameter_key}
+                    {getParamKey(item)}
                   </Badge>
                 </div>
                 <button

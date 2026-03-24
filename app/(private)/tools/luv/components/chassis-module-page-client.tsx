@@ -5,7 +5,8 @@ import { ModuleMediaGallery } from './module-media-gallery';
 import { ModuleVersionHistory } from './module-version-history';
 import { ContextPackComposer } from './context-pack-composer';
 import { StagePlayer } from '../stage/components/stage-player';
-import type { LuvChassisModule, LuvChassisModuleMedia, ParameterConstraint } from '@/lib/types/luv-chassis';
+import type { LuvChassisModule, ParameterConstraint } from '@/lib/types/luv-chassis';
+import type { CogImage } from '@/lib/types/cog';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 
@@ -19,7 +20,7 @@ interface Props {
   module: LuvChassisModule;
   allModules?: LuvChassisModule[];
   studyLocks?: StudyLock[];
-  initialMedia?: LuvChassisModuleMedia[];
+  initialMedia?: CogImage[];
 }
 
 export function ChassisModulePageClient({ module, allModules = [], studyLocks = [], initialMedia = [] }: Props) {

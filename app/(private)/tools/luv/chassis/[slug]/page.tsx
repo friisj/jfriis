@@ -1,10 +1,11 @@
 import { notFound } from 'next/navigation';
 import {
   getChassisModuleBySlugServer,
-  getChassisModuleMediaServer,
   getChassisModulesServer,
   getStudiesForModuleServer,
 } from '@/lib/luv-chassis-server';
+import { getLuvSeriesServer } from '@/lib/luv/cog-integration-server';
+import { getSeriesImagesServer } from '@/lib/cog/server/images';
 import { ChassisModulePageClient } from '../../components/chassis-module-page-client';
 
 interface Props {
@@ -22,8 +23,10 @@ export default async function ChassisModulePage({ params }: Props) {
     notFound();
   }
 
+  // Fetch module media from cog_images series
+  const seriesId = await getLuvSeriesServer(`module:${slug}`);
   const [media, studies] = await Promise.all([
-    getChassisModuleMediaServer(chassisModule.id),
+    getSeriesImagesServer(seriesId),
     getStudiesForModuleServer(chassisModule.id),
   ]);
 
