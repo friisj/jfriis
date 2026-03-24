@@ -77,6 +77,12 @@ export async function createChassisModule(
     .single();
 
   if (error) throw error;
+
+  // Auto-provision chassis module tag
+  provisionModuleTag(input.slug).catch((err) =>
+    console.error('[luv-chassis] Tag provision failed:', err)
+  );
+
   return data as LuvChassisModule;
 }
 
@@ -96,12 +102,26 @@ export async function updateChassisModule(
 }
 
 export async function deleteChassisModule(id: string): Promise<void> {
+  // Look up the slug before deleting (for tag cleanup)
+  const { data: module } = await (supabase as any)
+    .from('luv_chassis_modules')
+    .select('slug')
+    .eq('id', id)
+    .single();
+
   const { error } = await (supabase as any)
     .from('luv_chassis_modules')
     .delete()
     .eq('id', id);
 
   if (error) throw error;
+
+  // Clean up the corresponding tag
+  if (module?.slug) {
+    removeModuleTag(module.slug).catch((err) =>
+      console.error('[luv-chassis] Tag cleanup failed:', err)
+    );
+  }
 }
 
 // ============================================================================
@@ -376,4 +396,89 @@ export async function getStudiesForModule(
 
   if (error) throw error;
   return data as LuvChassisStudy[];
+}
+
+// ============================================================================
+// Chassis Module Tag Lifecycle
+// ============================================================================
+
+const CHASSIS_MODULE_GROUP_NAME = 'Chassis Module';
+
+async function provisionModuleTag(slug: string): Promise<void> {
+  // Ensure tag group exists
+  let groupId: string;
+  const { data: group } = await (supabase as any)
+    .from('cog_tag_groups')
+    .select('id')
+    .eq('name', CHASSIS_MODULE_GROUP_NAME)
+    .limit(1)
+    .maybeSingle();
+
+  if (group) {
+    groupId = group.id;
+  } else {
+    const { data: newGroup, error } = await (supabase as any)
+      .from('cog_tag_groups')
+      .insert({ name: CHASSIS_MODULE_GROUP_NAME, position: 0 })
+      .select()
+      .single();
+    if (error) throw error;
+    groupId = newGroup.id;
+  }
+
+  // Check if tag already exists
+  const { data: existing } = await (supabase as any)
+    .from('cog_tags')
+    .select('id')
+    .eq('name', slug)
+    .eq('group_id', groupId)
+    .limit(1)
+    .maybeSingle();
+
+  if (existing) return;
+
+  // Create tag
+  const { data: tag, error: tagError } = await (supabase as any)
+    .from('cog_tags')
+    .insert({ name: slug, group_id: groupId, position: 0 })
+    .select()
+    .single();
+
+  if (tagError) throw tagError;
+
+  // Enable for chassis series if it exists
+  const { data: link } = await (supabase as any)
+    .from('entity_links')
+    .select('target_id')
+    .eq('source_type', 'luv')
+    .eq('source_id', 'chassis')
+    .eq('target_type', 'cog_series')
+    .limit(1)
+    .maybeSingle();
+
+  if (link) {
+    await (supabase as any)
+      .from('cog_series_tags')
+      .insert({ series_id: link.target_id, tag_id: tag.id, position: 0 })
+      .select()
+      .maybeSingle();
+  }
+}
+
+async function removeModuleTag(slug: string): Promise<void> {
+  const { data: tag } = await (supabase as any)
+    .from('cog_tags')
+    .select('id')
+    .eq('name', slug)
+    .is('series_id', null)
+    .limit(1)
+    .maybeSingle();
+
+  if (!tag) return;
+
+  // Cascade handles cog_image_tags and cog_series_tags
+  await (supabase as any)
+    .from('cog_tags')
+    .delete()
+    .eq('id', tag.id);
 }

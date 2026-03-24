@@ -691,6 +691,11 @@ export function ImageGallery({
               seriesId={seriesId}
               enabledTags={enabledTags}
               imageTagIds={imageTagsMap.get(image.id)}
+              isPrimary={isPrimary}
+              onSetCover={(id) => {
+                setPrimaryImageId(id || null);
+                onPrimaryImageChange?.(id || null);
+              }}
               onDeleted={(id) => {
                 handleDeleteFromGrid(id);
               }}

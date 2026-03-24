@@ -22,12 +22,14 @@ import {
   IconCopyPlus,
   IconTag,
   IconTrash,
+  IconPhoto,
 } from '@tabler/icons-react';
 import {
   getCogImageUrl,
   moveImageToSeries,
   copyImageToSeries,
   deleteImageWithCleanup,
+  setSeriesPrimaryImage,
 } from '@/lib/cog';
 import { addTagToImage, removeTagFromImage } from '@/lib/cog/tags';
 import { supabase } from '@/lib/supabase';
@@ -39,9 +41,11 @@ interface ImageContextMenuProps {
   enabledTags?: CogTagWithGroup[];
   imageTagIds?: Set<string>;
   children: React.ReactNode;
+  isPrimary?: boolean;
   onDeleted?: (imageId: string) => void;
   onMoved?: (imageId: string) => void;
   onTagsChanged?: (imageId: string) => void;
+  onSetCover?: (imageId: string) => void;
 }
 
 export function ImageContextMenu({
@@ -49,10 +53,12 @@ export function ImageContextMenu({
   seriesId,
   enabledTags = [],
   imageTagIds = new Set(),
+  isPrimary = false,
   children,
   onDeleted,
   onMoved,
   onTagsChanged,
+  onSetCover,
 }: ImageContextMenuProps) {
   const router = useRouter();
   const [seriesList, setSeriesList] = useState<CogSeries[] | null>(null);
@@ -149,6 +155,20 @@ export function ImageContextMenu({
         <ContextMenuItem onClick={handleView} className="text-xs">
           <IconEye size={14} className="mr-2" />
           View
+        </ContextMenuItem>
+        <ContextMenuItem
+          onClick={async () => {
+            try {
+              await setSeriesPrimaryImage(seriesId, isPrimary ? null : image.id);
+              onSetCover?.(isPrimary ? '' : image.id);
+            } catch (err) {
+              console.error('Set cover failed:', err);
+            }
+          }}
+          className="text-xs"
+        >
+          <IconPhoto size={14} className="mr-2" />
+          {isPrimary ? 'Remove as cover' : 'Set as cover'}
         </ContextMenuItem>
 
         <ContextMenuSeparator />

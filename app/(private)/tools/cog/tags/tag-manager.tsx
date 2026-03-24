@@ -162,11 +162,13 @@ function TagForm({
   groups,
   onSave,
   onCancel,
+  onDelete,
 }: {
   tag?: CogTag;
   groups: CogTagGroup[];
   onSave: (data: { name: string; shortcut: string | null; color: string | null; group_id: string | null }) => Promise<void>;
   onCancel: () => void;
+  onDelete?: () => void;
 }) {
   const [name, setName] = useState(tag?.name || '');
   const [shortcut, setShortcut] = useState(tag?.shortcut || '');
@@ -275,6 +277,17 @@ function TagForm({
         <Button type="button" variant="outline" onClick={onCancel} disabled={saving}>
           Cancel
         </Button>
+        {tag && onDelete && (
+          <Button
+            type="button"
+            variant="ghost"
+            className="ml-auto text-destructive hover:text-destructive"
+            onClick={onDelete}
+            disabled={saving}
+          >
+            Delete
+          </Button>
+        )}
       </div>
     </form>
   );
@@ -481,6 +494,11 @@ export function TagManager({ initialGroups, initialUngroupedTags }: TagManagerPr
                 setShowTagDialog(false);
                 setEditingTag(null);
               }}
+              onDelete={editingTag ? () => {
+                setShowTagDialog(false);
+                setDeletingTag(editingTag);
+                setEditingTag(null);
+              } : undefined}
             />
           </DialogContent>
         </Dialog>
