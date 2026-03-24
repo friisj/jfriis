@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/lib/supabase';
 import { createLuvReference, deleteLuvReference } from '@/lib/luv';
+import { createLuvCogImage, getLuvImageUrl } from '@/lib/luv/cog-integration';
 import type { LuvReference, LuvReferenceType } from '@/lib/types/luv';
 
 interface ReferenceGalleryProps {
@@ -64,6 +65,7 @@ export function ReferenceGallery({ initialReferences }: ReferenceGalleryProps) {
         const ext = f.file.name.split('.').pop() || 'jpg';
         const path = `references/${Date.now()}-${i}.${ext}`;
 
+        // Legacy: upload to luv-images bucket + luv_references table
         const { error: uploadError } = await supabase.storage
           .from('luv-images')
           .upload(path, f.file);
@@ -75,6 +77,17 @@ export function ReferenceGallery({ initialReferences }: ReferenceGalleryProps) {
           storage_path: path,
           description: f.file.name,
         });
+
+        // Dual-write: also create in cog_images via cog-images bucket
+        const cogPath = `luv/references/${Date.now()}-${i}.${ext}`;
+        await createLuvCogImage({
+          seriesKey: 'references',
+          file: f.file,
+          filename: f.file.name,
+          storagePath: cogPath,
+          source: 'upload',
+          metadata: { luv_reference_type: uploadType, luv_reference_id: ref.id },
+        }).catch((err) => console.error('Cog dual-write failed (non-fatal):', err));
 
         setReferences((prev) => [ref, ...prev]);
         setFiles((prev) =>
