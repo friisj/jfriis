@@ -79,6 +79,7 @@ export default function EvolvingStrings() {
   const currentStringNotesRef = useRef<string[]>([])
   const currentChordRef = useRef<Chord>(CHORDS[0])
   const audioInitRef = useRef(false)
+  const detuneRafRef = useRef<number>(0)
 
   // Keep refs in sync
   useEffect(() => { currentChordRef.current = currentChord }, [currentChord])
@@ -225,20 +226,27 @@ export default function EvolvingStrings() {
       return { synth, detuneLfo, detuneSignal }
     })
     stringVoicesRef.current = stringVoices
+  }, [])
 
-    // Detune update loop — reads LFO values and applies to PolySynth detune
+  // Detune update loop — runs only while playing, properly cancellable
+  useEffect(() => {
+    if (!isPlaying || !audioInitRef.current) return
+
+    const detuneOffsets = [-10, -4, 4, 10]
     const updateDetune = () => {
       stringVoicesRef.current.forEach((voice, i) => {
         const lfoValue = voice.detuneSignal.value
         const baseDetune = detuneOffsets[i] * ensembleWidth * 2
-        voice.synth.set({ detune: baseDetune + lfoValue })
+        try { voice.synth.set({ detune: baseDetune + lfoValue }) } catch {}
       })
-      if (audioInitRef.current) {
-        requestAnimationFrame(updateDetune)
-      }
+      detuneRafRef.current = requestAnimationFrame(updateDetune)
     }
-    requestAnimationFrame(updateDetune)
-  }, [ensembleWidth, evolutionRate, filterWarmth, getDetuneAmount, getDetuneLfoRate, getFilterCenter, getFilterLfoRate])
+    detuneRafRef.current = requestAnimationFrame(updateDetune)
+
+    return () => {
+      if (detuneRafRef.current) cancelAnimationFrame(detuneRafRef.current)
+    }
+  }, [isPlaying, ensembleWidth])
 
   // ─── Update parameters in real time ─────────────────────────────────────────
 
@@ -379,6 +387,7 @@ export default function EvolvingStrings() {
   useEffect(() => {
     return () => {
       audioInitRef.current = false
+      if (detuneRafRef.current) cancelAnimationFrame(detuneRafRef.current)
 
       // Dispose pad
       padSynthsRef.current.forEach(s => { try { s.triggerRelease(); s.dispose() } catch {} })
