@@ -16,6 +16,7 @@ import { CogGridImage, CogTinyImage } from '@/components/cog/cog-image';
 import { StarRating } from './star-rating';
 import type { CogTagWithGroup, CogImageWithGroupInfo } from '@/lib/types/cog';
 import { IconTrash, IconAlertTriangle, IconStarFilled } from '@tabler/icons-react';
+import { TagFilterBar } from './tag-filter-bar';
 
 export interface UploadingFile {
   id: string;
@@ -282,6 +283,33 @@ export function ImageGallery({
 
   const [gridDraggedId, setGridDraggedId] = useState<string | null>(null);
   const [gridDragOverId, setGridDragOverId] = useState<string | null>(null);
+  const [activeTagFilter, setActiveTagFilter] = useState<Set<string>>(new Set());
+
+  // Filter images by active tags (show images that have ANY active tag)
+  const filteredImages = useMemo(() => {
+    if (activeTagFilter.size === 0) return images;
+    return images.filter((img) => {
+      const imgTags = imageTagsMap.get(img.id);
+      if (!imgTags) return false;
+      for (const tagId of activeTagFilter) {
+        if (imgTags.has(tagId)) return true;
+      }
+      return false;
+    });
+  }, [images, activeTagFilter, imageTagsMap]);
+
+  const handleToggleTagFilter = useCallback((tagId: string) => {
+    setActiveTagFilter((prev) => {
+      const next = new Set(prev);
+      if (next.has(tagId)) next.delete(tagId);
+      else next.add(tagId);
+      return next;
+    });
+  }, []);
+
+  const handleClearTagFilter = useCallback(() => {
+    setActiveTagFilter(new Set());
+  }, []);
 
   const [deleteModalTarget, setDeleteModalTarget] = useState<{
     type: 'single' | 'batch';
@@ -358,8 +386,8 @@ export function ImageGallery({
   );
 
   const handleSelectAll = useCallback(() => {
-    setSelectedIds(new Set(images.map((img) => img.id)));
-  }, [images]);
+    setSelectedIds(new Set(filteredImages.map((img) => img.id)));
+  }, [filteredImages]);
 
   const handleClearSelection = useCallback(() => {
     setSelectedIds(new Set());
@@ -620,6 +648,13 @@ export function ImageGallery({
         </div>
       )}
 
+      <TagFilterBar
+        enabledTags={enabledTags}
+        activeTags={activeTagFilter}
+        onToggle={handleToggleTagFilter}
+        onClear={handleClearTagFilter}
+      />
+
       <div
         className={`grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4 ${
           isDragOver ? 'rounded-lg ring-2 ring-primary/40' : ''
@@ -647,7 +682,7 @@ export function ImageGallery({
           </div>
         ))}
 
-        {images.map((image, index) => {
+        {filteredImages.map((image, index) => {
           const isSelected = selectedIds.has(image.id);
           const tagCount = (imageTagsMap.get(image.id) || new Set()).size;
           const groupCount = image.group_count || 1;
