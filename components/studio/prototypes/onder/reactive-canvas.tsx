@@ -88,8 +88,6 @@ interface Particle {
   life: number       // 0-1, decreases over time
 }
 
-let orbIdCounter = 0
-
 // ─── Component ──────────────────────────────────────────────────────────────
 
 export default function ReactiveCanvas() {
@@ -97,6 +95,7 @@ export default function ReactiveCanvas() {
   const [currentChord, setCurrentChord] = useState<Chord>(CHORDS[0])
   const [trailLength, setTrailLength] = useState(85) // 0-100: higher = longer trails
   const [showControls, setShowControls] = useState(false)
+  const orbIdCounterRef = useRef(0)
 
   // Audio refs
   const padLayersRef = useRef<Tone.PolySynth[]>([])
@@ -157,7 +156,7 @@ export default function ReactiveCanvas() {
     const newOrbs: Orb[] = uniqueNotes.map(midi => {
       const noteOffset = (midi - 36) / 60 // normalize roughly 0-1
       return {
-        id: orbIdCounter++,
+        id: orbIdCounterRef.current++,
         midi,
         hue: hue + (midi % 12) * 3 - 18, // slight hue variation per note
         x: w * 0.2 + Math.random() * w * 0.6,
