@@ -55,6 +55,13 @@ const toolLabels: Record<string, string> = {
   get_research: 'Get Research Entry',
   list_research: 'List Research',
   search_research: 'Search Research',
+  list_image_series: 'List Image Series',
+  fetch_series_images: 'Fetch Series Images',
+  move_image: 'Move Image',
+  copy_image: 'Copy Image',
+  tag_image: 'Tag Image',
+  create_image_series: 'Create Image Series',
+  set_series_cover: 'Set Series Cover',
 };
 
 // Tools whose results contain linkable research entries

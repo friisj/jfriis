@@ -18,6 +18,7 @@ import { listLuvResearchServer } from '@/lib/luv-research-server';
 import { getLuvChangelogServer } from '@/lib/luv-changelog-server';
 import { getCurrentSoulConfigServer } from '@/lib/luv-soul-modulation-server';
 import { luvTools, createCurrentContextTool } from '@/lib/luv-tools';
+import { luvImageMgmtTools } from '@/lib/luv-image-mgmt-tools';
 import { createGenerateImageTool } from '@/lib/luv-image-gen-tools';
 import { getAnthropic } from '@/lib/ai/providers';
 import { analyzeImageWithGemini, buildGeneralVisionPrompt } from '@/lib/ai/gemini-vision';
@@ -217,6 +218,7 @@ export async function POST(request: Request) {
       messages: augmentedMessages,
       tools: {
         ...luvTools,
+        ...luvImageMgmtTools,
         generate_image: createGenerateImageTool(augmentedMessages),
         get_current_context: createCurrentContextTool(pageContext ?? null),
         web_search: getAnthropic().tools.webSearch_20250305({ maxUses: 3 }),
