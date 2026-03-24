@@ -1,8 +1,9 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
+import { createClient } from '@/lib/supabase-server';
 import { getSeriesByIdServer } from '@/lib/cog/server/series';
+import { getEnabledTagsForSeriesServer } from '@/lib/cog/server/tags';
 import { getSeriesImagesServer } from '@/lib/cog/server/images';
-import { getCogImageUrl } from '@/lib/cog/images';
 import { IconArrowLeft } from '@tabler/icons-react';
 import { SeriesImageGrid } from './series-image-grid';
 
@@ -13,6 +14,19 @@ interface Props {
 export default async function LuvSeriesPage({ params }: Props) {
   const { seriesId } = await params;
 
+  // Validate this series is linked to Luv via entity_links
+  const supabase = await createClient();
+  const { data: link } = await (supabase as any)
+    .from('entity_links')
+    .select('id')
+    .eq('source_type', 'luv')
+    .eq('target_type', 'cog_series')
+    .eq('target_id', seriesId)
+    .limit(1)
+    .maybeSingle();
+
+  if (!link) notFound();
+
   let series;
   try {
     series = await getSeriesByIdServer(seriesId);
@@ -20,12 +34,11 @@ export default async function LuvSeriesPage({ params }: Props) {
     notFound();
   }
 
-  // Validate this is a Luv series
-  if (!series.tags?.includes('luv')) {
-    notFound();
-  }
+  const [images, enabledTags] = await Promise.all([
+    getSeriesImagesServer(seriesId),
+    getEnabledTagsForSeriesServer(seriesId),
+  ]);
 
-  const images = await getSeriesImagesServer(seriesId);
   const displayTitle = series.title.replace(/^Luv — /, '');
 
   return (
@@ -49,6 +62,7 @@ export default async function LuvSeriesPage({ params }: Props) {
         seriesId={seriesId}
         initialImages={images}
         seriesTitle={displayTitle}
+        enabledTags={enabledTags}
       />
     </div>
   );

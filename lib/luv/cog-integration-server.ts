@@ -79,7 +79,9 @@ export async function getLuvSeriesServer(key: string): Promise<string> {
     seriesId = created.id;
   }
 
-  // Create entity_link for stable association
+  // Create entity_link for stable association.
+  // Duplicate inserts under concurrency are harmless — lookup always takes limit(1).
+  // entity_links has no unique constraint (generic many-to-many), so onConflict is not available.
   await (client as any)
     .from('entity_links')
     .insert({
@@ -90,7 +92,7 @@ export async function getLuvSeriesServer(key: string): Promise<string> {
       link_type: 'owns',
     })
     .select()
-    .maybeSingle(); // ignore conflict if already exists
+    .maybeSingle();
 
   seriesCache.set(resolvedKey, seriesId);
   return seriesId;

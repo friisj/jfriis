@@ -16,7 +16,7 @@ import { CogGridImage, CogTinyImage } from '@/components/cog/cog-image';
 import { StarRating } from './star-rating';
 import type { CogTagWithGroup, CogImageWithGroupInfo } from '@/lib/types/cog';
 import { IconTrash, IconAlertTriangle, IconStarFilled } from '@tabler/icons-react';
-import { TagFilterBar } from './tag-filter-bar';
+import { TagFilterBar } from '@/components/cog/tag-filter-bar';
 
 export interface UploadingFile {
   id: string;
@@ -613,7 +613,7 @@ export function ImageGallery({
           <div className="flex items-center gap-3">
             <span className="font-medium">{selectedIds.size} selected</span>
             <button className="text-muted-foreground hover:text-foreground" onClick={handleSelectAll}>
-              Select all ({images.length})
+              Select all ({filteredImages.length})
             </button>
             <button className="text-muted-foreground hover:text-foreground" onClick={handleClearSelection}>
               Clear
