@@ -11,14 +11,7 @@ interface Props {
 export default async function LuvImageDetailPage({ params }: Props) {
   const { seriesId, imageId } = await params;
 
-  let series;
-  try {
-    series = await getSeriesByIdServer(seriesId);
-  } catch {
-    notFound();
-  }
-
-  // Validate this is a Luv-linked series
+  // Validate this is a Luv-linked series (cheapest check first)
   const supabase = await createClient();
   const { data: link } = await (supabase as any)
     .from('entity_links')
@@ -29,6 +22,13 @@ export default async function LuvImageDetailPage({ params }: Props) {
     .limit(1)
     .maybeSingle();
   if (!link) notFound();
+
+  let series;
+  try {
+    series = await getSeriesByIdServer(seriesId);
+  } catch {
+    notFound();
+  }
 
   let image;
   try {
