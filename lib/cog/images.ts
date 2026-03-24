@@ -227,6 +227,76 @@ export async function setImageStarRating(imageId: string, rating: number): Promi
   if (error) throw error;
 }
 
+// ============================================================================
+// Image Move / Copy (Client)
+// ============================================================================
+
+/**
+ * Move an image to a different series.
+ * Clears group_id so the image starts fresh in the new series context.
+ */
+export async function moveImageToSeries(imageId: string, targetSeriesId: string): Promise<CogImage> {
+  const { data, error } = await (supabase as any)
+    .from('cog_images')
+    .update({ series_id: targetSeriesId, group_id: imageId })
+    .eq('id', imageId)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data as CogImage;
+}
+
+/**
+ * Copy an image to a different series.
+ * Downloads the storage file and re-uploads to a new path.
+ * The new record has parent_image_id pointing to the original.
+ */
+export async function copyImageToSeries(
+  imageId: string,
+  targetSeriesId: string,
+  metadata?: Record<string, unknown>,
+): Promise<CogImage> {
+  // Fetch original
+  const original = await getImageById(imageId);
+
+  // Download from storage
+  const { data: fileData, error: dlError } = await supabase.storage
+    .from('cog-images')
+    .download(original.storage_path);
+
+  if (dlError || !fileData) throw new Error(`Download failed: ${dlError?.message}`);
+
+  // Upload to new path
+  const ext = original.storage_path.split('.').pop() ?? 'png';
+  const dir = original.storage_path.substring(0, original.storage_path.lastIndexOf('/'));
+  const newPath = `${dir}/copy-${crypto.randomUUID()}.${ext}`;
+
+  const { error: ulError } = await supabase.storage
+    .from('cog-images')
+    .upload(newPath, fileData, {
+      contentType: original.mime_type || 'image/png',
+      upsert: false,
+    });
+
+  if (ulError) throw new Error(`Upload failed: ${ulError.message}`);
+
+  // Create new record
+  return createImage({
+    series_id: targetSeriesId,
+    parent_image_id: imageId,
+    storage_path: newPath,
+    filename: original.filename,
+    mime_type: original.mime_type,
+    width: original.width,
+    height: original.height,
+    file_size: original.file_size,
+    source: original.source,
+    prompt: original.prompt,
+    metadata: { ...((original.metadata as Record<string, unknown>) ?? {}), ...(metadata ?? {}) },
+  });
+}
+
 /**
  * Get a single image by ID - client-side
  */
