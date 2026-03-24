@@ -233,11 +233,28 @@ export const createImageSeries = tool({
     })
   ),
   execute: async ({ name, description }) => {
+    const client = await createClient();
+    const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+
     const series = await createSeriesServer({
       title: `Luv — ${name}`,
       description: description ?? null,
       tags: ['luv'],
     });
+
+    // Create entity_link so the series appears in Luv media views
+    await (client as any)
+      .from('entity_links')
+      .insert({
+        source_type: 'luv',
+        source_id: slug,
+        target_type: 'cog_series',
+        target_id: series.id,
+        link_type: 'owns',
+      })
+      .select()
+      .maybeSingle();
+
     return { success: true, seriesId: series.id, title: series.title };
   },
 });
