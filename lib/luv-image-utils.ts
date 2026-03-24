@@ -5,9 +5,16 @@
  * or public URLs, used by vision tools.
  */
 
-const LUV_MEDIA_BUCKET = 'luv-images';
-
 export type MediaType = 'image/png' | 'image/jpeg' | 'image/webp' | 'image/gif';
+
+/**
+ * Determine which storage bucket a Luv image lives in.
+ * New images use `cog-images` bucket with `luv/` prefix.
+ * Old images remain in `luv-images` bucket.
+ */
+export function resolveStorageBucket(storagePath: string): string {
+  return storagePath.startsWith('luv/') ? 'cog-images' : 'luv-images';
+}
 
 function inferMediaType(path: string): MediaType {
   const ext = path.split('.').pop()?.toLowerCase();
@@ -27,7 +34,6 @@ function inferMediaType(path: string): MediaType {
 export async function resolveImageAsBase64(
   storagePath: string
 ): Promise<{ base64: string; mediaType: MediaType }> {
-  // Fetch directly from public URL — avoids auth/RLS issues in streaming contexts
   const url = resolveImagePublicUrl(storagePath);
   const res = await fetch(url);
 
@@ -43,7 +49,7 @@ export async function resolveImageAsBase64(
 }
 
 export function resolveImagePublicUrl(storagePath: string): string {
-  // Use env var directly since we don't need auth for public URLs
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  return `${supabaseUrl}/storage/v1/object/public/${LUV_MEDIA_BUCKET}/${storagePath}`;
+  const bucket = resolveStorageBucket(storagePath);
+  return `${supabaseUrl}/storage/v1/object/public/${bucket}/${storagePath}`;
 }

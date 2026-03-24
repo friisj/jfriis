@@ -57,7 +57,8 @@ type AspectRatio = '1:1' | '16:9' | '9:16' | '3:2' | '2:3' | '4:5' | '5:4' | '3:
 // ---------------------------------------------------------------------------
 
 function getPublicUrl(storagePath: string) {
-  const { data } = supabase.storage.from('luv-images').getPublicUrl(storagePath);
+  const bucket = storagePath.startsWith('luv/') ? 'cog-images' : 'luv-images';
+  const { data } = supabase.storage.from(bucket).getPublicUrl(storagePath);
   return data.publicUrl;
 }
 

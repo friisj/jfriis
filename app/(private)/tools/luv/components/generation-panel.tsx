@@ -22,8 +22,9 @@ export function GenerationPanel({
   const [selectedPreset, setSelectedPreset] = useState('');
 
   const getPublicUrl = (storagePath: string) => {
+    const bucket = storagePath.startsWith('luv/') ? 'cog-images' : 'luv-images';
     const { data } = supabase.storage
-      .from('luv-images')
+      .from(bucket)
       .getPublicUrl(storagePath);
     return data.publicUrl;
   };

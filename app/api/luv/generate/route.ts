@@ -3,8 +3,9 @@ import { createClient } from '@supabase/supabase-js';
 import { randomUUID } from 'crypto';
 import { requireAuth } from '@/lib/ai/auth';
 import { generateWithFlux, type FluxModel, type FluxAspectRatio } from '@/lib/ai/replicate-flux';
+import { createLuvCogImageServer } from '@/lib/luv/cog-integration-server';
 
-const LUV_MEDIA_BUCKET = 'luv-images';
+const COG_IMAGES_BUCKET = 'cog-images';
 
 function serviceClient() {
   return createClient(
@@ -85,10 +86,9 @@ export async function POST(request: Request) {
         seed: imageSeed,
       });
 
-      // Upload to Supabase storage
-      const storagePath = `playground/${randomUUID()}.png`;
+      const storagePath = `luv/playground/${randomUUID()}.png`;
       const { error: uploadError } = await client.storage
-        .from(LUV_MEDIA_BUCKET)
+        .from(COG_IMAGES_BUCKET)
         .upload(storagePath, result.buffer, {
           contentType: 'image/png',
           upsert: false,
@@ -108,7 +108,18 @@ export async function POST(request: Request) {
         aspectRatio,
       };
 
-      // Persist to luv_generation_results
+      // Write to cog_images (non-fatal)
+      await createLuvCogImageServer({
+        seriesKey: 'generations',
+        storagePath,
+        filename: `playground-${randomUUID()}.png`,
+        mimeType: 'image/png',
+        source: 'generated',
+        prompt: prompt.trim(),
+        metadata: { model: result.model, seed: result.seed, aspectRatio },
+      }).catch((err) => console.error('[luv/generate] cog_images insert failed:', err));
+
+      // Legacy: persist to luv_generation_results
       const { data: row, error: dbError } = await client
         .from('luv_generation_results')
         .insert({
@@ -129,7 +140,7 @@ export async function POST(request: Request) {
       }
 
       const { data: urlData } = client.storage
-        .from(LUV_MEDIA_BUCKET)
+        .from(COG_IMAGES_BUCKET)
         .getPublicUrl(storagePath);
 
       results.push({

@@ -7,8 +7,9 @@
 
 import { createClient } from '@supabase/supabase-js';
 import { randomUUID } from 'crypto';
+import { createLuvCogImageServer } from './luv/cog-integration-server';
 
-const LUV_MEDIA_BUCKET = 'luv-images';
+const COG_IMAGES_BUCKET = 'cog-images';
 
 type ImageSize = '1K' | '2K' | '4K';
 type AspectRatio = '1:1' | '2:3' | '3:2' | '3:4' | '4:3' | '4:5' | '5:4' | '9:16' | '16:9';
@@ -174,13 +175,13 @@ export async function generateLuvImage(options: LuvImageGenOptions): Promise<Luv
   const { data: base64Data, mimeType } = imagePart.inlineData;
   const ext = mimeType === 'image/png' ? 'png' : 'jpg';
 
-  // Upload to Supabase storage
-  const storagePath = `generations/${Date.now()}-${randomUUID()}.${ext}`;
+  // Upload to cog-images bucket
+  const storagePath = `luv/generations/${Date.now()}-${randomUUID()}.${ext}`;
   const buffer = Buffer.from(base64Data, 'base64');
   const client = serviceClient();
 
   const { error: uploadError } = await client.storage
-    .from(LUV_MEDIA_BUCKET)
+    .from(COG_IMAGES_BUCKET)
     .upload(storagePath, buffer, {
       contentType: mimeType,
       upsert: false,
@@ -190,9 +191,26 @@ export async function generateLuvImage(options: LuvImageGenOptions): Promise<Luv
     throw new Error(`Storage upload failed: ${uploadError.message}`);
   }
 
-  const publicUrl = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/${LUV_MEDIA_BUCKET}/${storagePath}`;
+  const publicUrl = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/${COG_IMAGES_BUCKET}/${storagePath}`;
 
-  // Record in luv_generation_results (non-fatal — image is already in storage)
+  // Record in cog_images (non-fatal)
+  await createLuvCogImageServer({
+    seriesKey: 'generations',
+    storagePath,
+    filename: `generation-${Date.now()}.${ext}`,
+    mimeType,
+    source: 'generated',
+    prompt: finalPrompt,
+    metadata: {
+      model: modelId,
+      aspectRatio,
+      imageSize,
+      durationMs,
+      referenceImageCount: referenceImages.length,
+    },
+  }).catch((err) => console.error('[luv-image-gen] cog_images insert failed:', err));
+
+  // Legacy: also record in luv_generation_results (read paths still depend on this)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { error: dbError } = await (client as any)
     .from('luv_generation_results')
@@ -213,7 +231,7 @@ export async function generateLuvImage(options: LuvImageGenOptions): Promise<Luv
     });
 
   if (dbError) {
-    console.error('[luv-image-gen] DB insert failed:', dbError);
+    console.error('[luv-image-gen] legacy DB insert failed:', dbError);
   }
 
   console.log('[luv-image-gen] Complete:', { storagePath, durationMs, model: modelId });
@@ -242,8 +260,9 @@ export async function listLuvGenerations(limit = 10) {
 
   if (error) throw new Error(`Failed to list generations: ${error.message}`);
 
+  const { resolveImagePublicUrl } = await import('./luv-image-utils');
   return (data ?? []).map((row: Record<string, unknown>) => ({
     ...row,
-    publicUrl: `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/${LUV_MEDIA_BUCKET}/${row.storage_path}`,
+    publicUrl: resolveImagePublicUrl(row.storage_path as string),
   }));
 }
