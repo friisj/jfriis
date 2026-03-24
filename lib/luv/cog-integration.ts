@@ -1,39 +1,52 @@
 /**
- * Luv ↔ Cog Image Service Integration
+ * Luv ↔ Cog Image Service Integration (Client-side)
  *
- * Provides series provisioning and image helpers for Luv to use Cog's
- * image infrastructure. Series are lazily created on first use and
- * cached for the session.
+ * Series association uses entity_links (not title/tag matching):
+ *   entity_links: source_type='luv', source_id=key, target_type='cog_series'
  *
  * Series taxonomy:
- *   - "Luv — References"         canonical/variation/training reference images
- *   - "Luv — Generations"        images generated via chat agent tool
- *   - "Luv — Module: {name}"     per-chassis-module reference media
- *   - "Luv — Scene: {name}"      per-stage-scene generations (future)
+ *   - "chassis"      → one series for all chassis module media
+ *   - "generations"   → images generated via chat agent
+ *   - "references"    → canonical reference images
  */
 
 import { supabase } from '../supabase';
-import type { CogSeries, CogImage } from '../types/cog';
+import type { CogImage } from '../types/cog';
 import { createSeries } from '../cog/series';
 import { createImage, getCogImageUrl } from '../cog/images';
+import { addTagToImage } from '../cog/tags';
 import { generateThumbnails } from '../cog/thumbnails';
-import type { CogImageInsert } from '../types/cog';
 
-// In-memory cache of resolved series IDs (per browser session)
 const seriesCache = new Map<string, string>();
 
 /**
- * Get or create a Luv series by its canonical key.
- * Keys follow the pattern: "references", "generations", "module:{slug}", "scene:{slug}"
+ * Resolve a Luv series key to its cog_series ID via entity_links.
+ * Module keys (module:face) all resolve to the 'chassis' series.
  */
 export async function getLuvSeries(key: string): Promise<string> {
-  const cached = seriesCache.get(key);
+  const resolvedKey = key.startsWith('module:') ? 'chassis' : key;
+
+  const cached = seriesCache.get(resolvedKey);
   if (cached) return cached;
 
-  const title = luvSeriesTitle(key);
+  // Look up via entity_links
+  const { data: link } = await (supabase as any)
+    .from('entity_links')
+    .select('target_id')
+    .eq('source_type', 'luv')
+    .eq('source_id', resolvedKey)
+    .eq('target_type', 'cog_series')
+    .limit(1)
+    .maybeSingle();
 
-  // Look for existing series by title + luv tag
-  const { data: existing } = await (supabase as any)
+  if (link) {
+    seriesCache.set(resolvedKey, link.target_id);
+    return link.target_id;
+  }
+
+  // Fallback: check for legacy title-based series
+  const title = luvSeriesTitle(resolvedKey);
+  const { data: legacy } = await (supabase as any)
     .from('cog_series')
     .select('id')
     .eq('title', title)
@@ -41,25 +54,39 @@ export async function getLuvSeries(key: string): Promise<string> {
     .limit(1)
     .maybeSingle();
 
-  if (existing) {
-    seriesCache.set(key, existing.id);
-    return existing.id;
+  let seriesId: string;
+
+  if (legacy) {
+    seriesId = legacy.id;
+  } else {
+    const series = await createSeries({
+      title,
+      description: luvSeriesDescription(resolvedKey),
+      tags: ['luv', resolvedKey],
+    });
+    seriesId = series.id;
   }
 
-  // Create new series
-  const series = await createSeries({
-    title,
-    description: luvSeriesDescription(key),
-    tags: ['luv', ...luvSeriesTags(key)],
-  });
+  // Create entity_link
+  await (supabase as any)
+    .from('entity_links')
+    .insert({
+      source_type: 'luv',
+      source_id: resolvedKey,
+      target_type: 'cog_series',
+      target_id: seriesId,
+      link_type: 'owns',
+    })
+    .select()
+    .maybeSingle();
 
-  seriesCache.set(key, series.id);
-  return series.id;
+  seriesCache.set(resolvedKey, seriesId);
+  return seriesId;
 }
 
 /**
  * Create a Luv image in the appropriate Cog series.
- * Handles storage upload and cog_images record creation.
+ * If moduleSlug is provided, auto-tags with the module tag.
  */
 export async function createLuvCogImage(opts: {
   seriesKey: string;
@@ -69,10 +96,10 @@ export async function createLuvCogImage(opts: {
   source: 'upload' | 'generated';
   prompt?: string;
   metadata?: Record<string, unknown>;
+  moduleSlug?: string;
 }): Promise<CogImage> {
   const seriesId = await getLuvSeries(opts.seriesKey);
 
-  // Upload to cog-images bucket (shared with Cog)
   const { error: uploadError } = await supabase.storage
     .from('cog-images')
     .upload(opts.storagePath, opts.file, {
@@ -82,7 +109,6 @@ export async function createLuvCogImage(opts: {
 
   if (uploadError) throw uploadError;
 
-  // Create cog_images record
   const image = await createImage({
     series_id: seriesId,
     storage_path: opts.storagePath,
@@ -93,7 +119,11 @@ export async function createLuvCogImage(opts: {
     metadata: opts.metadata ?? {},
   });
 
-  // Generate thumbnails in background (non-blocking)
+  // Auto-tag with module tag if applicable
+  if (opts.moduleSlug) {
+    await resolveAndTagModule(image.id, opts.moduleSlug);
+  }
+
   generateThumbnails(image.id, image.storage_path).catch((err) =>
     console.error('[luv-cog] Thumbnail generation failed:', err)
   );
@@ -108,32 +138,58 @@ export function getLuvImageUrl(storagePath: string): string {
   return getCogImageUrl(storagePath);
 }
 
+/**
+ * Get all Luv series IDs via entity_links.
+ */
+export async function getAllLuvSeriesIds(): Promise<Array<{ key: string; seriesId: string }>> {
+  const { data } = await (supabase as any)
+    .from('entity_links')
+    .select('source_id, target_id')
+    .eq('source_type', 'luv')
+    .eq('target_type', 'cog_series');
+
+  return (data ?? []).map((row: { source_id: string; target_id: string }) => ({
+    key: row.source_id,
+    seriesId: row.target_id,
+  }));
+}
+
 // ---------------------------------------------------------------------------
 // Internal helpers
 // ---------------------------------------------------------------------------
 
+async function resolveAndTagModule(imageId: string, moduleSlug: string) {
+  try {
+    const { data: tag } = await (supabase as any)
+      .from('cog_tags')
+      .select('id')
+      .eq('name', moduleSlug)
+      .is('series_id', null)
+      .limit(1)
+      .maybeSingle();
+
+    if (tag) {
+      await addTagToImage(imageId, tag.id);
+    }
+  } catch (err) {
+    console.error('[luv-cog] Auto-tag failed:', err);
+  }
+}
+
 function luvSeriesTitle(key: string): string {
+  if (key === 'chassis') return 'Luv — Chassis';
   if (key === 'references') return 'Luv — References';
   if (key === 'generations') return 'Luv — Generations';
-  if (key.startsWith('module:')) return `Luv — Module: ${key.slice(7)}`;
   if (key.startsWith('scene:')) return `Luv — Scene: ${key.slice(6)}`;
   return `Luv — ${key}`;
 }
 
 function luvSeriesDescription(key: string): string {
+  if (key === 'chassis') return 'Reference media for all chassis modules';
   if (key === 'references') return 'Canonical and reference images for Luv character consistency';
   if (key === 'generations') return 'Images generated by Luv agent during chat conversations';
-  if (key.startsWith('module:')) return `Reference media for chassis module: ${key.slice(7)}`;
   if (key.startsWith('scene:')) return `Generated images for stage scene: ${key.slice(6)}`;
   return '';
-}
-
-function luvSeriesTags(key: string): string[] {
-  if (key === 'references') return ['references'];
-  if (key === 'generations') return ['generations'];
-  if (key.startsWith('module:')) return ['chassis', 'module', key.slice(7)];
-  if (key.startsWith('scene:')) return ['stage', 'scene', key.slice(6)];
-  return [];
 }
 
 function inferMimeType(filename: string): string {

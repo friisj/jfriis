@@ -1,28 +1,57 @@
 /**
  * Luv ↔ Cog Image Service Integration (Server-side)
  *
- * Server-side variant of cog-integration.ts using the service role client.
- * Used by generateLuvImage() and API routes that run in server context.
+ * Series association uses entity_links (not title/tag matching):
+ *   entity_links: source_type='luv', source_id=key, target_type='cog_series'
+ *
+ * Series taxonomy:
+ *   - "chassis"      → one series for all chassis module media (tags distinguish modules)
+ *   - "generations"   → images generated via chat agent
+ *   - "references"    → canonical reference images
+ *   - "reviews"       → reinforcement review uploads
  */
 
 import { createClient } from '../supabase-server';
 import { createImageServer } from '../cog/server/images';
+import { addTagToImageServer } from '../cog/server/tags';
 import { generateThumbnails } from '../cog/thumbnails';
-import type { CogImage, CogImageInsert } from '../types/cog';
+import type { CogImage } from '../types/cog';
 
 const seriesCache = new Map<string, string>();
 
 /**
- * Get or create a Luv series by its canonical key (server-side).
+ * Resolve a Luv series key to its cog_series ID via entity_links.
+ * Creates the series and link if they don't exist.
+ *
+ * Module keys (module:face, module:hair) all resolve to the 'chassis' series.
  */
 export async function getLuvSeriesServer(key: string): Promise<string> {
-  const cached = seriesCache.get(key);
+  // Module keys all map to the chassis series
+  const resolvedKey = key.startsWith('module:') ? 'chassis' : key;
+
+  const cached = seriesCache.get(resolvedKey);
   if (cached) return cached;
 
-  const title = luvSeriesTitle(key);
   const client = await createClient();
 
-  const { data: existing } = await (client as any)
+  // Look up via entity_links
+  const { data: link } = await (client as any)
+    .from('entity_links')
+    .select('target_id')
+    .eq('source_type', 'luv')
+    .eq('source_id', resolvedKey)
+    .eq('target_type', 'cog_series')
+    .limit(1)
+    .maybeSingle();
+
+  if (link) {
+    seriesCache.set(resolvedKey, link.target_id);
+    return link.target_id;
+  }
+
+  // Fallback: check for legacy title-based series and adopt it
+  const title = luvSeriesTitle(resolvedKey);
+  const { data: legacy } = await (client as any)
     .from('cog_series')
     .select('id')
     .eq('title', title)
@@ -30,29 +59,105 @@ export async function getLuvSeriesServer(key: string): Promise<string> {
     .limit(1)
     .maybeSingle();
 
-  if (existing) {
-    seriesCache.set(key, existing.id);
-    return existing.id;
+  let seriesId: string;
+
+  if (legacy) {
+    seriesId = legacy.id;
+  } else {
+    // Create new series
+    const { data: created, error } = await (client as any)
+      .from('cog_series')
+      .insert({
+        title,
+        description: luvSeriesDescription(resolvedKey),
+        tags: ['luv', resolvedKey],
+      })
+      .select()
+      .single();
+
+    if (error) throw error;
+    seriesId = created.id;
   }
 
-  const { data: created, error } = await (client as any)
-    .from('cog_series')
+  // Create entity_link for stable association
+  await (client as any)
+    .from('entity_links')
     .insert({
-      title,
-      description: luvSeriesDescription(key),
-      tags: ['luv', ...luvSeriesTags(key)],
+      source_type: 'luv',
+      source_id: resolvedKey,
+      target_type: 'cog_series',
+      target_id: seriesId,
+      link_type: 'owns',
     })
+    .select()
+    .maybeSingle(); // ignore conflict if already exists
+
+  seriesCache.set(resolvedKey, seriesId);
+  return seriesId;
+}
+
+/**
+ * Resolve a chassis module slug to its tag ID.
+ * Auto-provisions the tag and tag group if needed.
+ */
+export async function getModuleTagIdServer(moduleSlug: string): Promise<string> {
+  const client = await createClient();
+
+  // Check for existing tag
+  const { data: existing } = await (client as any)
+    .from('cog_tags')
+    .select('id')
+    .eq('name', moduleSlug)
+    .is('series_id', null) // global tag
+    .limit(1)
+    .maybeSingle();
+
+  if (existing) return existing.id;
+
+  // Ensure "Chassis Module" tag group exists
+  let groupId: string;
+  const { data: group } = await (client as any)
+    .from('cog_tag_groups')
+    .select('id')
+    .eq('name', 'Chassis Module')
+    .limit(1)
+    .maybeSingle();
+
+  if (group) {
+    groupId = group.id;
+  } else {
+    const { data: newGroup, error: groupError } = await (client as any)
+      .from('cog_tag_groups')
+      .insert({ name: 'Chassis Module', position: 0 })
+      .select()
+      .single();
+    if (groupError) throw groupError;
+    groupId = newGroup.id;
+  }
+
+  // Create the tag
+  const { data: tag, error: tagError } = await (client as any)
+    .from('cog_tags')
+    .insert({ name: moduleSlug, group_id: groupId, position: 0 })
     .select()
     .single();
 
-  if (error) throw error;
+  if (tagError) throw tagError;
 
-  seriesCache.set(key, created.id);
-  return created.id;
+  // Enable tag for the chassis series
+  const chassisSeriesId = await getLuvSeriesServer('chassis');
+  await (client as any)
+    .from('cog_series_tags')
+    .insert({ series_id: chassisSeriesId, tag_id: tag.id, position: 0 })
+    .select()
+    .maybeSingle(); // ignore conflict
+
+  return tag.id;
 }
 
 /**
  * Create a Luv image record in cog_images (server-side).
+ * If moduleSlug is provided, auto-tags the image with the module tag.
  */
 export async function createLuvCogImageServer(opts: {
   seriesKey: string;
@@ -62,6 +167,7 @@ export async function createLuvCogImageServer(opts: {
   source: 'upload' | 'generated';
   prompt?: string;
   metadata?: Record<string, unknown>;
+  moduleSlug?: string;
 }): Promise<CogImage> {
   const seriesId = await getLuvSeriesServer(opts.seriesKey);
 
@@ -75,7 +181,15 @@ export async function createLuvCogImageServer(opts: {
     metadata: opts.metadata ?? {},
   });
 
-  // Generate thumbnails in background (non-blocking)
+  // Auto-tag with module tag if applicable
+  if (opts.moduleSlug) {
+    const tagId = await getModuleTagIdServer(opts.moduleSlug);
+    await addTagToImageServer(image.id, tagId).catch((err) =>
+      console.error('[luv-cog-server] Auto-tag failed:', err)
+    );
+  }
+
+  // Generate thumbnails in background
   generateThumbnails(image.id, image.storage_path).catch((err) =>
     console.error('[luv-cog-server] Thumbnail generation failed:', err)
   );
@@ -84,32 +198,23 @@ export async function createLuvCogImageServer(opts: {
 }
 
 // ---------------------------------------------------------------------------
-// Series taxonomy (shared with client version)
+// Series taxonomy
 // ---------------------------------------------------------------------------
 
 function luvSeriesTitle(key: string): string {
+  if (key === 'chassis') return 'Luv — Chassis';
   if (key === 'references') return 'Luv — References';
   if (key === 'generations') return 'Luv — Generations';
   if (key === 'reviews') return 'Luv — Reviews';
-  if (key.startsWith('module:')) return `Luv — Module: ${key.slice(7)}`;
   if (key.startsWith('scene:')) return `Luv — Scene: ${key.slice(6)}`;
   return `Luv — ${key}`;
 }
 
 function luvSeriesDescription(key: string): string {
+  if (key === 'chassis') return 'Reference media for all chassis modules';
   if (key === 'references') return 'Canonical and reference images for Luv character consistency';
   if (key === 'generations') return 'Images generated by Luv agent during chat conversations';
   if (key === 'reviews') return 'Images uploaded for reinforcement review sessions';
-  if (key.startsWith('module:')) return `Reference media for chassis module: ${key.slice(7)}`;
   if (key.startsWith('scene:')) return `Generated images for stage scene: ${key.slice(6)}`;
   return '';
-}
-
-function luvSeriesTags(key: string): string[] {
-  if (key === 'references') return ['references'];
-  if (key === 'generations') return ['generations'];
-  if (key === 'reviews') return ['reviews'];
-  if (key.startsWith('module:')) return ['chassis', 'module', key.slice(7)];
-  if (key.startsWith('scene:')) return ['stage', 'scene', key.slice(6)];
-  return [];
 }

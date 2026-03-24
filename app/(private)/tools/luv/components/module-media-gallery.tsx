@@ -88,6 +88,7 @@ export function ModuleMediaGallery({
             luv_module_id: moduleId,
             luv_parameter_key: f.parameterKey,
           },
+          moduleSlug,
         });
 
         setMedia((prev) => [image, ...prev]);
