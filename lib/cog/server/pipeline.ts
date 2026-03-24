@@ -7,9 +7,11 @@ import type {
   CogPipelineJobWithSteps,
   CogPipelineBaseCandidate,
 } from '../../types/cog';
-import { getPhotographerConfigByIdServer } from './configs';
-import { getDirectorConfigByIdServer } from './configs';
-import { getProductionConfigByIdServer } from './configs';
+import {
+  getPhotographerConfigByIdServer,
+  getDirectorConfigByIdServer,
+  getProductionConfigByIdServer,
+} from './configs';
 
 /**
  * Get pipeline steps for a job - server-side
