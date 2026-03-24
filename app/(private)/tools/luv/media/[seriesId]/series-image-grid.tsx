@@ -27,22 +27,34 @@ export function SeriesImageGrid({ seriesId, initialImages, seriesTitle, enabledT
   // Tag filter state
   const [activeTagFilter, setActiveTagFilter] = useState<Set<string>>(new Set());
   const [imageTagsMap, setImageTagsMap] = useState<Map<string, Set<string>>>(new Map());
+  const [tagsLoaded, setTagsLoaded] = useState(false);
 
   // Load image tags when enabled tags exist
   useEffect(() => {
-    if (!enabledTags.length || !images.length) return;
+    if (!enabledTags.length || !images.length) {
+      setTagsLoaded(true);
+      return;
+    }
+    setTagsLoaded(false);
     (async () => {
-      const tags = await getImageTagsBatch(images.map((img) => img.id));
-      const map = new Map<string, Set<string>>();
-      for (const [imageId, tagList] of tags) {
-        map.set(imageId, new Set(tagList.map((t) => t.id)));
+      try {
+        const tags = await getImageTagsBatch(images.map((img) => img.id));
+        const map = new Map<string, Set<string>>();
+        for (const [imageId, tagList] of tags) {
+          map.set(imageId, new Set(tagList.map((t) => t.id)));
+        }
+        setImageTagsMap(map);
+      } catch (err) {
+        console.error('[series-image-grid] Tag load failed:', err);
+      } finally {
+        setTagsLoaded(true);
       }
-      setImageTagsMap(map);
     })();
   }, [enabledTags.length, images]);
 
   const filteredImages = useMemo(() => {
-    if (activeTagFilter.size === 0) return images;
+    // Don't filter until tags are loaded — show all images while loading
+    if (activeTagFilter.size === 0 || !tagsLoaded) return images;
     return images.filter((img) => {
       const imgTags = imageTagsMap.get(img.id);
       if (!imgTags) return false;
@@ -51,7 +63,7 @@ export function SeriesImageGrid({ seriesId, initialImages, seriesTitle, enabledT
       }
       return false;
     });
-  }, [images, activeTagFilter, imageTagsMap]);
+  }, [images, activeTagFilter, imageTagsMap, tagsLoaded]);
 
   const handleUpload = useCallback(async (files: FileList | File[]) => {
     const imageFiles = Array.from(files).filter((f) => f.type.startsWith('image/'));
