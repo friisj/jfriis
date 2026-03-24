@@ -8,7 +8,7 @@ import { getImageTagsBatch } from '@/lib/cog/tags';
 import { supabase } from '@/lib/supabase';
 import { createImage } from '@/lib/cog/images';
 import { IconPhotoPlus, IconX } from '@tabler/icons-react';
-import { TagFilterBar } from '@/app/(private)/tools/cog/[id]/tag-filter-bar';
+import { TagFilterBar } from '@/components/cog/tag-filter-bar';
 import type { CogImage, CogTagWithGroup } from '@/lib/types/cog';
 import { useEffect } from 'react';
 

@@ -16,7 +16,7 @@ import { CogGridImage, CogTinyImage } from '@/components/cog/cog-image';
 import { StarRating } from './star-rating';
 import type { CogTagWithGroup, CogImageWithGroupInfo } from '@/lib/types/cog';
 import { IconTrash, IconAlertTriangle, IconStarFilled } from '@tabler/icons-react';
-import { TagFilterBar } from './tag-filter-bar';
+import { TagFilterBar } from '@/components/cog/tag-filter-bar';
 
 export interface UploadingFile {
   id: string;
