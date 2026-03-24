@@ -67,7 +67,8 @@ export async function getLuvSeries(key: string): Promise<string> {
     seriesId = series.id;
   }
 
-  // Create entity_link
+  // Create entity_link for stable association.
+  // Duplicate inserts under concurrency are harmless — lookup always takes limit(1).
   await (supabase as any)
     .from('entity_links')
     .insert({
