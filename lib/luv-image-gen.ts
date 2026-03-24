@@ -39,6 +39,8 @@ export interface LuvImageGenResult {
   prompt: string;
   model: string;
   durationMs: number;
+  cogImageId: string | null;
+  cogSeriesId: string | null;
 }
 
 function serviceClient() {
@@ -193,22 +195,30 @@ export async function generateLuvImage(options: LuvImageGenOptions): Promise<Luv
 
   const publicUrl = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/${COG_IMAGES_BUCKET}/${storagePath}`;
 
-  // Record in cog_images (non-fatal)
-  await createLuvCogImageServer({
-    seriesKey: 'generations',
-    storagePath,
-    filename: `generation-${Date.now()}.${ext}`,
-    mimeType,
-    source: 'generated',
-    prompt: finalPrompt,
-    metadata: {
-      model: modelId,
-      aspectRatio,
-      imageSize,
-      durationMs,
-      referenceImageCount: referenceImages.length,
-    },
-  }).catch((err) => console.error('[luv-image-gen] cog_images insert failed:', err));
+  // Record in cog_images — await to capture IDs for tap-to-view
+  let cogImageId: string | null = null;
+  let cogSeriesId: string | null = null;
+  try {
+    const cogImage = await createLuvCogImageServer({
+      seriesKey: 'generations',
+      storagePath,
+      filename: `generation-${Date.now()}.${ext}`,
+      mimeType,
+      source: 'generated',
+      prompt: finalPrompt,
+      metadata: {
+        model: modelId,
+        aspectRatio,
+        imageSize,
+        durationMs,
+        referenceImageCount: referenceImages.length,
+      },
+    });
+    cogImageId = cogImage.id;
+    cogSeriesId = cogImage.series_id;
+  } catch (err) {
+    console.error('[luv-image-gen] cog_images insert failed:', err);
+  }
 
   // Legacy: also record in luv_generation_results (read paths still depend on this)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -244,6 +254,8 @@ export async function generateLuvImage(options: LuvImageGenOptions): Promise<Luv
     prompt: finalPrompt,
     model: modelId,
     durationMs,
+    cogImageId,
+    cogSeriesId,
   };
 }
 

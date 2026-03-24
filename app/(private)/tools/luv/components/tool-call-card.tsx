@@ -4,6 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { IconChevronRight, IconExternalLink } from '@tabler/icons-react';
 import { cn } from '@/lib/utils';
+import { ImageLightbox } from './shared/image-lightbox';
 
 interface ToolCallCardProps {
   toolName: string;
@@ -15,6 +16,8 @@ interface ImageGenResult {
   type: 'image_generation_result';
   success: boolean;
   imageUrl?: string;
+  cogImageId?: string;
+  cogSeriesId?: string;
   prompt?: string;
   model?: string;
   aspectRatio?: string;
@@ -135,6 +138,7 @@ function EntryLink({ entry }: { entry: ResearchEntry }) {
 export function ToolCallCard({ toolName, state, result }: ToolCallCardProps) {
   const [expanded, setExpanded] = useState(false);
   const [userCollapsed, setUserCollapsed] = useState(false);
+  const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
   const label = toolLabels[toolName] ?? toolName;
   const isComplete = state === 'output-available';
   const linkableEntries = isComplete ? extractLinkableEntries(toolName, result) : [];
@@ -195,12 +199,25 @@ export function ToolCallCard({ toolName, state, result }: ToolCallCardProps) {
         <div className="border-t">
           {imageResult.success && imageResult.imageUrl ? (
             <div className="p-2 space-y-1.5">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={imageResult.imageUrl}
-                alt={imageResult.prompt ?? 'Generated image'}
-                className="rounded max-w-full max-h-96 object-contain"
-              />
+              {imageResult.cogImageId && imageResult.cogSeriesId ? (
+                <Link href={`/tools/luv/media/${imageResult.cogSeriesId}/${imageResult.cogImageId}`}>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={imageResult.imageUrl}
+                    alt={imageResult.prompt ?? 'Generated image'}
+                    className="rounded max-w-full max-h-96 object-contain cursor-pointer hover:opacity-90 transition-opacity"
+                  />
+                </Link>
+              ) : (
+                <button type="button" onClick={() => setLightboxSrc(imageResult.imageUrl!)}>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={imageResult.imageUrl}
+                    alt={imageResult.prompt ?? 'Generated image'}
+                    className="rounded max-w-full max-h-96 object-contain cursor-pointer hover:opacity-90 transition-opacity"
+                  />
+                </button>
+              )}
               <div className="flex gap-2 text-[10px] text-muted-foreground">
                 {imageResult.model && <span>{imageResult.model.replace('gemini-', '').replace('-preview', '')}</span>}
                 {imageResult.aspectRatio && <span>{imageResult.aspectRatio}</span>}
@@ -231,6 +248,10 @@ export function ToolCallCard({ toolName, state, result }: ToolCallCardProps) {
             {JSON.stringify(result, null, 2)}
           </pre>
         </div>
+      )}
+
+      {lightboxSrc && (
+        <ImageLightbox src={lightboxSrc} onClose={() => setLightboxSrc(null)} />
       )}
     </div>
   );
