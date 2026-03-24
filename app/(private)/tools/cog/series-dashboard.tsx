@@ -13,11 +13,14 @@ import {
   ContextMenuItem,
   ContextMenuSeparator,
 } from '@/components/ui/context-menu';
-import { IconEye, IconPencil, IconTrash } from '@tabler/icons-react';
+import { IconEye, IconPencil, IconTrash, IconLink, IconLinkOff } from '@tabler/icons-react';
 import { usePrivacyMode, filterPrivateRecords } from '@/lib/privacy-mode';
 import { getCogThumbnailUrl, updateSeries, deleteSeriesWithCleanup } from '@/lib/cog';
+import { supabase } from '@/lib/supabase';
 import type { SeriesWithImage } from './types';
 import { PromptLibrary } from './config-library';
+
+const KNOWN_TOOLS = ['luv'] as const;
 
 interface SeriesDashboardProps {
   series: SeriesWithImage[];
@@ -76,6 +79,56 @@ export function SeriesDashboard({ series: initialSeries }: SeriesDashboardProps)
       setSeries((prev) => prev.filter((x) => x.id !== s.id));
     } catch (err) {
       console.error('Delete failed:', err);
+    }
+  }, []);
+
+  const handleLinkTool = useCallback(async (seriesId: string, tool: string) => {
+    try {
+      const slug = series.find((s) => s.id === seriesId)?.title
+        .toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') ?? seriesId;
+
+      await (supabase as any)
+        .from('entity_links')
+        .insert({
+          source_type: tool,
+          source_id: slug,
+          target_type: 'cog_series',
+          target_id: seriesId,
+          link_type: 'owns',
+        })
+        .select()
+        .maybeSingle();
+
+      setSeries((prev) =>
+        prev.map((s) =>
+          s.id === seriesId
+            ? { ...s, toolLinks: [...(s.toolLinks ?? []), { sourceType: tool, sourceId: slug }] }
+            : s
+        )
+      );
+    } catch (err) {
+      console.error('Link failed:', err);
+    }
+  }, [series]);
+
+  const handleUnlinkTool = useCallback(async (seriesId: string, tool: string) => {
+    try {
+      await (supabase as any)
+        .from('entity_links')
+        .delete()
+        .eq('source_type', tool)
+        .eq('target_type', 'cog_series')
+        .eq('target_id', seriesId);
+
+      setSeries((prev) =>
+        prev.map((s) =>
+          s.id === seriesId
+            ? { ...s, toolLinks: (s.toolLinks ?? []).filter((l) => l.sourceType !== tool) }
+            : s
+        )
+      );
+    } catch (err) {
+      console.error('Unlink failed:', err);
     }
   }, []);
 
@@ -148,6 +201,14 @@ export function SeriesDashboard({ series: initialSeries }: SeriesDashboardProps)
                             )}
                             <div className="flex items-center gap-2 text-xs text-muted-foreground">
                               <span>{s.imageCount} images</span>
+                              {(s.toolLinks ?? []).length > 0 && (
+                                <>
+                                  <span>·</span>
+                                  {(s.toolLinks ?? []).map((l) => (
+                                    <span key={l.sourceType} className="capitalize">{l.sourceType}</span>
+                                  ))}
+                                </>
+                              )}
                               {s.tags.length > 0 && (
                                 <>
                                   <span>·</span>
@@ -176,6 +237,20 @@ export function SeriesDashboard({ series: initialSeries }: SeriesDashboardProps)
                       <IconPencil size={14} className="mr-2" />
                       Rename
                     </ContextMenuItem>
+                    <ContextMenuSeparator />
+                    {KNOWN_TOOLS.map((tool) => {
+                      const isLinked = (s.toolLinks ?? []).some((l) => l.sourceType === tool);
+                      return (
+                        <ContextMenuItem
+                          key={tool}
+                          className="text-xs"
+                          onClick={() => isLinked ? handleUnlinkTool(s.id, tool) : handleLinkTool(s.id, tool)}
+                        >
+                          {isLinked ? <IconLinkOff size={14} className="mr-2" /> : <IconLink size={14} className="mr-2" />}
+                          {isLinked ? `Unlink from ${tool}` : `Link to ${tool}`}
+                        </ContextMenuItem>
+                      );
+                    })}
                     <ContextMenuSeparator />
                     <ContextMenuItem
                       className="text-xs text-destructive focus:text-destructive"
