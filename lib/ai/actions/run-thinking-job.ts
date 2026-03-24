@@ -12,7 +12,7 @@ import {
   updateThinkingJobServer,
   appendThinkingTraceServer,
   createImageServer,
-} from '@/lib/cog-server';
+} from '@/lib/cog/server';
 import { createClient } from '@/lib/supabase-server';
 import type { CogRemixTraceEntry } from '@/lib/types/cog';
 

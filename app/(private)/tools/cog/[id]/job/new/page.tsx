@@ -1,4 +1,4 @@
-import { getSeriesWithImagesServer } from '@/lib/cog-server';
+import { getSeriesWithImagesServer } from '@/lib/cog/server';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { NewJobForm } from './new-job-form';

@@ -418,7 +418,7 @@ export function ImageEditor({ seriesId, imageId, initialImages }: ImageEditorPro
 
           if (nextImage.thumbnail_256) {
             links.push(preloadImage(
-              getCogThumbnailUrl(nextImage.storage_path, nextImage.thumbnail_256, 256),
+              getCogThumbnailUrl(nextImage.storage_path, nextImage.thumbnail_256),
               priority
             ))
           }
@@ -432,7 +432,7 @@ export function ImageEditor({ seriesId, imageId, initialImages }: ImageEditorPro
 
           if (prevImage.thumbnail_256) {
             links.push(preloadImage(
-              getCogThumbnailUrl(prevImage.storage_path, prevImage.thumbnail_256, 256),
+              getCogThumbnailUrl(prevImage.storage_path, prevImage.thumbnail_256),
               priority
             ))
           }

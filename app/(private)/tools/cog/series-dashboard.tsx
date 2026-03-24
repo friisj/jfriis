@@ -56,7 +56,6 @@ export function SeriesDashboard({ series }: SeriesDashboardProps) {
                           src={getCogThumbnailUrl(
                             series.primaryImage.storage_path,
                             series.primaryImage.thumbnail_256,
-                            256,
                           )}
                           alt={series.title}
                           className="h-full w-full object-cover"

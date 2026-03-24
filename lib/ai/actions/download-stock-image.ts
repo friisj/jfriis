@@ -1,7 +1,7 @@
 'use server';
 
 import { createClient } from '@/lib/supabase-server';
-import { createImageServer } from '@/lib/cog-server';
+import { createImageServer } from '@/lib/cog/server';
 import type { CogImageSource } from '@/lib/types/cog';
 
 export async function downloadAndStoreStockImage(input: {

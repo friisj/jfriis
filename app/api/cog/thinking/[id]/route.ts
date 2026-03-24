@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getThinkingJobFullServer } from '@/lib/cog-server';
+import { getThinkingJobFullServer } from '@/lib/cog/server';
 
 export async function GET(
   request: NextRequest,

@@ -1,4 +1,4 @@
-import { getJobWithStepsAndInputsServer, getSeriesImagesServer } from '@/lib/cog-server';
+import { getJobWithStepsAndInputsServer, getSeriesImagesServer } from '@/lib/cog/server';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { notFound } from 'next/navigation';

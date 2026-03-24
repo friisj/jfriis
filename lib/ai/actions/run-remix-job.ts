@@ -24,7 +24,7 @@ import {
   createRemixEvalRunServer,
   updateRemixEvalRunServer,
   createRemixEvalResultServer,
-} from '@/lib/cog-server';
+} from '@/lib/cog/server';
 import type {
   CogRemixTraceEntry,
   CogRemixSearchParams,
@@ -511,7 +511,7 @@ async function performMultiProfileSelection(
 
   for (const { run, profile } of evalRuns) {
     // Get this profile's eval results
-    const { getRemixEvalRunsForJobServer } = await import('@/lib/cog-server');
+    const { getRemixEvalRunsForJobServer } = await import('@/lib/cog/server');
     const allRuns = await getRemixEvalRunsForJobServer(jobId);
     const thisRun = allRuns.find(r => r.id === run.id);
     if (!thisRun || thisRun.results.length === 0) {
@@ -592,7 +592,7 @@ export async function runRemixReeval(
     }
 
     // Fetch job data for the brief
-    const { getRemixJobByIdServer } = await import('@/lib/cog-server');
+    const { getRemixJobByIdServer } = await import('@/lib/cog/server');
     const job = await getRemixJobByIdServer(jobId);
 
     const fullEvalPrompt = buildVisionEvalPrompt({

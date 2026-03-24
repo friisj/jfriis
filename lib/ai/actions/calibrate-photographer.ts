@@ -11,7 +11,7 @@ import {
   createBenchmarkImageServer,
   updateBenchmarkRoundStatusServer,
   getCalibrationSeedByTypeServer,
-} from '@/lib/cog-server';
+} from '@/lib/cog/server';
 import {
   buildDistillationPrompt,
   buildRefinementPrompt,

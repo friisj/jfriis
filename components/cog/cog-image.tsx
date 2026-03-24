@@ -38,17 +38,17 @@ export function CogImage({
   let src: string
 
   if (preferredSize === 256 && thumbnail256) {
-    src = getCogThumbnailUrl(storagePath, thumbnail256, 256)
+    src = getCogThumbnailUrl(storagePath, thumbnail256)
   } else if (preferredSize === 128 && thumbnail128) {
-    src = getCogThumbnailUrl(storagePath, thumbnail128, 128)
+    src = getCogThumbnailUrl(storagePath, thumbnail128)
   } else if (preferredSize === 64 && thumbnail64) {
-    src = getCogThumbnailUrl(storagePath, thumbnail64, 64)
+    src = getCogThumbnailUrl(storagePath, thumbnail64)
   } else {
     // Fall back to original or best available thumbnail
     if (thumbnail256) {
-      src = getCogThumbnailUrl(storagePath, thumbnail256, 256)
+      src = getCogThumbnailUrl(storagePath, thumbnail256)
     } else if (thumbnail128) {
-      src = getCogThumbnailUrl(storagePath, thumbnail128, 128)
+      src = getCogThumbnailUrl(storagePath, thumbnail128)
     } else {
       src = getCogImageUrl(storagePath)
     }

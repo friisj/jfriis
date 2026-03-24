@@ -3,7 +3,7 @@ import {
   getAllPhotographerConfigsServer,
   getAllDirectorConfigsServer,
   getAllProductionConfigsServer,
-} from '@/lib/cog-server';
+} from '@/lib/cog/server';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { PipelineBuilderForm } from './pipeline-builder-form';

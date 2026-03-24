@@ -1,4 +1,4 @@
-import { getSeriesByIdServer } from '@/lib/cog-server';
+import { getSeriesByIdServer } from '@/lib/cog/server';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { ThinkingBuilderForm } from './thinking-builder-form';

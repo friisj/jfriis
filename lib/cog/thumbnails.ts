@@ -1,7 +1,7 @@
 'use server'
 
 import sharp from 'sharp'
-import { createClient } from '@/lib/supabase-server'
+import { createClient } from '../supabase-server'
 
 interface ThumbnailSizes {
   256: string

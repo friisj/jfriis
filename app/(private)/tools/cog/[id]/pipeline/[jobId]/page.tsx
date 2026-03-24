@@ -1,4 +1,4 @@
-import { getPipelineJobWithStepsServer, getSeriesByIdServer, getBaseCandidatesForJobServer, getImageByIdServer } from '@/lib/cog-server';
+import { getPipelineJobWithStepsServer, getSeriesByIdServer, getBaseCandidatesForJobServer, getImageByIdServer } from '@/lib/cog/server';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { PipelineExecutionMonitor } from './pipeline-execution-monitor';
