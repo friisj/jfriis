@@ -53,6 +53,9 @@ const registry: Record<string, React.ComponentType> = {
   'onder/spectral-shimmer': dynamic(() => import('@/components/studio/prototypes/onder/spectral-shimmer'), { ssr: false }),
   'onder/breathing-wash': dynamic(() => import('@/components/studio/prototypes/onder/breathing-wash'), { ssr: false }),
   'onder/crossfade-chords': dynamic(() => import('@/components/studio/prototypes/onder/crossfade-chords'), { ssr: false }),
+  'onder/evolving-strings': dynamic(() => import('@/components/studio/prototypes/onder/evolving-strings'), { ssr: false }),
+  'onder/layer-breathing': dynamic(() => import('@/components/studio/prototypes/onder/layer-breathing'), { ssr: false }),
+  'onder/reactive-canvas': dynamic(() => import('@/components/studio/prototypes/onder/reactive-canvas'), { ssr: false }),
 }
 
 export function PrototypeRenderer({ prototypeKey }: { prototypeKey: string }) {
