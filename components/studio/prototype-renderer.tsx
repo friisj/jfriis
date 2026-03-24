@@ -50,6 +50,9 @@ const registry: Record<string, React.ComponentType> = {
   'sub-prompt/interaction-modes': dynamic(() => import('@/components/studio/prototypes/sub-prompt/interaction-modes'), { ssr: false }),
   'sub-prompt/sub-prompt-chat': dynamic(() => import('@/components/studio/prototypes/sub-prompt/sub-prompt-chat'), { ssr: false }),
   'onder/voice-led-drift': dynamic(() => import('@/components/studio/prototypes/onder/voice-led-drift'), { ssr: false }),
+  'onder/spectral-shimmer': dynamic(() => import('@/components/studio/prototypes/onder/spectral-shimmer'), { ssr: false }),
+  'onder/breathing-wash': dynamic(() => import('@/components/studio/prototypes/onder/breathing-wash'), { ssr: false }),
+  'onder/crossfade-chords': dynamic(() => import('@/components/studio/prototypes/onder/crossfade-chords'), { ssr: false }),
 }
 
 export function PrototypeRenderer({ prototypeKey }: { prototypeKey: string }) {
