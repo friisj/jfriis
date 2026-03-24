@@ -23,7 +23,7 @@ export function UserMenu() {
 
   return (
     <div className="">
-      <div className="relative">
+      <div className="relative z-50">
         <button
           onClick={() => setIsOpen(!isOpen)}
           className="flex items-center gap-2 px-3 h-10 bg-card hover:bg-accent transition-colors"
@@ -125,7 +125,7 @@ export function UserMenu() {
 
       {isOpen && (
         <div
-          className="fixed inset-0 -z-10"
+          className="fixed inset-0 z-40"
           onClick={() => setIsOpen(false)}
         />
       )}
