@@ -8,6 +8,7 @@ import {
   createChassisModuleMedia,
   deleteChassisModuleMedia,
 } from '@/lib/luv-chassis';
+import { createLuvCogImage } from '@/lib/luv/cog-integration';
 import type { LuvChassisModuleMedia } from '@/lib/types/luv-chassis';
 
 interface ModuleMediaGalleryProps {
@@ -93,6 +94,17 @@ export function ModuleMediaGallery({
           storage_path: path,
           description: f.file.name,
         });
+
+        // Dual-write: also create in cog_images via cog-images bucket
+        const cogPath = `luv/modules/${moduleSlug}/${f.parameterKey}/${Date.now()}-${i}.${ext}`;
+        await createLuvCogImage({
+          seriesKey: `module:${moduleSlug}`,
+          file: f.file,
+          filename: f.file.name,
+          storagePath: cogPath,
+          source: 'upload',
+          metadata: { luv_module_id: moduleId, luv_parameter_key: f.parameterKey, luv_media_id: record.id },
+        }).catch((err) => console.error('Cog dual-write failed (non-fatal):', err));
 
         setMedia((prev) => [...prev, record]);
         setFiles((prev) =>
