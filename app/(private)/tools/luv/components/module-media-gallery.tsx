@@ -4,7 +4,7 @@ import { useState, useCallback, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { createLuvCogImage } from '@/lib/luv/cog-integration';
-import { getCogImageUrl } from '@/lib/cog/images';
+import { getCogThumbnailUrl } from '@/lib/cog/images';
 import { deleteImageWithCleanup } from '@/lib/cog/images';
 import type { CogImage } from '@/lib/types/cog';
 
@@ -267,7 +267,7 @@ export function ModuleMediaGallery({
             {items.map((item) => (
               <div key={item.id} className="group relative">
                 <img
-                  src={getCogImageUrl(item.storage_path)}
+                  src={getCogThumbnailUrl(item.storage_path, item.thumbnail_256)}
                   alt={item.filename ?? ''}
                   className="w-full aspect-square object-cover rounded-md"
                 />
@@ -291,7 +291,7 @@ export function ModuleMediaGallery({
             {ungrouped.map((item) => (
               <div key={item.id} className="group relative">
                 <img
-                  src={getCogImageUrl(item.storage_path)}
+                  src={getCogThumbnailUrl(item.storage_path, item.thumbnail_256)}
                   alt={item.filename ?? ''}
                   className="w-full aspect-square object-cover rounded-md"
                 />

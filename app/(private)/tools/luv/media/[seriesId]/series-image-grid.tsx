@@ -2,7 +2,7 @@
 
 import { useState, useRef, useCallback } from 'react';
 import Link from 'next/link';
-import { getCogImageUrl } from '@/lib/cog/images';
+import { getCogImageUrl, getCogThumbnailUrl } from '@/lib/cog/images';
 import { deleteImageWithCleanup } from '@/lib/cog/images';
 import { supabase } from '@/lib/supabase';
 import { createImage } from '@/lib/cog/images';
@@ -106,8 +106,9 @@ export function SeriesImageGrid({ seriesId, initialImages, seriesTitle }: Series
               <Link href={`/tools/luv/media/${seriesId}/${image.id}`}>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
-                  src={getCogImageUrl(image.storage_path)}
+                  src={getCogThumbnailUrl(image.storage_path, image.thumbnail_256)}
                   alt={image.filename ?? ''}
+                  loading="lazy"
                   className="w-full aspect-square object-cover rounded-md"
                 />
               </Link>

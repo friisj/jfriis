@@ -16,6 +16,7 @@ import { supabase } from '../supabase';
 import type { CogSeries, CogImage } from '../types/cog';
 import { createSeries } from '../cog/series';
 import { createImage, getCogImageUrl } from '../cog/images';
+import { generateThumbnails } from '../cog/thumbnails';
 import type { CogImageInsert } from '../types/cog';
 
 // In-memory cache of resolved series IDs (per browser session)
@@ -91,6 +92,11 @@ export async function createLuvCogImage(opts: {
     prompt: opts.prompt,
     metadata: opts.metadata ?? {},
   });
+
+  // Generate thumbnails in background (non-blocking)
+  generateThumbnails(image.id, image.storage_path).catch((err) =>
+    console.error('[luv-cog] Thumbnail generation failed:', err)
+  );
 
   return image;
 }

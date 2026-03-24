@@ -7,6 +7,7 @@
 
 import { createClient } from '../supabase-server';
 import { createImageServer } from '../cog/server/images';
+import { generateThumbnails } from '../cog/thumbnails';
 import type { CogImage, CogImageInsert } from '../types/cog';
 
 const seriesCache = new Map<string, string>();
@@ -64,7 +65,7 @@ export async function createLuvCogImageServer(opts: {
 }): Promise<CogImage> {
   const seriesId = await getLuvSeriesServer(opts.seriesKey);
 
-  return createImageServer({
+  const image = await createImageServer({
     series_id: seriesId,
     storage_path: opts.storagePath,
     filename: opts.filename,
@@ -73,6 +74,13 @@ export async function createLuvCogImageServer(opts: {
     prompt: opts.prompt,
     metadata: opts.metadata ?? {},
   });
+
+  // Generate thumbnails in background (non-blocking)
+  generateThumbnails(image.id, image.storage_path).catch((err) =>
+    console.error('[luv-cog-server] Thumbnail generation failed:', err)
+  );
+
+  return image;
 }
 
 // ---------------------------------------------------------------------------
