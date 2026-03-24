@@ -26,14 +26,11 @@ export function getCogImageUrl(storagePath: string): string {
  * Falls back to original image if thumbnail not available
  * @param originalPath - Original image storage path
  * @param thumbnailPath - Thumbnail storage path (if available)
- * @param size - Thumbnail size to use (256, 128, or 64)
  */
 export function getCogThumbnailUrl(
   originalPath: string,
   thumbnailPath?: string | null,
-  size: 256 | 128 | 64 = 256
 ): string {
-  // Use thumbnail if available, otherwise fall back to original
   const path = thumbnailPath || originalPath;
   return getCogImageUrl(path);
 }
