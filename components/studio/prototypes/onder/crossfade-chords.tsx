@@ -74,6 +74,7 @@ export default function CrossfadeChords() {
   const crossfadeStartRef = useRef<number>(0)
   const crossfadeDurationRef = useRef<number>(3)
   const activeSetRef = useRef<'A' | 'B'>('A')
+  const audioInitializedRef = useRef(false)
 
   // Keep refs in sync
   useEffect(() => { crossfadeDurationRef.current = crossfadeDuration }, [crossfadeDuration])
@@ -127,6 +128,7 @@ export default function CrossfadeChords() {
   }, [])
 
   const initAudio = useCallback(async () => {
+    if (audioInitializedRef.current) return
     if (Tone.getContext().state !== 'running') {
       await Tone.start()
     }
@@ -154,6 +156,7 @@ export default function CrossfadeChords() {
     // Create both pad sets — A starts audible, B starts silent
     setARef.current = createPadSet(filterRef.current, bassFilterRef.current, 1)
     setBRef.current = createPadSet(filterRef.current, bassFilterRef.current, 0)
+    audioInitializedRef.current = true
   }, [createPadSet])
 
   // Trigger all voices in a pad set to play a chord
