@@ -175,3 +175,47 @@ export async function getUngroupedTagsServer(): Promise<CogTag[]> {
   if (error) throw error;
   return data as CogTag[];
 }
+
+// ============================================================================
+// Tag Mutations (Server)
+// ============================================================================
+
+/**
+ * Add a tag to an image - server-side
+ */
+export async function addTagToImageServer(imageId: string, tagId: string): Promise<void> {
+  const client = await createClient();
+  const { error } = await (client as any)
+    .from('cog_image_tags')
+    .insert({ image_id: imageId, tag_id: tagId });
+
+  if (error) throw error;
+}
+
+/**
+ * Remove a tag from an image - server-side
+ */
+export async function removeTagFromImageServer(imageId: string, tagId: string): Promise<void> {
+  const client = await createClient();
+  const { error } = await (client as any)
+    .from('cog_image_tags')
+    .delete()
+    .eq('image_id', imageId)
+    .eq('tag_id', tagId);
+
+  if (error) throw error;
+}
+
+/**
+ * Get all tags for an image - server-side
+ */
+export async function getImageTagsServer(imageId: string): Promise<CogTag[]> {
+  const client = await createClient();
+  const { data, error } = await (client as any)
+    .from('cog_image_tags')
+    .select('tag:cog_tags(*)')
+    .eq('image_id', imageId);
+
+  if (error) throw error;
+  return (data || []).map((row: { tag: CogTag }) => row.tag);
+}
