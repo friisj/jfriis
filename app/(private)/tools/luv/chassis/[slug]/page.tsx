@@ -4,8 +4,8 @@ import {
   getChassisModulesServer,
   getStudiesForModuleServer,
 } from '@/lib/luv-chassis-server';
-import { getLuvSeriesServer } from '@/lib/luv/cog-integration-server';
-import { getSeriesImagesServer } from '@/lib/cog/server/images';
+import { getLuvSeriesServer, getModuleTagIdServer } from '@/lib/luv/cog-integration-server';
+import { getImagesWithTagsServer } from '@/lib/cog/server/tags';
 import { ChassisModulePageClient } from '../../components/chassis-module-page-client';
 
 interface Props {
@@ -23,12 +23,17 @@ export default async function ChassisModulePage({ params }: Props) {
     notFound();
   }
 
-  // Fetch module media from cog_images series
-  const seriesId = await getLuvSeriesServer(`module:${slug}`);
-  const [media, studies] = await Promise.all([
-    getSeriesImagesServer(seriesId),
+  // Fetch module media from chassis series, filtered by module tag
+  const seriesId = await getLuvSeriesServer('chassis');
+  const moduleTagId = await getModuleTagIdServer(slug);
+  const [allImages, studies] = await Promise.all([
+    getImagesWithTagsServer(seriesId),
     getStudiesForModuleServer(chassisModule.id),
   ]);
+  // Filter to images tagged with this module
+  const media = allImages.filter((img) =>
+    img.tags.some((t) => t.id === moduleTagId)
+  );
 
   // Build study locks from completed studies with constraints
   const studyLocks = studies

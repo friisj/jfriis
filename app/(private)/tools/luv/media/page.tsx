@@ -14,21 +14,32 @@ interface LuvSeriesCard {
 export default async function LuvMediaPage() {
   const supabase = await createClient();
 
-  // Fetch all Luv-tagged series
-  const { data: seriesData, error: seriesError } = await (supabase as any)
-    .from('cog_series')
-    .select('*')
-    .contains('tags', ['luv'])
-    .order('title', { ascending: true });
+  // Fetch Luv series via entity_links
+  const { data: links, error: linkError } = await (supabase as any)
+    .from('entity_links')
+    .select('source_id, target_id')
+    .eq('source_type', 'luv')
+    .eq('target_type', 'cog_series');
 
-  if (seriesError) {
-    console.error('[LuvMediaPage] Failed to fetch series:', seriesError);
+  if (linkError) {
+    console.error('[LuvMediaPage] Failed to fetch entity links:', linkError);
   }
 
-  const seriesList: CogSeries[] = (seriesData ?? []).map((row: CogSeries) => ({
-    ...row,
-    tags: row.tags ?? [],
-  }));
+  const seriesIds = (links ?? []).map((l: { target_id: string }) => l.target_id);
+  let seriesList: CogSeries[] = [];
+
+  if (seriesIds.length > 0) {
+    const { data: seriesData } = await (supabase as any)
+      .from('cog_series')
+      .select('*')
+      .in('id', seriesIds)
+      .order('title', { ascending: true });
+
+    seriesList = (seriesData ?? []).map((row: CogSeries) => ({
+      ...row,
+      tags: row.tags ?? [],
+    }));
+  }
 
   // Fetch image counts and primary images
   let cards: LuvSeriesCard[] = [];
