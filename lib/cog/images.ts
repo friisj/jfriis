@@ -281,10 +281,10 @@ export async function copyImageToSeries(
 
   if (ulError) throw new Error(`Upload failed: ${ulError.message}`);
 
-  // Create new record
+  // Create new record — no parent_image_id to avoid cross-series group inheritance.
+  // Lineage tracked in metadata instead.
   return createImage({
     series_id: targetSeriesId,
-    parent_image_id: imageId,
     storage_path: newPath,
     filename: original.filename,
     mime_type: original.mime_type,
@@ -293,7 +293,7 @@ export async function copyImageToSeries(
     file_size: original.file_size,
     source: original.source,
     prompt: original.prompt,
-    metadata: { ...((original.metadata as Record<string, unknown>) ?? {}), ...(metadata ?? {}) },
+    metadata: { ...((original.metadata as Record<string, unknown>) ?? {}), copied_from: imageId, ...(metadata ?? {}) },
   });
 }
 
