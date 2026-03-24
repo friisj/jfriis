@@ -3,7 +3,9 @@
 import { useState, useCallback } from 'react';
 import { useLuvChatSession } from './use-luv-chat-session';
 import { SoulTraitPanel } from './soul-trait-panel';
+import { ImagePickerPanel } from './image-picker-panel';
 import { ChatOverlay } from './shared/chat-overlay';
+import type { FileUIPart } from 'ai';
 import { MessageBubble } from './shared/message-bubble';
 import { ChatInputToolbar } from './shared/chat-input-toolbar';
 import { ScrollIndicator } from './shared/scroll-indicator';
@@ -14,7 +16,7 @@ import { getLuvCharacter } from '@/lib/luv';
 
 export function ChatDrawer() {
   const session = useLuvChatSession();
-  const [activePanel, setActivePanel] = useState<'traits' | null>(null);
+  const [activePanel, setActivePanel] = useState<'traits' | 'imagePicker' | null>(null);
   const [activePresetId, setActivePresetId] = useState<string | null>(null);
 
   const handleApplyPreset = useCallback(async (presetId: string) => {
@@ -33,8 +35,14 @@ export function ChatDrawer() {
 
   const closePanel = useCallback(() => setActivePanel(null), []);
 
+  const handlePickerAttach = useCallback((files: FileUIPart[]) => {
+    session.setPendingFiles((prev) => [...prev, ...files]);
+    setActivePanel(null);
+  }, [session]);
+
   const panelConfig = {
     traits: { title: 'Custom Modulation' },
+    imagePicker: { title: 'Image Library' },
   } as const;
 
   return (
@@ -45,6 +53,12 @@ export function ChatDrawer() {
             <SoulTraitPanel
               onClose={closePanel}
               onTraitsApplied={session.handleTraitsApplied}
+            />
+          )}
+          {activePanel === 'imagePicker' && (
+            <ImagePickerPanel
+              onAttach={handlePickerAttach}
+              onClose={closePanel}
             />
           )}
         </ChatOverlay>
@@ -124,6 +138,8 @@ export function ChatDrawer() {
         onToggleTraitPanel={() => setActivePanel((p) => p === 'traits' ? null : 'traits')}
         onApplyPreset={handleApplyPreset}
         activePresetId={activePresetId}
+        imagePickerOpen={activePanel === 'imagePicker'}
+        onToggleImagePicker={() => setActivePanel((p) => p === 'imagePicker' ? null : 'imagePicker')}
       />
     </div>
   );
