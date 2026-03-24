@@ -76,7 +76,11 @@ export default function BreathingWash() {
   // Master wash gain (controlled by washAmount)
   const washMasterGainRef = useRef<Tone.Gain | null>(null)
 
-  const initializedRef = useRef(false)
+  const initPromiseRef = useRef<Promise<void> | null>(null)
+  const currentChordRef = useRef<Chord>(CHORDS[0])
+
+  // Keep chord ref in sync
+  useEffect(() => { currentChordRef.current = currentChord }, [currentChord])
 
   // ─── Map UI values to audio params ────────────────────────────────────
   // breathRate 0-100 → LFO frequency 0.03-0.15 Hz
@@ -119,8 +123,9 @@ export default function BreathingWash() {
   }, [washAmount, isPlaying])
 
   // ─── Init audio ───────────────────────────────────────────────────────
-  const initAudio = useCallback(async () => {
-    if (initializedRef.current) return
+  const initAudio = useCallback(() => {
+    if (initPromiseRef.current) return initPromiseRef.current
+    initPromiseRef.current = (async () => {
     if (Tone.getContext().state !== 'running') {
       await Tone.start()
     }
@@ -227,7 +232,8 @@ export default function BreathingWash() {
     })
     gainLfo2Ref.current.connect(whiteGainRef.current.gain)
 
-    initializedRef.current = true
+    })()
+    return initPromiseRef.current
   }, [])
 
   // ─── Play a chord ─────────────────────────────────────────────────────
@@ -244,7 +250,7 @@ export default function BreathingWash() {
   const start = useCallback(async () => {
     await initAudio()
     setIsPlaying(true)
-    playChord(currentChord)
+    playChord(currentChordRef.current)
 
     // Start wash
     pinkNoiseRef.current?.start()
@@ -253,7 +259,7 @@ export default function BreathingWash() {
     gainLfoRef.current?.start()
     filterLfo2Ref.current?.start()
     gainLfo2Ref.current?.start()
-  }, [initAudio, playChord, currentChord])
+  }, [initAudio, playChord])
 
   const stop = useCallback(() => {
     setIsPlaying(false)
@@ -298,7 +304,7 @@ export default function BreathingWash() {
       gainLfo2Ref.current?.stop()
       gainLfo2Ref.current?.dispose()
 
-      initializedRef.current = false
+      initPromiseRef.current = null
     }
   }, [])
 
