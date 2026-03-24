@@ -202,6 +202,8 @@ export function createGenerateImageTool(messages: ModelMessage[]) {
           success: true,
           imageUrl: result.publicUrl,
           storagePath: result.storagePath,
+          cogImageId: result.cogImageId,
+          cogSeriesId: result.cogSeriesId,
           prompt: result.prompt,
           model: result.model,
           aspectRatio: aspectRatio ?? '1:1',

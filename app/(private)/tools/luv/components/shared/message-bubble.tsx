@@ -15,6 +15,7 @@ import {
 import { getMessageText } from '../use-luv-chat-session';
 import { ToolCallCard } from '../tool-call-card';
 import { ProposalCard } from '../proposal-card';
+import { ImageLightbox } from './image-lightbox';
 
 interface MessageBubbleProps {
   message: UIMessage;
@@ -50,6 +51,7 @@ export function MessageBubble({ message, isLast, isActive, compact = false }: Me
 
 function UserBubble({ message, compact }: { message: UIMessage; compact: boolean }) {
   const text = getMessageText(message);
+  const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
   const fileParts = message.parts.filter(
     (p): p is { type: 'file'; mediaType: string; url: string; filename?: string } =>
       p.type === 'file'
@@ -67,18 +69,27 @@ function UserBubble({ message, compact }: { message: UIMessage; compact: boolean
         {fileParts.length > 0 && (
           <div className={compact ? 'flex gap-1.5 flex-wrap mb-1.5' : 'flex gap-2 flex-wrap mb-2'}>
             {fileParts.map((f, i) => (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
+              <button
                 key={i}
-                src={f.url}
-                alt={f.filename ?? 'User image'}
-                className={compact ? 'max-h-48 rounded-lg object-contain' : 'max-h-64 rounded-lg object-contain'}
-              />
+                type="button"
+                onClick={() => setLightboxSrc(f.url)}
+                className="cursor-pointer"
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={f.url}
+                  alt={f.filename ?? 'User image'}
+                  className={compact ? 'max-h-48 rounded-lg object-contain' : 'max-h-64 rounded-lg object-contain'}
+                />
+              </button>
             ))}
           </div>
         )}
         {text}
       </div>
+      {lightboxSrc && (
+        <ImageLightbox src={lightboxSrc} onClose={() => setLightboxSrc(null)} />
+      )}
     </div>
   );
 }
