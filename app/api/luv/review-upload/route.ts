@@ -2,8 +2,9 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { randomUUID } from 'crypto';
 import { requireAuth } from '@/lib/ai/auth';
+import { createLuvCogImageServer } from '@/lib/luv/cog-integration-server';
 
-const LUV_MEDIA_BUCKET = 'luv-images';
+const COG_IMAGES_BUCKET = 'cog-images';
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
 
@@ -65,11 +66,11 @@ export async function POST(request: Request) {
     for (const file of files) {
       const ext = file.name.split('.').pop()?.toLowerCase() ?? 'jpg';
       // Randomized path to prevent URL enumeration
-      const storagePath = `reviews/${sessionId}/${randomUUID()}.${ext}`;
+      const storagePath = `luv/reviews/${sessionId}/${randomUUID()}.${ext}`;
 
       const buffer = Buffer.from(await file.arrayBuffer());
       const { error: uploadError } = await client.storage
-        .from(LUV_MEDIA_BUCKET)
+        .from(COG_IMAGES_BUCKET)
         .upload(storagePath, buffer, {
           contentType: file.type,
           upsert: false,
@@ -81,6 +82,16 @@ export async function POST(request: Request) {
           { status: 500 }
         );
       }
+
+      // Write to cog_images (non-fatal)
+      await createLuvCogImageServer({
+        seriesKey: 'reviews',
+        storagePath,
+        filename: file.name,
+        mimeType: file.type,
+        source: 'upload',
+        metadata: { luv_session_id: sessionId },
+      }).catch((err) => console.error('[luv/review-upload] cog_images insert failed:', err));
 
       // Create review item
       const { data: item, error: itemError } = await client

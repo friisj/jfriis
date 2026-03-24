@@ -43,8 +43,9 @@ export const viewGenerationResult = tool({
       .select('*')
       .eq('generation_result_id', resultId);
 
+    const { resolveStorageBucket } = await import('./luv-image-utils');
     const { data: urlData } = client.storage
-      .from('luv-images')
+      .from(resolveStorageBucket(row.storage_path))
       .getPublicUrl(row.storage_path);
 
     return {
