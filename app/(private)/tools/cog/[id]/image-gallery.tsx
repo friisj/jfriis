@@ -613,7 +613,7 @@ export function ImageGallery({
           <div className="flex items-center gap-3">
             <span className="font-medium">{selectedIds.size} selected</span>
             <button className="text-muted-foreground hover:text-foreground" onClick={handleSelectAll}>
-              Select all ({images.length})
+              Select all ({filteredImages.length})
             </button>
             <button className="text-muted-foreground hover:text-foreground" onClick={handleClearSelection}>
               Clear
