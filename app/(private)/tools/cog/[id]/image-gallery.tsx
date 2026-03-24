@@ -17,6 +17,7 @@ import { StarRating } from './star-rating';
 import type { CogTagWithGroup, CogImageWithGroupInfo } from '@/lib/types/cog';
 import { IconTrash, IconAlertTriangle, IconStarFilled } from '@tabler/icons-react';
 import { TagFilterBar } from '@/components/cog/tag-filter-bar';
+import { ImageContextMenu } from './image-context-menu';
 
 export interface UploadingFile {
   id: string;
@@ -324,33 +325,27 @@ export function ImageGallery({
 
   const hasSelection = selectedIds.size > 0;
 
-  useEffect(() => {
+  const refreshImageTags = useCallback(async () => {
     if (!enabledTags.length || !images.length) return;
-
-    async function loadTags() {
-      try {
-        const ids = images.map((img) => img.id);
-        const tags = await getImageTagsBatch(ids);
-        const map = new Map<string, Set<string>>();
-        for (const [imageId, tagList] of tags) {
-          map.set(
-            imageId,
-            new Set(tagList.map((tag) => tag.id)),
-          );
-        }
-        images.forEach((img) => {
-          if (!map.has(img.id)) {
-            map.set(img.id, new Set());
-          }
-        });
-        setImageTagsMap(map);
-      } catch (error) {
-        console.error('Failed to load image tags:', error);
+    try {
+      const ids = images.map((img) => img.id);
+      const tags = await getImageTagsBatch(ids);
+      const map = new Map<string, Set<string>>();
+      for (const [imageId, tagList] of tags) {
+        map.set(imageId, new Set(tagList.map((tag) => tag.id)));
       }
+      images.forEach((img) => {
+        if (!map.has(img.id)) map.set(img.id, new Set());
+      });
+      setImageTagsMap(map);
+    } catch (error) {
+      console.error('Failed to load image tags:', error);
     }
-
-    loadTags();
   }, [enabledTags.length, images]);
+
+  useEffect(() => {
+    refreshImageTags();
+  }, [refreshImageTags]);
 
   const handleSelectImage = useCallback(
     (imageId: string, index: number, event: React.MouseEvent) => {
@@ -690,82 +685,88 @@ export function ImageGallery({
           const isDragTarget = gridDragOverId === image.id;
 
           return (
-            <div
+            <ImageContextMenu
               key={image.id}
-              className={`group relative overflow-hidden transition-all ${
-                isSelected
-                  ? 'border-primary ring-2 ring-primary/40'
-                  : isDragTarget
-                    ? 'border-blue-400 ring-2 ring-blue-400/40'
-                    : 'hover:border-primary/40'
-              }`}
-              draggable={!hasSelection}
-              onDragStart={(e) => handleGridDragStart(image.id, e)}
-              onDragOver={(e) => handleGridDragOver(image.id, e)}
-              onDragLeave={handleGridDragLeave}
-              onDrop={(e) => handleGridDrop(image.id, image, e)}
-              onDragEnd={handleGridDragEnd}
+              image={image}
+              seriesId={seriesId}
+              enabledTags={enabledTags}
+              imageTagIds={imageTagsMap.get(image.id)}
+              onDeleted={(id) => {
+                handleDeleteFromGrid(id);
+              }}
+              onMoved={(id) => {
+                // Remove moved image from local state
+                handleDeleteFromGrid(id);
+              }}
+              onTagsChanged={() => {
+                // Refresh tags
+                refreshImageTags();
+              }}
             >
-              <button
-                onClick={(e) => handleSelectImage(image.id, index, e)}
-                className={`absolute left-2 top-2 z-10 h-6 w-6 rounded border-2 ${
+              <div
+                className={`group relative overflow-hidden transition-all ${
                   isSelected
-                    ? 'border-primary bg-primary text-primary-foreground'
-                    : hasSelection
-                      ? 'border-white/60 bg-black/40 text-white opacity-70'
-                      : 'border-white/60 bg-black/40 text-white opacity-0 group-hover:opacity-100'
+                    ? 'border-primary ring-2 ring-primary/40'
+                    : isDragTarget
+                      ? 'border-blue-400 ring-2 ring-blue-400/40'
+                      : 'hover:border-primary/40'
                 }`}
+                draggable={!hasSelection}
+                onDragStart={(e) => handleGridDragStart(image.id, e)}
+                onDragOver={(e) => handleGridDragOver(image.id, e)}
+                onDragLeave={handleGridDragLeave}
+                onDrop={(e) => handleGridDrop(image.id, image, e)}
+                onDragEnd={handleGridDragEnd}
               >
-                {isSelected && '✓'}
-              </button>
-              <button
-                className="w-full text-left"
-                onClick={() => router.push(`/tools/cog/${seriesId}/editor/${image.id}`)}
-              >
-                <div className="relative aspect-square bg-muted">
-                  <CogGridImage
-                    storagePath={image.storage_path}
-                    alt={image.filename}
-                    thumbnail256={image.thumbnail_256}
-                    thumbnail128={image.thumbnail_128}
-                    fill
-                    className={`object-cover ${isSelected ? 'opacity-80' : ''}`}
-                  />
-                  {tagCount > 0 && (
-                    <div className="absolute bottom-2 left-2 rounded bg-black/70 px-1.5 py-0.5 text-[10px] text-white">
-                      {tagCount} tag{tagCount !== 1 ? 's' : ''}
-                    </div>
-                  )}
-                  {groupCount > 1 && (
-                    <div className="absolute bottom-2 right-2 rounded bg-blue-600/80 px-1.5 py-0.5 text-[10px] text-white">
-                      {groupCount}
-                    </div>
-                  )}
-                  {isPrimary && (
-                    <div className="absolute right-2 top-2 text-yellow-400" title="Primary image">
-                      ★
-                    </div>
-                  )}
-                  {getStarRating(image) > 0 && (
-                    <div className="pointer-events-none absolute inset-x-0 bottom-2 flex justify-center">
-                      <StarRating rating={getStarRating(image)} size="sm" />
-                    </div>
-                  )}
-                </div>
-              </button>
-              {!hasSelection && (
                 <button
-                  className="absolute right-2 top-2 rounded bg-white/80 p-1 text-xs text-destructive opacity-0 transition group-hover:opacity-100"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleDeleteFromGrid(image.id);
-                  }}
-                  title="Delete image"
+                  onClick={(e) => handleSelectImage(image.id, index, e)}
+                  className={`absolute left-2 top-2 z-10 h-6 w-6 rounded border-2 ${
+                    isSelected
+                      ? 'border-primary bg-primary text-primary-foreground'
+                      : hasSelection
+                        ? 'border-white/60 bg-black/40 text-white opacity-70'
+                        : 'border-white/60 bg-black/40 text-white opacity-0 group-hover:opacity-100'
+                  }`}
                 >
-                  <IconTrash size={12}  />
+                  {isSelected && '✓'}
                 </button>
-              )}
-            </div>
+                <button
+                  className="w-full text-left"
+                  onClick={() => router.push(`/tools/cog/${seriesId}/editor/${image.id}`)}
+                >
+                  <div className="relative aspect-square bg-muted">
+                    <CogGridImage
+                      storagePath={image.storage_path}
+                      alt={image.filename}
+                      thumbnail256={image.thumbnail_256}
+                      thumbnail128={image.thumbnail_128}
+                      fill
+                      className={`object-cover ${isSelected ? 'opacity-80' : ''}`}
+                    />
+                    {tagCount > 0 && (
+                      <div className="absolute bottom-2 left-2 rounded bg-black/70 px-1.5 py-0.5 text-[10px] text-white">
+                        {tagCount} tag{tagCount !== 1 ? 's' : ''}
+                      </div>
+                    )}
+                    {groupCount > 1 && (
+                      <div className="absolute bottom-2 right-2 rounded bg-blue-600/80 px-1.5 py-0.5 text-[10px] text-white">
+                        {groupCount}
+                      </div>
+                    )}
+                    {isPrimary && (
+                      <div className="absolute right-2 top-2 text-yellow-400" title="Primary image">
+                        ★
+                      </div>
+                    )}
+                    {getStarRating(image) > 0 && (
+                      <div className="pointer-events-none absolute inset-x-0 bottom-2 flex justify-center">
+                        <StarRating rating={getStarRating(image)} size="sm" />
+                      </div>
+                    )}
+                  </div>
+                </button>
+              </div>
+            </ImageContextMenu>
           );
         })}
       </div>
