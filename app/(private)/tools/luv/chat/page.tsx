@@ -54,7 +54,7 @@ export default function LuvChatPage() {
   } as const;
 
   return (
-    <div className="h-dvh flex flex-col bg-background overflow-hidden relative">
+    <div className="h-lvh flex flex-col bg-background overflow-hidden relative">
 
       {activePanel && (
         <ChatOverlay title={panelConfig[activePanel].title} onClose={closePanel}>

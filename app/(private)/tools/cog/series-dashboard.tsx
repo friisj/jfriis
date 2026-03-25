@@ -1,9 +1,8 @@
 'use client';
 
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import {
@@ -21,7 +20,6 @@ import { usePrivacyMode, filterPrivateRecords } from '@/lib/privacy-mode';
 import { getCogThumbnailUrl, updateSeries, deleteSeriesWithCleanup } from '@/lib/cog';
 import { supabase } from '@/lib/supabase';
 import type { SeriesWithImage } from './types';
-import { PromptLibrary } from './config-library';
 import { toolsRegistry } from '../registry';
 
 interface SeriesDashboardProps {
@@ -30,8 +28,6 @@ interface SeriesDashboardProps {
 
 export function SeriesDashboard({ series: initialSeries }: SeriesDashboardProps) {
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const defaultTab = searchParams.get('tab') || 'series';
   const { isPrivacyMode } = usePrivacyMode();
 
   const [series, setSeries] = useState(initialSeries);
@@ -41,7 +37,6 @@ export function SeriesDashboard({ series: initialSeries }: SeriesDashboardProps)
 
   const visibleSeries = filterPrivateRecords(series, isPrivacyMode);
 
-  // Focus input when rename starts
   useEffect(() => {
     if (renamingId && renameInputRef.current) {
       renameInputRef.current.focus();
@@ -59,7 +54,6 @@ export function SeriesDashboard({ series: initialSeries }: SeriesDashboardProps)
       setRenamingId(null);
       return;
     }
-
     const original = series.find((s) => s.id === renamingId);
     if (original && renameValue.trim() !== original.title) {
       try {
@@ -88,7 +82,6 @@ export function SeriesDashboard({ series: initialSeries }: SeriesDashboardProps)
     try {
       const slug = series.find((s) => s.id === seriesId)?.title
         .toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') ?? seriesId;
-
       await (supabase as any)
         .from('entity_links')
         .insert({
@@ -100,7 +93,6 @@ export function SeriesDashboard({ series: initialSeries }: SeriesDashboardProps)
         })
         .select()
         .maybeSingle();
-
       setSeries((prev) =>
         prev.map((s) =>
           s.id === seriesId
@@ -119,7 +111,6 @@ export function SeriesDashboard({ series: initialSeries }: SeriesDashboardProps)
         .find((s) => s.id === seriesId)
         ?.toolLinks?.find((l) => l.sourceType === tool);
       if (!link) return;
-
       await (supabase as any)
         .from('entity_links')
         .delete()
@@ -127,7 +118,6 @@ export function SeriesDashboard({ series: initialSeries }: SeriesDashboardProps)
         .eq('source_id', link.sourceId)
         .eq('target_type', 'cog_series')
         .eq('target_id', seriesId);
-
       setSeries((prev) =>
         prev.map((s) =>
           s.id === seriesId
@@ -140,168 +130,111 @@ export function SeriesDashboard({ series: initialSeries }: SeriesDashboardProps)
     }
   }, [series]);
 
+  if (visibleSeries.length === 0) {
+    return (
+      <div className="p-4">
+        <Card>
+          <CardContent className="flex flex-col items-center justify-center py-8 text-center">
+            <p className="mb-4 text-muted-foreground">
+              No series yet. Create your first series to get started.
+            </p>
+            <Button asChild variant="outline">
+              <Link href="/tools/cog/new">Create Series</Link>
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   return (
-    <div className="space-y-6 p-4 sm:p-6 lg:p-8">
-      <Tabs defaultValue={defaultTab}>
-        <div className="flex items-center justify-between">
-          <TabsList>
-            <TabsTrigger value="series">Series</TabsTrigger>
-            <TabsTrigger value="library">Prompt Library</TabsTrigger>
-          </TabsList>
-          <Button asChild>
-            <Link href="/tools/cog/new">New Series</Link>
-          </Button>
-        </div>
-
-        <TabsContent value="series" className="mt-6">
-          {visibleSeries.length === 0 ? (
-            <Card>
-              <CardContent className="flex flex-col items-center justify-center py-8 text-center">
-                <p className="mb-4 text-muted-foreground">
-                  No series yet. Create your first series to get started.
-                </p>
-                <Button asChild variant="outline">
-                  <Link href="/tools/cog/new">Create Series</Link>
-                </Button>
-              </CardContent>
-            </Card>
-          ) : (
-            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-              {visibleSeries.map((s) => (
-                <ContextMenu key={s.id}>
-                  <ContextMenuTrigger asChild>
-                    <div>
-                      <Link href={`/tools/cog/${s.id}`} className="block">
-                        <Card className="overflow-hidden transition hover:bg-accent">
-                          <div className="relative aspect-[4/3] bg-muted">
-                            {s.primaryImage ? (
-                              // eslint-disable-next-line @next/next/no-img-element
-                              <img
-                                src={getCogThumbnailUrl(
-                                  s.primaryImage.storage_path,
-                                  s.primaryImage.thumbnail_256,
-                                )}
-                                alt={s.title}
-                                className="h-full w-full object-cover"
-                              />
-                            ) : (
-                              <div className="flex h-full items-center justify-center text-muted-foreground/50">
-                                No image
-                              </div>
-                            )}
-                          </div>
-                          <CardContent className="px-4 py-3">
-                            {renamingId === s.id ? (
-                              <input
-                                ref={renameInputRef}
-                                value={renameValue}
-                                onChange={(e) => setRenameValue(e.target.value)}
-                                onBlur={handleFinishRename}
-                                onKeyDown={(e) => {
-                                  if (e.key === 'Enter') handleFinishRename();
-                                  if (e.key === 'Escape') setRenamingId(null);
-                                }}
-                                onClick={(e) => e.preventDefault()}
-                                className="font-semibold bg-transparent border-b border-foreground outline-none w-full"
-                              />
-                            ) : (
-                              <h2 className="font-semibold">{s.title}</h2>
-                            )}
-                            <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                              <span>{s.imageCount} images</span>
-                              {(s.toolLinks ?? []).length > 0 && (
-                                <>
-                                  <span>·</span>
-                                  {(s.toolLinks ?? []).map((l) => (
-                                    <span key={l.sourceType} className="capitalize">{l.sourceType}</span>
-                                  ))}
-                                </>
-                              )}
-                              {s.tags.length > 0 && (
-                                <>
-                                  <span>·</span>
-                                  <span>{s.tags.length} tags</span>
-                                </>
-                              )}
-                            </div>
-                          </CardContent>
-                        </Card>
-                      </Link>
-                    </div>
-                  </ContextMenuTrigger>
-                  <ContextMenuContent className="w-44">
-                    <ContextMenuItem
-                      className="text-xs"
-                      onClick={() => router.push(`/tools/cog/${s.id}`)}
-                    >
-                      <IconEye size={14} className="mr-2" />
-                      View
-                    </ContextMenuItem>
-                    <ContextMenuSeparator />
-                    <ContextMenuItem
-                      className="text-xs"
-                      onClick={() => handleStartRename(s)}
-                    >
-                      <IconPencil size={14} className="mr-2" />
-                      Rename
-                    </ContextMenuItem>
-                    <ContextMenuSeparator />
-                    {(() => {
-                      const linkedTools = new Set((s.toolLinks ?? []).map((l) => l.sourceType));
-                      const unlinkedTools = toolsRegistry.filter((t) => t.id !== 'cog' && !linkedTools.has(t.id));
-                      return (
-                        <>
-                          {(s.toolLinks ?? []).map((l) => (
-                            <ContextMenuItem
-                              key={l.sourceType}
-                              className="text-xs"
-                              onClick={() => handleUnlinkTool(s.id, l.sourceType)}
-                            >
-                              <IconLinkOff size={14} className="mr-2" />
-                              Unlink from {l.sourceType}
-                            </ContextMenuItem>
-                          ))}
-                          {unlinkedTools.length > 0 && (
-                            <ContextMenuSub>
-                              <ContextMenuSubTrigger className="text-xs">
-                                <IconLink size={14} className="mr-2" />
-                                Link to...
-                              </ContextMenuSubTrigger>
-                              <ContextMenuSubContent className="w-40">
-                                {unlinkedTools.map((tool) => (
-                                  <ContextMenuItem
-                                    key={tool.id}
-                                    className="text-xs"
-                                    onClick={() => handleLinkTool(s.id, tool.id)}
-                                  >
-                                    {tool.title}
-                                  </ContextMenuItem>
-                                ))}
-                              </ContextMenuSubContent>
-                            </ContextMenuSub>
-                          )}
-                        </>
-                      );
-                    })()}
-                    <ContextMenuSeparator />
-                    <ContextMenuItem
-                      className="text-xs text-destructive focus:text-destructive"
-                      onClick={() => handleDelete(s)}
-                    >
-                      <IconTrash size={14} className="mr-2" />
-                      Delete
-                    </ContextMenuItem>
-                  </ContextMenuContent>
-                </ContextMenu>
-              ))}
+    <div className="grid gap-3 md:grid-cols-4 lg:grid-cols-4 p-3">
+      {visibleSeries.map((s) => (
+        <ContextMenu key={s.id}>
+          <ContextMenuTrigger asChild>
+            <div>
+              <Link href={`/tools/cog/${s.id}`} className="block">
+                <div className="overflow-hidden transition hover:bg-accent">
+                  <div className="relative aspect-square bg-muted">
+                    {s.primaryImage ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={getCogThumbnailUrl(s.primaryImage.storage_path)}
+                        alt={s.title}
+                        className="h-full w-full object-cover"
+                      />
+                    ) : (
+                      <div className="flex h-full items-center justify-center text-muted-foreground/50">
+                        No image
+                      </div>
+                    )}
+                  </div>
+                  <div className="p-3 flex items-start text-sm justify-between bg-secondary">
+                    {renamingId === s.id ? (
+                      <input
+                        ref={renameInputRef}
+                        value={renameValue}
+                        onChange={(e) => setRenameValue(e.target.value)}
+                        onBlur={handleFinishRename}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') handleFinishRename();
+                          if (e.key === 'Escape') setRenamingId(null);
+                        }}
+                        onClick={(e) => e.preventDefault()}
+                        className="font-semibold bg-transparent border-b border-foreground outline-none w-full"
+                      />
+                    ) : (
+                      <h2 className="text-foreground">{s.title}</h2>
+                    )}
+                    <span className="text-muted-foreground">{s.imageCount}</span>
+                  </div>
+                </div>
+              </Link>
             </div>
-          )}
-        </TabsContent>
-
-        <TabsContent value="library" className="mt-6">
-          <PromptLibrary />
-        </TabsContent>
-      </Tabs>
+          </ContextMenuTrigger>
+          <ContextMenuContent className="w-44">
+            <ContextMenuItem className="text-xs" onClick={() => router.push(`/tools/cog/${s.id}`)}>
+              <IconEye size={14} className="mr-2" /> View
+            </ContextMenuItem>
+            <ContextMenuSeparator />
+            <ContextMenuItem className="text-xs" onClick={() => handleStartRename(s)}>
+              <IconPencil size={14} className="mr-2" /> Rename
+            </ContextMenuItem>
+            <ContextMenuSeparator />
+            {(() => {
+              const linkedTools = new Set((s.toolLinks ?? []).map((l) => l.sourceType));
+              const unlinkedTools = toolsRegistry.filter((t) => t.id !== 'cog' && !linkedTools.has(t.id));
+              return (
+                <>
+                  {(s.toolLinks ?? []).map((l) => (
+                    <ContextMenuItem key={l.sourceType} className="text-xs" onClick={() => handleUnlinkTool(s.id, l.sourceType)}>
+                      <IconLinkOff size={14} className="mr-2" /> Unlink from {l.sourceType}
+                    </ContextMenuItem>
+                  ))}
+                  {unlinkedTools.length > 0 && (
+                    <ContextMenuSub>
+                      <ContextMenuSubTrigger className="text-xs">
+                        <IconLink size={14} className="mr-2" /> Link to...
+                      </ContextMenuSubTrigger>
+                      <ContextMenuSubContent className="w-40">
+                        {unlinkedTools.map((tool) => (
+                          <ContextMenuItem key={tool.id} className="text-xs" onClick={() => handleLinkTool(s.id, tool.id)}>
+                            {tool.title}
+                          </ContextMenuItem>
+                        ))}
+                      </ContextMenuSubContent>
+                    </ContextMenuSub>
+                  )}
+                </>
+              );
+            })()}
+            <ContextMenuSeparator />
+            <ContextMenuItem className="text-xs text-destructive focus:text-destructive" onClick={() => handleDelete(s)}>
+              <IconTrash size={14} className="mr-2" /> Delete
+            </ContextMenuItem>
+          </ContextMenuContent>
+        </ContextMenu>
+      ))}
     </div>
   );
 }

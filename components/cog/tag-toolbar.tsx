@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useMemo, useCallback } from 'react';
-import { IconFilter } from '@tabler/icons-react';
+import { useState, useMemo, useCallback, useRef } from 'react';
+import { IconFilter, IconPlus } from '@tabler/icons-react';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 import { TagFilterBar } from './tag-filter-bar';
 import { cn } from '@/lib/utils';
@@ -13,8 +13,12 @@ interface TagToolbarProps {
   fixedTags?: Set<string>;
   onToggle: (tagId: string) => void;
   onClear: () => void;
-  /** Optional content to render before the funnel button (e.g., upload button) */
-  leading?: React.ReactNode;
+  /** Called with selected files when user picks images via the built-in upload button. Omit to hide the button. */
+  onUpload?: (files: FileList) => void;
+  /** Whether an upload is in progress (disables the upload button) */
+  uploading?: boolean;
+  /** Accept attribute for the file input (default: "image/*") */
+  accept?: string;
 }
 
 export function TagToolbar({
@@ -23,8 +27,11 @@ export function TagToolbar({
   fixedTags,
   onToggle,
   onClear,
-  leading,
+  onUpload,
+  uploading,
+  accept = 'image/*',
 }: TagToolbarProps) {
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const fixedSet = fixedTags ?? new Set<string>();
   const [visibleTagIds, setVisibleTagIds] = useState<Set<string>>(
     () => {
@@ -59,12 +66,37 @@ export function TagToolbar({
     });
   }, [activeTags, onToggle]);
 
-  if (enabledTags.length === 0) return null;
+  if (enabledTags.length === 0 && !onUpload) return null;
 
   return (
     <div className="flex items-center gap-1.5">
-      {leading}
+      {onUpload && (
+        <>
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={uploading}
+            className="shrink-0 flex items-center justify-center size-7 rounded-full text-muted-foreground hover:text-foreground hover:bg-accent transition-colors disabled:opacity-50"
+            title={uploading ? 'Uploading...' : 'Add image'}
+          >
+            <IconPlus size={14} />
+          </button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept={accept}
+            multiple
+            className="hidden"
+            onChange={(e) => {
+              if (e.target.files?.length) onUpload(e.target.files);
+              e.target.value = '';
+            }}
+          />
+        </>
+      )}
 
+      {enabledTags.length > 0 && (
+      <>
       <Popover>
         <PopoverTrigger asChild>
           <button
@@ -111,6 +143,8 @@ export function TagToolbar({
         onToggle={onToggle}
         onClear={onClear}
       />
+      </>
+      )}
     </div>
   );
 }
