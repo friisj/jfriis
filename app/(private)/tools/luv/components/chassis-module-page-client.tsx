@@ -1,12 +1,12 @@
 'use client';
 
 import { ModuleEditor } from './module-editor';
-import { ModuleMediaGallery } from './module-media-gallery';
 import { ModuleVersionHistory } from './module-version-history';
 import { ContextPackComposer } from './context-pack-composer';
 import { StagePlayer } from '../stage/components/stage-player';
+import { SeriesImageGrid } from '../media/[seriesId]/series-image-grid';
 import type { LuvChassisModule, ParameterConstraint } from '@/lib/types/luv-chassis';
-import type { CogImage } from '@/lib/types/cog';
+import type { CogImage, CogTagWithGroup } from '@/lib/types/cog';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 
@@ -21,9 +21,12 @@ interface Props {
   allModules?: LuvChassisModule[];
   studyLocks?: StudyLock[];
   initialMedia?: CogImage[];
+  seriesId?: string;
+  enabledTags?: CogTagWithGroup[];
+  defaultTagId?: string;
 }
 
-export function ChassisModulePageClient({ module, allModules = [], studyLocks = [], initialMedia = [] }: Props) {
+export function ChassisModulePageClient({ module, allModules = [], studyLocks = [], initialMedia = [], seriesId, enabledTags = [], defaultTagId }: Props) {
   const parameterKeys = (module.parameter_schema ?? []).map((p) => p.key);
 
   return (
@@ -60,16 +63,19 @@ export function ChassisModulePageClient({ module, allModules = [], studyLocks = 
       </TabsContent>
 
       <TabsContent value="media">
-        {parameterKeys.length > 0 ? (
-          <ModuleMediaGallery
-            moduleId={module.id}
-            moduleSlug={module.slug}
-            initialMedia={initialMedia}
-            parameterKeys={parameterKeys}
-          />
+        {seriesId ? (
+          <div className="p-6">
+            <SeriesImageGrid
+              seriesId={seriesId}
+              initialImages={initialMedia}
+              seriesTitle={module.name}
+              enabledTags={enabledTags}
+              defaultActiveTagId={defaultTagId}
+            />
+          </div>
         ) : (
           <p className="px-6 py-8 text-sm text-muted-foreground">
-            No parameters defined — add parameters first to attach media.
+            Chassis series not yet provisioned. Upload an image to get started.
           </p>
         )}
       </TabsContent>

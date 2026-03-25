@@ -17,15 +17,18 @@ interface SeriesImageGridProps {
   initialImages: CogImage[];
   seriesTitle: string;
   enabledTags?: CogTagWithGroup[];
+  defaultActiveTagId?: string;
 }
 
-export function SeriesImageGrid({ seriesId, initialImages, seriesTitle, enabledTags = [] }: SeriesImageGridProps) {
+export function SeriesImageGrid({ seriesId, initialImages, seriesTitle, enabledTags = [], defaultActiveTagId }: SeriesImageGridProps) {
   const [images, setImages] = useState(initialImages);
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Tag filter state
-  const [activeTagFilter, setActiveTagFilter] = useState<Set<string>>(new Set());
+  // Tag filter state — pre-select default tag if provided
+  const [activeTagFilter, setActiveTagFilter] = useState<Set<string>>(
+    defaultActiveTagId ? new Set([defaultActiveTagId]) : new Set()
+  );
   const [imageTagsMap, setImageTagsMap] = useState<Map<string, Set<string>>>(new Map());
   const [tagsLoaded, setTagsLoaded] = useState(false);
 

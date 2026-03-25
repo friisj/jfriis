@@ -5,7 +5,7 @@ import {
   getStudiesForModuleServer,
 } from '@/lib/luv-chassis-server';
 import { getLuvSeriesServer, getModuleTagIdServer } from '@/lib/luv/cog-integration-server';
-import { getImagesWithTagsServer } from '@/lib/cog/server/tags';
+import { getImagesWithTagsServer, getEnabledTagsForSeriesServer } from '@/lib/cog/server/tags';
 import { ChassisModulePageClient } from '../../components/chassis-module-page-client';
 
 interface Props {
@@ -26,8 +26,9 @@ export default async function ChassisModulePage({ params }: Props) {
   // Fetch module media from chassis series, filtered by module tag
   const seriesId = await getLuvSeriesServer('chassis');
   const moduleTagId = await getModuleTagIdServer(slug);
-  const [allImages, studies] = await Promise.all([
+  const [allImages, enabledTags, studies] = await Promise.all([
     getImagesWithTagsServer(seriesId),
+    getEnabledTagsForSeriesServer(seriesId),
     getStudiesForModuleServer(chassisModule.id),
   ]);
   // Filter to images tagged with this module
@@ -51,6 +52,9 @@ export default async function ChassisModulePage({ params }: Props) {
         allModules={allModules}
         studyLocks={studyLocks}
         initialMedia={media}
+        seriesId={seriesId}
+        enabledTags={enabledTags}
+        defaultTagId={moduleTagId}
       />
     </div>
   );
