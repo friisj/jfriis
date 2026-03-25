@@ -20,6 +20,7 @@ export function ImagePickerPanel({ onAttach, onClose }: ImagePickerPanelProps) {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [imageCounts, setImageCounts] = useState<Map<string, number>>(new Map());
+  const [seriesThumbs, setSeriesThumbs] = useState<Map<string, { storage_path: string; thumbnail_256: string | null }>>(new Map());
 
   // Fetch Luv series on mount
   useEffect(() => {
@@ -33,19 +34,27 @@ export function ImagePickerPanel({ onAttach, onClose }: ImagePickerPanelProps) {
       const list = (data ?? []) as CogSeries[];
       setSeries(list);
 
-      // Fetch image counts
+      // Fetch image counts + first image per series for thumbnails
       if (list.length > 0) {
         const ids = list.map((s) => s.id);
         const { data: imgs } = await (supabase as any)
           .from('cog_images')
-          .select('series_id')
-          .in('series_id', ids);
+          .select('id, series_id, storage_path, thumbnail_256')
+          .in('series_id', ids)
+          .order('created_at', { ascending: false });
 
         const counts = new Map<string, number>();
+        const thumbs = new Map<string, { storage_path: string; thumbnail_256: string | null }>();
         for (const row of imgs ?? []) {
           counts.set(row.series_id, (counts.get(row.series_id) ?? 0) + 1);
+          // Use primary image if set, otherwise first image
+          const s = list.find((x) => x.id === row.series_id);
+          if (s?.primary_image_id === row.id || !thumbs.has(row.series_id)) {
+            thumbs.set(row.series_id, { storage_path: row.storage_path, thumbnail_256: row.thumbnail_256 });
+          }
         }
         setImageCounts(counts);
+        setSeriesThumbs(thumbs);
       }
 
       setLoading(false);
@@ -119,10 +128,13 @@ export function ImagePickerPanel({ onAttach, onClose }: ImagePickerPanelProps) {
               className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-accent transition-colors border-b border-border/50"
             >
               <div className="w-10 h-10 rounded bg-muted shrink-0 overflow-hidden">
-                {s.primary_image_id ? (
+                {seriesThumbs.has(s.id) ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
-                    src={getCogThumbnailUrl(s.primary_image_id, null)}
+                    src={getCogThumbnailUrl(
+                      seriesThumbs.get(s.id)!.storage_path,
+                      seriesThumbs.get(s.id)!.thumbnail_256,
+                    )}
                     alt=""
                     className="w-full h-full object-cover"
                   />
