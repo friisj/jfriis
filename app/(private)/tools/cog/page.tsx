@@ -39,6 +39,21 @@ export default async function CogPage() {
     console.error('[CogPage] Failed to fetch images:', imageError);
   }
 
+  // Fetch tool links for all series
+  const { data: toolLinks } = await (supabase as any)
+    .from('entity_links')
+    .select('source_type, source_id, target_id')
+    .eq('target_type', 'cog_series')
+    .eq('link_type', 'owns')
+    .in('target_id', seriesIds);
+
+  const toolLinksBySeries = new Map<string, Array<{ sourceType: string; sourceId: string }>>();
+  for (const link of toolLinks ?? []) {
+    const existing = toolLinksBySeries.get(link.target_id) ?? [];
+    existing.push({ sourceType: link.source_type, sourceId: link.source_id });
+    toolLinksBySeries.set(link.target_id, existing);
+  }
+
   const imagesBySeries = new Map<
     string,
     Array<{
@@ -75,6 +90,7 @@ export default async function CogPage() {
             thumbnail_256: primary.thumbnail_256,
           }
         : null,
+      toolLinks: toolLinksBySeries.get(series.id) ?? [],
     };
   });
 

@@ -33,6 +33,10 @@ interface ImageGalleryProps {
   seriesId: string;
   primaryImageId?: string | null;
   enabledTags?: CogTagWithGroup[];
+  /** Tags that are always active and can't be toggled off */
+  fixedTags?: string[];
+  /** Tags pre-selected in the filter bar */
+  defaultTags?: string[];
   onPrimaryImageChange?: (imageId: string | null) => void;
   uploadingFiles?: UploadingFile[];
   isDragOver?: boolean;
@@ -265,6 +269,8 @@ export function ImageGallery({
   seriesId,
   primaryImageId: initialPrimaryImageId = null,
   enabledTags = [],
+  fixedTags = [],
+  defaultTags = [],
   onPrimaryImageChange,
   uploadingFiles = [],
   isDragOver = false,
@@ -284,20 +290,41 @@ export function ImageGallery({
 
   const [gridDraggedId, setGridDraggedId] = useState<string | null>(null);
   const [gridDragOverId, setGridDragOverId] = useState<string | null>(null);
-  const [activeTagFilter, setActiveTagFilter] = useState<Set<string>>(new Set());
+  const fixedTagSet = useMemo(() => new Set(fixedTags), [fixedTags]);
+  const [activeTagFilter, setActiveTagFilter] = useState<Set<string>>(
+    () => new Set(defaultTags)
+  );
+  const [tagsLoaded, setTagsLoaded] = useState(false);
 
-  // Filter images by active tags (show images that have ANY active tag)
+  // Filter images by fixed + active tags
   const filteredImages = useMemo(() => {
-    if (activeTagFilter.size === 0) return images;
+    const hasFixed = fixedTagSet.size > 0;
+    const hasActive = activeTagFilter.size > 0;
+    if (!hasFixed && !hasActive) return images;
+    if (!tagsLoaded) return images;
+
     return images.filter((img) => {
       const imgTags = imageTagsMap.get(img.id);
-      if (!imgTags) return false;
-      for (const tagId of activeTagFilter) {
-        if (imgTags.has(tagId)) return true;
+      if (!imgTags) return !hasFixed;
+
+      // Must match ALL fixed tags
+      if (hasFixed) {
+        for (const tagId of fixedTagSet) {
+          if (!imgTags.has(tagId)) return false;
+        }
       }
-      return false;
+
+      // Must match at least ONE active tag (if any)
+      if (hasActive) {
+        for (const tagId of activeTagFilter) {
+          if (imgTags.has(tagId)) return true;
+        }
+        return false;
+      }
+
+      return true;
     });
-  }, [images, activeTagFilter, imageTagsMap]);
+  }, [images, fixedTagSet, activeTagFilter, imageTagsMap, tagsLoaded]);
 
   const handleToggleTagFilter = useCallback((tagId: string) => {
     setActiveTagFilter((prev) => {
@@ -326,7 +353,11 @@ export function ImageGallery({
   const hasSelection = selectedIds.size > 0;
 
   const refreshImageTags = useCallback(async () => {
-    if (!enabledTags.length || !images.length) return;
+    if (!enabledTags.length || !images.length) {
+      setTagsLoaded(true);
+      return;
+    }
+    setTagsLoaded(false);
     try {
       const ids = images.map((img) => img.id);
       const tags = await getImageTagsBatch(ids);
@@ -340,6 +371,8 @@ export function ImageGallery({
       setImageTagsMap(map);
     } catch (error) {
       console.error('Failed to load image tags:', error);
+    } finally {
+      setTagsLoaded(true);
     }
   }, [enabledTags.length, images]);
 
@@ -646,6 +679,7 @@ export function ImageGallery({
       <TagFilterBar
         enabledTags={enabledTags}
         activeTags={activeTagFilter}
+        fixedTags={fixedTagSet.size > 0 ? fixedTagSet : undefined}
         onToggle={handleToggleTagFilter}
         onClear={handleClearTagFilter}
       />

@@ -1,8 +1,8 @@
 /**
  * Luv ↔ Cog Image Service Integration (Client-side)
  *
- * Series association uses entity_links (not title/tag matching):
- *   entity_links: source_type='luv', source_id=key, target_type='cog_series'
+ * Series association uses title + luv tag lookup on cog_series.
+ * Module keys (module:face) resolve to the shared 'chassis' series.
  *
  * Series taxonomy:
  *   - "chassis"      → one series for all chassis module media
@@ -20,7 +20,7 @@ import { generateThumbnails } from '../cog/thumbnails';
 const seriesCache = new Map<string, string>();
 
 /**
- * Resolve a Luv series key to its cog_series ID via entity_links.
+ * Resolve a Luv series key to its cog_series ID via title + tag lookup.
  * Module keys (module:face) all resolve to the 'chassis' series.
  */
 export async function getLuvSeries(key: string): Promise<string> {
@@ -29,24 +29,10 @@ export async function getLuvSeries(key: string): Promise<string> {
   const cached = seriesCache.get(resolvedKey);
   if (cached) return cached;
 
-  // Look up via entity_links
-  const { data: link } = await (supabase as any)
-    .from('entity_links')
-    .select('target_id')
-    .eq('source_type', 'luv')
-    .eq('source_id', resolvedKey)
-    .eq('target_type', 'cog_series')
-    .limit(1)
-    .maybeSingle();
-
-  if (link) {
-    seriesCache.set(resolvedKey, link.target_id);
-    return link.target_id;
-  }
-
-  // Fallback: check for legacy title-based series
   const title = luvSeriesTitle(resolvedKey);
-  const { data: legacy } = await (supabase as any)
+
+  // Look up by title + luv tag
+  const { data: existing } = await (supabase as any)
     .from('cog_series')
     .select('id')
     .eq('title', title)
@@ -56,8 +42,8 @@ export async function getLuvSeries(key: string): Promise<string> {
 
   let seriesId: string;
 
-  if (legacy) {
-    seriesId = legacy.id;
+  if (existing) {
+    seriesId = existing.id;
   } else {
     const series = await createSeries({
       title,
@@ -66,20 +52,6 @@ export async function getLuvSeries(key: string): Promise<string> {
     });
     seriesId = series.id;
   }
-
-  // Create entity_link for stable association.
-  // Duplicate inserts under concurrency are harmless — lookup always takes limit(1).
-  await (supabase as any)
-    .from('entity_links')
-    .insert({
-      source_type: 'luv',
-      source_id: resolvedKey,
-      target_type: 'cog_series',
-      target_id: seriesId,
-      link_type: 'owns',
-    })
-    .select()
-    .maybeSingle();
 
   seriesCache.set(resolvedKey, seriesId);
   return seriesId;
@@ -139,21 +111,6 @@ export function getLuvImageUrl(storagePath: string): string {
   return getCogImageUrl(storagePath);
 }
 
-/**
- * Get all Luv series IDs via entity_links.
- */
-export async function getAllLuvSeriesIds(): Promise<Array<{ key: string; seriesId: string }>> {
-  const { data } = await (supabase as any)
-    .from('entity_links')
-    .select('source_id, target_id')
-    .eq('source_type', 'luv')
-    .eq('target_type', 'cog_series');
-
-  return (data ?? []).map((row: { source_id: string; target_id: string }) => ({
-    key: row.source_id,
-    seriesId: row.target_id,
-  }));
-}
 
 // ---------------------------------------------------------------------------
 // Internal helpers

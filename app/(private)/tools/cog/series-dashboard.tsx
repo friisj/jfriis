@@ -12,12 +12,17 @@ import {
   ContextMenuContent,
   ContextMenuItem,
   ContextMenuSeparator,
+  ContextMenuSub,
+  ContextMenuSubTrigger,
+  ContextMenuSubContent,
 } from '@/components/ui/context-menu';
-import { IconEye, IconPencil, IconTrash } from '@tabler/icons-react';
+import { IconEye, IconPencil, IconTrash, IconLink, IconLinkOff } from '@tabler/icons-react';
 import { usePrivacyMode, filterPrivateRecords } from '@/lib/privacy-mode';
 import { getCogThumbnailUrl, updateSeries, deleteSeriesWithCleanup } from '@/lib/cog';
+import { supabase } from '@/lib/supabase';
 import type { SeriesWithImage } from './types';
 import { PromptLibrary } from './config-library';
+import { toolsRegistry } from '../registry';
 
 interface SeriesDashboardProps {
   series: SeriesWithImage[];
@@ -78,6 +83,62 @@ export function SeriesDashboard({ series: initialSeries }: SeriesDashboardProps)
       console.error('Delete failed:', err);
     }
   }, []);
+
+  const handleLinkTool = useCallback(async (seriesId: string, tool: string) => {
+    try {
+      const slug = series.find((s) => s.id === seriesId)?.title
+        .toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') ?? seriesId;
+
+      await (supabase as any)
+        .from('entity_links')
+        .insert({
+          source_type: tool,
+          source_id: slug,
+          target_type: 'cog_series',
+          target_id: seriesId,
+          link_type: 'owns',
+        })
+        .select()
+        .maybeSingle();
+
+      setSeries((prev) =>
+        prev.map((s) =>
+          s.id === seriesId
+            ? { ...s, toolLinks: [...(s.toolLinks ?? []), { sourceType: tool, sourceId: slug }] }
+            : s
+        )
+      );
+    } catch (err) {
+      console.error('Link failed:', err);
+    }
+  }, [series]);
+
+  const handleUnlinkTool = useCallback(async (seriesId: string, tool: string) => {
+    try {
+      const link = series
+        .find((s) => s.id === seriesId)
+        ?.toolLinks?.find((l) => l.sourceType === tool);
+      if (!link) return;
+
+      await (supabase as any)
+        .from('entity_links')
+        .delete()
+        .eq('source_type', tool)
+        .eq('source_id', link.sourceId)
+        .eq('target_type', 'cog_series')
+        .eq('target_id', seriesId);
+
+      setSeries((prev) =>
+        prev.map((s) =>
+          s.id === seriesId
+            ? { ...s, toolLinks: (s.toolLinks ?? []).filter((l) => l.sourceType !== tool) }
+            : s
+        )
+      );
+    } catch (err) {
+      console.error('Unlink failed:', err);
+    }
+  }, [series]);
 
   return (
     <div className="space-y-6 p-4 sm:p-6 lg:p-8">
@@ -148,6 +209,14 @@ export function SeriesDashboard({ series: initialSeries }: SeriesDashboardProps)
                             )}
                             <div className="flex items-center gap-2 text-xs text-muted-foreground">
                               <span>{s.imageCount} images</span>
+                              {(s.toolLinks ?? []).length > 0 && (
+                                <>
+                                  <span>·</span>
+                                  {(s.toolLinks ?? []).map((l) => (
+                                    <span key={l.sourceType} className="capitalize">{l.sourceType}</span>
+                                  ))}
+                                </>
+                              )}
                               {s.tags.length > 0 && (
                                 <>
                                   <span>·</span>
@@ -176,6 +245,44 @@ export function SeriesDashboard({ series: initialSeries }: SeriesDashboardProps)
                       <IconPencil size={14} className="mr-2" />
                       Rename
                     </ContextMenuItem>
+                    <ContextMenuSeparator />
+                    {(() => {
+                      const linkedTools = new Set((s.toolLinks ?? []).map((l) => l.sourceType));
+                      const unlinkedTools = toolsRegistry.filter((t) => t.id !== 'cog' && !linkedTools.has(t.id));
+                      return (
+                        <>
+                          {(s.toolLinks ?? []).map((l) => (
+                            <ContextMenuItem
+                              key={l.sourceType}
+                              className="text-xs"
+                              onClick={() => handleUnlinkTool(s.id, l.sourceType)}
+                            >
+                              <IconLinkOff size={14} className="mr-2" />
+                              Unlink from {l.sourceType}
+                            </ContextMenuItem>
+                          ))}
+                          {unlinkedTools.length > 0 && (
+                            <ContextMenuSub>
+                              <ContextMenuSubTrigger className="text-xs">
+                                <IconLink size={14} className="mr-2" />
+                                Link to...
+                              </ContextMenuSubTrigger>
+                              <ContextMenuSubContent className="w-40">
+                                {unlinkedTools.map((tool) => (
+                                  <ContextMenuItem
+                                    key={tool.id}
+                                    className="text-xs"
+                                    onClick={() => handleLinkTool(s.id, tool.id)}
+                                  >
+                                    {tool.title}
+                                  </ContextMenuItem>
+                                ))}
+                              </ContextMenuSubContent>
+                            </ContextMenuSub>
+                          )}
+                        </>
+                      );
+                    })()}
                     <ContextMenuSeparator />
                     <ContextMenuItem
                       className="text-xs text-destructive focus:text-destructive"

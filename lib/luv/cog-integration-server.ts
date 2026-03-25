@@ -1,8 +1,8 @@
 /**
  * Luv ↔ Cog Image Service Integration (Server-side)
  *
- * Series association uses entity_links (not title/tag matching):
- *   entity_links: source_type='luv', source_id=key, target_type='cog_series'
+ * Series association uses title + luv tag lookup on cog_series.
+ * Module keys (module:face) resolve to the shared 'chassis' series.
  *
  * Series taxonomy:
  *   - "chassis"      → one series for all chassis module media (tags distinguish modules)
@@ -20,7 +20,7 @@ import type { CogImage } from '../types/cog';
 const seriesCache = new Map<string, string>();
 
 /**
- * Resolve a Luv series key to its cog_series ID via entity_links.
+ * Resolve a Luv series key to its cog_series ID via title + tag lookup.
  * Creates the series and link if they don't exist.
  *
  * Module keys (module:face, module:hair) all resolve to the 'chassis' series.
@@ -33,25 +33,10 @@ export async function getLuvSeriesServer(key: string): Promise<string> {
   if (cached) return cached;
 
   const client = await createClient();
-
-  // Look up via entity_links
-  const { data: link } = await (client as any)
-    .from('entity_links')
-    .select('target_id')
-    .eq('source_type', 'luv')
-    .eq('source_id', resolvedKey)
-    .eq('target_type', 'cog_series')
-    .limit(1)
-    .maybeSingle();
-
-  if (link) {
-    seriesCache.set(resolvedKey, link.target_id);
-    return link.target_id;
-  }
-
-  // Fallback: check for legacy title-based series and adopt it
   const title = luvSeriesTitle(resolvedKey);
-  const { data: legacy } = await (client as any)
+
+  // Look up by title + luv tag
+  const { data: existing } = await (client as any)
     .from('cog_series')
     .select('id')
     .eq('title', title)
@@ -61,10 +46,9 @@ export async function getLuvSeriesServer(key: string): Promise<string> {
 
   let seriesId: string;
 
-  if (legacy) {
-    seriesId = legacy.id;
+  if (existing) {
+    seriesId = existing.id;
   } else {
-    // Create new series
     const { data: created, error } = await (client as any)
       .from('cog_series')
       .insert({
@@ -78,21 +62,6 @@ export async function getLuvSeriesServer(key: string): Promise<string> {
     if (error) throw error;
     seriesId = created.id;
   }
-
-  // Create entity_link for stable association.
-  // Duplicate inserts under concurrency are harmless — lookup always takes limit(1).
-  // entity_links has no unique constraint (generic many-to-many), so onConflict is not available.
-  await (client as any)
-    .from('entity_links')
-    .insert({
-      source_type: 'luv',
-      source_id: resolvedKey,
-      target_type: 'cog_series',
-      target_id: seriesId,
-      link_type: 'owns',
-    })
-    .select()
-    .maybeSingle();
 
   seriesCache.set(resolvedKey, seriesId);
   return seriesId;
