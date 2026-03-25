@@ -18,15 +18,9 @@ import type { CogTagWithGroup, CogImageWithGroupInfo } from '@/lib/types/cog';
 import { IconTrash, IconAlertTriangle, IconStarFilled } from '@tabler/icons-react';
 import { TagToolbar } from '@/components/cog/tag-toolbar';
 import { ImageContextMenu } from './image-context-menu';
+import type { UploadingFile } from '@/lib/cog/use-image-upload';
 
-export interface UploadingFile {
-  id: string;
-  file: File;
-  preview: string;
-  status: 'uploading' | 'success' | 'error';
-  progress?: number;
-  error?: string;
-}
+export type { UploadingFile };
 
 interface ImageGalleryProps {
   images: CogImageWithGroupInfo[];
@@ -38,6 +32,10 @@ interface ImageGalleryProps {
   /** Tags pre-selected in the filter bar */
   defaultTags?: string[];
   onPrimaryImageChange?: (imageId: string | null) => void;
+  /** Called with selected files from the toolbar upload button */
+  onUpload?: (files: FileList) => void;
+  /** Whether an upload is in progress */
+  uploading?: boolean;
   uploadingFiles?: UploadingFile[];
   isDragOver?: boolean;
 }
@@ -272,6 +270,8 @@ export function ImageGallery({
   fixedTags = [],
   defaultTags = [],
   onPrimaryImageChange,
+  onUpload,
+  uploading,
   uploadingFiles = [],
   isDragOver = false,
 }: ImageGalleryProps) {
@@ -682,6 +682,8 @@ export function ImageGallery({
         fixedTags={fixedTagSet.size > 0 ? fixedTagSet : undefined}
         onToggle={handleToggleTagFilter}
         onClear={handleClearTagFilter}
+        onUpload={onUpload}
+        uploading={uploading}
       />
 
       <div

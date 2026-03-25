@@ -1,13 +1,13 @@
 'use client';
 
-import { useState, useMemo, useRef, useCallback } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import Link from 'next/link';
 import { getCogImageUrl, getCogThumbnailUrl } from '@/lib/cog/images';
 import { deleteImageWithCleanup } from '@/lib/cog/images';
 import { getImageTagsBatch, addTagToImage } from '@/lib/cog/tags';
 import { supabase } from '@/lib/supabase';
 import { createImage } from '@/lib/cog/images';
-import { IconPlus, IconX } from '@tabler/icons-react';
+import { IconX } from '@tabler/icons-react';
 import { TagToolbar } from '@/components/cog/tag-toolbar';
 import type { CogImage, CogTagWithGroup } from '@/lib/types/cog';
 import { useEffect } from 'react';
@@ -33,7 +33,6 @@ export function SeriesImageGrid({
 }: SeriesImageGridProps) {
   const [images, setImages] = useState(initialImages);
   const [uploading, setUploading] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Tag filter state
   const fixedTagSet = useMemo(() => new Set(fixedTags), [fixedTags]);
@@ -167,29 +166,8 @@ export function SeriesImageGrid({
           });
         }}
         onClear={() => setActiveTagFilter(new Set())}
-        leading={
-          <button
-            type="button"
-            onClick={() => fileInputRef.current?.click()}
-            disabled={uploading}
-            className="shrink-0 flex items-center justify-center size-7 rounded-full text-muted-foreground hover:text-foreground hover:bg-accent transition-colors disabled:opacity-50"
-            title={uploading ? 'Uploading...' : 'Add image'}
-          >
-            <IconPlus size={14} />
-          </button>
-        }
-      />
-
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept="image/*"
-        multiple
-        className="hidden"
-        onChange={(e) => {
-          if (e.target.files) handleUpload(e.target.files);
-          e.target.value = '';
-        }}
+        onUpload={handleUpload}
+        uploading={uploading}
       />
 
       {/* Image grid */}
