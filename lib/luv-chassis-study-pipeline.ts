@@ -99,19 +99,30 @@ function slugify(text: string): string {
 // Gemini Pro API helper (raw fetch — no AI SDK wrapper needed for Pro)
 // ---------------------------------------------------------------------------
 
+type GeminiPart =
+  | { text: string }
+  | { inlineData: { mimeType: string; data: string } };
+
 async function callGeminiPro(
   systemPrompt: string,
-  messages: { role: 'user' | 'model'; text: string }[],
+  messages: { role: 'user' | 'model'; text: string; images?: { base64: string; mimeType: string }[] }[],
 ): Promise<{ text: string; durationMs: number }> {
   const apiKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY;
   if (!apiKey) throw new Error('GOOGLE_GENERATIVE_AI_API_KEY not configured');
 
   const startTime = Date.now();
 
-  const contents = messages.map((m) => ({
-    role: m.role,
-    parts: [{ text: m.text }],
-  }));
+  const contents = messages.map((m) => {
+    const parts: GeminiPart[] = [];
+    // Attach images first so the model sees them before the text
+    if (m.images) {
+      for (const img of m.images) {
+        parts.push({ inlineData: { mimeType: img.mimeType, data: img.base64 } });
+      }
+    }
+    parts.push({ text: m.text });
+    return { role: m.role, parts };
+  });
 
   const requestBody = {
     systemInstruction: { parts: [{ text: systemPrompt }] },
@@ -155,7 +166,7 @@ async function runDeliberation(
   input: ChassisStudyInput,
   moduleParams: Record<string, Record<string, unknown>>,
   referenceDescriptions: string[],
-  referenceImageCount: number,
+  referenceImages: { base64: string; mimeType: string }[],
 ): Promise<DeliberationResult> {
   const totalStart = Date.now();
   const turns: DeliberationTurn[] = [];
@@ -181,7 +192,7 @@ ${input.style ? `Style direction: ${input.style}` : ''}
 ${input.dynamics ? `Dynamic qualities: ${input.dynamics}` : ''}
 ${input.focusArea ? `Focus area: ${input.focusArea}` : ''}
 Modules in focus: ${input.moduleSlugs?.join(', ') || 'all visible'}
-Reference images available: ${referenceImageCount}
+Reference images available: ${referenceImages.length}
 
 ## Character Chassis Parameters
 ${moduleContext}
@@ -202,15 +213,16 @@ Your job in this deliberation:
 Keep responses focused and under 200 words. Speak in first person as Luv.`;
 
   // -- Director's system prompt --
-  const directorSystem = `You are an expert photography director and art director working with a character called Luv on an image generation study. You have access to Luv's exact character specifications (chassis parameters) and your job is to ensure the final image is technically excellent and grounded in the actual parameter values.
+  const directorSystem = `You are an expert photography director and art director working with a character called Luv on an image generation study. You have access to Luv's exact character specifications (chassis parameters) AND reference images showing her actual appearance. Your job is to ensure the final image is technically excellent and grounded in both the parameter values and the visual reality of the reference images.
 
 Your role in this deliberation:
+- Study the reference images carefully — they show Luv's actual appearance. Use them to validate or challenge proposed creative direction
 - Challenge vague or generic creative direction — push for specificity
-- Ground every visual detail in actual chassis parameter values (don't let anyone invent features)
+- Ground every visual detail in actual chassis parameter values AND what you observe in the references
 - Add technical photography direction: lighting setup, lens choice, camera angle, depth of field
 - Consider the set/environment and how it interacts with the character
 - Ensure the composition serves the study's goal
-- Point out conflicts between proposed direction and actual parameter values
+- Point out conflicts between proposed direction, actual parameter values, and reference image appearance
 - When you agree with Luv's direction, build on it with technical specifics
 
 Keep responses focused and under 250 words. Be direct — this is a working session, not a performance.
@@ -234,9 +246,9 @@ ${studyContext}`;
 
   console.log('[chassis-study] Deliberation R1 — Luv proposed:', luvR1.text.slice(0, 100));
 
-  // -- Round 1: Director responds --
+  // -- Round 1: Director responds (with reference images so it can see Luv) --
   const dirR1 = await callGeminiPro(directorSystem, [
-    { role: 'user', text: `Luv's creative proposal:\n\n${luvR1.text}\n\nReview this proposal. Challenge anything vague, add technical photography direction, and ground the details in the actual chassis parameters. What needs to change or be more specific?` },
+    { role: 'user', text: `Luv's creative proposal:\n\n${luvR1.text}\n\nStudy the attached reference images of Luv carefully, then review this proposal. Challenge anything vague, add technical photography direction, and ground the details in both the chassis parameters and what you observe in the references. What needs to change or be more specific?`, images: referenceImages },
   ]);
 
   turns.push({
@@ -288,15 +300,15 @@ ${studyContext}`;
     { role: 'model', text: dirR1.text },
     { role: 'user', text: `Luv's refined vision:\n\n${luvR2.text}` },
     { role: 'model', text: dirR2.text },
-    { role: 'user', text: `Now compose the FINAL image generation prompt. This prompt will be passed directly to Gemini's image generation model along with ${referenceImageCount} reference images.
+    { role: 'user', text: `Now compose the FINAL image generation prompt. This prompt will be passed directly to Gemini's image generation model along with ${referenceImages.length} reference images (the same ones you've been looking at).
 
 Requirements:
 - Single continuous description (no JSON, no headers, no bullet points)
 - Include specific technical details: lighting, camera, lens, atmosphere
 - Every agreed chassis parameter must appear as a concrete visual detail
 - Keep under 400 words but be maximally descriptive
-- ${referenceImageCount > 0 ? `Start with reference markers: ${Array.from({ length: referenceImageCount }, (_, i) => `[${i + 1}]`).join(' ')}` : 'No reference images available'}
-- ${referenceImageCount > 0 ? 'Include "maintaining exact likeness and character features from reference"' : ''}
+- ${referenceImages.length > 0 ? `Start with reference markers: ${Array.from({ length: referenceImages.length }, (_, i) => `[${i + 1}]`).join(' ')}` : 'No reference images available'}
+- ${referenceImages.length > 0 ? 'Include "maintaining exact likeness and character features from reference"' : ''}
 
 Output ONLY the prompt text, nothing else.` },
   ]);
@@ -506,7 +518,7 @@ export async function runChassisStudyPipeline(
       input,
       moduleParams,
       referenceDescriptions,
-      allRefImages.length,
+      allRefImages,
     );
 
     // Extract brief from the deliberation for the study record
