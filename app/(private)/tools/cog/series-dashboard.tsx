@@ -115,10 +115,16 @@ export function SeriesDashboard({ series: initialSeries }: SeriesDashboardProps)
 
   const handleUnlinkTool = useCallback(async (seriesId: string, tool: string) => {
     try {
+      const link = series
+        .find((s) => s.id === seriesId)
+        ?.toolLinks?.find((l) => l.sourceType === tool);
+      if (!link) return;
+
       await (supabase as any)
         .from('entity_links')
         .delete()
         .eq('source_type', tool)
+        .eq('source_id', link.sourceId)
         .eq('target_type', 'cog_series')
         .eq('target_id', seriesId);
 
@@ -132,7 +138,7 @@ export function SeriesDashboard({ series: initialSeries }: SeriesDashboardProps)
     } catch (err) {
       console.error('Unlink failed:', err);
     }
-  }, []);
+  }, [series]);
 
   return (
     <div className="space-y-6 p-4 sm:p-6 lg:p-8">
