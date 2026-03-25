@@ -26,11 +26,37 @@ interface ImageGenResult {
   error?: string;
 }
 
+interface ChassisStudyResult {
+  type: 'chassis_study_result';
+  success: boolean;
+  studyId?: string;
+  imageUrl?: string;
+  brief?: { description?: string };
+  generationPrompt?: string;
+  moduleSlugs?: string[];
+  durationMs?: number;
+  deliberation?: {
+    rounds: number;
+    totalDurationMs: number;
+    summary: string[];
+  };
+  error?: string;
+  errorDetail?: string;
+}
+
 function isImageGenResult(v: unknown): v is ImageGenResult {
   return (
     typeof v === 'object' &&
     v !== null &&
     (v as Record<string, unknown>).type === 'image_generation_result'
+  );
+}
+
+function isChassisStudyResult(v: unknown): v is ChassisStudyResult {
+  return (
+    typeof v === 'object' &&
+    v !== null &&
+    (v as Record<string, unknown>).type === 'chassis_study_result'
   );
 }
 
@@ -62,6 +88,9 @@ const toolLabels: Record<string, string> = {
   tag_image: 'Tag Image',
   create_image_series: 'Create Image Series',
   set_series_cover: 'Set Series Cover',
+  run_chassis_study: 'Chassis Study',
+  record_study_feedback: 'Record Feedback',
+  list_chassis_studies: 'List Studies',
 };
 
 // Tools whose results contain linkable research entries
@@ -150,9 +179,10 @@ export function ToolCallCard({ toolName, state, result }: ToolCallCardProps) {
   const isComplete = state === 'output-available';
   const linkableEntries = isComplete ? extractLinkableEntries(toolName, result) : [];
   const imageResult = isComplete && isImageGenResult(result) ? result : null;
+  const studyResult = isComplete && isChassisStudyResult(result) ? result : null;
 
-  // Auto-expand image generation results (unless user explicitly collapsed)
-  const showExpanded = expanded || (!userCollapsed && imageResult?.success && isComplete);
+  // Auto-expand image/study results (unless user explicitly collapsed)
+  const showExpanded = expanded || (!userCollapsed && isComplete && (imageResult?.success || studyResult?.success));
 
   return (
     <div className="rounded border bg-muted/50 text-xs my-1">
@@ -183,15 +213,22 @@ export function ToolCallCard({ toolName, state, result }: ToolCallCardProps) {
         <span className="font-medium">{label}</span>
         {!isComplete && (
           <span className="ml-auto text-muted-foreground animate-pulse">
-            {toolName === 'generate_image' ? 'generating...' : 'running...'}
+            {toolName === 'generate_image' ? 'generating...'
+              : toolName === 'run_chassis_study' ? 'deliberating...'
+              : 'running...'}
           </span>
         )}
-        {isComplete && imageResult && !imageResult.success && (
+        {isComplete && (imageResult && !imageResult.success || studyResult && !studyResult.success) && (
           <span className="ml-auto text-destructive">failed</span>
         )}
         {isComplete && imageResult?.success && imageResult.durationMs && (
           <span className="ml-auto text-muted-foreground">
             {(imageResult.durationMs / 1000).toFixed(1)}s
+          </span>
+        )}
+        {isComplete && studyResult?.success && studyResult.durationMs && (
+          <span className="ml-auto text-muted-foreground">
+            {(studyResult.durationMs / 1000).toFixed(1)}s
           </span>
         )}
         {isComplete && linkableEntries.length > 0 && !showExpanded && (
@@ -234,6 +271,56 @@ export function ToolCallCard({ toolName, state, result }: ToolCallCardProps) {
           ) : (
             <div className="px-2 py-1.5 text-destructive">
               {imageResult.error ?? 'Image generation failed'}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Chassis study result — auto-expanded */}
+      {showExpanded && studyResult && (
+        <div className="border-t">
+          {studyResult.success && studyResult.imageUrl ? (
+            <div className="p-2 space-y-2">
+              <button type="button" onClick={() => setLightboxSrc(studyResult.imageUrl!)}>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={studyResult.imageUrl}
+                  alt={studyResult.brief?.description ?? 'Study image'}
+                  className="rounded max-w-full max-h-96 object-contain cursor-pointer hover:opacity-90 transition-opacity"
+                />
+              </button>
+              {studyResult.deliberation && (
+                <div className="space-y-1.5">
+                  <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">
+                    Deliberation ({studyResult.deliberation.rounds} turns · {(studyResult.deliberation.totalDurationMs / 1000).toFixed(1)}s)
+                  </p>
+                  {studyResult.deliberation.summary.map((line, i) => {
+                    const isLuv = line.startsWith('[luv]');
+                    const isDir = line.startsWith('[director]');
+                    const content = line.replace(/^\[(luv|director)\]\s*/, '');
+                    return (
+                      <div key={i} className={cn(
+                        'text-[10px] px-2 py-1 rounded',
+                        isLuv && 'bg-primary/5 border-l-2 border-primary/30',
+                        isDir && 'bg-muted border-l-2 border-muted-foreground/30',
+                      )}>
+                        <span className="font-medium">{isLuv ? 'Luv' : isDir ? 'Director' : ''}: </span>
+                        {content}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+              <div className="flex gap-2 text-[10px] text-muted-foreground">
+                {studyResult.moduleSlugs && <span>{studyResult.moduleSlugs.join(', ')}</span>}
+              </div>
+            </div>
+          ) : (
+            <div className="px-2 py-1.5 text-destructive space-y-1">
+              <p>{studyResult.error ?? 'Chassis study failed'}</p>
+              {studyResult.errorDetail && (
+                <pre className="text-[9px] text-muted-foreground whitespace-pre-wrap">{studyResult.errorDetail}</pre>
+              )}
             </div>
           )}
         </div>
