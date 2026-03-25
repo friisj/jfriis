@@ -1,8 +1,8 @@
 /**
  * Luv ↔ Cog Image Service Integration (Client-side)
  *
- * Series association uses entity_links (not title/tag matching):
- *   entity_links: source_type='luv', source_id=key, target_type='cog_series'
+ * Series association uses title + luv tag lookup on cog_series.
+ * Module keys (module:face) resolve to the shared 'chassis' series.
  *
  * Series taxonomy:
  *   - "chassis"      → one series for all chassis module media
@@ -20,7 +20,7 @@ import { generateThumbnails } from '../cog/thumbnails';
 const seriesCache = new Map<string, string>();
 
 /**
- * Resolve a Luv series key to its cog_series ID via entity_links.
+ * Resolve a Luv series key to its cog_series ID via title + tag lookup.
  * Module keys (module:face) all resolve to the 'chassis' series.
  */
 export async function getLuvSeries(key: string): Promise<string> {
