@@ -28,6 +28,7 @@ import {
   IconCopy,
   IconTrash,
   IconX,
+  IconUpload,
 } from '@tabler/icons-react';
 import { MODEL_OPTIONS, type ContextPressure } from '../use-luv-chat-session';
 import type { LuvCompactSummary } from '@/lib/types/luv';
@@ -191,7 +192,7 @@ export function ChatInputToolbar({
               onPaste={handlePaste}
               placeholder="Message Luv..."
               rows={2}
-              className="resize-none text-xs border-none rounded-none p-4 focus-visible:ring-0 focus-visible:ring-offset-0 bg-transparent shadow-none"
+              className="resize-none text-xs border rounded-none px-8 sm:px-8 py-6 focus-visible:ring-0 focus-visible:ring-offset-0 bg-transparent shadow-none"
               disabled={isActive || !soulLoaded}
             />
           </div>
@@ -204,14 +205,74 @@ export function ChatInputToolbar({
             onPaste={handlePaste}
             placeholder="Message Luv..."
             rows={1}
-            className="w-full min-w-0 resize-none text-base sm:text-sm border-none rounded-none px-4 sm:px-8 py-6 bg-transparent outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50"
+            className="w-full min-w-0 resize-none text-base sm:text-sm border-none rounded-none px-6 sm:px-8 py-6 bg-transparent outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50"
             disabled={isActive || !soulLoaded}
           />
         )}
 
-        <div className={cn('flex justify-between items-start px-4', compact ? 'pb-4' : 'pb-4')}>
+        <div className={cn('flex justify-between items-start pl-3 md:pl-4 pr-4', compact ? 'pb-4' : 'pb-4')}>
           <div className="flex">
+
             <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  className={cn(
+                    'flex items-center justify-center size-12 text-muted-foreground',
+                    (traitPanelOpen || activePresetId) && 'text-foreground',
+                  )}
+                  title="Soul Modulation"
+                >
+                  <IconAdjustments size={iconSize} stroke={1.5} />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent side="top" align="start" className="w-48">
+                {presets.map((p) => (
+                  <DropdownMenuItem
+                    key={p.id}
+                    className="text-xs"
+                    onClick={() => onApplyPreset(p.id)}
+                  >
+                    {p.name}
+                    {activePresetId === p.id && (
+                      <span className="ml-auto text-[10px] text-muted-foreground">active</span>
+                    )}
+                  </DropdownMenuItem>
+                ))}
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  className="text-xs"
+                  onClick={onToggleTraitPanel}
+                >
+                  Custom{!activePresetId && traitPanelOpen ? '' : ''}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+
+
+            <button
+              className="flex items-center justify-center size-12 text-muted-foreground"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={isActive || !soulLoaded}
+              title="Upload image"
+            >
+              <IconUpload size={iconSize} stroke={1.5} />
+            </button>
+
+            {onToggleImagePicker && (
+              <button
+                className={cn(
+                  'flex items-center justify-center size-12 text-muted-foreground',
+                  imagePickerOpen && 'text-foreground',
+                )}
+                onClick={onToggleImagePicker}
+                disabled={isActive || !soulLoaded}
+                title="Image library"
+              >
+                <IconPhotoPlus size={iconSize} stroke={1.5} />
+              </button>
+            )}
+
+<DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button
                   className="flex items-center justify-center size-12 text-muted-foreground"
@@ -299,65 +360,6 @@ export function ChatInputToolbar({
                 )}
               </DropdownMenuContent>
             </DropdownMenu>
-
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <button
-                  className={cn(
-                    'flex items-center justify-center size-12 text-muted-foreground',
-                    (traitPanelOpen || activePresetId) && 'text-foreground',
-                  )}
-                  title="Soul modulation"
-                >
-                  <IconAdjustments size={iconSize} stroke={1.5} />
-                </button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent side="top" align="start" className="w-48">
-                {presets.map((p) => (
-                  <DropdownMenuItem
-                    key={p.id}
-                    className="text-xs"
-                    onClick={() => onApplyPreset(p.id)}
-                  >
-                    {p.name}
-                    {activePresetId === p.id && (
-                      <span className="ml-auto text-[10px] text-muted-foreground">active</span>
-                    )}
-                  </DropdownMenuItem>
-                ))}
-                <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  className="text-xs"
-                  onClick={onToggleTraitPanel}
-                >
-                  Custom{!activePresetId && traitPanelOpen ? '' : ''}
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-
-
-            <button
-              className="flex items-center justify-center size-12 text-muted-foreground"
-              onClick={() => fileInputRef.current?.click()}
-              disabled={isActive || !soulLoaded}
-              title="Upload image"
-            >
-              <IconPhotoPlus size={iconSize} stroke={1.5} />
-            </button>
-
-            {onToggleImagePicker && (
-              <button
-                className={cn(
-                  'flex items-center justify-center size-12 text-muted-foreground',
-                  imagePickerOpen && 'text-foreground',
-                )}
-                onClick={onToggleImagePicker}
-                disabled={isActive || !soulLoaded}
-                title="Image library"
-              >
-                <IconPhoto size={iconSize} stroke={1.5} />
-              </button>
-            )}
 
             <input
               ref={fileInputRef}
