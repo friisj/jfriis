@@ -1,6 +1,5 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { createClient } from '@/lib/supabase-server';
 import { getSeriesByIdServer } from '@/lib/cog/server/series';
 import { getEnabledTagsForSeriesServer } from '@/lib/cog/server/tags';
 import { getSeriesImagesServer } from '@/lib/cog/server/images';
@@ -14,25 +13,14 @@ interface Props {
 export default async function LuvSeriesPage({ params }: Props) {
   const { seriesId } = await params;
 
-  // Validate this series is linked to Luv via entity_links
-  const supabase = await createClient();
-  const { data: link } = await (supabase as any)
-    .from('entity_links')
-    .select('id')
-    .eq('source_type', 'luv')
-    .eq('target_type', 'cog_series')
-    .eq('target_id', seriesId)
-    .limit(1)
-    .maybeSingle();
-
-  if (!link) notFound();
-
   let series;
   try {
     series = await getSeriesByIdServer(seriesId);
   } catch {
     notFound();
   }
+
+  if (!series.tags?.includes('luv')) notFound();
 
   const [images, enabledTags] = await Promise.all([
     getSeriesImagesServer(seriesId),

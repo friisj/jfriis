@@ -25,27 +25,19 @@ export const listImageSeries = tool({
   execute: async () => {
     const client = await createClient();
 
-    // Discover Luv series via entity_links (not tag matching)
-    const { data: links, error: linkError } = await (client as any)
-      .from('entity_links')
-      .select('source_id, target_id')
-      .eq('source_type', 'luv')
-      .eq('target_type', 'cog_series');
-
-    if (linkError) return { error: linkError.message };
-
-    const seriesIds = (links ?? []).map((l: { target_id: string }) => l.target_id);
-    if (seriesIds.length === 0) return { series: [] };
-
+    // Discover Luv series by tag
     const { data: seriesData, error } = await (client as any)
       .from('cog_series')
       .select('id, title, description')
-      .in('id', seriesIds)
+      .contains('tags', ['luv'])
       .order('title', { ascending: true });
 
     if (error) return { error: error.message };
 
     const series = seriesData ?? [];
+    if (series.length === 0) return { series: [] };
+
+    const seriesIds = series.map((s: { id: string }) => s.id);
     const { data: counts } = await (client as any)
       .from('cog_images')
       .select('series_id')
@@ -233,27 +225,11 @@ export const createImageSeries = tool({
     })
   ),
   execute: async ({ name, description }) => {
-    const client = await createClient();
-    const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
-
     const series = await createSeriesServer({
       title: `Luv — ${name}`,
       description: description ?? null,
       tags: ['luv'],
     });
-
-    // Create entity_link so the series appears in Luv media views
-    await (client as any)
-      .from('entity_links')
-      .insert({
-        source_type: 'luv',
-        source_id: slug,
-        target_type: 'cog_series',
-        target_id: series.id,
-        link_type: 'owns',
-      })
-      .select()
-      .maybeSingle();
 
     return { success: true, seriesId: series.id, title: series.title };
   },

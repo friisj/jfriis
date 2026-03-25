@@ -23,20 +23,11 @@ export function ImagePickerPanel({ onAttach, onClose }: ImagePickerPanelProps) {
   // Fetch Luv series on mount
   useEffect(() => {
     (async () => {
-      // Fetch Luv series via entity_links
-      const { data: links } = await (supabase as any)
-        .from('entity_links')
-        .select('target_id')
-        .eq('source_type', 'luv')
-        .eq('target_type', 'cog_series');
-
-      const ids = (links ?? []).map((l: { target_id: string }) => l.target_id);
-      if (ids.length === 0) { setLoading(false); return; }
-
+      // Fetch Luv series by tag
       const { data } = await (supabase as any)
         .from('cog_series')
         .select('*')
-        .in('id', ids)
+        .contains('tags', ['luv'])
         .order('title', { ascending: true });
 
       const list = (data ?? []) as CogSeries[];
