@@ -119,12 +119,13 @@ export async function getRecentChassisChangesServer(
 // Studies
 // ============================================================================
 
-export async function getStudiesServer(): Promise<LuvChassisStudy[]> {
+export async function getStudiesServer(limit = 50): Promise<LuvChassisStudy[]> {
   const client = await createClient();
   const { data, error } = await (client as any)
     .from('luv_chassis_studies')
     .select('*')
-    .order('updated_at', { ascending: false });
+    .order('updated_at', { ascending: false })
+    .limit(limit);
 
   if (error?.code === 'PGRST205') return []; // table not yet created
   if (error) throw error;
@@ -163,7 +164,8 @@ export async function getStudiesForModuleServer(
 }
 
 export async function getStudiesByModuleSlugsServer(
-  slugs: string[]
+  slugs: string[],
+  limit = 50,
 ): Promise<LuvChassisStudy[]> {
   if (slugs.length === 0) return [];
   const client = await createClient();
@@ -171,7 +173,8 @@ export async function getStudiesByModuleSlugsServer(
     .from('luv_chassis_studies')
     .select('*')
     .overlaps('module_slugs', slugs)
-    .order('updated_at', { ascending: false });
+    .order('updated_at', { ascending: false })
+    .limit(limit);
 
   if (error?.code === 'PGRST205') return [];
   if (error) throw error;

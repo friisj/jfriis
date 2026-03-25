@@ -252,14 +252,13 @@ export const listChassisStudies = tool({
   execute: async ({ moduleSlugs, limit }) => {
     const { getStudiesServer, getStudiesByModuleSlugsServer } = await import('./luv-chassis-server');
 
+    const dbLimit = limit ?? 10;
     const studies = moduleSlugs && moduleSlugs.length > 0
-      ? await getStudiesByModuleSlugsServer(moduleSlugs)
-      : await getStudiesServer();
-
-    const sliced = studies.slice(0, limit ?? 10);
+      ? await getStudiesByModuleSlugsServer(moduleSlugs, dbLimit)
+      : await getStudiesServer(dbLimit);
 
     return {
-      studies: sliced.map((s) => ({
+      studies: studies.map((s) => ({
         id: s.id,
         slug: s.slug,
         title: s.title,
