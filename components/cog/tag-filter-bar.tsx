@@ -6,12 +6,16 @@ import type { CogTagWithGroup } from '@/lib/types/cog';
 interface TagFilterBarProps {
   enabledTags: CogTagWithGroup[];
   activeTags: Set<string>;
+  /** Tags that are always active and shown as locked pills */
+  fixedTags?: Set<string>;
   onToggle: (tagId: string) => void;
   onClear: () => void;
 }
 
-export function TagFilterBar({ enabledTags, activeTags, onToggle, onClear }: TagFilterBarProps) {
+export function TagFilterBar({ enabledTags, activeTags, fixedTags, onToggle, onClear }: TagFilterBarProps) {
   if (enabledTags.length === 0) return null;
+
+  const hasActiveOrFixed = activeTags.size > 0 || (fixedTags?.size ?? 0) > 0;
 
   return (
     <div className="flex gap-1.5 overflow-x-auto py-2">
@@ -20,7 +24,7 @@ export function TagFilterBar({ enabledTags, activeTags, onToggle, onClear }: Tag
         onClick={onClear}
         className={cn(
           'shrink-0 rounded-full px-3 py-1 text-[11px] font-medium transition-colors',
-          activeTags.size === 0
+          !hasActiveOrFixed
             ? 'bg-foreground text-background'
             : 'text-muted-foreground hover:text-foreground hover:bg-accent',
         )}
@@ -28,18 +32,21 @@ export function TagFilterBar({ enabledTags, activeTags, onToggle, onClear }: Tag
         All
       </button>
       {enabledTags.map((tag) => {
-        const isActive = activeTags.has(tag.id);
+        const isFixed = fixedTags?.has(tag.id) ?? false;
+        const isActive = isFixed || activeTags.has(tag.id);
         const color = tag.color || tag.group?.color || '#888';
         return (
           <button
             key={tag.id}
             type="button"
-            onClick={() => onToggle(tag.id)}
+            onClick={() => !isFixed && onToggle(tag.id)}
             className={cn(
               'shrink-0 rounded-full px-3 py-1 text-[11px] font-medium transition-colors flex items-center gap-1.5',
-              isActive
-                ? 'bg-foreground text-background'
-                : 'text-muted-foreground hover:text-foreground hover:bg-accent',
+              isFixed
+                ? 'bg-foreground/80 text-background cursor-default'
+                : isActive
+                  ? 'bg-foreground text-background'
+                  : 'text-muted-foreground hover:text-foreground hover:bg-accent',
             )}
           >
             <span

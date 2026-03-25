@@ -23,10 +23,10 @@ interface Props {
   initialMedia?: CogImage[];
   seriesId?: string;
   enabledTags?: CogTagWithGroup[];
-  defaultTagId?: string;
+  fixedTagIds?: string[];
 }
 
-export function ChassisModulePageClient({ module, allModules = [], studyLocks = [], initialMedia = [], seriesId, enabledTags = [], defaultTagId }: Props) {
+export function ChassisModulePageClient({ module, allModules = [], studyLocks = [], initialMedia = [], seriesId, enabledTags = [], fixedTagIds = [] }: Props) {
   const parameterKeys = (module.parameter_schema ?? []).map((p) => p.key);
 
   return (
@@ -70,6 +70,7 @@ export function ChassisModulePageClient({ module, allModules = [], studyLocks = 
               initialImages={initialMedia}
               seriesTitle={module.name}
               enabledTags={enabledTags}
+              fixedTags={fixedTagIds}
             />
           </div>
         ) : (

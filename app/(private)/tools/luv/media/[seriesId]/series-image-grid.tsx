@@ -17,22 +17,33 @@ interface SeriesImageGridProps {
   initialImages: CogImage[];
   seriesTitle: string;
   enabledTags?: CogTagWithGroup[];
-  defaultActiveTagId?: string;
+  /** Tags that are always active and can't be toggled off (e.g., module tag in chassis context) */
+  fixedTags?: string[];
+  /** Tags pre-selected in the pill bar (user can toggle off) */
+  defaultTags?: string[];
 }
 
-export function SeriesImageGrid({ seriesId, initialImages, seriesTitle, enabledTags = [], defaultActiveTagId }: SeriesImageGridProps) {
+export function SeriesImageGrid({
+  seriesId,
+  initialImages,
+  seriesTitle,
+  enabledTags = [],
+  fixedTags = [],
+  defaultTags = [],
+}: SeriesImageGridProps) {
   const [images, setImages] = useState(initialImages);
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Tag filter state — pre-select default tag if provided
+  // Tag filter state
+  const fixedTagSet = useMemo(() => new Set(fixedTags), [fixedTags]);
   const [activeTagFilter, setActiveTagFilter] = useState<Set<string>>(
-    defaultActiveTagId ? new Set([defaultActiveTagId]) : new Set()
+    () => new Set(defaultTags)
   );
   const [imageTagsMap, setImageTagsMap] = useState<Map<string, Set<string>>>(new Map());
   const [tagsLoaded, setTagsLoaded] = useState(false);
 
-  // Load image tags when enabled tags exist
+  // Load image tags
   useEffect(() => {
     if (!enabledTags.length || !images.length) {
       setTagsLoaded(true);
@@ -56,17 +67,37 @@ export function SeriesImageGrid({ seriesId, initialImages, seriesTitle, enabledT
   }, [enabledTags.length, images]);
 
   const filteredImages = useMemo(() => {
-    // Don't filter until tags are loaded — show all images while loading
-    if (activeTagFilter.size === 0 || !tagsLoaded) return images;
+    const hasFixed = fixedTagSet.size > 0;
+    const hasActive = activeTagFilter.size > 0;
+
+    // No filtering needed
+    if (!hasFixed && !hasActive) return images;
+    // Don't filter until tags are loaded — show all while loading
+    if (!tagsLoaded) return images;
+
     return images.filter((img) => {
       const imgTags = imageTagsMap.get(img.id);
-      if (!imgTags) return false;
-      for (const tagId of activeTagFilter) {
-        if (imgTags.has(tagId)) return true;
+      if (!imgTags) return !hasFixed; // if no tag data, only show if no fixed filter
+
+      // Must match ALL fixed tags
+      if (hasFixed) {
+        for (const tagId of fixedTagSet) {
+          if (!imgTags.has(tagId)) return false;
+        }
       }
-      return false;
+
+      // If active tags set, must match at least ONE
+      if (hasActive) {
+        let matchesAny = false;
+        for (const tagId of activeTagFilter) {
+          if (imgTags.has(tagId)) { matchesAny = true; break; }
+        }
+        return matchesAny;
+      }
+
+      return true;
     });
-  }, [images, activeTagFilter, imageTagsMap, tagsLoaded]);
+  }, [images, fixedTagSet, activeTagFilter, imageTagsMap, tagsLoaded]);
 
   const handleUpload = useCallback(async (files: FileList | File[]) => {
     const imageFiles = Array.from(files).filter((f) => f.type.startsWith('image/'));
@@ -121,6 +152,7 @@ export function SeriesImageGrid({ seriesId, initialImages, seriesTitle, enabledT
       <TagFilterBar
         enabledTags={enabledTags}
         activeTags={activeTagFilter}
+        fixedTags={fixedTagSet.size > 0 ? fixedTagSet : undefined}
         onToggle={(tagId) => {
           setActiveTagFilter((prev) => {
             const next = new Set(prev);
