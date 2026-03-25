@@ -7,10 +7,12 @@ import { deleteImageWithCleanup } from '@/lib/cog/images';
 import { getImageTagsBatch } from '@/lib/cog/tags';
 import { supabase } from '@/lib/supabase';
 import { createImage } from '@/lib/cog/images';
-import { IconPhotoPlus, IconX } from '@tabler/icons-react';
+import { IconFilter, IconPlus, IconX } from '@tabler/icons-react';
+import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 import { TagFilterBar } from '@/components/cog/tag-filter-bar';
 import type { CogImage, CogTagWithGroup } from '@/lib/types/cog';
 import { useEffect } from 'react';
+import { cn } from '@/lib/utils';
 
 interface SeriesImageGridProps {
   seriesId: string;
@@ -42,6 +44,14 @@ export function SeriesImageGrid({
   );
   const [imageTagsMap, setImageTagsMap] = useState<Map<string, Set<string>>>(new Map());
   const [tagsLoaded, setTagsLoaded] = useState(false);
+  // Which tags are visible in the pill bar (subset of enabledTags)
+  const [visibleTagIds, setVisibleTagIds] = useState<Set<string>>(
+    () => new Set([...fixedTags, ...defaultTags])
+  );
+  const visibleTags = useMemo(
+    () => enabledTags.filter((t) => visibleTagIds.has(t.id)),
+    [enabledTags, visibleTagIds],
+  );
 
   // Load image tags
   useEffect(() => {
@@ -149,44 +159,97 @@ export function SeriesImageGrid({
 
   return (
     <div className="space-y-4">
-      <TagFilterBar
-        enabledTags={enabledTags}
-        activeTags={activeTagFilter}
-        fixedTags={fixedTagSet.size > 0 ? fixedTagSet : undefined}
-        onToggle={(tagId) => {
-          setActiveTagFilter((prev) => {
-            const next = new Set(prev);
-            if (next.has(tagId)) next.delete(tagId);
-            else next.add(tagId);
-            return next;
-          });
-        }}
-        onClear={() => setActiveTagFilter(new Set())}
-      />
-
-      {/* Upload button */}
-      <div className="flex items-center gap-2">
+      {/* Toolbar: add + filter + pill bar */}
+      <div className="flex items-center gap-1.5">
         <button
           type="button"
           onClick={() => fileInputRef.current?.click()}
           disabled={uploading}
-          className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
+          className="shrink-0 flex items-center justify-center size-7 rounded-full text-muted-foreground hover:text-foreground hover:bg-accent transition-colors disabled:opacity-50"
+          title={uploading ? 'Uploading...' : 'Add image'}
         >
-          <IconPhotoPlus size={14} />
-          {uploading ? 'Uploading...' : 'Add images'}
+          <IconPlus size={14} />
         </button>
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept="image/*"
-          multiple
-          className="hidden"
-          onChange={(e) => {
-            if (e.target.files) handleUpload(e.target.files);
-            e.target.value = '';
+
+        {enabledTags.length > 0 && (
+          <Popover>
+            <PopoverTrigger asChild>
+              <button
+                type="button"
+                className="shrink-0 flex items-center justify-center size-7 rounded-full text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+                title="Manage visible tags"
+              >
+                <IconFilter size={14} />
+              </button>
+            </PopoverTrigger>
+            <PopoverContent align="start" className="w-56 p-2 max-h-64 overflow-y-auto">
+              <p className="text-[10px] font-medium text-muted-foreground px-1 mb-1.5">Show in filter bar</p>
+              {enabledTags.map((tag) => {
+                const isFixed = fixedTagSet.has(tag.id);
+                const isVisible = visibleTagIds.has(tag.id);
+                const color = tag.color || tag.group?.color || '#888';
+                return (
+                  <button
+                    key={tag.id}
+                    type="button"
+                    disabled={isFixed}
+                    onClick={() => {
+                      setVisibleTagIds((prev) => {
+                        const next = new Set(prev);
+                        if (next.has(tag.id)) {
+                          next.delete(tag.id);
+                          setActiveTagFilter((a) => { const n = new Set(a); n.delete(tag.id); return n; });
+                        } else {
+                          next.add(tag.id);
+                        }
+                        return next;
+                      });
+                    }}
+                    className={cn(
+                      'flex items-center gap-2 w-full px-1.5 py-1 rounded text-xs transition-colors',
+                      isFixed ? 'opacity-50 cursor-default' : 'hover:bg-accent cursor-pointer',
+                    )}
+                  >
+                    <span
+                      className="inline-block w-2 h-2 rounded-full shrink-0"
+                      style={{ backgroundColor: color }}
+                    />
+                    <span className="flex-1 text-left truncate">{tag.name}</span>
+                    {(isVisible || isFixed) && <span className="text-[10px] text-muted-foreground">visible</span>}
+                  </button>
+                );
+              })}
+            </PopoverContent>
+          </Popover>
+        )}
+
+        <TagFilterBar
+          enabledTags={visibleTags}
+          activeTags={activeTagFilter}
+          fixedTags={fixedTagSet.size > 0 ? fixedTagSet : undefined}
+          onToggle={(tagId) => {
+            setActiveTagFilter((prev) => {
+              const next = new Set(prev);
+              if (next.has(tagId)) next.delete(tagId);
+              else next.add(tagId);
+              return next;
+            });
           }}
+          onClear={() => setActiveTagFilter(new Set())}
         />
       </div>
+
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        multiple
+        className="hidden"
+        onChange={(e) => {
+          if (e.target.files) handleUpload(e.target.files);
+          e.target.value = '';
+        }}
+      />
 
       {/* Image grid */}
       {filteredImages.length === 0 ? (
