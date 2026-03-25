@@ -294,12 +294,14 @@ export function ImageGallery({
   const [activeTagFilter, setActiveTagFilter] = useState<Set<string>>(
     () => new Set(defaultTags)
   );
+  const [tagsLoaded, setTagsLoaded] = useState(false);
 
   // Filter images by fixed + active tags
   const filteredImages = useMemo(() => {
     const hasFixed = fixedTagSet.size > 0;
     const hasActive = activeTagFilter.size > 0;
     if (!hasFixed && !hasActive) return images;
+    if (!tagsLoaded) return images;
 
     return images.filter((img) => {
       const imgTags = imageTagsMap.get(img.id);
@@ -319,9 +321,10 @@ export function ImageGallery({
         }
         return false;
       }
-      return false;
+
+      return true;
     });
-  }, [images, activeTagFilter, imageTagsMap]);
+  }, [images, fixedTagSet, activeTagFilter, imageTagsMap, tagsLoaded]);
 
   const handleToggleTagFilter = useCallback((tagId: string) => {
     setActiveTagFilter((prev) => {
@@ -350,7 +353,11 @@ export function ImageGallery({
   const hasSelection = selectedIds.size > 0;
 
   const refreshImageTags = useCallback(async () => {
-    if (!enabledTags.length || !images.length) return;
+    if (!enabledTags.length || !images.length) {
+      setTagsLoaded(true);
+      return;
+    }
+    setTagsLoaded(false);
     try {
       const ids = images.map((img) => img.id);
       const tags = await getImageTagsBatch(ids);
@@ -364,6 +371,8 @@ export function ImageGallery({
       setImageTagsMap(map);
     } catch (error) {
       console.error('Failed to load image tags:', error);
+    } finally {
+      setTagsLoaded(true);
     }
   }, [enabledTags.length, images]);
 
