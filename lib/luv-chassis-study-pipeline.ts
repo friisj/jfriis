@@ -477,6 +477,7 @@ export async function runChassisStudyPipeline(
         mimeType: imageResult.mimeType,
         source: 'generated',
         prompt: generationPrompt,
+        moduleSlug: moduleSlugs[0],
         metadata: {
           studyId: study.id,
           moduleSlugs,
@@ -485,6 +486,20 @@ export async function runChassisStudyPipeline(
           imageSize: input.imageSize ?? '2K',
         },
       });
+
+      // Tag with additional module slugs beyond the first
+      if (moduleSlugs.length > 1) {
+        const { addTagToImageServer } = await import('./cog/server/tags');
+        const { getModuleTagIdServer } = await import('./luv/cog-integration-server');
+        for (const slug of moduleSlugs.slice(1)) {
+          try {
+            const tagId = await getModuleTagIdServer(slug);
+            await addTagToImageServer(cogImage.id, tagId);
+          } catch {
+            // Non-critical — image exists, tagging is best-effort
+          }
+        }
+      }
       cogImageId = cogImage.id;
     } catch (err) {
       console.error('[chassis-study] cog_images insert failed:', err);
