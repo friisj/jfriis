@@ -116,10 +116,20 @@ export function createChassisStudyTool(messages: ModelMessage[]) {
           metadata: result.study.generation_metadata,
         };
       } catch (err) {
+        const message = err instanceof Error
+          ? err.message
+          : typeof err === 'object' && err !== null && 'message' in err
+            ? String((err as { message: unknown }).message)
+            : 'Chassis study failed';
+        const detail = err instanceof Error
+          ? err.stack?.split('\n').slice(0, 3).join('\n')
+          : JSON.stringify(err, null, 2).slice(0, 300);
+        console.error('[chassis-study] Tool execution failed:', message, detail);
         return {
           type: 'chassis_study_result' as const,
           success: false,
-          error: err instanceof Error ? err.message : 'Chassis study failed',
+          error: message,
+          errorDetail: detail,
         };
       }
     },
