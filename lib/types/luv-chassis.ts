@@ -150,6 +150,36 @@ export interface ParameterConstraint {
   reason: string;
 }
 
+export interface StudyBrief {
+  /** Structured description of what to generate */
+  description: string;
+  /** Key visual elements to include */
+  visual_elements: string[];
+  /** Technical photography/rendering notes */
+  technical_notes: string;
+  /** How chassis parameters should manifest */
+  parameter_mapping: Record<string, string>;
+  /** Gemini thinking model used */
+  model: string;
+}
+
+export interface StudyFeedback {
+  /** Overall satisfaction: 1-5 */
+  rating: number;
+  /** Does the image satisfy the study goal? */
+  goal_met: boolean;
+  /** Per-module fidelity notes */
+  module_fidelity: Record<string, { accurate: boolean; notes?: string }>;
+  /** Free-form notes */
+  notes?: string;
+  /** Who provided feedback */
+  source: 'user' | 'agent';
+  /** When feedback was recorded */
+  recorded_at: string;
+}
+
+export type StudyStatus = 'briefing' | 'generating' | 'completed' | 'failed' | 'in_progress';
+
 export interface LuvChassisStudy {
   id: string;
   module_id: string | null;
@@ -158,7 +188,23 @@ export interface LuvChassisStudy {
   focus_area: string;
   findings: StudyFinding[];
   parameter_constraints: Record<string, ParameterConstraint>;
-  status: 'in_progress' | 'completed';
+  status: StudyStatus;
+  // Image gen pipeline fields
+  module_slugs: string[];
+  goal: string | null;
+  style: string | null;
+  dynamics: string | null;
+  user_prompt: string | null;
+  brief: StudyBrief | null;
+  generation_prompt: string | null;
+  reference_image_paths: string[];
+  generated_image_path: string | null;
+  cog_image_id: string | null;
+  generation_metadata: Record<string, unknown>;
+  feedback: StudyFeedback | null;
+  aspect_ratio: string;
+  image_size: string;
+  model: string;
   created_at: string;
   updated_at: string;
 }
@@ -167,10 +213,18 @@ export type CreateStudyInput = {
   title: string;
   slug: string;
   module_id?: string;
+  module_slugs?: string[];
   focus_area?: string;
+  goal?: string;
+  style?: string;
+  dynamics?: string;
+  user_prompt?: string;
+  aspect_ratio?: string;
+  image_size?: string;
+  model?: string;
   findings?: StudyFinding[];
   parameter_constraints?: Record<string, ParameterConstraint>;
-  status?: 'in_progress' | 'completed';
+  status?: StudyStatus;
 };
 
 export type UpdateStudyInput = Partial<{
@@ -178,5 +232,12 @@ export type UpdateStudyInput = Partial<{
   focus_area: string;
   findings: StudyFinding[];
   parameter_constraints: Record<string, ParameterConstraint>;
-  status: 'in_progress' | 'completed';
+  status: StudyStatus;
+  brief: StudyBrief;
+  generation_prompt: string;
+  reference_image_paths: string[];
+  generated_image_path: string;
+  cog_image_id: string;
+  generation_metadata: Record<string, unknown>;
+  feedback: StudyFeedback;
 }>;
