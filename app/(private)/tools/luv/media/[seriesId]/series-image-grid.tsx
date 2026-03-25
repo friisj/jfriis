@@ -48,6 +48,15 @@ export function SeriesImageGrid({
   const [visibleTagIds, setVisibleTagIds] = useState<Set<string>>(
     () => new Set([...fixedTags, ...defaultTags])
   );
+  // Sync visibleTagIds when fixedTags/defaultTags props change
+  useEffect(() => {
+    setVisibleTagIds((prev) => {
+      const next = new Set(prev);
+      for (const id of fixedTags) next.add(id);
+      for (const id of defaultTags) next.add(id);
+      return next;
+    });
+  }, [fixedTags, defaultTags]);
   const visibleTags = useMemo(
     () => enabledTags.filter((t) => visibleTagIds.has(t.id)),
     [enabledTags, visibleTagIds],
