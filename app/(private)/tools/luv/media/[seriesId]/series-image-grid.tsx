@@ -4,7 +4,7 @@ import { useState, useMemo, useRef, useCallback } from 'react';
 import Link from 'next/link';
 import { getCogImageUrl, getCogThumbnailUrl } from '@/lib/cog/images';
 import { deleteImageWithCleanup } from '@/lib/cog/images';
-import { getImageTagsBatch } from '@/lib/cog/tags';
+import { getImageTagsBatch, addTagToImage } from '@/lib/cog/tags';
 import { supabase } from '@/lib/supabase';
 import { createImage } from '@/lib/cog/images';
 import { IconFilter, IconPlus, IconX } from '@tabler/icons-react';
@@ -138,6 +138,11 @@ export function SeriesImageGrid({
           metadata: {},
         });
 
+        // Auto-tag with fixed tags
+        for (const tagId of fixedTags) {
+          await addTagToImage(image.id, tagId).catch(() => {});
+        }
+
         setImages((prev) => [image, ...prev]);
       } catch (err) {
         console.error('Upload failed:', err);
@@ -145,7 +150,7 @@ export function SeriesImageGrid({
     }
 
     setUploading(false);
-  }, [seriesId]);
+  }, [seriesId, fixedTags]);
 
   const handleDelete = async (image: CogImage) => {
     if (!confirm('Delete this image?')) return;
