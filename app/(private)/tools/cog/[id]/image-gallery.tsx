@@ -16,7 +16,7 @@ import { CogGridImage, CogTinyImage } from '@/components/cog/cog-image';
 import { StarRating } from './star-rating';
 import type { CogTagWithGroup, CogImageWithGroupInfo } from '@/lib/types/cog';
 import { IconTrash, IconAlertTriangle, IconStarFilled } from '@tabler/icons-react';
-import { TagFilterBar } from '@/components/cog/tag-filter-bar';
+import { TagToolbar } from '@/components/cog/tag-toolbar';
 import { ImageContextMenu } from './image-context-menu';
 
 export interface UploadingFile {
@@ -676,7 +676,7 @@ export function ImageGallery({
         </div>
       )}
 
-      <TagFilterBar
+      <TagToolbar
         enabledTags={enabledTags}
         activeTags={activeTagFilter}
         fixedTags={fixedTagSet.size > 0 ? fixedTagSet : undefined}
