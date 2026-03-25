@@ -37,6 +37,7 @@ import type {
   CogThinkingJob,
   CogTag,
   CogTagWithGroup,
+  CogTagGroupWithTags,
   CogImageWithGroupInfo,
 } from '@/lib/types/cog';
 
@@ -50,6 +51,7 @@ interface SeriesLayoutProps {
   seriesId: string;
   enabledTags: CogTagWithGroup[];
   globalTags: CogTag[];
+  tagGroups: CogTagGroupWithTags[];
 }
 
 // ---------------------------------------------------------------------------
@@ -182,51 +184,90 @@ function TagsSection({
   seriesId,
   enabledTags,
   globalTags,
+  tagGroups,
 }: {
   seriesId: string;
   enabledTags: CogTagWithGroup[];
   globalTags: CogTag[];
+  tagGroups: CogTagGroupWithTags[];
 }) {
   const router = useRouter();
-  const [localEnabled, setLocalEnabled] = useState<CogTagWithGroup[]>(enabledTags);
+  const [enabledSet, setEnabledSet] = useState<Set<string>>(
+    () => new Set(enabledTags.map((t) => t.id))
+  );
   const [localTags, setLocalTags] = useState<CogTag[]>(
     enabledTags.filter((t) => t.series_id === seriesId)
   );
+  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
   const [showNewTagForm, setShowNewTagForm] = useState(false);
   const [newTagName, setNewTagName] = useState('');
   const [newTagShortcut, setNewTagShortcut] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const availableGlobal = globalTags.filter(
-    (gt) => !localEnabled.some((et) => et.id === gt.id)
-  );
-  const enabledGlobal = localEnabled.filter((t) => t.series_id === null);
+  // Ungrouped global tags
+  const ungroupedTags = globalTags.filter((t) => !t.group_id);
 
-  async function handleEnableTag(tagId: string) {
+  function isGroupFullyEnabled(group: CogTagGroupWithTags) {
+    return group.tags.length > 0 && group.tags.every((t) => enabledSet.has(t.id));
+  }
+
+  function isGroupPartiallyEnabled(group: CogTagGroupWithTags) {
+    return group.tags.some((t) => enabledSet.has(t.id)) && !isGroupFullyEnabled(group);
+  }
+
+  async function handleToggleGroup(group: CogTagGroupWithTags) {
     setSaving(true);
     setError(null);
+    const fullyEnabled = isGroupFullyEnabled(group);
     try {
-      await enableTagForSeries(seriesId, tagId);
-      const tag = globalTags.find((t) => t.id === tagId);
-      if (tag) setLocalEnabled((prev) => [...prev, { ...tag, group: null }]);
+      if (fullyEnabled) {
+        // Disable all tags in group
+        for (const tag of group.tags) {
+          if (enabledSet.has(tag.id)) {
+            await disableTagForSeries(seriesId, tag.id);
+          }
+        }
+        setEnabledSet((prev) => {
+          const next = new Set(prev);
+          group.tags.forEach((t) => next.delete(t.id));
+          return next;
+        });
+      } else {
+        // Enable all tags in group
+        for (const tag of group.tags) {
+          if (!enabledSet.has(tag.id)) {
+            await enableTagForSeries(seriesId, tag.id);
+          }
+        }
+        setEnabledSet((prev) => {
+          const next = new Set(prev);
+          group.tags.forEach((t) => next.add(t.id));
+          return next;
+        });
+      }
       router.refresh();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to enable tag');
+      setError(err instanceof Error ? err.message : 'Failed to toggle group');
     } finally {
       setSaving(false);
     }
   }
 
-  async function handleDisableTag(tagId: string) {
+  async function handleToggleTag(tagId: string) {
     setSaving(true);
     setError(null);
     try {
-      await disableTagForSeries(seriesId, tagId);
-      setLocalEnabled((prev) => prev.filter((t) => t.id !== tagId));
+      if (enabledSet.has(tagId)) {
+        await disableTagForSeries(seriesId, tagId);
+        setEnabledSet((prev) => { const next = new Set(prev); next.delete(tagId); return next; });
+      } else {
+        await enableTagForSeries(seriesId, tagId);
+        setEnabledSet((prev) => new Set(prev).add(tagId));
+      }
       router.refresh();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to disable tag');
+      setError(err instanceof Error ? err.message : 'Failed to toggle tag');
     } finally {
       setSaving(false);
     }
@@ -243,7 +284,7 @@ function TagsSection({
         shortcut: newTagShortcut.trim() || null,
       });
       setLocalTags((prev) => [...prev, created]);
-      setLocalEnabled((prev) => [...prev, { ...created, group: null }]);
+      setEnabledSet((prev) => new Set(prev).add(created.id));
       setNewTagName('');
       setNewTagShortcut('');
       setShowNewTagForm(false);
@@ -262,13 +303,22 @@ function TagsSection({
     try {
       await deleteTag(tagId);
       setLocalTags((prev) => prev.filter((t) => t.id !== tagId));
-      setLocalEnabled((prev) => prev.filter((t) => t.id !== tagId));
+      setEnabledSet((prev) => { const next = new Set(prev); next.delete(tagId); return next; });
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to delete tag');
     } finally {
       setSaving(false);
     }
+  }
+
+  function toggleGroupExpanded(groupId: string) {
+    setExpandedGroups((prev) => {
+      const next = new Set(prev);
+      if (next.has(groupId)) next.delete(groupId);
+      else next.add(groupId);
+      return next;
+    });
   }
 
   return (
@@ -285,74 +335,136 @@ function TagsSection({
       )}
 
       <div className="space-y-3">
-        {/* Enabled tags */}
+        {/* Tag groups */}
+        {tagGroups.map((group) => {
+          const fullyEnabled = isGroupFullyEnabled(group);
+          const partial = isGroupPartiallyEnabled(group);
+          const expanded = expandedGroups.has(group.id);
+          const enabledCount = group.tags.filter((t) => enabledSet.has(t.id)).length;
+
+          return (
+            <div key={group.id} className="border rounded-lg overflow-hidden">
+              {/* Group header */}
+              <div className="flex items-center gap-2 px-3 py-2 bg-muted/30">
+                <button
+                  type="button"
+                  onClick={() => handleToggleGroup(group)}
+                  disabled={saving || group.tags.length === 0}
+                  className="shrink-0 w-4 h-4 rounded border flex items-center justify-center text-[10px] disabled:opacity-50"
+                  style={{
+                    borderColor: group.color || undefined,
+                    backgroundColor: fullyEnabled ? (group.color || 'var(--primary)') : 'transparent',
+                    color: fullyEnabled ? 'white' : 'transparent',
+                  }}
+                  title={fullyEnabled ? 'Disable all tags in group' : 'Enable all tags in group'}
+                >
+                  {fullyEnabled ? '✓' : partial ? '–' : ''}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => toggleGroupExpanded(group.id)}
+                  className="flex-1 flex items-center justify-between text-left"
+                >
+                  <span className="text-xs font-medium">{group.name}</span>
+                  <span className="text-[10px] text-muted-foreground">
+                    {enabledCount}/{group.tags.length} · {expanded ? '−' : '+'}
+                  </span>
+                </button>
+              </div>
+
+              {/* Individual tags (when expanded) */}
+              {expanded && (
+                <div className="px-3 py-2 flex flex-wrap gap-1.5">
+                  {group.tags.map((tag) => {
+                    const isOn = enabledSet.has(tag.id);
+                    return (
+                      <button
+                        key={tag.id}
+                        type="button"
+                        onClick={() => handleToggleTag(tag.id)}
+                        disabled={saving}
+                        className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] border transition-colors disabled:opacity-50 ${
+                          isOn
+                            ? 'bg-primary/10 border-primary/30 hover:bg-destructive/10'
+                            : 'border-muted-foreground/20 hover:bg-primary/10 hover:border-primary/30'
+                        }`}
+                      >
+                        {tag.name}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          );
+        })}
+
+        {/* Ungrouped global tags */}
+        {ungroupedTags.length > 0 && (
+          <div>
+            <p className="text-xs text-muted-foreground uppercase tracking-wide mb-2">Ungrouped</p>
+            <div className="flex flex-wrap gap-1.5">
+              {ungroupedTags.map((tag) => {
+                const isOn = enabledSet.has(tag.id);
+                return (
+                  <button
+                    key={tag.id}
+                    type="button"
+                    onClick={() => handleToggleTag(tag.id)}
+                    disabled={saving}
+                    className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] border transition-colors disabled:opacity-50 ${
+                      isOn
+                        ? 'bg-primary/10 border-primary/30 hover:bg-destructive/10'
+                        : 'border-muted-foreground/20 hover:bg-primary/10 hover:border-primary/30'
+                    }`}
+                  >
+                    {tag.shortcut && <kbd className="text-[10px] px-0.5 bg-muted rounded font-mono">{tag.shortcut}</kbd>}
+                    {tag.name}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Series-local tags */}
         <div>
-          <p className="text-xs text-muted-foreground uppercase tracking-wide mb-2">Enabled</p>
+          <p className="text-xs text-muted-foreground uppercase tracking-wide mb-2">Series-Local</p>
           <div className="flex flex-wrap gap-1.5">
-            {enabledGlobal.map((tag) => (
-              <button key={tag.id} onClick={() => handleDisableTag(tag.id)} disabled={saving}
-                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs border bg-primary/10 border-primary/30 hover:bg-destructive/10 hover:border-destructive/30 transition-colors disabled:opacity-50"
-                title="Click to disable">
-                {tag.shortcut && <kbd className="text-[10px] px-0.5 bg-muted rounded font-mono">{tag.shortcut}</kbd>}
-                {tag.name}
-                <span className="text-muted-foreground ml-0.5">×</span>
-              </button>
-            ))}
             {localTags.map((tag) => (
               <button key={tag.id} onClick={() => handleDeleteLocalTag(tag.id)} disabled={saving}
-                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs border border-dashed bg-muted/50 hover:bg-destructive/10 hover:border-destructive/30 transition-colors disabled:opacity-50"
-                title="Click to delete (series-local)">
+                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] border border-dashed bg-muted/50 hover:bg-destructive/10 hover:border-destructive/30 transition-colors disabled:opacity-50"
+                title="Click to delete">
                 {tag.shortcut && <kbd className="text-[10px] px-0.5 bg-background rounded font-mono">{tag.shortcut}</kbd>}
                 {tag.name}
                 <span className="text-muted-foreground ml-0.5">×</span>
               </button>
             ))}
-            {enabledGlobal.length === 0 && localTags.length === 0 && (
-              <p className="text-xs text-muted-foreground">No tags enabled</p>
+          </div>
+
+          {/* Create series-local tag */}
+          <div className="mt-2">
+            {showNewTagForm ? (
+              <div className="space-y-2 p-2 bg-muted/50 rounded-lg">
+                <div className="flex gap-2">
+                  <Input value={newTagName} onChange={(e) => setNewTagName(e.target.value)} placeholder="Tag name" className="text-sm h-8" autoFocus />
+                  <Input value={newTagShortcut} onChange={(e) => setNewTagShortcut(e.target.value.slice(-1))} placeholder="Key" className="text-sm h-8 w-14" maxLength={1} />
+                </div>
+                <div className="flex gap-2">
+                  <Button size="sm" onClick={handleCreateLocalTag} disabled={saving || !newTagName.trim()} className="h-7 text-xs">
+                    {saving ? '...' : 'Create'}
+                  </Button>
+                  <Button size="sm" variant="ghost" onClick={() => { setShowNewTagForm(false); setNewTagName(''); setNewTagShortcut(''); }} disabled={saving} className="h-7 text-xs">
+                    Cancel
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <Button size="sm" variant="ghost" onClick={() => setShowNewTagForm(true)} className="h-7 text-xs">
+                + Series-local tag
+              </Button>
             )}
           </div>
-        </div>
-
-        {/* Available global tags */}
-        {availableGlobal.length > 0 && (
-          <div>
-            <p className="text-xs text-muted-foreground uppercase tracking-wide mb-2">Available</p>
-            <div className="flex flex-wrap gap-1.5">
-              {availableGlobal.map((tag) => (
-                <button key={tag.id} onClick={() => handleEnableTag(tag.id)} disabled={saving}
-                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs border border-muted-foreground/30 hover:bg-primary/10 hover:border-primary/30 transition-colors disabled:opacity-50"
-                  title="Click to enable">
-                  {tag.shortcut && <kbd className="text-[10px] px-0.5 bg-muted rounded font-mono">{tag.shortcut}</kbd>}
-                  {tag.name}
-                  <span className="text-primary ml-0.5">+</span>
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Create series-local tag */}
-        <div className="pt-2">
-          {showNewTagForm ? (
-            <div className="space-y-2 p-2 bg-muted/50 rounded-lg">
-              <div className="flex gap-2">
-                <Input value={newTagName} onChange={(e) => setNewTagName(e.target.value)} placeholder="Tag name" className="text-sm h-8" autoFocus />
-                <Input value={newTagShortcut} onChange={(e) => setNewTagShortcut(e.target.value.slice(-1))} placeholder="Key" className="text-sm h-8 w-14" maxLength={1} />
-              </div>
-              <div className="flex gap-2">
-                <Button size="sm" onClick={handleCreateLocalTag} disabled={saving || !newTagName.trim()} className="h-7 text-xs">
-                  {saving ? '...' : 'Create'}
-                </Button>
-                <Button size="sm" variant="ghost" onClick={() => { setShowNewTagForm(false); setNewTagName(''); setNewTagShortcut(''); }} disabled={saving} className="h-7 text-xs">
-                  Cancel
-                </Button>
-              </div>
-            </div>
-          ) : (
-            <Button size="sm" variant="ghost" onClick={() => setShowNewTagForm(true)} className="h-7 text-xs">
-              + Series-local tag
-            </Button>
-          )}
         </div>
       </div>
     </div>
@@ -373,6 +485,7 @@ function ConfigPanel({
   thinkingJobs,
   enabledTags,
   globalTags,
+  tagGroups,
 }: {
   series: CogSeries;
   childSeries: CogSeries[];
@@ -383,6 +496,7 @@ function ConfigPanel({
   thinkingJobs?: CogThinkingJob[];
   enabledTags: CogTagWithGroup[];
   globalTags: CogTag[];
+  tagGroups: CogTagGroupWithTags[];
 }) {
   const router = useRouter();
   const [isEditing, setIsEditing] = useState(false);
@@ -511,7 +625,7 @@ function ConfigPanel({
 
       {/* Image Tags */}
       <div className="pt-4 border-t">
-        <TagsSection seriesId={seriesId} enabledTags={enabledTags} globalTags={globalTags} />
+        <TagsSection seriesId={seriesId} enabledTags={enabledTags} globalTags={globalTags} tagGroups={tagGroups} />
       </div>
 
       {/* Delete Series */}
@@ -629,6 +743,7 @@ function SidebarContent(props: {
   thinkingJobs?: CogThinkingJob[];
   enabledTags: CogTagWithGroup[];
   globalTags: CogTag[];
+  tagGroups: CogTagGroupWithTags[];
 }) {
   return (
     <div className="h-full flex flex-col overflow-hidden">
@@ -656,6 +771,7 @@ export function SeriesLayout({
   seriesId,
   enabledTags,
   globalTags,
+  tagGroups,
 }: SeriesLayoutProps) {
   const sidebarProps = {
     series,
@@ -667,6 +783,7 @@ export function SeriesLayout({
     thinkingJobs,
     enabledTags,
     globalTags,
+    tagGroups,
   };
 
   return (

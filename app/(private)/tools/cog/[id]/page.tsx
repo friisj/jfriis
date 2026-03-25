@@ -5,6 +5,7 @@ import {
   getChildSeriesServer,
   getEnabledTagsForSeriesServer,
   getGlobalTagsServer,
+  getTagGroupsWithTagsServer,
   getRemixJobsForSeriesServer,
   getThinkingJobsForSeriesServer,
 } from '@/lib/cog/server';
@@ -14,6 +15,7 @@ import type {
   CogJob,
   CogTag,
   CogTagWithGroup,
+  CogTagGroupWithTags,
   CogImageWithGroupInfo,
   CogRemixJob,
   CogThinkingJob,
@@ -33,6 +35,7 @@ async function getSeriesData(id: string): Promise<{
   children: CogSeries[];
   enabledTags: CogTagWithGroup[];
   globalTags: CogTag[];
+  tagGroups: CogTagGroupWithTags[];
 } | null> {
   try {
     // Fetch series first to get primary_image_id
@@ -50,10 +53,12 @@ async function getSeriesData(id: string): Promise<{
     // Tag data (optional - tables may not exist yet)
     let enabledTags: CogTagWithGroup[] = [];
     let globalTags: CogTag[] = [];
+    let tagGroups: CogTagGroupWithTags[] = [];
     try {
-      [enabledTags, globalTags] = await Promise.all([
+      [enabledTags, globalTags, tagGroups] = await Promise.all([
         getEnabledTagsForSeriesServer(id),
         getGlobalTagsServer(),
+        getTagGroupsWithTagsServer(),
       ]);
     } catch (tagError) {
       // Tags tables may not exist yet - that's OK
@@ -69,6 +74,7 @@ async function getSeriesData(id: string): Promise<{
       children,
       enabledTags,
       globalTags,
+      tagGroups,
     };
   } catch {
     return null;
@@ -84,7 +90,7 @@ export default async function SeriesDetailPage({ params }: Props) {
     notFound();
   }
 
-  const { series, images, jobs, remixJobs, thinkingJobs, children, enabledTags, globalTags } = data;
+  const { series, images, jobs, remixJobs, thinkingJobs, children, enabledTags, globalTags, tagGroups } = data;
 
   return (
     <div className="flex-1">
@@ -98,6 +104,7 @@ export default async function SeriesDetailPage({ params }: Props) {
         seriesId={id}
         enabledTags={enabledTags}
         globalTags={globalTags}
+        tagGroups={tagGroups}
       />
     </div>
   );
