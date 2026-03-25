@@ -106,6 +106,13 @@ export function createChassisStudyTool(messages: ModelMessage[]) {
           moduleSlugs: result.study.module_slugs,
           referenceImageCount: result.study.reference_image_paths.length,
           durationMs: result.durationMs,
+          deliberation: {
+            rounds: result.deliberation.turns.length,
+            totalDurationMs: result.deliberation.totalDurationMs,
+            summary: result.deliberation.turns.map((t) =>
+              `[${t.role}] ${t.content.slice(0, 150)}${t.content.length > 150 ? '...' : ''}`
+            ),
+          },
           metadata: result.study.generation_metadata,
         };
       } catch (err) {

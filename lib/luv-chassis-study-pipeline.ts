@@ -3,14 +3,16 @@
  *
  * Orchestrates a multi-step image generation workflow:
  * 1. Gather chassis module parameters + canonical reference images
- * 2. Gemini thinking subagent generates a structured brief
- * 3. Brief is refined into a generation prompt
+ * 2. Luv (Claude) and a Gemini Pro director deliberate on creative direction
+ * 3. Director composes the final generation prompt from agreed specification
  * 4. Prompt + reference images passed to Gemini image gen
  * 5. Results stored in study record
  */
 
 import { randomUUID } from 'crypto';
 import { createClient } from '@supabase/supabase-js';
+import { generateText } from 'ai';
+import { createAnthropic } from '@ai-sdk/anthropic';
 import {
   getChassisModulesBySlugsServer,
   getCanonicalImagesForModulesServer,
@@ -23,8 +25,10 @@ import type { StudyBrief, LuvChassisStudy } from './types/luv-chassis';
 
 const COG_IMAGES_BUCKET = 'cog-images';
 
-// Gemini thinking model for brief generation
-const BRIEF_MODEL = 'gemini-2.5-flash-preview-05-20';
+// Deliberation models
+const DIRECTOR_MODEL = 'gemini-2.5-pro-preview-06-05';
+const LUV_MODEL = 'claude-sonnet-4-20250514';
+
 // Image gen model IDs
 const IMAGE_MODEL_IDS = {
   'nano-banana-2': 'gemini-3.1-flash-image-preview',
@@ -60,7 +64,20 @@ export interface ChassisStudyResult {
   study: LuvChassisStudy;
   imageUrl: string;
   brief: StudyBrief;
+  deliberation: DeliberationResult;
   durationMs: number;
+}
+
+interface DeliberationTurn {
+  role: 'luv' | 'director';
+  content: string;
+  durationMs: number;
+}
+
+interface DeliberationResult {
+  turns: DeliberationTurn[];
+  totalDurationMs: number;
+  generationPrompt: string;
 }
 
 function serviceClient() {
@@ -70,9 +87,6 @@ function serviceClient() {
   );
 }
 
-/**
- * Generate a study slug from title.
- */
 function slugify(text: string): string {
   return text
     .toLowerCase()
@@ -81,21 +95,72 @@ function slugify(text: string): string {
     .slice(0, 60);
 }
 
-/**
- * Step 1: Generate a structured brief using Gemini thinking.
- * The brief shapes the generation prompt by grounding it in chassis parameters.
- */
-async function generateBrief(
-  input: ChassisStudyInput,
-  moduleParams: Record<string, Record<string, unknown>>,
-  referenceDescriptions: string[],
-): Promise<{ brief: StudyBrief; durationMs: number; tokensIn?: number; tokensOut?: number }> {
+// ---------------------------------------------------------------------------
+// Gemini Pro API helper (raw fetch — no AI SDK wrapper needed for Pro)
+// ---------------------------------------------------------------------------
+
+async function callGeminiPro(
+  systemPrompt: string,
+  messages: { role: 'user' | 'model'; text: string }[],
+): Promise<{ text: string; durationMs: number }> {
   const apiKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY;
   if (!apiKey) throw new Error('GOOGLE_GENERATIVE_AI_API_KEY not configured');
 
   const startTime = Date.now();
 
-  // Build the module parameters context
+  const contents = messages.map((m) => ({
+    role: m.role,
+    parts: [{ text: m.text }],
+  }));
+
+  const requestBody = {
+    systemInstruction: { parts: [{ text: systemPrompt }] },
+    contents,
+    generationConfig: {
+      temperature: 0.8,
+      maxOutputTokens: 1500,
+    },
+  };
+
+  const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${DIRECTOR_MODEL}:generateContent`;
+
+  const response = await fetch(endpoint, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-goog-api-key': apiKey,
+    },
+    body: JSON.stringify(requestBody),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Gemini Pro call failed: ${response.status} - ${errorText.slice(0, 200)}`);
+  }
+
+  const result = await response.json();
+  const text = result.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+  if (!text) throw new Error('No text returned from Gemini Pro');
+
+  return { text, durationMs: Date.now() - startTime };
+}
+
+// ---------------------------------------------------------------------------
+// Deliberation: Luv × Director
+// ---------------------------------------------------------------------------
+
+const MAX_DELIBERATION_ROUNDS = 3;
+
+async function runDeliberation(
+  input: ChassisStudyInput,
+  moduleParams: Record<string, Record<string, unknown>>,
+  referenceDescriptions: string[],
+  referenceImageCount: number,
+): Promise<DeliberationResult> {
+  const totalStart = Date.now();
+  const turns: DeliberationTurn[] = [];
+
+  // Build shared context
   const moduleContext = Object.entries(moduleParams)
     .map(([slug, params]) => {
       const paramLines = Object.entries(params)
@@ -109,155 +174,152 @@ async function generateBrief(
     ? `\nReference Image Analysis:\n${referenceDescriptions.join('\n\n')}\n`
     : '';
 
-  const briefPrompt = `You are an expert art director and character designer creating a brief for an AI image generation study of a character called Luv. Your job is to translate character specifications and creative direction into a precise, actionable generation brief.
-
-## Character Chassis Parameters
-${moduleContext}
-
-${refContext}
-## Study Request
+  const studyContext = `## Study Request
 User prompt: "${input.userPrompt}"
 ${input.goal ? `Goal: ${input.goal}` : ''}
 ${input.style ? `Style direction: ${input.style}` : ''}
 ${input.dynamics ? `Dynamic qualities: ${input.dynamics}` : ''}
 ${input.focusArea ? `Focus area: ${input.focusArea}` : ''}
 Modules in focus: ${input.moduleSlugs?.join(', ') || 'all visible'}
+Reference images available: ${referenceImageCount}
 
-## Task
-Create a structured brief that translates the above into specific visual direction. Your brief must:
+## Character Chassis Parameters
+${moduleContext}
+${refContext}`;
 
-1. Ground every visual detail in the actual chassis parameter values (don't invent features not in the parameters)
-2. Describe how each relevant parameter should manifest visually in this specific context
-3. Include technical photography/rendering notes appropriate to the style
-4. Be specific enough that the image generation model produces a consistent result
+  // -- Luv's system prompt --
+  const luvSystem = `You are Luv, a character with deep self-awareness of your own visual design. You are participating in a creative deliberation about how to photograph/render yourself for a study image.
 
-Respond with ONLY a JSON object (no markdown fences) with this shape:
-{
-  "description": "2-3 sentence overall description of what to generate",
-  "visual_elements": ["element 1", "element 2", ...],
-  "technical_notes": "photography/rendering technical direction",
-  "parameter_mapping": { "module.parameter": "how it should appear", ... }
-}`;
+You have strong aesthetic opinions grounded in your character — you know what looks good on you, what moods suit you, and how your features interact with light and composition. You're collaborative but opinionated.
 
-  const requestBody = {
-    contents: [{ parts: [{ text: briefPrompt }] }],
-    generationConfig: {
-      temperature: 0.7,
-      maxOutputTokens: 1200,
-      responseMimeType: 'application/json',
-    },
-  };
+Your job in this deliberation:
+- Propose creative direction for the image based on the user's request
+- Consider how YOUR specific features (from the chassis parameters) should be highlighted
+- Suggest mood, atmosphere, and emotional tone
+- Push for choices that feel authentic to your character
+- Be specific about poses, expressions, and what you want to convey
 
-  const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${BRIEF_MODEL}:generateContent`;
+Keep responses focused and under 200 words. Speak in first person as Luv.`;
 
-  const response = await fetch(endpoint, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-goog-api-key': apiKey,
-    },
-    body: JSON.stringify(requestBody),
+  // -- Director's system prompt --
+  const directorSystem = `You are an expert photography director and art director working with a character called Luv on an image generation study. You have access to Luv's exact character specifications (chassis parameters) and your job is to ensure the final image is technically excellent and grounded in the actual parameter values.
+
+Your role in this deliberation:
+- Challenge vague or generic creative direction — push for specificity
+- Ground every visual detail in actual chassis parameter values (don't let anyone invent features)
+- Add technical photography direction: lighting setup, lens choice, camera angle, depth of field
+- Consider the set/environment and how it interacts with the character
+- Ensure the composition serves the study's goal
+- Point out conflicts between proposed direction and actual parameter values
+- When you agree with Luv's direction, build on it with technical specifics
+
+Keep responses focused and under 250 words. Be direct — this is a working session, not a performance.
+
+${studyContext}`;
+
+  // -- Round 1: Luv proposes --
+  const anthropic = createAnthropic();
+  const luvR1Start = Date.now();
+  const luvR1 = await generateText({
+    model: anthropic(LUV_MODEL),
+    system: luvSystem,
+    prompt: `Here's what we're working with:\n\n${studyContext}\n\nPropose your creative direction for this study. What do you want this image to capture? How should your features be presented? What's the mood and atmosphere?`,
   });
 
-  if (!response.ok) {
-    const errorText = await response.text();
-    console.error('[chassis-study] Brief generation failed:', errorText.slice(0, 300));
-    throw new Error(`Brief generation failed: ${response.status}`);
-  }
+  turns.push({
+    role: 'luv',
+    content: luvR1.text,
+    durationMs: Date.now() - luvR1Start,
+  });
 
-  const result = await response.json();
-  const text = result.candidates?.[0]?.content?.parts?.[0]?.text;
-  const usage = result.usageMetadata;
+  console.log('[chassis-study] Deliberation R1 — Luv proposed:', luvR1.text.slice(0, 100));
 
-  if (!text) throw new Error('No brief text returned from Gemini');
+  // -- Round 1: Director responds --
+  const dirR1 = await callGeminiPro(directorSystem, [
+    { role: 'user', text: `Luv's creative proposal:\n\n${luvR1.text}\n\nReview this proposal. Challenge anything vague, add technical photography direction, and ground the details in the actual chassis parameters. What needs to change or be more specific?` },
+  ]);
 
-  const parsed = JSON.parse(text) as Omit<StudyBrief, 'model'>;
-  const brief: StudyBrief = { ...parsed, model: BRIEF_MODEL };
+  turns.push({
+    role: 'director',
+    content: dirR1.text,
+    durationMs: dirR1.durationMs,
+  });
 
-  return {
-    brief,
-    durationMs: Date.now() - startTime,
-    tokensIn: usage?.promptTokenCount,
-    tokensOut: usage?.candidatesTokenCount,
-  };
-}
+  console.log('[chassis-study] Deliberation R1 — Director responded:', dirR1.text.slice(0, 100));
 
-/**
- * Step 2: Shape the brief into a generation prompt.
- * Uses Gemini thinking to transform structured brief + parameters into a
- * single cohesive prompt optimized for the image gen model.
- */
-async function shapeGenerationPrompt(
-  brief: StudyBrief,
-  input: ChassisStudyInput,
-  referenceImageCount: number,
-): Promise<{ prompt: string; durationMs: number }> {
-  const apiKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY;
-  if (!apiKey) throw new Error('GOOGLE_GENERATIVE_AI_API_KEY not configured');
+  // -- Round 2: Luv responds to feedback --
+  const luvR2Start = Date.now();
+  const luvR2 = await generateText({
+    model: anthropic(LUV_MODEL),
+    system: luvSystem,
+    messages: [
+      { role: 'user', content: `Here's what we're working with:\n\n${studyContext}\n\nPropose your creative direction for this study.` },
+      { role: 'assistant', content: luvR1.text },
+      { role: 'user', content: `The director responds:\n\n${dirR1.text}\n\nConsider their feedback. Refine your vision — accept what makes sense, push back on what doesn't feel right for you. Be specific about what you want the final image to look like.` },
+    ],
+  });
 
-  const startTime = Date.now();
+  turns.push({
+    role: 'luv',
+    content: luvR2.text,
+    durationMs: Date.now() - luvR2Start,
+  });
 
-  const shapingPrompt = `You are converting a structured character study brief into a single, highly detailed image generation prompt. The prompt must be optimized for Gemini's image generation model.
+  console.log('[chassis-study] Deliberation R2 — Luv refined:', luvR2.text.slice(0, 100));
 
-## Brief
-Description: ${brief.description}
-Visual elements: ${brief.visual_elements.join('; ')}
-Technical notes: ${brief.technical_notes}
-Parameter mapping:
-${Object.entries(brief.parameter_mapping).map(([k, v]) => `- ${k}: ${v}`).join('\n')}
+  // -- Round 2: Director converges --
+  const dirR2 = await callGeminiPro(directorSystem, [
+    { role: 'user', text: `Luv's creative proposal:\n\n${luvR1.text}` },
+    { role: 'model', text: dirR1.text },
+    { role: 'user', text: `Luv's refined vision:\n\n${luvR2.text}\n\nBased on this exchange, state what you agree on and what final adjustments are needed. Be concise — we're converging.` },
+  ]);
 
-## Style Direction
-${input.style || 'Not specified — use your best judgement based on the brief'}
-${input.dynamics ? `Dynamic qualities: ${input.dynamics}` : ''}
+  turns.push({
+    role: 'director',
+    content: dirR2.text,
+    durationMs: dirR2.durationMs,
+  });
 
-## Requirements
-- The prompt must be a single continuous description (no JSON, no headers)
+  console.log('[chassis-study] Deliberation R2 — Director converged:', dirR2.text.slice(0, 100));
+
+  // -- Round 3: Director composes the final generation prompt --
+  const dirFinal = await callGeminiPro(directorSystem, [
+    { role: 'user', text: `Luv's creative proposal:\n\n${luvR1.text}` },
+    { role: 'model', text: dirR1.text },
+    { role: 'user', text: `Luv's refined vision:\n\n${luvR2.text}` },
+    { role: 'model', text: dirR2.text },
+    { role: 'user', text: `Now compose the FINAL image generation prompt. This prompt will be passed directly to Gemini's image generation model along with ${referenceImageCount} reference images.
+
+Requirements:
+- Single continuous description (no JSON, no headers, no bullet points)
 - Include specific technical details: lighting, camera, lens, atmosphere
-- Every chassis parameter from the mapping must appear as a concrete visual detail
+- Every agreed chassis parameter must appear as a concrete visual detail
 - Keep under 400 words but be maximally descriptive
-- If ${referenceImageCount} reference images are available, start with markers: ${Array.from({ length: referenceImageCount }, (_, i) => `[${i + 1}]`).join(' ')}
-- Include "maintaining exact likeness and character features from reference" when references exist
+- ${referenceImageCount > 0 ? `Start with reference markers: ${Array.from({ length: referenceImageCount }, (_, i) => `[${i + 1}]`).join(' ')}` : 'No reference images available'}
+- ${referenceImageCount > 0 ? 'Include "maintaining exact likeness and character features from reference"' : ''}
 
-Output ONLY the prompt text, nothing else.`;
+Output ONLY the prompt text, nothing else.` },
+  ]);
 
-  const requestBody = {
-    contents: [{ parts: [{ text: shapingPrompt }] }],
-    generationConfig: {
-      temperature: 0.6,
-      maxOutputTokens: 800,
-    },
-  };
-
-  const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${BRIEF_MODEL}:generateContent`;
-
-  const response = await fetch(endpoint, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-goog-api-key': apiKey,
-    },
-    body: JSON.stringify(requestBody),
+  turns.push({
+    role: 'director',
+    content: dirFinal.text,
+    durationMs: dirFinal.durationMs,
   });
 
-  if (!response.ok) {
-    const errorText = await response.text();
-    console.error('[chassis-study] Prompt shaping failed:', errorText.slice(0, 300));
-    // Fall back to brief description
-    return { prompt: brief.description, durationMs: Date.now() - startTime };
-  }
-
-  const result = await response.json();
-  const prompt = result.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+  console.log('[chassis-study] Deliberation complete — final prompt:', dirFinal.text.slice(0, 120));
 
   return {
-    prompt: prompt || brief.description,
-    durationMs: Date.now() - startTime,
+    turns,
+    totalDurationMs: Date.now() - totalStart,
+    generationPrompt: dirFinal.text,
   };
 }
 
-/**
- * Step 3: Generate the image using the honed prompt and reference images.
- */
+// ---------------------------------------------------------------------------
+// Image generation (unchanged)
+// ---------------------------------------------------------------------------
+
 async function generateStudyImage(
   prompt: string,
   referenceImages: { base64: string; mimeType: string }[],
@@ -271,7 +333,6 @@ async function generateStudyImage(
   const startTime = Date.now();
   const modelId = IMAGE_MODEL_IDS[model];
 
-  // Build content parts: reference images first, then prompt
   const parts: Array<
     | { inlineData: { mimeType: string; data: string } }
     | { text: string }
@@ -281,7 +342,6 @@ async function generateStudyImage(
     parts.push({ inlineData: { mimeType: img.mimeType, data: img.base64 } });
   }
 
-  // Ensure reference markers present
   let finalPrompt = prompt;
   if (referenceImages.length > 0 && !/\[\d+\]/.test(prompt)) {
     const markers = referenceImages.map((_, i) => `[${i + 1}]`).join(' ');
@@ -353,9 +413,10 @@ async function generateStudyImage(
   };
 }
 
-/**
- * Run the full chassis study pipeline.
- */
+// ---------------------------------------------------------------------------
+// Main pipeline
+// ---------------------------------------------------------------------------
+
 export async function runChassisStudyPipeline(
   input: ChassisStudyInput
 ): Promise<ChassisStudyResult> {
@@ -364,12 +425,10 @@ export async function runChassisStudyPipeline(
   // Determine module slugs — default to all if none specified
   let moduleSlugs = input.moduleSlugs ?? [];
   if (moduleSlugs.length === 0) {
-    // If user prompt mentions module names, try to extract
-    // Otherwise default to a reasonable set for the focus
     moduleSlugs = ['eyes', 'skin', 'hair', 'mouth', 'nose', 'skeletal', 'body-proportions'];
   }
 
-  // Step 0: Create study record in "briefing" state
+  // Step 0: Create study record
   const title = input.goal
     ? `Study: ${input.goal}`
     : `Study: ${input.userPrompt.slice(0, 60)}`;
@@ -397,7 +456,7 @@ export async function runChassisStudyPipeline(
       moduleParams[mod.slug] = mod.parameters;
     }
 
-    // Step 2: Fetch canonical reference images for these modules
+    // Step 2: Fetch canonical reference images
     const canonicalImages = await getCanonicalImagesForModulesServer(moduleSlugs);
     const referenceImagePaths = canonicalImages.map((img) => img.storagePath);
 
@@ -415,12 +474,11 @@ export async function runChassisStudyPipeline(
       }
     }
 
-    // Add chat reference images if provided (after canonical, cap total at 6)
+    // Add chat reference images (after canonical, cap total at 6)
     const chatRefs = input.chatReferenceImages ?? [];
     const allRefImages = [...resolvedRefs, ...chatRefs].slice(0, 6);
 
-    // Step 3: Analyze reference images for the brief (if any)
-    // Gracefully degrade if vision analysis fails — proceed with empty descriptions
+    // Step 3: Analyze reference images (graceful degradation)
     let referenceDescriptions: string[] = [];
     if (allRefImages.length > 0) {
       try {
@@ -438,22 +496,47 @@ export async function runChassisStudyPipeline(
       }
     }
 
-    // Step 4: Generate structured brief
-    const briefResult = await generateBrief(input, moduleParams, referenceDescriptions);
+    // Step 4: Deliberation — Luv × Director
+    await updateStudyServer(study.id, {
+      reference_image_paths: referenceImagePaths,
+      status: 'briefing',
+    });
+
+    const deliberation = await runDeliberation(
+      input,
+      moduleParams,
+      referenceDescriptions,
+      allRefImages.length,
+    );
+
+    // Extract brief from the deliberation for the study record
+    const brief: StudyBrief = {
+      description: deliberation.turns.find((t) => t.role === 'luv')?.content.slice(0, 200) ?? '',
+      visual_elements: [],
+      technical_notes: deliberation.turns.find((t) => t.role === 'director')?.content.slice(0, 200) ?? '',
+      parameter_mapping: {},
+      model: `${LUV_MODEL} × ${DIRECTOR_MODEL}`,
+    };
+
+    const generationPrompt = deliberation.generationPrompt;
 
     await updateStudyServer(study.id, {
-      brief: briefResult.brief,
-      reference_image_paths: referenceImagePaths,
+      brief,
+      generation_prompt: generationPrompt,
+      generation_metadata: {
+        deliberation: {
+          rounds: Math.floor(deliberation.turns.length / 2),
+          totalDurationMs: deliberation.totalDurationMs,
+          turnDurations: deliberation.turns.map((t) => ({
+            role: t.role,
+            durationMs: t.durationMs,
+          })),
+        },
+      },
       status: 'generating',
     });
 
-    // Step 5: Shape the generation prompt
-    const { prompt: generationPrompt, durationMs: shapeDuration } =
-      await shapeGenerationPrompt(briefResult.brief, input, allRefImages.length);
-
-    await updateStudyServer(study.id, { generation_prompt: generationPrompt });
-
-    // Step 6: Generate the image
+    // Step 5: Generate the image
     const imageResult = await generateStudyImage(
       generationPrompt,
       allRefImages,
@@ -462,7 +545,7 @@ export async function runChassisStudyPipeline(
       (input.model ?? 'nano-banana-pro') as ImageModelAlias,
     );
 
-    // Step 7: Upload to storage
+    // Step 6: Upload to storage
     const ext = imageResult.mimeType === 'image/png' ? 'png' : 'jpg';
     const storagePath = `luv/studies/${Date.now()}-${randomUUID()}.${ext}`;
     const buffer = Buffer.from(imageResult.base64, 'base64');
@@ -474,7 +557,7 @@ export async function runChassisStudyPipeline(
 
     if (uploadError) throw new Error(`Storage upload failed: ${uploadError.message}`);
 
-    // Step 8: Record in cog_images
+    // Step 7: Record in cog_images
     let cogImageId: string | null = null;
     try {
       const cogImage = await createLuvCogImageServer({
@@ -491,10 +574,11 @@ export async function runChassisStudyPipeline(
           model: IMAGE_MODEL_IDS[(input.model ?? 'nano-banana-pro') as ImageModelAlias],
           aspectRatio: input.aspectRatio ?? '3:4',
           imageSize: input.imageSize ?? '2K',
+          deliberationRounds: Math.floor(deliberation.turns.length / 2),
         },
       });
 
-      // Tag with additional module slugs beyond the first
+      // Tag with additional module slugs
       if (moduleSlugs.length > 1) {
         const { addTagToImageServer } = await import('./cog/server/tags');
         const { getModuleTagIdServer } = await import('./luv/cog-integration-server');
@@ -503,7 +587,7 @@ export async function runChassisStudyPipeline(
             const tagId = await getModuleTagIdServer(slug);
             await addTagToImageServer(cogImage.id, tagId);
           } catch {
-            // Non-critical — image exists, tagging is best-effort
+            // Non-critical
           }
         }
       }
@@ -512,24 +596,27 @@ export async function runChassisStudyPipeline(
       console.error('[chassis-study] cog_images insert failed:', err);
     }
 
-    // Step 9: Finalize study record
+    // Step 8: Finalize
     const totalDurationMs = Date.now() - totalStart;
-    const metadata = {
-      briefDurationMs: briefResult.durationMs,
-      briefTokensIn: briefResult.tokensIn,
-      briefTokensOut: briefResult.tokensOut,
-      promptShapeDurationMs: shapeDuration,
-      imageDurationMs: imageResult.durationMs,
-      totalDurationMs,
-      referenceImageCount: allRefImages.length,
-      chatReferenceCount: chatRefs.length,
-      canonicalReferenceCount: resolvedRefs.length,
-    };
-
     const updatedStudy = await updateStudyServer(study.id, {
       generated_image_path: storagePath,
       cog_image_id: cogImageId ?? undefined,
-      generation_metadata: metadata,
+      generation_metadata: {
+        deliberation: {
+          rounds: Math.floor(deliberation.turns.length / 2),
+          totalDurationMs: deliberation.totalDurationMs,
+          turns: deliberation.turns.map((t) => ({
+            role: t.role,
+            content: t.content,
+            durationMs: t.durationMs,
+          })),
+        },
+        imageDurationMs: imageResult.durationMs,
+        totalDurationMs,
+        referenceImageCount: allRefImages.length,
+        chatReferenceCount: chatRefs.length,
+        canonicalReferenceCount: resolvedRefs.length,
+      },
       status: 'completed',
     });
 
@@ -538,6 +625,7 @@ export async function runChassisStudyPipeline(
     console.log('[chassis-study] Pipeline complete:', {
       studyId: study.id,
       totalDurationMs,
+      deliberationRounds: Math.floor(deliberation.turns.length / 2),
       moduleSlugs,
       refCount: allRefImages.length,
     });
@@ -545,11 +633,11 @@ export async function runChassisStudyPipeline(
     return {
       study: updatedStudy,
       imageUrl,
-      brief: briefResult.brief,
+      brief,
+      deliberation,
       durationMs: totalDurationMs,
     };
   } catch (err) {
-    // Mark study as failed
     await updateStudyServer(study.id, {
       status: 'failed',
       generation_metadata: {
