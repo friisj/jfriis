@@ -3,7 +3,7 @@
  */
 
 import { createClient } from './supabase-server';
-import type { LuvChassisModule, LuvChassisModuleMedia, LuvChassisStudy } from './types/luv-chassis';
+import type { LuvChassisModule, LuvChassisModuleMedia, LuvChassisStudy, CreateStudyInput, UpdateStudyInput } from './types/luv-chassis';
 
 // NOTE: luv_chassis_* tables not in generated Supabase types
 
@@ -160,4 +160,146 @@ export async function getStudiesForModuleServer(
   if (error?.code === 'PGRST205') return []; // table not yet created
   if (error) throw error;
   return data as LuvChassisStudy[];
+}
+
+export async function getStudiesByModuleSlugsServer(
+  slugs: string[]
+): Promise<LuvChassisStudy[]> {
+  if (slugs.length === 0) return [];
+  const client = await createClient();
+  const { data, error } = await (client as any)
+    .from('luv_chassis_studies')
+    .select('*')
+    .overlaps('module_slugs', slugs)
+    .order('updated_at', { ascending: false });
+
+  if (error?.code === 'PGRST205') return [];
+  if (error) throw error;
+  return data as LuvChassisStudy[];
+}
+
+export async function createStudyServer(
+  input: CreateStudyInput
+): Promise<LuvChassisStudy> {
+  const client = await createClient();
+  const { data, error } = await (client as any)
+    .from('luv_chassis_studies')
+    .insert({
+      title: input.title,
+      slug: input.slug,
+      module_id: input.module_id ?? null,
+      module_slugs: input.module_slugs ?? [],
+      focus_area: input.focus_area ?? '',
+      goal: input.goal ?? null,
+      style: input.style ?? null,
+      dynamics: input.dynamics ?? null,
+      user_prompt: input.user_prompt ?? null,
+      aspect_ratio: input.aspect_ratio ?? '3:4',
+      image_size: input.image_size ?? '2K',
+      model: input.model ?? 'nano-banana-pro',
+      findings: input.findings ?? [],
+      parameter_constraints: input.parameter_constraints ?? {},
+      status: input.status ?? 'briefing',
+    })
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data as LuvChassisStudy;
+}
+
+export async function updateStudyServer(
+  id: string,
+  input: UpdateStudyInput
+): Promise<LuvChassisStudy> {
+  const client = await createClient();
+  const { data, error } = await (client as any)
+    .from('luv_chassis_studies')
+    .update(input)
+    .eq('id', id)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data as LuvChassisStudy;
+}
+
+export async function getStudyServer(
+  id: string
+): Promise<LuvChassisStudy | null> {
+  const client = await createClient();
+  const { data, error } = await (client as any)
+    .from('luv_chassis_studies')
+    .select('*')
+    .eq('id', id)
+    .maybeSingle();
+
+  if (error) throw error;
+  return data as LuvChassisStudy | null;
+}
+
+/**
+ * Fetch canonical/reference images for given chassis module slugs.
+ * Looks in luv_chassis_module_media and luv_references tagged with module slugs.
+ */
+export async function getCanonicalImagesForModulesServer(
+  moduleSlugs: string[]
+): Promise<{ storagePath: string; moduleSlug: string; description: string | null }[]> {
+  if (moduleSlugs.length === 0) return [];
+  const client = await createClient();
+
+  // Get modules by slug to find IDs
+  const { data: modules, error: modErr } = await (client as any)
+    .from('luv_chassis_modules')
+    .select('id, slug')
+    .in('slug', moduleSlugs);
+
+  if (modErr) throw modErr;
+  if (!modules || modules.length === 0) return [];
+
+  const moduleIdToSlug = new Map<string, string>();
+  for (const m of modules) {
+    moduleIdToSlug.set(m.id, m.slug);
+  }
+
+  // Fetch module media (canonical images attached to modules)
+  const moduleIds = modules.map((m: { id: string }) => m.id);
+  const { data: media, error: mediaErr } = await (client as any)
+    .from('luv_chassis_module_media')
+    .select('storage_path, module_id, description')
+    .in('module_id', moduleIds)
+    .eq('type', 'image');
+
+  if (mediaErr && mediaErr.code !== 'PGRST205') throw mediaErr;
+
+  const results: { storagePath: string; moduleSlug: string; description: string | null }[] = [];
+  for (const item of media ?? []) {
+    results.push({
+      storagePath: item.storage_path,
+      moduleSlug: moduleIdToSlug.get(item.module_id) ?? 'unknown',
+      description: item.description,
+    });
+  }
+
+  // Also fetch luv_references tagged with module slugs
+  const { data: refs, error: refErr } = await (client as any)
+    .from('luv_references')
+    .select('storage_path, tags, description')
+    .eq('type', 'canonical')
+    .overlaps('tags', moduleSlugs);
+
+  if (refErr && refErr.code !== 'PGRST205') {
+    console.warn('[chassis-study] Failed to fetch references:', refErr);
+  } else if (refs) {
+    for (const ref of refs) {
+      const matchingSlug = moduleSlugs.find((s) => ref.tags?.includes(s)) ?? moduleSlugs[0];
+      results.push({
+        storagePath: ref.storage_path,
+        moduleSlug: matchingSlug,
+        description: ref.description,
+      });
+    }
+  }
+
+  return results;
 }
