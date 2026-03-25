@@ -9,7 +9,6 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { createSeries } from '@/lib/cog';
-import { generateSeriesDescription } from '@/lib/ai/actions/generate-series-description';
 
 export default function NewSeriesPage() {
   const router = useRouter();
@@ -21,34 +20,6 @@ export default function NewSeriesPage() {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [tagsInput, setTagsInput] = useState('');
-
-  // Generation state
-  const [generatePrompt, setGeneratePrompt] = useState('');
-  const [generating, setGenerating] = useState(false);
-
-  async function handleGenerate() {
-    if (!generatePrompt.trim()) return;
-
-    setGenerating(true);
-    setError(null);
-
-    try {
-      const result = await generateSeriesDescription({
-        prompt: generatePrompt,
-        title: title || undefined,
-        existingDescription: description || undefined,
-        existingTags: tagsInput ? tagsInput.split(',').map((t) => t.trim()).filter(Boolean) : undefined,
-      });
-
-      setDescription(result.description);
-      setTagsInput(result.tags.join(', '));
-      setGeneratePrompt('');
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to generate');
-    } finally {
-      setGenerating(false);
-    }
-  }
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -88,37 +59,6 @@ export default function NewSeriesPage() {
             {error}
           </div>
         )}
-
-        {/* Generate Section */}
-        <div className="p-4 bg-muted/50 rounded-lg space-y-3">
-          <Label htmlFor="generate-prompt">
-            Generate description & tags with AI
-          </Label>
-          <div className="flex gap-2">
-            <Input
-              id="generate-prompt"
-              value={generatePrompt}
-              onChange={(e) => setGeneratePrompt(e.target.value)}
-              placeholder="Describe what this series is about..."
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                  e.preventDefault();
-                  handleGenerate();
-                }
-              }}
-            />
-            <Button
-              type="button"
-              onClick={handleGenerate}
-              disabled={generating || !generatePrompt.trim()}
-            >
-              {generating ? 'Generating...' : 'Generate'}
-            </Button>
-          </div>
-          <p className="text-xs text-muted-foreground">
-            Enter a prompt and click Generate to auto-fill description and tags
-          </p>
-        </div>
 
         <div className="space-y-2">
           <Label htmlFor="title">Title *</Label>

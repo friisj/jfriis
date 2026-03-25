@@ -29,7 +29,6 @@ import {
   createImage,
 } from '@/lib/cog';
 import { supabase } from '@/lib/supabase';
-import { generateSeriesDescription } from '@/lib/ai/actions/generate-series-description';
 import type {
   CogSeries,
   CogJob,
@@ -328,42 +327,11 @@ function ConfigPanel({
   const [error, setError] = useState<string | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleting, setDeleting] = useState(false);
-  const [showPreview, setShowPreview] = useState(false);
-
-  // Generation state
-  const [generatePrompt, setGeneratePrompt] = useState('');
-  const [generating, setGenerating] = useState(false);
-
   // Form state
   const [title, setTitle] = useState(series.title);
   const [description, setDescription] = useState(series.description || '');
   const [tagsInput, setTagsInput] = useState(series.tags.join(', '));
   const [isPrivate, setIsPrivate] = useState(series.is_private || false);
-
-  async function handleGenerate() {
-    if (!generatePrompt.trim()) return;
-
-    setGenerating(true);
-    setError(null);
-
-    try {
-      const result = await generateSeriesDescription({
-        prompt: generatePrompt,
-        title,
-        existingDescription: description || undefined,
-        existingTags: tagsInput ? tagsInput.split(',').map((t) => t.trim()).filter(Boolean) : undefined,
-      });
-
-      setDescription(result.description);
-      setTagsInput(result.tags.join(', '));
-      setGeneratePrompt('');
-      setIsEditing(true);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to generate');
-    } finally {
-      setGenerating(false);
-    }
-  }
 
   async function handleDelete() {
     setDeleting(true);
@@ -510,54 +478,11 @@ function ConfigPanel({
               </div>
             )}
 
-            <div className="flex gap-2">
-              <Button size="sm" variant="outline" onClick={() => setIsEditing(true)}>
-                Edit
-              </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => {
-                  setGeneratePrompt('');
-                  // Could open a dialog here
-                }}
-              >
-                Generate
-              </Button>
-            </div>
-          </div>
-        )}
-
-      {/* Generate Section - Simple inline for now */}
-      {(generating || generatePrompt) && (
-        <div className="p-3 bg-muted/50 rounded-lg space-y-2">
-          <Label htmlFor="generate-prompt" className="text-xs">
-            Generate description & tags
-          </Label>
-          <div className="flex gap-2">
-            <Input
-              id="generate-prompt"
-              value={generatePrompt}
-              onChange={(e) => setGeneratePrompt(e.target.value)}
-              placeholder="Describe this series..."
-              className="text-sm"
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                  e.preventDefault();
-                  handleGenerate();
-                }
-              }}
-            />
-            <Button
-              size="sm"
-              onClick={handleGenerate}
-              disabled={generating || !generatePrompt.trim()}
-            >
-              {generating ? '...' : 'Generate'}
+            <Button size="sm" variant="outline" onClick={() => setIsEditing(true)}>
+              Edit
             </Button>
           </div>
-        </div>
-      )}
+        )}
 
       {/* Child Series */}
       {childSeries.length > 0 && (
