@@ -17,13 +17,13 @@ function CogHeaderActions() {
 
   useEffect(() => {
     setActions(
-      <div className="flex items-center h-full">
+      <div className="flex items-center h-full divide-x divide-x-border">
         <Link
           href="/tools/cog"
           className={cn(
-            'flex items-center h-full px-3 text-sm transition-colors',
+            'flex items-center h-full px-3 text-xs transition-colors',
             isSeriesRoot
-              ? 'text-foreground border-b-2 border-foreground'
+              ? 'text-foreground'
               : 'text-muted-foreground hover:text-foreground',
           )}
         >
@@ -32,9 +32,9 @@ function CogHeaderActions() {
         <Link
           href="/tools/cog/prompts"
           className={cn(
-            'flex items-center h-full px-3 text-sm transition-colors',
+            'flex items-center h-full px-3 text-xs transition-colors',
             isPrompts
-              ? 'text-foreground border-b-2 border-foreground'
+              ? 'text-foreground'
               : 'text-muted-foreground hover:text-foreground',
           )}
         >
