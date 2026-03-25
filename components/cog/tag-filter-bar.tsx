@@ -15,22 +15,25 @@ interface TagFilterBarProps {
 export function TagFilterBar({ enabledTags, activeTags, fixedTags, onToggle, onClear }: TagFilterBarProps) {
   if (enabledTags.length === 0) return null;
 
-  const hasActiveOrFixed = activeTags.size > 0 || (fixedTags?.size ?? 0) > 0;
+  const hasUserFilters = activeTags.size > 0;
+  const hasFixed = (fixedTags?.size ?? 0) > 0;
 
   return (
     <div className="flex gap-1.5 overflow-x-auto py-2">
-      <button
-        type="button"
-        onClick={onClear}
-        className={cn(
-          'shrink-0 rounded-full px-3 py-1 text-[11px] font-medium transition-colors',
-          !hasActiveOrFixed
-            ? 'bg-foreground text-background'
-            : 'text-muted-foreground hover:text-foreground hover:bg-accent',
-        )}
-      >
-        All
-      </button>
+      {!hasFixed && (
+        <button
+          type="button"
+          onClick={onClear}
+          className={cn(
+            'shrink-0 rounded-full px-3 py-1 text-[11px] font-medium transition-colors',
+            !hasUserFilters
+              ? 'bg-foreground text-background'
+              : 'text-muted-foreground hover:text-foreground hover:bg-accent',
+          )}
+        >
+          All
+        </button>
+      )}
       {enabledTags.map((tag) => {
         const isFixed = fixedTags?.has(tag.id) ?? false;
         const isActive = isFixed || activeTags.has(tag.id);
