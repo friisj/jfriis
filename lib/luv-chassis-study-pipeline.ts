@@ -401,14 +401,17 @@ export async function runChassisStudyPipeline(
     const canonicalImages = await getCanonicalImagesForModulesServer(moduleSlugs);
     const referenceImagePaths = canonicalImages.map((img) => img.storagePath);
 
-    // Resolve canonical images to base64 (cap at 4)
+    // Resolve canonical images to base64 in parallel (cap at 4)
+    const settled = await Promise.allSettled(
+      canonicalImages.slice(0, 4).map((img) => resolveImageAsBase64(img.storagePath))
+    );
     const resolvedRefs: { base64: string; mimeType: string }[] = [];
-    for (const img of canonicalImages.slice(0, 4)) {
-      try {
-        const resolved = await resolveImageAsBase64(img.storagePath);
-        resolvedRefs.push({ base64: resolved.base64, mimeType: resolved.mediaType });
-      } catch (err) {
-        console.warn('[chassis-study] Failed to resolve reference image:', img.storagePath, err);
+    for (let i = 0; i < settled.length; i++) {
+      const result = settled[i];
+      if (result.status === 'fulfilled') {
+        resolvedRefs.push({ base64: result.value.base64, mimeType: result.value.mediaType });
+      } else {
+        console.warn('[chassis-study] Failed to resolve reference image:', canonicalImages[i].storagePath, result.reason);
       }
     }
 
