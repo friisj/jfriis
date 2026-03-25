@@ -36,7 +36,7 @@ export function StudyEditor({ study, modules = [] }: StudyEditorProps) {
   const [slug, setSlug] = useState(study?.slug ?? '');
   const [focusArea, setFocusArea] = useState(study?.focus_area ?? '');
   const [moduleId, setModuleId] = useState(study?.module_id ?? '');
-  const [status, setStatus] = useState<'in_progress' | 'completed'>(study?.status ?? 'in_progress');
+  const [status, setStatus] = useState(study?.status ?? 'in_progress');
   const [findings, setFindings] = useState<StudyFinding[]>(study?.findings ?? []);
   const [constraints, setConstraints] = useState<Record<string, ParameterConstraint>>(
     study?.parameter_constraints ?? {}

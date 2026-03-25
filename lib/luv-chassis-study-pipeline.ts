@@ -420,15 +420,22 @@ export async function runChassisStudyPipeline(
     const allRefImages = [...resolvedRefs, ...chatRefs].slice(0, 6);
 
     // Step 3: Analyze reference images for the brief (if any)
+    // Gracefully degrade if vision analysis fails — proceed with empty descriptions
     let referenceDescriptions: string[] = [];
     if (allRefImages.length > 0) {
-      const { analyzeReferenceImages } = await import('./ai/gemini-multimodal');
-      const apiKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY!;
-      const analysis = await analyzeReferenceImages(
-        allRefImages.map((img) => ({ base64: img.base64, mimeType: img.mimeType })),
-        apiKey
-      );
-      referenceDescriptions = analysis.descriptions;
+      try {
+        const { analyzeReferenceImages } = await import('./ai/gemini-multimodal');
+        const apiKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY;
+        if (apiKey) {
+          const analysis = await analyzeReferenceImages(
+            allRefImages.map((img) => ({ base64: img.base64, mimeType: img.mimeType })),
+            apiKey
+          );
+          referenceDescriptions = analysis.descriptions;
+        }
+      } catch (err) {
+        console.warn('[chassis-study] Reference image analysis failed, proceeding without descriptions:', err);
+      }
     }
 
     // Step 4: Generate structured brief
