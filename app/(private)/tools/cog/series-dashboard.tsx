@@ -16,7 +16,7 @@ import {
   ContextMenuSubTrigger,
   ContextMenuSubContent,
 } from '@/components/ui/context-menu';
-import { IconEye, IconPencil, IconTrash, IconLink, IconLinkOff } from '@tabler/icons-react';
+import { IconEye, IconPencil, IconTrash, IconLink, IconLinkOff, IconPlus } from '@tabler/icons-react';
 import { usePrivacyMode, filterPrivateRecords } from '@/lib/privacy-mode';
 import { getCogThumbnailUrl, updateSeries, deleteSeriesWithCleanup } from '@/lib/cog';
 import { supabase } from '@/lib/supabase';
@@ -141,19 +141,19 @@ export function SeriesDashboard({ series: initialSeries }: SeriesDashboardProps)
   }, [series]);
 
   return (
-    <div className="space-y-6 p-4 sm:p-6 lg:p-8">
+    <div className="space-y-3">
       <Tabs defaultValue={defaultTab}>
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between border-b">
           <TabsList>
-            <TabsTrigger value="series">Series</TabsTrigger>
-            <TabsTrigger value="library">Prompt Library</TabsTrigger>
+            <TabsTrigger value="series" className="border-b-0">Series</TabsTrigger>
+            <TabsTrigger value="library" className="border-b-0">Prompt Library</TabsTrigger>
           </TabsList>
-          <Button asChild>
-            <Link href="/tools/cog/new">New Series</Link>
-          </Button>
+          <button className="size-10 p-3 flex items-center justify-center">
+            <Link href="/tools/cog/new"><IconPlus size={16} stroke={2} /></Link>
+          </button>
         </div>
 
-        <TabsContent value="series" className="mt-6">
+        <TabsContent value="series" className="p-3">
           {visibleSeries.length === 0 ? (
             <Card>
               <CardContent className="flex flex-col items-center justify-center py-8 text-center">
@@ -166,20 +166,19 @@ export function SeriesDashboard({ series: initialSeries }: SeriesDashboardProps)
               </CardContent>
             </Card>
           ) : (
-            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+            <div className="grid gap-3 md:grid-cols-4 lg:grid-cols-4">
               {visibleSeries.map((s) => (
                 <ContextMenu key={s.id}>
                   <ContextMenuTrigger asChild>
                     <div>
                       <Link href={`/tools/cog/${s.id}`} className="block">
-                        <Card className="overflow-hidden transition hover:bg-accent">
-                          <div className="relative aspect-[4/3] bg-muted">
+                        <div className="overflow-hidden transition hover:bg-accent">
+                          <div className="relative aspect-square bg-muted">
                             {s.primaryImage ? (
                               // eslint-disable-next-line @next/next/no-img-element
                               <img
                                 src={getCogThumbnailUrl(
                                   s.primaryImage.storage_path,
-                                  s.primaryImage.thumbnail_256,
                                 )}
                                 alt={s.title}
                                 className="h-full w-full object-cover"
@@ -190,7 +189,7 @@ export function SeriesDashboard({ series: initialSeries }: SeriesDashboardProps)
                               </div>
                             )}
                           </div>
-                          <CardContent className="px-4 py-3">
+                          <div className="p-3 flex items-start text-sm justify-between bg-secondary">
                             {renamingId === s.id ? (
                               <input
                                 ref={renameInputRef}
@@ -205,27 +204,11 @@ export function SeriesDashboard({ series: initialSeries }: SeriesDashboardProps)
                                 className="font-semibold bg-transparent border-b border-foreground outline-none w-full"
                               />
                             ) : (
-                              <h2 className="font-semibold">{s.title}</h2>
+                              <h2 className="text-foreground">{s.title}</h2>
                             )}
-                            <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                              <span>{s.imageCount} images</span>
-                              {(s.toolLinks ?? []).length > 0 && (
-                                <>
-                                  <span>·</span>
-                                  {(s.toolLinks ?? []).map((l) => (
-                                    <span key={l.sourceType} className="capitalize">{l.sourceType}</span>
-                                  ))}
-                                </>
-                              )}
-                              {s.tags.length > 0 && (
-                                <>
-                                  <span>·</span>
-                                  <span>{s.tags.length} tags</span>
-                                </>
-                              )}
-                            </div>
-                          </CardContent>
-                        </Card>
+                              <span className="text-muted-foreground">{s.imageCount} images</span>
+                          </div>
+                        </div>
                       </Link>
                     </div>
                   </ContextMenuTrigger>
