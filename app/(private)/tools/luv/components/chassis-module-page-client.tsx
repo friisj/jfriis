@@ -70,7 +70,6 @@ export function ChassisModulePageClient({ module, allModules = [], studyLocks = 
               initialImages={initialMedia}
               seriesTitle={module.name}
               enabledTags={enabledTags}
-              defaultActiveTagId={defaultTagId}
             />
           </div>
         ) : (
