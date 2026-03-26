@@ -12,11 +12,15 @@ import { ScrollIndicator } from './shared/scroll-indicator';
 import { CompactSeedCard } from './shared/compact-seed-card';
 import { EmptyState } from './shared/empty-state';
 import { ThinkingIndicator, StepLimitMessage, wasStepLimitHit } from './shared/status-indicators';
+import { PresenceIndicator } from './shared/presence-indicator';
+import { useLuvPresence } from './use-luv-presence';
+import { HeartbeatSettingsPanel } from './heartbeat-settings-panel';
 import { getLuvCharacter } from '@/lib/luv';
 
 export function ChatDrawer() {
   const session = useLuvChatSession();
-  const [activePanel, setActivePanel] = useState<'traits' | 'imagePicker' | null>(null);
+  const { signal: presenceSignal } = useLuvPresence();
+  const [activePanel, setActivePanel] = useState<'traits' | 'imagePicker' | 'heartbeat' | null>(null);
   const [activePresetId, setActivePresetId] = useState<string | null>(null);
 
   const handleApplyPreset = useCallback(async (presetId: string) => {
@@ -43,6 +47,7 @@ export function ChatDrawer() {
   const panelConfig = {
     traits: { title: 'Custom Modulation' },
     imagePicker: { title: 'Image Library' },
+    heartbeat: { title: 'Heartbeat Settings' },
   } as const;
 
   return (
@@ -60,6 +65,9 @@ export function ChatDrawer() {
               onAttach={handlePickerAttach}
               onClose={closePanel}
             />
+          )}
+          {activePanel === 'heartbeat' && (
+            <HeartbeatSettingsPanel />
           )}
         </ChatOverlay>
       )}
@@ -103,6 +111,8 @@ export function ChatDrawer() {
 
       <ScrollIndicator scrollContainerRef={session.scrollContainerRef} messagesEndRef={session.messagesEndRef} />
 
+      {!session.isActive && <PresenceIndicator signal={presenceSignal} />}
+
       {session.compactSummary && session.messages.length === 0 && (
         <CompactSeedCard summary={session.compactSummary} onBranch={session.handleBranch} branching={session.branching} />
       )}
@@ -140,6 +150,7 @@ export function ChatDrawer() {
         activePresetId={activePresetId}
         imagePickerOpen={activePanel === 'imagePicker'}
         onToggleImagePicker={() => setActivePanel((p) => p === 'imagePicker' ? null : 'imagePicker')}
+        onToggleHeartbeatSettings={() => setActivePanel((p) => p === 'heartbeat' ? null : 'heartbeat')}
       />
     </div>
   );

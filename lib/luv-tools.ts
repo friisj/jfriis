@@ -13,6 +13,7 @@ import { luvArtifactTools } from './luv-artifact-tools';
 import { luvReviewTools } from './luv-review-tools';
 import { luvPlaygroundTools } from './luv-playground-tools';
 import { luvChangelogTools } from './luv-changelog-tools';
+import { acknowledgeNudge } from './luv-heartbeat';
 import { listGenerations } from './luv-image-gen-tools';
 import { validateTraitPatch, applyTraitPatch, DEFAULT_TRAITS, SOUL_TRAITS } from './luv/soul-modulation';
 import { getCurrentSoulConfigServer, insertSoulConfigServer } from './luv-soul-modulation-server';
@@ -1082,6 +1083,21 @@ export function createCurrentContextTool(pageContext: LuvPageContext | null) {
 
 // ============================================================================
 // Tool Registry
+const acknowledgeHeartbeat = tool({
+  description:
+    'Mark a heartbeat nudge as acknowledged after you have surfaced it in conversation. ' +
+    'Call this for each nudge you acted on — the nudge ID is provided in the heartbeat observations section of your system prompt.',
+  inputSchema: zodSchema(
+    z.object({
+      nudgeId: z.string().describe('The heartbeat event ID to acknowledge'),
+    })
+  ),
+  execute: async ({ nudgeId }) => {
+    await acknowledgeNudge(nudgeId);
+    return { acknowledged: true, nudgeId };
+  },
+});
+
 // ============================================================================
 
 export const luvTools = {
@@ -1117,4 +1133,5 @@ export const luvTools = {
   ...luvPlaygroundTools,
   ...luvChangelogTools,
   list_generations: listGenerations,
+  acknowledge_heartbeat: acknowledgeHeartbeat,
 };

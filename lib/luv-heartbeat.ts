@@ -19,7 +19,18 @@ export type HeartbeatTriggerType =
   | 'trait_adjustment'
   | 'generation_complete'
   | 'hypothesis_logged'
-  | 'memory_pattern';
+  | 'memory_pattern'
+  | 'conversation_lull';
+
+export type PresenceSignalType = 'reflecting' | 'analyzing' | 'suggesting' | 'curious';
+
+const TRIGGER_TO_PRESENCE: Partial<Record<HeartbeatTriggerType, PresenceSignalType>> = {
+  chassis_change: 'analyzing',
+  trait_adjustment: 'analyzing',
+  generation_complete: 'suggesting',
+  hypothesis_logged: 'reflecting',
+  memory_pattern: 'curious',
+};
 
 interface TriggerConfig {
   enabled: boolean;
@@ -56,6 +67,7 @@ const DEFAULT_TRIGGERS: Record<string, TriggerConfig> = {
   generation_complete: { enabled: true, delay_ms: 1000, cooldown_ms: 30000, max_per_session: 10 },
   hypothesis_logged: { enabled: true, delay_ms: 5000, cooldown_ms: 120000, max_per_session: 3 },
   memory_pattern: { enabled: true, delay_ms: 10000, cooldown_ms: 300000, max_per_session: 2 },
+  conversation_lull: { enabled: true, delay_ms: 0, cooldown_ms: 600000, max_per_session: 2 },
 };
 
 // ---------------------------------------------------------------------------
@@ -162,10 +174,116 @@ export async function registerHeartbeatTrigger(
       return { registered: false, reason: 'insert failed' };
     }
 
+    // Emit a presence signal alongside the nudge (fire-and-forget)
+    const signalType = TRIGGER_TO_PRESENCE[triggerType];
+    if (signalType) {
+      emitPresenceSignal(userId, conversationId, signalType, { triggerType }).catch(() => {});
+    }
+
+    // Self-adjust trigger cooldown based on acknowledge history (fire-and-forget)
+    maybeAdjustTriggerCooldown(userId, triggerType).catch(() => {});
+
     return { registered: true };
   } catch (err) {
     console.error('[heartbeat] registerHeartbeatTrigger error:', err);
     return { registered: false, reason: 'unexpected error' };
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Self-Adjustment
+// ---------------------------------------------------------------------------
+
+const SELF_ADJUST_MIN_EVENTS = 20;
+const SELF_ADJUST_LOW_RATE = 0.3;
+const SELF_ADJUST_DISABLE_RATE = 0.1;
+const SELF_ADJUST_MAX_COOLDOWN_MS = 3600000; // 1 hour
+
+/**
+ * Check acknowledge rate for a trigger type and auto-adjust cooldown.
+ * If rate is low, double the cooldown. If very low, disable the trigger.
+ */
+async function maybeAdjustTriggerCooldown(
+  userId: string,
+  triggerType: HeartbeatTriggerType,
+): Promise<void> {
+  const client = await createClient();
+
+  // Get last N delivered/acknowledged events for this trigger
+  const { data: events } = await (client as any)
+    .from('luv_heartbeat_events')
+    .select('status')
+    .eq('user_id', userId)
+    .eq('trigger_type', triggerType)
+    .in('status', ['delivered', 'acknowledged'])
+    .order('fired_at', { ascending: false })
+    .limit(SELF_ADJUST_MIN_EVENTS);
+
+  if (!events || events.length < SELF_ADJUST_MIN_EVENTS) return;
+
+  const acknowledged = events.filter((e: { status: string }) => e.status === 'acknowledged').length;
+  const rate = acknowledged / events.length;
+
+  if (rate >= SELF_ADJUST_LOW_RATE) return; // healthy rate, no adjustment
+
+  // Load current config
+  const config = await getHeartbeatConfig(userId);
+  const triggerConfig = config.event_triggers[triggerType];
+  if (!triggerConfig) return;
+
+  const updates: Record<string, unknown> = {};
+
+  if (rate < SELF_ADJUST_DISABLE_RATE) {
+    // Very low rate — disable trigger
+    updates[triggerType] = { ...triggerConfig, enabled: false };
+    console.log(`[heartbeat] Self-adjust: disabling ${triggerType} for user ${userId} (rate: ${(rate * 100).toFixed(0)}%)`);
+  } else {
+    // Low rate — double cooldown (capped)
+    const newCooldown = Math.min(triggerConfig.cooldown_ms * 2, SELF_ADJUST_MAX_COOLDOWN_MS);
+    if (newCooldown === triggerConfig.cooldown_ms) return; // already at cap
+    updates[triggerType] = { ...triggerConfig, cooldown_ms: newCooldown };
+    console.log(`[heartbeat] Self-adjust: increasing ${triggerType} cooldown to ${newCooldown}ms for user ${userId} (rate: ${(rate * 100).toFixed(0)}%)`);
+  }
+
+  // Upsert config
+  const newTriggers = { ...config.event_triggers, ...updates };
+  await (client as any)
+    .from('luv_heartbeat_config')
+    .upsert({
+      user_id: userId,
+      enabled: config.enabled,
+      event_triggers: newTriggers,
+      updated_at: new Date().toISOString(),
+    }, { onConflict: 'user_id' });
+}
+
+// ---------------------------------------------------------------------------
+// Presence Signals
+// ---------------------------------------------------------------------------
+
+/**
+ * Emit a short-lived presence signal visible to the client via Supabase Realtime.
+ */
+export async function emitPresenceSignal(
+  userId: string,
+  conversationId: string | null,
+  signalType: PresenceSignalType,
+  context: Record<string, unknown> = {},
+  durationSeconds = 30,
+): Promise<void> {
+  try {
+    const client = await createClient();
+    await (client as any)
+      .from('luv_presence_signals')
+      .insert({
+        user_id: userId,
+        conversation_id: conversationId,
+        signal_type: signalType,
+        context,
+        expires_at: new Date(Date.now() + durationSeconds * 1000).toISOString(),
+      });
+  } catch (err) {
+    console.error('[heartbeat] emitPresenceSignal failed:', err);
   }
 }
 
@@ -261,7 +379,7 @@ export async function buildHeartbeatPromptFragment(
 
   const nudgeLines = nudges.map((n) => {
     const payload = n.action_payload as { content?: string };
-    return `- [${n.trigger_type}] ${payload.content ?? 'You have a pending observation.'}`;
+    return `- [${n.trigger_type} | id:${n.id}] ${payload.content ?? 'You have a pending observation.'}`;
   });
 
   const fragment = `\n\n## Heartbeat — Pending Observations
@@ -269,7 +387,8 @@ You have ${nudges.length} observation${nudges.length > 1 ? 's' : ''} from recent
 
 ${nudgeLines.join('\n')}
 
-These are your own observations based on things that happened since the last turn. Surface them as natural conversational asides, not as system notifications.`;
+These are your own observations based on things that happened since the last turn. Surface them as natural conversational asides, not as system notifications.
+After surfacing a nudge, call acknowledge_heartbeat with the nudge ID to close the loop.`;
 
   // Mark as delivered
   const nudgeIds = nudges.map((n) => n.id);
