@@ -5,7 +5,7 @@
  */
 
 import type { UIMessage } from 'ai';
-import { createClient } from './supabase-server';
+import { createClient as createSupabaseClient } from '@supabase/supabase-js';
 
 /**
  * Upload image file parts from a user message to Supabase Storage.
@@ -15,7 +15,11 @@ export async function uploadUserMessageImages(
   msg: UIMessage,
   conversationId: string,
 ): Promise<Map<number, string>> {
-  const client = await createClient();
+  // Use service role key — consistent with all other server-side writes to cog-images
+  const client = createSupabaseClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+  );
   const urls = new Map<number, string>();
 
   for (let i = 0; i < msg.parts.length; i++) {
@@ -46,14 +50,15 @@ export async function uploadUserMessageImages(
         mimeType = match[1];
         base64 = match[2];
       }
-    } else if (typeof fp.data === 'string' && fp.data.length > 100) {
+    } else if (typeof fp.data === 'string' && fp.data.length > 100 && /^[A-Za-z0-9+/=]+$/.test(fp.data.slice(0, 100))) {
       base64 = fp.data;
     }
 
     if (!base64) continue;
 
     try {
-      const ext = mimeType === 'image/png' ? 'png' : mimeType === 'image/webp' ? 'webp' : 'jpg';
+      const extMap: Record<string, string> = { 'image/png': 'png', 'image/webp': 'webp', 'image/gif': 'gif' };
+      const ext = extMap[mimeType ?? ''] ?? 'jpg';
       const storagePath = `luv/chat-images/${conversationId}/${Date.now()}-${i}.${ext}`;
       const buffer = Buffer.from(base64, 'base64');
 
