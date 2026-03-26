@@ -242,6 +242,21 @@ export async function POST(request: Request) {
       onFinish: async (event) => {
         if (!convId) return;
         try {
+          // Debug: log reasoning presence
+          for (const step of event.steps) {
+            if (step.reasoning && step.reasoning.length > 0) {
+              console.log('[luv/chat] Reasoning found in step:', {
+                count: step.reasoning.length,
+                firstType: typeof step.reasoning[0],
+                firstKeys: step.reasoning[0] ? Object.keys(step.reasoning[0]) : [],
+                preview: JSON.stringify(step.reasoning[0]).slice(0, 200),
+              });
+            }
+            if (step.reasoningText) {
+              console.log('[luv/chat] ReasoningText found:', step.reasoningText.slice(0, 200));
+            }
+          }
+
           await createLuvMessageServer({
             conversation_id: convId,
             role: 'assistant',

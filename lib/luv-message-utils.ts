@@ -116,15 +116,13 @@ export function serializeOnFinishParts(event: { text: string; steps: any[] }): o
   const parts: object[] = [];
 
   for (const step of event.steps) {
-    // Add reasoning if present — extract text from ReasoningPart array
-    if (step.reasoning && Array.isArray(step.reasoning) && step.reasoning.length > 0) {
-      const reasoningText = step.reasoning
-        .filter((r: { text?: string }) => r.text)
-        .map((r: { text: string }) => r.text)
-        .join('\n');
-      if (reasoningText) {
-        parts.push({ type: 'reasoning', text: reasoningText });
-      }
+    // Add reasoning if present — use reasoningText shortcut or extract from array
+    const reasoningText = step.reasoningText
+      ?? (step.reasoning && Array.isArray(step.reasoning) && step.reasoning.length > 0
+        ? step.reasoning.filter((r: { text?: string }) => r.text).map((r: { text: string }) => r.text).join('\n')
+        : '');
+    if (reasoningText) {
+      parts.push({ type: 'reasoning', text: reasoningText });
     }
 
     // Add tool calls in SDK v6 flat format (type: 'tool-{name}', flat fields)
