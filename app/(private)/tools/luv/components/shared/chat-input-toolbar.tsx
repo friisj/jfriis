@@ -221,7 +221,7 @@ export function ChatInputToolbar({
         <div className={cn('flex justify-between items-start pl-3 md:pl-4 pr-4', compact ? 'pb-4' : 'pb-4')}>
           <div className="flex">
             <button
-              className="flex items-center justify-center size-12 text-muted-foreground"
+              className="flex items-center justify-center h-12 w-10 text-muted-foreground"
               onClick={() => fileInputRef.current?.click()}
               disabled={isActive || !soulLoaded}
               title="Upload image"
@@ -304,19 +304,6 @@ export function ChatInputToolbar({
                     </DropdownMenuItem>
                   </>
                 )}
-                {messages.length > 0 && (
-                  <>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem
-                      className="text-xs"
-                      onClick={handleClear}
-                      disabled={isActive}
-                    >
-                      <IconPlus size={14} stroke={1.5} />
-                      New conversation
-                    </DropdownMenuItem>
-                  </>
-                )}
                 <DropdownMenuSeparator />
                 <DropdownMenuSub>
                   <DropdownMenuSubTrigger className="text-xs">
@@ -360,6 +347,19 @@ export function ChatInputToolbar({
                     >
                       <IconCopy size={14} stroke={1.5} />
                       Copy trace ID
+                    </DropdownMenuItem>
+                  </>
+                )}
+                {messages.length > 0 && (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      className="text-xs"
+                      onClick={handleClear}
+                      disabled={isActive}
+                    >
+                      <IconPlus size={14} stroke={1.5} />
+                      New conversation
                     </DropdownMenuItem>
                   </>
                 )}
