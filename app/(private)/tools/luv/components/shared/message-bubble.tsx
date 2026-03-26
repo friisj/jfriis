@@ -114,8 +114,20 @@ function groupParts(parts: UIMessage['parts']): PartGroup[] {
       } else {
         groups.push({ type: 'text', texts: [part.text], lastIndex: i });
       }
-    } else if (part.type === 'reasoning' && 'text' in part && part.text) {
-      groups.push({ type: 'reasoning', text: part.text as string });
+    } else if (part.type === 'reasoning') {
+      // Handle both formats: { text: string } (new) and { reasoning: Array } (legacy)
+      let reasoningText = '';
+      if ('text' in part && part.text) {
+        reasoningText = part.text as string;
+      } else if ('reasoning' in part && Array.isArray((part as Record<string, unknown>).reasoning)) {
+        reasoningText = ((part as Record<string, unknown>).reasoning as Array<{ text?: string }>)
+          .filter((r) => r.text)
+          .map((r) => r.text)
+          .join('\n');
+      }
+      if (reasoningText) {
+        groups.push({ type: 'reasoning', text: reasoningText });
+      }
     } else if (isToolUIPart(part)) {
       groups.push({
         type: 'tool',
