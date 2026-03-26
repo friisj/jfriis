@@ -14,6 +14,7 @@ import { CompactSeedCard } from '../components/shared/compact-seed-card';
 import { EmptyState } from '../components/shared/empty-state';
 import { ThinkingIndicator, StepLimitMessage, wasStepLimitHit } from '../components/shared/status-indicators';
 import { PresenceIndicator } from '../components/shared/presence-indicator';
+import { HeartbeatSettingsPanel } from '../components/heartbeat-settings-panel';
 import { useLuvPresence } from '../components/use-luv-presence';
 import { getLuvCharacter } from '@/lib/luv';
 
@@ -27,7 +28,7 @@ export default function LuvChatPage() {
 
   const session = useLuvChatSession();
   const { signal: presenceSignal } = useLuvPresence();
-  const [activePanel, setActivePanel] = useState<'traits' | 'imagePicker' | null>(null);
+  const [activePanel, setActivePanel] = useState<'traits' | 'imagePicker' | 'heartbeat' | null>(null);
   const [activePresetId, setActivePresetId] = useState<string | null>(null);
 
   const handleApplyPreset = useCallback(async (presetId: string) => {
@@ -54,6 +55,7 @@ export default function LuvChatPage() {
   const panelConfig = {
     traits: { title: 'Custom Modulation' },
     imagePicker: { title: 'Image Library' },
+    heartbeat: { title: 'Heartbeat Settings' },
   } as const;
 
   return (
@@ -72,6 +74,9 @@ export default function LuvChatPage() {
               onAttach={handlePickerAttach}
               onClose={closePanel}
             />
+          )}
+          {activePanel === 'heartbeat' && (
+            <HeartbeatSettingsPanel />
           )}
         </ChatOverlay>
       )}
@@ -158,6 +163,7 @@ export default function LuvChatPage() {
           activePresetId={activePresetId}
           imagePickerOpen={activePanel === 'imagePicker'}
           onToggleImagePicker={() => setActivePanel((p) => p === 'imagePicker' ? null : 'imagePicker')}
+          onToggleHeartbeatSettings={() => setActivePanel((p) => p === 'heartbeat' ? null : 'heartbeat')}
         />
       </div>
     </div>
