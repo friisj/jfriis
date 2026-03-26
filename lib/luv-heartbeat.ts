@@ -261,7 +261,7 @@ export async function buildHeartbeatPromptFragment(
 
   const nudgeLines = nudges.map((n) => {
     const payload = n.action_payload as { content?: string };
-    return `- [${n.trigger_type}] ${payload.content ?? 'You have a pending observation.'}`;
+    return `- [${n.trigger_type} | id:${n.id}] ${payload.content ?? 'You have a pending observation.'}`;
   });
 
   const fragment = `\n\n## Heartbeat — Pending Observations
@@ -269,7 +269,8 @@ You have ${nudges.length} observation${nudges.length > 1 ? 's' : ''} from recent
 
 ${nudgeLines.join('\n')}
 
-These are your own observations based on things that happened since the last turn. Surface them as natural conversational asides, not as system notifications.`;
+These are your own observations based on things that happened since the last turn. Surface them as natural conversational asides, not as system notifications.
+After surfacing a nudge, call acknowledge_heartbeat with the nudge ID to close the loop.`;
 
   // Mark as delivered
   const nudgeIds = nudges.map((n) => n.id);
