@@ -33,6 +33,7 @@ import {
   IconX,
   IconUpload,
   IconHeart,
+  IconPlus,
 } from '@tabler/icons-react';
 import { MODEL_OPTIONS, type ContextPressure } from '../use-luv-chat-session';
 import type { LuvCompactSummary } from '@/lib/types/luv';
@@ -282,9 +283,9 @@ export function ChatInputToolbar({
                         disabled={isActive || compacting}
                       >
                         {compacting ? (
-                          <IconLoader2 size={14} className="mr-2 animate-spin" />
+                          <IconLoader2 size={14} stroke={1.5} className="animate-spin" />
                         ) : (
-                          <IconSparkles size={14} className="mr-2" />
+                          <IconSparkles size={14} stroke={1.5} />
                         )}
                         {compacting ? 'Analysing\u2026' : 'Compact conversation'}
                       </DropdownMenuItem>
@@ -295,9 +296,9 @@ export function ChatInputToolbar({
                       disabled={isActive || branching}
                     >
                       {branching ? (
-                        <IconLoader2 size={14} className="mr-2 animate-spin" />
+                        <IconLoader2 size={14} stroke={1.5} className="animate-spin" />
                       ) : (
-                        <IconGitBranch size={14} className="mr-2" />
+                        <IconGitBranch size={14} stroke={1.5} />
                       )}
                       {branching ? 'Branching\u2026' : 'Branch conversation'}
                     </DropdownMenuItem>
@@ -311,7 +312,7 @@ export function ChatInputToolbar({
                       onClick={handleClear}
                       disabled={isActive}
                     >
-                      <IconTrash size={14} className="mr-2" />
+                      <IconPlus size={14} stroke={1.5} />
                       New conversation
                     </DropdownMenuItem>
                   </>
@@ -319,7 +320,7 @@ export function ChatInputToolbar({
                 <DropdownMenuSeparator />
                 <DropdownMenuSub>
                   <DropdownMenuSubTrigger className="text-xs">
-                    <IconAdjustments size={14} className="mr-2" />
+                    <IconAdjustments size={14} stroke={1.5} />
                     Traits
                   </DropdownMenuSubTrigger>
                   <DropdownMenuSubContent className="w-44">
@@ -346,7 +347,7 @@ export function ChatInputToolbar({
                     className="text-xs"
                     onClick={onToggleHeartbeatSettings}
                   >
-                    <IconHeart size={14} className="mr-2" />
+                    <IconHeart size={14} stroke={1.5} />
                     Heartbeat
                   </DropdownMenuItem>
                 )}
@@ -357,7 +358,7 @@ export function ChatInputToolbar({
                       className="text-xs"
                       onClick={() => navigator.clipboard.writeText(resumedConversationId)}
                     >
-                      <IconCopy size={14} className="mr-2" />
+                      <IconCopy size={14} stroke={1.5} />
                       Copy trace ID
                     </DropdownMenuItem>
                   </>
