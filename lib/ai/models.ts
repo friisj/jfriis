@@ -98,7 +98,7 @@ export const models: Record<string, ModelConfig> = {
 
   // Google Models
   'gemini-flash': {
-    id: 'gemini-2.5-flash-preview-05-20',
+    id: 'gemini-2.5-flash',
     provider: 'google',
     name: 'Gemini 2.5 Flash',
     description: 'Fast multimodal with large context',
@@ -107,7 +107,7 @@ export const models: Record<string, ModelConfig> = {
     costTier: 'low',
   },
   'gemini-pro': {
-    id: 'gemini-2.5-pro-preview-05-06',
+    id: 'gemini-3.1-pro-preview',
     provider: 'google',
     name: 'Gemini 2.5 Pro',
     description: 'High capability with massive context window',

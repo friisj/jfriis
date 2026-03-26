@@ -200,7 +200,7 @@ export async function POST(request: Request) {
     const providerOptions = isClaudeModel ? {
       anthropic: {
         ...(thinkingEnabled && {
-          thinking: { type: 'enabled', budgetTokens: 10000 },
+          thinking: { type: 'enabled', budgetTokens: 32000 },
         }),
         contextManagement: {
           edits: [

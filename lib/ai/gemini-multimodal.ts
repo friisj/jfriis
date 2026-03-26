@@ -136,7 +136,7 @@ Provide a concise but detailed description that would help recreate similar visu
       },
     };
 
-    const endpoint = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent';
+    const endpoint = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent';
 
     try {
       const response = await fetch(endpoint, {
@@ -265,7 +265,7 @@ Output ONLY the refined prompt, nothing else.`;
     },
   };
 
-  const endpoint = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent';
+  const endpoint = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent';
 
   try {
     const response = await fetch(endpoint, {

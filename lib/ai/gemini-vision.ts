@@ -28,7 +28,7 @@ export async function analyzeImageWithGemini({
   base64,
   mediaType,
   prompt,
-  modelKey = 'gemini-flash',
+  modelKey = 'gemini-pro',
   maxOutputTokens = 800,
   timeoutMs = DEFAULT_TIMEOUT_MS,
 }: AnalyzeImageOptions): Promise<string | null> {
