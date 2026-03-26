@@ -76,20 +76,90 @@ export function deserializeMessage(m: {
  * Serialize UIMessage parts to a JSON-safe array for database storage.
  * Strips non-serializable data (functions, blobs) and keeps text, tool calls, and reasoning.
  */
-export function serializeParts(msg: UIMessage): object[] | null {
+export function serializeParts(msg: UIMessage, storedImageUrls?: Map<number, string>): object[] | null {
   const hasNonText = msg.parts.some((p) => p.type !== 'text');
   if (!hasNonText) return null; // plain text — content column is sufficient
 
-  return msg.parts.map((p) => {
+  return msg.parts.map((p, i) => {
     if (p.type === 'text') return { type: 'text', text: (p as { text: string }).text };
-    // Strip base64 image data from file parts — keep metadata only
     if (p.type === 'file') {
-      const fp = p as { type: string; mediaType?: string; filename?: string };
+      const fp = p as { type: string; mediaType?: string; filename?: string; url?: string };
+      const storedUrl = storedImageUrls?.get(i);
+      if (storedUrl) {
+        // Image was uploaded to storage — keep the URL for future extraction
+        return { type: 'file', mediaType: fp.mediaType, filename: fp.filename, url: storedUrl, stored: true };
+      }
+      // No storage URL — strip data but mark as not stored
       return { type: 'file', mediaType: fp.mediaType, filename: fp.filename, stored: false };
     }
     // Preserve tool-invocation, reasoning, and other structured parts
     return { ...p };
   });
+}
+
+/**
+ * Upload image file parts from a user message to Supabase Storage.
+ * Returns a map of part index → public URL for each uploaded image.
+ */
+export async function uploadUserMessageImages(
+  msg: UIMessage,
+  conversationId: string,
+): Promise<Map<number, string>> {
+  const { createClient } = await import('./supabase-server');
+  const client = await createClient();
+  const urls = new Map<number, string>();
+
+  for (let i = 0; i < msg.parts.length; i++) {
+    const part = msg.parts[i];
+    if (part.type !== 'file') continue;
+    const fp = part as { type: string; mediaType?: string; url?: string; data?: unknown };
+    if (!fp.mediaType?.startsWith('image/')) continue;
+
+    // Extract base64 from the file part's URL (data URL) or data field
+    let base64: string | null = null;
+    let mimeType = fp.mediaType;
+
+    if (fp.url && fp.url.startsWith('data:')) {
+      const match = fp.url.match(/^data:(image\/[\w+.-]+);base64,(.+)$/);
+      if (match) {
+        mimeType = match[1];
+        base64 = match[2];
+      }
+    } else if (typeof fp.data === 'string' && fp.data.startsWith('data:')) {
+      const match = fp.data.match(/^data:(image\/[\w+.-]+);base64,(.+)$/);
+      if (match) {
+        mimeType = match[1];
+        base64 = match[2];
+      }
+    } else if (typeof fp.data === 'string' && fp.data.length > 100) {
+      base64 = fp.data;
+    }
+
+    if (!base64) continue;
+
+    try {
+      const ext = mimeType === 'image/png' ? 'png' : mimeType === 'image/webp' ? 'webp' : 'jpg';
+      const storagePath = `luv/chat-images/${conversationId}/${Date.now()}-${i}.${ext}`;
+      const buffer = Buffer.from(base64, 'base64');
+
+      const { error: uploadError } = await client.storage
+        .from('cog-images')
+        .upload(storagePath, buffer, { contentType: mimeType, upsert: false });
+
+      if (uploadError) {
+        console.error('[luv-message-utils] Image upload failed:', uploadError);
+        continue;
+      }
+
+      // Get public URL
+      const { data: { publicUrl } } = client.storage.from('cog-images').getPublicUrl(storagePath);
+      urls.set(i, publicUrl);
+    } catch (err) {
+      console.error('[luv-message-utils] Image upload error:', err);
+    }
+  }
+
+  return urls;
 }
 
 /**

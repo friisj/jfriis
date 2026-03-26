@@ -27,7 +27,7 @@ import { resolveProcessProtocol, resolveProcessState } from '@/lib/luv/process-c
 import { buildHeartbeatPromptFragment, scanToolResultsForTriggers } from '@/lib/luv-heartbeat';
 import type { ChassisModuleSummary } from '@/lib/luv/soul-layers';
 import type { LuvPageContext } from '@/lib/types/luv';
-import { deserializeMessage, getMessageText, serializeOnFinishParts, serializeParts } from '@/lib/luv-message-utils';
+import { deserializeMessage, getMessageText, serializeOnFinishParts, serializeParts, uploadUserMessageImages } from '@/lib/luv-message-utils';
 import { applyMessageWindowing } from '@/lib/luv-chat-windowing';
 
 export async function POST(request: Request) {
@@ -83,11 +83,13 @@ export async function POST(request: Request) {
       // to prevent duplicate writes from network retries or double-submits.
       const lastDbMessage = dbMessages[dbMessages.length - 1];
       if (!lastDbMessage || lastDbMessage.role !== 'user') {
+        // Upload any image file parts to storage before serializing
+        const storedImageUrls = await uploadUserMessageImages(latestMessage, chatId);
         await createLuvMessageServer({
           conversation_id: chatId,
           role: latestMessage.role,
           content: getMessageText(latestMessage),
-          parts: serializeParts(latestMessage),
+          parts: serializeParts(latestMessage, storedImageUrls),
         });
       }
 
