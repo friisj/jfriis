@@ -115,6 +115,12 @@ export async function uploadUserMessageImages(
     const fp = part as { type: string; mediaType?: string; url?: string; data?: unknown };
     if (!fp.mediaType?.startsWith('image/')) continue;
 
+    // If the URL already points to our storage bucket, keep it — no re-upload needed
+    if (fp.url && fp.url.includes('/storage/v1/object/public/cog-images/')) {
+      urls.set(i, fp.url);
+      continue;
+    }
+
     // Extract base64 from the file part's URL (data URL) or data field
     let base64: string | null = null;
     let mimeType = fp.mediaType;
