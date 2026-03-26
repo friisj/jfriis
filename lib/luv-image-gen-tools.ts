@@ -112,7 +112,7 @@ export function createGenerateImageTool(messages: ModelMessage[]) {
 
         // Extract images from chat conversation
         if (useRecentChatImages && useRecentChatImages > 0) {
-          const chatImages = extractRecentChatImages(messages, useRecentChatImages);
+          const chatImages = await extractRecentChatImages(messages, useRecentChatImages);
           referenceImages.push(...chatImages);
         }
 
