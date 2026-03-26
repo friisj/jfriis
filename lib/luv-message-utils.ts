@@ -76,15 +76,20 @@ export function deserializeMessage(m: {
  * Serialize UIMessage parts to a JSON-safe array for database storage.
  * Strips non-serializable data (functions, blobs) and keeps text, tool calls, and reasoning.
  */
-export function serializeParts(msg: UIMessage): object[] | null {
+export function serializeParts(msg: UIMessage, storedImageUrls?: Map<number, string>): object[] | null {
   const hasNonText = msg.parts.some((p) => p.type !== 'text');
   if (!hasNonText) return null; // plain text — content column is sufficient
 
-  return msg.parts.map((p) => {
+  return msg.parts.map((p, i) => {
     if (p.type === 'text') return { type: 'text', text: (p as { text: string }).text };
-    // Strip base64 image data from file parts — keep metadata only
     if (p.type === 'file') {
-      const fp = p as { type: string; mediaType?: string; filename?: string };
+      const fp = p as { type: string; mediaType?: string; filename?: string; url?: string };
+      const storedUrl = storedImageUrls?.get(i);
+      if (storedUrl) {
+        // Image was uploaded to storage — keep the URL for future extraction
+        return { type: 'file', mediaType: fp.mediaType, filename: fp.filename, url: storedUrl, stored: true };
+      }
+      // No storage URL — strip data but mark as not stored
       return { type: 'file', mediaType: fp.mediaType, filename: fp.filename, stored: false };
     }
     // Preserve tool-invocation, reasoning, and other structured parts

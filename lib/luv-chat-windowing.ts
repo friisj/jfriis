@@ -49,11 +49,13 @@ export function applyMessageWindowing(
           output: { type: 'text' as const, value: '[cleared]' },
         };
       }
-      // Strip image data
+      // Strip image data (affects extractRecentChatImages — images beyond
+      // the window cannot be used as i2i references by tools)
       if (part.type === 'image') {
         return { type: 'text' as const, text: '[image cleared]' };
       }
-      // Strip file data
+      // Strip file data (stored URLs are preserved in DB but cleared here;
+      // i2i reference extraction only works within the recent turn window)
       if (part.type === 'file') {
         return { type: 'text' as const, text: '[file cleared]' };
       }
