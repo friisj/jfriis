@@ -14,6 +14,9 @@ import {
   DropdownMenuTrigger,
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
+  DropdownMenuSub,
+  DropdownMenuSubTrigger,
+  DropdownMenuSubContent,
 } from '@/components/ui/dropdown-menu';
 import {
   IconAdjustments,
@@ -29,6 +32,8 @@ import {
   IconTrash,
   IconX,
   IconUpload,
+  IconHeart,
+  IconPlus,
 } from '@tabler/icons-react';
 import { MODEL_OPTIONS, type ContextPressure } from '../use-luv-chat-session';
 import type { LuvCompactSummary } from '@/lib/types/luv';
@@ -215,45 +220,8 @@ export function ChatInputToolbar({
 
         <div className={cn('flex justify-between items-start pl-3 md:pl-4 pr-4', compact ? 'pb-4' : 'pb-4')}>
           <div className="flex">
-
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <button
-                  className={cn(
-                    'flex items-center justify-center size-12 text-muted-foreground',
-                    (traitPanelOpen || activePresetId) && 'text-foreground',
-                  )}
-                  title="Soul Modulation"
-                >
-                  <IconAdjustments size={iconSize} stroke={1.5} />
-                </button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent side="top" align="start" className="w-48">
-                {presets.map((p) => (
-                  <DropdownMenuItem
-                    key={p.id}
-                    className="text-xs"
-                    onClick={() => onApplyPreset(p.id)}
-                  >
-                    {p.name}
-                    {activePresetId === p.id && (
-                      <span className="ml-auto text-[10px] text-muted-foreground">active</span>
-                    )}
-                  </DropdownMenuItem>
-                ))}
-                <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  className="text-xs"
-                  onClick={onToggleTraitPanel}
-                >
-                  Custom{!activePresetId && traitPanelOpen ? '' : ''}
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-
-
             <button
-              className="flex items-center justify-center size-12 text-muted-foreground"
+              className="flex items-center justify-center h-12 w-10 text-muted-foreground"
               onClick={() => fileInputRef.current?.click()}
               disabled={isActive || !soulLoaded}
               title="Upload image"
@@ -275,7 +243,7 @@ export function ChatInputToolbar({
               </button>
             )}
 
-<DropdownMenu>
+            <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button
                   className="flex items-center justify-center size-12 text-muted-foreground"
@@ -315,9 +283,9 @@ export function ChatInputToolbar({
                         disabled={isActive || compacting}
                       >
                         {compacting ? (
-                          <IconLoader2 size={14} className="mr-2 animate-spin" />
+                          <IconLoader2 size={14} stroke={1.5} className="animate-spin" />
                         ) : (
-                          <IconSparkles size={14} className="mr-2" />
+                          <IconSparkles size={14} stroke={1.5} />
                         )}
                         {compacting ? 'Analysing\u2026' : 'Compact conversation'}
                       </DropdownMenuItem>
@@ -328,11 +296,57 @@ export function ChatInputToolbar({
                       disabled={isActive || branching}
                     >
                       {branching ? (
-                        <IconLoader2 size={14} className="mr-2 animate-spin" />
+                        <IconLoader2 size={14} stroke={1.5} className="animate-spin" />
                       ) : (
-                        <IconGitBranch size={14} className="mr-2" />
+                        <IconGitBranch size={14} stroke={1.5} />
                       )}
                       {branching ? 'Branching\u2026' : 'Branch conversation'}
+                    </DropdownMenuItem>
+                  </>
+                )}
+                <DropdownMenuSeparator />
+                <DropdownMenuSub>
+                  <DropdownMenuSubTrigger className="text-xs">
+                    <IconAdjustments size={14} stroke={1.5} />
+                    Traits
+                  </DropdownMenuSubTrigger>
+                  <DropdownMenuSubContent className="w-44">
+                    {presets.map((p) => (
+                      <DropdownMenuItem
+                        key={p.id}
+                        className="text-xs"
+                        onClick={() => onApplyPreset(p.id)}
+                      >
+                        {p.name}
+                        {activePresetId === p.id && (
+                          <span className="ml-auto text-[10px] text-muted-foreground">active</span>
+                        )}
+                      </DropdownMenuItem>
+                    ))}
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem className="text-xs" onClick={onToggleTraitPanel}>
+                      Custom
+                    </DropdownMenuItem>
+                  </DropdownMenuSubContent>
+                </DropdownMenuSub>
+                {onToggleHeartbeatSettings && (
+                  <DropdownMenuItem
+                    className="text-xs"
+                    onClick={onToggleHeartbeatSettings}
+                  >
+                    <IconHeart size={14} stroke={1.5} />
+                    Heartbeat
+                  </DropdownMenuItem>
+                )}
+                {resumedConversationId && (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      className="text-xs"
+                      onClick={() => navigator.clipboard.writeText(resumedConversationId)}
+                    >
+                      <IconCopy size={14} stroke={1.5} />
+                      Copy trace ID
                     </DropdownMenuItem>
                   </>
                 )}
@@ -344,31 +358,8 @@ export function ChatInputToolbar({
                       onClick={handleClear}
                       disabled={isActive}
                     >
-                      <IconTrash size={14} className="mr-2" />
+                      <IconPlus size={14} stroke={1.5} />
                       New conversation
-                    </DropdownMenuItem>
-                  </>
-                )}
-                {onToggleHeartbeatSettings && (
-                  <>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem
-                      className="text-xs"
-                      onClick={onToggleHeartbeatSettings}
-                    >
-                      Heartbeat settings
-                    </DropdownMenuItem>
-                  </>
-                )}
-                {resumedConversationId && (
-                  <>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem
-                      className="text-xs"
-                      onClick={() => navigator.clipboard.writeText(resumedConversationId)}
-                    >
-                      <IconCopy size={14} className="mr-2" />
-                      Copy trace ID
                     </DropdownMenuItem>
                   </>
                 )}
