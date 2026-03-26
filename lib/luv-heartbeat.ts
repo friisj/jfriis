@@ -19,7 +19,18 @@ export type HeartbeatTriggerType =
   | 'trait_adjustment'
   | 'generation_complete'
   | 'hypothesis_logged'
-  | 'memory_pattern';
+  | 'memory_pattern'
+  | 'conversation_lull';
+
+export type PresenceSignalType = 'reflecting' | 'analyzing' | 'suggesting' | 'curious';
+
+const TRIGGER_TO_PRESENCE: Partial<Record<HeartbeatTriggerType, PresenceSignalType>> = {
+  chassis_change: 'analyzing',
+  trait_adjustment: 'analyzing',
+  generation_complete: 'suggesting',
+  hypothesis_logged: 'reflecting',
+  memory_pattern: 'curious',
+};
 
 interface TriggerConfig {
   enabled: boolean;
@@ -56,6 +67,7 @@ const DEFAULT_TRIGGERS: Record<string, TriggerConfig> = {
   generation_complete: { enabled: true, delay_ms: 1000, cooldown_ms: 30000, max_per_session: 10 },
   hypothesis_logged: { enabled: true, delay_ms: 5000, cooldown_ms: 120000, max_per_session: 3 },
   memory_pattern: { enabled: true, delay_ms: 10000, cooldown_ms: 300000, max_per_session: 2 },
+  conversation_lull: { enabled: true, delay_ms: 0, cooldown_ms: 600000, max_per_session: 2 },
 };
 
 // ---------------------------------------------------------------------------
@@ -162,6 +174,12 @@ export async function registerHeartbeatTrigger(
       return { registered: false, reason: 'insert failed' };
     }
 
+    // Emit a presence signal alongside the nudge (fire-and-forget)
+    const signalType = TRIGGER_TO_PRESENCE[triggerType];
+    if (signalType) {
+      emitPresenceSignal(userId, conversationId, signalType, { triggerType }).catch(() => {});
+    }
+
     // Self-adjust trigger cooldown based on acknowledge history (fire-and-forget)
     maybeAdjustTriggerCooldown(userId, triggerType).catch(() => {});
 
@@ -237,6 +255,36 @@ async function maybeAdjustTriggerCooldown(
       event_triggers: newTriggers,
       updated_at: new Date().toISOString(),
     }, { onConflict: 'user_id' });
+}
+
+// ---------------------------------------------------------------------------
+// Presence Signals
+// ---------------------------------------------------------------------------
+
+/**
+ * Emit a short-lived presence signal visible to the client via Supabase Realtime.
+ */
+export async function emitPresenceSignal(
+  userId: string,
+  conversationId: string | null,
+  signalType: PresenceSignalType,
+  context: Record<string, unknown> = {},
+  durationSeconds = 30,
+): Promise<void> {
+  try {
+    const client = await createClient();
+    await (client as any)
+      .from('luv_presence_signals')
+      .insert({
+        user_id: userId,
+        conversation_id: conversationId,
+        signal_type: signalType,
+        context,
+        expires_at: new Date(Date.now() + durationSeconds * 1000).toISOString(),
+      });
+  } catch (err) {
+    console.error('[heartbeat] emitPresenceSignal failed:', err);
+  }
 }
 
 // ---------------------------------------------------------------------------
