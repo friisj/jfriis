@@ -288,6 +288,36 @@ export function useLuvChatSession() {
     [handleSend]
   );
 
+  // Heartbeat: conversation lull detection
+  const lastUserMessageTime = useRef(Date.now());
+  const lullFired = useRef(false);
+
+  // Reset timer on every send
+  useEffect(() => {
+    lastUserMessageTime.current = Date.now();
+    lullFired.current = false;
+  }, [input]); // input cleared after send, so this fires on each message
+
+  useEffect(() => {
+    const LULL_THRESHOLD_MS = 5 * 60 * 1000; // 5 minutes
+    const CHECK_INTERVAL_MS = 60 * 1000; // check every minute
+
+    const interval = setInterval(() => {
+      const convId = chatIdRef.current;
+      if (!convId || lullFired.current || isActive) return;
+      if (Date.now() - lastUserMessageTime.current < LULL_THRESHOLD_MS) return;
+
+      lullFired.current = true;
+      fetch('/api/luv/heartbeat/lull', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ conversationId: convId }),
+      }).catch(() => {});
+    }, CHECK_INTERVAL_MS);
+
+    return () => clearInterval(interval);
+  }, [isActive]);
+
   const handlePaste = useCallback(
     (e: React.ClipboardEvent) => {
       const items = Array.from(e.clipboardData.items);
