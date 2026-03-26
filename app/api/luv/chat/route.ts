@@ -24,6 +24,7 @@ import { createChassisStudyTool, recordStudyFeedback, listChassisStudies } from 
 import { getAnthropic } from '@/lib/ai/providers';
 import { analyzeImageWithGemini, buildGeneralVisionPrompt } from '@/lib/ai/gemini-vision';
 import { resolveProcessProtocol, resolveProcessState } from '@/lib/luv/process-context';
+import { buildHeartbeatPromptFragment } from '@/lib/luv-heartbeat';
 import type { ChassisModuleSummary } from '@/lib/luv/soul-layers';
 import type { LuvPageContext } from '@/lib/types/luv';
 import { deserializeMessage, getMessageText, serializeOnFinishParts, serializeParts } from '@/lib/luv-message-utils';
@@ -147,7 +148,7 @@ export async function POST(request: Request) {
       resolveProcessState({ pageContext, turnCount }),
     ]);
 
-    const systemPrompt = composeSoulSystemPrompt(soulData, {
+    let systemPrompt = composeSoulSystemPrompt(soulData, {
       chassisModuleSummaries,
       memories: memoryItems,
       research: researchSummary,
@@ -158,6 +159,12 @@ export async function POST(request: Request) {
       soulTraits: soulModulation?.traits ?? null,
       soulPresetName: soulModulation?.preset?.name ?? null,
     });
+
+    // Inject pending heartbeat nudges into system prompt
+    const heartbeat = await buildHeartbeatPromptFragment(user.id, convId ?? undefined);
+    if (heartbeat.fragment) {
+      systemPrompt += heartbeat.fragment;
+    }
 
     // Convert UI-format messages (from useChat) to model-format messages (for streamText)
     // Old conversations may have stored parts that don't match the current SDK schema.
