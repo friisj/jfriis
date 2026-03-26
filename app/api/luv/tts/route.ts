@@ -5,7 +5,7 @@ import { getLuvCharacterServer } from '@/lib/luv-server';
 import { getCurrentSoulConfigServer } from '@/lib/luv-soul-modulation-server';
 
 // Default voice — can be overridden per request or via character config
-const DEFAULT_VOICE_ID = 'WAhoMTNdLdMoq1j3wf3I';
+const DEFAULT_VOICE_ID = 'yj30vwTGJxSHezdAGsv9';
 const DEFAULT_MODEL = 'eleven_flash_v2_5';
 
 /**
