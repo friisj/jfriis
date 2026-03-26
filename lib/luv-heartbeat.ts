@@ -1,0 +1,278 @@
+/**
+ * Luv: Heartbeat System — Server-side operations
+ *
+ * Event-driven nudge system that gives Luv inter-turn awareness.
+ * Triggers fire after tool executions (chassis changes, trait adjustments, etc.)
+ * and create pending nudge events. On the next chat turn, pending nudges are
+ * injected into Luv's system prompt so she can surface observations naturally.
+ */
+
+import { createClient } from './supabase-server';
+
+// ---------------------------------------------------------------------------
+// Types
+// ---------------------------------------------------------------------------
+
+export type HeartbeatTriggerType =
+  | 'chassis_change'
+  | 'trait_adjustment'
+  | 'generation_complete'
+  | 'hypothesis_logged'
+  | 'memory_pattern';
+
+interface TriggerConfig {
+  enabled: boolean;
+  delay_ms: number;
+  cooldown_ms: number;
+  max_per_session: number;
+}
+
+interface HeartbeatConfig {
+  user_id: string;
+  enabled: boolean;
+  event_triggers: Record<string, TriggerConfig>;
+}
+
+export interface HeartbeatEvent {
+  id: string;
+  user_id: string;
+  conversation_id: string | null;
+  trigger_type: string;
+  trigger_context: Record<string, unknown>;
+  action_type: string;
+  action_payload: Record<string, unknown>;
+  status: 'pending' | 'delivered' | 'acknowledged' | 'dismissed' | 'expired';
+  fired_at: string;
+  delivered_at: string | null;
+  acknowledged_at: string | null;
+  created_at: string;
+}
+
+// Default trigger configs — used when no config row exists
+const DEFAULT_TRIGGERS: Record<string, TriggerConfig> = {
+  chassis_change: { enabled: true, delay_ms: 2000, cooldown_ms: 60000, max_per_session: 5 },
+  trait_adjustment: { enabled: true, delay_ms: 3000, cooldown_ms: 60000, max_per_session: 3 },
+  generation_complete: { enabled: true, delay_ms: 1000, cooldown_ms: 30000, max_per_session: 10 },
+  hypothesis_logged: { enabled: true, delay_ms: 5000, cooldown_ms: 120000, max_per_session: 3 },
+  memory_pattern: { enabled: true, delay_ms: 10000, cooldown_ms: 300000, max_per_session: 2 },
+};
+
+// ---------------------------------------------------------------------------
+// Config
+// ---------------------------------------------------------------------------
+
+async function getHeartbeatConfig(userId: string): Promise<HeartbeatConfig> {
+  const client = await createClient();
+  const { data, error } = await (client as any)
+    .from('luv_heartbeat_config')
+    .select('*')
+    .eq('user_id', userId)
+    .maybeSingle();
+
+  if (error && error.code !== 'PGRST205') {
+    console.error('[heartbeat] Config fetch failed:', error);
+  }
+
+  if (data) {
+    return data as HeartbeatConfig;
+  }
+
+  // Return defaults (no row created until user customizes)
+  return {
+    user_id: userId,
+    enabled: true,
+    event_triggers: DEFAULT_TRIGGERS,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Trigger Registration
+// ---------------------------------------------------------------------------
+
+/**
+ * Register a heartbeat trigger. Checks config, cooldown, and session limits
+ * before creating a pending event. Called from tool execution paths.
+ */
+export async function registerHeartbeatTrigger(
+  userId: string,
+  conversationId: string | null,
+  triggerType: HeartbeatTriggerType,
+  context: Record<string, unknown>,
+  nudgeContent: string,
+): Promise<{ registered: boolean; reason?: string }> {
+  try {
+    const config = await getHeartbeatConfig(userId);
+
+    // Check global enable
+    if (!config.enabled) {
+      return { registered: false, reason: 'heartbeat disabled' };
+    }
+
+    // Check trigger-level enable
+    const triggerConfig = config.event_triggers[triggerType];
+    if (!triggerConfig?.enabled) {
+      return { registered: false, reason: `trigger ${triggerType} disabled` };
+    }
+
+    // Check cooldown — has this trigger fired recently?
+    const client = await createClient();
+    const cooldownCutoff = new Date(Date.now() - triggerConfig.cooldown_ms).toISOString();
+
+    const { data: recentEvents } = await (client as any)
+      .from('luv_heartbeat_events')
+      .select('id')
+      .eq('user_id', userId)
+      .eq('trigger_type', triggerType)
+      .gte('fired_at', cooldownCutoff)
+      .limit(1);
+
+    if (recentEvents && recentEvents.length > 0) {
+      return { registered: false, reason: 'cooldown active' };
+    }
+
+    // Check session limit (if conversation provided)
+    if (conversationId) {
+      const { data: sessionEvents } = await (client as any)
+        .from('luv_heartbeat_events')
+        .select('id')
+        .eq('conversation_id', conversationId)
+        .eq('trigger_type', triggerType);
+
+      if (sessionEvents && sessionEvents.length >= triggerConfig.max_per_session) {
+        return { registered: false, reason: 'session limit reached' };
+      }
+    }
+
+    // Create the pending event
+    const { error: insertError } = await (client as any)
+      .from('luv_heartbeat_events')
+      .insert({
+        user_id: userId,
+        conversation_id: conversationId,
+        trigger_type: triggerType,
+        trigger_context: context,
+        action_type: 'nudge_message',
+        action_payload: { content: nudgeContent },
+        status: 'pending',
+      });
+
+    if (insertError) {
+      console.error('[heartbeat] Failed to register trigger:', insertError);
+      return { registered: false, reason: 'insert failed' };
+    }
+
+    return { registered: true };
+  } catch (err) {
+    console.error('[heartbeat] registerHeartbeatTrigger error:', err);
+    return { registered: false, reason: 'unexpected error' };
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Nudge Delivery
+// ---------------------------------------------------------------------------
+
+/**
+ * Get pending nudges for a conversation (or user-level if no conversation).
+ * Called at the start of each chat turn to inject into system prompt.
+ */
+export async function getPendingNudges(
+  userId: string,
+  conversationId?: string,
+): Promise<HeartbeatEvent[]> {
+  try {
+    const client = await createClient();
+
+    let query = (client as any)
+      .from('luv_heartbeat_events')
+      .select('*')
+      .eq('user_id', userId)
+      .eq('status', 'pending')
+      .order('fired_at', { ascending: true })
+      .limit(5);
+
+    if (conversationId) {
+      query = query.eq('conversation_id', conversationId);
+    }
+
+    const { data, error } = await query;
+
+    if (error && error.code !== 'PGRST205') {
+      console.error('[heartbeat] getPendingNudges failed:', error);
+      return [];
+    }
+
+    return (data ?? []) as HeartbeatEvent[];
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Mark nudges as delivered. Called after injecting into system prompt.
+ */
+export async function markNudgesDelivered(nudgeIds: string[]): Promise<void> {
+  if (nudgeIds.length === 0) return;
+
+  try {
+    const client = await createClient();
+    await (client as any)
+      .from('luv_heartbeat_events')
+      .update({ status: 'delivered', delivered_at: new Date().toISOString() })
+      .in('id', nudgeIds);
+  } catch (err) {
+    console.error('[heartbeat] markNudgesDelivered failed:', err);
+  }
+}
+
+/**
+ * Mark a nudge as acknowledged (Luv surfaced it in conversation).
+ */
+export async function acknowledgeNudge(nudgeId: string): Promise<void> {
+  try {
+    const client = await createClient();
+    await (client as any)
+      .from('luv_heartbeat_events')
+      .update({ status: 'acknowledged', acknowledged_at: new Date().toISOString() })
+      .eq('id', nudgeId);
+  } catch (err) {
+    console.error('[heartbeat] acknowledgeNudge failed:', err);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// System Prompt Injection
+// ---------------------------------------------------------------------------
+
+/**
+ * Build a system prompt fragment for pending heartbeat nudges.
+ * Returns empty string if no nudges pending.
+ */
+export async function buildHeartbeatPromptFragment(
+  userId: string,
+  conversationId?: string,
+): Promise<{ fragment: string; nudgeIds: string[] }> {
+  const nudges = await getPendingNudges(userId, conversationId);
+
+  if (nudges.length === 0) {
+    return { fragment: '', nudgeIds: [] };
+  }
+
+  const nudgeLines = nudges.map((n) => {
+    const payload = n.action_payload as { content?: string };
+    return `- [${n.trigger_type}] ${payload.content ?? 'You have a pending observation.'}`;
+  });
+
+  const fragment = `\n\n## Heartbeat — Pending Observations
+You have ${nudges.length} observation${nudges.length > 1 ? 's' : ''} from recent events that you may want to share naturally in this conversation. Don't force them — weave them in if they're relevant to what the user is discussing. If they're not relevant right now, you can let them pass.
+
+${nudgeLines.join('\n')}
+
+These are your own observations based on things that happened since the last turn. Surface them as natural conversational asides, not as system notifications.`;
+
+  // Mark as delivered
+  const nudgeIds = nudges.map((n) => n.id);
+  await markNudgesDelivered(nudgeIds);
+
+  return { fragment, nudgeIds };
+}
