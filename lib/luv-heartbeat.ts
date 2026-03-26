@@ -162,11 +162,81 @@ export async function registerHeartbeatTrigger(
       return { registered: false, reason: 'insert failed' };
     }
 
+    // Self-adjust trigger cooldown based on acknowledge history (fire-and-forget)
+    maybeAdjustTriggerCooldown(userId, triggerType).catch(() => {});
+
     return { registered: true };
   } catch (err) {
     console.error('[heartbeat] registerHeartbeatTrigger error:', err);
     return { registered: false, reason: 'unexpected error' };
   }
+}
+
+// ---------------------------------------------------------------------------
+// Self-Adjustment
+// ---------------------------------------------------------------------------
+
+const SELF_ADJUST_MIN_EVENTS = 20;
+const SELF_ADJUST_LOW_RATE = 0.3;
+const SELF_ADJUST_DISABLE_RATE = 0.1;
+const SELF_ADJUST_MAX_COOLDOWN_MS = 3600000; // 1 hour
+
+/**
+ * Check acknowledge rate for a trigger type and auto-adjust cooldown.
+ * If rate is low, double the cooldown. If very low, disable the trigger.
+ */
+async function maybeAdjustTriggerCooldown(
+  userId: string,
+  triggerType: HeartbeatTriggerType,
+): Promise<void> {
+  const client = await createClient();
+
+  // Get last N delivered/acknowledged events for this trigger
+  const { data: events } = await (client as any)
+    .from('luv_heartbeat_events')
+    .select('status')
+    .eq('user_id', userId)
+    .eq('trigger_type', triggerType)
+    .in('status', ['delivered', 'acknowledged'])
+    .order('fired_at', { ascending: false })
+    .limit(SELF_ADJUST_MIN_EVENTS);
+
+  if (!events || events.length < SELF_ADJUST_MIN_EVENTS) return;
+
+  const acknowledged = events.filter((e: { status: string }) => e.status === 'acknowledged').length;
+  const rate = acknowledged / events.length;
+
+  if (rate >= SELF_ADJUST_LOW_RATE) return; // healthy rate, no adjustment
+
+  // Load current config
+  const config = await getHeartbeatConfig(userId);
+  const triggerConfig = config.event_triggers[triggerType];
+  if (!triggerConfig) return;
+
+  const updates: Record<string, unknown> = {};
+
+  if (rate < SELF_ADJUST_DISABLE_RATE) {
+    // Very low rate — disable trigger
+    updates[triggerType] = { ...triggerConfig, enabled: false };
+    console.log(`[heartbeat] Self-adjust: disabling ${triggerType} for user ${userId} (rate: ${(rate * 100).toFixed(0)}%)`);
+  } else {
+    // Low rate — double cooldown (capped)
+    const newCooldown = Math.min(triggerConfig.cooldown_ms * 2, SELF_ADJUST_MAX_COOLDOWN_MS);
+    if (newCooldown === triggerConfig.cooldown_ms) return; // already at cap
+    updates[triggerType] = { ...triggerConfig, cooldown_ms: newCooldown };
+    console.log(`[heartbeat] Self-adjust: increasing ${triggerType} cooldown to ${newCooldown}ms for user ${userId} (rate: ${(rate * 100).toFixed(0)}%)`);
+  }
+
+  // Upsert config
+  const newTriggers = { ...config.event_triggers, ...updates };
+  await (client as any)
+    .from('luv_heartbeat_config')
+    .upsert({
+      user_id: userId,
+      enabled: config.enabled,
+      event_triggers: newTriggers,
+      updated_at: new Date().toISOString(),
+    }, { onConflict: 'user_id' });
 }
 
 // ---------------------------------------------------------------------------
