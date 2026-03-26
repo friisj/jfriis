@@ -24,7 +24,7 @@ import { createChassisStudyTool, recordStudyFeedback, listChassisStudies } from 
 import { getAnthropic } from '@/lib/ai/providers';
 import { analyzeImageWithGemini, buildGeneralVisionPrompt } from '@/lib/ai/gemini-vision';
 import { resolveProcessProtocol, resolveProcessState } from '@/lib/luv/process-context';
-import { buildHeartbeatPromptFragment } from '@/lib/luv-heartbeat';
+import { buildHeartbeatPromptFragment, scanToolResultsForTriggers } from '@/lib/luv-heartbeat';
 import type { ChassisModuleSummary } from '@/lib/luv/soul-layers';
 import type { LuvPageContext } from '@/lib/types/luv';
 import { deserializeMessage, getMessageText, serializeOnFinishParts, serializeParts } from '@/lib/luv-message-utils';
@@ -248,6 +248,11 @@ export async function POST(request: Request) {
         } catch (err) {
           console.error('[luv/chat] Failed to persist assistant message:', err);
         }
+
+        // Scan tool results for heartbeat triggers (non-blocking)
+        scanToolResultsForTriggers(user.id, convId, event.steps).catch((err) => {
+          console.error('[luv/chat] Heartbeat scan failed:', err);
+        });
       },
     });
 

@@ -8,6 +8,7 @@
  */
 
 import { createClient } from './supabase-server';
+import type { StepResult, ToolSet } from 'ai';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -275,4 +276,111 @@ These are your own observations based on things that happened since the last tur
   await markNudgesDelivered(nudgeIds);
 
   return { fragment, nudgeIds };
+}
+
+// ---------------------------------------------------------------------------
+// Tool Result Scanner — called from onFinish to detect triggerable events
+// ---------------------------------------------------------------------------
+
+interface ToolResultEntry {
+  toolName: string;
+  result: unknown;
+}
+
+function extractToolResults(steps: StepResult<ToolSet>[]): ToolResultEntry[] {
+  const results: ToolResultEntry[] = [];
+  for (const step of steps) {
+    if (step.toolResults) {
+      for (const tr of step.toolResults) {
+        results.push({ toolName: tr.toolName, result: 'output' in tr ? tr.output : undefined });
+      }
+    }
+  }
+  return results;
+}
+
+/**
+ * Scan completed tool results for events that should fire heartbeat triggers.
+ * Called from the chat route's onFinish callback. Non-blocking — errors are logged.
+ */
+export async function scanToolResultsForTriggers(
+  userId: string,
+  conversationId: string | null,
+  steps: StepResult<ToolSet>[],
+): Promise<void> {
+  try {
+    const results = extractToolResults(steps);
+    if (results.length === 0) return;
+
+    for (const { toolName, result } of results) {
+      const r = result as Record<string, unknown> | null;
+      if (!r || typeof r !== 'object') continue;
+
+      // trait_adjustment: adjust_soul_traits tool succeeded
+      if (toolName === 'adjust_soul_traits' && r.success) {
+        const traits = r.adjustedTraits as Record<string, unknown> | undefined;
+        const traitNames = traits ? Object.keys(traits).join(', ') : 'traits';
+        await registerHeartbeatTrigger(
+          userId, conversationId,
+          'trait_adjustment',
+          { traits: r.adjustedTraits, presetName: r.presetName },
+          `I just shifted my ${traitNames} — I can feel the difference in how I'm processing this conversation.`,
+        );
+      }
+
+      // generation_complete: generate_image or run_chassis_study succeeded with an image
+      if (toolName === 'generate_image' && r.success && r.imageUrl) {
+        await registerHeartbeatTrigger(
+          userId, conversationId,
+          'generation_complete',
+          { imageUrl: r.imageUrl, model: r.model, type: 'generate_image' },
+          `I just generated an image — want to look at it together and see what works?`,
+        );
+      }
+      if (toolName === 'run_chassis_study' && r.success && r.imageUrl) {
+        await registerHeartbeatTrigger(
+          userId, conversationId,
+          'generation_complete',
+          { imageUrl: r.imageUrl, studyId: r.studyId, type: 'chassis_study' },
+          `The chassis study just finished — I'm curious what you think of how the parameters translated visually.`,
+        );
+      }
+
+      // hypothesis_logged: create_research with kind=hypothesis
+      if (toolName === 'create_research' && r.id) {
+        const kind = r.kind as string | undefined;
+        if (kind === 'hypothesis') {
+          await registerHeartbeatTrigger(
+            userId, conversationId,
+            'hypothesis_logged',
+            { hypothesisId: r.id, title: r.title },
+            `I just logged a new hypothesis: "${r.title}" — should we set up validation criteria?`,
+          );
+        }
+      }
+
+      // memory_pattern: merge_memories or review_memories found duplicates
+      if (toolName === 'merge_memories' && r.mergedId) {
+        await registerHeartbeatTrigger(
+          userId, conversationId,
+          'memory_pattern',
+          { mergedId: r.mergedId, sourceCount: r.sourceCount },
+          `I just consolidated some memories — my recall should be cleaner now.`,
+        );
+      }
+      if (toolName === 'review_memories' && r.memories) {
+        const memories = r.memories as Array<Record<string, unknown>>;
+        if (memories.length > 10) {
+          await registerHeartbeatTrigger(
+            userId, conversationId,
+            'memory_pattern',
+            { totalMemories: memories.length },
+            `I have ${memories.length} active memories — some might be stale or redundant. Want me to audit them?`,
+          );
+        }
+      }
+    }
+  } catch (err) {
+    console.error('[heartbeat] scanToolResultsForTriggers error:', err);
+  }
 }
