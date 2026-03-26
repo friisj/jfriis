@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { isToolUIPart, getToolName } from 'ai';
 import type { UIMessage } from 'ai';
 import { IconBrain, IconChevronDown, IconChevronRight, IconCopy, IconVolume, IconPlayerStop, IconLoader2 } from '@tabler/icons-react';
@@ -23,9 +23,11 @@ interface MessageBubbleProps {
   isActive: boolean;
   /** Compact sizing for panel context (default: false = fullscreen sizing) */
   compact?: boolean;
+  /** Auto-read aloud when this is the latest completed assistant message */
+  voiceEnabled?: boolean;
 }
 
-export function MessageBubble({ message, isLast, isActive, compact = false }: MessageBubbleProps) {
+export function MessageBubble({ message, isLast, isActive, compact = false, voiceEnabled = false }: MessageBubbleProps) {
   const [ttsState, setTtsState] = useState<'idle' | 'loading' | 'playing'>('idle');
   const [audioRef] = useState<{ current: HTMLAudioElement | null }>({ current: null });
 
@@ -82,6 +84,17 @@ export function MessageBubble({ message, isLast, isActive, compact = false }: Me
       setTtsState('idle');
     }
   }, [message.parts, ttsState, audioRef]);
+
+  // Auto-read aloud when voice is enabled and this is the latest completed assistant message
+  const autoPlayedRef = useRef(false);
+  useEffect(() => {
+    if (voiceEnabled && isLast && !isActive && message.role === 'assistant' && ttsState === 'idle' && !autoPlayedRef.current) {
+      autoPlayedRef.current = true;
+      handleReadAloud();
+    }
+    // Reset auto-play flag when message changes
+    if (!isLast) autoPlayedRef.current = false;
+  }, [voiceEnabled, isLast, isActive, message.role, ttsState, handleReadAloud]);
 
   const inner = message.role === 'user'
     ? <UserBubble message={message} compact={compact} />

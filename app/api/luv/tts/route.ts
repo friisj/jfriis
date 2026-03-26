@@ -1,10 +1,12 @@
 import { NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/ai/auth';
 import { ElevenLabsClient } from '@elevenlabs/elevenlabs-js';
+import { getLuvCharacterServer } from '@/lib/luv-server';
+import { getCurrentSoulConfigServer } from '@/lib/luv-soul-modulation-server';
 
 // Default voice — can be overridden per request or via character config
-const DEFAULT_VOICE_ID = 'pFZP5JQG7iQjIQuC4Bku'; // Lily
-const DEFAULT_MODEL = 'eleven_turbo_v2_5';
+const DEFAULT_VOICE_ID = '6fZce9LFNG3iEITDfqZZ';
+const DEFAULT_MODEL = 'eleven_flash_v2_5';
 
 /**
  * Strip markdown, tool results, image URLs, and other non-speech content
@@ -52,12 +54,16 @@ export async function POST(request: Request) {
     return NextResponse.json({ error }, { status: 401 });
   }
 
-  const { text, voiceId, stability, style, speed } = (await request.json()) as {
+  const { text, voiceId, traits } = (await request.json()) as {
     text: string;
     voiceId?: string;
-    stability?: number;
-    style?: number;
-    speed?: number;
+    /** DSMS soul traits (1-10 scale) — mapped to voice settings */
+    traits?: {
+      enthusiasm?: number;
+      formality?: number;
+      charm?: number;
+      humor?: number;
+    };
   };
 
   if (!text?.trim()) {
@@ -77,6 +83,34 @@ export async function POST(request: Request) {
   // Cap at ~5000 chars to avoid excessive generation
   const cappedText = speechText.slice(0, 5000);
 
+  // Load active DSMS traits if not provided — voice adapts to soul state
+  let enthusiasm = traits?.enthusiasm ?? 7;
+  let formality = traits?.formality ?? 5;
+  let charm = traits?.charm ?? 6;
+
+  if (!traits) {
+    try {
+      const character = await getLuvCharacterServer();
+      if (character?.id) {
+        const config = await getCurrentSoulConfigServer(character.id);
+        if (config?.traits) {
+          enthusiasm = config.traits.enthusiasm ?? enthusiasm;
+          formality = config.traits.formality ?? formality;
+          charm = config.traits.charm ?? charm;
+        }
+      }
+    } catch {
+      // Use defaults if trait loading fails
+    }
+  }
+
+  // stability: high formality → more stable/controlled, high enthusiasm → less stable/more expressive
+  const stability = Math.max(0.15, Math.min(0.85, 0.7 - (enthusiasm / 10) * 0.4 + (formality / 10) * 0.3));
+  // style: high charm → amplify character style
+  const style = Math.max(0, Math.min(1, (charm / 10) * 0.7 + 0.1));
+  // speed: higher formality → slightly slower, higher enthusiasm → slightly faster
+  const speed = Math.max(0.8, Math.min(1.2, 1.0 + (enthusiasm - formality) * 0.02));
+
   try {
     const client = new ElevenLabsClient({ apiKey });
 
@@ -87,10 +121,10 @@ export async function POST(request: Request) {
         modelId: DEFAULT_MODEL,
         outputFormat: 'mp3_44100_128',
         voiceSettings: {
-          stability: stability ?? 0.4,
+          stability,
           similarityBoost: 0.8,
-          style: style ?? 0.5,
-          speed: speed ?? 1.0,
+          style,
+          speed,
           useSpeakerBoost: true,
         },
       }

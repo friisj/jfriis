@@ -30,6 +30,7 @@ export default function LuvChatPage() {
   const { signal: presenceSignal } = useLuvPresence();
   const [activePanel, setActivePanel] = useState<'traits' | 'imagePicker' | 'heartbeat' | null>(null);
   const [activePresetId, setActivePresetId] = useState<string | null>(null);
+  const [voiceEnabled, setVoiceEnabled] = useState(false);
 
   const handleApplyPreset = useCallback(async (presetId: string) => {
     const char = await getLuvCharacter();
@@ -102,6 +103,7 @@ export default function LuvChatPage() {
               message={msg}
               isLast={msg.id === session.messages[session.messages.length - 1]?.id}
               isActive={session.isActive}
+              voiceEnabled={voiceEnabled}
             />
           ))}
           {session.isActive && session.status === 'submitted' && (
@@ -164,6 +166,8 @@ export default function LuvChatPage() {
           imagePickerOpen={activePanel === 'imagePicker'}
           onToggleImagePicker={() => setActivePanel((p) => p === 'imagePicker' ? null : 'imagePicker')}
           onToggleHeartbeatSettings={() => setActivePanel((p) => p === 'heartbeat' ? null : 'heartbeat')}
+          voiceEnabled={voiceEnabled}
+          onToggleVoice={() => setVoiceEnabled((v) => !v)}
         />
       </div>
     </div>

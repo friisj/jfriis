@@ -34,6 +34,7 @@ import {
   IconUpload,
   IconHeart,
   IconPlus,
+  IconVolume,
 } from '@tabler/icons-react';
 import { MODEL_OPTIONS, type ContextPressure } from '../use-luv-chat-session';
 import type { LuvCompactSummary } from '@/lib/types/luv';
@@ -85,6 +86,9 @@ export interface ChatInputToolbarProps {
   onToggleImagePicker?: () => void;
   // Heartbeat settings
   onToggleHeartbeatSettings?: () => void;
+  // Voice
+  voiceEnabled?: boolean;
+  onToggleVoice?: () => void;
   // Sizing
   compact?: boolean;
   autoResize?: boolean;
@@ -123,6 +127,8 @@ export function ChatInputToolbar({
   imagePickerOpen,
   onToggleImagePicker,
   onToggleHeartbeatSettings,
+  voiceEnabled,
+  onToggleVoice,
   compact = false,
   autoResize = false,
 }: ChatInputToolbarProps) {
@@ -339,6 +345,18 @@ export function ChatInputToolbar({
                   >
                     <IconHeart size={14} stroke={1.5} />
                     Heartbeat
+                  </DropdownMenuItem>
+                )}
+                {onToggleVoice && (
+                  <DropdownMenuItem
+                    className="text-xs"
+                    onClick={onToggleVoice}
+                  >
+                    <IconVolume size={14} stroke={1.5} />
+                    Voice
+                    <span className={`ml-auto text-[10px] ${voiceEnabled ? 'text-green-600 dark:text-green-400' : 'text-muted-foreground'}`}>
+                      {voiceEnabled ? 'on' : 'off'}
+                    </span>
                   </DropdownMenuItem>
                 )}
                 {resumedConversationId && (
