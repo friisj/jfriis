@@ -78,6 +78,8 @@ export interface ChatInputToolbarProps {
   // Image picker
   imagePickerOpen?: boolean;
   onToggleImagePicker?: () => void;
+  // Heartbeat settings
+  onToggleHeartbeatSettings?: () => void;
   // Sizing
   compact?: boolean;
   autoResize?: boolean;
@@ -115,6 +117,7 @@ export function ChatInputToolbar({
   activePresetId,
   imagePickerOpen,
   onToggleImagePicker,
+  onToggleHeartbeatSettings,
   compact = false,
   autoResize = false,
 }: ChatInputToolbarProps) {
@@ -343,6 +346,17 @@ export function ChatInputToolbar({
                     >
                       <IconTrash size={14} className="mr-2" />
                       New conversation
+                    </DropdownMenuItem>
+                  </>
+                )}
+                {onToggleHeartbeatSettings && (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      className="text-xs"
+                      onClick={onToggleHeartbeatSettings}
+                    >
+                      Heartbeat settings
                     </DropdownMenuItem>
                   </>
                 )}
