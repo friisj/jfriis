@@ -23,6 +23,7 @@ export function ChatDrawer() {
   const [activePanel, setActivePanel] = useState<'traits' | 'imagePicker' | 'heartbeat' | null>(null);
   const [activePresetId, setActivePresetId] = useState<string | null>(null);
   const [voiceEnabled, setVoiceEnabled] = useState(false);
+  const [voiceSpeed, setVoiceSpeed] = useState(0.9);
 
   const handleApplyPreset = useCallback(async (presetId: string) => {
     const char = await getLuvCharacter();
@@ -94,6 +95,7 @@ export function ChatDrawer() {
             isActive={session.isActive}
             compact
             voiceEnabled={voiceEnabled}
+            voiceSpeed={voiceSpeed}
           />
         ))}
         {session.isActive && session.status === 'submitted' && (
@@ -155,6 +157,8 @@ export function ChatDrawer() {
         onToggleHeartbeatSettings={() => setActivePanel((p) => p === 'heartbeat' ? null : 'heartbeat')}
         voiceEnabled={voiceEnabled}
         onToggleVoice={() => setVoiceEnabled((v) => !v)}
+        voiceSpeed={voiceSpeed}
+        onSetVoiceSpeed={setVoiceSpeed}
       />
     </div>
   );

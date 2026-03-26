@@ -54,9 +54,11 @@ export async function POST(request: Request) {
     return NextResponse.json({ error }, { status: 401 });
   }
 
-  const { text, voiceId, traits } = (await request.json()) as {
+  const { text, voiceId, speedOverride, traits } = (await request.json()) as {
     text: string;
     voiceId?: string;
+    /** Speed override from UI (0.8-1.2) */
+    speedOverride?: number;
     /** DSMS soul traits (1-10 scale) — mapped to voice settings */
     traits?: {
       enthusiasm?: number;
@@ -108,8 +110,8 @@ export async function POST(request: Request) {
   const stability = Math.max(0.15, Math.min(0.85, 0.7 - (enthusiasm / 10) * 0.4 + (formality / 10) * 0.3));
   // style: high charm → amplify character style
   const style = Math.max(0, Math.min(1, (charm / 10) * 0.7 + 0.1));
-  // speed: higher formality → slightly slower, higher enthusiasm → slightly faster
-  const speed = Math.max(0.8, Math.min(1.2, 1.0 + (enthusiasm - formality) * 0.02));
+  // speed: use override if provided, otherwise derive from traits (default base: 0.9 for generally slower speech)
+  const speed = speedOverride ?? Math.max(0.75, Math.min(1.15, 0.9 + (enthusiasm - formality) * 0.015));
 
   try {
     const client = new ElevenLabsClient({ apiKey });

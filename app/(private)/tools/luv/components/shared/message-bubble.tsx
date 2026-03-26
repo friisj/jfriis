@@ -25,9 +25,11 @@ interface MessageBubbleProps {
   compact?: boolean;
   /** Auto-read aloud when this is the latest completed assistant message */
   voiceEnabled?: boolean;
+  /** Voice speed override (0.8-1.2) */
+  voiceSpeed?: number;
 }
 
-export function MessageBubble({ message, isLast, isActive, compact = false, voiceEnabled = false }: MessageBubbleProps) {
+export function MessageBubble({ message, isLast, isActive, compact = false, voiceEnabled = false, voiceSpeed }: MessageBubbleProps) {
   const [ttsState, setTtsState] = useState<'idle' | 'loading' | 'playing'>('idle');
   const [audioRef] = useState<{ current: HTMLAudioElement | null }>({ current: null });
 
@@ -57,7 +59,7 @@ export function MessageBubble({ message, isLast, isActive, compact = false, voic
       const res = await fetch('/api/luv/tts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text }),
+        body: JSON.stringify({ text, speedOverride: voiceSpeed }),
       });
 
       if (!res.ok) throw new Error('TTS failed');
@@ -83,7 +85,7 @@ export function MessageBubble({ message, isLast, isActive, compact = false, voic
     } catch {
       setTtsState('idle');
     }
-  }, [message.parts, ttsState, audioRef]);
+  }, [message.parts, ttsState, audioRef, voiceSpeed]);
 
   // Auto-read aloud when voice is enabled and this is the latest completed assistant message
   const autoPlayedRef = useRef(false);
