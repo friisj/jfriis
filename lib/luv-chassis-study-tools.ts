@@ -79,7 +79,7 @@ export function createChassisStudyTool(messages: ModelMessage[]) {
         // Extract chat images if requested
         let chatReferenceImages: { base64: string; mimeType: string }[] | undefined;
         if (useRecentChatImages && useRecentChatImages > 0) {
-          chatReferenceImages = extractRecentChatImages(messages, useRecentChatImages);
+          chatReferenceImages = await extractRecentChatImages(messages, useRecentChatImages);
         }
 
         const result = await runChassisStudyPipeline({
