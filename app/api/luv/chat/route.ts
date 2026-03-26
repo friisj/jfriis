@@ -242,6 +242,16 @@ export async function POST(request: Request) {
       onFinish: async (event) => {
         if (!convId) return;
         try {
+          // Debug: log reasoning data shape
+          for (const step of event.steps) {
+            if (step.reasoning?.length) {
+              console.log('[luv/chat] step.reasoning:', { count: step.reasoning.length, keys: Object.keys(step.reasoning[0] ?? {}), preview: JSON.stringify(step.reasoning[0]).slice(0, 200) });
+            }
+            if (step.reasoningText) {
+              console.log('[luv/chat] step.reasoningText:', step.reasoningText.slice(0, 200));
+            }
+          }
+
           await createLuvMessageServer({
             conversation_id: convId,
             role: 'assistant',
