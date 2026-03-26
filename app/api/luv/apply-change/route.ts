@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/ai/auth';
 import { createClient } from '@/lib/supabase-server';
+import { registerHeartbeatTrigger } from '@/lib/luv-heartbeat';
 
 // Allowed root keys for soul/chassis data mutations
 const ALLOWED_SOUL_ROOTS = new Set([
@@ -191,6 +192,15 @@ export async function POST(request: Request) {
         change_summary: `Chat: updated ${parameterKey}`,
       });
 
+    // Fire heartbeat trigger (non-blocking)
+    registerHeartbeatTrigger(
+      user.id,
+      null, // conversation ID not available in this context
+      'chassis_change',
+      { moduleSlug: proposal.moduleSlug, parameterKey, proposedValue, version: newVersion },
+      `My ${proposal.moduleSlug} parameter "${parameterKey}" just changed — should I generate a study to see how it looks?`,
+    ).catch(() => {});
+
     return NextResponse.json({
       success: true,
       moduleId,
@@ -266,6 +276,15 @@ export async function POST(request: Request) {
         parameters: updatedParams,
         change_summary: `Chat batch: updated ${changedKeys}`,
       });
+
+    // Fire heartbeat trigger (non-blocking)
+    registerHeartbeatTrigger(
+      user.id,
+      null,
+      'chassis_change',
+      { moduleSlug: (proposal as BatchModuleProposal).moduleSlug, changedKeys, version: newVersion },
+      `Several ${(proposal as BatchModuleProposal).moduleSlug} parameters just changed (${changedKeys}) — want to run a study to see the visual impact?`,
+    ).catch(() => {});
 
     return NextResponse.json({
       success: true,
