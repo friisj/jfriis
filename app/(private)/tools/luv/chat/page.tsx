@@ -13,6 +13,8 @@ import { ScrollIndicator } from '../components/shared/scroll-indicator';
 import { CompactSeedCard } from '../components/shared/compact-seed-card';
 import { EmptyState } from '../components/shared/empty-state';
 import { ThinkingIndicator, StepLimitMessage, wasStepLimitHit } from '../components/shared/status-indicators';
+import { PresenceIndicator } from '../components/shared/presence-indicator';
+import { useLuvPresence } from '../components/use-luv-presence';
 import { getLuvCharacter } from '@/lib/luv';
 
 export default function LuvChatPage() {
@@ -24,6 +26,7 @@ export default function LuvChatPage() {
   }, [setHidden]);
 
   const session = useLuvChatSession();
+  const { signal: presenceSignal } = useLuvPresence();
   const [activePanel, setActivePanel] = useState<'traits' | 'imagePicker' | null>(null);
   const [activePresetId, setActivePresetId] = useState<string | null>(null);
 
@@ -113,6 +116,8 @@ export default function LuvChatPage() {
       </div>
 
       <ScrollIndicator scrollContainerRef={session.scrollContainerRef} messagesEndRef={session.messagesEndRef} />
+
+      {!session.isActive && <PresenceIndicator signal={presenceSignal} />}
 
       {session.compactSummary && session.messages.length === 0 && (
         <CompactSeedCard summary={session.compactSummary} onBranch={session.handleBranch} branching={session.branching} />
