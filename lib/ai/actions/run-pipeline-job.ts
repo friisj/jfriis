@@ -497,7 +497,7 @@ async function generateBaseImagePrompt(
   };
 
   // Get job-level inference controls
-  const inferenceModel = job.inference_model || 'gemini-2.5-flash-preview-05-20';
+  const inferenceModel = job.inference_model || 'gemini-2.5-flash';
   const maxRefImages = job.max_reference_images || 3;
   const stepConfigs = job.inference_step_configs;
 
@@ -827,7 +827,7 @@ async function callVisionLLM(
   }
 
   // Vision analysis uses a non-thinking model (fast analysis)
-  const visionModel = 'gemini-2.5-flash-preview-05-20';
+  const visionModel = 'gemini-2.5-flash';
 
   const requestBody = {
     contents: [
