@@ -27,7 +27,8 @@ import { resolveProcessProtocol, resolveProcessState } from '@/lib/luv/process-c
 import { buildHeartbeatPromptFragment, scanToolResultsForTriggers } from '@/lib/luv-heartbeat';
 import type { ChassisModuleSummary } from '@/lib/luv/soul-layers';
 import type { LuvPageContext } from '@/lib/types/luv';
-import { deserializeMessage, getMessageText, serializeOnFinishParts, serializeParts, uploadUserMessageImages } from '@/lib/luv-message-utils';
+import { deserializeMessage, getMessageText, serializeOnFinishParts, serializeParts } from '@/lib/luv-message-utils';
+import { uploadUserMessageImages } from '@/lib/luv-message-image-upload';
 import { applyMessageWindowing } from '@/lib/luv-chat-windowing';
 
 export async function POST(request: Request) {
