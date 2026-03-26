@@ -26,7 +26,7 @@ import type { StudyBrief, LuvChassisStudy } from './types/luv-chassis';
 const COG_IMAGES_BUCKET = 'cog-images';
 
 // Deliberation models
-const DIRECTOR_MODEL = 'gemini-2.5-pro-preview-06-05';
+const DIRECTOR_MODEL = 'gemini-3.1-pro-preview';
 const LUV_MODEL = 'claude-sonnet-4-20250514';
 
 // Image gen model IDs
