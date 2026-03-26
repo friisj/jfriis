@@ -268,8 +268,11 @@ export function ChatInputToolbar({
                       className="text-xs"
                       onClick={() => setThinking((t) => !t)}
                     >
-                      <IconBrain size={iconSize} stroke={1.5} />
-                      Thinking {thinking ? 'on' : 'off'}  
+                      <IconBrain size={14} stroke={1.5} />
+                      Thinking
+                      <span className={`ml-auto text-[10px] ${thinking ? 'text-green-600 dark:text-green-400' : 'text-muted-foreground'}`}>
+                        {thinking ? 'on' : 'off'}
+                      </span>
                     </DropdownMenuItem>
                   </>
                 )}
