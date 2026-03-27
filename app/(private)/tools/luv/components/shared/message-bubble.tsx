@@ -1,9 +1,9 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { isToolUIPart, getToolName } from 'ai';
 import type { UIMessage } from 'ai';
-import { IconBrain, IconChevronDown, IconChevronRight, IconCopy } from '@tabler/icons-react';
+import { IconBrain, IconChevronDown, IconChevronRight, IconCopy, IconVolume, IconPlayerStop, IconLoader2 } from '@tabler/icons-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import {
@@ -23,16 +23,86 @@ interface MessageBubbleProps {
   isActive: boolean;
   /** Compact sizing for panel context (default: false = fullscreen sizing) */
   compact?: boolean;
+  /** Auto-read aloud when this is the latest completed assistant message */
+  voiceEnabled?: boolean;
+  /** Voice speed override (0.8-1.2) */
+  voiceSpeed?: number;
 }
 
-export function MessageBubble({ message, isLast, isActive, compact = false }: MessageBubbleProps) {
+export function MessageBubble({ message, isLast, isActive, compact = false, voiceEnabled = false, voiceSpeed }: MessageBubbleProps) {
+  const [ttsState, setTtsState] = useState<'idle' | 'loading' | 'playing'>('idle');
+  const [audioRef] = useState<{ current: HTMLAudioElement | null }>({ current: null });
+
   const handleCopyId = useCallback(() => {
     navigator.clipboard.writeText(message.id);
   }, [message.id]);
 
+  const handleReadAloud = useCallback(async () => {
+    if (ttsState === 'playing') {
+      // Stop playback
+      audioRef.current?.pause();
+      audioRef.current = null;
+      setTtsState('idle');
+      return;
+    }
+
+    // Extract text content from message parts
+    const text = message.parts
+      .filter((p): p is { type: 'text'; text: string } => p.type === 'text')
+      .map((p) => p.text)
+      .join('\n');
+
+    if (!text.trim()) return;
+
+    setTtsState('loading');
+    try {
+      const res = await fetch('/api/luv/tts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text, speedOverride: voiceSpeed }),
+      });
+
+      if (!res.ok) throw new Error('TTS failed');
+
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const audio = new Audio(url);
+      audioRef.current = audio;
+
+      audio.onended = () => {
+        setTtsState('idle');
+        URL.revokeObjectURL(url);
+        audioRef.current = null;
+      };
+      audio.onerror = () => {
+        setTtsState('idle');
+        URL.revokeObjectURL(url);
+        audioRef.current = null;
+      };
+
+      await audio.play();
+      setTtsState('playing');
+    } catch {
+      setTtsState('idle');
+    }
+  }, [message.parts, ttsState, audioRef, voiceSpeed]);
+
+  // Auto-read aloud when voice is enabled and this is the latest completed assistant message
+  const autoPlayedRef = useRef(false);
+  useEffect(() => {
+    if (voiceEnabled && isLast && !isActive && message.role === 'assistant' && ttsState === 'idle' && !autoPlayedRef.current) {
+      autoPlayedRef.current = true;
+      handleReadAloud();
+    }
+    // Reset auto-play flag when message changes
+    if (!isLast) autoPlayedRef.current = false;
+  }, [voiceEnabled, isLast, isActive, message.role, ttsState, handleReadAloud]);
+
   const inner = message.role === 'user'
     ? <UserBubble message={message} compact={compact} />
     : <AssistantBubble message={message} isLast={isLast} isActive={isActive} compact={compact} />;
+
+  const isAssistant = message.role === 'assistant';
 
   return (
     <ContextMenu>
@@ -40,9 +110,21 @@ export function MessageBubble({ message, isLast, isActive, compact = false }: Me
         <div>{inner}</div>
       </ContextMenuTrigger>
       <ContextMenuContent className="w-48">
+        {isAssistant && (
+          <ContextMenuItem className="text-xs" onClick={handleReadAloud}>
+            {ttsState === 'loading' ? (
+              <IconLoader2 size={14} className="mr-2 animate-spin" />
+            ) : ttsState === 'playing' ? (
+              <IconPlayerStop size={14} className="mr-2" />
+            ) : (
+              <IconVolume size={14} className="mr-2" />
+            )}
+            {ttsState === 'loading' ? 'Generating...' : ttsState === 'playing' ? 'Stop' : 'Read aloud'}
+          </ContextMenuItem>
+        )}
         <ContextMenuItem className="text-xs" onClick={handleCopyId}>
           <IconCopy size={14} className="mr-2" />
-          Copy message trace ID
+          Copy trace ID
         </ContextMenuItem>
       </ContextMenuContent>
     </ContextMenu>

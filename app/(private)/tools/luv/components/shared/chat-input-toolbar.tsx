@@ -34,6 +34,7 @@ import {
   IconUpload,
   IconHeart,
   IconPlus,
+  IconVolume,
 } from '@tabler/icons-react';
 import { MODEL_OPTIONS, type ContextPressure } from '../use-luv-chat-session';
 import type { LuvCompactSummary } from '@/lib/types/luv';
@@ -85,6 +86,11 @@ export interface ChatInputToolbarProps {
   onToggleImagePicker?: () => void;
   // Heartbeat settings
   onToggleHeartbeatSettings?: () => void;
+  // Voice
+  voiceEnabled?: boolean;
+  onToggleVoice?: () => void;
+  voiceSpeed?: number;
+  onSetVoiceSpeed?: (speed: number) => void;
   // Sizing
   compact?: boolean;
   autoResize?: boolean;
@@ -123,6 +129,10 @@ export function ChatInputToolbar({
   imagePickerOpen,
   onToggleImagePicker,
   onToggleHeartbeatSettings,
+  voiceEnabled,
+  onToggleVoice,
+  voiceSpeed,
+  onSetVoiceSpeed,
   compact = false,
   autoResize = false,
 }: ChatInputToolbarProps) {
@@ -340,6 +350,40 @@ export function ChatInputToolbar({
                     <IconHeart size={14} stroke={1.5} />
                     Heartbeat
                   </DropdownMenuItem>
+                )}
+                {onToggleVoice && (
+                  <DropdownMenuSub>
+                    <DropdownMenuSubTrigger className="text-xs">
+                      <IconVolume size={14} stroke={1.5} />
+                      Voice
+                      <span className={`ml-auto text-[10px] ${voiceEnabled ? 'text-green-600 dark:text-green-400' : 'text-muted-foreground'}`}>
+                        {voiceEnabled ? 'on' : 'off'}
+                      </span>
+                    </DropdownMenuSubTrigger>
+                    <DropdownMenuSubContent className="w-36">
+                      <DropdownMenuItem className="text-xs" onClick={onToggleVoice}>
+                        {voiceEnabled ? 'Turn off' : 'Turn on'}
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      {[
+                        { label: 'Slower', value: 0.8 },
+                        { label: 'Normal', value: 0.9 },
+                        { label: 'Default', value: 1.0 },
+                        { label: 'Faster', value: 1.1 },
+                      ].map((opt) => (
+                        <DropdownMenuItem
+                          key={opt.value}
+                          className="text-xs"
+                          onClick={() => onSetVoiceSpeed?.(opt.value)}
+                        >
+                          {opt.label}
+                          {(voiceSpeed ?? 0.9) === opt.value && (
+                            <span className="ml-auto text-[10px] text-muted-foreground">active</span>
+                          )}
+                        </DropdownMenuItem>
+                      ))}
+                    </DropdownMenuSubContent>
+                  </DropdownMenuSub>
                 )}
                 {resumedConversationId && (
                   <>
