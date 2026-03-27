@@ -52,6 +52,16 @@ function isImageGenResult(v: unknown): v is ImageGenResult {
   );
 }
 
+/** Generic check for tool results containing an images array with URLs */
+function extractImageUrls(v: unknown): { url: string; filename?: string }[] {
+  if (typeof v !== 'object' || v === null) return [];
+  const r = v as Record<string, unknown>;
+  if (!Array.isArray(r.images)) return [];
+  return (r.images as Array<Record<string, unknown>>)
+    .filter((img) => typeof img.url === 'string')
+    .map((img) => ({ url: img.url as string, filename: img.filename as string | undefined }));
+}
+
 function isChassisStudyResult(v: unknown): v is ChassisStudyResult {
   return (
     typeof v === 'object' &&
@@ -180,9 +190,10 @@ export function ToolCallCard({ toolName, state, result }: ToolCallCardProps) {
   const linkableEntries = isComplete ? extractLinkableEntries(toolName, result) : [];
   const imageResult = isComplete && isImageGenResult(result) ? result : null;
   const studyResult = isComplete && isChassisStudyResult(result) ? result : null;
+  const toolImages = isComplete ? extractImageUrls(result) : [];
 
-  // Auto-expand image/study results (unless user explicitly collapsed)
-  const showExpanded = expanded || (!userCollapsed && isComplete && (imageResult?.success || studyResult?.success));
+  // Auto-expand image/study results or tool results with images (unless user explicitly collapsed)
+  const showExpanded = expanded || (!userCollapsed && isComplete && (imageResult?.success || studyResult?.success || toolImages.length > 0));
 
   return (
     <div className="rounded border bg-muted/50 text-xs my-1">
@@ -229,6 +240,11 @@ export function ToolCallCard({ toolName, state, result }: ToolCallCardProps) {
         {isComplete && studyResult?.success && studyResult.durationMs && (
           <span className="ml-auto text-muted-foreground">
             {(studyResult.durationMs / 1000).toFixed(1)}s
+          </span>
+        )}
+        {isComplete && toolImages.length > 0 && !imageResult && !studyResult && (
+          <span className="ml-auto text-muted-foreground">
+            {toolImages.length} {toolImages.length === 1 ? 'image' : 'images'}
           </span>
         )}
         {isComplete && linkableEntries.length > 0 && !showExpanded && (
@@ -323,6 +339,24 @@ export function ToolCallCard({ toolName, state, result }: ToolCallCardProps) {
               )}
             </div>
           )}
+        </div>
+      )}
+
+      {/* Generic image grid for tools returning images with URLs */}
+      {showExpanded && toolImages.length > 0 && !imageResult && !studyResult && (
+        <div className="border-t p-2">
+          <div className="grid grid-cols-2 gap-2">
+            {toolImages.map((img, i) => (
+              <button key={i} type="button" onClick={() => setLightboxSrc(img.url)}>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={img.url}
+                  alt={img.filename ?? `Image ${i + 1}`}
+                  className="rounded max-h-48 w-full object-cover cursor-pointer hover:opacity-90 transition-opacity"
+                />
+              </button>
+            ))}
+          </div>
         </div>
       )}
 
