@@ -523,52 +523,77 @@ export const viewReferenceImage = tool({
 
 export const viewModuleMedia = tool({
   description:
-    'View media attached to a chassis module. Optionally filter by parameter key. Returns the first matching image.',
+    'View images for a chassis module. Looks up images in the Luv Chassis cog series tagged with the module slug. Returns the first matching image inline.',
   inputSchema: zodSchema(
     z.object({
       moduleSlug: z.string().describe('Module slug (e.g. "eyes", "hair")'),
-      parameterKey: z.string().optional().describe('Optional parameter key to filter media'),
+      limit: z.number().optional().default(1).describe('Number of images to return (default 1)'),
     })
   ),
-  execute: async ({ moduleSlug, parameterKey }) => {
-    const { getChassisModuleBySlugServer, getChassisModuleMediaServer } = await import('./luv-chassis-server');
-    const mod = await getChassisModuleBySlugServer(moduleSlug);
-    if (!mod) return { error: `Module "${moduleSlug}" not found` };
+  execute: async ({ moduleSlug, limit }) => {
+    const { getLuvSeriesServer } = await import('./luv/cog-integration-server');
+    const { resolveImagePublicUrl } = await import('./luv-image-utils');
+    const { createClient: createServerClient } = await import('./supabase-server');
 
-    let media = await getChassisModuleMediaServer(mod.id);
-    if (parameterKey) {
-      media = media.filter((m) => m.parameter_key === parameterKey);
-    }
-    if (media.length === 0) {
-      return { error: `No media found for module "${moduleSlug}"${parameterKey ? ` parameter "${parameterKey}"` : ''}` };
+    // Get the chassis series
+    const seriesId = await getLuvSeriesServer('chassis');
+    if (!seriesId) return { error: 'Chassis series not found' };
+
+    // Find images tagged with this module slug via join
+    const client = await createServerClient();
+    const { data: taggedImages } = await (client as any)
+      .from('cog_image_tags')
+      .select('image_id, tag:cog_tags!inner(name)')
+      .eq('tag.name', moduleSlug);
+
+    const taggedIds = new Set((taggedImages ?? []).map((t: { image_id: string }) => t.image_id));
+
+    // Get series images that match
+    const { data: seriesImages } = await (client as any)
+      .from('cog_images')
+      .select('id, filename, storage_path')
+      .eq('series_id', seriesId)
+      .in('id', [...taggedIds])
+      .order('created_at', { ascending: false });
+
+    const moduleImages = seriesImages ?? [];
+
+    if (moduleImages.length === 0) {
+      return { error: `No images tagged "${moduleSlug}" in chassis series` };
     }
 
-    const item = media[0];
+    const sliced = moduleImages.slice(0, limit ?? 1);
     return {
-      moduleSlug: mod.slug,
-      moduleName: mod.name,
-      parameterKey: item.parameter_key,
-      description: item.description,
-      storage_path: item.storage_path,
+      moduleSlug,
+      total: moduleImages.length,
+      images: sliced.map((img: { id: string; filename: string; storage_path: string }) => ({
+        id: img.id,
+        filename: img.filename,
+        url: resolveImagePublicUrl(img.storage_path),
+        storage_path: img.storage_path,
+      })),
     };
   },
   toModelOutput: async ({ output }) => {
-    const result = output as { error?: string; storage_path?: string; moduleName?: string; parameterKey?: string; description?: string };
-    if (result.error) return { type: 'text', value: result.error };
+    const result = output as { error?: string; images?: Array<{ storage_path: string; filename: string }> };
+    if (result.error || !result.images?.length) {
+      return { type: 'text', value: result.error ?? JSON.stringify(output) };
+    }
 
     const { resolveImageAsBase64 } = await import('./luv-image-utils');
-    try {
-      const { base64, mediaType } = await resolveImageAsBase64(result.storage_path!);
-      return {
-        type: 'content',
-        value: [
-          { type: 'text' as const, text: `Module media: ${result.moduleName} / ${result.parameterKey}. ${result.description ?? ''}` },
-          { type: 'file-data' as const, data: base64, mediaType },
-        ],
-      };
-    } catch {
-      return { type: 'text', value: `Media record exists but image could not be loaded from storage.` };
+    const parts: Array<{ type: 'text'; text: string } | { type: 'file-data'; data: string; mediaType: string }> = [];
+
+    for (const img of result.images) {
+      try {
+        const { base64, mediaType } = await resolveImageAsBase64(img.storage_path);
+        parts.push({ type: 'text', text: `[${img.filename}]` });
+        parts.push({ type: 'file-data', data: base64, mediaType });
+      } catch {
+        parts.push({ type: 'text', text: `[${img.filename} — could not load]` });
+      }
     }
+
+    return { type: 'content', value: parts };
   },
 });
 
