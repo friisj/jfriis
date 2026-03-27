@@ -532,7 +532,7 @@ export const viewModuleMedia = tool({
   ),
   execute: async ({ moduleSlug, limit }) => {
     const { getLuvSeriesServer } = await import('./luv/cog-integration-server');
-    const { resolveImagePublicUrl } = await import('./luv-image-utils');
+    const { getCogImageUrl } = await import('./cog/images');
     const { createClient: createServerClient } = await import('./supabase-server');
 
     // Get the chassis series
@@ -578,7 +578,7 @@ export const viewModuleMedia = tool({
       images: sliced.map((img: { id: string; filename: string; storage_path: string }) => ({
         id: img.id,
         filename: img.filename,
-        url: resolveImagePublicUrl(img.storage_path),
+        url: getCogImageUrl(img.storage_path),
         storage_path: img.storage_path,
       })),
     };
