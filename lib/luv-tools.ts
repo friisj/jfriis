@@ -539,21 +539,30 @@ export const viewModuleMedia = tool({
     const seriesId = await getLuvSeriesServer('chassis');
     if (!seriesId) return { error: 'Chassis series not found' };
 
-    // Find images tagged with this module slug via join
+    // Find tag ID for this module slug, then get tagged image IDs
     const client = await createServerClient();
-    const { data: taggedImages } = await (client as any)
-      .from('cog_image_tags')
-      .select('image_id, tag:cog_tags!inner(name)')
-      .eq('tag.name', moduleSlug);
+    const { data: tag } = await (client as any)
+      .from('cog_tags')
+      .select('id')
+      .eq('name', moduleSlug)
+      .maybeSingle();
 
-    const taggedIds = new Set((taggedImages ?? []).map((t: { image_id: string }) => t.image_id));
+    if (!tag) return { error: `No tag found for module "${moduleSlug}"` };
+
+    const { data: taggedRows } = await (client as any)
+      .from('cog_image_tags')
+      .select('image_id')
+      .eq('tag_id', tag.id);
+
+    const taggedIds = (taggedRows ?? []).map((t: { image_id: string }) => t.image_id);
+    if (taggedIds.length === 0) return { error: `No images tagged "${moduleSlug}"` };
 
     // Get series images that match
     const { data: seriesImages } = await (client as any)
       .from('cog_images')
       .select('id, filename, storage_path')
       .eq('series_id', seriesId)
-      .in('id', [...taggedIds])
+      .in('id', taggedIds)
       .order('created_at', { ascending: false });
 
     const moduleImages = seriesImages ?? [];
