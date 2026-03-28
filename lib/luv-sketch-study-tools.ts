@@ -50,12 +50,12 @@ export const runSketchStudy = tool({
       referenceSketchId: z
         .string()
         .optional()
-        .describe('Existing sketch image ID for i2i refinement — generates a refined version based on this sketch'),
+        .describe('Any Cog image ID for i2i refinement — can be a previous sketch, a chassis photo, a generated study, or any image from any Luv series. The sketch will be generated using this as visual conditioning.'),
       exemplarIds: z
         .array(z.string())
         .max(4)
         .optional()
-        .describe('Up to 4 existing sketch IDs to use as style exemplars for consistency'),
+        .describe('Up to 4 Cog image IDs as style/content exemplars — can be from any series (sketches, chassis, studies, generations). Helps maintain visual consistency across a set.'),
       styleNotes: z
         .string()
         .optional()
