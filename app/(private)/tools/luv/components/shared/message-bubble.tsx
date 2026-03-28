@@ -16,6 +16,7 @@ import { getMessageText } from '../use-luv-chat-session';
 import { ToolCallCard } from '../tool-call-card';
 import { ProposalCard } from '../proposal-card';
 import { ImageLightbox } from './image-lightbox';
+import { ImageBadge } from './image-badge';
 
 interface MessageBubbleProps {
   message: UIMessage;
@@ -27,9 +28,13 @@ interface MessageBubbleProps {
   voiceEnabled?: boolean;
   /** Voice speed override (0.8-1.2) */
   voiceSpeed?: number;
+  /** Get sequential image index by URL (for badges) */
+  getImageIndex?: (url: string) => number | null;
+  /** Called when user taps an image badge to insert [N] reference */
+  onInsertImageRef?: (index: number) => void;
 }
 
-export function MessageBubble({ message, isLast, isActive, compact = false, voiceEnabled = false, voiceSpeed }: MessageBubbleProps) {
+export function MessageBubble({ message, isLast, isActive, compact = false, voiceEnabled = false, voiceSpeed, getImageIndex, onInsertImageRef }: MessageBubbleProps) {
   const [ttsState, setTtsState] = useState<'idle' | 'loading' | 'playing'>('idle');
   const [audioRef] = useState<{ current: HTMLAudioElement | null }>({ current: null });
 
@@ -99,8 +104,8 @@ export function MessageBubble({ message, isLast, isActive, compact = false, voic
   }, [voiceEnabled, isLast, isActive, message.role, ttsState, handleReadAloud]);
 
   const inner = message.role === 'user'
-    ? <UserBubble message={message} compact={compact} />
-    : <AssistantBubble message={message} isLast={isLast} isActive={isActive} compact={compact} />;
+    ? <UserBubble message={message} compact={compact} getImageIndex={getImageIndex} onInsertImageRef={onInsertImageRef} />
+    : <AssistantBubble message={message} isLast={isLast} isActive={isActive} compact={compact} getImageIndex={getImageIndex} onInsertImageRef={onInsertImageRef} />;
 
   const isAssistant = message.role === 'assistant';
 
@@ -131,7 +136,11 @@ export function MessageBubble({ message, isLast, isActive, compact = false, voic
   );
 }
 
-function UserBubble({ message, compact }: { message: UIMessage; compact: boolean }) {
+function UserBubble({ message, compact, getImageIndex, onInsertImageRef }: {
+  message: UIMessage; compact: boolean;
+  getImageIndex?: (url: string) => number | null;
+  onInsertImageRef?: (index: number) => void;
+}) {
   const text = getMessageText(message);
   const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
   const fileParts = message.parts.filter(
@@ -150,21 +159,22 @@ function UserBubble({ message, compact }: { message: UIMessage; compact: boolean
       >
         {fileParts.length > 0 && (
           <div className={compact ? 'flex gap-1.5 flex-wrap mb-1.5' : 'flex gap-2 flex-wrap mb-2'}>
-            {fileParts.map((f, i) => (
-              <button
-                key={i}
-                type="button"
-                onClick={() => setLightboxSrc(f.url)}
-                className="cursor-pointer"
-              >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={f.url}
-                  alt={f.filename ?? 'User image'}
-                  className={compact ? 'max-h-48 rounded-lg object-contain' : 'max-h-64 rounded-lg object-contain'}
-                />
-              </button>
-            ))}
+            {fileParts.map((f, i) => {
+              const imgIndex = getImageIndex?.(f.url);
+              return (
+                <div key={i} className="relative">
+                  <button type="button" onClick={() => setLightboxSrc(f.url)} className="cursor-pointer">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={f.url}
+                      alt={f.filename ?? 'User image'}
+                      className={compact ? 'max-h-48 rounded-lg object-contain' : 'max-h-64 rounded-lg object-contain'}
+                    />
+                  </button>
+                  {imgIndex && <ImageBadge index={imgIndex} onInsertReference={onInsertImageRef} />}
+                </div>
+              );
+            })}
           </div>
         )}
         {text}
@@ -229,12 +239,17 @@ function AssistantBubble({
   isLast,
   isActive,
   compact,
+  getImageIndex,
+  onInsertImageRef,
 }: {
   message: UIMessage;
   isLast: boolean;
   isActive: boolean;
   compact: boolean;
+  getImageIndex?: (url: string) => number | null;
+  onInsertImageRef?: (index: number) => void;
 }) {
+  const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
   // Group consecutive text parts into single bubbles so streaming fragments
   // separated by tool calls don't each get their own card.
   const groups = groupParts(message.parts);
@@ -256,7 +271,24 @@ function AssistantBubble({
                     : 'rounded-lg px-3 sm:px-4 py-2.5 sm:py-3 text-sm bg-muted prose prose-sm dark:prose-invert prose-p:my-1.5 prose-ul:my-1.5 prose-ol:my-1.5 prose-li:my-0.5 prose-headings:my-2 prose-pre:my-1.5 max-w-none break-words [&_pre]:overflow-x-auto [&_pre]:max-w-full'
                 }
               >
-                <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                <ReactMarkdown
+                  remarkPlugins={[remarkGfm]}
+                  components={{
+                    img: ({ src, alt }) => {
+                      if (!src || typeof src !== 'string') return null;
+                      const imgIndex = getImageIndex?.(src);
+                      return (
+                        <span className="relative inline-block my-1">
+                          <button type="button" onClick={() => setLightboxSrc(src)} className="cursor-pointer block">
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img src={src} alt={alt ?? ''} className="rounded-lg max-h-80 object-contain" />
+                          </button>
+                          {imgIndex && <ImageBadge index={imgIndex} onInsertReference={onInsertImageRef} />}
+                        </span>
+                      );
+                    },
+                  }}
+                >
                   {combinedText}
                 </ReactMarkdown>
                 {isActive && isLast && isLastGroup && (
@@ -304,6 +336,8 @@ function AssistantBubble({
                 toolName={toolName}
                 state={state}
                 result={output}
+                getImageIndex={getImageIndex}
+                onInsertImageRef={onInsertImageRef}
               />
             );
           }
@@ -311,6 +345,9 @@ function AssistantBubble({
           return null;
         })}
       </div>
+      {lightboxSrc && (
+        <ImageLightbox src={lightboxSrc} onClose={() => setLightboxSrc(null)} />
+      )}
     </div>
   );
 }

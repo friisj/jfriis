@@ -5,11 +5,14 @@ import Link from 'next/link';
 import { IconChevronRight, IconExternalLink } from '@tabler/icons-react';
 import { cn } from '@/lib/utils';
 import { ImageLightbox } from './shared/image-lightbox';
+import { ImageBadge } from './shared/image-badge';
 
 interface ToolCallCardProps {
   toolName: string;
   state: string;
   result: unknown;
+  getImageIndex?: (url: string) => number | null;
+  onInsertImageRef?: (index: number) => void;
 }
 
 interface ImageGenResult {
@@ -181,7 +184,7 @@ function EntryLink({ entry }: { entry: ResearchEntry }) {
   );
 }
 
-export function ToolCallCard({ toolName, state, result }: ToolCallCardProps) {
+export function ToolCallCard({ toolName, state, result, getImageIndex, onInsertImageRef }: ToolCallCardProps) {
   const [expanded, setExpanded] = useState(false);
   const [userCollapsed, setUserCollapsed] = useState(false);
   const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
@@ -259,16 +262,7 @@ export function ToolCallCard({ toolName, state, result }: ToolCallCardProps) {
         <div className="border-t">
           {imageResult.success && imageResult.imageUrl ? (
             <div className="p-2 space-y-1.5">
-              {imageResult.cogImageId && imageResult.cogSeriesId ? (
-                <Link href={`/tools/luv/media/${imageResult.cogSeriesId}/${imageResult.cogImageId}`}>
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={imageResult.imageUrl}
-                    alt={imageResult.prompt ?? 'Generated image'}
-                    className="rounded max-w-full max-h-96 object-contain cursor-pointer hover:opacity-90 transition-opacity"
-                  />
-                </Link>
-              ) : (
+              <div className="relative inline-block">
                 <button type="button" onClick={() => setLightboxSrc(imageResult.imageUrl!)}>
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
@@ -277,7 +271,8 @@ export function ToolCallCard({ toolName, state, result }: ToolCallCardProps) {
                     className="rounded max-w-full max-h-96 object-contain cursor-pointer hover:opacity-90 transition-opacity"
                   />
                 </button>
-              )}
+                {(() => { const idx = getImageIndex?.(imageResult.imageUrl!); return idx ? <ImageBadge index={idx} onInsertReference={onInsertImageRef} /> : null; })()}
+              </div>
               <div className="flex gap-2 text-[10px] text-muted-foreground">
                 {imageResult.model && <span>{imageResult.model.replace('gemini-', '').replace('-preview', '')}</span>}
                 {imageResult.aspectRatio && <span>{imageResult.aspectRatio}</span>}
@@ -297,14 +292,17 @@ export function ToolCallCard({ toolName, state, result }: ToolCallCardProps) {
         <div className="border-t">
           {studyResult.success && studyResult.imageUrl ? (
             <div className="p-2 space-y-2">
-              <button type="button" onClick={() => setLightboxSrc(studyResult.imageUrl!)}>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={studyResult.imageUrl}
-                  alt={studyResult.brief?.description ?? 'Study image'}
-                  className="rounded max-w-full max-h-96 object-contain cursor-pointer hover:opacity-90 transition-opacity"
-                />
-              </button>
+              <div className="relative inline-block">
+                <button type="button" onClick={() => setLightboxSrc(studyResult.imageUrl!)}>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={studyResult.imageUrl}
+                    alt={studyResult.brief?.description ?? 'Study image'}
+                    className="rounded max-w-full max-h-96 object-contain cursor-pointer hover:opacity-90 transition-opacity"
+                  />
+                </button>
+                {(() => { const idx = getImageIndex?.(studyResult.imageUrl!); return idx ? <ImageBadge index={idx} onInsertReference={onInsertImageRef} /> : null; })()}
+              </div>
               {studyResult.deliberation && (
                 <div className="space-y-1.5">
                   <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">
@@ -346,16 +344,22 @@ export function ToolCallCard({ toolName, state, result }: ToolCallCardProps) {
       {showExpanded && toolImages.length > 0 && !imageResult && !studyResult && (
         <div className="border-t p-2">
           <div className="grid grid-cols-2 gap-2">
-            {toolImages.map((img, i) => (
-              <button key={i} type="button" onClick={() => setLightboxSrc(img.url)}>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={img.url}
-                  alt={img.filename ?? `Image ${i + 1}`}
-                  className="rounded max-h-48 w-full object-cover cursor-pointer hover:opacity-90 transition-opacity"
-                />
-              </button>
-            ))}
+            {toolImages.map((img, i) => {
+              const idx = getImageIndex?.(img.url);
+              return (
+                <div key={i} className="relative">
+                  <button type="button" onClick={() => setLightboxSrc(img.url)}>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={img.url}
+                      alt={img.filename ?? `Image ${i + 1}`}
+                      className="rounded max-h-48 w-full object-cover cursor-pointer hover:opacity-90 transition-opacity"
+                    />
+                  </button>
+                  {idx && <ImageBadge index={idx} onInsertReference={onInsertImageRef} />}
+                </div>
+              );
+            })}
           </div>
         </div>
       )}
