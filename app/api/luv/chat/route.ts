@@ -21,6 +21,7 @@ import { luvTools, createCurrentContextTool } from '@/lib/luv-tools';
 import { luvImageMgmtTools } from '@/lib/luv-image-mgmt-tools';
 import { createGenerateImageTool } from '@/lib/luv-image-gen-tools';
 import { createChassisStudyTool, recordStudyFeedback, listChassisStudies } from '@/lib/luv-chassis-study-tools';
+import { runSketchStudy, listSketches } from '@/lib/luv-sketch-study-tools';
 import { getAnthropic } from '@/lib/ai/providers';
 import { analyzeImageWithGemini, buildGeneralVisionPrompt } from '@/lib/ai/gemini-vision';
 import { resolveProcessProtocol, resolveProcessState } from '@/lib/luv/process-context';
@@ -234,6 +235,8 @@ export async function POST(request: Request) {
         run_chassis_study: createChassisStudyTool(augmentedMessages),
         record_study_feedback: recordStudyFeedback,
         list_chassis_studies: listChassisStudies,
+        run_sketch_study: runSketchStudy,
+        list_sketches: listSketches,
         get_current_context: createCurrentContextTool(pageContext ?? null),
         web_search: getAnthropic().tools.webSearch_20250305({ maxUses: 3 }),
       } as ToolSet,

@@ -93,8 +93,8 @@ export function useConversationImages(messages: UIMessage[]): {
               }
             }
 
-            // Chassis study result
-            if (r.type === 'chassis_study_result' && r.success && typeof r.imageUrl === 'string') {
+            // Chassis study or sketch study result
+            if ((r.type === 'chassis_study_result' || r.type === 'sketch_study_result') && r.success && typeof r.imageUrl === 'string') {
               if (!imageByUrl.has(r.imageUrl)) {
                 counter++;
                 const img: ConversationImage = {
