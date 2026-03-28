@@ -13,7 +13,8 @@ import { getCogImageUrl } from './cog/images';
 export const runSketchStudy = tool({
   description:
     'Generate a pencil sketch study of Luv\'s anatomy using Flux 2 Dev. ' +
-    'Style is locked to graphite/pencil drawing — you control the subject, focus type, and composition. ' +
+    'The graphite/pencil base style is locked, but you can layer styleNotes on top for context-specific ' +
+    'rendering direction (e.g. "loose gestural lines" for dynamics, "precise contours" for detail). ' +
     'Use "assembly" for full-body or regional anatomy, "detail" for close-ups of features, ' +
     '"dynamics" for gesture/motion studies. Optionally pass referenceSketchId to refine an existing sketch ' +
     'via i2i conditioning, or exemplarIds for style consistency with previous sketches.',
@@ -55,9 +56,13 @@ export const runSketchStudy = tool({
         .max(4)
         .optional()
         .describe('Up to 4 existing sketch IDs to use as style exemplars for consistency'),
+      styleNotes: z
+        .string()
+        .optional()
+        .describe('Style direction layered on the locked pencil base — e.g. "loose gestural lines with emphasis on motion arcs", "precise contour lines, minimal shading, emphasis on bone structure", "construction lines visible, anatomical landmarks annotated". The graphite/pencil foundation is always preserved.'),
     })
   ),
-  execute: async ({ subject, focus, moduleSlugs, aspectRatio, guidanceScale, steps, referenceSketchId, exemplarIds }) => {
+  execute: async ({ subject, focus, moduleSlugs, aspectRatio, guidanceScale, steps, referenceSketchId, exemplarIds, styleNotes }) => {
     try {
       const result = await runSketchStudyPipeline({
         subject,
@@ -66,6 +71,7 @@ export const runSketchStudy = tool({
         aspectRatio: aspectRatio as import('./ai/replicate-flux').FluxAspectRatio | undefined,
         guidanceScale,
         steps,
+        styleNotes,
         referenceSketchId,
         exemplarIds,
       });

@@ -39,6 +39,8 @@ export interface SketchStudyInput {
   referenceSketchId?: string;
   /** Additional exemplar sketch IDs for style consistency */
   exemplarIds?: string[];
+  /** Agent-composed style notes layered on top of the locked base prefix */
+  styleNotes?: string;
 }
 
 export interface SketchStudyResult {
@@ -70,6 +72,8 @@ function composeSketchPrompt(input: SketchStudyInput): string {
   const parts = [
     SKETCH_STYLE_PREFIX,
     focusModifiers[input.focus] ?? '',
+    // Agent-composed style direction layered on locked base
+    input.styleNotes ? `Style direction: ${input.styleNotes}` : '',
     `Subject: ${input.subject}`,
     'Character: young woman, delicate refined features, natural beauty.',
   ];
