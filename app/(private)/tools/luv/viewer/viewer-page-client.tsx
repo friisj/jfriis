@@ -17,10 +17,10 @@ export function ViewerPageClient() {
       .then(setModules)
       .catch((err) => setError(err.message));
 
-    // Check if model file exists via HEAD request
-    fetch(MODEL_PATH, { method: 'HEAD' })
-      .then((res) => setModelAvailable(res.ok))
-      .catch(() => setModelAvailable(false));
+    // TODO: re-enable model detection after GLB loading is debugged
+    // fetch(MODEL_PATH, { method: 'HEAD' })
+    //   .then((res) => setModelAvailable(res.ok))
+    //   .catch(() => setModelAvailable(false));
   }, []);
 
   if (error) {
