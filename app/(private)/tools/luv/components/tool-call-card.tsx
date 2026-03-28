@@ -48,11 +48,9 @@ interface ChassisStudyResult {
 }
 
 function isImageGenResult(v: unknown): v is ImageGenResult {
-  return (
-    typeof v === 'object' &&
-    v !== null &&
-    (v as Record<string, unknown>).type === 'image_generation_result'
-  );
+  if (typeof v !== 'object' || v === null) return false;
+  const type = (v as Record<string, unknown>).type;
+  return type === 'image_generation_result' || type === 'sketch_study_result';
 }
 
 /** Generic check for tool results containing an images array with URLs */
@@ -104,6 +102,8 @@ const toolLabels: Record<string, string> = {
   run_chassis_study: 'Chassis Study',
   record_study_feedback: 'Record Feedback',
   list_chassis_studies: 'List Studies',
+  run_sketch_study: 'Sketch Study',
+  list_sketches: 'List Sketches',
 };
 
 // Tools whose results contain linkable research entries
