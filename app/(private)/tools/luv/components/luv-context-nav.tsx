@@ -40,6 +40,10 @@ const spaceConfig: Record<Space, { label: string; sections: NavSection[] }> = {
         href: '/tools/luv/chassis',
       },
       {
+        label: 'Viewer',
+        href: '/tools/luv/viewer',
+      },
+      {
         label: 'Studies',
         href: '/tools/luv/studies',
       },
@@ -85,6 +89,7 @@ const spaceOrder: Space[] = ['identity', 'stage', 'research', 'library'];
 export function resolveSpace(pathname: string): Space {
   if (pathname.startsWith('/tools/luv/soul')) return 'identity';
   if (pathname.startsWith('/tools/luv/chassis')) return 'identity';
+  if (pathname.startsWith('/tools/luv/viewer')) return 'identity';
   if (pathname.startsWith('/tools/luv/studies')) return 'identity';
   if (pathname.startsWith('/tools/luv/stage')) return 'stage';
   if (pathname.startsWith('/tools/luv/research')) return 'research';
