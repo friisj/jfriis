@@ -100,6 +100,24 @@ def fix_materials():
         else:
             log(f"    OK Normal: already connected")
 
+    # --- Fix alpha modes for transparency materials ---
+    alpha_mats = ['eyelash', 'cornea', 'lacrimal']
+    for mat in bpy.data.materials:
+        if mat.name in alpha_mats and mat.use_nodes:
+            bsdf = next((n for n in mat.node_tree.nodes if n.type == 'BSDF_PRINCIPLED'), None)
+            if bsdf:
+                mat.blend_method = 'CLIP'  # Use alpha clip for clean edges
+                mat.shadow_method = 'CLIP'
+                # Set alpha cutoff via the BSDF Alpha input if not connected
+                if not bsdf.inputs['Alpha'].links:
+                    # Check if the base color texture has alpha
+                    bc = bsdf.inputs['Base Color']
+                    if bc.links and bc.links[0].from_node.type == 'TEX_IMAGE':
+                        tex_node = bc.links[0].from_node
+                        mat.node_tree.links.new(tex_node.outputs['Alpha'], bsdf.inputs['Alpha'])
+                        log(f"    FIX Alpha: {mat.name} -> texture alpha channel")
+                        fixed_count += 1
+
     log()
     log("=" * 60)
     log(f"Applied {fixed_count} fix(es). Re-export as GLB now.")
