@@ -272,17 +272,19 @@ export function chassisToCharacterState(
     const value = getModuleParam(modules, modSlug, paramKey);
     if (typeof value === 'string' && enumMap[value]) {
       for (const [boneName, scale] of Object.entries(enumMap[value])) {
-        const resolvedBone = manifest?.boneAliases?.[boneName] ?? boneName;
-        if (!state.boneTransforms[resolvedBone]) {
-          state.boneTransforms[resolvedBone] = { scale: [1, 1, 1] };
+        const resolvedBones = resolveSymmetricBones(boneName, manifest);
+        for (const resolvedBone of resolvedBones) {
+          if (!state.boneTransforms[resolvedBone]) {
+            state.boneTransforms[resolvedBone] = { scale: [1, 1, 1] };
+          }
+          const existing = state.boneTransforms[resolvedBone].scale ?? [1, 1, 1];
+          // Multiply scales (compound multiple mappings affecting the same bone)
+          state.boneTransforms[resolvedBone].scale = [
+            existing[0] * scale[0],
+            existing[1] * scale[1],
+            existing[2] * scale[2],
+          ];
         }
-        const existing = state.boneTransforms[resolvedBone].scale ?? [1, 1, 1];
-        // Multiply scales (compound multiple mappings affecting the same bone)
-        state.boneTransforms[resolvedBone].scale = [
-          existing[0] * scale[0],
-          existing[1] * scale[1],
-          existing[2] * scale[2],
-        ];
       }
     }
   }
@@ -292,16 +294,18 @@ export function chassisToCharacterState(
     const value = getModuleParam(modules, modSlug, paramKey);
     if (typeof value === 'string' && enumMap[value]) {
       for (const [boneName, offset] of Object.entries(enumMap[value])) {
-        const resolvedBone = manifest?.boneAliases?.[boneName] ?? boneName;
-        if (!state.boneTransforms[resolvedBone]) {
-          state.boneTransforms[resolvedBone] = {};
+        const resolvedBones = resolveSymmetricBones(boneName, manifest);
+        for (const resolvedBone of resolvedBones) {
+          if (!state.boneTransforms[resolvedBone]) {
+            state.boneTransforms[resolvedBone] = {};
+          }
+          const existing = state.boneTransforms[resolvedBone].position ?? [0, 0, 0];
+          state.boneTransforms[resolvedBone].position = [
+            existing[0] + offset[0],
+            existing[1] + offset[1],
+            existing[2] + offset[2],
+          ];
         }
-        const existing = state.boneTransforms[resolvedBone].position ?? [0, 0, 0];
-        state.boneTransforms[resolvedBone].position = [
-          existing[0] + offset[0],
-          existing[1] + offset[1],
-          existing[2] + offset[2],
-        ];
       }
     }
   }
@@ -434,22 +438,40 @@ export function chassisToCharacterState(
 // Helpers
 // ---------------------------------------------------------------------------
 
+/**
+ * Resolve a logical bone name to one or more actual bone names.
+ * If the alias ends in .L, automatically mirrors to .R as well.
+ * This handles Rigify-style symmetric rigs (DEF-shoulder.L / DEF-shoulder.R).
+ */
+function resolveSymmetricBones(
+  logicalBone: string,
+  manifest: CharacterManifest | undefined,
+): string[] {
+  const resolved = manifest?.boneAliases?.[logicalBone] ?? logicalBone;
+  if (resolved.endsWith('.L')) {
+    return [resolved, resolved.replace(/\.L$/, '.R')];
+  }
+  return [resolved];
+}
+
 function applyBoneScaleMultiplier(
   state: CharacterState,
   manifest: CharacterManifest | undefined,
   logicalBone: string,
   multiplier: [number, number, number],
 ) {
-  const resolvedBone = manifest?.boneAliases?.[logicalBone] ?? logicalBone;
-  if (!state.boneTransforms[resolvedBone]) {
-    state.boneTransforms[resolvedBone] = { scale: [1, 1, 1] };
+  const resolvedBones = resolveSymmetricBones(logicalBone, manifest);
+  for (const resolvedBone of resolvedBones) {
+    if (!state.boneTransforms[resolvedBone]) {
+      state.boneTransforms[resolvedBone] = { scale: [1, 1, 1] };
+    }
+    const existing = state.boneTransforms[resolvedBone].scale ?? [1, 1, 1];
+    state.boneTransforms[resolvedBone].scale = [
+      existing[0] * multiplier[0],
+      existing[1] * multiplier[1],
+      existing[2] * multiplier[2],
+    ];
   }
-  const existing = state.boneTransforms[resolvedBone].scale ?? [1, 1, 1];
-  state.boneTransforms[resolvedBone].scale = [
-    existing[0] * multiplier[0],
-    existing[1] * multiplier[1],
-    existing[2] * multiplier[2],
-  ];
 }
 
 function setMorphIfAvailable(

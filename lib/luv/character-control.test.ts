@@ -187,9 +187,35 @@ describe('chassisToCharacterState', () => {
     };
     const modules = [makeModule('body-proportions', { shoulder_width: 'broad' })];
     const state = chassisToCharacterState(modules, manifest);
-    // Should use the aliased bone name
+    // Should use the aliased bone name AND mirror to .R
     expect(state.boneTransforms['DEF-shoulder.L']).toBeDefined();
+    expect(state.boneTransforms['DEF-shoulder.R']).toBeDefined();
     expect(state.boneTransforms['shoulder']).toBeUndefined();
+  });
+
+  it('mirrors symmetric bone transforms for .L aliases', () => {
+    const manifest = {
+      ...PLACEHOLDER_MANIFEST,
+      boneAliases: { thigh: 'DEF-thigh.L' },
+    };
+    const modules = [makeModule('body-proportions', { leg_length: 'long' })];
+    const state = chassisToCharacterState(modules, manifest);
+    // Both L and R thigh should have the same scale
+    expect(state.boneTransforms['DEF-thigh.L']?.scale).toEqual(
+      state.boneTransforms['DEF-thigh.R']?.scale,
+    );
+  });
+
+  it('does not mirror non-.L bone aliases', () => {
+    const manifest = {
+      ...PLACEHOLDER_MANIFEST,
+      boneAliases: { spine: 'DEF-spine.003' },
+    };
+    const modules = [makeModule('body-proportions', { build: 'athletic' })];
+    const state = chassisToCharacterState(modules, manifest);
+    expect(state.boneTransforms['DEF-spine.003']).toBeDefined();
+    // Should NOT create a mirrored bone (spine.003 doesn't end in .L)
+    expect(state.boneTransforms['DEF-spine.00R']).toBeUndefined();
   });
 
   // Ratio tests
