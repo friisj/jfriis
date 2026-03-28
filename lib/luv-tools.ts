@@ -14,6 +14,7 @@ import { luvReviewTools } from './luv-review-tools';
 import { luvPlaygroundTools } from './luv-playground-tools';
 import { luvChangelogTools } from './luv-changelog-tools';
 import { acknowledgeNudge } from './luv-heartbeat';
+import { updateVoiceConfig, getVoiceConfig } from './luv-voice-config';
 import { listGenerations } from './luv-image-gen-tools';
 import { validateTraitPatch, applyTraitPatch, DEFAULT_TRAITS, SOUL_TRAITS } from './luv/soul-modulation';
 import { getCurrentSoulConfigServer, insertSoulConfigServer } from './luv-soul-modulation-server';
@@ -1117,6 +1118,54 @@ export function createCurrentContextTool(pageContext: LuvPageContext | null) {
 
 // ============================================================================
 // Tool Registry
+const adjustVoice = tool({
+  description:
+    'Adjust voice synthesis settings. Change the ElevenLabs voice ID, speed, stability, or style. ' +
+    'Changes persist across conversations. You can proactively adjust voice parameters based on ' +
+    'conversational context — e.g., lower speed for thoughtful responses, increase style for playful ones. ' +
+    'The user may also paste an ElevenLabs voice ID and ask you to switch.',
+  inputSchema: zodSchema(
+    z.object({
+      voiceId: z.string().optional().describe('ElevenLabs voice ID to switch to'),
+      speed: z.number().min(0.5).max(2.0).optional().describe('Speech speed (0.5=very slow, 1.0=normal, 2.0=fast)'),
+      stability: z.number().min(0).max(1).optional().describe('Voice stability (0=expressive/variable, 1=stable/consistent)'),
+      style: z.number().min(0).max(1).optional().describe('Style exaggeration (0=neutral, 1=amplified character)'),
+      reason: z.string().optional().describe('Why this adjustment is being made'),
+    })
+  ),
+  execute: async ({ voiceId, speed, stability, style, reason }) => {
+    // Use a fixed user ID for now (single user system)
+    const { getLuvCharacterServer } = await import('./luv-server');
+    const character = await getLuvCharacterServer();
+    if (!character) return { error: 'Character not found' };
+
+    // Get the auth user ID from the character's created_by or use a lookup
+    const { createClient } = await import('./supabase-server');
+    const client = await createClient();
+    const { data: users } = await (client as any)
+      .from('luv_heartbeat_config')
+      .select('user_id')
+      .limit(1);
+
+    const userId = users?.[0]?.user_id;
+    if (!userId) return { error: 'No user config found' };
+
+    const updates: Record<string, unknown> = {};
+    if (voiceId !== undefined) updates.voiceId = voiceId;
+    if (speed !== undefined) updates.speed = speed;
+    if (stability !== undefined) updates.stability = stability;
+    if (style !== undefined) updates.style = style;
+
+    const newConfig = await updateVoiceConfig(userId, updates);
+
+    return {
+      success: true,
+      config: newConfig,
+      reason,
+    };
+  },
+});
+
 const acknowledgeHeartbeat = tool({
   description:
     'Mark a heartbeat nudge as acknowledged after you have surfaced it in conversation. ' +
@@ -1168,4 +1217,5 @@ export const luvTools = {
   ...luvChangelogTools,
   list_generations: listGenerations,
   acknowledge_heartbeat: acknowledgeHeartbeat,
+  adjust_voice: adjustVoice,
 };

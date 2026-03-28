@@ -3,9 +3,10 @@ import { requireAuth } from '@/lib/ai/auth';
 import { ElevenLabsClient } from '@elevenlabs/elevenlabs-js';
 import { getLuvCharacterServer } from '@/lib/luv-server';
 import { getCurrentSoulConfigServer } from '@/lib/luv-soul-modulation-server';
+import { getVoiceConfig } from '@/lib/luv-voice-config';
 
 // Default voice — can be overridden per request or via character config
-const DEFAULT_VOICE_ID = 'yj30vwTGJxSHezdAGsv9';
+const DEFAULT_VOICE_ID = 'NUZ3LH7K9RSuv8Ui6q02';
 const DEFAULT_MODEL = 'eleven_flash_v2_5';
 
 /**
@@ -85,6 +86,11 @@ export async function POST(request: Request) {
   // Cap at ~5000 chars to avoid excessive generation
   const cappedText = speechText.slice(0, 5000);
 
+  // Load stored voice config (voice ID, speed overrides)
+  const voiceConfig = await getVoiceConfig(user.id);
+  const resolvedVoiceId = voiceId ?? voiceConfig.voiceId ?? DEFAULT_VOICE_ID;
+  const resolvedSpeedOverride = speedOverride ?? voiceConfig.speed;
+
   // Load active DSMS traits if not provided — voice adapts to soul state
   let enthusiasm = traits?.enthusiasm ?? 7;
   let formality = traits?.formality ?? 5;
@@ -106,18 +112,18 @@ export async function POST(request: Request) {
     }
   }
 
-  // stability: high formality → more stable/controlled, high enthusiasm → less stable/more expressive
-  const stability = Math.max(0.15, Math.min(0.85, 0.7 - (enthusiasm / 10) * 0.4 + (formality / 10) * 0.3));
-  // style: high charm → amplify character style
-  const style = Math.max(0, Math.min(1, (charm / 10) * 0.7 + 0.1));
-  // speed: use override if provided, otherwise derive from traits (default base: 0.9 for generally slower speech)
-  const speed = speedOverride ?? Math.max(0.75, Math.min(1.15, 0.9 + (enthusiasm - formality) * 0.015));
+  // stability: use stored config or derive from traits
+  const stability = voiceConfig.stability ?? Math.max(0.15, Math.min(0.85, 0.7 - (enthusiasm / 10) * 0.4 + (formality / 10) * 0.3));
+  // style: use stored config or derive from charm
+  const style = voiceConfig.style ?? Math.max(0, Math.min(1, (charm / 10) * 0.7 + 0.1));
+  // speed: explicit override > stored config > trait-derived
+  const speed = resolvedSpeedOverride ?? Math.max(0.75, Math.min(1.15, 0.9 + (enthusiasm - formality) * 0.015));
 
   try {
     const client = new ElevenLabsClient({ apiKey });
 
     const audioStream = await client.textToSpeech.convert(
-      voiceId ?? DEFAULT_VOICE_ID,
+      resolvedVoiceId,
       {
         text: cappedText,
         modelId: DEFAULT_MODEL,
