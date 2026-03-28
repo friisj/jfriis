@@ -15,6 +15,7 @@ import { ThinkingIndicator, StepLimitMessage, wasStepLimitHit } from './shared/s
 import { PresenceIndicator } from './shared/presence-indicator';
 import { useLuvPresence } from './use-luv-presence';
 import { HeartbeatSettingsPanel } from './heartbeat-settings-panel';
+import { useConversationImages } from './use-conversation-images';
 import { getLuvCharacter } from '@/lib/luv';
 
 export function ChatDrawer() {
@@ -24,6 +25,15 @@ export function ChatDrawer() {
   const [activePresetId, setActivePresetId] = useState<string | null>(null);
   const [voiceEnabled, setVoiceEnabled] = useState(false);
   const [voiceSpeed, setVoiceSpeed] = useState(0.9);
+  const { getImageIndex } = useConversationImages(session.messages);
+
+  const handleInsertImageRef = useCallback((index: number) => {
+    session.setInput((prev: string) => {
+      const ref = `[${index}]`;
+      return prev ? `${prev} ${ref}` : ref;
+    });
+    session.textareaRef.current?.focus();
+  }, [session]);
 
   const handleApplyPreset = useCallback(async (presetId: string) => {
     const char = await getLuvCharacter();
@@ -93,6 +103,8 @@ export function ChatDrawer() {
             message={msg}
             isLast={msg.id === session.messages[session.messages.length - 1]?.id}
             isActive={session.isActive}
+            getImageIndex={getImageIndex}
+            onInsertImageRef={handleInsertImageRef}
             compact
             voiceEnabled={voiceEnabled}
             voiceSpeed={voiceSpeed}

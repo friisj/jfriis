@@ -16,6 +16,7 @@ import { ThinkingIndicator, StepLimitMessage, wasStepLimitHit } from '../compone
 import { PresenceIndicator } from '../components/shared/presence-indicator';
 import { HeartbeatSettingsPanel } from '../components/heartbeat-settings-panel';
 import { useLuvPresence } from '../components/use-luv-presence';
+import { useConversationImages } from '../components/use-conversation-images';
 import { getLuvCharacter } from '@/lib/luv';
 
 export default function LuvChatPage() {
@@ -32,6 +33,15 @@ export default function LuvChatPage() {
   const [activePresetId, setActivePresetId] = useState<string | null>(null);
   const [voiceEnabled, setVoiceEnabled] = useState(false);
   const [voiceSpeed, setVoiceSpeed] = useState(0.9);
+  const { getImageIndex } = useConversationImages(session.messages);
+
+  const handleInsertImageRef = useCallback((index: number) => {
+    session.setInput((prev: string) => {
+      const ref = `[${index}]`;
+      return prev ? `${prev} ${ref}` : ref;
+    });
+    session.textareaRef.current?.focus();
+  }, [session]);
 
   const handleApplyPreset = useCallback(async (presetId: string) => {
     const char = await getLuvCharacter();
@@ -106,6 +116,8 @@ export default function LuvChatPage() {
               isActive={session.isActive}
               voiceEnabled={voiceEnabled}
               voiceSpeed={voiceSpeed}
+              getImageIndex={getImageIndex}
+              onInsertImageRef={handleInsertImageRef}
             />
           ))}
           {session.isActive && session.status === 'submitted' && (
