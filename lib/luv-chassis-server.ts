@@ -243,7 +243,7 @@ export async function getStudyServer(
 
 /**
  * Fetch canonical/reference images for given chassis module slugs.
- * Looks in luv_chassis_module_media and luv_references tagged with module slugs.
+ * Looks up images in the Luv Chassis cog series tagged with module slugs.
  */
 export async function getCanonicalImagesForModulesServer(
   moduleSlugs: string[]
@@ -251,58 +251,57 @@ export async function getCanonicalImagesForModulesServer(
   if (moduleSlugs.length === 0) return [];
   const client = await createClient();
 
-  // Get modules by slug to find IDs
-  const { data: modules, error: modErr } = await (client as any)
-    .from('luv_chassis_modules')
-    .select('id, slug')
-    .in('slug', moduleSlugs);
-
-  if (modErr) throw modErr;
-  if (!modules || modules.length === 0) return [];
-
-  const moduleIdToSlug = new Map<string, string>();
-  for (const m of modules) {
-    moduleIdToSlug.set(m.id, m.slug);
+  // Find the Luv Chassis series
+  const { getLuvSeriesServer } = await import('./luv/cog-integration-server');
+  const chassisSeriesId = await getLuvSeriesServer('chassis');
+  if (!chassisSeriesId) {
+    console.warn('[chassis-study] No chassis series found');
+    return [];
   }
 
-  // Fetch module media (canonical images attached to modules)
-  const moduleIds = modules.map((m: { id: string }) => m.id);
-  const { data: media, error: mediaErr } = await (client as any)
-    .from('luv_chassis_module_media')
-    .select('storage_path, module_id, description')
-    .in('module_id', moduleIds)
-    .eq('type', 'image');
+  // Find tag IDs for the requested module slugs
+  const { data: tags } = await (client as any)
+    .from('cog_tags')
+    .select('id, name')
+    .in('name', moduleSlugs);
 
-  if (mediaErr && mediaErr.code !== 'PGRST205') throw mediaErr;
+  if (!tags || tags.length === 0) return [];
 
-  const results: { storagePath: string; moduleSlug: string; description: string | null }[] = [];
-  for (const item of media ?? []) {
-    results.push({
-      storagePath: item.storage_path,
-      moduleSlug: moduleIdToSlug.get(item.module_id) ?? 'unknown',
-      description: item.description,
-    });
+  const tagNameById = new Map<string, string>();
+  for (const t of tags) {
+    tagNameById.set(t.id, t.name);
   }
 
-  // Also fetch luv_references tagged with module slugs
-  const { data: refs, error: refErr } = await (client as any)
-    .from('luv_references')
-    .select('storage_path, tags, description')
-    .eq('type', 'canonical')
-    .overlaps('tags', moduleSlugs);
+  // Get all image IDs tagged with any of these module tags
+  const { data: taggedRows } = await (client as any)
+    .from('cog_image_tags')
+    .select('image_id, tag_id')
+    .in('tag_id', tags.map((t: { id: string }) => t.id));
 
-  if (refErr && refErr.code !== 'PGRST205') {
-    console.warn('[chassis-study] Failed to fetch references:', refErr);
-  } else if (refs) {
-    for (const ref of refs) {
-      const matchingSlug = moduleSlugs.find((s) => ref.tags?.includes(s)) ?? moduleSlugs[0];
-      results.push({
-        storagePath: ref.storage_path,
-        moduleSlug: matchingSlug,
-        description: ref.description,
-      });
+  if (!taggedRows || taggedRows.length === 0) return [];
+
+  // Map image_id → module slug(s)
+  const imageToSlug = new Map<string, string>();
+  for (const row of taggedRows) {
+    if (!imageToSlug.has(row.image_id)) {
+      imageToSlug.set(row.image_id, tagNameById.get(row.tag_id) ?? moduleSlugs[0]);
     }
   }
 
-  return results;
+  // Fetch the actual images from the chassis series
+  const imageIds = [...imageToSlug.keys()];
+  const { data: images } = await (client as any)
+    .from('cog_images')
+    .select('id, storage_path')
+    .eq('series_id', chassisSeriesId)
+    .in('id', imageIds)
+    .order('created_at', { ascending: false });
+
+  if (!images || images.length === 0) return [];
+
+  return images.map((img: { id: string; storage_path: string }) => ({
+    storagePath: img.storage_path,
+    moduleSlug: imageToSlug.get(img.id) ?? moduleSlugs[0],
+    description: null,
+  }));
 }
