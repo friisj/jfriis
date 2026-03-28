@@ -127,11 +127,11 @@ export const fetchSeriesImages = tool({
 
 export const moveImage = tool({
   description:
-    'Move an image to a different Luv series. Use targetSeriesKey (e.g. "module:face") or targetSeriesId.',
+    'Move an image to a different Luv series. Use targetSeriesKey or targetSeriesId.',
   inputSchema: zodSchema(
     z.object({
       imageId: z.string().describe('Image UUID to move'),
-      targetSeriesKey: z.string().optional().describe('Target series key (e.g. "module:face", "references")'),
+      targetSeriesKey: z.string().optional().describe('Target series key (e.g. "chassis", "sketches", "generations", "references", "studies")'),
       targetSeriesId: z.string().optional().describe('Target series UUID (alternative to key)'),
     })
   ),
@@ -153,7 +153,7 @@ export const copyImage = tool({
   inputSchema: zodSchema(
     z.object({
       imageId: z.string().describe('Image UUID to copy'),
-      targetSeriesKey: z.string().optional().describe('Target series key'),
+      targetSeriesKey: z.string().optional().describe('Target series key (e.g. "chassis", "sketches", "generations")'),
       targetSeriesId: z.string().optional().describe('Target series UUID'),
     })
   ),
