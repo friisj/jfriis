@@ -107,7 +107,6 @@ def fix_materials():
             bsdf = next((n for n in mat.node_tree.nodes if n.type == 'BSDF_PRINCIPLED'), None)
             if bsdf:
                 mat.blend_method = 'CLIP'  # Use alpha clip for clean edges
-                mat.shadow_method = 'CLIP'
                 # Set alpha cutoff via the BSDF Alpha input if not connected
                 if not bsdf.inputs['Alpha'].links:
                     # Check if the base color texture has alpha

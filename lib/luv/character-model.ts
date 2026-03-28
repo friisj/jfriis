@@ -164,18 +164,15 @@ export function applyMorphTargets(
 
 /**
  * Apply material property changes from CharacterState.
- * Matches materials by name convention:
- * - Skin material: name contains 'skin' or 'body'
- * - Eye material: name contains 'eye' or 'iris'
- * - Lip material: name contains 'lip' or 'mouth'
- * - Hair material: name contains 'hair'
  *
- * These name patterns can be customized via the materialNameMap parameter.
+ * Uses materialGroups from the manifest to apply properties to ALL materials
+ * in a group (e.g., skin color applied to head, body, arm, leg, etc.).
+ * Falls back to pattern matching when no groups are provided.
  */
 export function applyMaterials(
   scene: THREE.Group,
   materials: CharacterState['materials'],
-  materialNameMap?: Record<string, string>,
+  materialGroups?: Record<string, string[]>,
 ): void {
   const matMap = new Map<string, THREE.MeshStandardMaterial>();
   scene.traverse((child) => {
@@ -189,49 +186,47 @@ export function applyMaterials(
     }
   });
 
-  const findMat = (category: string, patterns: string[]): THREE.MeshStandardMaterial | undefined => {
-    // Check explicit name map first
-    if (materialNameMap?.[category]) {
-      return matMap.get(materialNameMap[category]);
+  const findMats = (category: string, fallbackPatterns: string[]): THREE.MeshStandardMaterial[] => {
+    // Use material groups if provided
+    if (materialGroups?.[category]) {
+      return materialGroups[category]
+        .map((name) => matMap.get(name))
+        .filter((m): m is THREE.MeshStandardMaterial => m !== undefined);
     }
-    // Fallback to pattern matching
+    // Fallback to pattern matching (first match only)
     for (const [name, mat] of matMap) {
       const lower = name.toLowerCase();
-      if (patterns.some((p) => lower.includes(p))) return mat;
+      if (fallbackPatterns.some((p) => lower.includes(p))) return [mat];
     }
-    return undefined;
+    return [];
   };
 
-  // Skin
-  const skinMat = findMat('skin', ['skin', 'body']);
-  if (skinMat) {
-    skinMat.color.set(materials.skin.color);
-    skinMat.roughness = materials.skin.roughness;
-    skinMat.metalness = materials.skin.metalness;
-    skinMat.needsUpdate = true;
+  // Skin — apply to ALL skin-group materials for consistent appearance
+  for (const mat of findMats('skin', ['skin', 'body'])) {
+    mat.color.set(materials.skin.color);
+    mat.roughness = materials.skin.roughness;
+    mat.metalness = materials.skin.metalness;
+    mat.needsUpdate = true;
   }
 
   // Eyes (iris)
-  const eyeMat = findMat('eyes', ['eye', 'iris']);
-  if (eyeMat) {
-    eyeMat.color.set(materials.eyes.irisColor);
-    eyeMat.needsUpdate = true;
+  for (const mat of findMats('eyes', ['eye', 'iris'])) {
+    mat.color.set(materials.eyes.irisColor);
+    mat.needsUpdate = true;
   }
 
   // Lips
-  const lipMat = findMat('lips', ['lip', 'mouth']);
-  if (lipMat) {
-    lipMat.color.set(materials.lips.color);
-    lipMat.needsUpdate = true;
+  for (const mat of findMats('lips', ['lip', 'mouth'])) {
+    mat.color.set(materials.lips.color);
+    mat.needsUpdate = true;
   }
 
-  // Hair
-  const hairMat = findMat('hair', ['hair']);
-  if (hairMat) {
-    hairMat.color.set(materials.hair.color);
-    hairMat.roughness = materials.hair.roughness;
-    hairMat.metalness = materials.hair.metalness;
-    hairMat.needsUpdate = true;
+  // Hair — apply to all hair materials (front + back)
+  for (const mat of findMats('hair', ['hair'])) {
+    mat.color.set(materials.hair.color);
+    mat.roughness = materials.hair.roughness;
+    mat.metalness = materials.hair.metalness;
+    mat.needsUpdate = true;
   }
 }
 
@@ -305,12 +300,12 @@ export function applyVisibility(
 export function applyCharacterState(
   scene: THREE.Group,
   state: CharacterState,
-  materialNameMap?: Record<string, string>,
+  materialGroups?: Record<string, string[]>,
 ): void {
   resetBoneTransforms(scene);
   applyBoneTransforms(scene, state.boneTransforms);
   applyMorphTargets(scene, state.morphTargets);
-  applyMaterials(scene, state.materials, materialNameMap);
+  applyMaterials(scene, state.materials, materialGroups);
   setHairVariant(scene, state.hairVariant);
   applyVisibility(scene, state.visibility);
 }
