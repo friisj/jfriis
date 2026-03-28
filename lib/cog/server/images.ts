@@ -72,7 +72,7 @@ export async function moveImageToSeriesServer(imageId: string, targetSeriesId: s
   const client = await createClient();
   const { data, error } = await (client as any)
     .from('cog_images')
-    .update({ series_id: targetSeriesId, group_id: imageId })
+    .update({ series_id: targetSeriesId, group_id: null })
     .eq('id', imageId)
     .select()
     .single();
@@ -92,17 +92,24 @@ export async function copyImageToSeriesServer(
   const client = await createClient();
   const original = await getImageByIdServer(imageId);
 
-  const { data: fileData, error: dlError } = await client.storage
+  // Use service role for storage operations
+  const { createClient: createSupabaseClient } = await import('@supabase/supabase-js');
+  const storageClient = createSupabaseClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+  );
+
+  const { data: fileData, error: dlError } = await storageClient.storage
     .from('cog-images')
     .download(original.storage_path);
 
   if (dlError || !fileData) throw new Error(`Download failed: ${dlError?.message}`);
 
   const ext = original.storage_path.split('.').pop() ?? 'png';
-  const dir = original.storage_path.substring(0, original.storage_path.lastIndexOf('/'));
-  const newPath = `${dir}/copy-${crypto.randomUUID()}.${ext}`;
+  // Copy into target series directory, not source series directory
+  const newPath = `${targetSeriesId}/copy-${crypto.randomUUID()}.${ext}`;
 
-  const { error: ulError } = await client.storage
+  const { error: ulError } = await storageClient.storage
     .from('cog-images')
     .upload(newPath, fileData, {
       contentType: original.mime_type || 'image/png',

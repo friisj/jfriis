@@ -19,8 +19,8 @@ import { getCogImageUrl } from './cog/images';
 
 const COG_IMAGES_BUCKET = 'cog-images';
 
-// Style prefix locked for all sketch generations
-const SKETCH_STYLE_PREFIX = `Detailed pencil sketch, anatomical study drawing, graphite on white paper, fine hatching and cross-hatching, technical illustration quality, proportional figure drawing, clean linework with subtle shading, art school life drawing study style.`;
+// Medium lock — pencil/graphite only. The drawing approach is agent-controlled via subject + styleNotes.
+const SKETCH_STYLE_PREFIX = `Pencil sketch on paper, graphite drawing, traditional media.`;
 
 export interface SketchStudyInput {
   /** What to draw — the subject description */
@@ -62,9 +62,9 @@ function serviceClient() {
  */
 function composeSketchPrompt(input: SketchStudyInput): string {
   const focusModifiers: Record<string, string> = {
-    assembly: 'Full figure or regional anatomy study, showing structural relationships between body parts.',
-    detail: 'Close-up anatomical detail study, emphasis on form, proportion, and surface quality.',
-    dynamics: 'Dynamic gesture drawing, capturing movement, weight, and energy. Loose but intentional lines.',
+    assembly: 'Full figure or regional view.',
+    detail: 'Close-up detail.',
+    dynamics: 'Dynamic gesture, capturing movement.',
   };
 
   const parts = [
