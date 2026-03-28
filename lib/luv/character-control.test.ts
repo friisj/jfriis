@@ -218,6 +218,55 @@ describe('chassisToCharacterState', () => {
     expect(state.boneTransforms['DEF-spine.00R']).toBeUndefined();
   });
 
+  // Native morph mapping tests
+  it('applies native morph mapping from manifest', () => {
+    const manifest = {
+      ...PLACEHOLDER_MANIFEST,
+      morphTargets: ['nostril_out.L', 'nostril_out.R', 'nostril_in.L', 'nostril_in.R'],
+      nativeMorphMapping: {
+        'nose.nostril_shape': {
+          flared: { 'nostril_out.L': 0.6, 'nostril_out.R': 0.6 },
+          narrow: { 'nostril_in.L': 0.5, 'nostril_in.R': 0.5 },
+        },
+      },
+    };
+    const modules = [makeModule('nose', { nostril_shape: 'flared' })];
+    const state = chassisToCharacterState(modules, manifest);
+    expect(state.morphTargets['nostril_out.L']).toBe(0.6);
+    expect(state.morphTargets['nostril_out.R']).toBe(0.6);
+  });
+
+  it('does not report gap when native morph mapping handles the param', () => {
+    const manifest = {
+      ...PLACEHOLDER_MANIFEST,
+      morphTargets: ['nostril_out.L', 'nostril_out.R'],
+      nativeMorphMapping: {
+        'nose.nostril_shape': {
+          flared: { 'nostril_out.L': 0.6, 'nostril_out.R': 0.6 },
+        },
+      },
+    };
+    const modules = [makeModule('nose', { nostril_shape: 'flared' })];
+    const state = chassisToCharacterState(modules, manifest);
+    expect(state.gaps.find((g) => g.includes('nostril_shape'))).toBeUndefined();
+  });
+
+  it('reports gap when neither native nor custom morph covers the param', () => {
+    const manifest = {
+      ...PLACEHOLDER_MANIFEST,
+      morphTargets: ['nostril_out.L'],
+      nativeMorphMapping: {
+        'nose.nostril_shape': {
+          flared: { 'nostril_out.L': 0.6 },
+          // 'narrow' not mapped
+        },
+      },
+    };
+    const modules = [makeModule('nose', { nostril_shape: 'narrow' })];
+    const state = chassisToCharacterState(modules, manifest);
+    expect(state.gaps.find((g) => g.includes('nostril_shape'))).toBeDefined();
+  });
+
   // Ratio tests
   it('maps shoulder_to_hip ratio to bone bias', () => {
     const modules = [

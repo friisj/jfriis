@@ -335,7 +335,27 @@ export function chassisToCharacterState(
   applyBoneScaleMultiplier(state, manifest, 'thigh', [1, legBias, 1]);
   applyBoneScaleMultiplier(state, manifest, 'shin', [1, legBias, 1]);
 
-  // --- Morph targets (facial detail) ---
+  // --- Morph targets ---
+  // Two systems: native morph mapping (Joy model's existing morphs) and
+  // custom morph targets (luv_ prefixed, added in Blender). Native morphs
+  // repurpose expression shape keys for structural approximation.
+
+  // 1. Native morph mapping — use existing Joy morphs for chassis params
+  if (manifest?.nativeMorphMapping) {
+    for (const [chassisKey, enumMap] of Object.entries(manifest.nativeMorphMapping)) {
+      const [modSlug, paramKey] = chassisKey.split('.');
+      const value = getModuleParam(modules, modSlug, paramKey);
+      if (typeof value !== 'string' || !enumMap[value]) continue;
+      for (const [morphName, weight] of Object.entries(enumMap[value])) {
+        if (manifest.morphTargets.includes(morphName)) {
+          // Additive — multiple chassis params can contribute to the same morph
+          state.morphTargets[morphName] = Math.min(1, (state.morphTargets[morphName] ?? 0) + weight);
+        }
+      }
+    }
+  }
+
+  // 2. Custom morph targets (luv_ prefixed — added in Blender for precise control)
   const faceEnumParams = [
     { mod: 'skeletal', param: 'face_shape' },
     { mod: 'skeletal', param: 'cheekbones' },
@@ -357,7 +377,12 @@ export function chassisToCharacterState(
 
     const morphName = `luv_${mod}_${param}_${value}`;
     if (manifest && !manifest.morphTargets.includes(morphName)) {
-      state.gaps.push(`${mod}.${param} (${value}) → ${morphName}`);
+      // Only report as gap if no native mapping handled it either
+      const nativeKey = `${mod}.${param}`;
+      const hasNativeMapping = manifest.nativeMorphMapping?.[nativeKey]?.[value];
+      if (!hasNativeMapping) {
+        state.gaps.push(`${mod}.${param} (${value}) → ${morphName}`);
+      }
       continue;
     }
     state.morphTargets[morphName] = 1.0;

@@ -37,6 +37,13 @@ export interface CharacterManifest {
    * This ensures consistent appearance across body regions.
    */
   materialGroups?: Record<string, string[]>;
+  /**
+   * Maps chassis params to native morph targets on this model.
+   * Keys are `{moduleSlug}.{paramKey}`, values map enum options to
+   * morph target weights. Repurposes expression morphs for structural
+   * approximation until custom shape keys are added.
+   */
+  nativeMorphMapping?: Record<string, Record<string, Record<string, number>>>;
 }
 
 /**
@@ -186,6 +193,56 @@ export const JOY_MANIFEST: CharacterManifest = {
     eyes: ['pupil'],
     lips: ['lips'],
     hair: ['hair_front', 'hair_back'],
+  },
+
+  // Map chassis params → Joy model's native morph targets.
+  // These are expression morphs repurposed for structural approximation.
+  // Weights are tuned conservatively (0.3-0.7) since these weren't designed
+  // for permanent structural deformation.
+  nativeMorphMapping: {
+    // --- Nose ---
+    'nose.nostril_shape': {
+      narrow:  { 'nostril_in.L': 0.5, 'nostril_in.R': 0.5 },
+      flared:  { 'nostril_out.L': 0.6, 'nostril_out.R': 0.6 },
+      // 'average' = no morph (default pose)
+    },
+
+    // --- Eyes ---
+    'eyes.brow_shape': {
+      straight: { 'brow_mid_down.L': 0.3, 'brow_mid_down.R': 0.3, 'brow_outer_down.L': 0.2, 'brow_outer_down.R': 0.2 },
+      arched:   { 'brow_mid_up.L': 0.4, 'brow_mid_up.R': 0.4, 'brow_outer_up.L': 0.3, 'brow_outer_up.R': 0.3 },
+      rounded:  { 'brow_mid_up.L': 0.3, 'brow_mid_up.R': 0.3 },
+      angular:  { 'brow_inner.L': 0.3, 'brow_inner.R': 0.3, 'brow_outer_down.L': 0.2, 'brow_outer_down.R': 0.2 },
+      'S-shaped': { 'brow_inner.L': 0.2, 'brow_inner.R': 0.2, 'brow_mid_up.L': 0.3, 'brow_mid_up.R': 0.3, 'brow_outer_down.L': 0.15, 'brow_outer_down.R': 0.15 },
+    },
+    'eyes.shape': {
+      hooded:     { 'blink_upper_down.L': 0.3, 'blink_upper_down.R': 0.3 },
+      upturned:   { 'brow_outer_up.L': 0.2, 'brow_outer_up.R': 0.2 },
+      downturned: { 'brow_outer_down.L': 0.25, 'brow_outer_down.R': 0.25 },
+      // almond, round, monolid = no native morph approximation
+    },
+
+    // --- Mouth ---
+    'mouth.lip_shape': {
+      thin:  { 'lip_roll_upper_in.L': 0.3, 'lip_roll_upper_in.R': 0.3, 'lip_roll_lower_in.L': 0.3, 'lip_roll_lower_in.R': 0.3 },
+      full:  { 'lip_roll_upper_out.L': 0.3, 'lip_roll_upper_out.R': 0.3, 'lip_roll_lower_out.L': 0.3, 'lip_roll_lower_out.R': 0.3 },
+      bow:   { 'lip_roll_upper_out.L': 0.4, 'lip_roll_upper_out.R': 0.4 },
+      wide:  { 'lip_pull_out.L': 0.3, 'lip_pull_out.R': 0.3 },
+      // medium, heart = no native morph approximation
+    },
+    'mouth.mouth_width': {
+      narrow: { 'lip_pull_in.L': 0.3, 'lip_pull_in.R': 0.3 },
+      wide:   { 'lip_pull_out.L': 0.3, 'lip_pull_out.R': 0.3 },
+      // average = no morph
+    },
+
+    // --- Skeletal ---
+    'skeletal.cheekbones': {
+      flat:      { 'cheek_puff_in.L': 0.3, 'cheek_puff_in.R': 0.3 },
+      prominent: { 'cheek_puff_out.L': 0.3, 'cheek_puff_out.R': 0.3 },
+      high:      { 'cheek_puff_out.L': 0.4, 'cheek_puff_out.R': 0.4 },
+      // subtle, defined = no morph
+    },
   },
 };
 
