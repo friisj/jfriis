@@ -13,6 +13,7 @@ import { getSeriesImagesServer, getImageByIdServer, moveImageToSeriesServer, cop
 import { createSeriesServer, setSeriesPrimaryImageServer } from './cog/server/series';
 import { addTagToImageServer, removeTagFromImageServer, getImageTagsServer } from './cog/server/tags';
 import { resolveImageAsBase64 } from './luv-image-utils';
+import { getCogImageUrl } from './cog/images';
 
 // ============================================================================
 // Series browsing
@@ -85,6 +86,7 @@ export const fetchSeriesImages = tool({
         id: img.id,
         filename: img.filename,
         prompt: img.prompt,
+        url: getCogImageUrl(img.storage_path),
         storagePath: img.storage_path,
         seriesId: img.series_id,
         source: img.source,

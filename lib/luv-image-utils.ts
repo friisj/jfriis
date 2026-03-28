@@ -8,12 +8,12 @@
 export type MediaType = 'image/png' | 'image/jpeg' | 'image/webp' | 'image/gif';
 
 /**
- * Determine which storage bucket a Luv image lives in.
- * New images use `cog-images` bucket with `luv/` prefix.
- * Old images remain in `luv-images` bucket.
+ * Determine which storage bucket an image lives in.
+ * All cog_images records use `cog-images` bucket.
+ * Only legacy luv_references/luv_generations used `luv-images`.
  */
-export function resolveStorageBucket(storagePath: string): string {
-  return storagePath.startsWith('luv/') ? 'cog-images' : 'luv-images';
+export function resolveStorageBucket(_storagePath: string): string {
+  return 'cog-images';
 }
 
 function inferMediaType(path: string): MediaType {
