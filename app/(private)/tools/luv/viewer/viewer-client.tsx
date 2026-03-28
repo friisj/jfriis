@@ -3,7 +3,7 @@
 import { useState, useMemo, useCallback, useEffect } from 'react';
 import type { LuvChassisModule } from '@/lib/types/luv-chassis';
 import { chassisToCharacterState } from '@/lib/luv/character-control';
-import { PLACEHOLDER_MANIFEST } from '@/lib/luv/character-manifest';
+import { JOY_MANIFEST, PLACEHOLDER_MANIFEST } from '@/lib/luv/character-manifest';
 import type { ModelIntrospection } from '@/lib/luv/character-model';
 import { CharacterScene } from './components/character-scene';
 import { DebugPanel } from './components/debug-panel';
@@ -21,9 +21,10 @@ export function ViewerClient({ initialModules, modelAvailable }: ViewerClientPro
   const [showDebug, setShowDebug] = useState(true);
 
   // Compute character state from chassis modules
+  const manifest = modelAvailable ? JOY_MANIFEST : PLACEHOLDER_MANIFEST;
   const characterState = useMemo(
-    () => chassisToCharacterState(modules, PLACEHOLDER_MANIFEST),
-    [modules],
+    () => chassisToCharacterState(modules, manifest),
+    [modules, manifest],
   );
 
   const handleIntrospection = useCallback((data: ModelIntrospection) => {

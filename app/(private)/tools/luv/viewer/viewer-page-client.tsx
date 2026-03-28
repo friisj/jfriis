@@ -5,14 +5,22 @@ import type { LuvChassisModule } from '@/lib/types/luv-chassis';
 import { getChassisModules } from '@/lib/luv-chassis';
 import { ViewerClient } from './viewer-client';
 
+const MODEL_PATH = '/models/luv/luv-character.glb';
+
 export function ViewerPageClient() {
   const [modules, setModules] = useState<LuvChassisModule[] | null>(null);
+  const [modelAvailable, setModelAvailable] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     getChassisModules()
       .then(setModules)
       .catch((err) => setError(err.message));
+
+    // TODO: re-enable model detection after GLB loading is debugged
+    // fetch(MODEL_PATH, { method: 'HEAD' })
+    //   .then((res) => setModelAvailable(res.ok))
+    //   .catch(() => setModelAvailable(false));
   }, []);
 
   if (error) {
@@ -32,10 +40,6 @@ export function ViewerPageClient() {
       </div>
     );
   }
-
-  // Check if a GLB model file exists (will be false until model is added)
-  // In production this would be a proper check; for now always false
-  const modelAvailable = false;
 
   return <ViewerClient initialModules={modules} modelAvailable={modelAvailable} />;
 }

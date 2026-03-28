@@ -47,5 +47,9 @@ yarn-error.log*
 next-env.d.ts
 .envrc
 
+# 3D model assets (too large for git, managed separately)
+public/models/**/*.glb
+public/models/**/*.gltf
+
 # Claude Code local overrides (personal, not committed)
 .claude/settings.local.json

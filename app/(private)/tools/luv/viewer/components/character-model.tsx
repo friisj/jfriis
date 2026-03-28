@@ -10,7 +10,7 @@ import {
 } from '@/lib/luv/character-model';
 import type { ModelIntrospection } from '@/lib/luv/character-model';
 
-const MODEL_PATH = '/models/luv-character.glb';
+const MODEL_PATH = '/models/luv/luv-character.glb';
 
 interface CharacterModelProps {
   state: CharacterState;

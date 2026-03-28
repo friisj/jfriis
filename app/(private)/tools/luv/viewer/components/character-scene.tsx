@@ -2,7 +2,7 @@
 
 import { Suspense, useState, useCallback, useRef, useEffect } from 'react';
 import { Canvas } from '@react-three/fiber';
-import { OrbitControls, ContactShadows, Environment } from '@react-three/drei';
+import { OrbitControls, ContactShadows } from '@react-three/drei';
 import * as THREE from 'three';
 import type { CharacterState } from '@/lib/luv/character-control';
 import type { ModelIntrospection } from '@/lib/luv/character-model';
@@ -105,7 +105,6 @@ export function CharacterScene({
       <color attach="background" args={['#1a1a1a']} />
 
       <SceneLighting />
-      <Environment preset="studio" />
 
       <Suspense fallback={<LoadingFallback />}>
         {showPlaceholder ? (
