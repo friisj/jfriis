@@ -10,6 +10,7 @@ import type { CharacterState } from '@/lib/luv/character-control';
 import { JOY_MANIFEST } from '@/lib/luv/character-manifest';
 import {
   applyCharacterState,
+  applyMorphTargets,
   storeRestPose,
   introspectModel,
 } from '@/lib/luv/character-model';
@@ -21,9 +22,11 @@ const MODEL_PATH = '/models/luv/luv-character.glb';
 
 function CharacterModel({
   state,
+  morphOverrides,
   onIntrospection,
 }: {
   state: CharacterState;
+  morphOverrides: Record<string, number>;
   onIntrospection?: (data: ModelIntrospection) => void;
 }) {
   const { scene } = useGLTF(MODEL_PATH);
@@ -39,23 +42,16 @@ function CharacterModel({
     if (onIntrospection) {
       onIntrospection(introspectModel(clonedScene));
     }
-
-    // Log mesh visibility for debugging
-    clonedScene.traverse((child: THREE.Object3D) => {
-      if (child instanceof THREE.Mesh || child instanceof THREE.SkinnedMesh) {
-        const mat = child.material as THREE.MeshStandardMaterial;
-        const isTransparent = mat.transparent || mat.alphaTest > 0;
-        console.log(
-          `[mesh] ${child.name} visible=${child.visible} transparent=${isTransparent} alphaTest=${mat.alphaTest} opacity=${mat.opacity}`,
-        );
-      }
-    });
   }, [clonedScene, onIntrospection]);
 
   useEffect(() => {
     if (!restPoseStored.current) return;
-    applyCharacterState(clonedScene, state);
-  }, [clonedScene, state]);
+    applyCharacterState(clonedScene, state, JOY_MANIFEST.materialGroups);
+    // Apply manual morph overrides on top of chassis-driven state
+    if (Object.keys(morphOverrides).length > 0) {
+      applyMorphTargets(clonedScene, morphOverrides);
+    }
+  }, [clonedScene, state, morphOverrides]);
 
   return <primitive object={clonedScene} />;
 }
@@ -74,10 +70,12 @@ export default function LuvViewerPage() {
   const [modelAvailable, setModelAvailable] = useState(false);
   const [activePreset, setActivePreset] = useState(DEFAULT_PRESET);
   const [introspection, setIntrospection] = useState<ModelIntrospection | null>(null);
+  const [morphOverrides, setMorphOverrides] = useState<Record<string, number>>({});
   const [showDebug, setShowDebug] = useState(true);
 
   const preset = CAMERA_PRESETS[activePreset] ?? CAMERA_PRESETS[DEFAULT_PRESET];
 
+  // Initial data load
   useEffect(() => {
     import('@/lib/luv-chassis').then(({ getChassisModules }) => {
       getChassisModules().then(setModules).catch(console.error);
@@ -85,6 +83,32 @@ export default function LuvViewerPage() {
     fetch(MODEL_PATH, { method: 'HEAD' })
       .then((res) => setModelAvailable(res.ok))
       .catch(() => setModelAvailable(false));
+  }, []);
+
+  // Realtime subscription — updates viewer when chassis params change
+  useEffect(() => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Supabase channel type
+    let channel: any = null;
+
+    import('@/lib/supabase').then(({ supabase }) => {
+      channel = supabase
+        .channel('luv-chassis-viewer')
+        .on(
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Supabase realtime event type
+          'postgres_changes' as any,
+          { event: '*', schema: 'public', table: 'luv_chassis_modules' },
+          () => {
+            import('@/lib/luv-chassis').then(({ getChassisModules }) => {
+              getChassisModules().then(setModules).catch(console.error);
+            });
+          },
+        )
+        .subscribe();
+    });
+
+    return () => {
+      if (channel) channel.unsubscribe();
+    };
   }, []);
 
   const characterState = useMemo(() => {
@@ -97,7 +121,7 @@ export default function LuvViewerPage() {
   }, []);
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full relative">
       {/* Toolbar */}
       <div className="flex items-center gap-2 px-3 py-2 border-b shrink-0">
         <span className="text-sm font-medium mr-4">Luv Viewer</span>
@@ -136,8 +160,9 @@ export default function LuvViewerPage() {
       </div>
 
       {/* Scene */}
-      <div className="flex-1 relative" style={{ zIndex: 0 }}>
-        <Canvas style={{ position: 'absolute', inset: 0 }}
+      <div className="flex-1 relative">
+        <Canvas
+          style={{ position: 'absolute', inset: 0 }}
           camera={{ position: preset.position, fov: preset.fov, near: 0.01, far: 100 }}
           gl={{ antialias: true, toneMapping: THREE.ACESFilmicToneMapping }}
         >
@@ -148,7 +173,7 @@ export default function LuvViewerPage() {
 
           <Suspense fallback={<PlaceholderBox />}>
             {modelAvailable ? (
-              <CharacterModel state={characterState} onIntrospection={handleIntrospection} />
+              <CharacterModel state={characterState} morphOverrides={morphOverrides} onIntrospection={handleIntrospection} />
             ) : (
               <PlaceholderBox />
             )}
@@ -157,19 +182,20 @@ export default function LuvViewerPage() {
           <gridHelper args={[4, 20, '#333333', '#222222']} />
           <OrbitControls target={[0, 0.9, 0]} />
         </Canvas>
-
-        {showDebug && (
-          <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 10 }}>
-            <div className="pointer-events-auto">
-              <DebugPanel
-                characterState={characterState}
-                introspection={introspection}
-                modelLoaded={modelAvailable}
-              />
-            </div>
-          </div>
-        )}
       </div>
+
+      {/* Debug overlay — positioned over the scene */}
+      {showDebug && (
+        <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 1 }}>
+          <DebugPanel
+            characterState={characterState}
+            introspection={introspection}
+            modelLoaded={modelAvailable}
+            morphOverrides={morphOverrides}
+            onMorphOverride={setMorphOverrides}
+          />
+        </div>
+      )}
     </div>
   );
 }

@@ -32,10 +32,11 @@ export interface CharacterManifest {
    */
   boneAliases: Record<string, string>;
   /**
-   * Maps material category names (used in character-model.ts) to the
-   * actual material names in this model.
+   * Maps material category names to arrays of actual material names.
+   * All materials in a group receive the same properties (color, roughness, etc.)
+   * This ensures consistent appearance across body regions.
    */
-  materialMap?: Record<string, string>;
+  materialGroups?: Record<string, string[]>;
 }
 
 /**
@@ -178,12 +179,13 @@ export const JOY_MANIFEST: CharacterManifest = {
     nose: 'nose.L',                // .R auto-mirrored
   },
 
-  // Map material categories to actual material names in the model
-  materialMap: {
-    skin: 'head',      // Main skin material (head has face skin)
-    eyes: 'pupil',     // Iris/pupil material
-    lips: 'lips',      // Lip material
-    hair: 'hair_front', // Primary hair material
+  // Map material categories to ALL material names in that group.
+  // All materials in a group get the same color/roughness/metalness.
+  materialGroups: {
+    skin: ['head', 'body', 'arm', 'leg', 'genital', 'nail'],
+    eyes: ['pupil'],
+    lips: ['lips'],
+    hair: ['hair_front', 'hair_back'],
   },
 };
 
