@@ -242,17 +242,32 @@ export function applyMaterials(
 /**
  * Show only the hair mesh matching the given variant.
  * Hides all meshes whose name contains 'hair' except the active one.
+ * If only one hair mesh exists (or no variant names match), all hair meshes stay visible.
  */
 export function setHairVariant(scene: THREE.Group, variant: string): void {
+  const hairMeshes: (THREE.Mesh | THREE.SkinnedMesh)[] = [];
   scene.traverse((child) => {
     if (child instanceof THREE.Mesh || child instanceof THREE.SkinnedMesh) {
-      const lower = child.name.toLowerCase();
-      if (lower.includes('hair')) {
-        child.visible = lower.includes(variant.replace('-', '').toLowerCase()) ||
-                        lower.includes(variant.replace('-', '_').toLowerCase());
+      if (child.name.toLowerCase().includes('hair')) {
+        hairMeshes.push(child);
       }
     }
   });
+
+  // Check if any mesh name matches the variant
+  const variantNorm = variant.replace(/-/g, '').toLowerCase();
+  const variantUnderscore = variant.replace(/-/g, '_').toLowerCase();
+  const hasMatch = hairMeshes.some(
+    (m) => m.name.toLowerCase().includes(variantNorm) || m.name.toLowerCase().includes(variantUnderscore),
+  );
+
+  // If no variant matches (single-style model), keep all hair visible
+  if (!hasMatch) return;
+
+  for (const mesh of hairMeshes) {
+    const lower = mesh.name.toLowerCase();
+    mesh.visible = lower.includes(variantNorm) || lower.includes(variantUnderscore);
+  }
 }
 
 // ---------------------------------------------------------------------------

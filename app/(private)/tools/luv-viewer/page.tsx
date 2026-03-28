@@ -15,10 +15,17 @@ import {
 } from '@/lib/luv/character-model';
 import type { ModelIntrospection } from '@/lib/luv/character-model';
 import { CAMERA_PRESETS, DEFAULT_PRESET } from '../luv/viewer/components/camera-presets';
+import { DebugPanel } from '../luv/viewer/components/debug-panel';
 
 const MODEL_PATH = '/models/luv/luv-character.glb';
 
-function CharacterModel({ state }: { state: CharacterState }) {
+function CharacterModel({
+  state,
+  onIntrospection,
+}: {
+  state: CharacterState;
+  onIntrospection?: (data: ModelIntrospection) => void;
+}) {
   const { scene } = useGLTF(MODEL_PATH);
   const restPoseStored = useRef(false);
 
@@ -28,7 +35,22 @@ function CharacterModel({ state }: { state: CharacterState }) {
     restPoseStored.current = false;
     storeRestPose(clonedScene);
     restPoseStored.current = true;
-  }, [clonedScene]);
+
+    if (onIntrospection) {
+      onIntrospection(introspectModel(clonedScene));
+    }
+
+    // Log mesh visibility for debugging
+    clonedScene.traverse((child: THREE.Object3D) => {
+      if (child instanceof THREE.Mesh || child instanceof THREE.SkinnedMesh) {
+        const mat = child.material as THREE.MeshStandardMaterial;
+        const isTransparent = mat.transparent || mat.alphaTest > 0;
+        console.log(
+          `[mesh] ${child.name} visible=${child.visible} transparent=${isTransparent} alphaTest=${mat.alphaTest} opacity=${mat.opacity}`,
+        );
+      }
+    });
+  }, [clonedScene, onIntrospection]);
 
   useEffect(() => {
     if (!restPoseStored.current) return;
@@ -52,6 +74,7 @@ export default function LuvViewerPage() {
   const [modelAvailable, setModelAvailable] = useState(false);
   const [activePreset, setActivePreset] = useState(DEFAULT_PRESET);
   const [introspection, setIntrospection] = useState<ModelIntrospection | null>(null);
+  const [showDebug, setShowDebug] = useState(true);
 
   const preset = CAMERA_PRESETS[activePreset] ?? CAMERA_PRESETS[DEFAULT_PRESET];
 
@@ -59,7 +82,6 @@ export default function LuvViewerPage() {
     import('@/lib/luv-chassis').then(({ getChassisModules }) => {
       getChassisModules().then(setModules).catch(console.error);
     });
-
     fetch(MODEL_PATH, { method: 'HEAD' })
       .then((res) => setModelAvailable(res.ok))
       .catch(() => setModelAvailable(false));
@@ -69,6 +91,10 @@ export default function LuvViewerPage() {
     if (!modules) return DEFAULT_CHARACTER_STATE;
     return chassisToCharacterState(modules, JOY_MANIFEST);
   }, [modules]);
+
+  const handleIntrospection = useCallback((data: ModelIntrospection) => {
+    setIntrospection(data);
+  }, []);
 
   return (
     <div className="flex flex-col h-full">
@@ -81,7 +107,9 @@ export default function LuvViewerPage() {
               key={key}
               onClick={() => setActivePreset(key)}
               className={`px-2 py-1 text-xs rounded ${
-                activePreset === key ? 'bg-foreground text-background' : 'bg-accent/50 text-muted-foreground'
+                activePreset === key
+                  ? 'bg-foreground text-background'
+                  : 'bg-accent/50 text-muted-foreground hover:text-foreground'
               }`}
             >
               {p.label}
@@ -89,15 +117,27 @@ export default function LuvViewerPage() {
           ))}
         </div>
         <div className="flex-1" />
+        <button
+          onClick={() => setShowDebug(!showDebug)}
+          className={`px-2 py-1 text-xs rounded ${
+            showDebug
+              ? 'bg-foreground text-background'
+              : 'bg-accent/50 text-muted-foreground hover:text-foreground'
+          }`}
+        >
+          Debug
+        </button>
         <span className="text-xs text-muted-foreground flex items-center gap-1.5">
-          <span className={`w-2 h-2 rounded-full ${modelAvailable ? 'bg-green-500' : 'bg-yellow-500'}`} />
+          <span
+            className={`w-2 h-2 rounded-full ${modelAvailable ? 'bg-green-500' : 'bg-yellow-500'}`}
+          />
           {modelAvailable ? 'Model' : 'Placeholder'}
         </span>
       </div>
 
       {/* Scene */}
-      <div className="flex-1">
-        <Canvas
+      <div className="flex-1 relative" style={{ zIndex: 0 }}>
+        <Canvas style={{ position: 'absolute', inset: 0 }}
           camera={{ position: preset.position, fov: preset.fov, near: 0.01, far: 100 }}
           gl={{ antialias: true, toneMapping: THREE.ACESFilmicToneMapping }}
         >
@@ -108,7 +148,7 @@ export default function LuvViewerPage() {
 
           <Suspense fallback={<PlaceholderBox />}>
             {modelAvailable ? (
-              <CharacterModel state={characterState} />
+              <CharacterModel state={characterState} onIntrospection={handleIntrospection} />
             ) : (
               <PlaceholderBox />
             )}
@@ -117,6 +157,18 @@ export default function LuvViewerPage() {
           <gridHelper args={[4, 20, '#333333', '#222222']} />
           <OrbitControls target={[0, 0.9, 0]} />
         </Canvas>
+
+        {showDebug && (
+          <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 10 }}>
+            <div className="pointer-events-auto">
+              <DebugPanel
+                characterState={characterState}
+                introspection={introspection}
+                modelLoaded={modelAvailable}
+              />
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
