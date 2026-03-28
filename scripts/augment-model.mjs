@@ -20,77 +20,12 @@ const BASE_PATH = path.resolve(__dirname, '../public/models/luv/luv-character-ba
 const OUTPUT_PATH = path.resolve(__dirname, '../public/models/luv/luv-character.glb');
 
 // ---------------------------------------------------------------------------
-// Shape key definitions
+// Shape key definitions — imported from per-module config files
 // ---------------------------------------------------------------------------
 
-/**
- * Each definition describes one atomic shape key axis.
- * - name: morph target name (luv_ prefix)
- * - bones: bone names to select vertices from (by JOINTS_0/WEIGHTS_0)
- * - axis: displacement direction [x, y, z] — normalized
- * - magnitude: max displacement in model units at weight=1.0
- * - weightThreshold: minimum bone weight to include a vertex
- * - symmetric: if true, X displacement is mirrored for L/R bones
- */
-const SHAPE_KEY_DEFS = [
-  // --- Nose ---
-  {
-    name: 'luv_nose_bridge_width',
-    bones: ['DEF-nose_bridge.L', 'DEF-nose_bridge.R'],
-    axis: [1, 0, 0],
-    magnitude: 0.004,
-    symmetric: true,
-  },
-  {
-    name: 'luv_nose_bridge_depth',
-    bones: ['DEF-nose_bridge.L', 'DEF-nose_bridge.R'],
-    axis: [0, 0, 1],
-    magnitude: 0.004,
-  },
-  {
-    name: 'luv_nose_bridge_height',
-    bones: ['DEF-nose_bridge.L', 'DEF-nose_bridge.R'],
-    axis: [0, 1, 0],
-    magnitude: 0.003,
-  },
-  {
-    name: 'luv_nose_tip_height',
-    bones: ['DEF-nostril_low.L', 'DEF-nostril_low.R', 'DEF-nostril.L', 'DEF-nostril.R'],
-    axis: [0, 1, 0],
-    magnitude: 0.004,
-  },
-  {
-    name: 'luv_nose_tip_projection',
-    bones: ['DEF-nostril_low.L', 'DEF-nostril_low.R', 'DEF-nostril.L', 'DEF-nostril.R'],
-    axis: [0, 0, 1],
-    magnitude: 0.005,
-  },
-  {
-    name: 'luv_nose_nostril_width',
-    bones: ['DEF-nostril.L', 'DEF-nostril.R', 'DEF-nostril_low.L', 'DEF-nostril_low.R'],
-    axis: [1, 0, 0],
-    magnitude: 0.004,
-    symmetric: true,
-  },
-  {
-    name: 'luv_nose_nostril_height',
-    bones: ['DEF-nostril.L', 'DEF-nostril.R', 'DEF-nostril_low.L', 'DEF-nostril_low.R'],
-    axis: [0, 1, 0],
-    magnitude: 0.003,
-  },
-  {
-    name: 'luv_nose_size',
-    bones: [
-      'nose.L', 'nose.R',
-      'DEF-nose_bridge.L', 'DEF-nose_bridge.R',
-      'DEF-nostril.L', 'DEF-nostril.R',
-      'DEF-nostril_low.L', 'DEF-nostril_low.R',
-    ],
-    axis: [1, 1, 1], // uniform scale (displacement from centroid)
-    magnitude: 0.005,
-    useRadial: true, // displace radially from centroid instead of along axis
-  },
-];
+import { ALL_SHAPE_KEY_DEFS } from '../lib/luv/shape-key-defs/index.mjs';
+
+const SHAPE_KEY_DEFS = ALL_SHAPE_KEY_DEFS;
 
 const WEIGHT_THRESHOLD = 0.01;
 
