@@ -161,23 +161,24 @@ describe('chassisToCharacterState', () => {
   });
 
   // Morph target tests
-  it('generates morph target names for face params (with placeholder manifest, all become gaps)', () => {
+  it('applies composition-based morph targets for face params', () => {
+    // With placeholder manifest (no morph targets), composition morphs are skipped
     const modules = [makeModule('skeletal', { face_shape: 'oval' })];
     const state = chassisToCharacterState(modules, PLACEHOLDER_MANIFEST);
-    // With placeholder manifest (no morph targets), this should be a gap
-    expect(state.gaps).toContain('skeletal.face_shape (oval) → luv_skeletal_face_shape_oval');
-    expect(state.morphTargets['luv_skeletal_face_shape_oval']).toBeUndefined();
+    // Composition morphs (luv_jaw_width etc.) are filtered out by manifest
+    expect(Object.keys(state.morphTargets).filter(k => k.startsWith('luv_'))).toHaveLength(0);
   });
 
-  it('sets morph target when manifest includes it', () => {
+  it('sets composition morph targets when manifest includes them', () => {
     const manifest = {
       ...PLACEHOLDER_MANIFEST,
-      morphTargets: ['luv_skeletal_face_shape_oval'],
+      // face_shape=oval composes: luv_jaw_width, luv_cheekbone_prominence, luv_chin_height, luv_forehead_width
+      morphTargets: ['luv_jaw_width', 'luv_cheekbone_prominence', 'luv_chin_height', 'luv_forehead_width'],
     };
     const modules = [makeModule('skeletal', { face_shape: 'oval' })];
     const state = chassisToCharacterState(modules, manifest);
-    expect(state.morphTargets['luv_skeletal_face_shape_oval']).toBe(1.0);
-    expect(state.gaps).not.toContain('skeletal.face_shape (oval) → luv_skeletal_face_shape_oval');
+    // Oval face has cheekbone_prominence: 0.2
+    expect(state.morphTargets['luv_cheekbone_prominence']).toBe(0.2);
   });
 
   it('resolves bone aliases from manifest', () => {
@@ -251,20 +252,15 @@ describe('chassisToCharacterState', () => {
     expect(state.gaps.find((g) => g.includes('nostril_shape'))).toBeUndefined();
   });
 
-  it('reports gap when neither native nor custom morph covers the param', () => {
+  it('reports gap when no composition, bone scale, or native morph covers the param', () => {
     const manifest = {
       ...PLACEHOLDER_MANIFEST,
-      morphTargets: ['nostril_out.L'],
-      nativeMorphMapping: {
-        'nose.nostril_shape': {
-          flared: { 'nostril_out.L': 0.6 },
-          // 'narrow' not mapped
-        },
-      },
+      morphTargets: [],
     };
-    const modules = [makeModule('nose', { nostril_shape: 'narrow' })];
+    // skin_thickness has no composition in the registry
+    const modules = [makeModule('nose', { skin_thickness: 'thin' })];
     const state = chassisToCharacterState(modules, manifest);
-    expect(state.gaps.find((g) => g.includes('nostril_shape'))).toBeDefined();
+    expect(state.gaps).toContain('nose.skin_thickness');
   });
 
   // Ratio tests

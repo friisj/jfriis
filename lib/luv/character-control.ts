@@ -125,7 +125,7 @@ const MATERIAL_HANDLERS: Record<string, MaterialHandler> = {
   },
   'eyes.color': (s, v) => { if (typeof v === 'string') s.materials.eyes.irisColor = v; },
   'eyes.primary_color': (s, v) => { if (typeof v === 'string') s.materials.eyes.irisColor = v; },
-  'eyes.secondary_color': (s, v) => { if (typeof v === 'string') s.materials.eyes.secondaryColor = v; },
+  // eyes.secondary_color is handled specially — gated behind heterochromia flag
   'mouth.lip_color': (s, v) => { if (typeof v === 'string') s.materials.lips.color = v; },
   'hair.color': (s, v) => { if (typeof v === 'string') s.materials.hair.color = v; },
   'hair.secondary_color': (s, v) => { if (typeof v === 'string') s.materials.hair.secondaryColor = v; },
@@ -285,6 +285,14 @@ export function chassisToCharacterState(
       }
       if (paramPath === 'hair.length') {
         if (typeof paramValue === 'string') state.hairVariant = paramValue;
+        continue;
+      }
+      if (paramPath === 'eyes.secondary_color') {
+        // Gated behind heterochromia flag
+        const eyesMod = modules.find((m) => m.slug === 'eyes');
+        if (eyesMod?.parameters?.heterochromia === true && typeof paramValue === 'string') {
+          state.materials.eyes.secondaryColor = paramValue;
+        }
         continue;
       }
 

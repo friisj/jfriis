@@ -158,7 +158,7 @@ function ChassisSection({
                 : 'bg-accent/50 text-muted-foreground hover:text-foreground'
             }`}
           >
-            {t.charAt(0).toUpperCase() + t.slice(1, 3)}
+            {t.charAt(0).toUpperCase() + t.slice(1)}
           </button>
         ))}
       </div>

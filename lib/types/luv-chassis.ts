@@ -49,6 +49,7 @@ export interface LuvChassisModule {
   parameters: Record<string, unknown>;
   parameter_schema: ParameterDef[];
   schema_key?: string;
+  tier?: number;
   sequence: number;
   created_at: string;
   updated_at: string;

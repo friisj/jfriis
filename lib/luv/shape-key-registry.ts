@@ -351,7 +351,7 @@ export const ENUM_COMPOSITIONS: Record<string, EnumComposition> = {
     full:  { luv_mouth_upper_fullness: 0.3, luv_mouth_lower_fullness: 0.4, luv_mouth_upper_height: 0.2, luv_mouth_lower_height: 0.2 },
     bow:   { luv_mouth_cupid_bow: 0.5, luv_mouth_upper_fullness: 0.2, luv_mouth_projection: 0.2 },
     heart: { luv_mouth_cupid_bow: 0.6, luv_mouth_upper_fullness: 0.3, luv_mouth_upper_height: 0.2 },
-    wide:  { luv_mouth_width: 0.4, luv_mouth_upper_fullness: -0.1, luv_mouth_lower_fullness: -0.1 },
+    wide:  { luv_mouth_width: 0.4, luv_mouth_size: 0.2, luv_mouth_upper_fullness: -0.1, luv_mouth_lower_fullness: -0.1 },
   },
 
   'mouth.lip_fullness': {
@@ -385,11 +385,6 @@ export const ENUM_COMPOSITIONS: Record<string, EnumComposition> = {
     short:   { luv_mouth_upper_height: -0.3 },
     average: {},
     long:    { luv_mouth_upper_height: 0.3 },
-  },
-
-  'mouth.dimples': {
-    true:  { luv_mouth_dimple_depth: 0.5 },
-    false: {},
   },
 
   // =========================================================================
@@ -556,6 +551,23 @@ export const BONE_SCALE_COMPOSITIONS: Record<string, Record<string, Record<strin
     curvy:    { spine: [1.05, 1.00, 1.05], upper_arm: [1.00, 1.00, 1.00], thigh: [1.10, 1.00, 1.10] },
     muscular: { spine: [1.10, 1.00, 1.10], upper_arm: [1.15, 1.00, 1.15], thigh: [1.12, 1.00, 1.12] },
     plus:     { spine: [1.15, 1.00, 1.15], upper_arm: [1.08, 1.00, 1.08], thigh: [1.15, 1.00, 1.15] },
+  },
+  'body-proportions.shoulder_width': {
+    narrow:  { shoulder: [0.88, 1.0, 1.0] },
+    average: { shoulder: [1.00, 1.0, 1.0] },
+    broad:   { shoulder: [1.12, 1.0, 1.0] },
+  },
+  'body-proportions.waist': {
+    narrow:  { spine_mid: [0.88, 1.0, 0.88] },
+    average: { spine_mid: [1.00, 1.0, 1.00] },
+    wide:    { spine_mid: [1.12, 1.0, 1.12] },
+  },
+  'body-proportions.hip_ratio': {
+    narrow:      { hip: [0.88, 1.0, 1.0] },
+    average:     { hip: [1.00, 1.0, 1.0] },
+    wide:        { hip: [1.10, 1.0, 1.0] },
+    'very wide': { hip: [1.20, 1.0, 1.0] },
+    'very-wide': { hip: [1.20, 1.0, 1.0] },
   },
   'body-proportions.leg_length': {
     short:       { thigh: [1.0, 0.90, 1.0], shin: [1.0, 0.90, 1.0] },
