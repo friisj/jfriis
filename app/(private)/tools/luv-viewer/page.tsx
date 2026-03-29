@@ -180,6 +180,8 @@ export default function LuvViewerPage() {
         modelLoaded={modelAvailable}
         morphOverrides={morphOverrides}
         onMorphOverride={setMorphOverrides}
+        modules={modules}
+        onModulesChange={setModules}
       />
     </div>
   );
