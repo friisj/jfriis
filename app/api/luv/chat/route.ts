@@ -85,13 +85,13 @@ export async function POST(request: Request) {
       // to prevent duplicate writes from network retries or double-submits.
       const lastDbMessage = dbMessages[dbMessages.length - 1];
       if (!lastDbMessage || lastDbMessage.role !== 'user') {
-        // Upload any image file parts to storage before serializing
-        const storedImageUrls = await uploadUserMessageImages(latestMessage, chatId);
+        // Upload any image file parts to storage + register in cog_images
+        const storedImages = await uploadUserMessageImages(latestMessage, chatId);
         await createLuvMessageServer({
           conversation_id: chatId,
           role: latestMessage.role,
           content: getMessageText(latestMessage),
-          parts: serializeParts(latestMessage, storedImageUrls),
+          parts: serializeParts(latestMessage, storedImages),
         });
       }
 
