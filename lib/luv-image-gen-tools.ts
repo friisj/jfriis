@@ -13,23 +13,9 @@ import { generateLuvImage, listLuvGenerations } from './luv-image-gen';
 import { extractRecentChatImages } from './luv-chat-images';
 
 /**
- * Allowlisted origins for reference image fetching.
- * Only Supabase storage URLs are permitted — prevents SSRF via LLM-supplied URLs.
- * Lazy-initialized to avoid build-time evaluation when env var isn't available.
- */
-let _allowedOrigins: Set<string> | null = null;
-function getAllowedFetchOrigins(): Set<string> {
-  if (!_allowedOrigins) {
-    _allowedOrigins = new Set([
-      new URL(process.env.NEXT_PUBLIC_SUPABASE_URL!).origin,
-    ]);
-  }
-  return _allowedOrigins;
-}
-
-/**
  * Fetch an image URL and return base64 data for use as a reference image.
- * Supports data URLs (from chat) and allowlisted HTTP URLs (Supabase storage only).
+ * Supports data URLs (from chat) and HTTPS URLs (any origin — the agent
+ * only has access to URLs from its own tool results like fetch_series_images).
  */
 async function urlToBase64(url: string): Promise<{ base64: string; mimeType: string }> {
   // Handle data URLs directly
@@ -39,7 +25,6 @@ async function urlToBase64(url: string): Promise<{ base64: string; mimeType: str
     return { mimeType: match[1], base64: match[2] };
   }
 
-  // Validate URL origin against allowlist
   let parsed: URL;
   try {
     parsed = new URL(url);
@@ -47,12 +32,8 @@ async function urlToBase64(url: string): Promise<{ base64: string; mimeType: str
     throw new Error('Invalid URL for reference image');
   }
 
-  if (!['https:', 'http:'].includes(parsed.protocol)) {
-    throw new Error(`Disallowed URL protocol: ${parsed.protocol}`);
-  }
-
-  if (!getAllowedFetchOrigins().has(parsed.origin)) {
-    throw new Error(`Reference image URL origin not allowed: ${parsed.origin}`);
+  if (parsed.protocol !== 'https:') {
+    throw new Error(`Only HTTPS URLs are allowed for reference images (got ${parsed.protocol})`);
   }
 
   const res = await fetch(url);
