@@ -53,7 +53,7 @@ async function urlToBase64(url: string): Promise<{ base64: string; mimeType: str
 export function createGenerateImageTool(messages: ModelMessage[]) {
   return tool({
     description:
-      'Generate an image using Gemini Nano Banana models. Write a detailed prompt describing subject, composition, lighting, style, and mood. Set useRecentChatImages to include recent images from the conversation as reference for style/subject consistency (i2i). Returns a public URL for the generated image.',
+      'Generate a general-purpose image using Gemini Nano Banana models. For chassis/appearance studies use run_chassis_study instead; for pencil sketches use run_sketch_study instead. Write a detailed prompt describing subject, composition, lighting, style, and mood. Set useRecentChatImages to include recent images from the conversation as reference for style/subject consistency (i2i). Pass referenceImageUrls for images from other series (any HTTPS URL works). Returns a public URL for the generated image.',
     inputSchema: zodSchema(
       z.object({
         prompt: z.string().describe('Detailed image generation prompt'),

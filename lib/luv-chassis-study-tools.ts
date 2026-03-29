@@ -23,11 +23,12 @@ import { extractRecentChatImages } from './luv-chat-images';
 export function createChassisStudyTool(messages: ModelMessage[]) {
   return tool({
     description:
-      'Run a chassis study — an advanced image generation pipeline that explores a specific aspect of Luv\'s character design. ' +
-      'A Gemini thinking subagent generates a structured brief from chassis parameters, then shapes a honed prompt that\'s passed ' +
-      'to Gemini image generation along with canonical reference images. Use this for focused explorations of how chassis ' +
-      'parameters manifest visually. The user\'s natural language request is the primary input — extract goal, style, module ' +
-      'focus, and dynamics from their description. Set useRecentChatImages to include images from the conversation as additional references.',
+      'Run a chassis study — a multi-agent deliberation pipeline for character-grounded image generation. ' +
+      'You and a Gemini director co-shape a brief from chassis parameters, then generate an image with canonical reference images. ' +
+      'Use this when the user asks to explore, visualize, or study any aspect of your chassis/appearance. ' +
+      'The user\'s natural language request is the primary input — extract goal, style, module focus, and dynamics from their description. ' +
+      'Set useRecentChatImages to include images from the conversation as additional references. ' +
+      'IMPORTANT: You must actually call this tool — do not simulate or describe the output.',
     inputSchema: zodSchema(
       z.object({
         userPrompt: z
