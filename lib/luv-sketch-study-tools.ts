@@ -9,26 +9,35 @@ import { tool, zodSchema } from 'ai';
 import { z } from 'zod';
 import { runSketchStudyPipeline } from './luv-sketch-study-pipeline';
 import { getCogImageUrl } from './cog/images';
+import { resolveImageAsBase64 } from './luv-image-utils';
 
 export const runSketchStudy = tool({
   description:
-    'Generate a pencil sketch study of Luv\'s anatomy using Flux 2 Dev. ' +
-    'Style is locked to graphite/pencil drawing — you control the subject, focus type, and composition. ' +
-    'Use "assembly" for full-body or regional anatomy, "detail" for close-ups of features, ' +
-    '"dynamics" for gesture/motion studies. Optionally pass referenceSketchId to refine an existing sketch ' +
-    'via i2i conditioning, or exemplarIds for style consistency with previous sketches.',
+    'Generate a pencil/graphite drawing using Flux 2 Dev. The medium is locked (pencil on paper) ' +
+    'but you control the drawing approach entirely through subject and styleNotes. ' +
+    'IMPORTANT: Always compose styleNotes with specific rendering direction for each sketch — ' +
+    'e.g. "loose gestural lines, emphasis on weight distribution" or "precise contour drawing, ' +
+    'minimal shading, clean outlines." Keep subject descriptions simple and focused — over-specifying ' +
+    'anatomy terms causes hallucinated structures. Let the model interpret form naturally. ' +
+    'Use referenceSketchId for i2i refinement of an existing image (any Cog image ID works). ' +
+    'Use exemplarIds for style consistency — call list_sketches first to get real IDs. ' +
+    'After generation, critically evaluate the result before presenting — flag anatomical errors honestly.',
   inputSchema: zodSchema(
     z.object({
       subject: z
         .string()
-        .describe('What to draw — specific anatomical subject and composition (e.g. "3/4 view of face emphasizing cheekbones and jawline", "hands in a relaxed gesture")'),
+        .describe('What to draw — keep it simple and focused. Overly specific anatomy terms cause hallucinations. Good: "posterior view, natural standing pose". Bad: "posterior showing sacral dimples, iliac crest, and gluteal fold"'),
       focus: z
         .enum(['assembly', 'detail', 'dynamics'])
-        .describe('assembly = full body/region showing structure, detail = close-up of features, dynamics = movement/gesture'),
+        .describe('assembly = full body/region, detail = close-up, dynamics = movement/gesture'),
+      styleNotes: z
+        .string()
+        .optional()
+        .describe('ALWAYS provide this. Drawing approach layered on the pencil base — e.g. "loose gestural lines", "precise contour drawing", "fashion illustration silhouette", "architectural geometric breakdown", "minimal line art". This is your creative control over how the sketch looks.'),
       moduleSlugs: z
         .array(z.string())
         .optional()
-        .describe('Chassis module slugs relevant to this sketch (e.g. ["eyes", "nose"] for face detail)'),
+        .describe('Chassis module slugs for tagging (e.g. ["eyes", "nose"])'),
       aspectRatio: z
         .enum(['1:1', '2:3', '3:2', '3:4', '4:3', '4:5', '5:4', '9:16', '16:9'])
         .optional()
@@ -38,26 +47,26 @@ export const runSketchStudy = tool({
         .min(1)
         .max(10)
         .optional()
-        .describe('How strictly to follow the prompt (1=loose, 10=strict, default: 3.5)'),
+        .describe('Prompt adherence (1=loose, 10=strict, default: 3.5)'),
       steps: z
         .number()
         .int()
         .min(10)
         .max(50)
         .optional()
-        .describe('Inference steps — higher = better quality but slower (default: 28)'),
+        .describe('Quality/speed tradeoff (default: 28)'),
       referenceSketchId: z
         .string()
         .optional()
-        .describe('Existing sketch image ID for i2i refinement — generates a refined version based on this sketch'),
+        .describe('Any Cog image ID for i2i refinement — generates a new version conditioned on this image. Can be a sketch, photo, study, or any image from any Luv series.'),
       exemplarIds: z
         .array(z.string())
         .max(4)
         .optional()
-        .describe('Up to 4 existing sketch IDs to use as style exemplars for consistency'),
+        .describe('Up to 4 Cog image IDs as style exemplars. IMPORTANT: use real IDs from list_sketches or fetch_series_images — do not fabricate UUIDs.'),
     })
   ),
-  execute: async ({ subject, focus, moduleSlugs, aspectRatio, guidanceScale, steps, referenceSketchId, exemplarIds }) => {
+  execute: async ({ subject, focus, styleNotes, moduleSlugs, aspectRatio, guidanceScale, steps, referenceSketchId, exemplarIds }) => {
     try {
       const result = await runSketchStudyPipeline({
         subject,
@@ -66,6 +75,7 @@ export const runSketchStudy = tool({
         aspectRatio: aspectRatio as import('./ai/replicate-flux').FluxAspectRatio | undefined,
         guidanceScale,
         steps,
+        styleNotes,
         referenceSketchId,
         exemplarIds,
       });
@@ -93,6 +103,29 @@ export const runSketchStudy = tool({
         success: false,
         error: message,
       };
+    }
+  },
+  toModelOutput: async ({ output }) => {
+    const result = output as { success?: boolean; imageUrl?: string; prompt?: string; cogImageId?: string; error?: string };
+    if (!result.success || !result.imageUrl) {
+      return { type: 'text' as const, value: result.error ?? JSON.stringify(output) };
+    }
+
+    // Resolve the generated image so the agent can actually see what was produced
+    try {
+      // Extract storage path from the cog image URL
+      const urlParts = result.imageUrl.split('/cog-images/');
+      const storagePath = urlParts[1] ?? '';
+      const { base64, mediaType } = await resolveImageAsBase64(storagePath);
+      return {
+        type: 'content' as const,
+        value: [
+          { type: 'text' as const, text: `Sketch generated (${result.cogImageId}). Examine the image critically before presenting — flag any anatomical errors, hallucinated structures, or artifacts honestly.` },
+          { type: 'file-data' as const, data: base64, mediaType },
+        ],
+      };
+    } catch {
+      return { type: 'text' as const, value: `Sketch generated but could not load for review. Image URL: ${result.imageUrl}` };
     }
   },
 });
