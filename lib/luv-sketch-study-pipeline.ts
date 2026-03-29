@@ -50,6 +50,8 @@ export interface SketchStudyResult {
   prompt: string;
   durationMs: number;
   referenceUsed: boolean;
+  /** Warnings surfaced to the agent (e.g. missing reference) */
+  warnings?: string[];
 }
 
 function serviceClient() {
@@ -92,6 +94,7 @@ export async function runSketchStudyPipeline(
 
   // Resolve reference images for i2i conditioning
   const referenceImages: { base64: string; mimeType: string }[] = [];
+  const warnings: string[] = [];
 
   // Primary reference (for i2i refinement)
   if (input.referenceSketchId) {
@@ -106,8 +109,12 @@ export async function runSketchStudyPipeline(
       if (refImg) {
         const { base64, mediaType } = await resolveImageAsBase64(refImg.storage_path);
         referenceImages.push({ base64, mimeType: mediaType });
+      } else {
+        warnings.push(`Reference image ${input.referenceSketchId} not found in cog_images — generating without i2i conditioning. Use a real Cog image ID from list_sketches or fetch_series_images.`);
+        console.warn(`[sketch-study] referenceSketchId ${input.referenceSketchId} not found in cog_images`);
       }
     } catch (err) {
+      warnings.push(`Failed to load reference image: ${err instanceof Error ? err.message : 'unknown error'}`);
       console.warn('[sketch-study] Failed to load reference sketch:', err);
     }
   }
@@ -213,5 +220,6 @@ export async function runSketchStudyPipeline(
     prompt,
     durationMs,
     referenceUsed: referenceImages.length > 0,
+    ...(warnings.length > 0 ? { warnings } : {}),
   };
 }

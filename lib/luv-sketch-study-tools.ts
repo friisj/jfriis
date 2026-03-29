@@ -106,10 +106,14 @@ export const runSketchStudy = tool({
     }
   },
   toModelOutput: async ({ output }) => {
-    const result = output as { success?: boolean; imageUrl?: string; prompt?: string; cogImageId?: string; error?: string };
+    const result = output as { success?: boolean; imageUrl?: string; prompt?: string; cogImageId?: string; error?: string; warnings?: string[] };
     if (!result.success || !result.imageUrl) {
       return { type: 'text' as const, value: result.error ?? JSON.stringify(output) };
     }
+
+    const warningText = result.warnings?.length
+      ? `\n\nWARNINGS:\n${result.warnings.map(w => `- ${w}`).join('\n')}`
+      : '';
 
     // Resolve the generated image so the agent can actually see what was produced
     try {
@@ -120,12 +124,12 @@ export const runSketchStudy = tool({
       return {
         type: 'content' as const,
         value: [
-          { type: 'text' as const, text: `Sketch generated (${result.cogImageId}). Examine the image critically before presenting — flag any anatomical errors, hallucinated structures, or artifacts honestly.` },
+          { type: 'text' as const, text: `Sketch generated (${result.cogImageId}). Examine the image critically before presenting — flag any anatomical errors, hallucinated structures, or artifacts honestly.${warningText}` },
           { type: 'file-data' as const, data: base64, mediaType },
         ],
       };
     } catch {
-      return { type: 'text' as const, value: `Sketch generated but could not load for review. Image URL: ${result.imageUrl}` };
+      return { type: 'text' as const, value: `Sketch generated but could not load for review. Image URL: ${result.imageUrl}${warningText}` };
     }
   },
 });

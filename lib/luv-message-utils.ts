@@ -58,6 +58,18 @@ export function deserializeMessage(m: {
       });
 
     if (validParts.length > 0) {
+      // Surface Cog image IDs for user-uploaded images so the agent can reference them
+      if (m.role === 'user') {
+        const imageIds = validParts
+          .filter((p) => p.type === 'file' && (p as Record<string, unknown>).cogImageId)
+          .map((p) => (p as Record<string, unknown>).cogImageId as string);
+        if (imageIds.length > 0) {
+          validParts.push({
+            type: 'text',
+            text: `[Uploaded image${imageIds.length > 1 ? 's' : ''} registered in Cog — use ${imageIds.length > 1 ? 'these IDs' : 'this ID'} for referenceSketchId or exemplarIds: ${imageIds.join(', ')}]`,
+          } as Record<string, unknown>);
+        }
+      }
       return {
         id: m.id,
         role: m.role as 'user' | 'assistant',
@@ -76,7 +88,7 @@ export function deserializeMessage(m: {
  * Serialize UIMessage parts to a JSON-safe array for database storage.
  * Strips non-serializable data (functions, blobs) and keeps text, tool calls, and reasoning.
  */
-export function serializeParts(msg: UIMessage, storedImageUrls?: Map<number, string>): object[] | null {
+export function serializeParts(msg: UIMessage, storedImages?: Map<number, { url: string; cogImageId: string }>): object[] | null {
   const hasNonText = msg.parts.some((p) => p.type !== 'text');
   if (!hasNonText) return null; // plain text — content column is sufficient
 
@@ -84,10 +96,10 @@ export function serializeParts(msg: UIMessage, storedImageUrls?: Map<number, str
     if (p.type === 'text') return { type: 'text', text: (p as { text: string }).text };
     if (p.type === 'file') {
       const fp = p as { type: string; mediaType?: string; filename?: string; url?: string };
-      const storedUrl = storedImageUrls?.get(i);
-      if (storedUrl) {
-        // Image was uploaded to storage — keep the URL for future extraction
-        return { type: 'file', mediaType: fp.mediaType, filename: fp.filename, url: storedUrl, stored: true };
+      const stored = storedImages?.get(i);
+      if (stored) {
+        // Image was uploaded to storage + registered in cog_images
+        return { type: 'file', mediaType: fp.mediaType, filename: fp.filename, url: stored.url, cogImageId: stored.cogImageId, stored: true };
       }
       // No storage URL — strip data but mark as not stored
       return { type: 'file', mediaType: fp.mediaType, filename: fp.filename, stored: false };
