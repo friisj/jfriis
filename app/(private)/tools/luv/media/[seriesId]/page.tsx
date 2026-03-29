@@ -30,7 +30,7 @@ export default async function LuvSeriesPage({ params }: Props) {
   const displayTitle = series.title.replace(/^Luv — /, '');
 
   return (
-    <div className="p-6 space-y-4">
+    <div className="p-6 space-y-4 overflow-y-auto h-full">
       <div className="flex items-center gap-3">
         <Link
           href="/tools/luv/media"
