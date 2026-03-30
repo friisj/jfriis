@@ -57,6 +57,7 @@ export async function POST(request: Request) {
       thinking = false,
       seedContext = null,
       sessionId,
+      toolHint = null,
     } = body as {
       messages?: UIMessage[];
       chatId?: string;
@@ -66,6 +67,7 @@ export async function POST(request: Request) {
       thinking?: boolean;
       seedContext?: string | null;
       sessionId?: string;
+      toolHint?: string | null;
     };
 
     // Resolve conversation messages: server-side state (new) or client payload (legacy)
@@ -244,6 +246,8 @@ export async function POST(request: Request) {
         web_search: getAnthropic().tools.webSearch_20250305({ maxUses: 3 }),
         tool_search: getAnthropic().tools.toolSearchBm25_20251119(),
       } as ToolSet,
+      // If user selected a tool hint, force that tool on the first step
+      ...(toolHint ? { toolChoice: { type: 'tool' as const, toolName: toolHint } } : {}),
       stopWhen: stepCountIs(15),
       providerOptions,
       onFinish: async (event) => {

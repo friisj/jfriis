@@ -186,6 +186,8 @@ export default function LuvChatPage() {
           imagePickerOpen={activePanel === 'imagePicker'}
           onToggleImagePicker={() => setActivePanel((p) => p === 'imagePicker' ? null : 'imagePicker')}
           onToggleHeartbeatSettings={() => setActivePanel((p) => p === 'heartbeat' ? null : 'heartbeat')}
+          toolHint={session.toolHint}
+          onSetToolHint={session.setToolHint}
           voiceEnabled={voiceEnabled}
           onToggleVoice={() => setVoiceEnabled((v) => !v)}
           voiceSpeed={voiceSpeed}

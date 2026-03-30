@@ -38,6 +38,7 @@ import {
 } from '@tabler/icons-react';
 import { MODEL_OPTIONS, type ContextPressure } from '../use-luv-chat-session';
 import type { LuvCompactSummary } from '@/lib/types/luv';
+import { ToolHintBar } from './tool-hint-bar';
 
 interface SoulPreset {
   id: string;
@@ -91,6 +92,9 @@ export interface ChatInputToolbarProps {
   onToggleVoice?: () => void;
   voiceSpeed?: number;
   onSetVoiceSpeed?: (speed: number) => void;
+  // Tool hints
+  toolHint?: string | null;
+  onSetToolHint?: (hint: string | null) => void;
   // Sizing
   compact?: boolean;
   autoResize?: boolean;
@@ -133,6 +137,8 @@ export function ChatInputToolbar({
   onToggleVoice,
   voiceSpeed,
   onSetVoiceSpeed,
+  toolHint,
+  onSetToolHint,
   compact = false,
   autoResize = false,
 }: ChatInputToolbarProps) {
@@ -229,7 +235,15 @@ export function ChatInputToolbar({
         )}
 
         <div className={cn('flex justify-between items-start pl-3 md:pl-4 pr-4', compact ? 'pb-4' : 'pb-4')}>
-          <div className="flex">
+          <div className="flex items-center gap-2">
+            {onSetToolHint && (
+              <ToolHintBar
+                selected={toolHint ?? null}
+                onSelect={onSetToolHint}
+                compact={compact}
+              />
+            )}
+
             <button
               className="flex items-center justify-center h-12 w-10 text-muted-foreground"
               onClick={() => fileInputRef.current?.click()}
