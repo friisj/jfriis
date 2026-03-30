@@ -3,8 +3,10 @@
 import { useCallback, useRef, useState } from 'react'
 import { Play, Square, Pause } from 'lucide-react'
 import { useStrudelRepl } from '@/lib/strudel/use-strudel-repl'
-import { StrudelEditor } from '@/lib/strudel/strudel-editor'
+import { StrudelEditor, DEFAULT_EDITOR_SETTINGS } from '@/lib/strudel/strudel-editor'
+import type { EditorSettings } from '@/lib/strudel/strudel-editor'
 import { StrudelCanvas } from '@/lib/strudel/strudel-canvas'
+import { StrudelSettings } from '@/lib/strudel/strudel-settings'
 
 const DEFAULT_CODE = `// Welcome to Strudel!
 // Press Ctrl+Enter to evaluate, Ctrl+. to stop
@@ -20,13 +22,24 @@ note("c3 eb3 g3 bb3")
   .room(.5)
 `
 
+type Widget = {
+  type: string
+  from: number
+  to: number
+  value: string
+  min?: number
+  max?: number
+  step?: number
+}
+
 export default function CustomRepl() {
   const { evaluate, stop, toggle, isPlaying, isReady, error, repl } = useStrudelRepl()
   const [code, setCode] = useState(DEFAULT_CODE)
   const [miniLocations, setMiniLocations] = useState<number[][]>([])
+  const [widgets, setWidgets] = useState<Widget[]>([])
+  const [editorSettings, setEditorSettings] = useState<EditorSettings>(DEFAULT_EDITOR_SETTINGS)
   const codeRef = useRef(code)
 
-  // Keep ref in sync for callbacks that need current code
   codeRef.current = code
 
   const handleEvaluate = useCallback(async () => {
@@ -34,11 +47,15 @@ export default function CustomRepl() {
     if (result?.miniLocations) {
       setMiniLocations(result.miniLocations)
     }
+    if (result?.widgets) {
+      setWidgets(result.widgets as Widget[])
+    }
   }, [evaluate])
 
   const handleStop = useCallback(() => {
     stop()
     setMiniLocations([])
+    setWidgets([])
   }, [stop])
 
   const handleToggle = useCallback(async () => {
@@ -92,6 +109,11 @@ export default function CustomRepl() {
         <span className="text-white/30 text-xs font-mono">
           ctrl+enter eval &middot; ctrl+. stop
         </span>
+
+        <StrudelSettings
+          settings={editorSettings}
+          onChange={setEditorSettings}
+        />
       </div>
 
       {/* Pattern visualization */}
@@ -108,6 +130,8 @@ export default function CustomRepl() {
           onEvaluate={handleEvaluate}
           onStop={handleStop}
           miniLocations={miniLocations}
+          widgets={widgets}
+          settings={editorSettings}
         />
       </div>
     </div>

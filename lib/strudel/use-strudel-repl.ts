@@ -2,17 +2,32 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 
+type Widget = {
+  type: string
+  from: number
+  to: number
+  value: string
+  min?: number
+  max?: number
+  step?: number
+}
+
+type EvalMeta = {
+  miniLocations?: number[][]
+  widgets?: Widget[]
+}
+
 type ReplInstance = {
-  evaluate: (code: string, autostart?: boolean) => Promise<{ miniLocations?: number[][] }>
+  evaluate: (code: string, autostart?: boolean) => Promise<unknown>
   stop: () => void
   toggle: () => void
   start: () => void
   scheduler: { now: () => number; started: boolean; pattern?: unknown }
-  state: { miniLocations: number[][]; widgets: unknown[]; started: boolean }
+  state: { miniLocations: number[][]; widgets: Widget[]; started: boolean }
 }
 
 type UseStrudelReplReturn = {
-  evaluate: (code: string) => Promise<{ miniLocations?: number[][] } | undefined>
+  evaluate: (code: string) => Promise<EvalMeta | undefined>
   stop: () => void
   toggle: (code: string) => Promise<void>
   isPlaying: boolean
@@ -24,6 +39,7 @@ type UseStrudelReplReturn = {
 
 export function useStrudelRepl(): UseStrudelReplReturn {
   const replRef = useRef<ReplInstance | null>(null)
+  const lastEvalMetaRef = useRef<EvalMeta>({})
   const [isPlaying, setIsPlaying] = useState(false)
   const [isReady, setIsReady] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -53,17 +69,24 @@ export function useStrudelRepl(): UseStrudelReplReturn {
         const repl = webaudioRepl({
           transpiler,
           onToggle: (started: boolean) => setIsPlaying(started),
+          afterEval: ({ meta }: { meta?: EvalMeta }) => {
+            lastEvalMetaRef.current = {
+              miniLocations: meta?.miniLocations,
+              widgets: meta?.widgets,
+            }
+          },
         }) as ReplInstance
 
         setTime(() => repl.scheduler.now())
 
-        // Load all modules into eval scope so patterns can use them
+        // Load all modules into eval scope — includes sliderWithID for inline sliders
         await evalScope(
           evalScope,
           import('@strudel/core'),
           import('@strudel/mini'),
           import('@strudel/tonal'),
           import('@strudel/webaudio'),
+          import('@strudel/codemirror'),
         )
 
         await registerSynthSounds()
@@ -90,11 +113,13 @@ export function useStrudelRepl(): UseStrudelReplReturn {
     }
   }, [])
 
-  const evaluate = useCallback(async (code: string) => {
+  const evaluate = useCallback(async (code: string): Promise<EvalMeta | undefined> => {
     if (!replRef.current) return
     setError(null)
     try {
-      return await replRef.current.evaluate(code)
+      await replRef.current.evaluate(code)
+      // afterEval callback has already fired by this point
+      return lastEvalMetaRef.current
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Evaluation error'
       setError(msg)

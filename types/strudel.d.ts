@@ -78,10 +78,15 @@ declare module '@strudel/codemirror' {
     mondo?: boolean
   }): EditorView
 
-  // Extensions (individual CM6 extensions)
-  export const extensions: Record<string, (on: boolean, config?: unknown) => Extension>
-  export const compartments: Record<string, { of: (ext: Extension) => Extension }>
+  // Extensions and compartments for runtime reconfiguration
+  export const extensions: Record<string, (on: boolean | string, config?: unknown) => Extension>
+  export const compartments: Record<string, { of: (ext: Extension) => Extension; reconfigure: (ext: Extension) => import('@codemirror/state').StateEffect<unknown> }>
   export const defaultSettings: Record<string, unknown>
+
+  // Slider and widget updates
+  export function updateSliderWidgets(view: EditorView, widgets: unknown[]): void
+  export function updateWidgets(view: EditorView, widgets: unknown[]): void
+  export const sliderWithID: (id: string, value: number, min?: number, max?: number) => unknown
 
   // Highlight
   export const highlightExtension: Extension[]

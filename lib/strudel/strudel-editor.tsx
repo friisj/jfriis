@@ -3,12 +3,48 @@
 import { useCallback, useEffect, useRef } from 'react'
 import type { EditorView } from '@codemirror/view'
 
+export type EditorSettings = {
+  isAutoCompletionEnabled: boolean
+  isTooltipEnabled: boolean
+  isLineNumbersDisplayed: boolean
+  isLineWrappingEnabled: boolean
+  isBracketMatchingEnabled: boolean
+  isFlashEnabled: boolean
+  isPatternHighlightingEnabled: boolean
+  theme: string
+  fontSize: number
+}
+
+export const DEFAULT_EDITOR_SETTINGS: EditorSettings = {
+  isAutoCompletionEnabled: true,
+  isTooltipEnabled: true,
+  isLineNumbersDisplayed: true,
+  isLineWrappingEnabled: false,
+  isBracketMatchingEnabled: false,
+  isFlashEnabled: true,
+  isPatternHighlightingEnabled: true,
+  theme: 'strudelTheme',
+  fontSize: 18,
+}
+
+type Widget = {
+  type: string
+  from: number
+  to: number
+  value: string
+  min?: number
+  max?: number
+  step?: number
+}
+
 type StrudelEditorProps = {
   code: string
   onChange: (code: string) => void
   onEvaluate: () => void
   onStop: () => void
   miniLocations?: number[][]
+  widgets?: Widget[]
+  settings?: EditorSettings
 }
 
 export function StrudelEditor({
@@ -17,12 +53,13 @@ export function StrudelEditor({
   onEvaluate,
   onStop,
   miniLocations,
+  widgets,
+  settings,
 }: StrudelEditorProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const viewRef = useRef<EditorView | null>(null)
   const callbacksRef = useRef({ onEvaluate, onStop, onChange })
 
-  // Keep callbacks ref current without re-creating the editor
   useEffect(() => {
     callbacksRef.current = { onEvaluate, onStop, onChange }
   }, [onEvaluate, onStop, onChange])
@@ -33,12 +70,11 @@ export function StrudelEditor({
     let view: EditorView | null = null
 
     async function mount() {
-      const { initEditor, flash: flashEditor, isFlashEnabled, isPatternHighlightingEnabled } =
-        await import('@strudel/codemirror')
+      const cm = await import('@strudel/codemirror')
 
       if (!containerRef.current) return
 
-      view = initEditor({
+      view = cm.initEditor({
         initialCode: code,
         root: containerRef.current,
         onChange: (update: unknown) => {
@@ -49,7 +85,7 @@ export function StrudelEditor({
           }
         },
         onEvaluate: () => {
-          if (view) flashEditor(view)
+          if (view) cm.flash(view)
           callbacksRef.current.onEvaluate()
         },
         onStop: () => {
@@ -58,6 +94,11 @@ export function StrudelEditor({
       })
 
       viewRef.current = view
+
+      // Apply initial settings overrides (initEditor uses codemirrorSettings defaults)
+      if (settings) {
+        applySettings(view, cm, settings)
+      }
     }
 
     mount()
@@ -66,11 +107,20 @@ export function StrudelEditor({
       view?.destroy()
       viewRef.current = null
     }
-    // Only mount once — code updates flow through the ref
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // Sync mini locations (pattern highlighting) into the editor
+  // Apply settings changes
+  useEffect(() => {
+    const view = viewRef.current
+    if (!view || !settings) return
+
+    import('@strudel/codemirror').then((cm) => {
+      applySettings(view, cm, settings)
+    })
+  }, [settings])
+
+  // Sync mini locations (pattern highlighting)
   useEffect(() => {
     const view = viewRef.current
     if (!view || !miniLocations) return
@@ -80,12 +130,24 @@ export function StrudelEditor({
     })
   }, [miniLocations])
 
-  // Sync external code changes into the editor (e.g. loading a saved pattern)
+  // Sync widgets (sliders + custom)
+  useEffect(() => {
+    const view = viewRef.current
+    if (!view || !widgets) return
+
+    import('@strudel/codemirror').then(({ updateSliderWidgets, updateWidgets }) => {
+      const sliders = widgets.filter((w) => w.type === 'slider')
+      const others = widgets.filter((w) => w.type !== 'slider')
+      if (sliders.length) updateSliderWidgets(view, sliders)
+      if (others.length) updateWidgets(view, others)
+    })
+  }, [widgets])
+
+  // Sync external code changes
   const lastExternalCode = useRef(code)
   useEffect(() => {
     const view = viewRef.current
     if (!view) return
-    // Only dispatch if the code changed externally (not from typing)
     const currentDoc = view.state.doc.toString()
     if (code !== currentDoc && code !== lastExternalCode.current) {
       view.dispatch({
@@ -101,4 +163,32 @@ export function StrudelEditor({
       className="h-full [&_.cm-editor]:h-full [&_.cm-scroller]:!overflow-auto"
     />
   )
+}
+
+function applySettings(
+  view: EditorView,
+  cm: Awaited<typeof import('@strudel/codemirror')>,
+  settings: EditorSettings,
+) {
+  const { compartments, extensions, activateTheme } = cm
+
+  for (const [key, value] of Object.entries(settings)) {
+    if (key === 'fontSize' || key === 'fontFamily') continue
+    if (key === 'theme') {
+      view.dispatch({
+        effects: compartments[key].reconfigure(extensions[key](value as string)),
+      })
+      activateTheme(value as string)
+    } else if (key in compartments && key in extensions) {
+      view.dispatch({
+        effects: compartments[key].reconfigure(extensions[key](value as boolean)),
+      })
+    }
+  }
+
+  // Font size via container style
+  const container = view.dom.parentElement
+  if (container && settings.fontSize) {
+    container.style.fontSize = settings.fontSize + 'px'
+  }
 }
