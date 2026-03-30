@@ -8,6 +8,7 @@ import {
   createLuvConversation,
   getLuvConversation,
   getLuvMessages,
+  deleteLuvMessage,
 } from '@/lib/luv';
 import { deserializeMessage, getMessageText } from '@/lib/luv-message-utils';
 import type { LuvCompactSummary } from '@/lib/types/luv';
@@ -108,7 +109,7 @@ export function useLuvChatSession() {
     [modelKey, thinking, pageContext.pathname, pageDataKey, seedContext]
   );
 
-  const { messages, sendMessage, setMessages, status, error } = useChat({
+  const { messages, sendMessage, setMessages, regenerate, status, error } = useChat({
     transport,
   });
 
@@ -408,6 +409,38 @@ export function useLuvChatSession() {
     clearActiveConversation();
   }, [setMessages, clearActiveConversation]);
 
+  /** Hard-delete a message from DB and local state */
+  const handleDeleteMessage = useCallback(async (messageId: string) => {
+    try {
+      await deleteLuvMessage(messageId);
+      setMessages((prev) => prev.filter((m) => m.id !== messageId));
+    } catch (err) {
+      console.error('[luv-chat] Failed to delete message:', err);
+    }
+  }, [setMessages]);
+
+  /** Delete the last assistant response and regenerate from the last user message */
+  const handleRetry = useCallback(async () => {
+    // Find the last assistant message and remove it
+    const lastAssistantIdx = messages.findLastIndex((m) => m.role === 'assistant');
+    if (lastAssistantIdx < 0) return;
+
+    const assistantMsg = messages[lastAssistantIdx];
+
+    // Delete from DB
+    try {
+      await deleteLuvMessage(assistantMsg.id);
+    } catch (err) {
+      console.error('[luv-chat] Failed to delete message for retry:', err);
+    }
+
+    // Remove from local state and regenerate
+    setMessages((prev) => prev.filter((m) => m.id !== assistantMsg.id));
+
+    // Use AI SDK's regenerate to re-send the last user message
+    regenerate();
+  }, [messages, setMessages, regenerate]);
+
   return {
     // State
     modelKey,
@@ -442,6 +475,8 @@ export function useLuvChatSession() {
     handleCompact,
     handleBranch,
     handleTraitsApplied,
+    handleDeleteMessage,
+    handleRetry,
     compacting,
     branching,
     addFilesFromFileList,

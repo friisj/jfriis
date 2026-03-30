@@ -23,6 +23,8 @@ import {
   IconTag,
   IconTrash,
   IconPhoto,
+  IconStar,
+  IconStarFilled,
 } from '@tabler/icons-react';
 import {
   getCogImageUrl,
@@ -30,10 +32,30 @@ import {
   copyImageToSeries,
   deleteImageWithCleanup,
   setSeriesPrimaryImage,
+  setImageStarRating,
 } from '@/lib/cog';
 import { addTagToImage, removeTagFromImage } from '@/lib/cog/tags';
 import { supabase } from '@/lib/supabase';
 import type { CogImageWithGroupInfo, CogSeries, CogTagWithGroup } from '@/lib/types/cog';
+
+export interface ContextMenuFeatures {
+  /** View/expand option. true = default Cog editor, function = custom, falsy = hidden */
+  view?: boolean | ((imageId: string) => void);
+  /** Move to series submenu */
+  move?: boolean;
+  /** Copy to series submenu */
+  copy?: boolean;
+  /** Tag management submenu */
+  tag?: boolean;
+  /** Copy to clipboard, Copy ID, Download */
+  clipboard?: boolean;
+  /** Star rating submenu (1-5 stars) */
+  star?: boolean;
+  /** Set/remove as series cover */
+  setCover?: boolean;
+  /** Delete option */
+  delete?: boolean;
+}
 
 interface ImageContextMenuProps {
   image: CogImageWithGroupInfo;
@@ -42,11 +64,28 @@ interface ImageContextMenuProps {
   imageTagIds?: Set<string>;
   children: React.ReactNode;
   isPrimary?: boolean;
+  /** Granular control of which menu items appear. Omit for all enabled. */
+  features?: ContextMenuFeatures;
+  /** @deprecated Use features.view instead */
+  onView?: ((imageId: string) => void) | null;
   onDeleted?: (imageId: string) => void;
   onMoved?: (imageId: string) => void;
   onTagsChanged?: (imageId: string) => void;
   onSetCover?: (imageId: string) => void;
+  onStarChanged?: (imageId: string, rating: number) => void;
 }
+
+/** Default: all features enabled */
+const DEFAULT_FEATURES: ContextMenuFeatures = {
+  view: true,
+  move: true,
+  copy: true,
+  tag: true,
+  star: true,
+  clipboard: true,
+  setCover: true,
+  delete: true,
+};
 
 export function ImageContextMenu({
   image,
@@ -55,11 +94,19 @@ export function ImageContextMenu({
   imageTagIds = new Set(),
   isPrimary = false,
   children,
+  features: featuresProp,
+  onView,
   onDeleted,
   onMoved,
   onTagsChanged,
   onSetCover,
+  onStarChanged,
 }: ImageContextMenuProps) {
+  // Merge features — explicit features prop overrides defaults
+  const f = featuresProp ?? DEFAULT_FEATURES;
+
+  // Resolve view: onView prop (legacy) takes precedence, then features.view
+  const showView = onView !== null && (onView !== undefined ? true : !!f.view);
   const router = useRouter();
   const [seriesList, setSeriesList] = useState<CogSeries[] | null>(null);
   const [loadingSeries, setLoadingSeries] = useState(false);
@@ -152,99 +199,117 @@ export function ImageContextMenu({
         {children}
       </ContextMenuTrigger>
       <ContextMenuContent className="w-52">
-        <ContextMenuItem onClick={handleView} className="text-xs">
-          <IconEye size={14} className="mr-2" />
-          View
-        </ContextMenuItem>
-        <ContextMenuItem
-          onClick={async () => {
-            try {
-              await setSeriesPrimaryImage(seriesId, isPrimary ? null : image.id);
-              onSetCover?.(isPrimary ? '' : image.id);
-            } catch (err) {
-              console.error('Set cover failed:', err);
-            }
-          }}
-          className="text-xs"
-        >
-          <IconPhoto size={14} className="mr-2" />
-          {isPrimary ? 'Remove as cover' : 'Set as cover'}
-        </ContextMenuItem>
+        {showView && (
+          <ContextMenuItem
+            onClick={() => {
+              if (onView) onView(image.id);
+              else if (typeof f.view === 'function') f.view(image.id);
+              else handleView();
+            }}
+            className="text-xs"
+          >
+            <IconEye size={14} className="mr-2" />
+            View
+          </ContextMenuItem>
+        )}
+        {f.setCover && (
+          <ContextMenuItem
+            onClick={async () => {
+              try {
+                await setSeriesPrimaryImage(seriesId, isPrimary ? null : image.id);
+                onSetCover?.(isPrimary ? '' : image.id);
+              } catch (err) {
+                console.error('Set cover failed:', err);
+              }
+            }}
+            className="text-xs"
+          >
+            <IconPhoto size={14} className="mr-2" />
+            {isPrimary ? 'Remove as cover' : 'Set as cover'}
+          </ContextMenuItem>
+        )}
 
-        <ContextMenuSeparator />
+        {f.clipboard && (
+          <>
+            <ContextMenuSeparator />
+            <ContextMenuItem onClick={handleCopyToClipboard} className="text-xs">
+              <IconCopy size={14} className="mr-2" />
+              Copy to clipboard
+            </ContextMenuItem>
+            <ContextMenuItem onClick={handleCopyId} className="text-xs">
+              <IconId size={14} className="mr-2" />
+              Copy image ID
+            </ContextMenuItem>
+            <ContextMenuItem onClick={handleDownload} className="text-xs">
+              <IconDownload size={14} className="mr-2" />
+              Download original
+            </ContextMenuItem>
+          </>
+        )}
 
-        <ContextMenuItem onClick={handleCopyToClipboard} className="text-xs">
-          <IconCopy size={14} className="mr-2" />
-          Copy to clipboard
-        </ContextMenuItem>
-        <ContextMenuItem onClick={handleCopyId} className="text-xs">
-          <IconId size={14} className="mr-2" />
-          Copy image ID
-        </ContextMenuItem>
-        <ContextMenuItem onClick={handleDownload} className="text-xs">
-          <IconDownload size={14} className="mr-2" />
-          Download original
-        </ContextMenuItem>
+        {(f.move || f.copy) && <ContextMenuSeparator />}
 
-        <ContextMenuSeparator />
+        {f.move && (
+          <ContextMenuSub>
+            <ContextMenuSubTrigger className="text-xs" onPointerEnter={fetchSeries}>
+              <IconArrowRight size={14} className="mr-2" />
+              Move to series
+            </ContextMenuSubTrigger>
+            <ContextMenuSubContent className="w-48 max-h-64 overflow-y-auto">
+              {loadingSeries && (
+                <ContextMenuItem disabled className="text-xs text-muted-foreground">
+                  Loading...
+                </ContextMenuItem>
+              )}
+              {otherSeries.map((s) => (
+                <ContextMenuItem
+                  key={s.id}
+                  className="text-xs"
+                  onClick={() => handleMoveTo(s.id)}
+                >
+                  {s.title}
+                </ContextMenuItem>
+              ))}
+              {!loadingSeries && otherSeries.length === 0 && (
+                <ContextMenuItem disabled className="text-xs text-muted-foreground">
+                  No other series
+                </ContextMenuItem>
+              )}
+            </ContextMenuSubContent>
+          </ContextMenuSub>
+        )}
 
-        <ContextMenuSub>
-          <ContextMenuSubTrigger className="text-xs" onPointerEnter={fetchSeries}>
-            <IconArrowRight size={14} className="mr-2" />
-            Move to series
-          </ContextMenuSubTrigger>
-          <ContextMenuSubContent className="w-48 max-h-64 overflow-y-auto">
-            {loadingSeries && (
-              <ContextMenuItem disabled className="text-xs text-muted-foreground">
-                Loading...
-              </ContextMenuItem>
-            )}
-            {otherSeries.map((s) => (
-              <ContextMenuItem
-                key={s.id}
-                className="text-xs"
-                onClick={() => handleMoveTo(s.id)}
-              >
-                {s.title}
-              </ContextMenuItem>
-            ))}
-            {!loadingSeries && otherSeries.length === 0 && (
-              <ContextMenuItem disabled className="text-xs text-muted-foreground">
-                No other series
-              </ContextMenuItem>
-            )}
-          </ContextMenuSubContent>
-        </ContextMenuSub>
+        {f.copy && (
+          <ContextMenuSub>
+            <ContextMenuSubTrigger className="text-xs" onPointerEnter={fetchSeries}>
+              <IconCopyPlus size={14} className="mr-2" />
+              Copy to series
+            </ContextMenuSubTrigger>
+            <ContextMenuSubContent className="w-48 max-h-64 overflow-y-auto">
+              {loadingSeries && (
+                <ContextMenuItem disabled className="text-xs text-muted-foreground">
+                  Loading...
+                </ContextMenuItem>
+              )}
+              {otherSeries.map((s) => (
+                <ContextMenuItem
+                  key={s.id}
+                  className="text-xs"
+                  onClick={() => handleCopyTo(s.id)}
+                >
+                  {s.title}
+                </ContextMenuItem>
+              ))}
+              {!loadingSeries && otherSeries.length === 0 && (
+                <ContextMenuItem disabled className="text-xs text-muted-foreground">
+                  No other series
+                </ContextMenuItem>
+              )}
+            </ContextMenuSubContent>
+          </ContextMenuSub>
+        )}
 
-        <ContextMenuSub>
-          <ContextMenuSubTrigger className="text-xs" onPointerEnter={fetchSeries}>
-            <IconCopyPlus size={14} className="mr-2" />
-            Copy to series
-          </ContextMenuSubTrigger>
-          <ContextMenuSubContent className="w-48 max-h-64 overflow-y-auto">
-            {loadingSeries && (
-              <ContextMenuItem disabled className="text-xs text-muted-foreground">
-                Loading...
-              </ContextMenuItem>
-            )}
-            {otherSeries.map((s) => (
-              <ContextMenuItem
-                key={s.id}
-                className="text-xs"
-                onClick={() => handleCopyTo(s.id)}
-              >
-                {s.title}
-              </ContextMenuItem>
-            ))}
-            {!loadingSeries && otherSeries.length === 0 && (
-              <ContextMenuItem disabled className="text-xs text-muted-foreground">
-                No other series
-              </ContextMenuItem>
-            )}
-          </ContextMenuSubContent>
-        </ContextMenuSub>
-
-        {enabledTags.length > 0 && (
+        {f.tag && enabledTags.length > 0 && (
           <>
             <ContextMenuSeparator />
             <ContextMenuSub>
@@ -275,15 +340,72 @@ export function ImageContextMenu({
           </>
         )}
 
-        <ContextMenuSeparator />
+        {f.star && (
+          <>
+            <ContextMenuSeparator />
+            <ContextMenuSub>
+              <ContextMenuSubTrigger className="text-xs">
+                {(image.star_rating ?? 0) > 0
+                  ? <IconStarFilled size={14} className="mr-2 text-yellow-400" />
+                  : <IconStar size={14} className="mr-2" />}
+                {(image.star_rating ?? 0) > 0 ? `${image.star_rating} star${image.star_rating !== 1 ? 's' : ''}` : 'Rate'}
+              </ContextMenuSubTrigger>
+              <ContextMenuSubContent className="w-36">
+                {[1, 2, 3, 4, 5].map((stars) => (
+                  <ContextMenuItem
+                    key={stars}
+                    className="text-xs"
+                    onClick={async () => {
+                      const newRating = stars === image.star_rating ? 0 : stars;
+                      try {
+                        await setImageStarRating(image.id, newRating);
+                        onStarChanged?.(image.id, newRating);
+                      } catch (err) {
+                        console.error('Star rating failed:', err);
+                      }
+                    }}
+                  >
+                    <span className="flex items-center gap-0.5">
+                      {Array.from({ length: 5 }, (_, i) => (
+                        i < stars
+                          ? <IconStarFilled key={i} size={12} className="text-yellow-400" />
+                          : <IconStar key={i} size={12} className="text-muted-foreground/40" />
+                      ))}
+                    </span>
+                  </ContextMenuItem>
+                ))}
+                {(image.star_rating ?? 0) > 0 && (
+                  <ContextMenuItem
+                    className="text-xs text-muted-foreground"
+                    onClick={async () => {
+                      try {
+                        await setImageStarRating(image.id, 0);
+                        onStarChanged?.(image.id, 0);
+                      } catch (err) {
+                        console.error('Clear rating failed:', err);
+                      }
+                    }}
+                  >
+                    Clear rating
+                  </ContextMenuItem>
+                )}
+              </ContextMenuSubContent>
+            </ContextMenuSub>
+          </>
+        )}
 
-        <ContextMenuItem
-          onClick={handleDelete}
-          className="text-xs text-destructive focus:text-destructive"
-        >
-          <IconTrash size={14} className="mr-2" />
-          Delete
-        </ContextMenuItem>
+        {f.delete && (
+          <>
+            <ContextMenuSeparator />
+            <ContextMenuItem
+              onClick={handleDelete}
+              className="text-xs text-destructive focus:text-destructive"
+            >
+              <IconTrash size={14} className="mr-2" />
+              Delete
+            </ContextMenuItem>
+          </>
+        )}
       </ContextMenuContent>
     </ContextMenu>
   );

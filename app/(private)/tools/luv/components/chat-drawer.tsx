@@ -97,19 +97,25 @@ export function ChatDrawer() {
         {session.soulLoaded && session.messages.length === 0 && (
           <EmptyState compact />
         )}
-        {session.messages.map((msg) => (
-          <MessageBubble
-            key={msg.id}
-            message={msg}
-            isLast={msg.id === session.messages[session.messages.length - 1]?.id}
-            isActive={session.isActive}
-            getImageIndex={getImageIndex}
-            onInsertImageRef={handleInsertImageRef}
-            compact
-            voiceEnabled={voiceEnabled}
-            voiceSpeed={voiceSpeed}
-          />
-        ))}
+        {session.messages.map((msg, idx) => {
+          const lastUserIdx = session.messages.findLastIndex((m) => m.role === 'user');
+          return (
+            <MessageBubble
+              key={msg.id}
+              message={msg}
+              isLast={msg.id === session.messages[session.messages.length - 1]?.id}
+              isActive={session.isActive}
+              getImageIndex={getImageIndex}
+              onInsertImageRef={handleInsertImageRef}
+              compact
+              voiceEnabled={voiceEnabled}
+              voiceSpeed={voiceSpeed}
+              onDelete={session.handleDeleteMessage}
+              onRetry={session.handleRetry}
+              isLastUserMessage={idx === lastUserIdx}
+            />
+          );
+        })}
         {session.isActive && session.status === 'submitted' && (
           <ThinkingIndicator compact />
         )}

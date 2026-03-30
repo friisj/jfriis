@@ -98,7 +98,7 @@ export async function uploadUserMessageImages(
       try {
         const { createLuvCogImageServer } = await import('./luv/cog-integration-server');
         const cogImage = await createLuvCogImageServer({
-          seriesKey: 'references',
+          seriesKey: 'uploads',
           storagePath,
           filename: fp.filename ?? `chat-upload-${Date.now()}.${ext}`,
           mimeType: mimeType ?? 'image/jpeg',

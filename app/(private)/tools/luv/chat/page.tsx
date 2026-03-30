@@ -108,18 +108,24 @@ export default function LuvChatPage() {
           {session.soulLoaded && session.messages.length === 0 && (
             <EmptyState />
           )}
-          {session.messages.map((msg) => (
-            <MessageBubble
-              key={msg.id}
-              message={msg}
-              isLast={msg.id === session.messages[session.messages.length - 1]?.id}
-              isActive={session.isActive}
-              voiceEnabled={voiceEnabled}
-              voiceSpeed={voiceSpeed}
-              getImageIndex={getImageIndex}
-              onInsertImageRef={handleInsertImageRef}
-            />
-          ))}
+          {session.messages.map((msg, idx) => {
+            const lastUserIdx = session.messages.findLastIndex((m) => m.role === 'user');
+            return (
+              <MessageBubble
+                key={msg.id}
+                message={msg}
+                isLast={msg.id === session.messages[session.messages.length - 1]?.id}
+                isActive={session.isActive}
+                voiceEnabled={voiceEnabled}
+                voiceSpeed={voiceSpeed}
+                getImageIndex={getImageIndex}
+                onInsertImageRef={handleInsertImageRef}
+                onDelete={session.handleDeleteMessage}
+                onRetry={session.handleRetry}
+                isLastUserMessage={idx === lastUserIdx}
+              />
+            );
+          })}
           {session.isActive && session.status === 'submitted' && (
             <ThinkingIndicator />
           )}

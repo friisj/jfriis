@@ -3,7 +3,7 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { isToolUIPart, getToolName } from 'ai';
 import type { UIMessage } from 'ai';
-import { IconBrain, IconChevronDown, IconChevronRight, IconCopy, IconVolume, IconPlayerStop, IconLoader2 } from '@tabler/icons-react';
+import { IconBrain, IconChevronDown, IconChevronRight, IconCopy, IconVolume, IconPlayerStop, IconLoader2, IconTrash, IconRefresh } from '@tabler/icons-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import {
@@ -32,9 +32,15 @@ interface MessageBubbleProps {
   getImageIndex?: (url: string) => number | null;
   /** Called when user taps an image badge to insert [N] reference */
   onInsertImageRef?: (index: number) => void;
+  /** Hard-delete this message */
+  onDelete?: (messageId: string) => void;
+  /** Retry: delete last assistant response and regenerate (only shown on last user message) */
+  onRetry?: () => void;
+  /** Whether this is the last user message (enables retry option) */
+  isLastUserMessage?: boolean;
 }
 
-export function MessageBubble({ message, isLast, isActive, compact = false, voiceEnabled = false, voiceSpeed, getImageIndex, onInsertImageRef }: MessageBubbleProps) {
+export function MessageBubble({ message, isLast, isActive, compact = false, voiceEnabled = false, voiceSpeed, getImageIndex, onInsertImageRef, onDelete, onRetry, isLastUserMessage }: MessageBubbleProps) {
   const [ttsState, setTtsState] = useState<'idle' | 'loading' | 'playing'>('idle');
   const [audioRef] = useState<{ current: HTMLAudioElement | null }>({ current: null });
 
@@ -131,6 +137,21 @@ export function MessageBubble({ message, isLast, isActive, compact = false, voic
           <IconCopy size={14} className="mr-2" />
           Copy trace ID
         </ContextMenuItem>
+        {isLastUserMessage && onRetry && !isActive && (
+          <ContextMenuItem className="text-xs" onClick={onRetry}>
+            <IconRefresh size={14} className="mr-2" />
+            Retry
+          </ContextMenuItem>
+        )}
+        {onDelete && !isActive && (
+          <ContextMenuItem
+            className="text-xs text-destructive focus:text-destructive"
+            onClick={() => onDelete(message.id)}
+          >
+            <IconTrash size={14} className="mr-2" />
+            Delete message
+          </ContextMenuItem>
+        )}
       </ContextMenuContent>
     </ContextMenu>
   );

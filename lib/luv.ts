@@ -542,6 +542,15 @@ export async function createLuvMessage(
   return data as LuvMessage;
 }
 
+export async function deleteLuvMessage(messageId: string): Promise<void> {
+  const { error } = await (supabase as any)
+    .from('luv_messages')
+    .delete()
+    .eq('id', messageId);
+
+  if (error) throw error;
+}
+
 // ============================================================================
 // Memories
 // ============================================================================
