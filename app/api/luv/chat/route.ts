@@ -17,7 +17,7 @@ import { getChassisModulesServer } from '@/lib/luv-chassis-server';
 import { listLuvResearchServer } from '@/lib/luv-research-server';
 import { getLuvChangelogServer } from '@/lib/luv-changelog-server';
 import { getCurrentSoulConfigServer } from '@/lib/luv-soul-modulation-server';
-import { luvTools, createCurrentContextTool } from '@/lib/luv-tools';
+import { luvCoreTools, luvExtendedTools, createCurrentContextTool } from '@/lib/luv-tools';
 import { luvImageMgmtTools } from '@/lib/luv-image-mgmt-tools';
 import { createGenerateImageTool } from '@/lib/luv-image-gen-tools';
 import { createChassisStudyTool, recordStudyFeedback, listChassisStudies } from '@/lib/luv-chassis-study-tools';
@@ -224,13 +224,24 @@ export async function POST(request: Request) {
       },
     } : undefined;
 
+    // Register tools based on context. Core tools are always available (~20 tools).
+    // Extended tools (research, artifacts, reviews, playground, changelog, image mgmt)
+    // are added when the page context or conversation content suggests they're needed.
+    // Keeping the tool set small improves model reliability for tool invocations.
+    const path = pageContext?.pathname ?? '';
+    const isMediaPage = path.includes('/media') || path.includes('/series');
+    const isReviewPage = path.includes('/review');
+    const isResearchPage = path.includes('/research');
+    const wantsExtendedTools = isMediaPage || isReviewPage || isResearchPage || turnCount > 10;
+
     const result = streamText({
       model: getModel(modelKey),
       system: systemPrompt,
       messages: augmentedMessages,
       tools: {
-        ...luvTools,
-        ...luvImageMgmtTools,
+        ...luvCoreTools,
+        ...(wantsExtendedTools ? luvExtendedTools : {}),
+        ...(isMediaPage || wantsExtendedTools ? luvImageMgmtTools : {}),
         generate_image: createGenerateImageTool(augmentedMessages),
         run_chassis_study: createChassisStudyTool(augmentedMessages),
         record_study_feedback: recordStudyFeedback,
