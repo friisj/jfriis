@@ -58,7 +58,8 @@ export function createGenerateImageTool(messages: ModelMessage[]) {
       'Use this for creative images, scenes, portraits, or any image where you want direct prompt control. ' +
       'Do NOT use this for chassis-grounded studies (use run_chassis_study) or pencil sketches (use run_sketch_study). ' +
       'Set useRecentChatImages to include images from the conversation as i2i reference. ' +
-      'Pass referenceImageUrls for images from other series — get URLs from fetch_series_images or list_generations. ' +
+      'Pass referenceImageIds with Cog image IDs from fetch_series_images, list_generations, or list_sketches — the tool resolves them server-side. ' +
+      'Prefer referenceImageIds over referenceImageUrls — IDs are more reliable (no URL fabrication risk). ' +
       'Returns a public URL and Cog image ID. Does NOT return the image itself — describe what you observe only after the tool returns.',
     inputSchema: zodSchema(
       z.object({
@@ -70,11 +71,16 @@ export function createGenerateImageTool(messages: ModelMessage[]) {
           .max(4)
           .optional()
           .describe('Number of recent chat images to use as reference (0-4). Extracts from conversation history.'),
+        referenceImageIds: z
+          .array(z.string())
+          .max(4)
+          .optional()
+          .describe('Cog image IDs to use as reference (max 4). Preferred over URLs — resolved server-side. Get IDs from fetch_series_images, list_generations, or list_sketches.'),
         referenceImageUrls: z
           .array(z.string())
           .max(4)
           .optional()
-          .describe('Supabase public URLs of previously generated images to use as reference (max 4). Use list_generations to find URLs.'),
+          .describe('HTTPS URLs of images to use as reference (max 4). Prefer referenceImageIds instead — URLs are error-prone.'),
         aspectRatio: z
           .enum(['1:1', '2:3', '3:2', '3:4', '4:3', '4:5', '5:4', '9:16', '16:9'])
           .optional()
@@ -93,7 +99,7 @@ export function createGenerateImageTool(messages: ModelMessage[]) {
           .describe('UUID of a luv_prompt_templates row to merge with the prompt — use list_prompt_templates to find'),
       })
     ),
-    execute: async ({ prompt, useRecentChatImages, referenceImageUrls, aspectRatio, imageSize, model, templateId }) => {
+    execute: async ({ prompt, useRecentChatImages, referenceImageIds, referenceImageUrls, aspectRatio, imageSize, model, templateId }) => {
       try {
         const referenceImages: { base64: string; mimeType: string }[] = [];
 
@@ -103,7 +109,33 @@ export function createGenerateImageTool(messages: ModelMessage[]) {
           referenceImages.push(...chatImages);
         }
 
-        // Fetch any explicitly provided URLs (e.g., from previous generations)
+        // Resolve Cog image IDs to base64 (preferred — no URL fabrication risk)
+        if (referenceImageIds && referenceImageIds.length > 0) {
+          const { createClient } = await import('@supabase/supabase-js');
+          const client = createClient(
+            process.env.NEXT_PUBLIC_SUPABASE_URL!,
+            process.env.SUPABASE_SERVICE_ROLE_KEY!,
+          );
+          const { resolveImageAsBase64 } = await import('./luv-image-utils');
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const { data: images } = await (client as any)
+            .from('cog_images')
+            .select('storage_path')
+            .in('id', referenceImageIds.slice(0, 4));
+
+          if (images) {
+            const settled = await Promise.allSettled(
+              images.map((img: { storage_path: string }) => resolveImageAsBase64(img.storage_path))
+            );
+            for (const result of settled) {
+              if (result.status === 'fulfilled') {
+                referenceImages.push({ base64: result.value.base64, mimeType: result.value.mediaType });
+              }
+            }
+          }
+        }
+
+        // Fetch any explicitly provided URLs (fallback — prefer IDs)
         if (referenceImageUrls && referenceImageUrls.length > 0) {
           const urlImages = await Promise.all(referenceImageUrls.map(urlToBase64));
           referenceImages.push(...urlImages);
