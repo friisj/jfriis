@@ -25,10 +25,10 @@ export function createChassisStudyTool(messages: ModelMessage[]) {
     description:
       'Run a chassis study — a multi-agent deliberation pipeline for character-grounded image generation. ' +
       'You and a Gemini director co-shape a brief from chassis parameters, then generate an image with canonical reference images. ' +
-      'Use this when the user asks to explore, visualize, or study any aspect of your chassis/appearance. ' +
-      'The user\'s natural language request is the primary input — extract goal, style, module focus, and dynamics from their description. ' +
-      'Set useRecentChatImages to include images from the conversation as additional references. ' +
-      'IMPORTANT: You must actually call this tool — do not simulate or describe the output.',
+      'Use this when the user asks to explore, visualize, or study any aspect of your chassis/appearance — poses, expressions, outfit explorations. ' +
+      'Do NOT use this for general creative images (use generate_image) or pencil sketches (use run_sketch_study). ' +
+      'Required: userPrompt describing the study goal. Optional: moduleSlugs to focus on specific anatomy, style, dynamics, useRecentChatImages. ' +
+      'Returns a public URL, Cog image ID, and the deliberation trace. Does NOT return the image itself.',
     inputSchema: zodSchema(
       z.object({
         userPrompt: z

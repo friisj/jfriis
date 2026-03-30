@@ -15,13 +15,13 @@ export const runSketchStudy = tool({
   description:
     'Generate a pencil/graphite drawing using Flux 2 Dev. The medium is locked (pencil on paper) ' +
     'but you control the drawing approach entirely through subject and styleNotes. ' +
-    'IMPORTANT: Always compose styleNotes with specific rendering direction for each sketch — ' +
-    'e.g. "loose gestural lines, emphasis on weight distribution" or "precise contour drawing, ' +
-    'minimal shading, clean outlines." Keep subject descriptions simple and focused — over-specifying ' +
-    'anatomy terms causes hallucinated structures. Let the model interpret form naturally. ' +
-    'Use referenceSketchId for i2i refinement of an existing image (any Cog image ID works). ' +
-    'Use exemplarIds for style consistency — call list_sketches first to get real IDs. ' +
-    'After generation, critically evaluate the result before presenting — flag anatomical errors honestly.',
+    'Use this for anatomy studies, gesture drawings, fashion silhouettes, or form exploration. ' +
+    'Do NOT use this for photorealistic images (use generate_image or run_chassis_study). ' +
+    'Required: subject (keep simple — over-specifying anatomy causes hallucinations) and focus. ' +
+    'Always compose styleNotes with specific rendering direction — e.g. "loose gestural lines" or "precise contour drawing". ' +
+    'Use referenceSketchId for i2i refinement (any Cog image ID works). ' +
+    'Use exemplarIds for style consistency — call list_sketches first to get real IDs, never fabricate UUIDs. ' +
+    'Returns the generated image inline for your review. Critically evaluate before presenting — flag errors honestly.',
   inputSchema: zodSchema(
     z.object({
       subject: z
