@@ -22,10 +22,10 @@ export function ImageBadge({ index, onInsertReference, className }: ImageBadgePr
         onInsertReference?.(index);
       }}
       className={cn(
-        'absolute bottom-1 left-1 z-10',
+        'absolute top-1 right-1 z-10',
         'flex items-center justify-center',
-        'min-w-[20px] h-5 px-1 rounded-full',
-        'bg-black/70 text-white text-[10px] font-mono font-medium',
+        'min-w-[20px] h-5 px-1 rounded-sm',
+        'bg-black/50 background-blur-sm font-mono text-white text-[10px]',
         'hover:bg-primary/90 transition-colors cursor-pointer',
         'backdrop-blur-sm',
         className,

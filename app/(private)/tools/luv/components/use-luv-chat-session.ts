@@ -71,6 +71,7 @@ export function useLuvChatSession() {
   const [compactSummary, setCompactSummary] = useState<LuvCompactSummary | null>(null);
   const [input, setInput] = useState('');
   const [pendingFiles, setPendingFiles] = useState<FileUIPart[]>([]);
+  const [toolHint, setToolHint] = useState<string | null>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -103,10 +104,11 @@ export function useLuvChatSession() {
           pageContext,
           thinking,
           seedContext,
+          toolHint,
         },
       }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [modelKey, thinking, pageContext.pathname, pageDataKey, seedContext]
+    [modelKey, thinking, pageContext.pathname, pageDataKey, seedContext, toolHint]
   );
 
   const { messages, sendMessage, setMessages, regenerate, status, error } = useChat({
@@ -275,6 +277,7 @@ export function useLuvChatSession() {
     const files = pendingFiles.length > 0 ? [...pendingFiles] : undefined;
     setInput('');
     setPendingFiles([]);
+    setToolHint(null);
     isStuckToBottom.current = true;
     await sendMessage({ text: trimmed || ' ', files });
   }, [input, pendingFiles, isActive, sendMessage, soulData, modelKey]);
@@ -451,6 +454,8 @@ export function useLuvChatSession() {
     setInput,
     pendingFiles,
     setPendingFiles,
+    toolHint,
+    setToolHint,
     messages,
     status,
     error,

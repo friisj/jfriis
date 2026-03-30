@@ -17,6 +17,7 @@ import { ToolCallCard } from '../tool-call-card';
 import { ProposalCard } from '../proposal-card';
 import { ImageLightbox } from './image-lightbox';
 import { ImageBadge } from './image-badge';
+import { ChatImageMenu } from './chat-image-menu';
 
 interface MessageBubbleProps {
   message: UIMessage;
@@ -183,7 +184,7 @@ function UserBubble({ message, compact, getImageIndex, onInsertImageRef }: {
             {fileParts.map((f, i) => {
               const imgIndex = getImageIndex?.(f.url);
               return (
-                <div key={i} className="relative">
+                <ChatImageMenu key={i} src={f.url} cogImageId={(f as Record<string, unknown>).cogImageId as string | undefined}>
                   <button type="button" onClick={() => setLightboxSrc(f.url)} className="cursor-pointer">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
@@ -193,7 +194,7 @@ function UserBubble({ message, compact, getImageIndex, onInsertImageRef }: {
                     />
                   </button>
                   {imgIndex && <ImageBadge index={imgIndex} onInsertReference={onInsertImageRef} />}
-                </div>
+                </ChatImageMenu>
               );
             })}
           </div>
@@ -298,14 +299,27 @@ function AssistantBubble({
                     img: ({ src, alt }) => {
                       if (!src || typeof src !== 'string') return null;
                       const imgIndex = getImageIndex?.(src);
+
+                      // Detect fabricated URLs — if not tracked and not a real storage URL, warn
+                      const isKnown = !!imgIndex;
+                      const isStorageUrl = src.includes('/storage/v1/object/public/cog-images/');
+                      if (!isKnown && !isStorageUrl) {
+                        return (
+                          <span className="inline-flex items-center gap-1.5 px-2 py-1 my-1 rounded bg-destructive/10 border border-destructive/20 text-destructive text-xs">
+                            <span className="font-medium">Fabricated image URL</span>
+                            <span className="text-destructive/60 truncate max-w-[200px]">{src.slice(0, 60)}...</span>
+                          </span>
+                        );
+                      }
+
                       return (
-                        <span className="relative inline-block my-1">
+                        <ChatImageMenu src={src}>
                           <button type="button" onClick={() => setLightboxSrc(src)} className="cursor-pointer block">
                             {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img src={src} alt={alt ?? ''} className="rounded-lg max-h-80 object-contain" />
+                            <img src={src} alt={alt ?? ''} className="rounded-sm mt-0 mb-0 max-h-80 object-contain" />
                           </button>
                           {imgIndex && <ImageBadge index={imgIndex} onInsertReference={onInsertImageRef} />}
-                        </span>
+                        </ChatImageMenu>
                       );
                     },
                   }}

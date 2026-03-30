@@ -22,10 +22,9 @@ import { resolveReferenceImages, referenceImageSchema } from './luv-image-refs';
 export function createGenerateImageTool(messages: ModelMessage[]) {
   return tool({
     description:
-      'Generate a general-purpose image using Gemini Nano Banana models. ' +
+      'Generate an image using Gemini Nano Banana models. This is the DEFAULT image generation tool — use it for any image request unless the user specifically asks for a chassis "study" or pencil "sketch". ' +
       'Write a detailed prompt describing subject, composition, lighting, style, and mood. ' +
-      'Use this for creative images, scenes, portraits, or any image where you want direct prompt control. ' +
-      'Do NOT use this for chassis-grounded studies (use run_chassis_study) or pencil sketches (use run_sketch_study). ' +
+      'Use for: portraits, creative images, scenes, style explorations, appearance testing, outfit concepts. ' +
       'Pass referenceImageIds with Cog image IDs from fetch_series_images, list_generations, or list_sketches for i2i conditioning. ' +
       'Set useRecentChatImages to include images from the conversation. ' +
       'Returns a public URL and Cog image ID. Does NOT return the image itself — describe what you observe only after the tool returns.',

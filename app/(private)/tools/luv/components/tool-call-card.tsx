@@ -6,6 +6,7 @@ import { IconChevronRight, IconExternalLink } from '@tabler/icons-react';
 import { cn } from '@/lib/utils';
 import { ImageLightbox } from './shared/image-lightbox';
 import { ImageBadge } from './shared/image-badge';
+import { ChatImageMenu } from './shared/chat-image-menu';
 
 interface ToolCallCardProps {
   toolName: string;
@@ -199,7 +200,7 @@ export function ToolCallCard({ toolName, state, result, getImageIndex, onInsertI
   const showExpanded = expanded || (!userCollapsed && isComplete && (imageResult?.success || studyResult?.success || toolImages.length > 0));
 
   return (
-    <div className="rounded border bg-muted/50 text-xs my-1">
+    <div className="rounded-md border bg-muted/50 text-xs my-1">
       <button
         type="button"
         onClick={() => {
@@ -261,26 +262,26 @@ export function ToolCallCard({ toolName, state, result, getImageIndex, onInsertI
       {showExpanded && imageResult && (
         <div className="border-t">
           {imageResult.success && imageResult.imageUrl ? (
-            <div className="p-2 space-y-1.5">
-              <div className="relative inline-block">
+            <div className="p-2 space-y-2">
+              <ChatImageMenu src={imageResult.imageUrl!} cogImageId={imageResult.cogImageId}>
                 <button type="button" onClick={() => setLightboxSrc(imageResult.imageUrl!)}>
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={imageResult.imageUrl}
                     alt={imageResult.prompt ?? 'Generated image'}
-                    className="rounded max-w-full max-h-96 object-contain cursor-pointer hover:opacity-90 transition-opacity"
+                    className="rounded-sm max-w-full max-h-96 object-contain cursor-pointer hover:opacity-90 transition-opacity"
                   />
                 </button>
                 {(() => { const idx = getImageIndex?.(imageResult.imageUrl!); return idx ? <ImageBadge index={idx} onInsertReference={onInsertImageRef} /> : null; })()}
-              </div>
-              <div className="flex gap-2 text-[10px] text-muted-foreground">
+              </ChatImageMenu>
+              <div className="flex gap-2 text-[10px] font-mono text-muted-foreground">
                 {imageResult.model && <span>{imageResult.model.replace('gemini-', '').replace('-preview', '')}</span>}
                 {imageResult.aspectRatio && <span>{imageResult.aspectRatio}</span>}
                 {imageResult.imageSize && <span>{imageResult.imageSize}</span>}
               </div>
             </div>
           ) : (
-            <div className="px-2 py-1.5 text-destructive">
+            <div className="px-2 py-1.5 text-destructive font-mono">
               {imageResult.error ?? 'Image generation failed'}
             </div>
           )}
@@ -292,7 +293,7 @@ export function ToolCallCard({ toolName, state, result, getImageIndex, onInsertI
         <div className="border-t">
           {studyResult.success && studyResult.imageUrl ? (
             <div className="p-2 space-y-2">
-              <div className="relative inline-block">
+              <ChatImageMenu src={studyResult.imageUrl!} cogImageId={studyResult.studyId}>
                 <button type="button" onClick={() => setLightboxSrc(studyResult.imageUrl!)}>
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
@@ -302,7 +303,7 @@ export function ToolCallCard({ toolName, state, result, getImageIndex, onInsertI
                   />
                 </button>
                 {(() => { const idx = getImageIndex?.(studyResult.imageUrl!); return idx ? <ImageBadge index={idx} onInsertReference={onInsertImageRef} /> : null; })()}
-              </div>
+              </ChatImageMenu>
               {studyResult.deliberation && (
                 <div className="space-y-1.5">
                   <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">
@@ -343,23 +344,25 @@ export function ToolCallCard({ toolName, state, result, getImageIndex, onInsertI
       {/* Generic image grid for tools returning images with URLs */}
       {showExpanded && toolImages.length > 0 && !imageResult && !studyResult && (
         <div className="border-t p-2">
-          <div className="grid grid-cols-2 gap-2">
-            {toolImages.map((img, i) => {
-              const idx = getImageIndex?.(img.url);
-              return (
-                <div key={i} className="relative">
-                  <button type="button" onClick={() => setLightboxSrc(img.url)}>
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={img.url}
-                      alt={img.filename ?? `Image ${i + 1}`}
-                      className="rounded max-h-48 w-full object-cover cursor-pointer hover:opacity-90 transition-opacity"
-                    />
-                  </button>
-                  {idx && <ImageBadge index={idx} onInsertReference={onInsertImageRef} />}
-                </div>
-              );
-            })}
+          <div className="overflow-x-scroll h-48">
+            <div className="flex gap-2">
+              {toolImages.map((img, i) => {
+                const idx = getImageIndex?.(img.url);
+                return (
+                  <ChatImageMenu key={i} src={img.url}>
+                    <button type="button" onClick={() => setLightboxSrc(img.url)} className="h-48 w-32 bg-secondary rounded-sm">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={img.url}
+                        alt={img.filename ?? `Image ${i + 1}`}
+                        className="max-h-48 w-full object-cover cursor-pointer hover:opacity-90 transition-opacity"
+                      />
+                    </button>
+                    {idx && <ImageBadge index={idx} onInsertReference={onInsertImageRef} />}
+                  </ChatImageMenu>
+                );
+              })}
+            </div>
           </div>
         </div>
       )}

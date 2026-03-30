@@ -57,6 +57,7 @@ export async function POST(request: Request) {
       thinking = false,
       seedContext = null,
       sessionId,
+      toolHint = null,
     } = body as {
       messages?: UIMessage[];
       chatId?: string;
@@ -66,6 +67,7 @@ export async function POST(request: Request) {
       thinking?: boolean;
       seedContext?: string | null;
       sessionId?: string;
+      toolHint?: string | null;
     };
 
     // Resolve conversation messages: server-side state (new) or client payload (legacy)
@@ -244,6 +246,8 @@ export async function POST(request: Request) {
         web_search: getAnthropic().tools.webSearch_20250305({ maxUses: 3 }),
         tool_search: getAnthropic().tools.toolSearchBm25_20251119(),
       } as ToolSet,
+      // If user selected a tool hint, force that tool on the first step
+      ...(toolHint ? { toolChoice: { type: 'tool' as const, toolName: toolHint } } : {}),
       stopWhen: stepCountIs(15),
       providerOptions,
       onFinish: async (event) => {
@@ -265,6 +269,19 @@ export async function POST(request: Request) {
             content: event.text,
             parts: serializeOnFinishParts(event),
           });
+
+          // Detect fabricated image URLs in the response — inject feedback
+          // the agent will see on its next turn
+          const fabricatedUrls = detectFabricatedImageUrls(event.text, event.steps);
+          if (fabricatedUrls.length > 0) {
+            console.warn('[luv/chat] Fabricated image URLs detected:', fabricatedUrls);
+            await createLuvMessageServer({
+              conversation_id: convId,
+              role: 'user',
+              content: `[SYSTEM] Your previous response contained ${fabricatedUrls.length} fabricated image URL(s) that do not exist. The user saw a "Fabricated image URL" warning instead of an image. Do not invent URLs — only reference images from tool results. Affected URLs: ${fabricatedUrls.join(', ')}`,
+              parts: null,
+            });
+          }
         } catch (err) {
           console.error('[luv/chat] Failed to persist assistant message:', err);
         }
@@ -409,4 +426,54 @@ async function augmentImagesWithGeminiVision(
   const result = [...messages];
   result[lastUserIdx] = { ...msg, content: newContent };
   return result;
+}
+
+/**
+ * Detect fabricated image URLs in the assistant's response text.
+ * A URL is fabricated if it appears in markdown ![](url) but doesn't
+ * match any real image URL from tool results in the same response.
+ */
+function detectFabricatedImageUrls(
+  text: string,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  steps: Array<{ toolResults?: Array<any> }>,
+): string[] {
+  // Collect all real image URLs from tool results
+  const realUrls = new Set<string>();
+  for (const step of steps) {
+    if (!step.toolResults) continue;
+    for (const tr of step.toolResults) {
+      const r = tr.result as Record<string, unknown> | null;
+      if (!r || typeof r !== 'object') continue;
+      // Direct imageUrl from generation/study results
+      if (typeof r.imageUrl === 'string') realUrls.add(r.imageUrl);
+      // Images array from fetch_series_images etc.
+      if (Array.isArray(r.images)) {
+        for (const img of r.images as Array<Record<string, unknown>>) {
+          if (typeof img.url === 'string') realUrls.add(img.url);
+        }
+      }
+      if (Array.isArray(r.sketches)) {
+        for (const s of r.sketches as Array<Record<string, unknown>>) {
+          if (typeof s.url === 'string') realUrls.add(s.url);
+        }
+      }
+    }
+  }
+
+  // Scan markdown for image URLs
+  const fabricated: string[] = [];
+  const mdRegex = /!\[([^\]]*)\]\(([^)]+)\)/g;
+  let match;
+  while ((match = mdRegex.exec(text)) !== null) {
+    const url = match[2];
+    // Skip data URLs
+    if (url.startsWith('data:')) continue;
+    // If it looks like a Supabase storage URL but isn't in our real set, it's fabricated
+    if (url.includes('supabase.co') && !realUrls.has(url)) {
+      fabricated.push(url);
+    }
+  }
+
+  return fabricated;
 }
