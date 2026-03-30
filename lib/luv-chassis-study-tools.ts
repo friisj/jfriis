@@ -23,12 +23,11 @@ import { resolveReferenceImages, referenceImageSchema } from './luv-image-refs';
 export function createChassisStudyTool(messages: ModelMessage[]) {
   return tool({
     description:
-      'Run a chassis study — a multi-agent deliberation pipeline for character-grounded image generation. ' +
-      'You and a Gemini director co-shape a brief from chassis parameters, then generate an image with canonical reference images. ' +
-      'Use this when the user asks to explore, visualize, or study any aspect of your chassis/appearance — poses, expressions, outfit explorations. ' +
-      'Do NOT use this for general creative images (use generate_image) or pencil sketches (use run_sketch_study). ' +
-      'Required: userPrompt describing the study goal. Optional: moduleSlugs, style, dynamics, referenceImageIds, useRecentChatImages. ' +
-      'Canonical reference images from chassis modules are included automatically. ' +
+      'Run a chassis study — an EXPENSIVE multi-agent deliberation pipeline (~45s). ' +
+      'ONLY use when the user explicitly asks to "study" chassis parameters or explore how specific modules manifest visually. ' +
+      'Do NOT use for simple image requests like "generate a portrait" or "show me what you look like" — use generate_image instead. ' +
+      'You and a Gemini director co-shape a brief from chassis parameters, then generate with canonical reference images. ' +
+      'Required: userPrompt. Optional: moduleSlugs, style, dynamics, referenceImageIds, useRecentChatImages. ' +
       'Returns a public URL, Cog image ID, and the deliberation trace. Does NOT return the image itself.',
     inputSchema: zodSchema(
       z.object({
