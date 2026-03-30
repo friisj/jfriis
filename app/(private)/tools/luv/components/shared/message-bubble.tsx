@@ -184,18 +184,18 @@ function UserBubble({ message, compact, getImageIndex, onInsertImageRef }: {
             {fileParts.map((f, i) => {
               const imgIndex = getImageIndex?.(f.url);
               return (
-                <ChatImageMenu src={f.url} cogImageId={(f as Record<string, unknown>).cogImageId as string | undefined}>
-                <div key={i} className="relative">
-                  <button type="button" onClick={() => setLightboxSrc(f.url)} className="cursor-pointer">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={f.url}
-                      alt={f.filename ?? 'User image'}
-                      className={compact ? 'max-h-48 rounded-lg object-contain' : 'max-h-64 rounded-lg object-contain'}
-                    />
-                  </button>
-                  {imgIndex && <ImageBadge index={imgIndex} onInsertReference={onInsertImageRef} />}
-                </div>
+                <ChatImageMenu key={i} src={f.url} cogImageId={(f as Record<string, unknown>).cogImageId as string | undefined}>
+                  <div className="relative">
+                    <button type="button" onClick={() => setLightboxSrc(f.url)} className="cursor-pointer">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={f.url}
+                        alt={f.filename ?? 'User image'}
+                        className={compact ? 'max-h-48 rounded-lg object-contain' : 'max-h-64 rounded-lg object-contain'}
+                      />
+                    </button>
+                    {imgIndex && <ImageBadge index={imgIndex} onInsertReference={onInsertImageRef} />}
+                  </div>
                 </ChatImageMenu>
               );
             })}
@@ -316,13 +316,13 @@ function AssistantBubble({
 
                       return (
                         <ChatImageMenu src={src}>
-                        <span className="my-1 relative inline-block leading-[0] overflow-hidden rounded-sm max-h-80">
-                          <button type="button" onClick={() => setLightboxSrc(src)} className="cursor-pointer block max-h-80">
-                            {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img src={src} alt={alt ?? ''} className="rounded-sm max-h-80 object-contain" />
-                          </button>
-                          {imgIndex && <ImageBadge index={imgIndex} onInsertReference={onInsertImageRef} />}
-                        </span>
+                          <span className="my-1 relative inline-block leading-[0] overflow-hidden rounded-sm">
+                            <button type="button" onClick={() => setLightboxSrc(src)} className="cursor-pointer block">
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                              <img src={src} alt={alt ?? ''} className="rounded-sm max-h-80 object-contain" />
+                            </button>
+                            {imgIndex && <ImageBadge index={imgIndex} onInsertReference={onInsertImageRef} />}
+                          </span>
                         </ChatImageMenu>
                       );
                     },
