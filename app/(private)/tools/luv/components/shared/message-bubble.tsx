@@ -316,7 +316,7 @@ function AssistantBubble({
                         <ChatImageMenu src={src}>
                           <button type="button" onClick={() => setLightboxSrc(src)} className="cursor-pointer block">
                             {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img src={src} alt={alt ?? ''} className="rounded-sm max-h-80 object-contain" />
+                            <img src={src} alt={alt ?? ''} className="rounded-sm mt-0 mb-0 max-h-80 object-contain" />
                           </button>
                           {imgIndex && <ImageBadge index={imgIndex} onInsertReference={onInsertImageRef} />}
                         </ChatImageMenu>
