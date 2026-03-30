@@ -42,39 +42,24 @@ export const runSketchStudy = tool({
         .enum(['1:1', '2:3', '3:2', '3:4', '4:3', '4:5', '5:4', '9:16', '16:9'])
         .optional()
         .describe('Aspect ratio (default: 3:4 portrait)'),
-      guidanceScale: z
-        .number()
-        .min(1)
-        .max(10)
-        .optional()
-        .describe('Prompt adherence (1=loose, 10=strict, default: 3.5)'),
-      steps: z
-        .number()
-        .int()
-        .min(10)
-        .max(50)
-        .optional()
-        .describe('Quality/speed tradeoff (default: 28)'),
       referenceSketchId: z
         .string()
         .optional()
         .describe('Any Cog image ID for i2i refinement — generates a new version conditioned on this image. Can be a sketch, photo, study, or any image from any Luv series.'),
       exemplarIds: z
         .array(z.string())
-        .max(4)
+        .max(3)
         .optional()
-        .describe('Up to 4 Cog image IDs as style exemplars. IMPORTANT: use real IDs from list_sketches or fetch_series_images — do not fabricate UUIDs.'),
+        .describe('Up to 3 Cog image IDs as style exemplars (Flux 2 Dev supports max 4 total images including the primary reference). IMPORTANT: use real IDs from list_sketches or fetch_series_images — do not fabricate UUIDs.'),
     })
   ),
-  execute: async ({ subject, focus, styleNotes, moduleSlugs, aspectRatio, guidanceScale, steps, referenceSketchId, exemplarIds }) => {
+  execute: async ({ subject, focus, styleNotes, moduleSlugs, aspectRatio, referenceSketchId, exemplarIds }) => {
     try {
       const result = await runSketchStudyPipeline({
         subject,
         focus,
         moduleSlugs,
         aspectRatio: aspectRatio as import('./ai/replicate-flux').FluxAspectRatio | undefined,
-        guidanceScale,
-        steps,
         styleNotes,
         referenceSketchId,
         exemplarIds,

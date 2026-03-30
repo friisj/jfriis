@@ -31,13 +31,9 @@ export interface SketchStudyInput {
   moduleSlugs?: string[];
   /** Aspect ratio */
   aspectRatio?: FluxAspectRatio;
-  /** Guidance scale (how strictly to follow prompt). Default: 3.5 */
-  guidanceScale?: number;
-  /** Inference steps (quality vs speed). Default: 28 */
-  steps?: number;
-  /** Existing sketch ID to use as i2i input for refinement */
+  /** Existing image ID to use as i2i input for refinement */
   referenceSketchId?: string;
-  /** Additional exemplar sketch IDs for style consistency */
+  /** Additional exemplar IDs for style consistency (max 3 — total including primary ref capped at 4 by Flux Dev) */
   exemplarIds?: string[];
   /** Agent-composed style direction layered on the pencil base */
   styleNotes?: string;
@@ -63,8 +59,13 @@ function serviceClient() {
 
 /**
  * Compose the full prompt with style lock + focus modifiers.
+ *
+ * Flux 2 Dev has no strength slider for i2i — conditioning is entirely
+ * prompt-driven. When reference images are provided, the prompt must
+ * explicitly describe how to use them (e.g. "based on the reference image",
+ * "maintaining the pose and proportions from the input").
  */
-function composeSketchPrompt(input: SketchStudyInput): string {
+function composeSketchPrompt(input: SketchStudyInput, hasReferenceImages: boolean): string {
   const focusModifiers: Record<string, string> = {
     assembly: 'Full figure or regional view.',
     detail: 'Close-up detail.',
@@ -79,6 +80,13 @@ function composeSketchPrompt(input: SketchStudyInput): string {
     'Character: young woman, delicate refined features, natural beauty.',
   ];
 
+  // Flux 2 Dev i2i is prompt-driven — explicitly reference input images
+  if (hasReferenceImages) {
+    parts.push(
+      'Based on the provided reference image(s), maintain the subject\'s pose, proportions, and key features while rendering in the specified pencil sketch style.'
+    );
+  }
+
   return parts.filter(Boolean).join(' ');
 }
 
@@ -89,8 +97,6 @@ export async function runSketchStudyPipeline(
   input: SketchStudyInput
 ): Promise<SketchStudyResult> {
   const startTime = Date.now();
-
-  const prompt = composeSketchPrompt(input);
 
   // Resolve reference images for i2i conditioning
   const referenceImages: { base64: string; mimeType: string }[] = [];
@@ -139,22 +145,27 @@ export async function runSketchStudyPipeline(
     }
   }
 
+  // Compose prompt after reference resolution — prompt must reference
+  // input images for Flux 2 Dev i2i conditioning to work
+  const prompt = composeSketchPrompt(input, referenceImages.length > 0);
+
   console.log('[sketch-study] Generating:', {
     focus: input.focus,
     subject: input.subject.slice(0, 80),
     references: referenceImages.length,
     aspectRatio: input.aspectRatio ?? '3:4',
+    prompt: prompt.slice(0, 120),
   });
 
   // Generate via Flux 2 Dev
+  // Note: Dev only supports prompt, input_images, aspect_ratio, seed,
+  // output_format, go_fast, disable_safety_checker. No guidance_scale
+  // or num_inference_steps (those are Pro-only).
   const fluxResult = await generateWithFlux({
     prompt,
     referenceImages,
     aspectRatio: input.aspectRatio ?? '3:4',
-    resolution: '2',
     model: 'flux-2-dev',
-    guidanceScale: input.guidanceScale ?? 3.5,
-    numInferenceSteps: input.steps ?? 28,
   });
 
   // Upload to storage
@@ -182,8 +193,6 @@ export async function runSketchStudyPipeline(
       subject: input.subject,
       moduleSlugs: input.moduleSlugs,
       model: 'flux-2-dev',
-      guidanceScale: input.guidanceScale ?? 3.5,
-      steps: input.steps ?? 28,
       referenceSketchId: input.referenceSketchId,
       exemplarIds: input.exemplarIds,
       durationMs: fluxResult.durationMs,

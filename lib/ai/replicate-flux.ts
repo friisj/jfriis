@@ -2,7 +2,9 @@
  * Replicate Flux 2 Client
  *
  * Integrates Black Forest Labs' Flux 2 models for image generation.
- * Supports both Flux 2 Pro (up to 8 refs, 4MP) and Flux 2 Dev (up to 5 refs, 2MP).
+ * Supports both Flux 2 Pro (up to 8 refs, 4MP) and Flux 2 Dev (up to 4 refs).
+ * Note: Dev has a simpler schema — no guidance_scale, num_inference_steps, or megapixels.
+ * i2i conditioning is prompt-driven: describe how to use the reference in the prompt.
  *
  * Requires: REPLICATE_API_TOKEN env var
  */
@@ -112,7 +114,7 @@ export interface FluxGenerationResult {
  * Get maximum allowed reference images for a Flux model.
  */
 export function getMaxReferenceImages(model: FluxModel): number {
-  return model === 'flux-2-pro' ? 8 : 5;
+  return model === 'flux-2-pro' ? 8 : 4;
 }
 
 /**
@@ -185,31 +187,32 @@ export async function generateWithFlux(
   // Select the model
   const modelId = model === 'flux-2-pro' ? FLUX_2_PRO_MODEL : FLUX_2_DEV_MODEL;
 
-  // Build input parameters
+  // Build input parameters — Flux 2 Pro and Dev have different schemas.
+  // Dev: prompt, input_images (max 4), aspect_ratio, seed, output_format/quality, go_fast, disable_safety_checker
+  // Pro: prompt, input_images (max 8), aspect_ratio, resolution, seed, output_format/quality, safety_tolerance, prompt_upsampling
   const input: Record<string, unknown> = {
     prompt,
     aspect_ratio: aspectRatio,
-    megapixels: effectiveResolution,
     output_format: 'png',
-    guidance_scale: guidanceScale,
-    num_inference_steps: numInferenceSteps,
   };
 
-  // Set most permissive safety settings for private creative use
-  // Flux 2 Pro uses safety_tolerance (1=strict, 5=most permissive)
-  // Flux 2 Dev uses disable_safety_checker boolean
   if (model === 'flux-2-pro') {
+    // Pro-only parameters
+    input.resolution = effectiveResolution;
     input.safety_tolerance = 5;
+    input.guidance_scale = guidanceScale;
+    input.num_inference_steps = numInferenceSteps;
+    if (promptUpsampling) {
+      input.prompt_upsampling = true;
+    }
   } else {
+    // Dev-only parameters
     input.disable_safety_checker = true;
+    input.go_fast = false; // Disable speed optimizations for better quality
   }
 
   if (seed !== undefined) {
     input.seed = seed;
-  }
-
-  if (promptUpsampling) {
-    input.prompt_upsampling = true;
   }
 
   // Add reference images if provided
