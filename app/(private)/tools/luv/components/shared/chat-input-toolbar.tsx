@@ -246,8 +246,8 @@ export function ChatInputToolbar({
         )}
 
         <div className={cn('flex justify-between items-center pl-3 md:pl-4 pr-4', compact ? 'pb-4' : 'pb-4')}>
-          {/* Left: [+] actions menu + active tool hint pill */}
-          <div className="flex items-center gap-1.5">
+          {/* Left: [+] actions, [gear] settings, active tool hint pill */}
+          <div className="flex items-center gap-1">
             {/* [+] Actions dropdown — tool hints, image library, upload */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -298,40 +298,7 @@ export function ChatInputToolbar({
               </DropdownMenuContent>
             </DropdownMenu>
 
-            {/* Active tool hint pill (dismiss by clicking) */}
-            {toolHint && onSetToolHint && (() => {
-              const hint = TOOL_HINTS.find((h) => h.toolName === toolHint);
-              if (!hint) return null;
-              const Icon = HINT_ICONS[hint.icon];
-              return (
-                <button
-                  type="button"
-                  onClick={() => onSetToolHint(null)}
-                  className="flex items-center gap-1 px-2 py-1 rounded-full bg-primary text-primary-foreground text-xs transition-colors hover:opacity-80"
-                  title={`Using ${hint.label} — click to remove`}
-                >
-                  <Icon size={12} stroke={1.5} />
-                  {hint.label}
-                  <IconX size={10} stroke={2} />
-                </button>
-              );
-            })()}
-
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*"
-              multiple
-              className="hidden"
-              onChange={(e) => {
-                if (e.target.files) addFilesFromFileList(Array.from(e.target.files));
-                e.target.value = '';
-              }}
-            />
-          </div>
-
-          {/* Right: [gear] settings + [send] */}
-          <div className="flex items-center gap-1">
+            {/* [gear] Settings dropdown */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button
@@ -342,7 +309,7 @@ export function ChatInputToolbar({
                   <IconAdjustments size={iconSize} stroke={1.5} />
                 </button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent side="top" align="end" className="w-48">
+              <DropdownMenuContent side="top" align="start" className="w-48">
                 <DropdownMenuRadioGroup value={modelKey} onValueChange={setModelKey}>
                   {MODEL_OPTIONS.map((opt) => (
                     <DropdownMenuRadioItem key={opt.key} value={opt.key} className="text-xs">
@@ -492,6 +459,40 @@ export function ChatInputToolbar({
               </DropdownMenuContent>
             </DropdownMenu>
 
+            {/* Active tool hint pill (dismiss by clicking) */}
+            {toolHint && onSetToolHint && (() => {
+              const hint = TOOL_HINTS.find((h) => h.toolName === toolHint);
+              if (!hint) return null;
+              const Icon = HINT_ICONS[hint.icon];
+              return (
+                <button
+                  type="button"
+                  onClick={() => onSetToolHint(null)}
+                  className="flex items-center gap-1 px-2 py-1 rounded-full bg-primary text-primary-foreground text-xs transition-colors hover:opacity-80"
+                  title={`Using ${hint.label} — click to remove`}
+                >
+                  <Icon size={12} stroke={1.5} />
+                  {hint.label}
+                  <IconX size={10} stroke={2} />
+                </button>
+              );
+            })()}
+
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              multiple
+              className="hidden"
+              onChange={(e) => {
+                if (e.target.files) addFilesFromFileList(Array.from(e.target.files));
+                e.target.value = '';
+              }}
+            />
+          </div>
+
+          {/* Right: [send] */}
+          <div className="p-1">
             <button
               onClick={handleSend}
               disabled={isActive || (!input.trim() && pendingFiles.length === 0) || !soulLoaded}
