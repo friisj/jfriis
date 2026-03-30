@@ -179,6 +179,10 @@ export function ImagePickerPanel({ onAttach, onClose }: ImagePickerPanelProps) {
           select
           selectedIds={selectedIds}
           onToggleSelect={toggleImage}
+          contextMenu
+          seriesId={selectedSeries.id}
+          onImageDeleted={(id) => setImages((prev) => prev.filter((img) => img.id !== id))}
+          onImageMoved={(id) => setImages((prev) => prev.filter((img) => img.id !== id))}
           emptyMessage="No images in this series"
         />
       </div>
