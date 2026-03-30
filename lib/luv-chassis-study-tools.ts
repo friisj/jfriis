@@ -14,7 +14,7 @@ import type { ModelMessage } from 'ai';
 import { z } from 'zod';
 import { runChassisStudyPipeline } from './luv-chassis-study-pipeline';
 import { resolveImagePublicUrl } from './luv-image-utils';
-import { extractRecentChatImages } from './luv-chat-images';
+import { resolveReferenceImages, referenceImageSchema } from './luv-image-refs';
 
 /**
  * Factory: create the run_chassis_study tool with access to current model messages.
@@ -27,7 +27,8 @@ export function createChassisStudyTool(messages: ModelMessage[]) {
       'You and a Gemini director co-shape a brief from chassis parameters, then generate an image with canonical reference images. ' +
       'Use this when the user asks to explore, visualize, or study any aspect of your chassis/appearance — poses, expressions, outfit explorations. ' +
       'Do NOT use this for general creative images (use generate_image) or pencil sketches (use run_sketch_study). ' +
-      'Required: userPrompt describing the study goal. Optional: moduleSlugs to focus on specific anatomy, style, dynamics, useRecentChatImages. ' +
+      'Required: userPrompt describing the study goal. Optional: moduleSlugs, style, dynamics, referenceImageIds, useRecentChatImages. ' +
+      'Canonical reference images from chassis modules are included automatically. ' +
       'Returns a public URL, Cog image ID, and the deliberation trace. Does NOT return the image itself.',
     inputSchema: zodSchema(
       z.object({
@@ -66,22 +67,17 @@ export function createChassisStudyTool(messages: ModelMessage[]) {
           .enum(['nano-banana-2', 'nano-banana-pro'])
           .optional()
           .describe('Image model: nano-banana-2 (fast) or nano-banana-pro (higher quality, default)'),
-        useRecentChatImages: z
-          .number()
-          .int()
-          .min(0)
-          .max(4)
-          .optional()
-          .describe('Number of recent chat images to include as additional reference (0-4)'),
+        ...referenceImageSchema,
       })
     ),
-    execute: async ({ userPrompt, goal, style, moduleSlugs, dynamics, focusArea, aspectRatio, imageSize, model, useRecentChatImages }) => {
+    execute: async ({ userPrompt, goal, style, moduleSlugs, dynamics, focusArea, aspectRatio, imageSize, model, useRecentChatImages, referenceImageIds }) => {
       try {
-        // Extract chat images if requested
-        let chatReferenceImages: { base64: string; mimeType: string }[] | undefined;
-        if (useRecentChatImages && useRecentChatImages > 0) {
-          chatReferenceImages = await extractRecentChatImages(messages, useRecentChatImages);
-        }
+        // Resolve agent-provided references via unified resolver
+        const { images: agentRefs } = await resolveReferenceImages(
+          { fromChat: useRecentChatImages, fromCogIds: referenceImageIds },
+          messages,
+          4,
+        );
 
         const result = await runChassisStudyPipeline({
           userPrompt,
@@ -93,7 +89,7 @@ export function createChassisStudyTool(messages: ModelMessage[]) {
           aspectRatio,
           imageSize: imageSize as '1K' | '2K' | '4K' | undefined,
           model: model as 'nano-banana-2' | 'nano-banana-pro' | undefined,
-          chatReferenceImages,
+          chatReferenceImages: agentRefs.length > 0 ? agentRefs : undefined,
         });
 
         return {

@@ -6,12 +6,18 @@
  */
 
 import { tool, zodSchema } from 'ai';
+import type { ModelMessage } from 'ai';
 import { z } from 'zod';
 import { runSketchStudyPipeline } from './luv-sketch-study-pipeline';
 import { getCogImageUrl } from './cog/images';
 import { resolveImageAsBase64 } from './luv-image-utils';
+import { resolveReferenceImages, referenceImageSchema } from './luv-image-refs';
 
-export const runSketchStudy = tool({
+/**
+ * Factory: create the run_sketch_study tool with access to current model messages.
+ */
+export function createSketchStudyTool(messages: ModelMessage[]) {
+  return tool({
   description:
     'Generate a pencil/graphite drawing using Flux 2 Dev. The medium is locked (pencil on paper) ' +
     'but you control the drawing approach entirely through subject and styleNotes. ' +
@@ -19,8 +25,8 @@ export const runSketchStudy = tool({
     'Do NOT use this for photorealistic images (use generate_image or run_chassis_study). ' +
     'Required: subject (keep simple — over-specifying anatomy causes hallucinations) and focus. ' +
     'Always compose styleNotes with specific rendering direction — e.g. "loose gestural lines" or "precise contour drawing". ' +
-    'Use referenceSketchId for i2i refinement (any Cog image ID works). ' +
-    'Use exemplarIds for style consistency — call list_sketches first to get real IDs, never fabricate UUIDs. ' +
+    'Pass referenceImageIds with Cog image IDs for i2i refinement or style consistency. ' +
+    'Set useRecentChatImages to include images from the conversation. ' +
     'Returns the generated image inline for your review. Critically evaluate before presenting — flag errors honestly.',
   inputSchema: zodSchema(
     z.object({
@@ -42,27 +48,26 @@ export const runSketchStudy = tool({
         .enum(['1:1', '2:3', '3:2', '3:4', '4:3', '4:5', '5:4', '9:16', '16:9'])
         .optional()
         .describe('Aspect ratio (default: 3:4 portrait)'),
-      referenceSketchId: z
-        .string()
-        .optional()
-        .describe('Any Cog image ID for i2i refinement — generates a new version conditioned on this image. Can be a sketch, photo, study, or any image from any Luv series.'),
-      exemplarIds: z
-        .array(z.string())
-        .max(3)
-        .optional()
-        .describe('Up to 3 Cog image IDs as style exemplars (Flux 2 Dev supports max 4 total images including the primary reference). IMPORTANT: use real IDs from list_sketches or fetch_series_images — do not fabricate UUIDs.'),
+      ...referenceImageSchema,
     })
   ),
-  execute: async ({ subject, focus, styleNotes, moduleSlugs, aspectRatio, referenceSketchId, exemplarIds }) => {
+  execute: async ({ subject, focus, styleNotes, moduleSlugs, aspectRatio, useRecentChatImages, referenceImageIds }) => {
     try {
+      // Resolve references via unified resolver (max 4 for Flux Dev)
+      const { images: refImages, warnings } = await resolveReferenceImages(
+        { fromChat: useRecentChatImages, fromCogIds: referenceImageIds },
+        messages,
+        4,
+      );
+
       const result = await runSketchStudyPipeline({
         subject,
         focus,
         moduleSlugs,
         aspectRatio: aspectRatio as import('./ai/replicate-flux').FluxAspectRatio | undefined,
         styleNotes,
-        referenceSketchId,
-        exemplarIds,
+        referenceImages: refImages,
+        warnings,
       });
 
       return {
@@ -75,6 +80,7 @@ export const runSketchStudy = tool({
         referenceUsed: result.referenceUsed,
         moduleSlugs: moduleSlugs ?? [],
         focus,
+        ...(result.warnings?.length ? { warnings: result.warnings } : {}),
       };
     } catch (err) {
       const message = err instanceof Error
@@ -117,7 +123,8 @@ export const runSketchStudy = tool({
       return { type: 'text' as const, value: `Sketch generated but could not load for review. Image URL: ${result.imageUrl}${warningText}` };
     }
   },
-});
+  });
+}
 
 export const listSketches = tool({
   description:
