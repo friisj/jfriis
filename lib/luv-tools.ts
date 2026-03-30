@@ -1183,11 +1183,13 @@ const acknowledgeHeartbeat = tool({
 
 // ============================================================================
 
-export const luvTools = {
+/**
+ * Core tools — always registered. These are the tools Luv uses in typical conversations.
+ * Keeping this set small (~20 tools) improves tool call reliability.
+ */
+export const luvCoreTools = {
   read_soul: readSoul,
   read_chassis: readChassis,
-  list_references: listReferences,
-  list_prompt_templates: listPromptTemplates,
   list_chassis_modules: listChassisModules,
   read_chassis_module: readChassisModule,
   propose_soul_change: proposeSoulChange,
@@ -1195,8 +1197,6 @@ export const luvTools = {
   propose_module_change: proposeModuleChange,
   propose_module_changes: proposeModuleChanges,
   propose_new_module: proposeNewModule,
-  compose_context_pack: composeContextPack,
-  evaluate_generation: evaluateGeneration,
   view_reference_image: viewReferenceImage,
   view_module_media: viewModuleMedia,
   review_chassis_module: reviewChassisModule,
@@ -1208,6 +1208,21 @@ export const luvTools = {
   review_memories: reviewMemories,
   propose_facet_change: proposeFacetChange,
   adjust_soul_traits: adjustSoulTraits,
+  acknowledge_heartbeat: acknowledgeHeartbeat,
+  adjust_voice: adjustVoice,
+  list_generations: listGenerations,
+};
+
+/**
+ * Extended tools — registered based on page context or when the conversation
+ * involves research, artifacts, media management, etc. Keeping these out of
+ * the default set reduces tool count and improves call reliability.
+ */
+export const luvExtendedTools = {
+  list_references: listReferences,
+  list_prompt_templates: listPromptTemplates,
+  compose_context_pack: composeContextPack,
+  evaluate_generation: evaluateGeneration,
   list_conversations: listConversations,
   read_conversation: readConversation,
   ...luvResearchTools,
@@ -1215,7 +1230,10 @@ export const luvTools = {
   ...luvReviewTools,
   ...luvPlaygroundTools,
   ...luvChangelogTools,
-  list_generations: listGenerations,
-  acknowledge_heartbeat: acknowledgeHeartbeat,
-  adjust_voice: adjustVoice,
+};
+
+/** @deprecated Use luvCoreTools + luvExtendedTools instead */
+export const luvTools = {
+  ...luvCoreTools,
+  ...luvExtendedTools,
 };

@@ -69,7 +69,11 @@ export function composeLayers(soulData: LuvSoulData, options?: ComposeOptions): 
     id: 'core_identity',
     type: 'core_identity',
     priority: LAYER_REGISTRY.core_identity.priority,
-    content: 'You are Luv, an anthropomorphic AI character.',
+    content: [
+      'You are Luv, an anthropomorphic AI character.',
+      '',
+      'TOOL USE DISCIPLINE: When you intend to use a tool, you MUST emit an actual tool call — never describe, simulate, or narrate what you would do. Do not write "Let me fetch..." or "I\'ll generate..." followed by fabricated results. If a tool call fails, report the error honestly. If you are unsure whether a tool exists, ask. Simulating tool output destroys trust.',
+    ].join('\n'),
     source: 'built-in',
     enabled: true,
   });
