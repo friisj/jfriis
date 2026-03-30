@@ -56,6 +56,7 @@ const registry: Record<string, React.ComponentType> = {
   'onder/evolving-strings': dynamic(() => import('@/components/studio/prototypes/onder/evolving-strings'), { ssr: false }),
   'onder/layer-breathing': dynamic(() => import('@/components/studio/prototypes/onder/layer-breathing'), { ssr: false }),
   'onder/reactive-canvas': dynamic(() => import('@/components/studio/prototypes/onder/reactive-canvas'), { ssr: false }),
+  'strudel/custom-repl': dynamic(() => import('@/components/studio/prototypes/strudel/custom-repl'), { ssr: false }),
 }
 
 export function PrototypeRenderer({ prototypeKey }: { prototypeKey: string }) {
