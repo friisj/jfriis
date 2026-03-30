@@ -264,7 +264,6 @@ export function ToolCallCard({ toolName, state, result, getImageIndex, onInsertI
           {imageResult.success && imageResult.imageUrl ? (
             <div className="p-2 space-y-2">
               <ChatImageMenu src={imageResult.imageUrl!} cogImageId={imageResult.cogImageId}>
-              <div className="relative inline-block">
                 <button type="button" onClick={() => setLightboxSrc(imageResult.imageUrl!)}>
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
@@ -274,7 +273,6 @@ export function ToolCallCard({ toolName, state, result, getImageIndex, onInsertI
                   />
                 </button>
                 {(() => { const idx = getImageIndex?.(imageResult.imageUrl!); return idx ? <ImageBadge index={idx} onInsertReference={onInsertImageRef} /> : null; })()}
-              </div>
               </ChatImageMenu>
               <div className="flex gap-2 text-[10px] font-mono text-muted-foreground">
                 {imageResult.model && <span>{imageResult.model.replace('gemini-', '').replace('-preview', '')}</span>}
@@ -296,7 +294,6 @@ export function ToolCallCard({ toolName, state, result, getImageIndex, onInsertI
           {studyResult.success && studyResult.imageUrl ? (
             <div className="p-2 space-y-2">
               <ChatImageMenu src={studyResult.imageUrl!} cogImageId={studyResult.studyId}>
-              <div className="relative inline-block">
                 <button type="button" onClick={() => setLightboxSrc(studyResult.imageUrl!)}>
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
@@ -306,7 +303,6 @@ export function ToolCallCard({ toolName, state, result, getImageIndex, onInsertI
                   />
                 </button>
                 {(() => { const idx = getImageIndex?.(studyResult.imageUrl!); return idx ? <ImageBadge index={idx} onInsertReference={onInsertImageRef} /> : null; })()}
-              </div>
               </ChatImageMenu>
               {studyResult.deliberation && (
                 <div className="space-y-1.5">
@@ -353,8 +349,7 @@ export function ToolCallCard({ toolName, state, result, getImageIndex, onInsertI
               {toolImages.map((img, i) => {
                 const idx = getImageIndex?.(img.url);
                 return (
-                  <ChatImageMenu src={img.url}>
-                  <div key={i} className="relative">
+                  <ChatImageMenu key={i} src={img.url}>
                     <button type="button" onClick={() => setLightboxSrc(img.url)} className="h-48 w-32 bg-secondary rounded-sm">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img
@@ -364,7 +359,6 @@ export function ToolCallCard({ toolName, state, result, getImageIndex, onInsertI
                       />
                     </button>
                     {idx && <ImageBadge index={idx} onInsertReference={onInsertImageRef} />}
-                  </div>
                   </ChatImageMenu>
                 );
               })}

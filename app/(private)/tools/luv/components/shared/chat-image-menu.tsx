@@ -48,7 +48,7 @@ export function ChatImageMenu({ src, cogImageId, children }: ChatImageMenuProps)
 
   return (
     <ContextMenu>
-      <ContextMenuTrigger asChild>
+      <ContextMenuTrigger className="relative inline-block leading-[0]">
         {children}
       </ContextMenuTrigger>
       <ContextMenuContent className="w-44">
