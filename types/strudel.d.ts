@@ -122,6 +122,21 @@ declare module '@strudel/draw' {
 
   export function cleanupDraw(all?: boolean, id?: string): void
 
+  export function pitchwheel(options?: {
+    haps?: unknown[]
+    ctx?: CanvasRenderingContext2D
+    id?: number | string
+    hapcircles?: number
+    circle?: number
+    edo?: number
+    root?: number
+    thickness?: number
+    hapRadius?: number
+    mode?: 'flake' | 'polygon'
+    margin?: number
+    time?: number
+  }): void
+
   export function __pianoroll(options: {
     time: number
     haps: unknown[]

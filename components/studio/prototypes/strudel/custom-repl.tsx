@@ -1,11 +1,12 @@
 'use client'
 
 import { useCallback, useRef, useState } from 'react'
-import { Play, Square, Pause } from 'lucide-react'
+import { Play, Square, Pause, BarChart3, Circle, Brush } from 'lucide-react'
 import { useStrudelRepl } from '@/lib/strudel/use-strudel-repl'
 import { StrudelEditor, DEFAULT_EDITOR_SETTINGS } from '@/lib/strudel/strudel-editor'
 import type { EditorSettings } from '@/lib/strudel/strudel-editor'
 import { StrudelCanvas } from '@/lib/strudel/strudel-canvas'
+import type { VizMode } from '@/lib/strudel/strudel-canvas'
 import { StrudelSettings } from '@/lib/strudel/strudel-settings'
 
 const DEFAULT_CODE = `// Welcome to Strudel!
@@ -38,6 +39,7 @@ export default function CustomRepl() {
   const [miniLocations, setMiniLocations] = useState<number[][]>([])
   const [widgets, setWidgets] = useState<Widget[]>([])
   const [editorSettings, setEditorSettings] = useState<EditorSettings>(DEFAULT_EDITOR_SETTINGS)
+  const [vizMode, setVizMode] = useState<VizMode>('pianoroll')
   const codeRef = useRef(code)
 
   codeRef.current = code
@@ -98,6 +100,23 @@ export default function CustomRepl() {
           </button>
         )}
 
+        <div className="flex items-center rounded bg-white/5 p-0.5">
+          {([
+            { mode: 'pianoroll' as VizMode, icon: BarChart3, title: 'Piano roll' },
+            { mode: 'pitchwheel' as VizMode, icon: Circle, title: 'Pitch wheel' },
+            { mode: 'painter' as VizMode, icon: Brush, title: 'Pattern painters (.spiral(), .pitchwheel(), etc.)' },
+          ]).map(({ mode: m, icon: Icon, title }) => (
+            <button
+              key={m}
+              onClick={() => setVizMode(m)}
+              className={`p-1.5 rounded transition-colors ${vizMode === m ? 'bg-white/15 text-white' : 'text-white/40 hover:text-white/70'}`}
+              title={title}
+            >
+              <Icon className="w-3.5 h-3.5" />
+            </button>
+          ))}
+        </div>
+
         <div className="flex-1" />
 
         {error && (
@@ -120,6 +139,7 @@ export default function CustomRepl() {
       <StrudelCanvas
         scheduler={scheduler}
         isPlaying={isPlaying}
+        mode={vizMode}
       />
 
       {/* Editor */}
