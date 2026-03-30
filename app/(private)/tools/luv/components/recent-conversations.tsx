@@ -1,10 +1,11 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { getLuvConversations } from '@/lib/luv';
 import type { LuvConversation } from '@/lib/types/luv';
 import { useLuvChat } from './luv-chat-context';
-import { MODEL_OPTIONS } from './use-luv-chat-session';
+
+const PAGE_SIZE = 5;
 
 function timeAgo(dateStr: string): string {
   const seconds = Math.floor((Date.now() - new Date(dateStr).getTime()) / 1000);
@@ -19,19 +20,27 @@ function timeAgo(dateStr: string): string {
 
 export function RecentConversations({ compact }: { compact?: boolean }) {
   const { resumeConversation } = useLuvChat();
-  const [conversations, setConversations] = useState<LuvConversation[] | null>(null);
+  const [allConversations, setAllConversations] = useState<LuvConversation[] | null>(null);
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
 
   useEffect(() => {
     getLuvConversations()
-      .then((all) => setConversations(all.slice(0, 5)))
-      .catch(() => setConversations([]));
+      .then((all) => setAllConversations(all))
+      .catch(() => setAllConversations([]));
   }, []);
 
-  if (!conversations || conversations.length === 0) return null;
+  const handleLoadMore = useCallback(() => {
+    setVisibleCount((prev) => prev + PAGE_SIZE);
+  }, []);
+
+  if (!allConversations || allConversations.length === 0) return null;
+
+  const visible = allConversations.slice(0, visibleCount);
+  const hasMore = visibleCount < allConversations.length;
 
   return (
     <div className="divide-y divide-y-border px-4">
-      {conversations.map((conv) => (
+      {visible.map((conv) => (
         <button
           key={conv.id}
           type="button"
@@ -46,6 +55,15 @@ export function RecentConversations({ compact }: { compact?: boolean }) {
           </span>
         </button>
       ))}
+      {hasMore && (
+        <button
+          type="button"
+          onClick={handleLoadMore}
+          className={`w-full py-3 text-center text-muted-foreground hover:text-foreground transition-colors ${compact ? 'text-[10px]' : 'text-xs'}`}
+        >
+          Load more
+        </button>
+      )}
     </div>
   );
 }
