@@ -110,6 +110,7 @@ export function createGenerateImageTool(messages: ModelMessage[]) {
         }
 
         // Resolve Cog image IDs to base64 (preferred — no URL fabrication risk)
+        const refWarnings: string[] = [];
         if (referenceImageIds && referenceImageIds.length > 0) {
           const { createClient } = await import('@supabase/supabase-js');
           const client = createClient(
@@ -120,8 +121,15 @@ export function createGenerateImageTool(messages: ModelMessage[]) {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const { data: images } = await (client as any)
             .from('cog_images')
-            .select('storage_path')
+            .select('id, storage_path')
             .in('id', referenceImageIds.slice(0, 4));
+
+          const foundIds = new Set((images ?? []).map((img: { id: string }) => img.id));
+          const missingIds = referenceImageIds.filter((id: string) => !foundIds.has(id));
+          if (missingIds.length > 0) {
+            refWarnings.push(`Reference image IDs not found: ${missingIds.join(', ')}. These IDs may be fabricated — use real IDs from fetch_series_images, list_generations, or list_sketches.`);
+            console.warn('[generate_image] Missing referenceImageIds:', missingIds);
+          }
 
           if (images) {
             const settled = await Promise.allSettled(
@@ -166,6 +174,7 @@ export function createGenerateImageTool(messages: ModelMessage[]) {
           imageSize: imageSize ?? '1K',
           durationMs: result.durationMs,
           referenceImageCount: finalRefs.length,
+          ...(refWarnings.length > 0 ? { warnings: refWarnings } : {}),
         };
       } catch (err) {
         return {
