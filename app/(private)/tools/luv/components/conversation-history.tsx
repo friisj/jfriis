@@ -178,6 +178,15 @@ function CompactSummaryPreview({ raw }: { raw: string }) {
               <Button
                 variant="ghost"
                 size="sm"
+                asChild
+              >
+                <a href={`/tools/luv/chat?id=${conv.id}`}>
+                  Open
+                </a>
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
                 className="text-destructive"
                 onClick={() => handleDelete(conv.id)}
               >

@@ -62,6 +62,18 @@ export function useLuvChatSession() {
   const { activeConversationId, clearActiveConversation, resumeConversation, soulData, soulLoaded, pageContext } =
     useLuvChat();
 
+  // On mount: if URL has ?id=, resume that conversation
+  const urlResumedRef = useRef(false);
+  useEffect(() => {
+    if (urlResumedRef.current) return;
+    urlResumedRef.current = true;
+    const params = new URLSearchParams(window.location.search);
+    const urlId = params.get('id');
+    if (urlId && !activeConversationId) {
+      resumeConversation(urlId);
+    }
+  }, [activeConversationId, resumeConversation]);
+
   const [modelKey, setModelKey] = useState('claude-sonnet');
   const [thinking, setThinking] = useState(false);
   const [compacting, setCompacting] = useState(false);
@@ -162,6 +174,20 @@ export function useLuvChatSession() {
       cancelled = true;
     };
   }, [activeConversationId, resumedConversationId, setMessages]);
+
+  // Sync URL with active conversation ID (shallow — no navigation)
+  useEffect(() => {
+    const currentUrl = new URL(window.location.href);
+    const currentId = currentUrl.searchParams.get('id');
+
+    if (resumedConversationId && currentId !== resumedConversationId) {
+      currentUrl.searchParams.set('id', resumedConversationId);
+      window.history.replaceState(null, '', currentUrl.toString());
+    } else if (!resumedConversationId && currentId) {
+      currentUrl.searchParams.delete('id');
+      window.history.replaceState(null, '', currentUrl.toString());
+    }
+  }, [resumedConversationId]);
 
   const isActive = status === 'streaming' || status === 'submitted';
 
