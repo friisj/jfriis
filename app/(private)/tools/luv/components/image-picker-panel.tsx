@@ -3,8 +3,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
 import { getCogImageUrl, getCogThumbnailUrl } from '@/lib/cog/images';
-import { IconCheck, IconArrowLeft } from '@tabler/icons-react';
-import { cn } from '@/lib/utils';
+import { IconArrowLeft } from '@tabler/icons-react';
+import { ImageGrid } from '@/components/cog/image-grid';
 import type { FileUIPart } from 'ai';
 import type { CogSeries, CogImage } from '@/lib/types/cog';
 
@@ -173,41 +173,14 @@ export function ImagePickerPanel({ onAttach, onClose }: ImagePickerPanelProps) {
 
       {/* Image grid */}
       <div className="flex-1 overflow-y-auto p-3">
-        {images.length === 0 ? (
-          <p className="text-xs text-muted-foreground text-center py-8">No images in this series</p>
-        ) : (
-          <div className="grid grid-cols-3 gap-2">
-            {images.map((img) => {
-              const selected = selectedIds.has(img.id);
-              return (
-                <button
-                  key={img.id}
-                  type="button"
-                  onClick={() => toggleImage(img.id)}
-                  className={cn(
-                    'relative aspect-square rounded-md overflow-hidden border-2 transition-colors',
-                    selected ? 'border-foreground' : 'border-transparent hover:border-muted-foreground/50',
-                  )}
-                >
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={getCogThumbnailUrl(img.storage_path, img.thumbnail_256)}
-                    alt={img.filename ?? ''}
-                    className="w-full h-full object-cover"
-                    loading="lazy"
-                  />
-                  {selected && (
-                    <div className="absolute inset-0 bg-foreground/20 flex items-center justify-center">
-                      <div className="w-6 h-6 rounded-full bg-foreground flex items-center justify-center">
-                        <IconCheck size={14} className="text-background" />
-                      </div>
-                    </div>
-                  )}
-                </button>
-              );
-            })}
-          </div>
-        )}
+        <ImageGrid
+          images={images}
+          columns="compact"
+          select
+          selectedIds={selectedIds}
+          onToggleSelect={toggleImage}
+          emptyMessage="No images in this series"
+        />
       </div>
 
       {/* Attach bar */}

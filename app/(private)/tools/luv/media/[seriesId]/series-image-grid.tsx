@@ -1,16 +1,13 @@
 'use client';
 
-import { useState, useMemo, useCallback } from 'react';
-import Link from 'next/link';
-import { getCogImageUrl, getCogThumbnailUrl } from '@/lib/cog/images';
+import { useState, useMemo, useCallback, useEffect } from 'react';
 import { deleteImageWithCleanup } from '@/lib/cog/images';
 import { getImageTagsBatch, addTagToImage } from '@/lib/cog/tags';
 import { supabase } from '@/lib/supabase';
 import { createImage } from '@/lib/cog/images';
-import { IconX } from '@tabler/icons-react';
 import { TagToolbar } from '@/components/cog/tag-toolbar';
+import { ImageGrid } from '@/components/cog/image-grid';
 import type { CogImage, CogTagWithGroup } from '@/lib/types/cog';
-import { useEffect } from 'react';
 
 interface SeriesImageGridProps {
   seriesId: string;
@@ -170,35 +167,19 @@ export function SeriesImageGrid({
         uploading={uploading}
       />
 
-      {/* Image grid */}
-      {filteredImages.length === 0 ? (
-        <p className="text-sm text-muted-foreground text-center py-8">
-          {activeTagFilter.size > 0 ? 'No images match the selected tags.' : 'No images in this series yet.'}
-        </p>
-      ) : (
-        <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 gap-3">
-          {filteredImages.map((image) => (
-            <div key={image.id} className="group relative">
-              <Link href={`/tools/luv/media/${seriesId}/${image.id}`}>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={getCogThumbnailUrl(image.storage_path, image.thumbnail_256)}
-                  alt={image.filename ?? ''}
-                  loading="lazy"
-                  className="w-full aspect-square object-cover rounded-md"
-                />
-              </Link>
-              <button
-                type="button"
-                onClick={() => handleDelete(image)}
-                className="absolute top-1 right-1 w-6 h-6 bg-destructive text-destructive-foreground rounded-full text-xs flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-              >
-                <IconX size={12} />
-              </button>
-            </div>
-          ))}
-        </div>
-      )}
+      <ImageGrid
+        images={filteredImages}
+        contextMenu
+        seriesId={seriesId}
+        enabledTags={enabledTags}
+        imageTagIds={imageTagsMap}
+        deleteButton
+        onDelete={handleDelete}
+        onImageDeleted={(id) => setImages((prev) => prev.filter((img) => img.id !== id))}
+        onImageMoved={(id) => setImages((prev) => prev.filter((img) => img.id !== id))}
+        linkTo={(img) => `/tools/luv/media/${seriesId}/${img.id}`}
+        emptyMessage={activeTagFilter.size > 0 ? 'No images match the selected tags.' : 'No images in this series yet.'}
+      />
     </div>
   );
 }
