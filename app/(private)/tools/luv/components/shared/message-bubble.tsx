@@ -17,6 +17,7 @@ import { ToolCallCard } from '../tool-call-card';
 import { ProposalCard } from '../proposal-card';
 import { ImageLightbox } from './image-lightbox';
 import { ImageBadge } from './image-badge';
+import { ChatImageMenu } from './chat-image-menu';
 
 interface MessageBubbleProps {
   message: UIMessage;
@@ -183,7 +184,8 @@ function UserBubble({ message, compact, getImageIndex, onInsertImageRef }: {
             {fileParts.map((f, i) => {
               const imgIndex = getImageIndex?.(f.url);
               return (
-                <div key={i} className="relative" onContextMenu={(e) => e.stopPropagation()}>
+                <ChatImageMenu src={f.url} cogImageId={(f as Record<string, unknown>).cogImageId as string | undefined}>
+                <div key={i} className="relative">
                   <button type="button" onClick={() => setLightboxSrc(f.url)} className="cursor-pointer">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
@@ -194,6 +196,7 @@ function UserBubble({ message, compact, getImageIndex, onInsertImageRef }: {
                   </button>
                   {imgIndex && <ImageBadge index={imgIndex} onInsertReference={onInsertImageRef} />}
                 </div>
+                </ChatImageMenu>
               );
             })}
           </div>
@@ -312,13 +315,15 @@ function AssistantBubble({
                       }
 
                       return (
-                        <span className="relative inline-block my-1" onContextMenu={(e) => e.stopPropagation()}>
+                        <ChatImageMenu src={src}>
+                        <span className="relative inline-block my-1">
                           <button type="button" onClick={() => setLightboxSrc(src)} className="cursor-pointer block">
                             {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img src={src} alt={alt ?? ''} className="rounded-lg max-h-80 object-contain" />
+                            <img src={src} alt={alt ?? ''} className="rounded-sm max-h-80 object-contain" />
                           </button>
                           {imgIndex && <ImageBadge index={imgIndex} onInsertReference={onInsertImageRef} />}
                         </span>
+                        </ChatImageMenu>
                       );
                     },
                   }}
