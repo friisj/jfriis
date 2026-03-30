@@ -224,6 +224,9 @@ export async function POST(request: Request) {
       },
     } : undefined;
 
+    // Tool search: ~15 core tools always loaded, ~30 deferred tools discovered
+    // on-demand via BM25 search. This keeps the active context small while making
+    // all capabilities available. See tool definitions for defer_loading markers.
     const result = streamText({
       model: getModel(modelKey),
       system: systemPrompt,
@@ -239,6 +242,7 @@ export async function POST(request: Request) {
         list_sketches: listSketches,
         get_current_context: createCurrentContextTool(pageContext ?? null),
         web_search: getAnthropic().tools.webSearch_20250305({ maxUses: 3 }),
+        tool_search: getAnthropic().tools.toolSearchBm25_20251119(),
       } as ToolSet,
       stopWhen: stepCountIs(15),
       providerOptions,

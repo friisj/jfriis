@@ -263,12 +263,16 @@ export const setSeriesCover = tool({
 // Export bundle
 // ============================================================================
 
+const DEFER = { anthropic: { deferLoading: true } } as const;
+
 export const luvImageMgmtTools = {
+  // Core — always loaded (frequently used for reference image fetching)
   list_image_series: listImageSeries,
   fetch_series_images: fetchSeriesImages,
-  move_image: moveImage,
-  copy_image: copyImage,
-  tag_image: tagImage,
-  create_image_series: createImageSeries,
-  set_series_cover: setSeriesCover,
+  // Deferred — discovered via tool search
+  move_image: { ...moveImage, providerOptions: DEFER },
+  copy_image: { ...copyImage, providerOptions: DEFER },
+  tag_image: { ...tagImage, providerOptions: DEFER },
+  create_image_series: { ...createImageSeries, providerOptions: DEFER },
+  set_series_cover: { ...setSeriesCover, providerOptions: DEFER },
 };

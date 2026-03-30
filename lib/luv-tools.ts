@@ -1183,39 +1183,67 @@ const acknowledgeHeartbeat = tool({
 
 // ============================================================================
 
+/**
+ * All Luv tools. Tools are split into two tiers:
+ *
+ * - **Core tools** (~15): Always loaded into context. These are the tools Luv
+ *   uses in typical conversations — soul/chassis reads, proposals, memory, traits.
+ *
+ * - **Deferred tools** (~30): Marked with `deferLoading: true` so they're only
+ *   loaded when Claude discovers them via tool search. Includes research, artifacts,
+ *   reviews, playground, changelog, and less-frequently-used utilities.
+ *
+ * Combined with `toolSearchBm25` (registered in the chat route), this keeps the
+ * active tool set small while making all capabilities discoverable on demand.
+ */
+
+const DEFER = { anthropic: { deferLoading: true } } as const;
+
 export const luvTools = {
+  // ── Core tools (always loaded) ──────────────────────────────────────
   read_soul: readSoul,
   read_chassis: readChassis,
-  list_references: listReferences,
-  list_prompt_templates: listPromptTemplates,
   list_chassis_modules: listChassisModules,
   read_chassis_module: readChassisModule,
+  review_chassis_module: reviewChassisModule,
   propose_soul_change: proposeSoulChange,
-  propose_chassis_change: proposeChassisChange,
   propose_module_change: proposeModuleChange,
   propose_module_changes: proposeModuleChanges,
-  propose_new_module: proposeNewModule,
-  compose_context_pack: composeContextPack,
-  evaluate_generation: evaluateGeneration,
-  view_reference_image: viewReferenceImage,
-  view_module_media: viewModuleMedia,
-  review_chassis_module: reviewChassisModule,
-  list_memories: listMemories,
   save_memory: saveMemory,
   update_memory: updateMemory,
-  archive_memory: archiveMemory,
-  merge_memories: mergeMemories,
-  review_memories: reviewMemories,
-  propose_facet_change: proposeFacetChange,
+  list_memories: listMemories,
   adjust_soul_traits: adjustSoulTraits,
-  list_conversations: listConversations,
-  read_conversation: readConversation,
-  ...luvResearchTools,
-  ...luvArtifactTools,
-  ...luvReviewTools,
-  ...luvPlaygroundTools,
-  ...luvChangelogTools,
   list_generations: listGenerations,
   acknowledge_heartbeat: acknowledgeHeartbeat,
-  adjust_voice: adjustVoice,
+
+  // ── Deferred tools (discovered via tool search) ─────────────────────
+  propose_chassis_change: { ...proposeChassisChange, providerOptions: DEFER },
+  propose_new_module: { ...proposeNewModule, providerOptions: DEFER },
+  propose_facet_change: { ...proposeFacetChange, providerOptions: DEFER },
+  view_reference_image: { ...viewReferenceImage, providerOptions: DEFER },
+  view_module_media: { ...viewModuleMedia, providerOptions: DEFER },
+  archive_memory: { ...archiveMemory, providerOptions: DEFER },
+  merge_memories: { ...mergeMemories, providerOptions: DEFER },
+  review_memories: { ...reviewMemories, providerOptions: DEFER },
+  adjust_voice: { ...adjustVoice, providerOptions: DEFER },
+  list_references: { ...listReferences, providerOptions: DEFER },
+  list_prompt_templates: { ...listPromptTemplates, providerOptions: DEFER },
+  compose_context_pack: { ...composeContextPack, providerOptions: DEFER },
+  evaluate_generation: { ...evaluateGeneration, providerOptions: DEFER },
+  list_conversations: { ...listConversations, providerOptions: DEFER },
+  read_conversation: { ...readConversation, providerOptions: DEFER },
+  ...applyDeferLoading(luvResearchTools),
+  ...applyDeferLoading(luvArtifactTools),
+  ...applyDeferLoading(luvReviewTools),
+  ...applyDeferLoading(luvPlaygroundTools),
+  ...applyDeferLoading(luvChangelogTools),
 };
+
+/** Mark all tools in a bundle as deferred */
+function applyDeferLoading<T extends Record<string, object>>(tools: T): T {
+  const result = {} as Record<string, object>;
+  for (const [name, t] of Object.entries(tools)) {
+    result[name] = { ...t, providerOptions: DEFER };
+  }
+  return result as T;
+}
