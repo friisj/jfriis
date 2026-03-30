@@ -298,6 +298,19 @@ function AssistantBubble({
                     img: ({ src, alt }) => {
                       if (!src || typeof src !== 'string') return null;
                       const imgIndex = getImageIndex?.(src);
+
+                      // Detect fabricated URLs — if not tracked and not a real storage URL, warn
+                      const isKnown = !!imgIndex;
+                      const isStorageUrl = src.includes('/storage/v1/object/public/cog-images/');
+                      if (!isKnown && !isStorageUrl) {
+                        return (
+                          <span className="inline-flex items-center gap-1.5 px-2 py-1 my-1 rounded bg-destructive/10 border border-destructive/20 text-destructive text-xs">
+                            <span className="font-medium">Fabricated image URL</span>
+                            <span className="text-destructive/60 truncate max-w-[200px]">{src.slice(0, 60)}...</span>
+                          </span>
+                        );
+                      }
+
                       return (
                         <span className="relative inline-block my-1">
                           <button type="button" onClick={() => setLightboxSrc(src)} className="cursor-pointer block">
