@@ -176,6 +176,20 @@ export function SeriesImageGrid({
         onDelete={handleDelete}
         onImageDeleted={(id) => setImages((prev) => prev.filter((img) => img.id !== id))}
         onImageMoved={(id) => setImages((prev) => prev.filter((img) => img.id !== id))}
+        onStarChanged={(id, rating) => {
+          setImages((prev) => prev.map((img) => img.id === id ? { ...img, star_rating: rating } : img));
+        }}
+        onTagsChanged={(id) => {
+          // Re-fetch tags for this image to update the local map
+          getImageTagsBatch([id]).then((tags) => {
+            setImageTagsMap((prev) => {
+              const next = new Map(prev);
+              const tagList = tags.get(id);
+              next.set(id, new Set(tagList?.map((t) => t.id) ?? []));
+              return next;
+            });
+          }).catch(() => {});
+        }}
         linkTo={(img) => `/tools/luv/media/${seriesId}/${img.id}`}
         emptyMessage={activeTagFilter.size > 0 ? 'No images match the selected tags.' : 'No images in this series yet.'}
       />

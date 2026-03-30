@@ -180,8 +180,17 @@ export function ImagePickerPanel({ onAttach, onClose }: ImagePickerPanelProps) {
           selectedIds={selectedIds}
           onToggleSelect={toggleImage}
           seriesId={selectedSeries.id}
-          onImageDeleted={(id) => setImages((prev) => prev.filter((img) => img.id !== id))}
-          onImageMoved={(id) => setImages((prev) => prev.filter((img) => img.id !== id))}
+          onImageDeleted={(id) => {
+            setImages((prev) => prev.filter((img) => img.id !== id));
+            setSelectedIds((prev) => { const next = new Set(prev); next.delete(id); return next; });
+          }}
+          onImageMoved={(id) => {
+            setImages((prev) => prev.filter((img) => img.id !== id));
+            setSelectedIds((prev) => { const next = new Set(prev); next.delete(id); return next; });
+          }}
+          onStarChanged={(id, rating) => {
+            setImages((prev) => prev.map((img) => img.id === id ? { ...img, star_rating: rating } : img));
+          }}
           emptyMessage="No images in this series"
         />
       </div>
