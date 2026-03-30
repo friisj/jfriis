@@ -94,10 +94,14 @@ describe('chassisToCharacterState', () => {
     expect(state.visibility['freckles']).toBe(true);
   });
 
-  it('maps dimples to visibility toggle', () => {
-    const modules = [makeModule('mouth', { dimples: true })];
-    const state = chassisToCharacterState(modules);
-    expect(state.visibility['dimples']).toBe(true);
+  it('maps dimples enum to morph composition', () => {
+    const manifest = {
+      ...PLACEHOLDER_MANIFEST,
+      morphTargets: ['luv_mouth_dimple_depth'],
+    };
+    const modules = [makeModule('mouth', { dimples: 'defined' })];
+    const state = chassisToCharacterState(modules, manifest);
+    expect(state.morphTargets['luv_mouth_dimple_depth']).toBe(0.4);
   });
 
   it('maps lash_length to eyelash visibility variants', () => {
@@ -257,10 +261,10 @@ describe('chassisToCharacterState', () => {
       ...PLACEHOLDER_MANIFEST,
       morphTargets: [],
     };
-    // skin_thickness has no composition in the registry
-    const modules = [makeModule('nose', { skin_thickness: 'thin' })];
+    // iris_pattern has no composition in the registry (visual-only param)
+    const modules = [makeModule('eyes', { iris_pattern: 'starburst' })];
     const state = chassisToCharacterState(modules, manifest);
-    expect(state.gaps).toContain('nose.skin_thickness');
+    expect(state.gaps).toContain('eyes.iris_pattern');
   });
 
   // Ratio tests
