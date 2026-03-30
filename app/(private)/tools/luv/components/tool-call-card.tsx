@@ -262,7 +262,7 @@ export function ToolCallCard({ toolName, state, result, getImageIndex, onInsertI
         <div className="border-t">
           {imageResult.success && imageResult.imageUrl ? (
             <div className="p-2 space-y-2">
-              <div className="relative inline-block">
+              <div className="relative inline-block" onContextMenu={(e) => e.stopPropagation()}>
                 <button type="button" onClick={() => setLightboxSrc(imageResult.imageUrl!)}>
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
@@ -292,7 +292,7 @@ export function ToolCallCard({ toolName, state, result, getImageIndex, onInsertI
         <div className="border-t">
           {studyResult.success && studyResult.imageUrl ? (
             <div className="p-2 space-y-2">
-              <div className="relative inline-block">
+              <div className="relative inline-block" onContextMenu={(e) => e.stopPropagation()}>
                 <button type="button" onClick={() => setLightboxSrc(studyResult.imageUrl!)}>
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
@@ -343,23 +343,25 @@ export function ToolCallCard({ toolName, state, result, getImageIndex, onInsertI
       {/* Generic image grid for tools returning images with URLs */}
       {showExpanded && toolImages.length > 0 && !imageResult && !studyResult && (
         <div className="border-t p-2">
-          <div className="flex overflow-x-scroll gap-2">
-            {toolImages.map((img, i) => {
-              const idx = getImageIndex?.(img.url);
-              return (
-                <div key={i} className="relative">
-                  <button type="button" onClick={() => setLightboxSrc(img.url)}>
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={img.url}
-                      alt={img.filename ?? `Image ${i + 1}`}
-                      className="rounded max-h-48 w-full object-cover cursor-pointer hover:opacity-90 transition-opacity"
-                    />
-                  </button>
-                  {idx && <ImageBadge index={idx} onInsertReference={onInsertImageRef} />}
-                </div>
-              );
-            })}
+          <div className="overflow-x-scroll h-48">
+            <div className="flex gap-2">
+              {toolImages.map((img, i) => {
+                const idx = getImageIndex?.(img.url);
+                return (
+                  <div key={i} className="relative" onContextMenu={(e) => e.stopPropagation()}>
+                    <button type="button" onClick={() => setLightboxSrc(img.url)} className="h-48 w-32 bg-secondary rounded-sm">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={img.url}
+                        alt={img.filename ?? `Image ${i + 1}`}
+                        className="max-h-48 w-full object-cover cursor-pointer hover:opacity-90 transition-opacity"
+                      />
+                    </button>
+                    {idx && <ImageBadge index={idx} onInsertReference={onInsertImageRef} />}
+                  </div>
+                );
+              })}
+            </div>
           </div>
         </div>
       )}
