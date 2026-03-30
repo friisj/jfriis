@@ -183,7 +183,7 @@ function UserBubble({ message, compact, getImageIndex, onInsertImageRef }: {
             {fileParts.map((f, i) => {
               const imgIndex = getImageIndex?.(f.url);
               return (
-                <div key={i} className="relative">
+                <div key={i} className="relative" onContextMenu={(e) => e.stopPropagation()}>
                   <button type="button" onClick={() => setLightboxSrc(f.url)} className="cursor-pointer">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
@@ -312,7 +312,7 @@ function AssistantBubble({
                       }
 
                       return (
-                        <span className="relative inline-block my-1">
+                        <span className="relative inline-block my-1" onContextMenu={(e) => e.stopPropagation()}>
                           <button type="button" onClick={() => setLightboxSrc(src)} className="cursor-pointer block">
                             {/* eslint-disable-next-line @next/next/no-img-element */}
                             <img src={src} alt={alt ?? ''} className="rounded-lg max-h-80 object-contain" />

@@ -59,7 +59,7 @@ export function RecentConversations({ compact }: { compact?: boolean }) {
         <button
           type="button"
           onClick={handleLoadMore}
-          className={`w-full py-3 text-center text-muted-foreground hover:text-foreground transition-colors ${compact ? 'text-[10px]' : 'text-xs'}`}
+          className={`w-full py-3 cursor-pointer text-right text-muted-foreground hover:text-foreground transition-colors ${compact ? 'text-[10px]' : 'text-xs'}`}
         >
           Load more
         </button>
