@@ -176,7 +176,7 @@ export function ImagePickerPanel({ onAttach, onClose }: ImagePickerPanelProps) {
         <ImageGrid
           images={images}
           columns="compact"
-          features={{ select: true, contextMenu: true, clipboard: true, move: true, copy: true, delete: true }}
+          features={{ select: true, contextMenu: true, clipboard: true, move: true, copy: true, star: true, delete: true }}
           selectedIds={selectedIds}
           onToggleSelect={toggleImage}
           seriesId={selectedSeries.id}
