@@ -23,6 +23,8 @@ import {
   IconTag,
   IconTrash,
   IconPhoto,
+  IconStar,
+  IconStarFilled,
 } from '@tabler/icons-react';
 import {
   getCogImageUrl,
@@ -30,6 +32,7 @@ import {
   copyImageToSeries,
   deleteImageWithCleanup,
   setSeriesPrimaryImage,
+  setImageStarRating,
 } from '@/lib/cog';
 import { addTagToImage, removeTagFromImage } from '@/lib/cog/tags';
 import { supabase } from '@/lib/supabase';
@@ -46,6 +49,8 @@ export interface ContextMenuFeatures {
   tag?: boolean;
   /** Copy to clipboard, Copy ID, Download */
   clipboard?: boolean;
+  /** Star rating submenu (1-5 stars) */
+  star?: boolean;
   /** Set/remove as series cover */
   setCover?: boolean;
   /** Delete option */
@@ -67,6 +72,7 @@ interface ImageContextMenuProps {
   onMoved?: (imageId: string) => void;
   onTagsChanged?: (imageId: string) => void;
   onSetCover?: (imageId: string) => void;
+  onStarChanged?: (imageId: string, rating: number) => void;
 }
 
 /** Default: all features enabled */
@@ -75,6 +81,7 @@ const DEFAULT_FEATURES: ContextMenuFeatures = {
   move: true,
   copy: true,
   tag: true,
+  star: true,
   clipboard: true,
   setCover: true,
   delete: true,
@@ -93,6 +100,7 @@ export function ImageContextMenu({
   onMoved,
   onTagsChanged,
   onSetCover,
+  onStarChanged,
 }: ImageContextMenuProps) {
   // Merge features — explicit features prop overrides defaults
   const f = featuresProp ?? DEFAULT_FEATURES;
@@ -327,6 +335,60 @@ export function ImageContextMenu({
                     </ContextMenuCheckboxItem>
                   );
                 })}
+              </ContextMenuSubContent>
+            </ContextMenuSub>
+          </>
+        )}
+
+        {f.star && (
+          <>
+            <ContextMenuSeparator />
+            <ContextMenuSub>
+              <ContextMenuSubTrigger className="text-xs">
+                {(image.star_rating ?? 0) > 0
+                  ? <IconStarFilled size={14} className="mr-2 text-yellow-400" />
+                  : <IconStar size={14} className="mr-2" />}
+                {(image.star_rating ?? 0) > 0 ? `${image.star_rating} star${image.star_rating !== 1 ? 's' : ''}` : 'Rate'}
+              </ContextMenuSubTrigger>
+              <ContextMenuSubContent className="w-36">
+                {[1, 2, 3, 4, 5].map((stars) => (
+                  <ContextMenuItem
+                    key={stars}
+                    className="text-xs"
+                    onClick={async () => {
+                      const newRating = stars === image.star_rating ? 0 : stars;
+                      try {
+                        await setImageStarRating(image.id, newRating);
+                        onStarChanged?.(image.id, newRating);
+                      } catch (err) {
+                        console.error('Star rating failed:', err);
+                      }
+                    }}
+                  >
+                    <span className="flex items-center gap-0.5">
+                      {Array.from({ length: 5 }, (_, i) => (
+                        i < stars
+                          ? <IconStarFilled key={i} size={12} className="text-yellow-400" />
+                          : <IconStar key={i} size={12} className="text-muted-foreground/40" />
+                      ))}
+                    </span>
+                  </ContextMenuItem>
+                ))}
+                {(image.star_rating ?? 0) > 0 && (
+                  <ContextMenuItem
+                    className="text-xs text-muted-foreground"
+                    onClick={async () => {
+                      try {
+                        await setImageStarRating(image.id, 0);
+                        onStarChanged?.(image.id, 0);
+                      } catch (err) {
+                        console.error('Clear rating failed:', err);
+                      }
+                    }}
+                  >
+                    Clear rating
+                  </ContextMenuItem>
+                )}
               </ContextMenuSubContent>
             </ContextMenuSub>
           </>

@@ -4,7 +4,7 @@ import { useCallback } from 'react';
 import Link from 'next/link';
 import { CogGridImage } from './cog-image';
 import { ImageContextMenu } from '@/app/(private)/tools/cog/[id]/image-context-menu';
-import { IconCheck, IconX } from '@tabler/icons-react';
+import { IconCheck, IconX, IconStarFilled } from '@tabler/icons-react';
 import { cn } from '@/lib/utils';
 import type { CogImage, CogTagWithGroup } from '@/lib/types/cog';
 
@@ -41,6 +41,8 @@ export interface ImageGridFeatures {
   tag?: boolean;
   /** Context menu: Copy to clipboard + Copy ID + Download */
   clipboard?: boolean;
+  /** Context menu: Star rating */
+  star?: boolean;
   /** Context menu: Set as series cover */
   setCover?: boolean;
   /** Context menu: Delete */
@@ -54,6 +56,7 @@ export const ALL_FEATURES: ImageGridFeatures = {
   move: true,
   copy: true,
   tag: true,
+  star: true,
   clipboard: true,
   setCover: true,
   delete: true,
@@ -85,6 +88,7 @@ interface ImageGridProps {
   onImageMoved?: (id: string) => void;
   onTagsChanged?: (id: string) => void;
   onSetCover?: (id: string) => void;
+  onStarChanged?: (id: string, rating: number) => void;
 
   // ── Navigation ──
   linkTo?: (image: CogImage) => string;
@@ -112,6 +116,7 @@ export function ImageGrid({
   onImageMoved,
   onTagsChanged,
   onSetCover,
+  onStarChanged,
   linkTo,
   emptyMessage = 'No images',
 }: ImageGridProps) {
@@ -154,6 +159,14 @@ export function ImageGrid({
                 <div className="w-6 h-6 rounded-full bg-foreground flex items-center justify-center">
                   <IconCheck size={14} className="text-background" />
                 </div>
+              </div>
+            )}
+
+            {/* Star rating overlay */}
+            {features.star && (image.star_rating ?? 0) > 0 && (
+              <div className="absolute bottom-1 left-1 flex items-center gap-px bg-black/50 rounded px-1 py-0.5">
+                <IconStarFilled size={10} className="text-yellow-400" />
+                <span className="text-[9px] text-white font-medium">{image.star_rating}</span>
               </div>
             )}
           </div>
@@ -209,6 +222,7 @@ export function ImageGrid({
                 move: features.move,
                 copy: features.copy,
                 tag: features.tag,
+                star: features.star,
                 clipboard: features.clipboard,
                 setCover: features.setCover,
                 delete: features.delete,
@@ -218,6 +232,7 @@ export function ImageGrid({
               onMoved={onImageMoved}
               onTagsChanged={onTagsChanged}
               onSetCover={onSetCover}
+              onStarChanged={onStarChanged}
             >
               {wrapped}
             </ImageContextMenu>

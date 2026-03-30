@@ -169,7 +169,7 @@ export function SeriesImageGrid({
 
       <ImageGrid
         images={filteredImages}
-        features={{ contextMenu: true, deleteButton: true, clipboard: true, move: true, copy: true, tag: true, setCover: true, delete: true }}
+        features={{ contextMenu: true, deleteButton: true, clipboard: true, move: true, copy: true, tag: true, star: true, setCover: true, delete: true }}
         seriesId={seriesId}
         enabledTags={enabledTags}
         imageTagIds={imageTagsMap}
