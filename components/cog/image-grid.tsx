@@ -21,36 +21,72 @@ const COLUMN_CLASSES: Record<ColumnPreset, string> = {
 };
 
 // ────────────────────────────────────────────────────────────────
+// Features — explicit opt-in for every capability
+// ────────────────────────────────────────────────────────────────
+
+export interface ImageGridFeatures {
+  /** Multi-select with checkmark overlays */
+  select?: boolean;
+  /** Right-click context menu */
+  contextMenu?: boolean;
+  /** Hover delete button (X) */
+  deleteButton?: boolean;
+  /** Context menu: View/expand option. Handler or true for default (Cog editor). */
+  view?: boolean | ((imageId: string) => void);
+  /** Context menu: Move to series */
+  move?: boolean;
+  /** Context menu: Copy to series */
+  copy?: boolean;
+  /** Context menu: Tag management */
+  tag?: boolean;
+  /** Context menu: Copy to clipboard + Copy ID + Download */
+  clipboard?: boolean;
+  /** Context menu: Set as series cover */
+  setCover?: boolean;
+  /** Context menu: Delete */
+  delete?: boolean;
+}
+
+/** All context menu features enabled — use as base for Cog gallery */
+export const ALL_FEATURES: ImageGridFeatures = {
+  contextMenu: true,
+  view: true,
+  move: true,
+  copy: true,
+  tag: true,
+  clipboard: true,
+  setCover: true,
+  delete: true,
+  deleteButton: true,
+};
+
+// ────────────────────────────────────────────────────────────────
 // Props
 // ────────────────────────────────────────────────────────────────
 
 interface ImageGridProps {
   images: CogImage[];
   columns?: ColumnPreset;
+  features?: ImageGridFeatures;
 
-  // ── Feature: selection (multi-select with checkmarks) ──
-  select?: boolean;
+  // ── Selection state (when features.select) ──
   selectedIds?: Set<string>;
   onToggleSelect?: (id: string) => void;
 
-  // ── Feature: context menu (right-click operations) ──
-  contextMenu?: boolean;
+  // ── Context menu data ──
   seriesId?: string;
   enabledTags?: CogTagWithGroup[];
   imageTagIds?: Map<string, Set<string>>;
   primaryImageId?: string;
-  /** Custom view handler for context menu. Pass null to hide View option. Omit for default (Cog editor). */
-  onView?: ((imageId: string) => void) | null;
+
+  // ── Callbacks ──
+  onDelete?: (image: CogImage) => void;
   onImageDeleted?: (id: string) => void;
   onImageMoved?: (id: string) => void;
   onTagsChanged?: (id: string) => void;
   onSetCover?: (id: string) => void;
 
-  // ── Feature: simple delete (hover X button) ──
-  deleteButton?: boolean;
-  onDelete?: (image: CogImage) => void;
-
-  // ── Feature: link (click navigates) ──
+  // ── Navigation ──
   linkTo?: (image: CogImage) => string;
 
   // ── Empty state ──
@@ -64,31 +100,28 @@ interface ImageGridProps {
 export function ImageGrid({
   images,
   columns = 'default',
-  select,
+  features = {},
   selectedIds,
   onToggleSelect,
-  contextMenu,
   seriesId,
   enabledTags,
   imageTagIds,
   primaryImageId,
-  onView,
+  onDelete,
   onImageDeleted,
   onImageMoved,
   onTagsChanged,
   onSetCover,
-  deleteButton,
-  onDelete,
   linkTo,
   emptyMessage = 'No images',
 }: ImageGridProps) {
   const handleClick = useCallback(
     (image: CogImage) => {
-      if (select && onToggleSelect) {
+      if (features.select && onToggleSelect) {
         onToggleSelect(image.id);
       }
     },
-    [select, onToggleSelect],
+    [features.select, onToggleSelect],
   );
 
   if (images.length === 0) {
@@ -102,7 +135,7 @@ export function ImageGrid({
   return (
     <div className={cn('grid', COLUMN_CLASSES[columns])}>
       {images.map((image) => {
-        const isSelected = select && selectedIds?.has(image.id);
+        const isSelected = features.select && selectedIds?.has(image.id);
 
         const imageElement = (
           <div className="relative aspect-square rounded-md overflow-hidden">
@@ -116,7 +149,7 @@ export function ImageGrid({
             />
 
             {/* Selection overlay */}
-            {select && isSelected && (
+            {features.select && isSelected && (
               <div className="absolute inset-0 bg-foreground/20 flex items-center justify-center">
                 <div className="w-6 h-6 rounded-full bg-foreground flex items-center justify-center">
                   <IconCheck size={14} className="text-background" />
@@ -135,7 +168,7 @@ export function ImageGrid({
               {imageElement}
             </Link>
           );
-        } else if (select) {
+        } else if (features.select) {
           wrapped = (
             <button
               type="button"
@@ -153,15 +186,34 @@ export function ImageGrid({
         }
 
         // Wrap with context menu if enabled
-        if (contextMenu && seriesId) {
+        if (features.contextMenu && seriesId) {
+          // Derive onView for context menu:
+          // - features.view is a function → custom handler
+          // - features.view is true → default (Cog editor)
+          // - features.view is falsy → hide View option
+          const onView = typeof features.view === 'function'
+            ? features.view
+            : features.view
+              ? undefined  // default behavior
+              : null;      // hide
+
           wrapped = (
             <ImageContextMenu
               image={image as import('@/lib/types/cog').CogImageWithGroupInfo}
               seriesId={seriesId}
-              enabledTags={enabledTags}
-              imageTagIds={imageTagIds?.get(image.id)}
+              enabledTags={features.tag ? enabledTags : undefined}
+              imageTagIds={features.tag ? imageTagIds?.get(image.id) : undefined}
               isPrimary={primaryImageId === image.id}
-              onView={onView !== undefined ? onView : (linkTo ? null : undefined)}
+              features={{
+                view: features.view,
+                move: features.move,
+                copy: features.copy,
+                tag: features.tag,
+                clipboard: features.clipboard,
+                setCover: features.setCover,
+                delete: features.delete,
+              }}
+              onView={onView}
               onDeleted={onImageDeleted}
               onMoved={onImageMoved}
               onTagsChanged={onTagsChanged}
@@ -177,7 +229,7 @@ export function ImageGrid({
             {wrapped}
 
             {/* Simple delete button (hover) */}
-            {deleteButton && onDelete && (
+            {features.deleteButton && onDelete && (
               <button
                 type="button"
                 onClick={(e) => {

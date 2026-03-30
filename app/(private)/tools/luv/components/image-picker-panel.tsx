@@ -176,12 +176,10 @@ export function ImagePickerPanel({ onAttach, onClose }: ImagePickerPanelProps) {
         <ImageGrid
           images={images}
           columns="compact"
-          select
+          features={{ select: true, contextMenu: true, clipboard: true, move: true, copy: true, delete: true }}
           selectedIds={selectedIds}
           onToggleSelect={toggleImage}
-          contextMenu
           seriesId={selectedSeries.id}
-          onView={null}
           onImageDeleted={(id) => setImages((prev) => prev.filter((img) => img.id !== id))}
           onImageMoved={(id) => setImages((prev) => prev.filter((img) => img.id !== id))}
           emptyMessage="No images in this series"

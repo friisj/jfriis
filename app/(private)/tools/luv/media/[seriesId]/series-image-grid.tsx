@@ -169,11 +169,10 @@ export function SeriesImageGrid({
 
       <ImageGrid
         images={filteredImages}
-        contextMenu
+        features={{ contextMenu: true, deleteButton: true, clipboard: true, move: true, copy: true, tag: true, setCover: true, delete: true }}
         seriesId={seriesId}
         enabledTags={enabledTags}
         imageTagIds={imageTagsMap}
-        deleteButton
         onDelete={handleDelete}
         onImageDeleted={(id) => setImages((prev) => prev.filter((img) => img.id !== id))}
         onImageMoved={(id) => setImages((prev) => prev.filter((img) => img.id !== id))}
