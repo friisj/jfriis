@@ -42,6 +42,8 @@ interface ImageContextMenuProps {
   imageTagIds?: Set<string>;
   children: React.ReactNode;
   isPrimary?: boolean;
+  /** Custom view/expand handler. If omitted, navigates to Cog editor. Pass null to hide the View option entirely. */
+  onView?: ((imageId: string) => void) | null;
   onDeleted?: (imageId: string) => void;
   onMoved?: (imageId: string) => void;
   onTagsChanged?: (imageId: string) => void;
@@ -55,6 +57,7 @@ export function ImageContextMenu({
   imageTagIds = new Set(),
   isPrimary = false,
   children,
+  onView,
   onDeleted,
   onMoved,
   onTagsChanged,
@@ -152,10 +155,15 @@ export function ImageContextMenu({
         {children}
       </ContextMenuTrigger>
       <ContextMenuContent className="w-52">
-        <ContextMenuItem onClick={handleView} className="text-xs">
-          <IconEye size={14} className="mr-2" />
-          View
-        </ContextMenuItem>
+        {onView !== null && (
+          <ContextMenuItem
+            onClick={() => onView ? onView(image.id) : handleView()}
+            className="text-xs"
+          >
+            <IconEye size={14} className="mr-2" />
+            View
+          </ContextMenuItem>
+        )}
         <ContextMenuItem
           onClick={async () => {
             try {

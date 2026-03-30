@@ -39,6 +39,8 @@ interface ImageGridProps {
   enabledTags?: CogTagWithGroup[];
   imageTagIds?: Map<string, Set<string>>;
   primaryImageId?: string;
+  /** Custom view handler for context menu. Pass null to hide View option. Omit for default (Cog editor). */
+  onView?: ((imageId: string) => void) | null;
   onImageDeleted?: (id: string) => void;
   onImageMoved?: (id: string) => void;
   onTagsChanged?: (id: string) => void;
@@ -70,6 +72,7 @@ export function ImageGrid({
   enabledTags,
   imageTagIds,
   primaryImageId,
+  onView,
   onImageDeleted,
   onImageMoved,
   onTagsChanged,
@@ -158,6 +161,7 @@ export function ImageGrid({
               enabledTags={enabledTags}
               imageTagIds={imageTagIds?.get(image.id)}
               isPrimary={primaryImageId === image.id}
+              onView={onView !== undefined ? onView : (linkTo ? null : undefined)}
               onDeleted={onImageDeleted}
               onMoved={onImageMoved}
               onTagsChanged={onTagsChanged}
