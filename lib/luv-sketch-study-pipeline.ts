@@ -14,7 +14,6 @@ import { randomUUID } from 'crypto';
 import { createClient } from '@supabase/supabase-js';
 import { generateWithFlux, type FluxAspectRatio } from './ai/replicate-flux';
 import { createLuvCogImageServer } from './luv/cog-integration-server';
-import { resolveImageAsBase64 } from './luv-image-utils';
 import { getCogImageUrl } from './cog/images';
 
 const COG_IMAGES_BUCKET = 'cog-images';
@@ -31,12 +30,12 @@ export interface SketchStudyInput {
   moduleSlugs?: string[];
   /** Aspect ratio */
   aspectRatio?: FluxAspectRatio;
-  /** Existing image ID to use as i2i input for refinement */
-  referenceSketchId?: string;
-  /** Additional exemplar IDs for style consistency (max 3 — total including primary ref capped at 4 by Flux Dev) */
-  exemplarIds?: string[];
   /** Agent-composed style direction layered on the pencil base */
   styleNotes?: string;
+  /** Pre-resolved reference images (from unified resolver) */
+  referenceImages?: { base64: string; mimeType: string }[];
+  /** Warnings from reference resolution (passed through to result) */
+  warnings?: string[];
 }
 
 export interface SketchStudyResult {
@@ -98,55 +97,11 @@ export async function runSketchStudyPipeline(
 ): Promise<SketchStudyResult> {
   const startTime = Date.now();
 
-  // Resolve reference images for i2i conditioning
-  const referenceImages: { base64: string; mimeType: string }[] = [];
-  const warnings: string[] = [];
+  // Reference images are pre-resolved by the tool layer via unified resolver
+  const referenceImages = input.referenceImages ?? [];
+  const warnings = [...(input.warnings ?? [])];
 
-  // Primary reference (for i2i refinement)
-  if (input.referenceSketchId) {
-    try {
-      const client = serviceClient();
-      const { data: refImg } = await (client as any)
-        .from('cog_images')
-        .select('storage_path')
-        .eq('id', input.referenceSketchId)
-        .maybeSingle();
-
-      if (refImg) {
-        const { base64, mediaType } = await resolveImageAsBase64(refImg.storage_path);
-        referenceImages.push({ base64, mimeType: mediaType });
-      } else {
-        warnings.push(`Reference image ${input.referenceSketchId} not found in cog_images — generating without i2i conditioning. Use a real Cog image ID from list_sketches or fetch_series_images.`);
-        console.warn(`[sketch-study] referenceSketchId ${input.referenceSketchId} not found in cog_images`);
-      }
-    } catch (err) {
-      warnings.push(`Failed to load reference image: ${err instanceof Error ? err.message : 'unknown error'}`);
-      console.warn('[sketch-study] Failed to load reference sketch:', err);
-    }
-  }
-
-  // Exemplar sketches for style consistency
-  if (input.exemplarIds?.length) {
-    const client = serviceClient();
-    const { data: exemplars } = await (client as any)
-      .from('cog_images')
-      .select('storage_path')
-      .in('id', input.exemplarIds.slice(0, 4));
-
-    if (exemplars) {
-      const settled = await Promise.allSettled(
-        exemplars.map((e: { storage_path: string }) => resolveImageAsBase64(e.storage_path))
-      );
-      for (const result of settled) {
-        if (result.status === 'fulfilled') {
-          referenceImages.push({ base64: result.value.base64, mimeType: result.value.mediaType });
-        }
-      }
-    }
-  }
-
-  // Compose prompt after reference resolution — prompt must reference
-  // input images for Flux 2 Dev i2i conditioning to work
+  // Compose prompt — must reference input images for Flux 2 Dev i2i conditioning
   const prompt = composeSketchPrompt(input, referenceImages.length > 0);
 
   console.log('[sketch-study] Generating:', {
@@ -193,8 +148,7 @@ export async function runSketchStudyPipeline(
       subject: input.subject,
       moduleSlugs: input.moduleSlugs,
       model: 'flux-2-dev',
-      referenceSketchId: input.referenceSketchId,
-      exemplarIds: input.exemplarIds,
+      referenceCount: referenceImages.length,
       durationMs: fluxResult.durationMs,
     },
   });
