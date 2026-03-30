@@ -316,8 +316,8 @@ function AssistantBubble({
 
                       return (
                         <ChatImageMenu src={src}>
-                        <span className="relative inline-block my-1">
-                          <button type="button" onClick={() => setLightboxSrc(src)} className="cursor-pointer block">
+                        <span className="my-1 relative inline-block leading-[0] overflow-hidden rounded-sm max-h-80">
+                          <button type="button" onClick={() => setLightboxSrc(src)} className="cursor-pointer block max-h-80">
                             {/* eslint-disable-next-line @next/next/no-img-element */}
                             <img src={src} alt={alt ?? ''} className="rounded-sm max-h-80 object-contain" />
                           </button>
