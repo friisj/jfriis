@@ -35,10 +35,21 @@ import {
   IconHeart,
   IconPlus,
   IconVolume,
+  IconPencil,
+  IconMicroscope,
+  IconSearch,
 } from '@tabler/icons-react';
 import { MODEL_OPTIONS, type ContextPressure } from '../use-luv-chat-session';
 import type { LuvCompactSummary } from '@/lib/types/luv';
-import { ToolHintBar } from './tool-hint-bar';
+import { TOOL_HINTS } from '../tool-hints';
+
+const HINT_ICONS = {
+  photo: IconPhoto,
+  pencil: IconPencil,
+  microscope: IconMicroscope,
+  search: IconSearch,
+  brain: IconBrain,
+} as const;
 
 interface SoulPreset {
   id: string;
@@ -234,50 +245,104 @@ export function ChatInputToolbar({
           />
         )}
 
-        <div className={cn('flex justify-between items-start pl-3 md:pl-4 pr-4', compact ? 'pb-4' : 'pb-4')}>
-          <div className="flex items-center gap-2">
-            {onSetToolHint && (
-              <ToolHintBar
-                selected={toolHint ?? null}
-                onSelect={onSetToolHint}
-                compact={compact}
-              />
-            )}
-
-            <button
-              className="flex items-center justify-center h-12 w-10 text-muted-foreground"
-              onClick={() => fileInputRef.current?.click()}
-              disabled={isActive || !soulLoaded}
-              title="Upload image"
-            >
-              <IconUpload size={iconSize} stroke={1.5} />
-            </button>
-
-            {onToggleImagePicker && (
-              <button
-                className={cn(
-                  'flex items-center justify-center size-12 text-muted-foreground',
-                  imagePickerOpen && 'text-foreground',
-                )}
-                onClick={onToggleImagePicker}
-                disabled={isActive || !soulLoaded}
-                title="Image library"
-              >
-                <IconPhotoPlus size={iconSize} stroke={1.5} />
-              </button>
-            )}
-
+        <div className={cn('flex justify-between items-center pl-3 md:pl-4 pr-4', compact ? 'pb-4' : 'pb-4')}>
+          {/* Left: [+] actions menu + active tool hint pill */}
+          <div className="flex items-center gap-1.5">
+            {/* [+] Actions dropdown — tool hints, image library, upload */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button
-                  className="flex items-center justify-center size-12 text-muted-foreground"
-                  aria-label="Options"
-                  title="Options"
+                  className="flex items-center justify-center size-10 text-muted-foreground hover:text-foreground transition-colors"
+                  aria-label="Actions"
+                  title="Actions"
+                  disabled={isActive || !soulLoaded}
                 >
-                  <IconDots size={iconSize} />
+                  <IconPlus size={iconSize} stroke={1.5} />
                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent side="top" align="start" className="w-48">
+                {onSetToolHint && (
+                  <>
+                    <DropdownMenuLabel className="text-[10px] text-muted-foreground uppercase tracking-wide">Tools</DropdownMenuLabel>
+                    {TOOL_HINTS.map((hint) => {
+                      const Icon = HINT_ICONS[hint.icon];
+                      const active = toolHint === hint.toolName;
+                      return (
+                        <DropdownMenuItem
+                          key={hint.toolName}
+                          className="text-xs"
+                          onClick={() => onSetToolHint(active ? null : hint.toolName)}
+                        >
+                          <Icon size={14} stroke={1.5} />
+                          {hint.label}
+                          {active && <span className="ml-auto text-[10px] text-green-600 dark:text-green-400">active</span>}
+                        </DropdownMenuItem>
+                      );
+                    })}
+                    <DropdownMenuSeparator />
+                  </>
+                )}
+                {onToggleImagePicker && (
+                  <DropdownMenuItem className="text-xs" onClick={onToggleImagePicker}>
+                    <IconPhotoPlus size={14} stroke={1.5} />
+                    Image library
+                  </DropdownMenuItem>
+                )}
+                <DropdownMenuItem
+                  className="text-xs"
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  <IconUpload size={14} stroke={1.5} />
+                  Upload
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+
+            {/* Active tool hint pill (dismiss by clicking) */}
+            {toolHint && onSetToolHint && (() => {
+              const hint = TOOL_HINTS.find((h) => h.toolName === toolHint);
+              if (!hint) return null;
+              const Icon = HINT_ICONS[hint.icon];
+              return (
+                <button
+                  type="button"
+                  onClick={() => onSetToolHint(null)}
+                  className="flex items-center gap-1 px-2 py-1 rounded-full bg-primary text-primary-foreground text-xs transition-colors hover:opacity-80"
+                  title={`Using ${hint.label} — click to remove`}
+                >
+                  <Icon size={12} stroke={1.5} />
+                  {hint.label}
+                  <IconX size={10} stroke={2} />
+                </button>
+              );
+            })()}
+
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              multiple
+              className="hidden"
+              onChange={(e) => {
+                if (e.target.files) addFilesFromFileList(Array.from(e.target.files));
+                e.target.value = '';
+              }}
+            />
+          </div>
+
+          {/* Right: [gear] settings + [send] */}
+          <div className="flex items-center gap-1">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  className="flex items-center justify-center size-10 text-muted-foreground hover:text-foreground transition-colors"
+                  aria-label="Settings"
+                  title="Settings"
+                >
+                  <IconAdjustments size={iconSize} stroke={1.5} />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent side="top" align="end" className="w-48">
                 <DropdownMenuRadioGroup value={modelKey} onValueChange={setModelKey}>
                   {MODEL_OPTIONS.map((opt) => (
                     <DropdownMenuRadioItem key={opt.key} value={opt.key} className="text-xs">
@@ -300,41 +365,10 @@ export function ChatInputToolbar({
                     </DropdownMenuItem>
                   </>
                 )}
-                {messages.length >= 6 && resumedConversationId && (
-                  <>
-                    <DropdownMenuSeparator />
-                    {!compactSummary && (
-                      <DropdownMenuItem
-                        className="text-xs"
-                        onClick={handleCompact}
-                        disabled={isActive || compacting}
-                      >
-                        {compacting ? (
-                          <IconLoader2 size={14} stroke={1.5} className="animate-spin" />
-                        ) : (
-                          <IconSparkles size={14} stroke={1.5} />
-                        )}
-                        {compacting ? 'Analysing\u2026' : 'Compact conversation'}
-                      </DropdownMenuItem>
-                    )}
-                    <DropdownMenuItem
-                      className="text-xs"
-                      onClick={handleBranch}
-                      disabled={isActive || branching}
-                    >
-                      {branching ? (
-                        <IconLoader2 size={14} stroke={1.5} className="animate-spin" />
-                      ) : (
-                        <IconGitBranch size={14} stroke={1.5} />
-                      )}
-                      {branching ? 'Branching\u2026' : 'Branch conversation'}
-                    </DropdownMenuItem>
-                  </>
-                )}
                 <DropdownMenuSeparator />
                 <DropdownMenuSub>
                   <DropdownMenuSubTrigger className="text-xs">
-                    <IconAdjustments size={14} stroke={1.5} />
+                    <IconPhoto size={14} stroke={1.5} />
                     Traits
                   </DropdownMenuSubTrigger>
                   <DropdownMenuSubContent className="w-44">
@@ -411,6 +445,37 @@ export function ChatInputToolbar({
                     </DropdownMenuItem>
                   </>
                 )}
+                {messages.length >= 6 && resumedConversationId && (
+                  <>
+                    <DropdownMenuSeparator />
+                    {!compactSummary && (
+                      <DropdownMenuItem
+                        className="text-xs"
+                        onClick={handleCompact}
+                        disabled={isActive || compacting}
+                      >
+                        {compacting ? (
+                          <IconLoader2 size={14} stroke={1.5} className="animate-spin" />
+                        ) : (
+                          <IconSparkles size={14} stroke={1.5} />
+                        )}
+                        {compacting ? 'Analysing\u2026' : 'Compact conversation'}
+                      </DropdownMenuItem>
+                    )}
+                    <DropdownMenuItem
+                      className="text-xs"
+                      onClick={handleBranch}
+                      disabled={isActive || branching}
+                    >
+                      {branching ? (
+                        <IconLoader2 size={14} stroke={1.5} className="animate-spin" />
+                      ) : (
+                        <IconGitBranch size={14} stroke={1.5} />
+                      )}
+                      {branching ? 'Branching\u2026' : 'Branch conversation'}
+                    </DropdownMenuItem>
+                  </>
+                )}
                 {messages.length > 0 && (
                   <>
                     <DropdownMenuSeparator />
@@ -427,23 +492,10 @@ export function ChatInputToolbar({
               </DropdownMenuContent>
             </DropdownMenu>
 
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*"
-              multiple
-              className="hidden"
-              onChange={(e) => {
-                if (e.target.files) addFilesFromFileList(Array.from(e.target.files));
-                e.target.value = '';
-              }}
-            />
-          </div>
-          <div className="p-1">
             <button
               onClick={handleSend}
               disabled={isActive || (!input.trim() && pendingFiles.length === 0) || !soulLoaded}
-              className="flex items-center justify-center size-10 bg-amber-400 hover:bg-amber-500 active:bg-amber-500 rounded-full  cursor-pointer"
+              className="flex items-center justify-center size-10 bg-amber-400 hover:bg-amber-500 active:bg-amber-500 rounded-full cursor-pointer"
             >
               <IconArrowUp size={iconSize} stroke={1.5} />
             </button>

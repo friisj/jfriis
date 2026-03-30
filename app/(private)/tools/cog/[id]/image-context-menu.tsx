@@ -200,17 +200,20 @@ export function ImageContextMenu({
       </ContextMenuTrigger>
       <ContextMenuContent className="w-52">
         {showView && (
-          <ContextMenuItem
-            onClick={() => {
-              if (onView) onView(image.id);
-              else if (typeof f.view === 'function') f.view(image.id);
-              else handleView();
-            }}
-            className="text-xs"
-          >
-            <IconEye size={14} className="mr-2" />
-            View
-          </ContextMenuItem>
+          <>
+            <ContextMenuItem
+              onClick={() => {
+                if (onView) onView(image.id);
+                else if (typeof f.view === 'function') f.view(image.id);
+                else handleView();
+              }}
+              className="text-xs"
+            >
+              <IconEye size={14} stroke={1.5} />
+              View
+            </ContextMenuItem>
+            <ContextMenuSeparator />
+          </>
         )}
         {f.setCover && (
           <ContextMenuItem
@@ -224,24 +227,23 @@ export function ImageContextMenu({
             }}
             className="text-xs"
           >
-            <IconPhoto size={14} className="mr-2" />
+            <IconPhoto size={14} stroke={1.5} />
             {isPrimary ? 'Remove as cover' : 'Set as cover'}
           </ContextMenuItem>
         )}
 
         {f.clipboard && (
           <>
-            <ContextMenuSeparator />
             <ContextMenuItem onClick={handleCopyToClipboard} className="text-xs">
-              <IconCopy size={14} className="mr-2" />
+              <IconCopy size={14} stroke={1.5} />
               Copy to clipboard
             </ContextMenuItem>
             <ContextMenuItem onClick={handleCopyId} className="text-xs">
-              <IconId size={14} className="mr-2" />
+              <IconId size={14} stroke={1.5} />
               Copy image ID
             </ContextMenuItem>
             <ContextMenuItem onClick={handleDownload} className="text-xs">
-              <IconDownload size={14} className="mr-2" />
+              <IconDownload size={14} stroke={1.5} />
               Download original
             </ContextMenuItem>
           </>
@@ -252,7 +254,7 @@ export function ImageContextMenu({
         {f.move && (
           <ContextMenuSub>
             <ContextMenuSubTrigger className="text-xs" onPointerEnter={fetchSeries}>
-              <IconArrowRight size={14} className="mr-2" />
+              <IconArrowRight size={14} stroke={1.5} />
               Move to series
             </ContextMenuSubTrigger>
             <ContextMenuSubContent className="w-48 max-h-64 overflow-y-auto">
@@ -282,7 +284,7 @@ export function ImageContextMenu({
         {f.copy && (
           <ContextMenuSub>
             <ContextMenuSubTrigger className="text-xs" onPointerEnter={fetchSeries}>
-              <IconCopyPlus size={14} className="mr-2" />
+              <IconCopyPlus size={14} stroke={1.5} />
               Copy to series
             </ContextMenuSubTrigger>
             <ContextMenuSubContent className="w-48 max-h-64 overflow-y-auto">
@@ -314,7 +316,7 @@ export function ImageContextMenu({
             <ContextMenuSeparator />
             <ContextMenuSub>
               <ContextMenuSubTrigger className="text-xs">
-                <IconTag size={14} className="mr-2" />
+                <IconTag size={14} stroke={1.5} />
                 Tags
               </ContextMenuSubTrigger>
               <ContextMenuSubContent className="w-44 max-h-64 overflow-y-auto">
@@ -346,8 +348,8 @@ export function ImageContextMenu({
             <ContextMenuSub>
               <ContextMenuSubTrigger className="text-xs">
                 {(image.star_rating ?? 0) > 0
-                  ? <IconStarFilled size={14} className="mr-2 text-yellow-400" />
-                  : <IconStar size={14} className="mr-2" />}
+                  ? <IconStarFilled size={14} className="text-yellow-400" />
+                  : <IconStar size={14} stroke={1.5} />}
                 {(image.star_rating ?? 0) > 0 ? `${image.star_rating} star${image.star_rating !== 1 ? 's' : ''}` : 'Rate'}
               </ContextMenuSubTrigger>
               <ContextMenuSubContent className="w-36">
@@ -369,7 +371,7 @@ export function ImageContextMenu({
                       {Array.from({ length: 5 }, (_, i) => (
                         i < stars
                           ? <IconStarFilled key={i} size={12} className="text-yellow-400" />
-                          : <IconStar key={i} size={12} className="text-muted-foreground/40" />
+                          : <IconStar key={i} size={12} stroke={1.5} className="text-muted-foreground/40" />
                       ))}
                     </span>
                   </ContextMenuItem>
@@ -401,7 +403,7 @@ export function ImageContextMenu({
               onClick={handleDelete}
               className="text-xs text-destructive focus:text-destructive"
             >
-              <IconTrash size={14} className="mr-2" />
+              <IconTrash size={14} stroke={1.5} />
               Delete
             </ContextMenuItem>
           </>
