@@ -142,7 +142,7 @@ const MATERIAL_HANDLERS: Record<string, MaterialHandler> = {
 
 const VISIBILITY_HANDLERS: Record<string, (state: CharacterState, value: unknown) => void> = {
   'skin.freckles': (s, v) => { s.visibility['freckles'] = v === true; },
-  'mouth.dimples': (s, v) => { s.visibility['dimples'] = v === true; },
+  // mouth.dimples is now enum (none/subtle/defined/deep) — handled by ENUM_COMPOSITIONS
   'eyes.lash_length': (s, v) => {
     if (typeof v === 'string') {
       s.visibility['eyelashes_short'] = v === 'short';
