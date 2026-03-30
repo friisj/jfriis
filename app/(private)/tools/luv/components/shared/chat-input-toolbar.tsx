@@ -263,7 +263,7 @@ export function ChatInputToolbar({
               <DropdownMenuContent side="top" align="start" className="w-48">
                 {onSetToolHint && (
                   <>
-                    <DropdownMenuLabel className="text-[10px] text-muted-foreground uppercase tracking-wide">Tools</DropdownMenuLabel>
+                    <DropdownMenuLabel className="text-[10px] text-muted-foreground uppercase tracking-wide">Tool Hints</DropdownMenuLabel>
                     {TOOL_HINTS.map((hint) => {
                       const Icon = HINT_ICONS[hint.icon];
                       const active = toolHint === hint.toolName;
@@ -285,7 +285,7 @@ export function ChatInputToolbar({
                 {onToggleImagePicker && (
                   <DropdownMenuItem className="text-xs" onClick={onToggleImagePicker}>
                     <IconPhotoPlus size={14} stroke={1.5} />
-                    Image library
+                    Series image
                   </DropdownMenuItem>
                 )}
                 <DropdownMenuItem
@@ -368,10 +368,10 @@ export function ChatInputToolbar({
                 )}
                 {onToggleVoice && (
                   <DropdownMenuSub>
-                    <DropdownMenuSubTrigger className="text-xs">
+                    <DropdownMenuSubTrigger className="text-xs ">
                       <IconVolume size={14} stroke={1.5} />
                       Voice
-                      <span className={`ml-auto text-[10px] ${voiceEnabled ? 'text-green-600 dark:text-green-400' : 'text-muted-foreground'}`}>
+                      <span className={`flex-1 text-right text-[10px] ${voiceEnabled ? 'text-green-600 dark:text-green-400' : 'text-muted-foreground'}`}>
                         {voiceEnabled ? 'on' : 'off'}
                       </span>
                     </DropdownMenuSubTrigger>
