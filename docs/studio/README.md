@@ -340,6 +340,30 @@ Bug tracks public figures and organizations across news, social media, and other
 
 ---
 
+### Pulse
+**Status**: Phase 1 (Exploration) - Initial setup and concept definition
+**Location**: `/components/studio/prototypes/pulse/` + `/docs/studio/pulse/`
+**Focus**: Workplace knowledge reinforcement through contextual quizzes generated from corporate tools
+
+**Current State**:
+- ✅ Project scaffolding and initial research structure
+- ⏳ Researching spaced repetition landscape, corporate learning tools
+- ⏳ Mapping integration surface (Slack, Notion, Linear, HR tools)
+
+**Concept**:
+Pulse plugs into the tools teams already use and generates contextual quizzes that reinforce institutional knowledge. Operates at individual level (spaced-repetition tracks, personal results) and organizational level (onboarding quizzes, weekly team pulses, leaderboards). Core bet: active recall from real corporate context beats passive documentation.
+
+**Next Steps**:
+1. Complete landscape research (spaced repetition tools, corporate LMS)
+2. Define key terms and quiz taxonomy
+3. Map minimum viable integration surface
+4. Design quiz generation pipeline (context ingestion → question generation → delivery)
+5. Prototype core quiz generation from a single source
+
+**Documents**: `/docs/studio/pulse/exploration/` (research.md, definitions.md)
+
+---
+
 ### Sub-Prompt
 **Status**: Phase 1 (Exploration) - Initial research and concept definition
 **Location**: `/components/studio/prototypes/sub-prompt/` + `/docs/studio/sub-prompt/`
