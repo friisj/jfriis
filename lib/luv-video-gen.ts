@@ -210,12 +210,20 @@ async function submitVeo(opts: VideoJobOptions): Promise<string> {
     instances: [
       {
         prompt: opts.prompt,
+        // i2v: Gemini API uses referenceImages with inlineData (not bytesBase64Encoded)
         ...(opts.referenceImage
           ? {
-              image: {
-                bytesBase64Encoded: opts.referenceImage.base64,
-                mimeType: opts.referenceImage.mimeType,
-              },
+              referenceImages: [
+                {
+                  image: {
+                    inlineData: {
+                      mimeType: opts.referenceImage.mimeType,
+                      data: opts.referenceImage.base64,
+                    },
+                  },
+                  referenceType: 'asset',
+                },
+              ],
             }
           : {}),
       },
@@ -276,24 +284,16 @@ async function pollVeo(
   return { done: true, videoUri: uri };
 }
 
-async function fetchVeoVideo(gcsUri: string): Promise<Buffer> {
+async function fetchVeoVideo(videoUri: string): Promise<Buffer> {
   const apiKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY;
   if (!apiKey) throw new Error('GOOGLE_GENERATIVE_AI_API_KEY not configured');
 
-  // GCS URIs from Veo are downloadable via the Gemini API files endpoint
-  // Format: https://generativelanguage.googleapis.com/v1beta/files/<name>:download
-  // Or: gs://... bucket URI — fetch via the storage download endpoint
-  let downloadUrl: string;
-  if (gcsUri.startsWith('gs://')) {
-    // Convert GCS URI to API download URL
-    const path = gcsUri.replace('gs://', '');
-    downloadUrl = `https://storage.googleapis.com/${path}`;
-  } else {
-    // Already an HTTPS URL — may need API key
-    downloadUrl = gcsUri.includes('?') ? gcsUri : `${gcsUri}?key=${apiKey}`;
-  }
-
-  const res = await fetch(downloadUrl);
+  // Veo on Gemini API returns an HTTPS URI from generativelanguage.googleapis.com.
+  // Format: https://generativelanguage.googleapis.com/v1beta/files/{fileId}:download?alt=media
+  // Auth via x-goog-api-key header — query param may not work for file downloads.
+  const res = await fetch(videoUri, {
+    headers: { 'x-goog-api-key': apiKey },
+  });
   if (!res.ok) throw new Error(`Failed to fetch Veo video: ${res.status}`);
 
   return Buffer.from(await res.arrayBuffer());
