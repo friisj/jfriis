@@ -45,6 +45,7 @@ type StrudelEditorProps = {
   miniLocations?: number[][]
   widgets?: Widget[]
   settings?: EditorSettings
+  onViewReady?: (view: EditorView) => void
 }
 
 export function StrudelEditor({
@@ -55,6 +56,7 @@ export function StrudelEditor({
   miniLocations,
   widgets,
   settings,
+  onViewReady,
 }: StrudelEditorProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const viewRef = useRef<EditorView | null>(null)
@@ -94,6 +96,7 @@ export function StrudelEditor({
       })
 
       viewRef.current = view
+      onViewReady?.(view)
 
       // Apply initial settings overrides (initEditor uses codemirrorSettings defaults)
       if (settings) {
