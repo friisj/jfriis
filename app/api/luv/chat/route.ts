@@ -209,9 +209,13 @@ export async function POST(request: Request) {
           edits: [
             {
               type: 'clear_tool_uses_20250919',
-              trigger: { type: 'input_tokens', value: 80000 },
-              keep: { type: 'tool_uses', value: 5 },
-              clearAtLeast: { type: 'input_tokens', value: 5000 },
+              // Trigger earlier — image gen results are large and the badge system
+              // lets the user reference old images by [N] without needing full
+              // tool results in context. More aggressive clearing keeps the model
+              // focused and reduces hallucination in long image-heavy conversations.
+              trigger: { type: 'input_tokens', value: 40000 },
+              keep: { type: 'tool_uses', value: 3 },
+              clearAtLeast: { type: 'input_tokens', value: 10000 },
               excludeTools: [
                 'save_memory', 'update_memory', 'archive_memory', 'merge_memories',
                 'review_memories', 'list_memories',

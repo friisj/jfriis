@@ -13,7 +13,7 @@ import type { ModelMessage } from 'ai';
  */
 export function applyMessageWindowing(
   messages: ModelMessage[],
-  keepRecentTurns = 15
+  keepRecentTurns = 8
 ): ModelMessage[] {
   if (messages.length === 0) return messages;
 
