@@ -17,7 +17,7 @@ import { getChassisModulesServer } from '@/lib/luv-chassis-server';
 import { listLuvResearchServer } from '@/lib/luv-research-server';
 import { getLuvChangelogServer } from '@/lib/luv-changelog-server';
 import { getCurrentSoulConfigServer } from '@/lib/luv-soul-modulation-server';
-import { luvTools, createCurrentContextTool } from '@/lib/luv-tools';
+import { luvTools, createCurrentContextTool, createGetToolResultTool } from '@/lib/luv-tools';
 import { luvImageMgmtTools } from '@/lib/luv-image-mgmt-tools';
 import { createGenerateImageTool } from '@/lib/luv-image-gen-tools';
 import { createChassisStudyTool, recordStudyFeedback, listChassisStudies } from '@/lib/luv-chassis-study-tools';
@@ -30,7 +30,7 @@ import type { ChassisModuleSummary } from '@/lib/luv/soul-layers';
 import type { LuvPageContext } from '@/lib/types/luv';
 import { deserializeMessage, getMessageText, serializeOnFinishParts, serializeParts } from '@/lib/luv-message-utils';
 import { uploadUserMessageImages } from '@/lib/luv-message-image-upload';
-import { applyMessageWindowing } from '@/lib/luv-chat-windowing';
+import { applyMessageWindowing, summarizeToolResults } from '@/lib/luv-chat-windowing';
 
 export async function POST(request: Request) {
   const { user, error } = await requireAuth();
@@ -192,8 +192,13 @@ export async function POST(request: Request) {
     // Apply server-side windowing to trim older tool results and image data
     const windowedMessages = applyMessageWindowing(modelMessages);
 
+    // Replace full tool result payloads with compact summaries.
+    // Last 2 results keep full detail; older ones get one-liners.
+    // Full details retrievable via get_tool_result tool.
+    const summarizedMessages = summarizeToolResults(windowedMessages, 2);
+
     // Pre-process user-uploaded images through Gemini vision
-    const augmentedMessages = await augmentImagesWithGeminiVision(windowedMessages);
+    const augmentedMessages = await augmentImagesWithGeminiVision(summarizedMessages);
 
     // Enable extended thinking for Claude models when toggled on
     const isClaudeModel = modelKey.startsWith('claude-');
@@ -209,12 +214,11 @@ export async function POST(request: Request) {
           edits: [
             {
               type: 'clear_tool_uses_20250919',
-              // Trigger earlier — image gen results are large and the badge system
-              // lets the user reference old images by [N] without needing full
-              // tool results in context. More aggressive clearing keeps the model
-              // focused and reduces hallucination in long image-heavy conversations.
-              trigger: { type: 'input_tokens', value: 40000 },
-              keep: { type: 'tool_uses', value: 3 },
+              // With tool result summarization in place, each historical result is
+              // ~20-40 tokens instead of 300-2000. Can afford a higher trigger threshold.
+              // This is the last-resort safety net — summarization handles most compaction.
+              trigger: { type: 'input_tokens', value: 80000 },
+              keep: { type: 'tool_uses', value: 1 },
               clearAtLeast: { type: 'input_tokens', value: 10000 },
               excludeTools: [
                 'save_memory', 'update_memory', 'archive_memory', 'merge_memories',
@@ -247,6 +251,7 @@ export async function POST(request: Request) {
         run_sketch_study: createSketchStudyTool(augmentedMessages),
         list_sketches: listSketches,
         get_current_context: createCurrentContextTool(pageContext ?? null),
+        ...(convId ? { get_tool_result: createGetToolResultTool(convId) } : {}),
         web_search: getAnthropic().tools.webSearch_20250305({ maxUses: 3 }),
         tool_search: getAnthropic().tools.toolSearchBm25_20251119(),
       } as ToolSet,

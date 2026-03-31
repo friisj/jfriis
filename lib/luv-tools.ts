@@ -1247,3 +1247,42 @@ function applyDeferLoading<T extends Record<string, object>>(tools: T): T {
   }
   return result as T;
 }
+
+/**
+ * Factory: create get_tool_result tool with access to conversation ID.
+ * Retrieves full tool result payloads from DB when the agent needs
+ * details beyond the summarized one-liner in conversation context.
+ */
+export function createGetToolResultTool(conversationId: string) {
+  return tool({
+    description:
+      'Retrieve the full result of a previous tool call. Tool results in conversation ' +
+      'history are summarized to save context — use this to get full details when needed. ' +
+      'Pass the callId value from a summarized tool result.',
+    inputSchema: zodSchema(
+      z.object({
+        toolCallId: z.string().describe('The toolCallId from a summarized tool result'),
+      })
+    ),
+    execute: async ({ toolCallId }) => {
+      const { getLuvMessagesServer } = await import('./luv-server');
+      const messages = await getLuvMessagesServer(conversationId);
+
+      // Scan from most recent message (most likely location) for early exit
+      for (let i = messages.length - 1; i >= 0; i--) {
+        const msg = messages[i];
+        if (!msg.parts || !Array.isArray(msg.parts)) continue;
+        for (const part of msg.parts as Array<Record<string, unknown>>) {
+          if (part.toolCallId === toolCallId) {
+            return {
+              toolName: part.toolName ?? 'unknown',
+              output: part.output,
+            };
+          }
+        }
+      }
+
+      return { error: `No tool result found for callId ${toolCallId}` };
+    },
+  });
+}
