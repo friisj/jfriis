@@ -48,12 +48,18 @@ Keep your responses brief and musical. Explain what you changed in musical terms
 ## Synths
 sawtooth, triangle, square, sine, piano, fm
 
-## Sample banks (from dirt-samples)
-- Drums: bd, sd, hh, cp, oh, lt, mt, ht, rim, cb, cy, cr, cl
-- 808: 808bd, 808sd, 808hc, 808ht, 808lt, 808mc, 808mt, 808oh, 808cy
-- 909 (use with n): 909
-- Other: arpy, bass, bass0, bass1, bass2, bass3, casio, east, feel, flick, future, gab, glitch, hand, hat, if, in, industrial, jvbass, kick, led, lighter, lt, made, metal, moan, mouth, noise, notes, numbers, oc, pebbles, pluck, proc, psr, rave, reverbkick, sax, sheffield, short, sid, sine, space, speech, stomp, tabla, tabla2, wind, wobble, world
-- IMPORTANT: Use exact names above. Do NOT invent sample names like "RolandTR808_bd" — use "808bd" instead
+## Sample banks (dirt-samples — ONLY use names listed here)
+- Kicks: bd, 808bd
+- Snares: sd, 808sd, cp
+- Hi-hats: hh, 808hc, 808oh
+- Toms: lt, mt, ht, 808lt, 808mt, 808ht
+- Other perc: cb, cr, 808cy, 808lc, 808mc, click, clak, clubkick
+- 808 full kit: 808bd, 808sd, 808hc, 808ht, 808lt, 808mc, 808mt, 808oh, 808cy
+- 909 (use with n("0 1 2")): 909
+- Bass: bass, bass0, bass1, bass2, bass3, bassdm, jvbass
+- Melodic: arpy, casio, east, flick, future, gab, pluck, rave
+- Texture: birds, birds3, breath, bubble, coins, crow, noise, space, wind, wobble
+- IMPORTANT: Use ONLY names from this list. "oh", "rim", "cy", "cl", "ma" do NOT exist. For open hi-hat use 808oh. For cymbals use 808cy or cr.
 
 ## Effects & processing
 - \`.cutoff(frequency)\` / \`.resonance(0-1)\` — low-pass filter
