@@ -26,10 +26,47 @@ declare module '@strudel/mini' {
 // @strudel/tonal
 declare module '@strudel/tonal' {}
 
+// @strudel/web (used by tools/strudel reference port)
+declare module '@strudel/web' {
+  export function initStrudel(options?: Record<string, unknown>): Promise<unknown>
+  export function evaluate(code: string, autoplay?: boolean): Promise<unknown>
+  export function hush(): void
+}
+
 // @strudel/codemirror
 declare module '@strudel/codemirror' {
   import type { Extension } from '@codemirror/state'
   import type { EditorView } from '@codemirror/view'
+
+  // StrudelMirror (used by tools/strudel reference port)
+  export class StrudelMirror {
+    constructor(options: {
+      root: HTMLElement
+      id?: string
+      initialCode?: string
+      onDraw?: (haps: unknown[], time: number, painters: unknown) => void
+      drawContext?: CanvasRenderingContext2D
+      drawTime?: [number, number]
+      autodraw?: boolean
+      prebake: () => Promise<unknown>
+      bgFill?: boolean
+      solo?: boolean
+      theme?: string
+      onToggle?: (started: boolean) => void
+      onError?: (error: Error) => void
+      mondo?: unknown
+    })
+    editor: EditorView
+    repl: { scheduler: { started: boolean } }
+    code: string
+    evaluate(autostart?: boolean): Promise<void>
+    stop(): Promise<void>
+    toggle(): Promise<void>
+    setCode(code: string): void
+    clear(): void
+    flash(ms?: number): void
+    setTheme(theme: string): void
+  }
 
   // Editor init
   export function initEditor(options: {
