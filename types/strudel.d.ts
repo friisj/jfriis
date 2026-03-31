@@ -10,6 +10,7 @@ declare module '@strudel/webaudio' {
   export function webaudioRepl(options?: Record<string, unknown>): unknown
   export function initAudioOnFirstClick(options?: Record<string, unknown>): void
   export function registerSynthSounds(): Promise<void>
+  export function samples(source: string | Record<string, unknown>, baseUrl?: string): Promise<void>
 }
 
 // @strudel/transpiler
