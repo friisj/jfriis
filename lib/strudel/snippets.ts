@@ -80,8 +80,10 @@ export const SNIPPETS: Snippet[] = [
   {
     name: 'Jazz voicings',
     category: 'chords',
-    code: `voicings("Dm7 G7 Cmaj7 Am7")
-  .s("piano")
+    code: `"<Dm7 G7 Cmaj7 Am7>"
+  .voicings("lefthand")
+  .note()
+  .sound("piano")
   .slow(2)
   .room(.5)`,
   },

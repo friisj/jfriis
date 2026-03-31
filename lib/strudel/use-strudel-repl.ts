@@ -51,7 +51,7 @@ export function useStrudelRepl(): UseStrudelReplReturn {
       try {
         const [
           { evalScope, setTime },
-          { webaudioRepl, initAudioOnFirstClick, registerSynthSounds },
+          { webaudioRepl, initAudioOnFirstClick, registerSynthSounds, samples },
           { transpiler },
           { miniAllStrings },
         ] = await Promise.all([
@@ -90,6 +90,9 @@ export function useStrudelRepl(): UseStrudelReplReturn {
         )
 
         await registerSynthSounds()
+
+        // Load default drum/sample banks (bd, sd, hh, cp, etc.)
+        await samples('github:tidalcycles/dirt-samples')
 
         if (disposed) {
           repl.stop()
