@@ -22,6 +22,7 @@ import { luvImageMgmtTools } from '@/lib/luv-image-mgmt-tools';
 import { createGenerateImageTool } from '@/lib/luv-image-gen-tools';
 import { createChassisStudyTool, recordStudyFeedback, listChassisStudies } from '@/lib/luv-chassis-study-tools';
 import { createSketchStudyTool, listSketches } from '@/lib/luv-sketch-study-tools';
+import { createStartVideoGenerationTool, checkVideoGeneration } from '@/lib/luv-video-gen-tools';
 import { getAnthropic } from '@/lib/ai/providers';
 import { analyzeImageWithGemini, buildGeneralVisionPrompt } from '@/lib/ai/gemini-vision';
 import { resolveProcessProtocol, resolveProcessState } from '@/lib/luv/process-context';
@@ -250,6 +251,8 @@ export async function POST(request: Request) {
         list_chassis_studies: listChassisStudies,
         run_sketch_study: createSketchStudyTool(augmentedMessages),
         list_sketches: listSketches,
+        start_video_generation: createStartVideoGenerationTool(augmentedMessages),
+        check_video_generation: checkVideoGeneration,
         get_current_context: createCurrentContextTool(pageContext ?? null),
         ...(convId ? { get_tool_result: createGetToolResultTool(convId) } : {}),
         web_search: getAnthropic().tools.webSearch_20250305({ maxUses: 3 }),
@@ -454,8 +457,9 @@ function detectFabricatedImageUrls(
     for (const tr of step.toolResults) {
       const r = tr.result as Record<string, unknown> | null;
       if (!r || typeof r !== 'object') continue;
-      // Direct imageUrl from generation/study results
+      // Direct imageUrl/videoUrl from generation/study/video results
       if (typeof r.imageUrl === 'string') realUrls.add(r.imageUrl);
+      if (typeof r.videoUrl === 'string') realUrls.add(r.videoUrl);
       // Images array from fetch_series_images etc.
       if (Array.isArray(r.images)) {
         for (const img of r.images as Array<Record<string, unknown>>) {

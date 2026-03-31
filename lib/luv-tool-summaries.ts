@@ -24,6 +24,21 @@ function trunc(s: unknown, len = 40): string {
   return s.length > len ? s.slice(0, len) + '…' : s;
 }
 
+// ── Video generation tools ───────────────────────────────────────
+
+const summarizeStartVideo: ToolSummarizer = (output, callId) => {
+  const r = safe(output);
+  if (!r.success) return `[start_video_generation failed: ${trunc(r.error)} | callId=${callId}]`;
+  return `[video job started jobId=${r.jobId}, provider=${r.provider} | callId=${callId}]`;
+};
+
+const summarizeCheckVideo: ToolSummarizer = (output, callId) => {
+  const r = safe(output);
+  if (r.status === 'completed') return `[video completed jobId=${r.jobId}, ${dur(r.durationMs)} | callId=${callId}]`;
+  if (r.status === 'failed') return `[video failed jobId=${r.jobId}: ${trunc(r.error)} | callId=${callId}]`;
+  return `[video ${r.status ?? 'in-progress'} jobId=${r.jobId} | callId=${callId}]`;
+};
+
 // ── Image generation tools ───────────────────────────────────────
 
 const summarizeImageGen: ToolSummarizer = (output, callId) => {
@@ -172,6 +187,10 @@ const summarizeWebSearch: ToolSummarizer = (output, callId) => {
 // ── Registry ─────────────────────────────────────────────────────
 
 const SUMMARIZERS: Record<string, ToolSummarizer> = {
+  // Video generation
+  start_video_generation: summarizeStartVideo,
+  check_video_generation: summarizeCheckVideo,
+
   // Image generation
   generate_image: summarizeImageGen,
   run_chassis_study: summarizeChassisStudy,
