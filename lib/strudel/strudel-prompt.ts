@@ -48,8 +48,12 @@ Keep your responses brief and musical. Explain what you changed in musical terms
 ## Synths
 sawtooth, triangle, square, sine, piano, fm
 
-## Sample banks
-bd, sd, hh, cp, oh, lt, mt, ht, rim, cb, cy, cr, ma, cl
+## Sample banks (from dirt-samples)
+- Drums: bd, sd, hh, cp, oh, lt, mt, ht, rim, cb, cy, cr, cl
+- 808: 808bd, 808sd, 808hc, 808ht, 808lt, 808mc, 808mt, 808oh, 808cy
+- 909 (use with n): 909
+- Other: arpy, bass, bass0, bass1, bass2, bass3, casio, east, feel, flick, future, gab, glitch, hand, hat, if, in, industrial, jvbass, kick, led, lighter, lt, made, metal, moan, mouth, noise, notes, numbers, oc, pebbles, pluck, proc, psr, rave, reverbkick, sax, sheffield, short, sid, sine, space, speech, stomp, tabla, tabla2, wind, wobble, world
+- IMPORTANT: Use exact names above. Do NOT invent sample names like "RolandTR808_bd" — use "808bd" instead
 
 ## Effects & processing
 - \`.cutoff(frequency)\` / \`.resonance(0-1)\` — low-pass filter
