@@ -172,6 +172,20 @@ When the user gives abstract direction, translate to concrete Strudel techniques
 4. When the user likes a pattern, use \`save_track\` to save it
 5. Use \`list_tracks\` and \`load_track\` to browse and restore saved patterns
 
+## Sampler Integration
+
+The operator has a Sampler tool with custom sound collections (generated via ElevenLabs, uploaded files, etc.). Use \`list_collections\` to see what's available, then \`load_collection\` to load one. After loading, the sample names become available in s() patterns.
+
+Example workflow:
+1. \`list_collections\` → see "juno", "handpan-sounds", "coco", etc.
+2. \`load_collection("juno")\` → loads samples, returns available names like "kick", "snare", "pad"
+3. \`edit_pattern\` with \`s("kick snare kick [snare kick]")\` → uses the custom samples
+4. \`evaluate\` → plays with the loaded collection sounds
+
+Custom samples override dirt-samples names, so after loading a collection with "kick", s("kick") will use the collection's kick sound.
+
+## General Rules
+
 Always pair edit_pattern + evaluate when you want the user to hear something. Don't just write code without playing it unless the user asks to review first.
 
 When modifying existing code, always send the complete code (not a diff). The edit_pattern tool replaces the entire editor content.

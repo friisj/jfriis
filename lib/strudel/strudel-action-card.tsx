@@ -1,12 +1,14 @@
 'use client'
 
-import { Play, Square, FileCode } from 'lucide-react'
+import { Play, Square, FileCode, Music } from 'lucide-react'
 
 type StrudelActionOutput = {
   type: 'strudel_action'
   action: string
   code?: string
   description?: string
+  collectionName?: string
+  sampleNames?: string[]
 }
 
 type Props = {
@@ -39,6 +41,22 @@ export function StrudelActionCard({ output }: Props) {
         <div className="flex items-center gap-2 px-3 py-2 rounded bg-zinc-500/10 border border-zinc-500/20 text-xs font-mono">
           <Square className="w-3.5 h-3.5 text-zinc-400" />
           <span className="text-zinc-300">Stopped</span>
+        </div>
+      )
+    case 'load_samples':
+      return (
+        <div className="flex items-start gap-2 px-3 py-2 rounded bg-amber-500/10 border border-amber-500/20 text-xs font-mono">
+          <Music className="w-3.5 h-3.5 text-amber-400 mt-0.5 shrink-0" />
+          <div className="min-w-0">
+            <span className="text-amber-300">
+              Loaded {output.collectionName || 'collection'}
+            </span>
+            {output.sampleNames && (
+              <p className="text-zinc-400 mt-0.5 truncate">
+                {output.sampleNames.join(', ')}
+              </p>
+            )}
+          </div>
         </div>
       )
     default:

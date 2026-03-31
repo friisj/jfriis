@@ -9,6 +9,7 @@ export type StrudelReplControls = {
   replaceAll: (code: string) => void
   getPatternSummary: () => string
   getCurrentCode: () => string
+  loadSamples: (sampleMap: Record<string, string[]>) => Promise<void>
 }
 
 type StrudelChatContextValue = {

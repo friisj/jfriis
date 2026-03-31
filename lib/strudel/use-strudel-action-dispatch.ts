@@ -6,9 +6,10 @@ import type { StrudelReplControls } from './strudel-chat-context'
 
 type StrudelAction = {
   type: 'strudel_action'
-  action: 'edit_pattern' | 'evaluate' | 'hush'
+  action: 'edit_pattern' | 'evaluate' | 'hush' | 'load_samples'
   code?: string
   description?: string
+  samples?: Record<string, string[]>
 }
 
 function isStrudelAction(value: unknown): value is StrudelAction {
@@ -60,6 +61,11 @@ export function useStrudelActionDispatch(
             break
           case 'hush':
             controls.stop()
+            break
+          case 'load_samples':
+            if (output.samples) {
+              controls.loadSamples(output.samples as Record<string, string[]>)
+            }
             break
         }
       }
