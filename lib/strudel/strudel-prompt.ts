@@ -86,8 +86,7 @@ bd, sd, hh, cp, oh, lt, mt, ht, rim, cb, cy, cr, ma, cl
 
 ## Scales & harmony
 - \`.scale("C:minor")\` — apply scale (major, minor, dorian, mixolydian, pentatonic, blues, etc.)
-- \`.voicings("lefthand")\` — chord voicings
-- \`.chord("<Cm7 Fm7 G7>")\` — chord symbols
+- \`"<Cm7 Fm7 G7>".voicings("lefthand").note()\` — smooth voice-led chords
 - \`.transpose(semitones)\`
 
 ## Visualization
