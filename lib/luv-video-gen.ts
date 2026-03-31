@@ -277,8 +277,8 @@ async function pollVeo(
     return { done: true, error: json.error.message ?? 'Veo generation failed' };
   }
 
-  const uri =
-    json.response?.generateVideoResponse?.generatedSamples?.[0]?.video?.uri as string | undefined;
+  // Gemini API Veo response: response.videos[0].gcsUri (gs://... URI)
+  const uri = json.response?.videos?.[0]?.gcsUri as string | undefined;
   if (!uri) return { done: true, error: 'Veo: no video URI in response' };
 
   return { done: true, videoUri: uri };
@@ -288,13 +288,35 @@ async function fetchVeoVideo(videoUri: string): Promise<Buffer> {
   const apiKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY;
   if (!apiKey) throw new Error('GOOGLE_GENERATIVE_AI_API_KEY not configured');
 
-  // Veo on Gemini API returns an HTTPS URI from generativelanguage.googleapis.com.
-  // Format: https://generativelanguage.googleapis.com/v1beta/files/{fileId}:download?alt=media
-  // Auth via x-goog-api-key header — query param may not work for file downloads.
-  const res = await fetch(videoUri, {
+  // Veo (Gemini API) returns a gs:// URI pointing to a GCS bucket.
+  // Downloading requires either:
+  //   A) GOOGLE_SERVICE_ACCOUNT_KEY (not in env) for private buckets
+  //   B) The bucket is world-readable — try public HTTPS URL first
+  //
+  // If the bucket is private and no service account is configured, generation
+  // will succeed but download will fail here with a 403/404.
+  let downloadUrl: string;
+  if (videoUri.startsWith('gs://')) {
+    // Convert gs://bucket/path → https://storage.googleapis.com/bucket/path
+    downloadUrl = videoUri.replace('gs://', 'https://storage.googleapis.com/');
+  } else {
+    // HTTPS URI (Files API format) — auth via header
+    downloadUrl = videoUri;
+  }
+
+  const res = await fetch(downloadUrl, {
     headers: { 'x-goog-api-key': apiKey },
   });
-  if (!res.ok) throw new Error(`Failed to fetch Veo video: ${res.status}`);
+
+  if (!res.ok) {
+    if (res.status === 403 || res.status === 401) {
+      throw new Error(
+        `Veo video download failed (${res.status}): GCS bucket requires service account credentials. ` +
+        `Add GOOGLE_SERVICE_ACCOUNT_KEY to env to enable Veo video downloads.`
+      );
+    }
+    throw new Error(`Failed to fetch Veo video: ${res.status}`);
+  }
 
   return Buffer.from(await res.arrayBuffer());
 }
