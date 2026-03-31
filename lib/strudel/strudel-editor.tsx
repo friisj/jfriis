@@ -69,12 +69,13 @@ export function StrudelEditor({
   useEffect(() => {
     if (!containerRef.current) return
 
+    let disposed = false
     let view: EditorView | null = null
 
     async function mount() {
       const cm = await import('@strudel/codemirror')
 
-      if (!containerRef.current) return
+      if (disposed || !containerRef.current) return
 
       view = cm.initEditor({
         initialCode: code,
@@ -95,6 +96,11 @@ export function StrudelEditor({
         },
       })
 
+      if (disposed) {
+        view.destroy()
+        return
+      }
+
       viewRef.current = view
       onViewReady?.(view)
 
@@ -107,8 +113,13 @@ export function StrudelEditor({
     mount()
 
     return () => {
+      disposed = true
       view?.destroy()
       viewRef.current = null
+      // Remove any leftover .cm-editor DOM from the container
+      if (containerRef.current) {
+        containerRef.current.querySelectorAll('.cm-editor').forEach((el) => el.remove())
+      }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
