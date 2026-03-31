@@ -54,11 +54,13 @@ export function useStrudelRepl(): UseStrudelReplReturn {
           { webaudioRepl, initAudioOnFirstClick, registerSynthSounds, samples },
           { transpiler },
           { miniAllStrings },
+          { registerSoundfonts },
         ] = await Promise.all([
           import('@strudel/core'),
           import('@strudel/webaudio'),
           import('@strudel/transpiler'),
           import('@strudel/mini'),
+          import('@strudel/soundfonts'),
         ])
 
         if (disposed) return
@@ -87,12 +89,16 @@ export function useStrudelRepl(): UseStrudelReplReturn {
           import('@strudel/tonal'),
           import('@strudel/webaudio'),
           import('@strudel/codemirror'),
+          import('@strudel/soundfonts'),
         )
 
-        await registerSynthSounds()
+        await Promise.all([
+          registerSynthSounds(),
+          samples('github:tidalcycles/dirt-samples'),
+        ])
 
-        // Load default drum/sample banks (bd, sd, hh, cp, etc.)
-        await samples('github:tidalcycles/dirt-samples')
+        // Register GM soundfonts (piano, strings, brass, etc.)
+        registerSoundfonts()
 
         if (disposed) {
           repl.stop()
