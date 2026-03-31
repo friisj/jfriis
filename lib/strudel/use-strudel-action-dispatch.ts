@@ -23,6 +23,8 @@ function isStrudelAction(value: unknown): value is StrudelAction {
 /**
  * Watches chat messages for strudel_action tool results and dispatches
  * them to the REPL engine. Deduplicates by toolCallId.
+ * Actions are dispatched sequentially to ensure async operations
+ * (like load_samples) complete before the next action fires.
  */
 export function useStrudelActionDispatch(
   messages: UIMessage[],
@@ -30,15 +32,16 @@ export function useStrudelActionDispatch(
   getCurrentCode: () => string
 ) {
   const processedRef = useRef(new Set<string>())
+  const dispatchingRef = useRef(false)
+  const queueRef = useRef<Array<{ action: StrudelAction; key: string }>>([])
 
   useEffect(() => {
     if (!controls) return
 
+    // Collect new actions from messages
     for (const msg of messages) {
       if (msg.role !== 'assistant') continue
       for (const part of msg.parts) {
-        // Tool result parts in AI SDK v6 have type 'tool-{toolName}'
-        // and contain a result field when output is available
         const p = part as Record<string, unknown>
         if (typeof p.type !== 'string' || !p.type.startsWith('tool-')) continue
         if (!p.result && !p.output) continue
@@ -50,25 +53,39 @@ export function useStrudelActionDispatch(
         if (processedRef.current.has(key)) continue
         processedRef.current.add(key)
 
-        switch (output.action) {
+        queueRef.current.push({ action: output, key })
+      }
+    }
+
+    // Process queue sequentially
+    if (dispatchingRef.current || queueRef.current.length === 0) return
+    dispatchingRef.current = true
+
+    async function processQueue() {
+      while (queueRef.current.length > 0) {
+        const { action } = queueRef.current.shift()!
+        switch (action.action) {
           case 'edit_pattern':
-            if (output.code) {
-              controls.replaceAll(output.code as string)
+            if (action.code) {
+              controls!.replaceAll(action.code)
             }
             break
           case 'evaluate':
-            controls.evaluate(getCurrentCode())
+            await controls!.evaluate(getCurrentCode())
             break
           case 'hush':
-            controls.stop()
+            controls!.stop()
             break
           case 'load_samples':
-            if (output.samples) {
-              controls.loadSamples(output.samples as Record<string, string[]>)
+            if (action.samples) {
+              await controls!.loadSamples(action.samples)
             }
             break
         }
       }
+      dispatchingRef.current = false
     }
+
+    processQueue()
   }, [messages, controls, getCurrentCode])
 }
