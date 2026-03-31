@@ -84,8 +84,7 @@ export function summarizeToolResults(
   // If we have fewer than keepFullCount, nothing to summarize
   if (totalToolResults <= keepFullCount) return messages;
 
-  // Second pass: walk from end, keep last N full, summarize the rest
-  let fullKept = 0;
+  // Second pass: keep last N full, summarize the rest
   const summarizeThreshold = totalToolResults - keepFullCount;
   let toolResultIndex = 0;
 
@@ -100,7 +99,6 @@ export function summarizeToolResults(
 
       // Keep the last `keepFullCount` results with full detail
       if (currentIndex >= summarizeThreshold) {
-        fullKept++;
         return part;
       }
 

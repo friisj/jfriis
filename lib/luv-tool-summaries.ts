@@ -37,7 +37,7 @@ const summarizeChassisStudy: ToolSummarizer = (output, callId) => {
   if (!r.success) return `[chassis study failed: ${trunc(r.error)} | callId=${callId}]`;
   const modules = Array.isArray(r.moduleSlugs) ? (r.moduleSlugs as string[]).join(',') : '';
   const delib = safe(r.deliberation);
-  return `[chassis study cogId=${r.studyId ?? r.cogImageId}, modules=${modules || 'all'}, ${delib.rounds ?? '?'} rounds, ${dur(r.durationMs)} | callId=${callId}]`;
+  return `[chassis study studyId=${r.studyId}, modules=${modules || 'all'}, ${delib.rounds ?? '?'} rounds, ${dur(r.durationMs)} | callId=${callId}]`;
 };
 
 const summarizeSketchStudy: ToolSummarizer = (output, callId) => {
@@ -96,7 +96,7 @@ const summarizeReadModule: ToolSummarizer = (output, callId) => {
 
 const summarizeReviewModule: ToolSummarizer = (output, callId) => {
   const r = safe(output);
-  return `[reviewed module ${r.slug ?? '?'} with reference image | callId=${callId}]`;
+  return `[reviewed module ${r.moduleSlug ?? '?'} with reference image | callId=${callId}]`;
 };
 
 // ── Memory tools ─────────────────────────────────────────────────
@@ -142,7 +142,16 @@ const summarizeReadChangelog: ToolSummarizer = (output, callId) => {
 
 const summarizeProposal: ToolSummarizer = (output, callId) => {
   const r = safe(output);
-  return `[proposed ${r.type ?? 'change'}: ${trunc(r.title ?? r.description, 50)} | callId=${callId}]`;
+  const type = String(r.type ?? 'change');
+  // soul/chassis change: use field + path
+  if (r.field) return `[proposed ${type}: ${r.field}${r.path ? `.${r.path}` : ''} | callId=${callId}]`;
+  // module change: use moduleSlug + parameterKey
+  if (r.moduleSlug && r.parameterKey) return `[proposed ${type}: ${r.moduleSlug}.${r.parameterKey} | callId=${callId}]`;
+  // batch module changes: use moduleSlug + count
+  if (r.moduleSlug && Array.isArray(r.changes)) return `[proposed ${type}: ${r.moduleSlug} (${(r.changes as unknown[]).length} changes) | callId=${callId}]`;
+  // new module: use name
+  if (r.name) return `[proposed ${type}: ${trunc(r.name, 40)} | callId=${callId}]`;
+  return `[proposed ${type} | callId=${callId}]`;
 };
 
 // ── Image management tools ───────────────────────────────────────

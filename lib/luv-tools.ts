@@ -1258,7 +1258,7 @@ export function createGetToolResultTool(conversationId: string) {
     description:
       'Retrieve the full result of a previous tool call. Tool results in conversation ' +
       'history are summarized to save context — use this to get full details when needed. ' +
-      'Pass the callId from the summary text (e.g. "callId=toolu_abc123").',
+      'Pass the callId value from a summarized tool result.',
     inputSchema: zodSchema(
       z.object({
         toolCallId: z.string().describe('The toolCallId from a summarized tool result'),
@@ -1268,7 +1268,9 @@ export function createGetToolResultTool(conversationId: string) {
       const { getLuvMessagesServer } = await import('./luv-server');
       const messages = await getLuvMessagesServer(conversationId);
 
-      for (const msg of messages) {
+      // Scan from most recent message (most likely location) for early exit
+      for (let i = messages.length - 1; i >= 0; i--) {
+        const msg = messages[i];
         if (!msg.parts || !Array.isArray(msg.parts)) continue;
         for (const part of msg.parts as Array<Record<string, unknown>>) {
           if (part.toolCallId === toolCallId) {
