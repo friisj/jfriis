@@ -1,3 +1,6 @@
 export { useStrudelRepl } from './use-strudel-repl'
-export { StrudelEditor } from './strudel-editor'
+export { StrudelEditor, DEFAULT_EDITOR_SETTINGS } from './strudel-editor'
+export type { EditorSettings } from './strudel-editor'
 export { StrudelCanvas } from './strudel-canvas'
+export type { VizMode } from './strudel-canvas'
+export { StrudelSettings } from './strudel-settings'

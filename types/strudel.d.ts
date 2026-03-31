@@ -26,7 +26,7 @@ declare module '@strudel/mini' {
 // @strudel/tonal
 declare module '@strudel/tonal' {}
 
-// @strudel/web (kept for the tools/strudel reference port)
+// @strudel/web (used by tools/strudel reference port)
 declare module '@strudel/web' {
   export function initStrudel(options?: Record<string, unknown>): Promise<unknown>
   export function evaluate(code: string, autoplay?: boolean): Promise<unknown>
@@ -38,7 +38,7 @@ declare module '@strudel/codemirror' {
   import type { Extension } from '@codemirror/state'
   import type { EditorView } from '@codemirror/view'
 
-  // StrudelMirror (used by reference port)
+  // StrudelMirror (used by tools/strudel reference port)
   export class StrudelMirror {
     constructor(options: {
       root: HTMLElement
@@ -68,7 +68,7 @@ declare module '@strudel/codemirror' {
     setTheme(theme: string): void
   }
 
-  // Standalone editor init
+  // Editor init
   export function initEditor(options: {
     initialCode?: string
     onChange: (update: unknown) => void
@@ -78,10 +78,15 @@ declare module '@strudel/codemirror' {
     mondo?: boolean
   }): EditorView
 
-  // Extensions (individual CM6 extensions)
-  export const extensions: Record<string, (on: boolean, config?: unknown) => Extension>
-  export const compartments: Record<string, { of: (ext: Extension) => Extension }>
+  // Extensions and compartments for runtime reconfiguration
+  export const extensions: Record<string, (on: boolean | string, config?: unknown) => Extension>
+  export const compartments: Record<string, { of: (ext: Extension) => Extension; reconfigure: (ext: Extension) => import('@codemirror/state').StateEffect<unknown> }>
   export const defaultSettings: Record<string, unknown>
+
+  // Slider and widget updates
+  export function updateSliderWidgets(view: EditorView, widgets: unknown[]): void
+  export function updateWidgets(view: EditorView, widgets: unknown[]): void
+  export const sliderWithID: (id: string, value: number, min?: number, max?: number) => unknown
 
   // Highlight
   export const highlightExtension: Extension[]
@@ -116,6 +121,21 @@ declare module '@strudel/draw' {
   }
 
   export function cleanupDraw(all?: boolean, id?: string): void
+
+  export function pitchwheel(options?: {
+    haps?: unknown[]
+    ctx?: CanvasRenderingContext2D
+    id?: number | string
+    hapcircles?: number
+    circle?: number
+    edo?: number
+    root?: number
+    thickness?: number
+    hapRadius?: number
+    mode?: 'flake' | 'polygon'
+    margin?: number
+    time?: number
+  }): void
 
   export function __pianoroll(options: {
     time: number
