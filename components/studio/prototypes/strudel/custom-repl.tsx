@@ -1,7 +1,7 @@
 'use client'
 
-import { useCallback, useRef, useState } from 'react'
-import { Play, Square, Pause, BarChart3, Circle, Brush, PanelLeftOpen, PanelLeftClose, PanelRightOpen, PanelRightClose } from 'lucide-react'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { Play, Square, Pause, BarChart3, Circle, Brush, PanelLeftOpen, PanelLeftClose, PanelRightOpen, PanelRightClose, MessageSquare } from 'lucide-react'
 import type { EditorView } from '@codemirror/view'
 import { useStrudelRepl } from '@/lib/strudel/use-strudel-repl'
 import { StrudelEditor, DEFAULT_EDITOR_SETTINGS } from '@/lib/strudel/strudel-editor'
@@ -13,6 +13,8 @@ import { StrudelSnippets } from '@/lib/strudel/strudel-snippets'
 import { StrudelPresets } from '@/lib/strudel/strudel-presets'
 import { StrudelInspector } from '@/lib/strudel/strudel-inspector'
 import { StrudelStatus } from '@/lib/strudel/strudel-status'
+import { StrudelChatProvider, useStrudelChat } from '@/lib/strudel/strudel-chat-context'
+import { StrudelChatSidebar } from '@/lib/strudel/strudel-chat-sidebar'
 
 type Widget = {
   type: string
@@ -24,7 +26,9 @@ type Widget = {
   step?: number
 }
 
-export default function CustomRepl() {
+type RightPanel = 'inspector' | 'chat' | null
+
+function CustomReplInner() {
   const { evaluate, stop, toggle, isPlaying, isReady, error, repl } = useStrudelRepl()
   const [code, setCode] = useState('')
   const [miniLocations, setMiniLocations] = useState<number[][]>([])
@@ -32,11 +36,69 @@ export default function CustomRepl() {
   const [editorSettings, setEditorSettings] = useState<EditorSettings>(DEFAULT_EDITOR_SETTINGS)
   const [vizMode, setVizMode] = useState<VizMode>('pianoroll')
   const [sidebarOpen, setSidebarOpen] = useState(false)
-  const [inspectorOpen, setInspectorOpen] = useState(false)
+  const [rightPanel, setRightPanel] = useState<RightPanel>(null)
   const codeRef = useRef(code)
   const editorViewRef = useRef<EditorView | null>(null)
 
-  codeRef.current = code
+  useEffect(() => { codeRef.current = code }, [code])
+
+  // Register REPL controls into chat context
+  const {
+    registerReplControls,
+    setCurrentCode,
+    setLastError,
+    setIsPlaying: setChatIsPlaying,
+  } = useStrudelChat()
+
+  // Keep chat context in sync with REPL state
+  useEffect(() => { setCurrentCode(code) }, [code, setCurrentCode])
+  useEffect(() => { setLastError(error) }, [error, setLastError])
+  useEffect(() => { setChatIsPlaying(isPlaying) }, [isPlaying, setChatIsPlaying])
+
+  // Register REPL control surface for the agent
+  useEffect(() => {
+    const scheduler = repl?.scheduler ?? null
+    const pattern = (scheduler as Record<string, unknown>)?.pattern as {
+      firstCycle: () => unknown[]
+    } | null
+
+    registerReplControls({
+      evaluate: (c: string) => evaluate(c),
+      stop,
+      replaceAll: (newCode: string) => {
+        setCode(newCode)
+        const view = editorViewRef.current
+        if (view) {
+          const len = view.state.doc.length
+          view.dispatch({
+            changes: { from: 0, to: len, insert: newCode },
+          })
+        }
+      },
+      getPatternSummary: () => {
+        if (!pattern) return ''
+        try {
+          const haps = pattern.firstCycle() as Array<{
+            hasOnset: () => boolean
+            value: Record<string, unknown>
+          }>
+          const onsets = haps.filter((h) => h.hasOnset())
+          const notes = onsets
+            .map((h) => {
+              const v = h.value
+              if (v.note) return String(v.note)
+              if (v.s) return String(v.s)
+              return null
+            })
+            .filter(Boolean)
+          return `${onsets.length} events: ${notes.slice(0, 12).join(', ')}${notes.length > 12 ? '...' : ''}`
+        } catch {
+          return ''
+        }
+      },
+      getCurrentCode: () => codeRef.current,
+    })
+  }, [repl, evaluate, stop, registerReplControls])
 
   const handleEvaluate = useCallback(async () => {
     const result = await evaluate(codeRef.current)
@@ -81,6 +143,13 @@ export default function CustomRepl() {
       view.focus()
     }
   }, [])
+
+  const toggleRightPanel = useCallback(
+    (panel: 'inspector' | 'chat') => {
+      setRightPanel((prev) => (prev === panel ? null : panel))
+    },
+    []
+  )
 
   const scheduler = repl?.scheduler ?? null
   const pattern = (scheduler as Record<string, unknown>)?.pattern as {
@@ -160,11 +229,19 @@ export default function CustomRepl() {
         </span>
 
         <button
-          onClick={() => setInspectorOpen(!inspectorOpen)}
-          className={`p-1.5 rounded transition-colors ${inspectorOpen ? 'bg-white/15 text-white' : 'bg-white/10 hover:bg-white/20'}`}
-          title={inspectorOpen ? 'Hide inspector' : 'Show inspector'}
+          onClick={() => toggleRightPanel('inspector')}
+          className={`p-1.5 rounded transition-colors ${rightPanel === 'inspector' ? 'bg-white/15 text-white' : 'bg-white/10 hover:bg-white/20'}`}
+          title={rightPanel === 'inspector' ? 'Hide inspector' : 'Show inspector'}
         >
-          {inspectorOpen ? <PanelRightClose className="w-3.5 h-3.5" /> : <PanelRightOpen className="w-3.5 h-3.5" />}
+          {rightPanel === 'inspector' ? <PanelRightClose className="w-3.5 h-3.5" /> : <PanelRightOpen className="w-3.5 h-3.5" />}
+        </button>
+
+        <button
+          onClick={() => toggleRightPanel('chat')}
+          className={`p-1.5 rounded transition-colors ${rightPanel === 'chat' ? 'bg-purple-500/30 text-purple-300' : 'bg-white/10 hover:bg-white/20'}`}
+          title={rightPanel === 'chat' ? 'Hide producer' : 'Show producer'}
+        >
+          <MessageSquare className="w-3.5 h-3.5" />
         </button>
 
         <StrudelPresets
@@ -185,7 +262,7 @@ export default function CustomRepl() {
         mode={vizMode}
       />
 
-      {/* Main area: sidebar + editor + inspector */}
+      {/* Main area: sidebar + editor + right panel */}
       <div className="flex flex-1 min-h-0">
         {/* Snippet sidebar */}
         {sidebarOpen && (
@@ -211,10 +288,15 @@ export default function CustomRepl() {
           />
         </div>
 
-        {/* Inspector panel */}
-        {inspectorOpen && (
+        {/* Right panel: inspector OR chat */}
+        {rightPanel === 'inspector' && (
           <div className="w-64 shrink-0 border-l border-white/10 overflow-y-auto bg-black/20">
             <StrudelInspector pattern={pattern} />
+          </div>
+        )}
+        {rightPanel === 'chat' && (
+          <div className="w-80 shrink-0 border-l border-white/10 bg-black/20">
+            <StrudelChatSidebar />
           </div>
         )}
       </div>
@@ -225,5 +307,13 @@ export default function CustomRepl() {
         isPlaying={isPlaying}
       />
     </div>
+  )
+}
+
+export default function CustomRepl() {
+  return (
+    <StrudelChatProvider>
+      <CustomReplInner />
+    </StrudelChatProvider>
   )
 }
