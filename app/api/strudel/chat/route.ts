@@ -17,6 +17,7 @@ import {
   incrementStrudelTurnCount,
 } from '@/lib/strudel/strudel-server'
 import { createStrudelTools } from '@/lib/strudel/strudel-tools'
+import { getAnthropic } from '@/lib/ai/providers'
 
 export async function POST(request: Request) {
   const { user, error } = await requireAuth()
@@ -130,8 +131,13 @@ export async function POST(request: Request) {
       modelMessages = await convertToModelMessages(textOnly)
     }
 
-    // Build tools with conversation context
-    const tools = createStrudelTools(chatId)
+    // Build tools with conversation context + web search for research
+    const tools = {
+      ...createStrudelTools(chatId),
+      ...(modelKey.startsWith('claude-') ? {
+        web_search: getAnthropic().tools.webSearch_20250305({ maxUses: 3 }),
+      } : {}),
+    }
 
     const isClaudeModel = modelKey.startsWith('claude-')
     const providerOptions = isClaudeModel

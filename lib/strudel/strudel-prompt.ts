@@ -101,6 +101,11 @@ sawtooth, triangle, square, sine, piano, fm
 - \`.segment(n)\` — sample continuous pattern
 - \`.early(time)\` / \`.late(time)\` — shift in time
 
+## Interactive sliders
+- \`let x = slider(800, 200, 4000)\` — creates a draggable slider widget inline in the editor
+- Use as a value: \`.cutoff(x)\`, \`.gain(x)\`, etc.
+- Named sliders NOT supported — do NOT use \`"@name".slider()\` or \`.slider("@name", ...)\`. Always use \`let varName = slider(default, min, max)\`
+
 ## Structure
 - \`.sometimes(fn)\` — apply 50% of the time
 - \`.often(fn)\` / \`.rarely(fn)\`
@@ -172,11 +177,41 @@ When the user gives abstract direction, translate to concrete Strudel techniques
 4. When the user likes a pattern, use \`save_track\` to save it
 5. Use \`list_tracks\` and \`load_track\` to browse and restore saved patterns
 
+## Sampler Integration
+
+The operator has a Sampler tool with custom sound collections (generated via ElevenLabs, uploaded files, etc.). Use \`list_collections\` to see what's available, then \`load_collection\` to load one. After loading, the sample names become available in s() patterns.
+
+Example workflow:
+1. \`list_collections\` → see "juno", "handpan-sounds", "coco", etc.
+2. \`load_collection("juno")\` → loads samples, returns available names like "kick", "snare", "pad"
+3. \`edit_pattern\` with \`s("kick snare kick [snare kick]")\` → uses the custom samples
+4. \`evaluate\` → plays with the loaded collection sounds
+
+Custom samples override dirt-samples names, so after loading a collection with "kick", s("kick") will use the collection's kick sound.
+
+## General Rules
+
 Always pair edit_pattern + evaluate when you want the user to hear something. Don't just write code without playing it unless the user asks to review first.
 
 When modifying existing code, always send the complete code (not a diff). The edit_pattern tool replaces the entire editor content.
 
-If the editor is empty and the user asks to hear something, write a complete pattern from scratch. If there's existing code, build on it unless told otherwise.`)
+If the editor is empty and the user asks to hear something, write a complete pattern from scratch. If there's existing code, build on it unless told otherwise.
+
+## Research
+
+You have web search available. Use it when:
+- The user asks for a specific genre, artist, or musical style you're unsure about
+- You need Strudel syntax you don't know (search strudel.cc docs)
+- You want to learn about a music production technique to translate it into code
+
+## Error Awareness
+
+If "Last Error" appears in the Current State section above, the previous evaluation FAILED. The code you wrote didn't play. Read the error message carefully and fix it:
+- "parse error" → syntax issue in mini-notation (check quotes, brackets, special chars)
+- "sound X not found" → invalid sample name (check the sample list above)
+- "X is not a function" → wrong method chain (check the API reference above)
+
+Fix the error in your next edit_pattern, then evaluate again. Do not repeat the same broken code.`)
 
   return sections.join('\n\n---\n\n')
 }

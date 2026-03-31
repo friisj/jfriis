@@ -97,6 +97,10 @@ function CustomReplInner() {
         }
       },
       getCurrentCode: () => codeRef.current,
+      loadSamples: async (sampleMap: Record<string, string[]>) => {
+        const { samples } = await import('@strudel/webaudio')
+        await samples(sampleMap)
+      },
     })
   }, [repl, evaluate, stop, registerReplControls])
 

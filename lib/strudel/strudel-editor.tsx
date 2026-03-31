@@ -60,6 +60,7 @@ export function StrudelEditor({
 }: StrudelEditorProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const viewRef = useRef<EditorView | null>(null)
+  const cmRef = useRef<Awaited<typeof import('@strudel/codemirror')> | null>(null)
   const callbacksRef = useRef({ onEvaluate, onStop, onChange })
 
   useEffect(() => {
@@ -102,6 +103,7 @@ export function StrudelEditor({
       }
 
       viewRef.current = view
+      cmRef.current = cm
       onViewReady?.(view)
 
       // Apply initial settings overrides (initEditor uses codemirrorSettings defaults)
@@ -127,34 +129,28 @@ export function StrudelEditor({
   // Apply settings changes
   useEffect(() => {
     const view = viewRef.current
-    if (!view || !settings) return
-
-    import('@strudel/codemirror').then((cm) => {
-      applySettings(view, cm, settings)
-    })
+    const cm = cmRef.current
+    if (!view || !cm || !settings) return
+    applySettings(view, cm, settings)
   }, [settings])
 
   // Sync mini locations (pattern highlighting)
   useEffect(() => {
     const view = viewRef.current
-    if (!view || !miniLocations) return
-
-    import('@strudel/codemirror').then(({ updateMiniLocations }) => {
-      updateMiniLocations(view, miniLocations)
-    })
+    const cm = cmRef.current
+    if (!view || !cm || !miniLocations) return
+    cm.updateMiniLocations(view, miniLocations)
   }, [miniLocations])
 
   // Sync widgets (sliders + custom)
   useEffect(() => {
     const view = viewRef.current
-    if (!view || !widgets) return
-
-    import('@strudel/codemirror').then(({ updateSliderWidgets, updateWidgets }) => {
-      const sliders = widgets.filter((w) => w.type === 'slider')
-      const others = widgets.filter((w) => w.type !== 'slider')
-      if (sliders.length) updateSliderWidgets(view, sliders)
-      if (others.length) updateWidgets(view, others)
-    })
+    const cm = cmRef.current
+    if (!view || !cm || !widgets) return
+    const sliders = widgets.filter((w) => w.type === 'slider')
+    const others = widgets.filter((w) => w.type !== 'slider')
+    if (sliders.length) cm.updateSliderWidgets(view, sliders)
+    if (others.length) cm.updateWidgets(view, others)
   }, [widgets])
 
   // Sync external code changes

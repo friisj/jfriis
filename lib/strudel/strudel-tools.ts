@@ -130,6 +130,72 @@ export const listTracks = tool({
 })
 
 // ============================================================================
+// Sampler Integration Tools
+// ============================================================================
+
+export const listCollections = tool({
+  description:
+    'List available sampler collections. Each collection contains sounds that can be loaded into Strudel.',
+  inputSchema: zodSchema(z.object({})),
+  execute: async () => {
+    const { getCollectionsServer } = await import('@/lib/sampler-server')
+    const collections = await getCollectionsServer()
+    return {
+      collections: collections.map((c) => ({
+        slug: c.slug,
+        name: c.name,
+        description: c.description,
+      })),
+    }
+  },
+})
+
+export const loadCollection = tool({
+  description:
+    'Load a sampler collection as custom samples. After loading, use the sample names in s() patterns (e.g. s("kick snare")). Returns the available sample names.',
+  inputSchema: zodSchema(
+    z.object({
+      slug: z
+        .string()
+        .describe('Collection slug (e.g. "juno", "coco", "handpan-sounds")'),
+    })
+  ),
+  execute: async ({ slug }) => {
+    const { getCollectionWithPadsServer } = await import(
+      '@/lib/sampler-server'
+    )
+    try {
+      const collection = await getCollectionWithPadsServer(slug)
+      const sampleMap: Record<string, string[]> = {}
+
+      for (const pad of collection.pads) {
+        if (!pad.sound?.audio_url) continue
+
+        const label = pad.label || pad.sound.name || `pad_${pad.row}_${pad.col}`
+        const key = label
+          .toLowerCase()
+          .replace(/[^a-z0-9]/g, '_')
+          .replace(/_+/g, '_')
+          .replace(/^_|_$/g, '')
+
+        if (!sampleMap[key]) sampleMap[key] = []
+        sampleMap[key].push(pad.sound.audio_url)
+      }
+
+      return {
+        type: 'strudel_action' as const,
+        action: 'load_samples' as const,
+        samples: sampleMap,
+        collectionName: collection.name,
+        sampleNames: Object.keys(sampleMap),
+      }
+    } catch {
+      return { error: `Collection "${slug}" not found` }
+    }
+  },
+})
+
+// ============================================================================
 // Combined tool set (factory — needs conversation context)
 // ============================================================================
 
@@ -141,5 +207,7 @@ export function createStrudelTools(conversationId: string | null) {
     save_track: createSaveTrackTool(conversationId),
     load_track: loadTrack,
     list_tracks: listTracks,
+    list_collections: listCollections,
+    load_collection: loadCollection,
   }
 }
