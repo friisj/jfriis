@@ -1,14 +1,14 @@
-import { StrudelClient } from './strudel-client'
+import { StrudelApp } from './strudel-app'
 
 export const metadata = {
   title: 'Strudel — Live Coding Music',
-  description: 'Pattern-based live coding music environment powered by Strudel',
+  description: 'Pattern-based live coding music environment',
 }
 
 export default function StrudelPage() {
   return (
     <div className="h-dvh w-full">
-      <StrudelClient />
+      <StrudelApp />
     </div>
   )
 }

@@ -61,13 +61,6 @@ export const toolsRegistry: ToolRegistryEntry[] = [
     path: '/duo',
     visible: true,
   },
-  {
-    id: 'strudel',
-    title: 'Strudel',
-    description: 'Live coding music patterns',
-    path: '/strudel',
-    visible: true,
-  },
   // Example hidden tool (in development)
   // {
   //   id: 'fitness',

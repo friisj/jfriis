@@ -3,10 +3,10 @@
 import dynamic from 'next/dynamic'
 
 const StrudelRepl = dynamic(
-  () => import('./components/strudel-repl'),
+  () => import('@/components/studio/prototypes/strudel/custom-repl'),
   { ssr: false }
 )
 
-export function StrudelClient() {
+export function StrudelApp() {
   return <StrudelRepl />
 }
