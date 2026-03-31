@@ -1,27 +1,18 @@
 /**
  * Luv: Soul Layer Types
  *
- * Defines the 7-layer composition model for Luv's system prompt.
- * Layers are ordered by priority (lowest → highest), with later layers
- * taking precedence in the composed prompt.
+ * Five-section composition model for Luv's system prompt.
+ * Sections are ordered by priority (lowest → highest).
+ *
+ * Architecture: Constitution → Personality → Embodiment → Context → Evolution
  */
 
 export type SoulLayerType =
-  | 'core_identity'
+  | 'constitution'
   | 'personality'
-  | 'relational'
-  | 'voice'
-  | 'knowledge'
-  | 'chassis_awareness'
-  | 'behavioral_rules'
-  | 'research_awareness'
-  | 'changelog'
-  | 'soul_modulation'
+  | 'embodiment'
   | 'context'
-  | 'process_protocol'
-  | 'session_context'
-  | 'process_state'
-  | 'memory';
+  | 'evolution';
 
 export interface ChassisModuleSummary {
   slug: string;
@@ -46,84 +37,34 @@ export interface CompositionResult {
   tokenEstimate: number;
 }
 
-/** Layer type registry with default priority ordering */
+/** Section registry with priority ordering */
 export const LAYER_REGISTRY: Record<
   SoulLayerType,
   { label: string; priority: number; description: string }
 > = {
-  core_identity: {
-    label: 'Core Identity',
+  constitution: {
+    label: 'Constitution',
     priority: 10,
-    description: 'Immutable identity statement ("You are Luv...")',
+    description: 'Core identity, values, tool discipline — immutable',
   },
   personality: {
     label: 'Personality',
     priority: 20,
-    description: 'Archetype, temperament, and personality traits',
+    description: 'Traits, voice, skills, behavioral rules — adjustable',
   },
-  relational: {
-    label: 'Relational',
-    priority: 25,
-    description: 'Values, emotional patterns, and relational dynamics',
-  },
-  voice: {
-    label: 'Voice',
+  embodiment: {
+    label: 'Embodiment',
     priority: 30,
-    description: 'Tone, formality, humor, warmth, and speech quirks',
-  },
-  knowledge: {
-    label: 'Knowledge',
-    priority: 40,
-    description: 'Skills and domain expertise',
-  },
-  chassis_awareness: {
-    label: 'Chassis Awareness',
-    priority: 45,
-    description: 'Awareness of physical form described by chassis modules',
-  },
-  behavioral_rules: {
-    label: 'Behavioral Rules',
-    priority: 50,
-    description: 'Ordered constraints governing behavior',
-  },
-  research_awareness: {
-    label: 'Research',
-    priority: 55,
-    description: 'Awareness of research toolkit and active research entries',
-  },
-  changelog: {
-    label: 'Changelog',
-    priority: 57,
-    description: "Recent evolution of Luv's architecture, behaviors, and capabilities",
-  },
-  soul_modulation: {
-    label: 'Soul Modulation',
-    priority: 58,
-    description: 'Current parametric personality trait configuration (1–10 scale)',
+    description: 'Physical form, self-concept, chassis awareness',
   },
   context: {
     label: 'Context',
-    priority: 60,
-    description: 'Scene-specific or conversation-specific modifiers',
+    priority: 40,
+    description: 'Memories, session seed, process protocol, heartbeat',
   },
-  process_protocol: {
-    label: 'Process Protocol',
-    priority: 65,
-    description: 'Page-aware workflow instructions for the current context',
-  },
-  session_context: {
-    label: 'Session Context',
-    priority: 63,
-    description: 'Compact summary from a prior conversation, seeding this session',
-  },
-  process_state: {
-    label: 'Active Processes',
-    priority: 68,
-    description: 'Dynamic state of active workflows and pending actions',
-  },
-  memory: {
-    label: 'Memory',
-    priority: 70,
-    description: 'Persistent facts from past conversations with lifecycle management tools',
+  evolution: {
+    label: 'Evolution',
+    priority: 50,
+    description: 'Changelog, research awareness, emergent self-knowledge',
   },
 };
