@@ -16,7 +16,7 @@ export interface ToolHint {
   /** Keyboard shortcut hint (displayed in tooltip) */
   shortcut?: string;
   /** Icon name from @tabler/icons-react (rendered by toolbar) */
-  icon: 'photo' | 'pencil' | 'microscope' | 'search' | 'brain';
+  icon: 'photo' | 'pencil' | 'microscope' | 'search' | 'brain' | 'video';
 }
 
 export const TOOL_HINTS: ToolHint[] = [
@@ -39,5 +39,10 @@ export const TOOL_HINTS: ToolHint[] = [
     toolName: 'web_search',
     label: 'Search',
     icon: 'search',
+  },
+  {
+    toolName: 'start_video_generation',
+    label: 'Video',
+    icon: 'video',
   },
 ];

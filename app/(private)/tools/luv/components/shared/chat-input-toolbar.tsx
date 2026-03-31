@@ -38,6 +38,7 @@ import {
   IconPencil,
   IconMicroscope,
   IconSearch,
+  IconVideo,
 } from '@tabler/icons-react';
 import { MODEL_OPTIONS, type ContextPressure } from '../use-luv-chat-session';
 import type { LuvCompactSummary } from '@/lib/types/luv';
@@ -49,6 +50,7 @@ const HINT_ICONS = {
   microscope: IconMicroscope,
   search: IconSearch,
   brain: IconBrain,
+  video: IconVideo,
 } as const;
 
 interface SoulPreset {

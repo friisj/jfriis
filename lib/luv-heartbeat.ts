@@ -464,6 +464,14 @@ export async function scanToolResultsForTriggers(
           `The chassis study just finished — I'm curious what you think of how the parameters translated visually.`,
         );
       }
+      if (toolName === 'check_video_generation' && r.status === 'completed' && r.videoUrl) {
+        await registerHeartbeatTrigger(
+          userId, conversationId,
+          'generation_complete',
+          { videoUrl: r.videoUrl, provider: r.provider, type: 'video_generation' },
+          `The video just finished rendering — want to watch it together and see how the motion reads?`,
+        );
+      }
 
       // hypothesis_logged: create_research with kind=hypothesis
       if (toolName === 'create_research' && r.id) {
