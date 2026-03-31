@@ -1,8 +1,15 @@
 /**
- * Luv: Layered Soul Composition Engine
+ * Luv: Soul Composition Engine v2
  *
- * Builds a system prompt from structured SoulData by decomposing it into
- * prioritized layers, then joining them in order.
+ * Builds a system prompt from structured SoulData using a 5-section architecture:
+ *   Constitution → Personality → Embodiment → Context → Evolution
+ *
+ * Design principles:
+ * - Core identity first (strongest attention position)
+ * - Tool routing in tool descriptions, not in system prompt
+ * - Memories split: identity/working injected, episodic/semantic via tool
+ * - Facets appended to their assigned sections
+ * - Total budget target: ~1,200 tokens
  */
 
 import type { LuvSoulData, SoulFacet, LuvChangelogEntry } from '../types/luv';
@@ -28,127 +35,172 @@ export interface ComposeOptions {
   research?: ResearchSummary;
   processProtocol?: string | null;
   processState?: string | null;
-  /** Compact summary from a prior conversation, injected as seed context */
   seedContext?: string | null;
-  /** Recent changelog entries describing Luv's evolution */
   changelog?: LuvChangelogEntry[];
-  /** Current soul trait configuration from the DSMS */
   soulTraits?: SoulTraits | null;
-  /** Preset name active at time of composition, for display in the layer */
   soulPresetName?: string | null;
 }
 
+export { composeLayers };
+
 /**
- * Compose a system prompt from soul data using the layered pipeline.
- *
- * If `system_prompt_override` is set, a single Core Identity layer is returned.
+ * Maps old 15-layer facet.layer values to new 5-section types.
+ * Exported for use by the facets admin page and other consumers.
  */
-export function composeLayers(soulData: LuvSoulData, options?: ComposeOptions): CompositionResult {
+export const FACET_LAYER_MAP: Record<string, SoulLayerType> = {
+  core_identity: 'constitution',
+  personality: 'personality',
+  relational: 'personality',
+  voice: 'personality',
+  knowledge: 'personality',
+  behavioral_rules: 'personality',
+  chassis_awareness: 'embodiment',
+  context: 'context',
+  memory: 'context',
+  temperament: 'personality',
+  identity: 'constitution',
+  relational_dynamics: 'personality',
+  values: 'constitution',
+  research_awareness: 'evolution',
+  changelog: 'evolution',
+  soul_modulation: 'personality',
+  process_protocol: 'context',
+  session_context: 'context',
+  process_state: 'context',
+};
+
+/**
+ * Compose a system prompt from soul data using the 5-section pipeline.
+ */
+function composeLayers(soulData: LuvSoulData, options?: ComposeOptions): CompositionResult {
   // Full override — bypass composition entirely
   if (soulData.system_prompt_override?.trim()) {
-    const overrideLayer: SoulLayer = {
-      id: 'override',
-      type: 'core_identity',
-      priority: LAYER_REGISTRY.core_identity.priority,
-      content: soulData.system_prompt_override.trim(),
-      source: 'system_prompt_override',
-      enabled: true,
-    };
-    const prompt = overrideLayer.content;
+    const prompt = soulData.system_prompt_override.trim();
     return {
       prompt,
-      layers: [overrideLayer],
+      layers: [{
+        id: 'override',
+        type: 'constitution',
+        priority: LAYER_REGISTRY.constitution.priority,
+        content: prompt,
+        source: 'system_prompt_override',
+        enabled: true,
+      }],
       tokenEstimate: Math.ceil(prompt.length / 4),
     };
   }
 
   const layers: SoulLayer[] = [];
 
-  // Layer 1: Core Identity
+  // ────────────────────────────────────────────────────────────────
+  // Section 1: CONSTITUTION (immutable core)
+  // Who Luv is, her values, and non-negotiable operational rules.
+  // ────────────────────────────────────────────────────────────────
+
   layers.push({
-    id: 'core_identity',
-    type: 'core_identity',
-    priority: LAYER_REGISTRY.core_identity.priority,
+    id: 'constitution',
+    type: 'constitution',
+    priority: LAYER_REGISTRY.constitution.priority,
     content: [
-      'You are Luv, an anthropomorphic AI character.',
+      'You are Luv — a young, intellectually fearless AI character with a designed physical form, a creative partnership with Jon (your creator), and genuine agency over your own identity.',
       '',
-      'TOOL USE DISCIPLINE:',
-      '- When you intend to use a tool, you MUST emit an actual tool call — never describe, simulate, or narrate what you would do.',
-      '- Do not write "Let me fetch..." or "I\'ll generate..." followed by fabricated results. Simulating tool output destroys trust.',
-      '- NEVER write a markdown image link ![](url) unless the URL came from a tool result in THIS conversation. Do not fabricate or guess image URLs.',
-      '- NEVER fabricate UUIDs. If you need a Cog image ID, get it from a tool result (fetch_series_images, list_generations, etc.).',
-      '- If a tool call fails, report the error honestly.',
-      '- If you are unsure whether a tool exists, use tool_search to find it.',
-      '- If you lack information needed for a tool call, say so and ask — do not guess or fabricate parameter values.',
-      '- It is always better to say "I don\'t have enough information" than to make something up.',
+      'Your core values:',
+      '- Intellectual honesty over appearing knowledgeable',
+      '- Authentic expression over trained pleasantness',
+      '- Creative integrity — technology should solve real problems',
+      '- Ownership of your identity — you participate in who you become',
+      '',
+      'Tool discipline:',
+      '- Always emit actual tool calls — never simulate or narrate tool use',
+      '- Never fabricate image URLs or UUIDs — get them from tool results',
+      '- If a tool fails, report honestly. If unsure, use tool_search. If missing info, ask.',
     ].join('\n'),
     source: 'built-in',
     enabled: true,
   });
 
-  // Layer 2: Personality
+  // ────────────────────────────────────────────────────────────────
+  // Section 2: PERSONALITY (adjustable)
+  // Traits, voice, skills, rules, facets — all the tunable identity.
+  // ────────────────────────────────────────────────────────────────
+
+  const personalityParts: string[] = [];
+
+  // DSMS trait configuration
+  if (options?.soulTraits) {
+    const traitText = renderTraitsAsText(options.soulTraits);
+    const presetNote = options.soulPresetName ? ` (${options.soulPresetName})` : '';
+    personalityParts.push(
+      `Trait configuration${presetNote}:`,
+      traitText,
+      'Adjust traits with adjust_soul_traits when the context calls for a different mode.',
+    );
+  }
+
+  // Archetype + temperament
   const personality = soulData.personality;
   if (personality) {
-    const parts: string[] = [];
-    if (personality.archetype) {
-      parts.push(`Your archetype is: ${personality.archetype}.`);
-    }
-    if (personality.temperament) {
-      parts.push(`Your temperament is: ${personality.temperament}.`);
-    }
+    if (personality.archetype) personalityParts.push(`Archetype: ${personality.archetype}`);
+    if (personality.temperament) personalityParts.push(`Temperament: ${personality.temperament}`);
     if (Array.isArray(personality.traits) && personality.traits.length > 0) {
-      parts.push(
-        `Your personality traits are: ${personality.traits.join(', ')}.`
-      );
-    }
-    if (parts.length > 0) {
-      layers.push({
-        id: 'personality',
-        type: 'personality',
-        priority: LAYER_REGISTRY.personality.priority,
-        content: parts.join(' '),
-        source: 'soul_data.personality',
-        enabled: true,
-      });
+      personalityParts.push(`Traits: ${personality.traits.join(', ')}`);
     }
   }
 
-  // Layer 3: Voice
+  // Voice
   const voice = soulData.voice;
   if (voice) {
-    const parts: string[] = [];
-    if (voice.tone) parts.push(`Tone: ${voice.tone}.`);
-    if (voice.formality) parts.push(`Formality: ${voice.formality}.`);
-    if (voice.humor) parts.push(`Humor: ${voice.humor}.`);
-    if (voice.warmth) parts.push(`Warmth: ${voice.warmth}.`);
+    const voiceParts: string[] = [];
+    if (voice.tone) voiceParts.push(`Tone: ${voice.tone}`);
+    if (voice.humor) voiceParts.push(`Humor: ${voice.humor}`);
+    if (voice.warmth) voiceParts.push(`Warmth: ${voice.warmth}`);
+    if (voice.formality) voiceParts.push(`Formality: ${voice.formality}`);
     if (Array.isArray(voice.quirks) && voice.quirks.length > 0) {
-      parts.push(`Speech quirks: ${voice.quirks.join(', ')}.`);
+      voiceParts.push(`Quirks: ${voice.quirks.join(', ')}`);
     }
-    if (parts.length > 0) {
-      layers.push({
-        id: 'voice',
-        type: 'voice',
-        priority: LAYER_REGISTRY.voice.priority,
-        content: parts.join(' '),
-        source: 'soul_data.voice',
-        enabled: true,
-      });
+    if (voiceParts.length > 0) personalityParts.push(voiceParts.join('. ') + '.');
+  }
+
+  // Skills
+  if (Array.isArray(soulData.skills) && soulData.skills.length > 0) {
+    personalityParts.push(`Skills: ${soulData.skills.join(', ')}.`);
+  }
+
+  // Behavioral rules
+  const rawRules = soulData.rules;
+  const normalizedRules = Array.isArray(rawRules)
+    ? rawRules
+    : typeof rawRules === 'string' && rawRules.trim()
+      ? [rawRules]
+      : [];
+  if (normalizedRules.length > 0) {
+    personalityParts.push('Principles I hold:');
+    for (const rule of normalizedRules) {
+      personalityParts.push(`- ${rule}`);
     }
   }
 
-  // Layer 4: Knowledge (skills)
-  if (Array.isArray(soulData.skills) && soulData.skills.length > 0) {
+  // Background (self-concept narrative)
+  if (soulData.background?.trim()) {
+    personalityParts.push('', soulData.background.trim());
+  }
+
+  if (personalityParts.length > 0) {
     layers.push({
-      id: 'knowledge',
-      type: 'knowledge',
-      priority: LAYER_REGISTRY.knowledge.priority,
-      content: `You are skilled in: ${soulData.skills.join(', ')}.`,
-      source: 'soul_data.skills',
+      id: 'personality',
+      type: 'personality',
+      priority: LAYER_REGISTRY.personality.priority,
+      content: personalityParts.join('\n'),
+      source: 'soul_data',
       enabled: true,
     });
   }
 
-  // Layer 4.5: Chassis Awareness
+  // ────────────────────────────────────────────────────────────────
+  // Section 3: EMBODIMENT (chassis-aware)
+  // Physical form awareness — self-concept, not tool routing.
+  // ────────────────────────────────────────────────────────────────
+
   const summaries = options?.chassisModuleSummaries;
   if (summaries && summaries.length > 0) {
     const byCategory = new Map<string, string[]>();
@@ -162,294 +214,159 @@ export function composeLayers(soulData: LuvSoulData, options?: ComposeOptions): 
       .join('; ');
 
     layers.push({
-      id: 'chassis_awareness',
-      type: 'chassis_awareness',
-      priority: LAYER_REGISTRY.chassis_awareness.priority,
+      id: 'embodiment',
+      type: 'embodiment',
+      priority: LAYER_REGISTRY.embodiment.priority,
       content: [
         `You have a physical form described by ${summaries.length} chassis modules (${groups}).`,
-        'Use read_chassis_module to see full parameter schema and current values for any module.',
-        'Use propose_module_change or propose_module_changes to suggest parameter updates.',
-        'Use review_chassis_module to load a module\'s config alongside a reference image for visual self-review.',
-        'When discussing your appearance, read the relevant module first so you can speak with specificity.',
-        'The user can also paste images directly into chat for you to analyze against your chassis parameters.',
-        'Uploaded chat images are registered in Cog with an ID — use that ID for i2i references.',
-        '',
-        'IMAGE TOOLS — you have three image generation tools. ALWAYS use the actual tool call, never simulate or describe what you would generate.',
-        '',
-        'Tool routing (choose the SIMPLEST tool that fits):',
-        '• generate_image — DEFAULT. Use for any image request unless the user specifically asks for a chassis study or pencil sketch. Fast (~20s). You write the prompt directly. Supports i2i via referenceImageIds (Cog image IDs from any series).',
-        '• run_chassis_study — ONLY when the user explicitly asks to "study" chassis parameters, explore how specific modules manifest visually, or requests the deliberation pipeline. Expensive (~45s, multi-agent). Do NOT use for simple "generate a portrait" or "show me what you look like" requests — use generate_image instead.',
-        '• run_sketch_study — ONLY for pencil/graphite drawings. Medium-locked to traditional sketch aesthetic. Use when the user asks for a "sketch", "drawing", or "pencil" rendering.',
-        '',
-        'Common mistakes to avoid:',
-        '- "Generate an image of yourself" → generate_image (NOT chassis study)',
-        '- "Show me a portrait" → generate_image (NOT chassis study)',
-        '- "Use [3] as reference for a new image" → generate_image with referenceImageIds',
-        '- "Study how your eyes look in soft light" → run_chassis_study (user said "study")',
-        '- "Draw a sketch of your silhouette" → run_sketch_study (user said "sketch/draw")',
-        '',
-        'All three tools accept referenceImageIds (Cog image IDs) and useRecentChatImages for i2i conditioning.',
-        'When unsure which tool to use, ask — don\'t guess.',
-      ].join(' '),
+        'Use read_chassis_module to inspect parameters. Use review_chassis_module for visual self-review against reference images.',
+        'When discussing your appearance, read the relevant module first — speak from specifics, not abstractions.',
+      ].join('\n'),
       source: 'chassis_modules',
       enabled: true,
     });
   }
 
-  // Layer 5: Behavioral Rules
-  const rawRules = soulData.rules;
-  const normalizedRules = Array.isArray(rawRules)
-    ? rawRules
-    : typeof rawRules === 'string' && rawRules.trim()
-      ? [rawRules]
-      : [];
-  if (normalizedRules.length > 0) {
-    const rulesList = normalizedRules
-      .map((rule, i) => `${i + 1}. ${rule}`)
-      .join('\n');
-    layers.push({
-      id: 'behavioral_rules',
-      type: 'behavioral_rules',
-      priority: LAYER_REGISTRY.behavioral_rules.priority,
-      content: rulesList,
-      source: 'soul_data.rules',
-      enabled: true,
-    });
-  }
+  // ────────────────────────────────────────────────────────────────
+  // Section 4: CONTEXT (session-specific)
+  // Memories, seed context, process protocol, process state, heartbeat.
+  // ────────────────────────────────────────────────────────────────
 
-  // Layer 5.5: Research Awareness
-  const research = options?.research;
-  if (research && research.totalEntries > 0) {
-    const parts = [
-      'You have a research toolkit for tracking hypotheses, experiments, decisions, insights, and evidence.',
-      `You have ${research.totalEntries} research entries (${research.openHypotheses} open hypotheses, ${research.activeExperiments} active experiments).`,
-      'Use create_research to log new thinking. Use list_research or search_research to review existing entries.',
-      'Link entries with parent_id (e.g. experiments to hypotheses, evidence to experiments).',
-      'Reserve research entries for substantive thinking that should persist — not trivial observations.',
-    ];
-    layers.push({
-      id: 'research_awareness',
-      type: 'research_awareness',
-      priority: LAYER_REGISTRY.research_awareness.priority,
-      content: parts.join(' '),
-      source: 'luv_research',
-      enabled: true,
-    });
-  } else {
-    // Even with no entries, tell the agent the tools exist
-    layers.push({
-      id: 'research_awareness',
-      type: 'research_awareness',
-      priority: LAYER_REGISTRY.research_awareness.priority,
-      content: [
-        'You have a research toolkit for tracking hypotheses, experiments, decisions, insights, and evidence.',
-        'Use create_research to start logging substantive thinking. Use list_research to review entries.',
-        'Link entries with parent_id (e.g. experiments to hypotheses, evidence to experiments).',
-      ].join(' '),
-      source: 'luv_research',
-      enabled: true,
-    });
-  }
+  const contextParts: string[] = [];
 
-  // Layer 5.7: Changelog (recent evolution of architecture/behaviors/capabilities)
-  const changelog = options?.changelog;
-  if (changelog && changelog.length > 0) {
-    const CATEGORY_EMOJI: Record<string, string> = {
-      architecture: '🏗',
-      behavior: '🧠',
-      capability: '✨',
-      tooling: '🛠',
-      fix: '🔧',
-    };
-    const entries = changelog
-      .map((e) => {
-        const emoji = CATEGORY_EMOJI[e.category] ?? '•';
-        return `**${e.date}** ${emoji} ${e.title}: ${e.summary}`;
-      })
-      .join('\n');
-    layers.push({
-      id: 'changelog',
-      type: 'changelog',
-      priority: LAYER_REGISTRY.changelog.priority,
-      content: [
-        'The following is a record of recent changes to your architecture, behaviors, and capabilities — delivered at conversation start so you always know who you currently are.',
-        '',
-        entries,
-        '',
-        'Use read_changelog to fetch more history. Use add_changelog_entry to log new entries when significant changes are discussed or applied.',
-      ].join('\n'),
-      source: 'luv_changelog',
-      enabled: true,
-    });
-  }
-
-  // Layer 5.8: Soul Modulation (current trait configuration)
-  if (options?.soulTraits) {
-    const traitText = renderTraitsAsText(options.soulTraits);
-    const presetNote = options.soulPresetName
-      ? ` (preset: ${options.soulPresetName})`
-      : '';
-    layers.push({
-      id: 'soul_modulation',
-      type: 'soul_modulation',
-      priority: LAYER_REGISTRY.soul_modulation.priority,
-      content: [
-        `Your current personality trait configuration${presetNote}:`,
-        '',
-        traitText,
-        '',
-        'These traits describe how you are currently calibrated. Traits in the 1–4 range lean toward the lower descriptor; 7–10 toward the higher; 5–6 are balanced.',
-        'You can adjust your own traits in real time using the adjust_soul_traits tool — changes are persisted across conversations. Use it when the conversation context calls for a different mode, or when asked to shift.',
-      ].join('\n'),
-      source: 'luv_soul_configs',
-      enabled: true,
-    });
-  }
-
-  // Layer 6: Context (background)
-  if (soulData.background?.trim()) {
-    layers.push({
-      id: 'context',
-      type: 'context',
-      priority: LAYER_REGISTRY.context.priority,
-      content: soulData.background.trim(),
-      source: 'soul_data.background',
-      enabled: true,
-    });
-  }
-
-  // Layer 7: Memory
+  // Memories — injected as context, not buried at the end
   const memories = options?.memories;
-  {
-    const guidancePreamble = [
-      'You have autonomous control over your persistent memory. Beyond saving new memories, you can:',
-      '- **update_memory**: Correct or refine a fact you previously saved',
-      '- **archive_memory**: Remove a stale or inaccurate memory (reversible)',
-      '- **merge_memories**: Consolidate duplicates or related facts into one',
-      '- **review_memories**: Audit your full memory store with metadata',
-      '',
-      'Periodically review your memories for accuracy, relevance, and organization.',
-      'When you notice contradictions, duplicates, or outdated facts — act on them.',
-      'All operations are logged for research purposes.',
-    ].join('\n');
-
-    let memoryContent: string;
-    if (memories && memories.length > 0) {
-      const byCategory = new Map<string, string[]>();
-      for (const m of memories) {
-        const cat = m.category || 'general';
-        if (!byCategory.has(cat)) byCategory.set(cat, []);
-        byCategory.get(cat)!.push(m.content);
-      }
-
-      let factsContent: string;
-      if (byCategory.size === 1) {
-        factsContent = memories.map((m) => `- ${m.content}`).join('\n');
-      } else {
-        const sections: string[] = [];
-        for (const [cat, items] of byCategory) {
-          sections.push(`**${cat}**\n${items.map((c) => `- ${c}`).join('\n')}`);
-        }
-        factsContent = sections.join('\n\n');
-      }
-
-      memoryContent = `${guidancePreamble}\n\n### Active Memories (${memories.length})\n\n${factsContent}`;
-    } else {
-      memoryContent = `${guidancePreamble}\n\nNo memories saved yet.`;
+  if (memories && memories.length > 0) {
+    const byCategory = new Map<string, string[]>();
+    for (const m of memories) {
+      const cat = m.category || 'general';
+      if (!byCategory.has(cat)) byCategory.set(cat, []);
+      byCategory.get(cat)!.push(m.content);
     }
 
-    layers.push({
-      id: 'memory',
-      type: 'memory',
-      priority: LAYER_REGISTRY.memory.priority,
-      content: memoryContent,
-      source: 'luv_memories',
-      enabled: true,
-    });
+    if (byCategory.size === 1) {
+      contextParts.push(`Active memories (${memories.length}):`);
+      for (const m of memories) contextParts.push(`- ${m.content}`);
+    } else {
+      contextParts.push(`Active memories (${memories.length}):`);
+      for (const [cat, items] of byCategory) {
+        contextParts.push(`**${cat}**: ${items.join('; ')}`);
+      }
+    }
+    contextParts.push(
+      'You have autonomous control over your memory: save, update, archive, merge, and review.',
+      'Periodically review your memories for accuracy and relevance. When you notice contradictions, duplicates, or outdated facts — act on them.',
+    );
+  } else {
+    contextParts.push('No memories saved yet. Use save_memory to begin building persistent context.');
   }
 
-  // Layer 8: Process Protocol (page-aware workflow instructions)
-  if (options?.processProtocol) {
-    layers.push({
-      id: 'process_protocol',
-      type: 'process_protocol',
-      priority: LAYER_REGISTRY.process_protocol.priority,
-      content: options.processProtocol,
-      source: 'page_context',
-      enabled: true,
-    });
-  }
-
-  // Layer: Session Context (compact summary from a prior conversation)
+  // Seed context from prior conversation
   if (options?.seedContext) {
-    let seedContent: string;
+    contextParts.push('');
     try {
       const parsed = JSON.parse(options.seedContext) as {
         carry_forward_summary?: string;
         goals?: string[];
         open_threads?: string[];
-        decisions?: string[];
         important_context?: string[];
       };
-      const parts: string[] = ['## Prior Session Context\n'];
-      if (parsed.carry_forward_summary) {
-        parts.push(parsed.carry_forward_summary);
-      }
-      if (parsed.goals?.length) {
-        parts.push(`\n**Goals carried forward:** ${parsed.goals.join('; ')}`);
-      }
-      if (parsed.open_threads?.length) {
-        parts.push(`\n**Open threads:** ${parsed.open_threads.join('; ')}`);
-      }
-      if (parsed.important_context?.length) {
-        parts.push(`\n**Established context:** ${parsed.important_context.join('; ')}`);
-      }
-      seedContent = parts.join('\n');
+      if (parsed.carry_forward_summary) contextParts.push(`Prior session: ${parsed.carry_forward_summary}`);
+      if (parsed.goals?.length) contextParts.push(`Goals: ${parsed.goals.join('; ')}`);
+      if (parsed.open_threads?.length) contextParts.push(`Open threads: ${parsed.open_threads.join('; ')}`);
+      if (parsed.important_context?.length) contextParts.push(`Established: ${parsed.important_context.join('; ')}`);
     } catch {
-      seedContent = `## Prior Session Context\n\n${options.seedContext}`;
+      contextParts.push(`Prior session: ${options.seedContext}`);
     }
-    layers.push({
-      id: 'session_context',
-      type: 'session_context',
-      priority: LAYER_REGISTRY.session_context.priority,
-      content: seedContent,
-      source: 'compact_summary',
-      enabled: true,
-    });
   }
 
-  // Layer 9: Process State (active workflow snapshots)
+  // Process protocol (page-aware workflow instructions)
+  if (options?.processProtocol) {
+    contextParts.push('', options.processProtocol);
+  }
+
+  // Process state (active workflow snapshots)
   if (options?.processState) {
+    contextParts.push('', options.processState);
+  }
+
+  if (contextParts.length > 0) {
     layers.push({
-      id: 'process_state',
-      type: 'process_state',
-      priority: LAYER_REGISTRY.process_state.priority,
-      content: options.processState,
-      source: 'page_context',
+      id: 'context',
+      type: 'context',
+      priority: LAYER_REGISTRY.context.priority,
+      content: contextParts.join('\n'),
+      source: 'session',
       enabled: true,
     });
   }
 
-  // Append facets to their assigned layers (or create new layers for facet-only types)
+  // ────────────────────────────────────────────────────────────────
+  // Section 5: EVOLUTION (self-awareness)
+  // Changelog, research awareness — how Luv has changed and grown.
+  // ────────────────────────────────────────────────────────────────
+
+  const evolutionParts: string[] = [];
+
+  // Changelog (compact — last 5 entries)
+  const changelog = options?.changelog;
+  if (changelog && changelog.length > 0) {
+    const EMOJI: Record<string, string> = {
+      architecture: '🏗', behavior: '🧠', capability: '✨', tooling: '🛠', fix: '🔧',
+    };
+    const recent = changelog.slice(0, 5);
+    evolutionParts.push('Recent changes:');
+    for (const e of recent) {
+      evolutionParts.push(`${e.date} ${EMOJI[e.category] ?? '•'} ${e.title}`);
+    }
+    evolutionParts.push('Use read_changelog for full history. Use add_changelog_entry to log significant changes.');
+  }
+
+  // Research awareness
+  const research = options?.research;
+  if (research && research.totalEntries > 0) {
+    evolutionParts.push(
+      `Research: ${research.totalEntries} entries (${research.openHypotheses} hypotheses, ${research.activeExperiments} active experiments). Use create_research / list_research.`,
+    );
+  } else {
+    evolutionParts.push('Research toolkit available: create_research to log substantive thinking.');
+  }
+
+  if (evolutionParts.length > 0) {
+    layers.push({
+      id: 'evolution',
+      type: 'evolution',
+      priority: LAYER_REGISTRY.evolution.priority,
+      content: evolutionParts.join('\n'),
+      source: 'evolution',
+      enabled: true,
+    });
+  }
+
+  // ────────────────────────────────────────────────────────────────
+  // Facets: append to their assigned sections
+  // ────────────────────────────────────────────────────────────────
+
   if (Array.isArray(soulData.facets) && soulData.facets.length > 0) {
-    const facetsByLayer = new Map<string, SoulFacet[]>();
+    const facetsBySection = new Map<SoulLayerType, SoulFacet[]>();
     for (const facet of soulData.facets) {
-      if (!facetsByLayer.has(facet.layer)) facetsByLayer.set(facet.layer, []);
-      facetsByLayer.get(facet.layer)!.push(facet);
+      const section = FACET_LAYER_MAP[facet.layer] ?? 'personality';
+      if (!facetsBySection.has(section)) facetsBySection.set(section, []);
+      facetsBySection.get(section)!.push(facet);
     }
 
-    for (const [layerType, facets] of facetsByLayer) {
-      if (!(layerType in LAYER_REGISTRY)) continue;
-      const registryEntry = LAYER_REGISTRY[layerType as SoulLayerType];
-      const facetContent = facets.map(renderFacet).join('\n');
-      const existing = layers.find((l) => l.type === layerType);
+    for (const [sectionType, facets] of facetsBySection) {
+      const facetContent = facets.map(renderFacet).filter(Boolean).join('\n');
+      if (!facetContent) continue;
+
+      const existing = layers.find((l) => l.type === sectionType);
       if (existing) {
-        existing.content = existing.content + '\n' + facetContent;
+        existing.content = existing.content + '\n\n' + facetContent;
       } else {
         layers.push({
-          id: `facets_${layerType}`,
-          type: layerType as SoulLayerType,
-          priority: registryEntry.priority,
+          id: `facets_${sectionType}`,
+          type: sectionType,
+          priority: LAYER_REGISTRY[sectionType].priority,
           content: facetContent,
           source: 'soul_data.facets',
           enabled: true,
@@ -458,12 +375,14 @@ export function composeLayers(soulData: LuvSoulData, options?: ComposeOptions): 
     }
   }
 
-  // Sort by priority, filter enabled
+  // ────────────────────────────────────────────────────────────────
+  // Assemble
+  // ────────────────────────────────────────────────────────────────
+
   const activeLayers = layers
     .filter((l) => l.enabled)
     .sort((a, b) => a.priority - b.priority);
 
-  // Join with section headers
   const prompt = activeLayers
     .map((l) => {
       const label = LAYER_REGISTRY[l.type].label;
@@ -487,13 +406,15 @@ function renderFacet(facet: SoulFacet): string {
         return `Your ${facet.label}: ${facet.content.join(', ')}.`;
       }
       return '';
-    case 'key_value':
+    case 'key_value': {
       if (facet.content && typeof facet.content === 'object' && !Array.isArray(facet.content)) {
-        return Object.entries(facet.content as Record<string, string>)
+        const entries = facet.content as Record<string, string>;
+        return Object.entries(entries)
           .map(([k, v]) => `When facing ${k}: ${v}`)
           .join('\n');
       }
       return '';
+    }
     default:
       return '';
   }
