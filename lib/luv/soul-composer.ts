@@ -42,7 +42,32 @@ export interface ComposeOptions {
 }
 
 export { composeLayers };
-export type { MemoryItem as _MemoryItem };
+
+/**
+ * Maps old 15-layer facet.layer values to new 5-section types.
+ * Exported for use by the facets admin page and other consumers.
+ */
+export const FACET_LAYER_MAP: Record<string, SoulLayerType> = {
+  core_identity: 'constitution',
+  personality: 'personality',
+  relational: 'personality',
+  voice: 'personality',
+  knowledge: 'personality',
+  behavioral_rules: 'personality',
+  chassis_awareness: 'embodiment',
+  context: 'context',
+  memory: 'context',
+  temperament: 'personality',
+  identity: 'constitution',
+  relational_dynamics: 'personality',
+  values: 'constitution',
+  research_awareness: 'evolution',
+  changelog: 'evolution',
+  soul_modulation: 'personality',
+  process_protocol: 'context',
+  session_context: 'context',
+  process_state: 'context',
+};
 
 /**
  * Compose a system prompt from soul data using the 5-section pipeline.
@@ -228,7 +253,10 @@ function composeLayers(soulData: LuvSoulData, options?: ComposeOptions): Composi
         contextParts.push(`**${cat}**: ${items.join('; ')}`);
       }
     }
-    contextParts.push('You can save, update, archive, merge, and review memories. Use recall for deeper retrieval.');
+    contextParts.push(
+      'You have autonomous control over your memory: save, update, archive, merge, and review.',
+      'Periodically review your memories for accuracy and relevance. When you notice contradictions, duplicates, or outdated facts — act on them.',
+    );
   } else {
     contextParts.push('No memories saved yet. Use save_memory to begin building persistent context.');
   }
@@ -289,7 +317,7 @@ function composeLayers(soulData: LuvSoulData, options?: ComposeOptions): Composi
     const recent = changelog.slice(0, 5);
     evolutionParts.push('Recent changes:');
     for (const e of recent) {
-      evolutionParts.push(`${EMOJI[e.category] ?? '•'} ${e.title}`);
+      evolutionParts.push(`${e.date} ${EMOJI[e.category] ?? '•'} ${e.title}`);
     }
     evolutionParts.push('Use read_changelog for full history. Use add_changelog_entry to log significant changes.');
   }
@@ -320,32 +348,9 @@ function composeLayers(soulData: LuvSoulData, options?: ComposeOptions): Composi
   // ────────────────────────────────────────────────────────────────
 
   if (Array.isArray(soulData.facets) && soulData.facets.length > 0) {
-    // Map old layer types to new section types
-    const LAYER_MAP: Record<string, SoulLayerType> = {
-      core_identity: 'constitution',
-      personality: 'personality',
-      relational: 'personality',
-      voice: 'personality',
-      knowledge: 'personality',
-      behavioral_rules: 'personality',
-      chassis_awareness: 'embodiment',
-      context: 'context',
-      memory: 'context',
-      temperament: 'personality',
-      identity: 'constitution',
-      relational_dynamics: 'personality',
-      values: 'constitution',
-      research_awareness: 'evolution',
-      changelog: 'evolution',
-      soul_modulation: 'personality',
-      process_protocol: 'context',
-      session_context: 'context',
-      process_state: 'context',
-    };
-
     const facetsBySection = new Map<SoulLayerType, SoulFacet[]>();
     for (const facet of soulData.facets) {
-      const section = LAYER_MAP[facet.layer] ?? 'personality';
+      const section = FACET_LAYER_MAP[facet.layer] ?? 'personality';
       if (!facetsBySection.has(section)) facetsBySection.set(section, []);
       facetsBySection.get(section)!.push(facet);
     }
@@ -398,20 +403,14 @@ function renderFacet(facet: SoulFacet): string {
       return typeof facet.content === 'string' ? facet.content : String(facet.content);
     case 'tags':
       if (Array.isArray(facet.content)) {
-        return `${facet.label}: ${facet.content.join(', ')}.`;
+        return `Your ${facet.label}: ${facet.content.join(', ')}.`;
       }
       return '';
     case 'key_value': {
       if (facet.content && typeof facet.content === 'object' && !Array.isArray(facet.content)) {
-        // Parse JSON string content if needed
-        let entries: Record<string, string>;
-        if (typeof facet.content === 'string') {
-          try { entries = JSON.parse(facet.content); } catch { return ''; }
-        } else {
-          entries = facet.content as Record<string, string>;
-        }
+        const entries = facet.content as Record<string, string>;
         return Object.entries(entries)
-          .map(([k, v]) => `- **${k}**: ${v}`)
+          .map(([k, v]) => `When facing ${k}: ${v}`)
           .join('\n');
       }
       return '';

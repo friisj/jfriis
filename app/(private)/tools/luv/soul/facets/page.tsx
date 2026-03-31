@@ -1,5 +1,6 @@
 import { getLuvCharacterServer } from '@/lib/luv-server';
 import { LAYER_REGISTRY } from '@/lib/luv/soul-layers';
+import { FACET_LAYER_MAP } from '@/lib/luv/soul-composer';
 import { Badge } from '@/components/ui/badge';
 import type { SoulFacet } from '@/lib/types/luv';
 
@@ -27,8 +28,10 @@ export default async function LuvFacetsPage() {
 
   // Sort layers by registry priority
   const sortedLayers = [...byLayer.entries()].sort((a, b) => {
-    const pa = (LAYER_REGISTRY as Record<string, { priority: number }>)[a[0]]?.priority ?? 99;
-    const pb = (LAYER_REGISTRY as Record<string, { priority: number }>)[b[0]]?.priority ?? 99;
+    const sectionA = FACET_LAYER_MAP[a[0]] ?? 'personality';
+    const sectionB = FACET_LAYER_MAP[b[0]] ?? 'personality';
+    const pa = LAYER_REGISTRY[sectionA].priority;
+    const pb = LAYER_REGISTRY[sectionB].priority;
     return pa - pb;
   });
 
@@ -41,7 +44,8 @@ export default async function LuvFacetsPage() {
 
       <div className="space-y-6">
         {sortedLayers.map(([layer, layerFacets]) => {
-          const registryEntry = (LAYER_REGISTRY as Record<string, { label: string }>)[layer];
+          const sectionKey = FACET_LAYER_MAP[layer] ?? 'personality';
+          const registryEntry = LAYER_REGISTRY[sectionKey];
           const layerLabel = registryEntry?.label ?? layer;
 
           return (
