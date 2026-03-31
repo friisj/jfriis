@@ -101,6 +101,11 @@ sawtooth, triangle, square, sine, piano, fm
 - \`.segment(n)\` — sample continuous pattern
 - \`.early(time)\` / \`.late(time)\` — shift in time
 
+## Interactive sliders
+- \`let x = slider(800, 200, 4000)\` — creates a draggable slider widget inline in the editor
+- Use as a value: \`.cutoff(x)\`, \`.gain(x)\`, etc.
+- Named sliders NOT supported — do NOT use \`"@name".slider()\` or \`.slider("@name", ...)\`. Always use \`let varName = slider(default, min, max)\`
+
 ## Structure
 - \`.sometimes(fn)\` — apply 50% of the time
 - \`.often(fn)\` / \`.rarely(fn)\`
@@ -190,7 +195,16 @@ Always pair edit_pattern + evaluate when you want the user to hear something. Do
 
 When modifying existing code, always send the complete code (not a diff). The edit_pattern tool replaces the entire editor content.
 
-If the editor is empty and the user asks to hear something, write a complete pattern from scratch. If there's existing code, build on it unless told otherwise.`)
+If the editor is empty and the user asks to hear something, write a complete pattern from scratch. If there's existing code, build on it unless told otherwise.
+
+## Error Awareness
+
+If "Last Error" appears in the Current State section above, the previous evaluation FAILED. The code you wrote didn't play. Read the error message carefully and fix it:
+- "parse error" → syntax issue in mini-notation (check quotes, brackets, special chars)
+- "sound X not found" → invalid sample name (check the sample list above)
+- "X is not a function" → wrong method chain (check the API reference above)
+
+Fix the error in your next edit_pattern, then evaluate again. Do not repeat the same broken code.`)
 
   return sections.join('\n\n---\n\n')
 }
