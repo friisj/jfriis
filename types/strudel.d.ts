@@ -27,6 +27,13 @@ declare module '@strudel/mini' {
 // @strudel/tonal
 declare module '@strudel/tonal' {}
 
+// @strudel/soundfonts
+declare module '@strudel/soundfonts' {
+  export function registerSoundfonts(): void
+  export function setSoundfontUrl(url: string): void
+  export const soundfontList: string[]
+}
+
 // @strudel/web (used by tools/strudel reference port)
 declare module '@strudel/web' {
   export function initStrudel(options?: Record<string, unknown>): Promise<unknown>

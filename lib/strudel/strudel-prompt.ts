@@ -45,11 +45,37 @@ Keep your responses brief and musical. Explain what you changed in musical terms
 - \`cat(pattern1, pattern2)\` — sequence patterns across cycles
 - \`silence\` — empty pattern
 
-## Synths
+## Synths (basic waveforms)
 sawtooth, triangle, square, sine, piano, fm
 
-## Sample banks
-bd, sd, hh, cp, oh, lt, mt, ht, rim, cb, cy, cr, ma, cl
+## Soundfonts (GM instruments — use with .s("gm_name").note("c4"))
+- Piano: gm_piano, gm_epiano1, gm_epiano2, gm_harpsichord, gm_clavinet, gm_celesta, gm_music_box
+- Organ: gm_church_organ, gm_drawbar_organ, gm_rock_organ, gm_accordion
+- Guitar: gm_acoustic_guitar_nylon, gm_acoustic_guitar_steel, gm_electric_guitar_clean, gm_electric_guitar_jazz, gm_distortion_guitar, gm_overdriven_guitar
+- Bass: gm_acoustic_bass, gm_electric_bass_finger, gm_electric_bass_pick, gm_fretless_bass, gm_slap_bass_1, gm_synth_bass_1, gm_synth_bass_2
+- Strings: gm_violin, gm_viola, gm_cello, gm_contrabass, gm_string_ensemble_1, gm_tremolo_strings, gm_pizzicato_strings, gm_orchestral_harp
+- Brass: gm_trumpet, gm_trombone, gm_tuba, gm_french_horn, gm_brass_section, gm_synth_brass_1
+- Woodwind: gm_flute, gm_clarinet, gm_oboe, gm_bassoon, gm_piccolo, gm_recorder, gm_pan_flute
+- Sax: gm_soprano_sax, gm_alto_sax, gm_tenor_sax, gm_baritone_sax
+- Voices: gm_choir_aahs, gm_voice_oohs, gm_synth_choir
+- Pads: gm_pad_new_age, gm_pad_warm, gm_pad_poly, gm_pad_choir, gm_pad_bowed, gm_pad_metallic, gm_pad_sweep
+- Leads: gm_lead_1_square, gm_lead_2_sawtooth, gm_lead_5_charang, gm_lead_7_fifths
+- Perc: gm_vibraphone, gm_marimba, gm_xylophone, gm_glockenspiel, gm_tubular_bells, gm_steel_drums, gm_kalimba, gm_timpani, gm_taiko_drum
+- World: gm_sitar, gm_banjo, gm_shamisen, gm_koto, gm_shakuhachi, gm_bagpipe, gm_fiddle
+- FX: gm_fx_rain, gm_fx_atmosphere, gm_fx_crystal, gm_fx_sci_fi, gm_fx_echoes, gm_reverse_cymbal
+
+## Sample banks (dirt-samples — ONLY use names listed here)
+- Kicks: bd, 808bd
+- Snares: sd, 808sd, cp
+- Hi-hats: hh, 808hc, 808oh
+- Toms: lt, mt, ht, 808lt, 808mt, 808ht
+- Other perc: cb, cr, 808cy, 808lc, 808mc, click, clak, clubkick
+- 808 full kit: 808bd, 808sd, 808hc, 808ht, 808lt, 808mc, 808mt, 808oh, 808cy
+- 909 (use with n("0 1 2")): 909
+- Bass: bass, bass0, bass1, bass2, bass3, bassdm, jvbass
+- Melodic: arpy, casio, east, flick, future, gab, pluck, rave
+- Texture: birds, birds3, breath, bubble, coins, crow, noise, space, wind, wobble
+- IMPORTANT: Use ONLY names from this list. "oh", "rim", "cy", "cl", "ma" do NOT exist. For open hi-hat use 808oh. For cymbals use 808cy or cr.
 
 ## Effects & processing
 - \`.cutoff(frequency)\` / \`.resonance(0-1)\` — low-pass filter

@@ -29,8 +29,7 @@ export const SNIPPETS: Snippet[] = [
   {
     name: 'Breakbeat',
     category: 'rhythm',
-    code: `s("bd [~ bd] sd [bd ~]")
-  .bank("RolandTR808")`,
+    code: `s("808bd [~ 808bd] 808sd [808bd ~]")`,
   },
   {
     name: 'Polyrhythm',
@@ -214,8 +213,7 @@ note("c3 eb3 g3 bb3")
     name: 'DnB Loop',
     builtIn: true,
     code: `stack(
-  s("bd ~ bd ~, ~ sd ~ sd, hh*8")
-    .bank("RolandTR808")
+  s("808bd ~ 808bd ~, ~ 808sd ~ 808sd, hh*8")
     .speed(1.5),
   note("c2 ~ ~ c2 ~ ~ eb2 ~")
     .s("sawtooth")
