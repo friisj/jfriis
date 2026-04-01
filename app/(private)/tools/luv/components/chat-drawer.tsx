@@ -1,4 +1,5 @@
 'use client';
+/* eslint-disable react-hooks/refs */
 
 import { useState, useCallback } from 'react';
 import { useLuvChatSession } from './use-luv-chat-session';
@@ -27,7 +28,11 @@ export function ChatDrawer() {
   const [voiceEnabled, setVoiceEnabled] = useState(false);
   const [voiceSpeed, setVoiceSpeed] = useState(0.9);
   const { images: conversationImages, getImageIndex } = useConversationImages(session.messages);
-  const lightboxImages = conversationImages.map((img) => ({ url: img.url }));
+  const lightboxImages = conversationImages.map((img) => ({
+    url: img.url,
+    cogImageId: img.cogImageId,
+    index: img.index,
+  }));
 
   const handleInsertImageRef = useCallback((index: number) => {
     session.setInput((prev: string) => {
@@ -65,7 +70,7 @@ export function ChatDrawer() {
   } as const;
 
   return (
-    <LightboxProvider images={lightboxImages}>
+    <LightboxProvider images={lightboxImages} onAttach={handleInsertImageRef}>
     <div className="flex flex-col h-full relative">
       {activePanel && (
         <ChatOverlay title={panelConfig[activePanel].title} onClose={closePanel}>

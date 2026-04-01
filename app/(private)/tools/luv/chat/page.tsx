@@ -1,4 +1,5 @@
 'use client';
+/* eslint-disable react-hooks/refs */
 
 import { useState, useEffect, useCallback } from 'react';
 import { usePrivateHeader } from '@/components/layout/private-header-context';
@@ -71,10 +72,14 @@ export default function LuvChatPage() {
     heartbeat: { title: 'Heartbeat Settings' },
   } as const;
 
-  const lightboxImages = conversationImages.map((img) => ({ url: img.url }));
+  const lightboxImages = conversationImages.map((img) => ({
+    url: img.url,
+    cogImageId: img.cogImageId,
+    index: img.index,
+  }));
 
   return (
-    <LightboxProvider images={lightboxImages}>
+    <LightboxProvider images={lightboxImages} onAttach={handleInsertImageRef}>
     <div className="h-lvh flex flex-col bg-background overflow-hidden relative">
 
       {activePanel && (
