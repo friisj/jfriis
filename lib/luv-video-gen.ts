@@ -199,10 +199,9 @@ async function submitVeo(opts: VideoJobOptions): Promise<string> {
   // Veo uses the Gemini generateVideos endpoint
   const endpoint = `${GEMINI_BASE}/models/${modelId}:predictLongRunning`;
 
-  // Build generation config — provider-specific params only
-  // Note: personGeneration is NOT supported by Veo via Gemini API
+  // Build generation config — only aspectRatio is supported
+  // videoDuration and personGeneration are NOT supported by Veo via predictLongRunning
   const generationConfig: Record<string, unknown> = {
-    videoDuration: `${opts.durationSeconds ?? 6}s`,
     aspectRatio: opts.aspectRatio ?? '16:9',
   };
 
