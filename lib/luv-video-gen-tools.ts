@@ -36,7 +36,7 @@ export function createStartVideoGenerationTool(messages: ModelMessage[]) {
   return tool({
     description:
       'Submit a video generation job. Returns a jobId — use check_video_generation to poll for completion. ' +
-      'Choose provider: "veo" for high-quality cinematic output (up to 4K, 4/6/8s fixed durations), ' +
+      'Choose provider: "veo" for high-quality cinematic output (5/6/8s durations), ' +
       '"grok" for flexible duration (1–15s) and fast turnaround. ' +
       'For image-to-video (i2v), pass one reference image via referenceImageIds or useRecentChatImages — ' +
       'it becomes the first-frame conditioning input. ' +
@@ -51,7 +51,7 @@ export function createStartVideoGenerationTool(messages: ModelMessage[]) {
         provider: z
           .enum(['veo', 'grok'])
           .describe(
-            'Provider: "veo" (Gemini — higher quality, fixed 4/6/8s, up to 4K) or ' +
+            'Provider: "veo" (Gemini — higher quality, 5/6/8s) or ' +
               '"grok" (xAI — flexible 1–15s duration, 720p max, fast).',
           ),
         ...referenceImageSchema,
@@ -60,19 +60,19 @@ export function createStartVideoGenerationTool(messages: ModelMessage[]) {
           .number()
           .optional()
           .describe(
-            'Duration in seconds. Veo accepts 4, 6, or 8 (default 6). ' +
-              'Grok accepts 1–15 (default 5).',
+            'Duration in seconds. Veo accepts 5, 6, or 8 (default 8). ' +
+              'Grok accepts 1–15 (default 5). i2v with Veo requires 8s.',
           ),
         resolution: z
           .enum(['720p', '1080p', '4K'])
           .optional()
           .describe(
-            'Output resolution (default: 720p). Veo supports up to 4K. Grok max is 720p.',
+            'Output resolution (default: 720p). Grok max is 720p.',
           ),
         veoModel: z
-          .enum(['veo-3.0', 'veo-3.1'])
+          .enum(['veo-3.1', 'veo-3.1-fast'])
           .optional()
-          .describe('Veo model version (default: veo-3.0, GA). Only used when provider is "veo".'),
+          .describe('Veo model version (default: veo-3.1). "veo-3.1-fast" is faster but lower quality.'),
       }),
     ),
     execute: async ({
@@ -100,7 +100,7 @@ export function createStartVideoGenerationTool(messages: ModelMessage[]) {
           aspectRatio: aspectRatio as '16:9' | '9:16' | undefined,
           durationSeconds,
           resolution: resolution as '720p' | '1080p' | '4K' | undefined,
-          veoModel: veoModel as 'veo-3.0' | 'veo-3.1' | undefined,
+          veoModel: veoModel as 'veo-3.1' | 'veo-3.1-fast' | undefined,
         });
 
         return {
@@ -129,55 +129,66 @@ export function createStartVideoGenerationTool(messages: ModelMessage[]) {
 
 /**
  * Poll a previously submitted video job for completion.
+ * Auto-polls with backoff (up to ~90s) so the agent doesn't need to call repeatedly.
  * On success returns a public Supabase URL for the stored video.
  */
 export const checkVideoGeneration = tool({
   description:
     'Check the status of a video generation job. ' +
-    'Returns status: "pending" | "processing" | "completed" | "failed". ' +
+    'This tool auto-polls with backoff — it will wait up to ~90 seconds for completion. ' +
+    'Returns status: "completed" | "failed" | "timeout". ' +
     'On "completed", returns videoUrl — a public URL for the stored video. ' +
-    'If still processing, call again after a short wait (the agent can continue ' +
-    'conversation and check back — no need to block). ' +
-    'Always inform the user of the current status.',
+    'On "timeout", call again later — the job is still running. ' +
+    'You only need to call this ONCE after start_video_generation.',
   inputSchema: zodSchema(
     z.object({
       jobId: z.string().uuid().describe('The jobId UUID returned by start_video_generation.'),
     }),
   ),
   execute: async ({ jobId }) => {
+    // Auto-poll with backoff: 5s, 5s, 10s, 10s, 15s, 15s, 15s, 15s = ~90s total
+    const intervals = [5000, 5000, 10000, 10000, 15000, 15000, 15000, 15000];
+
     try {
-      const job = await checkVideoJob(jobId);
+      for (let attempt = 0; attempt <= intervals.length; attempt++) {
+        const job = await checkVideoJob(jobId);
 
-      if (job.status === 'completed' && job.storageUrl) {
-        return {
-          type: 'video_job_result' as const,
-          success: true,
-          jobId: job.id,
-          status: 'completed',
-          videoUrl: job.storageUrl,
-          provider: job.provider,
-          durationMs: job.durationMs,
-          message: 'Video generation complete.',
-        };
+        if (job.status === 'completed' && job.storageUrl) {
+          return {
+            type: 'video_job_result' as const,
+            success: true,
+            jobId: job.id,
+            status: 'completed',
+            videoUrl: job.storageUrl,
+            provider: job.provider,
+            durationMs: job.durationMs,
+            message: 'Video generation complete.',
+          };
+        }
+
+        if (job.status === 'failed') {
+          return {
+            type: 'video_job_result' as const,
+            success: false,
+            jobId: job.id,
+            status: 'failed',
+            error: job.errorMessage ?? 'Video generation failed',
+          };
+        }
+
+        // Still in flight — wait before next poll (unless we've exhausted retries)
+        if (attempt < intervals.length) {
+          await new Promise(resolve => setTimeout(resolve, intervals[attempt]));
+        }
       }
 
-      if (job.status === 'failed') {
-        return {
-          type: 'video_job_result' as const,
-          success: false,
-          jobId: job.id,
-          status: 'failed',
-          error: job.errorMessage ?? 'Video generation failed',
-        };
-      }
-
-      // Still in flight
+      // Timed out — still processing
       return {
         type: 'video_job_result' as const,
         success: true,
-        jobId: job.id,
-        status: job.status, // 'pending' | 'processing'
-        message: 'Video generation is still in progress. Check again shortly.',
+        jobId,
+        status: 'timeout',
+        message: 'Video is still generating after ~90s. Call check_video_generation again later.',
       };
     } catch (err) {
       return {

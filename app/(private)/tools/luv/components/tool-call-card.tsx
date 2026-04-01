@@ -64,6 +64,27 @@ function extractImageUrls(v: unknown): { url: string; filename?: string }[] {
     .map((img) => ({ url: img.url as string, filename: img.filename as string | undefined }));
 }
 
+interface VideoJobResult {
+  type: 'video_job_result' | 'video_job_started';
+  success: boolean;
+  jobId?: string;
+  status?: string;
+  videoUrl?: string;
+  provider?: string;
+  durationMs?: number;
+  error?: string;
+  message?: string;
+}
+
+function isVideoResult(v: unknown): v is VideoJobResult {
+  return (
+    typeof v === 'object' &&
+    v !== null &&
+    ((v as Record<string, unknown>).type === 'video_job_result' ||
+     (v as Record<string, unknown>).type === 'video_job_started')
+  );
+}
+
 function isChassisStudyResult(v: unknown): v is ChassisStudyResult {
   return (
     typeof v === 'object' &&
@@ -105,6 +126,8 @@ const toolLabels: Record<string, string> = {
   list_chassis_studies: 'List Studies',
   run_sketch_study: 'Sketch Study',
   list_sketches: 'List Sketches',
+  start_video_generation: 'Video Generation',
+  check_video_generation: 'Check Video',
 };
 
 // Tools whose results contain linkable research entries
@@ -194,10 +217,11 @@ export function ToolCallCard({ toolName, state, result, getImageIndex, onInsertI
   const linkableEntries = isComplete ? extractLinkableEntries(toolName, result) : [];
   const imageResult = isComplete && isImageGenResult(result) ? result : null;
   const studyResult = isComplete && isChassisStudyResult(result) ? result : null;
+  const videoResult = isComplete && isVideoResult(result) ? result : null;
   const toolImages = isComplete ? extractImageUrls(result) : [];
 
-  // Auto-expand image/study results or tool results with images (unless user explicitly collapsed)
-  const showExpanded = expanded || (!userCollapsed && isComplete && (imageResult?.success || studyResult?.success || toolImages.length > 0));
+  // Auto-expand image/study/video results or tool results with images (unless user explicitly collapsed)
+  const showExpanded = expanded || (!userCollapsed && isComplete && (imageResult?.success || studyResult?.success || (videoResult?.success && videoResult?.videoUrl) || toolImages.length > 0));
 
   return (
     <div className="rounded-md border bg-muted/50 text-xs my-1">
@@ -230,6 +254,8 @@ export function ToolCallCard({ toolName, state, result, getImageIndex, onInsertI
           <span className="ml-auto text-muted-foreground animate-pulse">
             {toolName === 'generate_image' ? 'generating...'
               : toolName === 'run_chassis_study' ? 'deliberating...'
+              : toolName === 'start_video_generation' ? 'submitting...'
+              : toolName === 'check_video_generation' ? 'rendering...'
               : 'running...'}
           </span>
         )}
@@ -341,6 +367,39 @@ export function ToolCallCard({ toolName, state, result, getImageIndex, onInsertI
         </div>
       )}
 
+      {/* Video generation result — auto-expanded with inline player */}
+      {showExpanded && videoResult && (
+        <div className="border-t">
+          {videoResult.success && videoResult.videoUrl ? (
+            <div className="p-2 space-y-2">
+              { }
+              <video
+                src={videoResult.videoUrl}
+                controls
+                autoPlay
+                loop
+                muted
+                playsInline
+                className="rounded-sm max-w-full max-h-96"
+              />
+              <div className="flex gap-2 text-[10px] font-mono text-muted-foreground">
+                {videoResult.provider && <span>{videoResult.provider}</span>}
+                {videoResult.durationMs && <span>{(videoResult.durationMs / 1000).toFixed(1)}s</span>}
+                {videoResult.status === 'timeout' && <span className="text-amber-500">timed out — check again</span>}
+              </div>
+            </div>
+          ) : videoResult.status === 'timeout' ? (
+            <div className="px-2 py-1.5 text-amber-500 text-[10px]">
+              Still rendering — call check_video_generation again
+            </div>
+          ) : videoResult.error ? (
+            <div className="px-2 py-1.5 text-destructive font-mono text-[10px]">
+              {videoResult.error}
+            </div>
+          ) : null}
+        </div>
+      )}
+
       {/* Generic image grid for tools returning images with URLs */}
       {showExpanded && toolImages.length > 0 && !imageResult && !studyResult && (
         <div className="border-t p-2">
@@ -376,8 +435,8 @@ export function ToolCallCard({ toolName, state, result, getImageIndex, onInsertI
         </div>
       )}
 
-      {/* Raw JSON fallback (not for image results — already rendered above) */}
-      {showExpanded && result != null && !imageResult && (
+      {/* Raw JSON fallback (not for image/video results — already rendered above) */}
+      {showExpanded && result != null && !imageResult && !videoResult && (
         <div className={cn('border-t px-2 py-1.5 max-h-48 overflow-auto', linkableEntries.length > 0 && 'opacity-50')}>
           <pre className="text-[10px] text-muted-foreground whitespace-pre-wrap break-all">
             {JSON.stringify(result, null, 2)}
