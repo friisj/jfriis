@@ -146,6 +146,43 @@ export async function incrementTurnCountServer(
   if (updateErr) throw updateErr;
 }
 
+/**
+ * Generate a concise conversation title using a fast model,
+ * then update the conversation row. Fire-and-forget after first turn.
+ */
+export async function generateConversationTitleServer(
+  conversationId: string,
+  userMessage: string,
+  assistantMessage: string,
+): Promise<void> {
+  try {
+    const { generateText } = await import('ai');
+    const { getGoogle } = await import('./ai/providers');
+    const google = getGoogle();
+
+    const { text } = await generateText({
+      model: google('gemini-2.5-flash-lite'),
+      maxOutputTokens: 30,
+      temperature: 0.3,
+      system: 'Generate a short, descriptive title (3-8 words) for this conversation. No quotes, no punctuation at the end. Be specific about the topic, not generic.',
+      prompt: `User: ${userMessage.slice(0, 300)}\n\nAssistant: ${assistantMessage.slice(0, 300)}`,
+    });
+
+    const title = text.trim().replace(/^["']|["']$/g, '').slice(0, 80);
+    if (!title) return;
+
+    const client = await createClient();
+    await (client as any)
+      .from('luv_conversations')
+      .update({ title })
+      .eq('id', conversationId);
+
+    console.log('[luv] Title generated:', title);
+  } catch (err) {
+    console.error('[luv] Title generation failed:', err);
+  }
+}
+
 // ============================================================================
 // References
 // ============================================================================
