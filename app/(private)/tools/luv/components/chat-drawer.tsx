@@ -16,6 +16,7 @@ import { PresenceIndicator } from './shared/presence-indicator';
 import { useLuvPresence } from './use-luv-presence';
 import { HeartbeatSettingsPanel } from './heartbeat-settings-panel';
 import { useConversationImages } from './use-conversation-images';
+import { LightboxProvider } from './shared/lightbox-context';
 import { getLuvCharacter } from '@/lib/luv';
 
 export function ChatDrawer() {
@@ -25,7 +26,8 @@ export function ChatDrawer() {
   const [activePresetId, setActivePresetId] = useState<string | null>(null);
   const [voiceEnabled, setVoiceEnabled] = useState(false);
   const [voiceSpeed, setVoiceSpeed] = useState(0.9);
-  const { getImageIndex } = useConversationImages(session.messages);
+  const { images: conversationImages, getImageIndex } = useConversationImages(session.messages);
+  const lightboxImages = conversationImages.map((img) => ({ url: img.url }));
 
   const handleInsertImageRef = useCallback((index: number) => {
     session.setInput((prev: string) => {
@@ -63,6 +65,7 @@ export function ChatDrawer() {
   } as const;
 
   return (
+    <LightboxProvider images={lightboxImages}>
     <div className="flex flex-col h-full relative">
       {activePanel && (
         <ChatOverlay title={panelConfig[activePanel].title} onClose={closePanel}>
@@ -181,5 +184,6 @@ export function ChatDrawer() {
         onSetVoiceSpeed={setVoiceSpeed}
       />
     </div>
+    </LightboxProvider>
   );
 }

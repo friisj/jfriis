@@ -4,9 +4,9 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { IconChevronRight, IconExternalLink } from '@tabler/icons-react';
 import { cn } from '@/lib/utils';
-import { ImageLightbox } from './shared/image-lightbox';
 import { ImageBadge } from './shared/image-badge';
 import { ChatImageMenu } from './shared/chat-image-menu';
+import { useLightbox } from './shared/lightbox-context';
 
 interface ToolCallCardProps {
   toolName: string;
@@ -211,7 +211,7 @@ function EntryLink({ entry }: { entry: ResearchEntry }) {
 export function ToolCallCard({ toolName, state, result, getImageIndex, onInsertImageRef }: ToolCallCardProps) {
   const [expanded, setExpanded] = useState(false);
   const [userCollapsed, setUserCollapsed] = useState(false);
-  const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
+  const { open: openLightbox } = useLightbox();
   const label = toolLabels[toolName] ?? toolName;
   const isComplete = state === 'output-available';
   const linkableEntries = isComplete ? extractLinkableEntries(toolName, result) : [];
@@ -290,7 +290,7 @@ export function ToolCallCard({ toolName, state, result, getImageIndex, onInsertI
           {imageResult.success && imageResult.imageUrl ? (
             <div className="p-2 space-y-2">
               <ChatImageMenu src={imageResult.imageUrl!} cogImageId={imageResult.cogImageId}>
-                <button type="button" onClick={() => setLightboxSrc(imageResult.imageUrl!)}>
+                <button type="button" onClick={() => openLightbox(imageResult.imageUrl!)}>
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={imageResult.imageUrl}
@@ -320,7 +320,7 @@ export function ToolCallCard({ toolName, state, result, getImageIndex, onInsertI
           {studyResult.success && studyResult.imageUrl ? (
             <div className="p-2 space-y-2">
               <ChatImageMenu src={studyResult.imageUrl!} cogImageId={studyResult.studyId}>
-                <button type="button" onClick={() => setLightboxSrc(studyResult.imageUrl!)}>
+                <button type="button" onClick={() => openLightbox(studyResult.imageUrl!)}>
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={studyResult.imageUrl}
@@ -409,7 +409,7 @@ export function ToolCallCard({ toolName, state, result, getImageIndex, onInsertI
                 const idx = getImageIndex?.(img.url);
                 return (
                   <ChatImageMenu key={i} src={img.url}>
-                    <button type="button" onClick={() => setLightboxSrc(img.url)} className="h-48 w-32 bg-secondary rounded-sm">
+                    <button type="button" onClick={() => openLightbox(img.url)} className="h-48 w-32 bg-secondary rounded-sm">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img
                         src={img.url}
@@ -444,9 +444,6 @@ export function ToolCallCard({ toolName, state, result, getImageIndex, onInsertI
         </div>
       )}
 
-      {lightboxSrc && (
-        <ImageLightbox src={lightboxSrc} onClose={() => setLightboxSrc(null)} />
-      )}
     </div>
   );
 }

@@ -15,9 +15,9 @@ import {
 import { getMessageText } from '../use-luv-chat-session';
 import { ToolCallCard } from '../tool-call-card';
 import { ProposalCard } from '../proposal-card';
-import { ImageLightbox } from './image-lightbox';
 import { ImageBadge } from './image-badge';
 import { ChatImageMenu } from './chat-image-menu';
+import { useLightbox } from './lightbox-context';
 
 interface MessageBubbleProps {
   message: UIMessage;
@@ -164,7 +164,7 @@ function UserBubble({ message, compact, getImageIndex, onInsertImageRef }: {
   onInsertImageRef?: (index: number) => void;
 }) {
   const text = getMessageText(message);
-  const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
+  const { open: openLightbox } = useLightbox();
   const fileParts = message.parts.filter(
     (p): p is { type: 'file'; mediaType: string; url: string; filename?: string } =>
       p.type === 'file'
@@ -185,7 +185,7 @@ function UserBubble({ message, compact, getImageIndex, onInsertImageRef }: {
               const imgIndex = getImageIndex?.(f.url);
               return (
                 <ChatImageMenu key={i} src={f.url} cogImageId={(f as Record<string, unknown>).cogImageId as string | undefined}>
-                  <button type="button" onClick={() => setLightboxSrc(f.url)} className="cursor-pointer">
+                  <button type="button" onClick={() => openLightbox(f.url)} className="cursor-pointer">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                       src={f.url}
@@ -201,9 +201,6 @@ function UserBubble({ message, compact, getImageIndex, onInsertImageRef }: {
         )}
         {text}
       </div>
-      {lightboxSrc && (
-        <ImageLightbox src={lightboxSrc} onClose={() => setLightboxSrc(null)} />
-      )}
     </div>
   );
 }
@@ -271,7 +268,7 @@ function AssistantBubble({
   getImageIndex?: (url: string) => number | null;
   onInsertImageRef?: (index: number) => void;
 }) {
-  const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
+  const { open: openLightbox } = useLightbox();
   // Group consecutive text parts into single bubbles so streaming fragments
   // separated by tool calls don't each get their own card.
   const groups = groupParts(message.parts);
@@ -314,7 +311,7 @@ function AssistantBubble({
 
                       return (
                         <ChatImageMenu src={src}>
-                          <button type="button" onClick={() => setLightboxSrc(src)} className="cursor-pointer block">
+                          <button type="button" onClick={() => openLightbox(src)} className="cursor-pointer block">
                             {/* eslint-disable-next-line @next/next/no-img-element */}
                             <img src={src} alt={alt ?? ''} className="rounded-sm mt-0 mb-0 max-h-80 object-contain" />
                           </button>
@@ -380,9 +377,6 @@ function AssistantBubble({
           return null;
         })}
       </div>
-      {lightboxSrc && (
-        <ImageLightbox src={lightboxSrc} onClose={() => setLightboxSrc(null)} />
-      )}
     </div>
   );
 }

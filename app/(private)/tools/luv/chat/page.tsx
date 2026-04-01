@@ -17,6 +17,7 @@ import { PresenceIndicator } from '../components/shared/presence-indicator';
 import { HeartbeatSettingsPanel } from '../components/heartbeat-settings-panel';
 import { useLuvPresence } from '../components/use-luv-presence';
 import { useConversationImages } from '../components/use-conversation-images';
+import { LightboxProvider } from '../components/shared/lightbox-context';
 import { getLuvCharacter } from '@/lib/luv';
 
 export default function LuvChatPage() {
@@ -33,7 +34,7 @@ export default function LuvChatPage() {
   const [activePresetId, setActivePresetId] = useState<string | null>(null);
   const [voiceEnabled, setVoiceEnabled] = useState(false);
   const [voiceSpeed, setVoiceSpeed] = useState(0.9);
-  const { getImageIndex } = useConversationImages(session.messages);
+  const { images: conversationImages, getImageIndex } = useConversationImages(session.messages);
 
   const handleInsertImageRef = useCallback((index: number) => {
     session.setInput((prev: string) => {
@@ -70,7 +71,10 @@ export default function LuvChatPage() {
     heartbeat: { title: 'Heartbeat Settings' },
   } as const;
 
+  const lightboxImages = conversationImages.map((img) => ({ url: img.url }));
+
   return (
+    <LightboxProvider images={lightboxImages}>
     <div className="h-lvh flex flex-col bg-background overflow-hidden relative">
 
       {activePanel && (
@@ -195,5 +199,6 @@ export default function LuvChatPage() {
         />
       </div>
     </div>
+    </LightboxProvider>
   );
 }
