@@ -1,10 +1,12 @@
 #!/usr/bin/env node
-import { Server } from '@modelcontextprotocol/sdk/server/index.js'
+import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
+import { z } from 'zod'
 import {
-  CallToolRequestSchema,
-  ListToolsRequestSchema,
-} from '@modelcontextprotocol/sdk/types.js'
+  registerAppTool,
+  registerAppResource,
+  RESOURCE_MIME_TYPE,
+} from '@modelcontextprotocol/ext-apps/server'
 
 import {
   dbListTables,
@@ -20,235 +22,228 @@ import {
   type DbDeleteInput,
 } from './tools.js'
 
-// Create server instance
-const server = new Server(
+// Import HTML as text (esbuild --loader:.html=text)
+import appHtml from './app.html'
+
+// Create server instance using high-level McpServer API
+const server = new McpServer(
   {
     name: 'jfriis-mcp',
-    version: '1.0.0',
+    version: '1.1.0',
   },
   {
     capabilities: {
       tools: {},
+      resources: {},
     },
   }
 )
 
-// List available tools
-server.setRequestHandler(ListToolsRequestSchema, async () => {
-  return {
-    tools: [
+// ---------------------------------------------------------------------------
+// UI Resource — the MCP App HTML
+// ---------------------------------------------------------------------------
+
+registerAppResource(
+  server,
+  'jfriis Dashboard',
+  'ui://jfriis/dashboard',
+  {
+    description: 'Interactive dashboard for jfriis.com database — browse tables, query data, inspect records.',
+  },
+  async () => ({
+    contents: [
       {
-        name: 'db_list_tables',
-        description: 'List all registered tables and their schemas',
-        inputSchema: {
-          type: 'object',
-          properties: {},
-          required: [],
-        },
-      },
-      {
-        name: 'db_query',
-        description: 'Query records from a table with filtering, ordering, and pagination',
-        inputSchema: {
-          type: 'object',
-          properties: {
-            table: {
-              type: 'string',
-              description: 'Table name',
-            },
-            select: {
-              type: 'string',
-              description: 'Columns to select (default: "*")',
-            },
-            filter: {
-              type: 'object',
-              description: 'Equality filters as key-value pairs',
-            },
-            filter_in: {
-              type: 'object',
-              description: 'IN filters as key-array pairs',
-            },
-            filter_like: {
-              type: 'object',
-              description: 'ILIKE filters as key-pattern pairs',
-            },
-            order_by: {
-              type: 'object',
-              properties: {
-                column: { type: 'string' },
-                ascending: { type: 'boolean' },
-              },
-              required: ['column'],
-              description: 'Order by column',
-            },
-            limit: {
-              type: 'number',
-              description: 'Max records to return (default: 100, max: 1000)',
-            },
-            offset: {
-              type: 'number',
-              description: 'Records to skip (default: 0)',
-            },
-          },
-          required: ['table'],
-        },
-      },
-      {
-        name: 'db_get',
-        description: 'Fetch a single record by ID or slug',
-        inputSchema: {
-          type: 'object',
-          properties: {
-            table: {
-              type: 'string',
-              description: 'Table name',
-            },
-            id: {
-              type: 'string',
-              description: 'UUID of the record',
-            },
-            slug: {
-              type: 'string',
-              description: 'URL-friendly identifier',
-            },
-          },
-          required: ['table'],
-        },
-      },
-      {
-        name: 'db_create',
-        description: 'Insert a new record. Validates against table schema.',
-        inputSchema: {
-          type: 'object',
-          properties: {
-            table: {
-              type: 'string',
-              description: 'Table name',
-            },
-            data: {
-              type: 'object',
-              description: 'Record data to insert',
-            },
-          },
-          required: ['table', 'data'],
-        },
-      },
-      {
-        name: 'db_update',
-        description: 'Update an existing record by ID. Validates against table schema.',
-        inputSchema: {
-          type: 'object',
-          properties: {
-            table: {
-              type: 'string',
-              description: 'Table name',
-            },
-            id: {
-              type: 'string',
-              description: 'UUID of the record to update',
-            },
-            data: {
-              type: 'object',
-              description: 'Fields to update',
-            },
-          },
-          required: ['table', 'id', 'data'],
-        },
-      },
-      {
-        name: 'db_delete',
-        description: 'Delete a record by ID',
-        inputSchema: {
-          type: 'object',
-          properties: {
-            table: {
-              type: 'string',
-              description: 'Table name',
-            },
-            id: {
-              type: 'string',
-              description: 'UUID of the record to delete',
-            },
-          },
-          required: ['table', 'id'],
-        },
+        uri: 'ui://jfriis/dashboard',
+        mimeType: RESOURCE_MIME_TYPE,
+        text: appHtml,
       },
     ],
-  }
-})
+  })
+)
 
-// Handle tool calls
-server.setRequestHandler(CallToolRequestSchema, async (request) => {
-  const { name, arguments: args } = request.params
+// ---------------------------------------------------------------------------
+// Tools — existing db_* tools, now registered via McpServer API
+// Each tool linked to the dashboard UI resource via _meta.ui
+// ---------------------------------------------------------------------------
 
-  try {
-    let result: any
+const UI_META = {
+  ui: { resourceUri: 'ui://jfriis/dashboard' },
+}
 
-    switch (name) {
-      case 'db_list_tables':
-        result = await dbListTables()
-        break
-
-      case 'db_query':
-        result = await dbQuery(args as unknown as DbQueryInput)
-        break
-
-      case 'db_get':
-        result = await dbGet(args as unknown as DbGetInput)
-        break
-
-      case 'db_create':
-        result = await dbCreate(args as unknown as DbCreateInput)
-        break
-
-      case 'db_update':
-        result = await dbUpdate(args as unknown as DbUpdateInput)
-        break
-
-      case 'db_delete':
-        result = await dbDelete(args as unknown as DbDeleteInput)
-        break
-
-      default:
-        return {
-          content: [
-            {
-              type: 'text',
-              text: JSON.stringify({ error: `Unknown tool: ${name}` }),
-            },
-          ],
-          isError: true,
-        }
-    }
-
+// db_list_tables — model + app visible (default)
+registerAppTool(
+  server,
+  'db_list_tables',
+  {
+    description: 'List all registered tables and their schemas',
+    _meta: UI_META,
+  },
+  async () => {
+    const result = await dbListTables()
     return {
-      content: [
-        {
-          type: 'text',
-          text: JSON.stringify(result, null, 2),
-        },
-      ],
+      content: [{ type: 'text' as const, text: JSON.stringify(result, null, 2) }],
       isError: result.error !== undefined,
     }
-  } catch (error) {
-    const message = error instanceof Error ? error.message : 'Unknown error'
+  }
+)
+
+// db_query
+registerAppTool(
+  server,
+  'db_query',
+  {
+    description: 'Query records from a table with filtering, ordering, and pagination',
+    inputSchema: {
+      table: z.string().describe('Table name'),
+      select: z.string().optional().describe('Columns to select (default: "*")'),
+      filter: z.record(z.unknown()).optional().describe('Equality filters as key-value pairs'),
+      filter_in: z.record(z.array(z.unknown())).optional().describe('IN filters as key-array pairs'),
+      filter_like: z.record(z.string()).optional().describe('ILIKE filters as key-pattern pairs'),
+      order_by: z.object({
+        column: z.string(),
+        ascending: z.boolean().optional(),
+      }).optional().describe('Order by column'),
+      limit: z.number().optional().describe('Max records to return (default: 100, max: 1000)'),
+      offset: z.number().optional().describe('Records to skip (default: 0)'),
+    },
+    _meta: UI_META,
+  },
+  async (args) => {
+    const result = await dbQuery(args as unknown as DbQueryInput)
     return {
-      content: [
-        {
-          type: 'text',
-          text: JSON.stringify({ error: message }),
-        },
-      ],
-      isError: true,
+      content: [{ type: 'text' as const, text: JSON.stringify(result, null, 2) }],
+      isError: result.error !== undefined,
     }
   }
-})
+)
 
+// db_get
+registerAppTool(
+  server,
+  'db_get',
+  {
+    description: 'Fetch a single record by ID or slug',
+    inputSchema: {
+      table: z.string().describe('Table name'),
+      id: z.string().optional().describe('UUID of the record'),
+      slug: z.string().optional().describe('URL-friendly identifier'),
+    },
+    _meta: UI_META,
+  },
+  async (args) => {
+    const result = await dbGet(args as unknown as DbGetInput)
+    return {
+      content: [{ type: 'text' as const, text: JSON.stringify(result, null, 2) }],
+      isError: result.error !== undefined,
+    }
+  }
+)
+
+// db_create
+registerAppTool(
+  server,
+  'db_create',
+  {
+    description: 'Insert a new record. Validates against table schema.',
+    inputSchema: {
+      table: z.string().describe('Table name'),
+      data: z.record(z.unknown()).describe('Record data to insert'),
+    },
+    _meta: UI_META,
+  },
+  async (args) => {
+    const result = await dbCreate(args as unknown as DbCreateInput)
+    return {
+      content: [{ type: 'text' as const, text: JSON.stringify(result, null, 2) }],
+      isError: result.error !== undefined,
+    }
+  }
+)
+
+// db_update
+registerAppTool(
+  server,
+  'db_update',
+  {
+    description: 'Update an existing record by ID. Validates against table schema.',
+    inputSchema: {
+      table: z.string().describe('Table name'),
+      id: z.string().describe('UUID of the record to update'),
+      data: z.record(z.unknown()).describe('Fields to update'),
+    },
+    _meta: UI_META,
+  },
+  async (args) => {
+    const result = await dbUpdate(args as unknown as DbUpdateInput)
+    return {
+      content: [{ type: 'text' as const, text: JSON.stringify(result, null, 2) }],
+      isError: result.error !== undefined,
+    }
+  }
+)
+
+// db_delete
+registerAppTool(
+  server,
+  'db_delete',
+  {
+    description: 'Delete a record by ID',
+    inputSchema: {
+      table: z.string().describe('Table name'),
+      id: z.string().describe('UUID of the record to delete'),
+    },
+    _meta: UI_META,
+  },
+  async (args) => {
+    const result = await dbDelete(args as unknown as DbDeleteInput)
+    return {
+      content: [{ type: 'text' as const, text: JSON.stringify(result, null, 2) }],
+      isError: result.error !== undefined,
+    }
+  }
+)
+
+// ---------------------------------------------------------------------------
+// App-only tool — only callable by the UI, invisible to the model
+// For testing bidirectional communication
+// ---------------------------------------------------------------------------
+
+registerAppTool(
+  server,
+  'app_status',
+  {
+    description: 'Returns app connection status and server metadata. App-only — not visible to the model.',
+    _meta: {
+      ui: {
+        resourceUri: 'ui://jfriis/dashboard',
+        visibility: ['app'],
+      },
+    },
+  },
+  async () => {
+    return {
+      content: [{
+        type: 'text' as const,
+        text: JSON.stringify({
+          server: 'jfriis-mcp',
+          version: '1.1.0',
+          uptime_s: Math.floor(process.uptime()),
+          timestamp: new Date().toISOString(),
+          node_version: process.version,
+        }, null, 2),
+      }],
+    }
+  }
+)
+
+// ---------------------------------------------------------------------------
 // Start server
+// ---------------------------------------------------------------------------
+
 async function main() {
   const transport = new StdioServerTransport()
   await server.connect(transport)
-  console.error('jfriis-mcp server running on stdio')
+  console.error('jfriis-mcp server v1.1.0 running on stdio (MCP Apps enabled)')
 }
 
 main().catch((error) => {

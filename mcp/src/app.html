@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>jfriis MCP App</title>
+<style>
+  :root {
+    --bg: var(--mcp-bg, #1a1a2e);
+    --fg: var(--mcp-fg, #e0e0e0);
+    --accent: var(--mcp-accent, #6c63ff);
+    --border: var(--mcp-border, #333);
+    --surface: var(--mcp-surface, #16213e);
+    --radius: 8px;
+    --mono: 'SF Mono', 'Fira Code', monospace;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: system-ui, -apple-system, sans-serif;
+    background: var(--bg);
+    color: var(--fg);
+    padding: 16px;
+    font-size: 14px;
+    line-height: 1.5;
+  }
+
+  header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 16px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  header h1 {
+    font-size: 16px;
+    font-weight: 600;
+  }
+
+  .status {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    padding: 2px 8px;
+    border-radius: 12px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+  }
+
+  .status .dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #666;
+  }
+
+  .status.connected .dot { background: #4caf50; }
+  .status.error .dot { background: #f44336; }
+  .status.initializing .dot { background: #ff9800; }
+
+  .panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 12px;
+    margin-bottom: 12px;
+  }
+
+  .panel h2 {
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--accent);
+    margin-bottom: 8px;
+  }
+
+  .kv { display: grid; grid-template-columns: 120px 1fr; gap: 4px 8px; font-size: 13px; }
+  .kv dt { color: #888; }
+  .kv dd { font-family: var(--mono); font-size: 12px; word-break: break-all; }
+
+  .actions { display: flex; gap: 8px; flex-wrap: wrap; }
+
+  button {
+    font-family: inherit;
+    font-size: 13px;
+    padding: 6px 14px;
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--fg);
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s;
+  }
+
+  button:hover { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 15%, var(--surface)); }
+  button:active { transform: scale(0.98); }
+  button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  .log {
+    font-family: var(--mono);
+    font-size: 11px;
+    max-height: 200px;
+    overflow-y: auto;
+    padding: 8px;
+    background: #0d0d1a;
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+  }
+
+  .log-entry { padding: 2px 0; border-bottom: 1px solid #1a1a2e; }
+  .log-entry:last-child { border-bottom: none; }
+  .log-entry .dir { color: #888; margin-right: 4px; }
+  .log-entry .method { color: var(--accent); }
+  .log-entry .ts { color: #555; font-size: 10px; }
+
+  .result {
+    font-family: var(--mono);
+    font-size: 12px;
+    max-height: 300px;
+    overflow-y: auto;
+    padding: 8px;
+    background: #0d0d1a;
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+
+  .empty { color: #555; font-style: italic; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>jfriis</h1>
+  <div class="status initializing" id="status">
+    <span class="dot"></span>
+    <span id="status-text">initializing</span>
+  </div>
+</header>
+
+<!-- Host Context -->
+<div class="panel" id="context-panel">
+  <h2>Host Context</h2>
+  <div id="context-content" class="empty">Waiting for initialization...</div>
+</div>
+
+<!-- Actions -->
+<div class="panel">
+  <h2>Actions</h2>
+  <div class="actions">
+    <button id="btn-tables" disabled>List Tables</button>
+    <button id="btn-status" disabled>App Status</button>
+    <button id="btn-ping" disabled>Ping</button>
+  </div>
+</div>
+
+<!-- Result -->
+<div class="panel" id="result-panel" style="display:none;">
+  <h2>Result</h2>
+  <div class="result" id="result"></div>
+</div>
+
+<!-- Message Log -->
+<div class="panel">
+  <h2>Message Log</h2>
+  <div class="log" id="log">
+    <div class="empty">No messages yet</div>
+  </div>
+</div>
+
+<script>
+(function() {
+  // State
+  let rpcId = 0;
+  const pending = new Map(); // id -> { resolve, reject, method }
+  let initialized = false;
+
+  // DOM refs
+  const statusEl = document.getElementById('status');
+  const statusText = document.getElementById('status-text');
+  const contextContent = document.getElementById('context-content');
+  const logEl = document.getElementById('log');
+  const resultPanel = document.getElementById('result-panel');
+  const resultEl = document.getElementById('result');
+  const btnTables = document.getElementById('btn-tables');
+  const btnStatus = document.getElementById('btn-status');
+  const btnPing = document.getElementById('btn-ping');
+
+  // Logging
+  function log(dir, method, data) {
+    if (logEl.querySelector('.empty')) logEl.innerHTML = '';
+    const entry = document.createElement('div');
+    entry.className = 'log-entry';
+    const ts = new Date().toISOString().slice(11, 23);
+    const preview = data ? ' ' + JSON.stringify(data).slice(0, 80) : '';
+    entry.innerHTML = `<span class="ts">${ts}</span> <span class="dir">${dir}</span><span class="method">${method}</span>${preview}`;
+    logEl.appendChild(entry);
+    logEl.scrollTop = logEl.scrollHeight;
+  }
+
+  function showResult(data) {
+    resultPanel.style.display = '';
+    resultEl.textContent = typeof data === 'string' ? data : JSON.stringify(data, null, 2);
+  }
+
+  function setStatus(state, text) {
+    statusEl.className = 'status ' + state;
+    statusText.textContent = text;
+  }
+
+  // JSON-RPC over postMessage
+  function send(method, params) {
+    const id = ++rpcId;
+    const msg = { jsonrpc: '2.0', id, method, params: params || {} };
+    log('\u2192', method, params);
+    window.parent.postMessage(msg, '*');
+    return new Promise((resolve, reject) => {
+      pending.set(id, { resolve, reject, method });
+    });
+  }
+
+  function notify(method, params) {
+    const msg = { jsonrpc: '2.0', method, params: params || {} };
+    log('\u2192', method, params);
+    window.parent.postMessage(msg, '*');
+  }
+
+  // Handle incoming messages from host
+  window.addEventListener('message', (event) => {
+    const msg = event.data;
+    if (!msg || msg.jsonrpc !== '2.0') return;
+
+    // Response to our request
+    if (msg.id && pending.has(msg.id)) {
+      const { resolve, reject, method } = pending.get(msg.id);
+      pending.delete(msg.id);
+      if (msg.error) {
+        log('\u2190 err', method, msg.error);
+        reject(msg.error);
+      } else {
+        log('\u2190 ok', method);
+        resolve(msg.result);
+      }
+      return;
+    }
+
+    // Notification from host
+    if (msg.method) {
+      log('\u2190', msg.method, msg.params);
+      handleNotification(msg.method, msg.params);
+    }
+  });
+
+  function handleNotification(method, params) {
+    switch (method) {
+      case 'ui/notifications/tool-result':
+        showResult(params);
+        break;
+      case 'ui/notifications/display-mode-changed':
+        log('\u2139', 'display mode', params);
+        break;
+      default:
+        log('\u2139', 'unhandled: ' + method, params);
+    }
+  }
+
+  // Initialize
+  async function init() {
+    try {
+      const result = await send('ui/initialize', {
+        capabilities: {
+          displayModes: ['inline', 'panel']
+        }
+      });
+
+      initialized = true;
+      setStatus('connected', 'connected');
+
+      // Show host context
+      contextContent.className = '';
+      const kv = document.createElement('dl');
+      kv.className = 'kv';
+
+      const fields = {
+        'Display Mode': result?.displayMode || 'unknown',
+        'Container': result?.container ? `${result.container.width}x${result.container.height}` : 'unknown',
+        'Theme': result?.theme ? 'provided' : 'none',
+        'Capabilities': JSON.stringify(result?.capabilities || {}),
+      };
+
+      for (const [k, v] of Object.entries(fields)) {
+        kv.innerHTML += `<dt>${k}</dt><dd>${v}</dd>`;
+      }
+      contextContent.innerHTML = '';
+      contextContent.appendChild(kv);
+
+      // Enable buttons
+      btnTables.disabled = false;
+      btnStatus.disabled = false;
+      btnPing.disabled = false;
+
+    } catch (err) {
+      setStatus('error', 'init failed');
+      contextContent.className = '';
+      contextContent.textContent = 'Initialization error: ' + (err.message || JSON.stringify(err));
+    }
+  }
+
+  // Tool calls through the host
+  async function callTool(name, args) {
+    try {
+      const result = await send('tools/call', { name, arguments: args || {} });
+      showResult(result);
+    } catch (err) {
+      showResult({ error: err.message || err });
+    }
+  }
+
+  // Button handlers
+  btnTables.addEventListener('click', () => callTool('db_list_tables', {}));
+  btnStatus.addEventListener('click', () => callTool('app_status', {}));
+  btnPing.addEventListener('click', async () => {
+    const start = performance.now();
+    try {
+      await send('ping', {});
+      const ms = (performance.now() - start).toFixed(1);
+      showResult({ pong: true, roundtrip_ms: ms });
+    } catch (err) {
+      showResult({ error: err.message || err });
+    }
+  });
+
+  // Start
+  init();
+})();
+</script>
+
+</body>
+</html>
