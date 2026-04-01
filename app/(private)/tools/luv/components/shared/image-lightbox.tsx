@@ -58,18 +58,46 @@ export function ImageLightbox({ images, currentIndex, onClose, onNavigate, onAtt
     try {
       const res = await fetch(current.url);
       const blob = await res.blob();
-      await navigator.clipboard.write([new ClipboardItem({ [blob.type]: blob })]);
+      // Clipboard API requires image/png for pasting into most apps
+      let pngBlob = blob;
+      if (blob.type !== 'image/png') {
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        const loaded = new Promise<void>((resolve, reject) => {
+          img.onload = () => resolve();
+          img.onerror = reject;
+        });
+        img.src = URL.createObjectURL(blob);
+        await loaded;
+        const canvas = document.createElement('canvas');
+        canvas.width = img.naturalWidth;
+        canvas.height = img.naturalHeight;
+        canvas.getContext('2d')!.drawImage(img, 0, 0);
+        URL.revokeObjectURL(img.src);
+        pngBlob = await new Promise<Blob>((resolve) =>
+          canvas.toBlob((b) => resolve(b!), 'image/png')
+        );
+      }
+      await navigator.clipboard.write([new ClipboardItem({ 'image/png': pngBlob })]);
       showToast('Copied');
     } catch { showToast('Copy failed'); }
   }, [current, showToast]);
 
-  const handleDownload = useCallback(() => {
+  const handleDownload = useCallback(async () => {
     if (!current) return;
-    const a = document.createElement('a');
-    a.href = current.url;
-    a.download = current.cogImageId ? `image-${current.cogImageId}` : 'image';
-    a.click();
-  }, [current]);
+    try {
+      const res = await fetch(current.url);
+      const blob = await res.blob();
+      const ext = blob.type.includes('png') ? 'png' : blob.type.includes('webp') ? 'webp' : 'jpg';
+      const filename = current.cogImageId ? `image-${current.cogImageId}.${ext}` : `image.${ext}`;
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch { showToast('Download failed'); }
+  }, [current, showToast]);
 
   const handleCopyId = useCallback(() => {
     if (!current?.cogImageId) return;

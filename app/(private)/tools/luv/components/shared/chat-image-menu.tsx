@@ -27,19 +27,46 @@ export function ChatImageMenu({ src, cogImageId, children }: ChatImageMenuProps)
     try {
       const res = await fetch(src);
       const blob = await res.blob();
-      await navigator.clipboard.write([
-        new ClipboardItem({ [blob.type]: blob }),
-      ]);
+      // Convert to PNG for universal paste compatibility
+      let pngBlob = blob;
+      if (blob.type !== 'image/png') {
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        await new Promise<void>((resolve, reject) => {
+          img.onload = () => resolve();
+          img.onerror = reject;
+          img.src = URL.createObjectURL(blob);
+        });
+        const canvas = document.createElement('canvas');
+        canvas.width = img.naturalWidth;
+        canvas.height = img.naturalHeight;
+        canvas.getContext('2d')!.drawImage(img, 0, 0);
+        URL.revokeObjectURL(img.src);
+        pngBlob = await new Promise<Blob>((resolve) =>
+          canvas.toBlob((b) => resolve(b!), 'image/png')
+        );
+      }
+      await navigator.clipboard.write([new ClipboardItem({ 'image/png': pngBlob })]);
     } catch (err) {
       console.error('Copy to clipboard failed:', err);
     }
   }, [src]);
 
-  const handleDownload = useCallback(() => {
-    const a = document.createElement('a');
-    a.href = src;
-    a.download = cogImageId ? `image-${cogImageId}` : 'image';
-    a.click();
+  const handleDownload = useCallback(async () => {
+    try {
+      const res = await fetch(src);
+      const blob = await res.blob();
+      const ext = blob.type.includes('png') ? 'png' : blob.type.includes('webp') ? 'webp' : 'jpg';
+      const filename = cogImageId ? `image-${cogImageId}.${ext}` : `image.${ext}`;
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('Download failed:', err);
+    }
   }, [src, cogImageId]);
 
   const handleCopyId = useCallback(() => {
