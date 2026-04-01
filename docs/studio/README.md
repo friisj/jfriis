@@ -364,6 +364,30 @@ Pulse plugs into the tools teams already use and generates contextual quizzes th
 
 ---
 
+### MCPA
+**Status**: Phase 1 (Exploration) - Initial setup and research
+**Location**: `/components/studio/prototypes/mcpa/` + `/docs/studio/mcpa/`
+**Focus**: Prototyping MCP App affordances — architecture, states, transformations, and interaction patterns
+
+**Current State**:
+- ✅ Project scaffolding and initial research
+- ⏳ Mapping MCP Apps spec surface (resource URIs, preloading, sandboxing, JSON-RPC)
+- ⏳ Identifying experiment candidates (state machines, streaming, tool chaining)
+
+**Concept**:
+MCP Apps embed interactive HTML UIs inside AI conversation contexts via sandboxed iframes, communicating bidirectionally with the host through JSON-RPC over postMessage. This project explores the affordances and limits of this model — what architectural patterns work, where functional approaches apply, and where new ground needs to be broken. Pure prototyping with no commercial ambitions.
+
+**Next Steps**:
+1. Map the full MCP Apps spec surface
+2. Define key terms and architectural concepts
+3. Identify specific experiments (state machines, streaming, tool chaining)
+4. Build first prototype MCP app
+5. Document patterns discovered
+
+**Documents**: `/docs/studio/mcpa/exploration/` (research.md, definitions.md)
+
+---
+
 ### Sub-Prompt
 **Status**: Phase 1 (Exploration) - Initial research and concept definition
 **Location**: `/components/studio/prototypes/sub-prompt/` + `/docs/studio/sub-prompt/`
