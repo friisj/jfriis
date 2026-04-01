@@ -12,6 +12,7 @@ import {
   getLuvMessagesServer,
   createLuvMessageServer,
   incrementTurnCountServer,
+  generateConversationTitleServer,
 } from '@/lib/luv-server';
 import { getChassisModulesServer } from '@/lib/luv-chassis-server';
 import { listLuvResearchServer } from '@/lib/luv-research-server';
@@ -296,6 +297,17 @@ export async function POST(request: Request) {
           }
         } catch (err) {
           console.error('[luv/chat] Failed to persist assistant message:', err);
+        }
+
+        // Generate a real title after the first exchange (non-blocking)
+        if (turnCount === 1 && latestMessage) {
+          generateConversationTitleServer(
+            convId,
+            getMessageText(latestMessage),
+            event.text,
+          ).catch((err) => {
+            console.error('[luv/chat] Title generation failed:', err);
+          });
         }
 
         // Scan tool results for heartbeat triggers (non-blocking)
