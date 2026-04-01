@@ -82,7 +82,7 @@ export function ImageLightbox({ images, currentIndex, onClose, onNavigate }: Ima
     touchRef.current = null;
   }, [swipeOffset, hasNext, hasPrev, goNext, goPrev]);
 
-  if (!current) return null;
+  if (!images?.length || !current) return null;
 
   return (
     <div
