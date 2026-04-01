@@ -24,18 +24,18 @@ import { randomUUID } from 'crypto';
 export type VideoProvider = 'veo' | 'grok';
 export type VideoAspectRatio = '16:9' | '9:16';
 export type VideoResolution = '720p' | '1080p' | '4K';
-export type VeoDuration = 4 | 6 | 8;
+export type VeoDuration = 5 | 6 | 8;
 export type GrokDuration = number; // 1–15 seconds
 
 export interface VideoJobOptions {
   provider: VideoProvider;
   prompt: string;
-  referenceImage?: { base64: string; mimeType: string }; // i2v: first-frame conditioning
+  referenceImage?: { base64: string; mimeType: string; publicUrl?: string }; // i2v: first-frame conditioning
   aspectRatio?: VideoAspectRatio;
   durationSeconds?: number;
   resolution?: VideoResolution;
   /** Veo model alias */
-  veoModel?: 'veo-3.0' | 'veo-3.1';
+  veoModel?: 'veo-3.1' | 'veo-3.1-fast';
 }
 
 export interface VideoJobRecord {
@@ -55,12 +55,12 @@ export interface VideoJobRecord {
 
 const COG_BUCKET = 'cog-images';
 
-/** GA model IDs for Gemini API */
+/** Preview model IDs for Gemini API (Veo 3.1) */
 const VEO_MODELS: Record<string, string> = {
-  'veo-3.0': 'veo-3.0-generate-001',
-  'veo-3.1': 'veo-3.1-generate-001',
+  'veo-3.1': 'veo-3.1-generate-preview',
+  'veo-3.1-fast': 'veo-3.1-fast-generate-preview',
 };
-const VEO_DEFAULT = 'veo-3.0';
+const VEO_DEFAULT = 'veo-3.1';
 
 const GEMINI_BASE = 'https://generativelanguage.googleapis.com/v1beta';
 const XAI_BASE = 'https://api.x.ai/v1';
@@ -92,7 +92,7 @@ async function insertJobRow(
       aspect_ratio: opts.aspectRatio ?? '16:9',
       duration_seconds: opts.durationSeconds,
       resolution: opts.resolution ?? '720p',
-      model: opts.veoModel ?? (provider === 'veo' ? VEO_DEFAULT : 'grok-imagine-video'),
+      model: provider === 'veo' ? VEO_MODELS[opts.veoModel ?? VEO_DEFAULT] : 'grok-imagine-video',
       reference_image_count: opts.referenceImage ? 1 : 0,
       status: 'pending',
       provider_config: { provider },
@@ -195,38 +195,46 @@ async function submitVeo(opts: VideoJobOptions): Promise<string> {
   if (!apiKey) throw new Error('GOOGLE_GENERATIVE_AI_API_KEY not configured');
 
   const modelId = VEO_MODELS[opts.veoModel ?? VEO_DEFAULT];
-
-  // Veo uses the Gemini generateVideos endpoint
   const endpoint = `${GEMINI_BASE}/models/${modelId}:predictLongRunning`;
 
-  // Build generation config — only aspectRatio is supported
-  // videoDuration and personGeneration are NOT supported by Veo predictLongRunning
-  const generationConfig: Record<string, unknown> = {
-    aspectRatio: opts.aspectRatio ?? '16:9',
-  };
-
-  // Build the instance — text-to-video only for now
-  // Veo's predictLongRunning does NOT support referenceImages
-  // i2v would require the generateContent endpoint with a different model
+  // Build the instance
   const instance: Record<string, unknown> = {
     prompt: opts.prompt,
   };
 
+  // i2v: attach reference image as first-frame conditioning
+  // Veo 3.1 accepts image.bytesBase64Encoded in the instance
+  // Constraints: reference images require 16:9 aspect ratio and 8s duration
   if (opts.referenceImage) {
-    console.warn('[luv-video-gen] Veo text-to-video does not support referenceImages — ignoring i2v input');
+    instance.image = {
+      bytesBase64Encoded: opts.referenceImage.base64,
+      mimeType: opts.referenceImage.mimeType,
+    };
+    console.log('[luv-video-gen] Veo i2v: reference image attached, enforcing 16:9 + 8s');
   }
 
+  // Parameters — Veo predictLongRunning accepts:
+  //   aspectRatio, sampleCount, durationSeconds (string), personGeneration
+  const parameters: Record<string, unknown> = {
+    aspectRatio: opts.referenceImage ? '16:9' : (opts.aspectRatio ?? '16:9'),
+    sampleCount: 1,
+    personGeneration: 'allow_all',
+  };
+
+  // Duration: number format, default 8s for i2v, otherwise use requested
+  parameters.durationSeconds = opts.referenceImage ? 8 : (opts.durationSeconds ?? 8);
+
   const requestBody = {
-    model: `models/${modelId}`,
     instances: [instance],
-    parameters: generationConfig,
+    parameters,
   };
 
   console.log('[luv-video-gen] Veo submit:', {
     model: modelId,
     prompt: opts.prompt.slice(0, 80),
-    duration: generationConfig.videoDuration,
-    aspectRatio: generationConfig.aspectRatio,
+    i2v: !!opts.referenceImage,
+    aspectRatio: parameters.aspectRatio,
+    duration: parameters.durationSeconds,
   });
 
   const res = await fetch(endpoint, {
@@ -336,8 +344,15 @@ async function submitGrok(opts: VideoJobOptions): Promise<string> {
   };
 
   if (opts.referenceImage) {
-    const dataUrl = `data:${opts.referenceImage.mimeType};base64,${opts.referenceImage.base64}`;
-    body.image = dataUrl;
+    // Grok expects a publicly accessible URL, not a data URL or base64.
+    // Cog images already have public URLs via Supabase storage.
+    if (opts.referenceImage.publicUrl) {
+      body.image_url = opts.referenceImage.publicUrl;
+    } else {
+      // Fallback for chat-extracted images (no storage path) — use data URL
+      body.image_url = `data:${opts.referenceImage.mimeType};base64,${opts.referenceImage.base64}`;
+      console.warn('[luv-video-gen] Grok i2v: no public URL available, using data URL (may fail)');
+    }
   }
 
   const res = await fetch(`${XAI_BASE}/videos/generations`, {
@@ -380,12 +395,13 @@ async function pollGrok(
   const json = await res.json();
   const status = json.status as string;
 
-  if (status === 'pending' || status === 'processing') return { done: false };
+  if (status === 'pending' || status === 'in_progress') return { done: false };
   if (status === 'failed') return { done: true, error: json.error ?? 'Grok generation failed' };
   if (status === 'expired') return { done: true, error: 'Grok: job expired before retrieval' };
 
-  const videoUrl = json.video_url as string | undefined;
-  if (!videoUrl) return { done: true, error: 'Grok: no video_url in completed response' };
+  // Grok returns status "done" with video.url
+  const videoUrl = json.video?.url as string | undefined;
+  if (!videoUrl) return { done: true, error: 'Grok: no video.url in completed response' };
 
   return { done: true, videoUrl };
 }

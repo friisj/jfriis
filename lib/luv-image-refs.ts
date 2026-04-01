@@ -18,6 +18,8 @@ import { createClient } from '@supabase/supabase-js';
 export interface ResolvedImage {
   base64: string;
   mimeType: string;
+  /** Public URL when available (Cog images always have this) */
+  publicUrl?: string;
 }
 
 export interface ImageRefSources {
@@ -85,12 +87,19 @@ export async function resolveReferenceImages(
       }
 
       if (rows) {
+        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
         const settled = await Promise.allSettled(
           rows.map((r: { storage_path: string }) => resolveImageAsBase64(r.storage_path))
         );
-        for (const result of settled) {
+        for (let idx = 0; idx < settled.length; idx++) {
+          const result = settled[idx];
           if (result.status === 'fulfilled') {
-            images.push({ base64: result.value.base64, mimeType: result.value.mediaType });
+            const storagePath = rows[idx].storage_path as string;
+            images.push({
+              base64: result.value.base64,
+              mimeType: result.value.mediaType,
+              publicUrl: `${supabaseUrl}/storage/v1/object/public/cog-images/${storagePath}`,
+            });
           }
         }
       }
