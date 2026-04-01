@@ -195,41 +195,40 @@ async function submitVeo(opts: VideoJobOptions): Promise<string> {
   if (!apiKey) throw new Error('GOOGLE_GENERATIVE_AI_API_KEY not configured');
 
   const modelId = VEO_MODELS[opts.veoModel ?? VEO_DEFAULT];
+
+  // Veo uses the Gemini generateVideos endpoint
   const endpoint = `${GEMINI_BASE}/models/${modelId}:predictLongRunning`;
 
-  // Build video generation parameters
-  const videoConfig: Record<string, unknown> = {
-    durationSeconds: opts.durationSeconds ?? 6,
+  // Build generation config — provider-specific params only
+  // Note: personGeneration is NOT supported by Veo via Gemini API
+  const generationConfig: Record<string, unknown> = {
+    videoDuration: `${opts.durationSeconds ?? 6}s`,
     aspectRatio: opts.aspectRatio ?? '16:9',
-    resolution: opts.resolution ?? '720p',
-    personGeneration: 'allow_adult',
   };
 
-  const requestBody: Record<string, unknown> = {
-    model: `models/${modelId}`,
-    instances: [
-      {
-        prompt: opts.prompt,
-        // i2v: Gemini API uses referenceImages with inlineData (not bytesBase64Encoded)
-        ...(opts.referenceImage
-          ? {
-              referenceImages: [
-                {
-                  image: {
-                    inlineData: {
-                      mimeType: opts.referenceImage.mimeType,
-                      data: opts.referenceImage.base64,
-                    },
-                  },
-                  referenceType: 'asset',
-                },
-              ],
-            }
-          : {}),
-      },
-    ],
-    parameters: videoConfig,
+  // Build the instance — text-to-video only for now
+  // Veo's predictLongRunning does NOT support referenceImages
+  // i2v would require the generateContent endpoint with a different model
+  const instance: Record<string, unknown> = {
+    prompt: opts.prompt,
   };
+
+  if (opts.referenceImage) {
+    console.warn('[luv-video-gen] Veo text-to-video does not support referenceImages — ignoring i2v input');
+  }
+
+  const requestBody = {
+    model: `models/${modelId}`,
+    instances: [instance],
+    parameters: generationConfig,
+  };
+
+  console.log('[luv-video-gen] Veo submit:', {
+    model: modelId,
+    prompt: opts.prompt.slice(0, 80),
+    duration: generationConfig.videoDuration,
+    aspectRatio: generationConfig.aspectRatio,
+  });
 
   const res = await fetch(endpoint, {
     method: 'POST',
