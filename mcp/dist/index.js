@@ -1,12 +1,14 @@
 #!/usr/bin/env node
 
 // src/index.ts
-import { Server } from "@modelcontextprotocol/sdk/server/index.js";
+import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import { z as z16 } from "zod";
 import {
-  CallToolRequestSchema,
-  ListToolsRequestSchema
-} from "@modelcontextprotocol/sdk/types.js";
+  registerAppTool,
+  registerAppResource,
+  RESOURCE_MIME_TYPE
+} from "@modelcontextprotocol/ext-apps/server";
 
 // src/supabase.ts
 import { createClient } from "@supabase/supabase-js";
@@ -1627,220 +1629,539 @@ async function dbDelete2(input) {
   return dbDelete(supabase, input);
 }
 
+// src/app.html
+var app_default = `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>jfriis MCP App</title>
+<style>
+  :root {
+    --bg: var(--mcp-bg, #1a1a2e);
+    --fg: var(--mcp-fg, #e0e0e0);
+    --accent: var(--mcp-accent, #6c63ff);
+    --border: var(--mcp-border, #333);
+    --surface: var(--mcp-surface, #16213e);
+    --radius: 8px;
+    --mono: 'SF Mono', 'Fira Code', monospace;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: system-ui, -apple-system, sans-serif;
+    background: var(--bg);
+    color: var(--fg);
+    padding: 16px;
+    font-size: 14px;
+    line-height: 1.5;
+  }
+
+  header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 16px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  header h1 {
+    font-size: 16px;
+    font-weight: 600;
+  }
+
+  .status {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    padding: 2px 8px;
+    border-radius: 12px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+  }
+
+  .status .dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #666;
+  }
+
+  .status.connected .dot { background: #4caf50; }
+  .status.error .dot { background: #f44336; }
+  .status.initializing .dot { background: #ff9800; }
+
+  .panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 12px;
+    margin-bottom: 12px;
+  }
+
+  .panel h2 {
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--accent);
+    margin-bottom: 8px;
+  }
+
+  .kv { display: grid; grid-template-columns: 120px 1fr; gap: 4px 8px; font-size: 13px; }
+  .kv dt { color: #888; }
+  .kv dd { font-family: var(--mono); font-size: 12px; word-break: break-all; }
+
+  .actions { display: flex; gap: 8px; flex-wrap: wrap; }
+
+  button {
+    font-family: inherit;
+    font-size: 13px;
+    padding: 6px 14px;
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--fg);
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s;
+  }
+
+  button:hover { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 15%, var(--surface)); }
+  button:active { transform: scale(0.98); }
+  button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  .log {
+    font-family: var(--mono);
+    font-size: 11px;
+    max-height: 200px;
+    overflow-y: auto;
+    padding: 8px;
+    background: #0d0d1a;
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+  }
+
+  .log-entry { padding: 2px 0; border-bottom: 1px solid #1a1a2e; }
+  .log-entry:last-child { border-bottom: none; }
+  .log-entry .dir { color: #888; margin-right: 4px; }
+  .log-entry .method { color: var(--accent); }
+  .log-entry .ts { color: #555; font-size: 10px; }
+
+  .result {
+    font-family: var(--mono);
+    font-size: 12px;
+    max-height: 300px;
+    overflow-y: auto;
+    padding: 8px;
+    background: #0d0d1a;
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+
+  .empty { color: #555; font-style: italic; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>jfriis</h1>
+  <div class="status initializing" id="status">
+    <span class="dot"></span>
+    <span id="status-text">initializing</span>
+  </div>
+</header>
+
+<!-- Host Context -->
+<div class="panel" id="context-panel">
+  <h2>Host Context</h2>
+  <div id="context-content" class="empty">Waiting for initialization...</div>
+</div>
+
+<!-- Actions -->
+<div class="panel">
+  <h2>Actions</h2>
+  <div class="actions">
+    <button id="btn-tables" disabled>List Tables</button>
+    <button id="btn-status" disabled>App Status</button>
+    <button id="btn-ping" disabled>Ping</button>
+  </div>
+</div>
+
+<!-- Result -->
+<div class="panel" id="result-panel" style="display:none;">
+  <h2>Result</h2>
+  <div class="result" id="result"></div>
+</div>
+
+<!-- Message Log -->
+<div class="panel">
+  <h2>Message Log</h2>
+  <div class="log" id="log">
+    <div class="empty">No messages yet</div>
+  </div>
+</div>
+
+<script>
+(function() {
+  // State
+  let rpcId = 0;
+  const pending = new Map(); // id -> { resolve, reject, method }
+  let initialized = false;
+
+  // DOM refs
+  const statusEl = document.getElementById('status');
+  const statusText = document.getElementById('status-text');
+  const contextContent = document.getElementById('context-content');
+  const logEl = document.getElementById('log');
+  const resultPanel = document.getElementById('result-panel');
+  const resultEl = document.getElementById('result');
+  const btnTables = document.getElementById('btn-tables');
+  const btnStatus = document.getElementById('btn-status');
+  const btnPing = document.getElementById('btn-ping');
+
+  // Logging
+  function log(dir, method, data) {
+    if (logEl.querySelector('.empty')) logEl.innerHTML = '';
+    const entry = document.createElement('div');
+    entry.className = 'log-entry';
+    const ts = new Date().toISOString().slice(11, 23);
+    const preview = data ? ' ' + JSON.stringify(data).slice(0, 80) : '';
+    entry.innerHTML = \`<span class="ts">\${ts}</span> <span class="dir">\${dir}</span><span class="method">\${method}</span>\${preview}\`;
+    logEl.appendChild(entry);
+    logEl.scrollTop = logEl.scrollHeight;
+  }
+
+  function showResult(data) {
+    resultPanel.style.display = '';
+    resultEl.textContent = typeof data === 'string' ? data : JSON.stringify(data, null, 2);
+  }
+
+  function setStatus(state, text) {
+    statusEl.className = 'status ' + state;
+    statusText.textContent = text;
+  }
+
+  // JSON-RPC over postMessage
+  function send(method, params) {
+    const id = ++rpcId;
+    const msg = { jsonrpc: '2.0', id, method, params: params || {} };
+    log('\\u2192', method, params);
+    window.parent.postMessage(msg, '*');
+    return new Promise((resolve, reject) => {
+      pending.set(id, { resolve, reject, method });
+    });
+  }
+
+  function notify(method, params) {
+    const msg = { jsonrpc: '2.0', method, params: params || {} };
+    log('\\u2192', method, params);
+    window.parent.postMessage(msg, '*');
+  }
+
+  // Handle incoming messages from host
+  window.addEventListener('message', (event) => {
+    const msg = event.data;
+    if (!msg || msg.jsonrpc !== '2.0') return;
+
+    // Response to our request
+    if (msg.id && pending.has(msg.id)) {
+      const { resolve, reject, method } = pending.get(msg.id);
+      pending.delete(msg.id);
+      if (msg.error) {
+        log('\\u2190 err', method, msg.error);
+        reject(msg.error);
+      } else {
+        log('\\u2190 ok', method);
+        resolve(msg.result);
+      }
+      return;
+    }
+
+    // Notification from host
+    if (msg.method) {
+      log('\\u2190', msg.method, msg.params);
+      handleNotification(msg.method, msg.params);
+    }
+  });
+
+  function handleNotification(method, params) {
+    switch (method) {
+      case 'ui/notifications/tool-result':
+        showResult(params);
+        break;
+      case 'ui/notifications/display-mode-changed':
+        log('\\u2139', 'display mode', params);
+        break;
+      default:
+        log('\\u2139', 'unhandled: ' + method, params);
+    }
+  }
+
+  // Initialize
+  async function init() {
+    try {
+      const result = await send('ui/initialize', {
+        capabilities: {
+          displayModes: ['inline', 'panel']
+        }
+      });
+
+      initialized = true;
+      setStatus('connected', 'connected');
+
+      // Show host context
+      contextContent.className = '';
+      const kv = document.createElement('dl');
+      kv.className = 'kv';
+
+      const fields = {
+        'Display Mode': result?.displayMode || 'unknown',
+        'Container': result?.container ? \`\${result.container.width}x\${result.container.height}\` : 'unknown',
+        'Theme': result?.theme ? 'provided' : 'none',
+        'Capabilities': JSON.stringify(result?.capabilities || {}),
+      };
+
+      for (const [k, v] of Object.entries(fields)) {
+        kv.innerHTML += \`<dt>\${k}</dt><dd>\${v}</dd>\`;
+      }
+      contextContent.innerHTML = '';
+      contextContent.appendChild(kv);
+
+      // Enable buttons
+      btnTables.disabled = false;
+      btnStatus.disabled = false;
+      btnPing.disabled = false;
+
+    } catch (err) {
+      setStatus('error', 'init failed');
+      contextContent.className = '';
+      contextContent.textContent = 'Initialization error: ' + (err.message || JSON.stringify(err));
+    }
+  }
+
+  // Tool calls through the host
+  async function callTool(name, args) {
+    try {
+      const result = await send('tools/call', { name, arguments: args || {} });
+      showResult(result);
+    } catch (err) {
+      showResult({ error: err.message || err });
+    }
+  }
+
+  // Button handlers
+  btnTables.addEventListener('click', () => callTool('db_list_tables', {}));
+  btnStatus.addEventListener('click', () => callTool('app_status', {}));
+  btnPing.addEventListener('click', async () => {
+    const start = performance.now();
+    try {
+      await send('ping', {});
+      const ms = (performance.now() - start).toFixed(1);
+      showResult({ pong: true, roundtrip_ms: ms });
+    } catch (err) {
+      showResult({ error: err.message || err });
+    }
+  });
+
+  // Start
+  init();
+})();
+</script>
+
+</body>
+</html>
+`;
+
 // src/index.ts
-var server = new Server(
+var server = new McpServer(
   {
     name: "jfriis-mcp",
-    version: "1.0.0"
+    version: "1.1.0"
   },
   {
     capabilities: {
-      tools: {}
+      tools: {},
+      resources: {}
     }
   }
 );
-server.setRequestHandler(ListToolsRequestSchema, async () => {
-  return {
-    tools: [
+registerAppResource(
+  server,
+  "jfriis Dashboard",
+  "ui://jfriis/dashboard",
+  {
+    description: "Interactive dashboard for jfriis.com database \u2014 browse tables, query data, inspect records."
+  },
+  async () => ({
+    contents: [
       {
-        name: "db_list_tables",
-        description: "List all registered tables and their schemas",
-        inputSchema: {
-          type: "object",
-          properties: {},
-          required: []
-        }
-      },
-      {
-        name: "db_query",
-        description: "Query records from a table with filtering, ordering, and pagination",
-        inputSchema: {
-          type: "object",
-          properties: {
-            table: {
-              type: "string",
-              description: "Table name"
-            },
-            select: {
-              type: "string",
-              description: 'Columns to select (default: "*")'
-            },
-            filter: {
-              type: "object",
-              description: "Equality filters as key-value pairs"
-            },
-            filter_in: {
-              type: "object",
-              description: "IN filters as key-array pairs"
-            },
-            filter_like: {
-              type: "object",
-              description: "ILIKE filters as key-pattern pairs"
-            },
-            order_by: {
-              type: "object",
-              properties: {
-                column: { type: "string" },
-                ascending: { type: "boolean" }
-              },
-              required: ["column"],
-              description: "Order by column"
-            },
-            limit: {
-              type: "number",
-              description: "Max records to return (default: 100, max: 1000)"
-            },
-            offset: {
-              type: "number",
-              description: "Records to skip (default: 0)"
-            }
-          },
-          required: ["table"]
-        }
-      },
-      {
-        name: "db_get",
-        description: "Fetch a single record by ID or slug",
-        inputSchema: {
-          type: "object",
-          properties: {
-            table: {
-              type: "string",
-              description: "Table name"
-            },
-            id: {
-              type: "string",
-              description: "UUID of the record"
-            },
-            slug: {
-              type: "string",
-              description: "URL-friendly identifier"
-            }
-          },
-          required: ["table"]
-        }
-      },
-      {
-        name: "db_create",
-        description: "Insert a new record. Validates against table schema.",
-        inputSchema: {
-          type: "object",
-          properties: {
-            table: {
-              type: "string",
-              description: "Table name"
-            },
-            data: {
-              type: "object",
-              description: "Record data to insert"
-            }
-          },
-          required: ["table", "data"]
-        }
-      },
-      {
-        name: "db_update",
-        description: "Update an existing record by ID. Validates against table schema.",
-        inputSchema: {
-          type: "object",
-          properties: {
-            table: {
-              type: "string",
-              description: "Table name"
-            },
-            id: {
-              type: "string",
-              description: "UUID of the record to update"
-            },
-            data: {
-              type: "object",
-              description: "Fields to update"
-            }
-          },
-          required: ["table", "id", "data"]
-        }
-      },
-      {
-        name: "db_delete",
-        description: "Delete a record by ID",
-        inputSchema: {
-          type: "object",
-          properties: {
-            table: {
-              type: "string",
-              description: "Table name"
-            },
-            id: {
-              type: "string",
-              description: "UUID of the record to delete"
-            }
-          },
-          required: ["table", "id"]
-        }
+        uri: "ui://jfriis/dashboard",
+        mimeType: RESOURCE_MIME_TYPE,
+        text: app_default
       }
     ]
-  };
-});
-server.setRequestHandler(CallToolRequestSchema, async (request) => {
-  const { name, arguments: args } = request.params;
-  try {
-    let result;
-    switch (name) {
-      case "db_list_tables":
-        result = await dbListTables2();
-        break;
-      case "db_query":
-        result = await dbQuery2(args);
-        break;
-      case "db_get":
-        result = await dbGet2(args);
-        break;
-      case "db_create":
-        result = await dbCreate2(args);
-        break;
-      case "db_update":
-        result = await dbUpdate2(args);
-        break;
-      case "db_delete":
-        result = await dbDelete2(args);
-        break;
-      default:
-        return {
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify({ error: `Unknown tool: ${name}` })
-            }
-          ],
-          isError: true
-        };
-    }
+  })
+);
+var UI_META = {
+  ui: { resourceUri: "ui://jfriis/dashboard" }
+};
+registerAppTool(
+  server,
+  "db_list_tables",
+  {
+    description: "List all registered tables and their schemas",
+    _meta: UI_META
+  },
+  async () => {
+    const result = await dbListTables2();
     return {
-      content: [
-        {
-          type: "text",
-          text: JSON.stringify(result, null, 2)
-        }
-      ],
+      content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
       isError: result.error !== void 0
     };
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "Unknown error";
+  }
+);
+registerAppTool(
+  server,
+  "db_query",
+  {
+    description: "Query records from a table with filtering, ordering, and pagination",
+    inputSchema: {
+      table: z16.string().describe("Table name"),
+      select: z16.string().optional().describe('Columns to select (default: "*")'),
+      filter: z16.record(z16.unknown()).optional().describe("Equality filters as key-value pairs"),
+      filter_in: z16.record(z16.array(z16.unknown())).optional().describe("IN filters as key-array pairs"),
+      filter_like: z16.record(z16.string()).optional().describe("ILIKE filters as key-pattern pairs"),
+      order_by: z16.object({
+        column: z16.string(),
+        ascending: z16.boolean().optional()
+      }).optional().describe("Order by column"),
+      limit: z16.number().optional().describe("Max records to return (default: 100, max: 1000)"),
+      offset: z16.number().optional().describe("Records to skip (default: 0)")
+    },
+    _meta: UI_META
+  },
+  async (args) => {
+    const result = await dbQuery2(args);
     return {
-      content: [
-        {
-          type: "text",
-          text: JSON.stringify({ error: message })
-        }
-      ],
-      isError: true
+      content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+      isError: result.error !== void 0
     };
   }
-});
+);
+registerAppTool(
+  server,
+  "db_get",
+  {
+    description: "Fetch a single record by ID or slug",
+    inputSchema: {
+      table: z16.string().describe("Table name"),
+      id: z16.string().optional().describe("UUID of the record"),
+      slug: z16.string().optional().describe("URL-friendly identifier")
+    },
+    _meta: UI_META
+  },
+  async (args) => {
+    const result = await dbGet2(args);
+    return {
+      content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+      isError: result.error !== void 0
+    };
+  }
+);
+registerAppTool(
+  server,
+  "db_create",
+  {
+    description: "Insert a new record. Validates against table schema.",
+    inputSchema: {
+      table: z16.string().describe("Table name"),
+      data: z16.record(z16.unknown()).describe("Record data to insert")
+    },
+    _meta: UI_META
+  },
+  async (args) => {
+    const result = await dbCreate2(args);
+    return {
+      content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+      isError: result.error !== void 0
+    };
+  }
+);
+registerAppTool(
+  server,
+  "db_update",
+  {
+    description: "Update an existing record by ID. Validates against table schema.",
+    inputSchema: {
+      table: z16.string().describe("Table name"),
+      id: z16.string().describe("UUID of the record to update"),
+      data: z16.record(z16.unknown()).describe("Fields to update")
+    },
+    _meta: UI_META
+  },
+  async (args) => {
+    const result = await dbUpdate2(args);
+    return {
+      content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+      isError: result.error !== void 0
+    };
+  }
+);
+registerAppTool(
+  server,
+  "db_delete",
+  {
+    description: "Delete a record by ID",
+    inputSchema: {
+      table: z16.string().describe("Table name"),
+      id: z16.string().describe("UUID of the record to delete")
+    },
+    _meta: UI_META
+  },
+  async (args) => {
+    const result = await dbDelete2(args);
+    return {
+      content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+      isError: result.error !== void 0
+    };
+  }
+);
+registerAppTool(
+  server,
+  "app_status",
+  {
+    description: "Returns app connection status and server metadata. App-only \u2014 not visible to the model.",
+    _meta: {
+      ui: {
+        resourceUri: "ui://jfriis/dashboard",
+        visibility: ["app"]
+      }
+    }
+  },
+  async () => {
+    return {
+      content: [{
+        type: "text",
+        text: JSON.stringify({
+          server: "jfriis-mcp",
+          version: "1.1.0",
+          uptime_s: Math.floor(process.uptime()),
+          timestamp: (/* @__PURE__ */ new Date()).toISOString(),
+          node_version: process.version
+        }, null, 2)
+      }]
+    };
+  }
+);
 async function main() {
   const transport = new StdioServerTransport();
   await server.connect(transport);
-  console.error("jfriis-mcp server running on stdio");
+  console.error("jfriis-mcp server v1.1.0 running on stdio (MCP Apps enabled)");
 }
 main().catch((error) => {
   console.error("Server error:", error);
