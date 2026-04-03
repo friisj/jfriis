@@ -14,7 +14,8 @@ import {
   type WallSegment,
 } from '@/lib/recess/maze3d'
 
-const MOVE_SPEED = 5 // units/sec
+const WALK_SPEED = 5 // units/sec
+const RUN_SPEED = 9 // units/sec (shift held)
 const TURN_SPEED = 2.5 // radians/sec
 const PLAYER_HEIGHT = 1.6
 const PLAYER_RADIUS = 0.35
@@ -150,14 +151,19 @@ function CameraController({ walls, state, onCellChange, posRef }: CameraControll
     prevCellRef.current = { row: state.playerPos.row, col: state.playerPos.col }
   }, [state.maze, state.playerPos.row, state.playerPos.col, camera, posRef])
 
-  // Key tracking — prevent default on arrows to avoid page scroll
+  // Key tracking — track modifier state separately for alt-strafe and shift-run
+  const modifiersRef = useRef({ alt: false, shift: false })
   useEffect(() => {
     const onDown = (e: KeyboardEvent) => {
       if (e.key.startsWith('Arrow')) e.preventDefault()
       keysRef.current.add(e.key.toLowerCase())
+      modifiersRef.current.alt = e.altKey
+      modifiersRef.current.shift = e.shiftKey
     }
     const onUp = (e: KeyboardEvent) => {
       keysRef.current.delete(e.key.toLowerCase())
+      modifiersRef.current.alt = e.altKey
+      modifiersRef.current.shift = e.shiftKey
     }
     window.addEventListener('keydown', onDown)
     window.addEventListener('keyup', onUp)
@@ -172,25 +178,50 @@ function CameraController({ walls, state, onCellChange, posRef }: CameraControll
 
     const keys = keysRef.current
     const pos = posRef.current
+    const { alt, shift } = modifiersRef.current
+    const speed = shift ? RUN_SPEED : WALK_SPEED
 
-    // Tank controls: left/right rotate, up/down move forward/back
+    // Classic Doom controls:
+    // - Left/Right: turn (or strafe when Alt held)
+    // - Up/Down: forward/back
+    // - Shift: run
     let turn = 0
     let forward = 0
+    let strafe = 0
 
-    if (keys.has('arrowleft') || keys.has('a')) turn += 1
-    if (keys.has('arrowright') || keys.has('d')) turn -= 1
+    if (keys.has('arrowleft') || keys.has('a')) {
+      if (alt) strafe -= 1  // Alt+Left = strafe left
+      else turn += 1
+    }
+    if (keys.has('arrowright') || keys.has('d')) {
+      if (alt) strafe += 1  // Alt+Right = strafe right
+      else turn -= 1
+    }
     if (keys.has('arrowup') || keys.has('w')) forward += 1
     if (keys.has('arrowdown') || keys.has('s')) forward -= 1
+    // Dedicated strafe keys (Q/E) as a modern convenience
+    if (keys.has('q')) strafe -= 1
+    if (keys.has('e')) strafe += 1
 
     // Apply rotation
     if (turn !== 0) {
       pos.yaw += turn * TURN_SPEED * delta
     }
 
-    // Apply forward/back movement along facing direction
-    if (forward !== 0) {
-      const dx = -Math.sin(pos.yaw) * forward * MOVE_SPEED * delta
-      const dz = -Math.cos(pos.yaw) * forward * MOVE_SPEED * delta
+    // Apply movement — forward along facing, strafe perpendicular
+    if (forward !== 0 || strafe !== 0) {
+      // Forward direction
+      let dx = -Math.sin(pos.yaw) * forward
+      let dz = -Math.cos(pos.yaw) * forward
+      // Strafe direction (perpendicular to facing)
+      dx += Math.cos(pos.yaw) * strafe
+      dz += -Math.sin(pos.yaw) * strafe
+      // Normalize diagonal movement so it's not faster
+      const len = Math.sqrt(dx * dx + dz * dz)
+      if (len > 0) {
+        dx = (dx / len) * speed * delta
+        dz = (dz / len) * speed * delta
+      }
       const newX = pos.x + dx
       const newZ = pos.z + dz
 
