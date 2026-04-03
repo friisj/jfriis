@@ -119,12 +119,8 @@ export function decorateMaze(maze: Maze): Decoration[] {
     for (let c = 0; c < cols; c++) {
       const ct = maze[r][c].content.type
       if (ct !== 'empty') {
-        // Exclude the cell itself and immediate neighbors
-        for (let dr = -1; dr <= 1; dr++) {
-          for (let dc = -1; dc <= 1; dc++) {
-            excluded.add(`${r + dr},${c + dc}`)
-          }
-        }
+        // Only exclude the cell itself — 3x3 was too aggressive on small mazes
+        excluded.add(`${r},${c}`)
       }
     }
   }
