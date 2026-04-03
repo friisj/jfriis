@@ -136,3 +136,62 @@ export function collidesWithWall(
   }
   return false
 }
+
+/**
+ * Resolve collisions by pushing the player out of any overlapping walls.
+ * Returns the corrected position. Handles multiple overlapping walls
+ * by iterating until resolved (up to a small limit).
+ */
+export function resolveCollisions(
+  x: number,
+  z: number,
+  walls: WallSegment[],
+  playerRadius: number = 0.35
+): { x: number; z: number } {
+  let px = x
+  let pz = z
+
+  // Iterate a few times to handle corner cases (two walls meeting)
+  for (let iter = 0; iter < 4; iter++) {
+    let pushed = false
+
+    for (const wall of walls) {
+      const hw = wall.width / 2
+      const hd = wall.depth / 2
+
+      // Closest point on AABB to circle center
+      const cx = Math.max(wall.x - hw, Math.min(px, wall.x + hw))
+      const cz = Math.max(wall.z - hd, Math.min(pz, wall.z + hd))
+
+      const dx = px - cx
+      const dz = pz - cz
+      const distSq = dx * dx + dz * dz
+
+      if (distSq < playerRadius * playerRadius) {
+        // Player overlaps this wall — push out along the penetration vector
+        if (distSq < 1e-8) {
+          // Dead center of wall — push toward nearest edge
+          const toLeft = Math.abs(px - (wall.x - hw))
+          const toRight = Math.abs(px - (wall.x + hw))
+          const toTop = Math.abs(pz - (wall.z - hd))
+          const toBottom = Math.abs(pz - (wall.z + hd))
+          const min = Math.min(toLeft, toRight, toTop, toBottom)
+          if (min === toLeft) px = wall.x - hw - playerRadius
+          else if (min === toRight) px = wall.x + hw + playerRadius
+          else if (min === toTop) pz = wall.z - hd - playerRadius
+          else pz = wall.z + hd + playerRadius
+        } else {
+          const dist = Math.sqrt(distSq)
+          const overlap = playerRadius - dist
+          px += (dx / dist) * overlap
+          pz += (dz / dist) * overlap
+        }
+        pushed = true
+      }
+    }
+
+    if (!pushed) break
+  }
+
+  return { x: px, z: pz }
+}

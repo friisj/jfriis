@@ -1,20 +1,21 @@
 'use client'
 
 import { useRef, useMemo, useEffect } from 'react'
-import { Canvas, useFrame, useThree } from '@react-three/fiber'
+import { Canvas, useFrame, useThree, useLoader } from '@react-three/fiber'
 import * as THREE from 'three'
 import type { GameState } from '@/lib/recess/types'
 import {
   mazeToWalls,
   gridToWorld,
   worldToGrid,
-  collidesWithWall,
+  resolveCollisions,
   CELL_SIZE_3D,
   WALL_HEIGHT,
   type WallSegment,
 } from '@/lib/recess/maze3d'
 
-const MOVE_SPEED = 5 // units/sec
+const WALK_SPEED = 5 // units/sec
+const RUN_SPEED = 9 // units/sec (shift held)
 const TURN_SPEED = 2.5 // radians/sec
 const PLAYER_HEIGHT = 1.6
 const PLAYER_RADIUS = 0.35
@@ -36,30 +37,49 @@ function Walls({ segments }: { segments: WallSegment[] }) {
 
 // ── Teacher Billboards ──────────────────────────────────────
 
+// Sprite dimensions: 116x170 → aspect ~0.68
+const SPRITE_HEIGHT = 2.0
+const SPRITE_WIDTH = SPRITE_HEIGHT * (116 / 170)
+
 function TeacherSprite({ position, isRevealed, isDemon }: { position: { x: number; z: number }; isRevealed: boolean; isDemon: boolean }) {
   const meshRef = useRef<THREE.Mesh>(null)
+  const rawTexture = useLoader(THREE.TextureLoader, '/recess/sprites/teacher-default.png')
+
+  // Clone texture so we can set pixel-art filtering without mutating the cached original
+  const texture = useMemo(() => {
+    const t = rawTexture.clone()
+    t.magFilter = THREE.NearestFilter
+    t.minFilter = THREE.NearestFilter
+    t.colorSpace = THREE.SRGBColorSpace
+    t.needsUpdate = true
+    return t
+  }, [rawTexture])
 
   useFrame(({ camera }) => {
     if (meshRef.current) {
-      meshRef.current.lookAt(camera.position)
+      // Billboard: only rotate on Y axis to face camera (stay upright)
+      const dx = camera.position.x - meshRef.current.parent!.position.x
+      const dz = camera.position.z - meshRef.current.parent!.position.z
+      meshRef.current.parent!.rotation.y = Math.atan2(dx, dz)
     }
   })
 
-  const color = isRevealed
+  // Tint ring color based on reveal state
+  const ringColor = isRevealed
     ? (isDemon ? '#ff3333' : '#33ff33')
     : '#cc66ff'
 
   return (
     <group position={[position.x, 0, position.z]}>
-      {/* Body */}
-      <mesh ref={meshRef} position={[0, 1.2, 0]}>
-        <planeGeometry args={[0.9, 1.4]} />
-        <meshBasicMaterial color={color} transparent opacity={0.95} side={THREE.DoubleSide} />
+      {/* Sprite billboard — anchored at feet */}
+      <mesh ref={meshRef} position={[0, SPRITE_HEIGHT / 2, 0]}>
+        <planeGeometry args={[SPRITE_WIDTH, SPRITE_HEIGHT]} />
+        <meshBasicMaterial map={texture} transparent alphaTest={0.1} side={THREE.DoubleSide} />
       </mesh>
-      {/* Ground ring for visibility */}
+      {/* Ground ring — color indicates status */}
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.02, 0]}>
         <ringGeometry args={[0.4, 0.6, 16]} />
-        <meshBasicMaterial color={color} />
+        <meshBasicMaterial color={ringColor} />
       </mesh>
     </group>
   )
@@ -150,14 +170,19 @@ function CameraController({ walls, state, onCellChange, posRef }: CameraControll
     prevCellRef.current = { row: state.playerPos.row, col: state.playerPos.col }
   }, [state.maze, state.playerPos.row, state.playerPos.col, camera, posRef])
 
-  // Key tracking — prevent default on arrows to avoid page scroll
+  // Key tracking — track modifier state separately for alt-strafe and shift-run
+  const modifiersRef = useRef({ alt: false, shift: false })
   useEffect(() => {
     const onDown = (e: KeyboardEvent) => {
       if (e.key.startsWith('Arrow')) e.preventDefault()
       keysRef.current.add(e.key.toLowerCase())
+      modifiersRef.current.alt = e.altKey
+      modifiersRef.current.shift = e.shiftKey
     }
     const onUp = (e: KeyboardEvent) => {
       keysRef.current.delete(e.key.toLowerCase())
+      modifiersRef.current.alt = e.altKey
+      modifiersRef.current.shift = e.shiftKey
     }
     window.addEventListener('keydown', onDown)
     window.addEventListener('keyup', onUp)
@@ -172,37 +197,57 @@ function CameraController({ walls, state, onCellChange, posRef }: CameraControll
 
     const keys = keysRef.current
     const pos = posRef.current
+    const { alt, shift } = modifiersRef.current
+    const speed = shift ? RUN_SPEED : WALK_SPEED
 
-    // Tank controls: left/right rotate, up/down move forward/back
+    // Classic Doom controls:
+    // - Left/Right: turn (or strafe when Alt held)
+    // - Up/Down: forward/back
+    // - Shift: run
     let turn = 0
     let forward = 0
+    let strafe = 0
 
-    if (keys.has('arrowleft') || keys.has('a')) turn += 1
-    if (keys.has('arrowright') || keys.has('d')) turn -= 1
+    if (keys.has('arrowleft') || keys.has('a')) {
+      if (alt) strafe -= 1  // Alt+Left = strafe left
+      else turn += 1
+    }
+    if (keys.has('arrowright') || keys.has('d')) {
+      if (alt) strafe += 1  // Alt+Right = strafe right
+      else turn -= 1
+    }
     if (keys.has('arrowup') || keys.has('w')) forward += 1
     if (keys.has('arrowdown') || keys.has('s')) forward -= 1
+    // Dedicated strafe keys (Q/E) as a modern convenience
+    if (keys.has('q')) strafe -= 1
+    if (keys.has('e')) strafe += 1
 
     // Apply rotation
     if (turn !== 0) {
       pos.yaw += turn * TURN_SPEED * delta
     }
 
-    // Apply forward/back movement along facing direction
-    if (forward !== 0) {
-      const dx = -Math.sin(pos.yaw) * forward * MOVE_SPEED * delta
-      const dz = -Math.cos(pos.yaw) * forward * MOVE_SPEED * delta
+    // Apply movement — forward along facing, strafe perpendicular
+    if (forward !== 0 || strafe !== 0) {
+      // Forward direction
+      let dx = -Math.sin(pos.yaw) * forward
+      let dz = -Math.cos(pos.yaw) * forward
+      // Strafe direction (perpendicular to facing)
+      dx += Math.cos(pos.yaw) * strafe
+      dz += -Math.sin(pos.yaw) * strafe
+      // Normalize diagonal movement so it's not faster
+      const len = Math.sqrt(dx * dx + dz * dz)
+      if (len > 0) {
+        dx = (dx / len) * speed * delta
+        dz = (dz / len) * speed * delta
+      }
       const newX = pos.x + dx
       const newZ = pos.z + dz
 
-      // Wall collision with axis-separated sliding
-      if (!collidesWithWall(newX, newZ, walls, PLAYER_RADIUS)) {
-        pos.x = newX
-        pos.z = newZ
-      } else if (!collidesWithWall(newX, pos.z, walls, PLAYER_RADIUS)) {
-        pos.x = newX
-      } else if (!collidesWithWall(pos.x, newZ, walls, PLAYER_RADIUS)) {
-        pos.z = newZ
-      }
+      // Move then push out of any walls — gives smooth sliding
+      const resolved = resolveCollisions(newX, newZ, walls, PLAYER_RADIUS)
+      pos.x = resolved.x
+      pos.z = resolved.z
     }
 
     // Update camera

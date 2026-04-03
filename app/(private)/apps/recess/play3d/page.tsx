@@ -243,7 +243,7 @@ export default function Play3DPage() {
         {/* Click-to-play hint */}
         {state.phase === 'exploring' && (
           <div className="flex justify-center mt-2">
-            <p className="text-xs text-zinc-600">&larr;&rarr; turn &middot; &uarr;&darr; move &middot; Space interact &middot; M minimap</p>
+            <p className="text-xs text-zinc-600">&larr;&rarr; turn &middot; Alt+&larr;&rarr; strafe &middot; &uarr;&darr; move &middot; Shift run &middot; Space interact &middot; M minimap</p>
           </div>
         )}
       </div>
