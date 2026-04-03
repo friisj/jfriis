@@ -14,6 +14,7 @@ import {
   type WallSegment,
 } from '@/lib/recess/maze3d'
 import { decorateMaze, type Decoration } from '@/lib/recess/decorations'
+import GymSceneContent, { type GymAnimationState } from './GymScene3D'
 
 const WALK_SPEED = 5 // units/sec
 const RUN_SPEED = 9 // units/sec (shift held)
@@ -473,9 +474,10 @@ interface MazeSceneProps {
   state: GameState
   onCellChange: (row: number, col: number) => void
   posRef: React.MutableRefObject<{ x: number; z: number; yaw: number }>
+  gymAnimState?: React.MutableRefObject<GymAnimationState | null>
 }
 
-function SceneContent({ state, onCellChange, posRef }: MazeSceneProps) {
+function SceneContent({ state, onCellChange, posRef, gymAnimState }: MazeSceneProps) {
   const { maze, teachers, demonsFound, visitedCells } = state
   const rows = maze.length
   const cols = maze[0].length
@@ -510,65 +512,75 @@ function SceneContent({ state, onCellChange, posRef }: MazeSceneProps) {
     return result
   }, [maze])
 
+  const gymActive = state.phase === 'gym' && gymAnimState?.current != null
+
   return (
     <>
-      {/* Reduced ambient — ceiling lights provide local illumination */}
-      <ambientLight color="#aaaacc" intensity={0.4} />
-      <directionalLight position={[worldWidth / 2, 20, worldDepth / 2]} intensity={0.3} />
+      {/* Maze content — hidden (not unmounted) during gym */}
+      <group visible={!gymActive}>
+        {/* Reduced ambient — ceiling lights provide local illumination */}
+        <ambientLight color="#aaaacc" intensity={0.4} />
+        <directionalLight position={[worldWidth / 2, 20, worldDepth / 2]} intensity={0.3} />
 
-      {/* Player light for local illumination */}
-      <PlayerLight posRef={posRef} />
+        {/* Player light for local illumination */}
+        <PlayerLight posRef={posRef} />
 
-      {/* Walls */}
-      <Walls segments={wallSegments} />
+        {/* Walls */}
+        <Walls segments={wallSegments} />
 
-      {/* Decorations (lockers, lights, bulletin boards, etc.) */}
-      <MazeDecorations decorations={mazeDecorations} />
+        {/* Decorations (lockers, lights, bulletin boards, etc.) */}
+        <MazeDecorations decorations={mazeDecorations} />
 
-      {/* Floor — distinct from walls */}
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[worldWidth / 2, 0, worldDepth / 2]}>
-        <planeGeometry args={[worldWidth + 2, worldDepth + 2]} />
-        <meshStandardMaterial color="#555566" roughness={0.9} />
-      </mesh>
+        {/* Floor — distinct from walls */}
+        <mesh rotation={[-Math.PI / 2, 0, 0]} position={[worldWidth / 2, 0, worldDepth / 2]}>
+          <planeGeometry args={[worldWidth + 2, worldDepth + 2]} />
+          <meshStandardMaterial color="#555566" roughness={0.9} />
+        </mesh>
 
-      {/* Ceiling */}
-      <mesh rotation={[Math.PI / 2, 0, 0]} position={[worldWidth / 2, WALL_HEIGHT, worldDepth / 2]}>
-        <planeGeometry args={[worldWidth + 2, worldDepth + 2]} />
-        <meshStandardMaterial color="#333344" roughness={0.9} />
-      </mesh>
+        {/* Ceiling */}
+        <mesh rotation={[Math.PI / 2, 0, 0]} position={[worldWidth / 2, WALL_HEIGHT, worldDepth / 2]}>
+          <planeGeometry args={[worldWidth + 2, worldDepth + 2]} />
+          <meshStandardMaterial color="#333344" roughness={0.9} />
+        </mesh>
 
-      {/* Landmarks */}
-      {landmarks.map((lm) => {
-        const pos = gridToWorld(lm.row, lm.col)
-        const key = `${lm.row},${lm.col}`
+        {/* Landmarks */}
+        {landmarks.map((lm) => {
+          const pos = gridToWorld(lm.row, lm.col)
+          const key = `${lm.row},${lm.col}`
 
-        if (lm.type === 'gym') return <LandmarkMarker key={key} position={pos} color="#eab308" label="GYM" />
-        if (lm.type === 'exit') return <LandmarkMarker key={key} position={pos} color="#3b82f6" label="EXIT" />
-        if (lm.type === 'start') return <LandmarkMarker key={key} position={pos} color="#22c55e" label="START" />
-        if (lm.type === 'item') return <ItemMarker key={key} position={pos} item={lm.item!} />
-        return null
-      })}
+          if (lm.type === 'gym') return <LandmarkMarker key={key} position={pos} color="#eab308" label="GYM" />
+          if (lm.type === 'exit') return <LandmarkMarker key={key} position={pos} color="#3b82f6" label="EXIT" />
+          if (lm.type === 'start') return <LandmarkMarker key={key} position={pos} color="#22c55e" label="START" />
+          if (lm.type === 'item') return <ItemMarker key={key} position={pos} item={lm.item!} />
+          return null
+        })}
 
-      {/* Teachers — always visible (no fog of war filtering for now) */}
-      {visibleTeachers.map((teacher) => {
-        const pos = gridToWorld(teacher.position.row, teacher.position.col)
-        return (
-          <TeacherSprite
-            key={teacher.id}
-            position={pos}
-            isRevealed={teacher.challenged}
-            isDemon={teacher.isDemon}
-          />
-        )
-      })}
+        {/* Teachers — always visible (no fog of war filtering for now) */}
+        {visibleTeachers.map((teacher) => {
+          const pos = gridToWorld(teacher.position.row, teacher.position.col)
+          return (
+            <TeacherSprite
+              key={teacher.id}
+              position={pos}
+              isRevealed={teacher.challenged}
+              isDemon={teacher.isDemon}
+            />
+          )
+        })}
 
-      {/* Camera + Movement */}
-      <CameraController
-        walls={wallSegments}
-        state={state}
-        onCellChange={onCellChange}
-        posRef={posRef}
-      />
+        {/* Camera + Movement */}
+        <CameraController
+          walls={wallSegments}
+          state={state}
+          onCellChange={onCellChange}
+          posRef={posRef}
+        />
+      </group>
+
+      {/* 3D Gym scene — rendered when gym phase active */}
+      {state.phase === 'gym' && gymAnimState && (
+        <GymSceneContent gymState={gymAnimState} />
+      )}
     </>
   )
 }
@@ -586,7 +598,7 @@ function PlayerLight({ posRef }: { posRef: React.MutableRefObject<{ x: number; z
   return <pointLight ref={lightRef} color="#ffffff" intensity={2} distance={CELL_SIZE_3D * 6} />
 }
 
-export default function MazeScene({ state, onCellChange, posRef }: MazeSceneProps) {
+export default function MazeScene({ state, onCellChange, posRef, gymAnimState }: MazeSceneProps) {
   return (
     <Canvas
       className="w-full h-full"
@@ -594,7 +606,7 @@ export default function MazeScene({ state, onCellChange, posRef }: MazeSceneProp
       gl={{ antialias: true }}
       style={{ background: '#222233' }}
     >
-      <SceneContent state={state} onCellChange={onCellChange} posRef={posRef} />
+      <SceneContent state={state} onCellChange={onCellChange} posRef={posRef} gymAnimState={gymAnimState} />
     </Canvas>
   )
 }
