@@ -1,7 +1,7 @@
 'use client'
 
 import { useRef, useMemo, useEffect } from 'react'
-import { Canvas, useFrame, useThree } from '@react-three/fiber'
+import { Canvas, useFrame, useThree, useLoader } from '@react-three/fiber'
 import * as THREE from 'three'
 import type { GameState } from '@/lib/recess/types'
 import {
@@ -37,30 +37,49 @@ function Walls({ segments }: { segments: WallSegment[] }) {
 
 // ── Teacher Billboards ──────────────────────────────────────
 
+// Sprite dimensions: 116x170 → aspect ~0.68
+const SPRITE_HEIGHT = 2.0
+const SPRITE_WIDTH = SPRITE_HEIGHT * (116 / 170)
+
 function TeacherSprite({ position, isRevealed, isDemon }: { position: { x: number; z: number }; isRevealed: boolean; isDemon: boolean }) {
   const meshRef = useRef<THREE.Mesh>(null)
+  const rawTexture = useLoader(THREE.TextureLoader, '/recess/sprites/teacher-default.png')
+
+  // Clone texture so we can set pixel-art filtering without mutating the cached original
+  const texture = useMemo(() => {
+    const t = rawTexture.clone()
+    t.magFilter = THREE.NearestFilter
+    t.minFilter = THREE.NearestFilter
+    t.colorSpace = THREE.SRGBColorSpace
+    t.needsUpdate = true
+    return t
+  }, [rawTexture])
 
   useFrame(({ camera }) => {
     if (meshRef.current) {
-      meshRef.current.lookAt(camera.position)
+      // Billboard: only rotate on Y axis to face camera (stay upright)
+      const dx = camera.position.x - meshRef.current.parent!.position.x
+      const dz = camera.position.z - meshRef.current.parent!.position.z
+      meshRef.current.parent!.rotation.y = Math.atan2(dx, dz)
     }
   })
 
-  const color = isRevealed
+  // Tint ring color based on reveal state
+  const ringColor = isRevealed
     ? (isDemon ? '#ff3333' : '#33ff33')
     : '#cc66ff'
 
   return (
     <group position={[position.x, 0, position.z]}>
-      {/* Body */}
-      <mesh ref={meshRef} position={[0, 1.2, 0]}>
-        <planeGeometry args={[0.9, 1.4]} />
-        <meshBasicMaterial color={color} transparent opacity={0.95} side={THREE.DoubleSide} />
+      {/* Sprite billboard — anchored at feet */}
+      <mesh ref={meshRef} position={[0, SPRITE_HEIGHT / 2, 0]}>
+        <planeGeometry args={[SPRITE_WIDTH, SPRITE_HEIGHT]} />
+        <meshBasicMaterial map={texture} transparent alphaTest={0.1} side={THREE.DoubleSide} />
       </mesh>
-      {/* Ground ring for visibility */}
+      {/* Ground ring — color indicates status */}
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.02, 0]}>
         <ringGeometry args={[0.4, 0.6, 16]} />
-        <meshBasicMaterial color={color} />
+        <meshBasicMaterial color={ringColor} />
       </mesh>
     </group>
   )
