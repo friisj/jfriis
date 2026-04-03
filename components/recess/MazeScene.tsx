@@ -8,7 +8,7 @@ import {
   mazeToWalls,
   gridToWorld,
   worldToGrid,
-  collidesWithWall,
+  resolveCollisions,
   CELL_SIZE_3D,
   WALL_HEIGHT,
   type WallSegment,
@@ -194,15 +194,10 @@ function CameraController({ walls, state, onCellChange, posRef }: CameraControll
       const newX = pos.x + dx
       const newZ = pos.z + dz
 
-      // Wall collision with axis-separated sliding
-      if (!collidesWithWall(newX, newZ, walls, PLAYER_RADIUS)) {
-        pos.x = newX
-        pos.z = newZ
-      } else if (!collidesWithWall(newX, pos.z, walls, PLAYER_RADIUS)) {
-        pos.x = newX
-      } else if (!collidesWithWall(pos.x, newZ, walls, PLAYER_RADIUS)) {
-        pos.z = newZ
-      }
+      // Move then push out of any walls — gives smooth sliding
+      const resolved = resolveCollisions(newX, newZ, walls, PLAYER_RADIUS)
+      pos.x = resolved.x
+      pos.z = resolved.z
     }
 
     // Update camera
