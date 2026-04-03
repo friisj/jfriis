@@ -31,8 +31,6 @@ const WALL_OFFSET = WALL_THICKNESS / 2 + 0.02
 
 /** Density: probability that an eligible wall slot gets a decoration. */
 const WALL_FILL_RATE = 0.35
-/** Probability that a locker continues into the next slot (clustering). */
-const LOCKER_CONTINUE_PROB = 0.88
 /** Ceiling lights: place one every N cells. */
 const LIGHT_INTERVAL = 2
 
@@ -162,55 +160,59 @@ export function decorateMaze(maze: Maze): Decoration[] {
 
   // ── 4. Place wall decorations ──────────────────────────────
 
-  // Track which slots got lockers for clustering
-  const lockerSlots = new Set<string>()
+  // Index slots by key for fast lookup during locker extension
+  const slotMap = new Map<string, WallSlot>()
+  for (const slot of slots) {
+    slotMap.set(`${slot.row},${slot.col},${slot.dir}`, slot)
+  }
+
   const usedSlots = new Set<string>()
 
-  // First pass: decide which slots get decorations
   for (const slot of slots) {
     const key = `${slot.row},${slot.col},${slot.dir}`
     if (usedSlots.has(key)) continue
 
     const rand = hashRandom(slot.row, slot.col, slot.dir)
-
-    // Check if an adjacent slot (same wall direction, neighboring cell along wall)
-    // has a locker — if so, high chance to continue the row
-    const tangent = DIR_TANGENT[slot.dir]
-    const prevRow = slot.row - Math.round(tangent.dz)
-    const prevCol = slot.col - Math.round(tangent.dx)
-    const prevKey = `${prevRow},${prevCol},${slot.dir}`
-    const continueLocker = lockerSlots.has(prevKey) && hashRandom(slot.row, slot.col, slot.dir, 1) < LOCKER_CONTINUE_PROB
-
-    if (continueLocker) {
-      // Continue locker row
-      const dec = placeOnWall(slot, rand < 0.3 ? 'locker-double' : 'locker')
-      decorations.push(dec)
-      lockerSlots.add(key)
-      usedSlots.add(key)
-      continue
-    }
-
     if (rand > WALL_FILL_RATE) continue
 
     // Weighted random prop selection
     const kindRand = hashRandom(slot.row, slot.col, slot.dir, 2)
     let kind: DecorationKind
 
-    if (kindRand < 0.30) {
-      kind = 'locker'
-      lockerSlots.add(key)
-    } else if (kindRand < 0.50) {
-      kind = 'locker-double'
-      lockerSlots.add(key)
-    } else if (kindRand < 0.60) {
+    if (kindRand < 0.40) {
+      // Locker selected — place it and extend forward for a cluster of 4-8
+      const tangent = DIR_TANGENT[slot.dir]
+      const clusterLen = 4 + Math.floor(hashRandom(slot.row, slot.col, slot.dir, 3) * 5) // 4-8
+      let placed = 0
+      let cr = slot.row
+      let cc = slot.col
+
+      for (let i = 0; i < clusterLen; i++) {
+        const ck = `${cr},${cc},${slot.dir}`
+        const cs = slotMap.get(ck)
+        if (!cs || usedSlots.has(ck)) break
+
+        // Pick single or double locker
+        const lockerKind: DecorationKind = hashRandom(cr, cc, slot.dir, 4) < 0.4 ? 'locker-double' : 'locker'
+        decorations.push(placeOnWall(cs, lockerKind))
+        usedSlots.add(ck)
+        placed++
+
+        // Step along the tangent to the next cell
+        cr += Math.round(tangent.dz)
+        cc += Math.round(tangent.dx)
+      }
+
+      continue
+    } else if (kindRand < 0.55) {
       kind = 'door-frame'
-    } else if (kindRand < 0.72) {
+    } else if (kindRand < 0.68) {
       kind = 'bulletin-board'
-    } else if (kindRand < 0.80) {
+    } else if (kindRand < 0.76) {
       kind = 'clock'
-    } else if (kindRand < 0.87) {
+    } else if (kindRand < 0.84) {
       kind = 'fire-extinguisher'
-    } else if (kindRand < 0.94) {
+    } else if (kindRand < 0.92) {
       kind = 'water-fountain'
     } else {
       kind = 'trash-can'
