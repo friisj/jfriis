@@ -197,6 +197,7 @@ export default function LuvChatPage() {
           onToggleHeartbeatSettings={() => setActivePanel((p) => p === 'heartbeat' ? null : 'heartbeat')}
           toolHint={session.toolHint}
           onSetToolHint={session.setToolHint}
+          onStop={session.handleStop}
           voiceEnabled={voiceEnabled}
           onToggleVoice={() => setVoiceEnabled((v) => !v)}
           voiceSpeed={voiceSpeed}
