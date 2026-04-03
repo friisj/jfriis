@@ -1,34 +1,30 @@
 /**
  * Luv: Chassis Study Tool Definitions
  *
- * Agentic tools for running chassis studies — advanced image generation
- * pipelines where a Gemini thinking subagent shapes a brief from chassis
- * parameters, then generates an image grounded in the character spec.
- *
- * run_chassis_study is a factory — it needs model messages injected at
- * request time to extract reference images from the conversation.
+ * Two-phase async pattern:
+ *   start_chassis_study — resolves refs, creates job row, returns jobId
+ *   check_gen_job (shared) — executes the pipeline if pending, returns result
  */
 
 import { tool, zodSchema } from 'ai';
 import type { ModelMessage } from 'ai';
 import { z } from 'zod';
-import { runChassisStudyPipeline } from './luv-chassis-study-pipeline';
 import { resolveImagePublicUrl } from './luv-image-utils';
 import { resolveReferenceImages, referenceImageSchema } from './luv-image-refs';
+import { submitGenJob } from './luv-gen-jobs';
 
 /**
- * Factory: create the run_chassis_study tool with access to current model messages.
- * This allows the tool to extract reference images from the conversation for i2i bolstering.
+ * Factory: create the start_chassis_study tool.
+ * Resolves reference images, creates a gen job row, returns jobId immediately.
  */
-export function createChassisStudyTool(messages: ModelMessage[]) {
+export function createStartChassisStudyTool(messages: ModelMessage[]) {
   return tool({
     description:
-      'Run a chassis study — an EXPENSIVE multi-agent deliberation pipeline (~45s). ' +
+      'Start a chassis study — a multi-agent deliberation pipeline. Returns a jobId — ' +
+      'call check_gen_job with the jobId to get the result (takes ~45 seconds). ' +
       'ONLY use when the user explicitly asks to "study" chassis parameters or explore how specific modules manifest visually. ' +
-      'Do NOT use for simple image requests like "generate a portrait" or "show me what you look like" — use generate_image instead. ' +
-      'You and a Gemini director co-shape a brief from chassis parameters, then generate with canonical reference images. ' +
-      'Required: userPrompt. Optional: moduleSlugs, style, dynamics, referenceImageIds, useRecentChatImages. ' +
-      'Returns a public URL, Cog image ID, and the deliberation trace. Does NOT return the image itself.',
+      'Do NOT use for simple image requests — use start_image_generation instead. ' +
+      'You can start multiple studies in one step, then check them all with separate check_gen_job calls.',
     inputSchema: zodSchema(
       z.object({
         userPrompt: z
@@ -71,14 +67,13 @@ export function createChassisStudyTool(messages: ModelMessage[]) {
     ),
     execute: async ({ userPrompt, goal, style, moduleSlugs, dynamics, focusArea, aspectRatio, imageSize, model, useRecentChatImages, referenceImageIds }) => {
       try {
-        // Resolve agent-provided references via unified resolver
-        const { images: agentRefs } = await resolveReferenceImages(
+        const { images: agentRefs, warnings: refWarnings } = await resolveReferenceImages(
           { fromChat: useRecentChatImages, fromCogIds: referenceImageIds },
           messages,
           4,
         );
 
-        const result = await runChassisStudyPipeline({
+        const jobId = await submitGenJob('chassis_study', {
           userPrompt,
           goal,
           style,
@@ -86,46 +81,25 @@ export function createChassisStudyTool(messages: ModelMessage[]) {
           dynamics,
           focusArea,
           aspectRatio,
-          imageSize: imageSize as '1K' | '2K' | '4K' | undefined,
-          model: model as 'nano-banana-2' | 'nano-banana-pro' | undefined,
+          imageSize,
+          model,
           chatReferenceImages: agentRefs.length > 0 ? agentRefs : undefined,
         });
 
         return {
-          type: 'chassis_study_result' as const,
+          type: 'gen_job_started' as const,
           success: true,
-          studyId: result.study.id,
-          studySlug: result.study.slug,
-          imageUrl: result.imageUrl,
-          brief: result.brief,
-          generationPrompt: result.study.generation_prompt,
-          moduleSlugs: result.study.module_slugs,
-          referenceImageCount: result.study.reference_image_paths.length,
-          durationMs: result.durationMs,
-          deliberation: {
-            rounds: result.deliberation.turns.length,
-            totalDurationMs: result.deliberation.totalDurationMs,
-            summary: result.deliberation.turns.map((t) =>
-              `[${t.role}] ${t.content.slice(0, 150)}${t.content.length > 150 ? '...' : ''}`
-            ),
-          },
-          metadata: result.study.generation_metadata,
+          jobId,
+          jobType: 'chassis_study',
+          message: `Chassis study started. Call check_gen_job with jobId "${jobId}" to get the result (~45s).`,
+          referenceImageCount: agentRefs.length,
+          ...(refWarnings.length > 0 ? { warnings: refWarnings } : {}),
         };
       } catch (err) {
-        const message = err instanceof Error
-          ? err.message
-          : typeof err === 'object' && err !== null && 'message' in err
-            ? String((err as { message: unknown }).message)
-            : 'Chassis study failed';
-        const detail = err instanceof Error
-          ? err.stack?.split('\n').slice(0, 3).join('\n')
-          : JSON.stringify(err, null, 2).slice(0, 300);
-        console.error('[chassis-study] Tool execution failed:', message, detail);
         return {
-          type: 'chassis_study_result' as const,
+          type: 'gen_job_started' as const,
           success: false,
-          error: message,
-          errorDetail: detail,
+          error: err instanceof Error ? err.message : 'Failed to start chassis study',
         };
       }
     },
