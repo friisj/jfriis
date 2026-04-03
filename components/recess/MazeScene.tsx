@@ -153,17 +153,17 @@ function DecorationMesh({ dec }: { dec: Decoration }) {
     case 'locker':
       return (
         <group position={[dec.x, 0, dec.z]} rotation={[0, dec.rotation, 0]}>
-          <mesh position={[0, 0.7, 0]}>
-            <boxGeometry args={[0.5, 1.4, 0.35]} />
+          <mesh position={[0, 0.91, 0]}>
+            <boxGeometry args={[0.5, 1.82, 0.35]} />
             <meshStandardMaterial color="#556677" roughness={0.6} metalness={0.3} />
           </mesh>
           {/* Handle */}
-          <mesh position={[0.18, 0.7, 0.18]}>
+          <mesh position={[0.18, 0.91, 0.18]}>
             <boxGeometry args={[0.03, 0.12, 0.02]} />
             <meshStandardMaterial color="#333333" metalness={0.8} roughness={0.3} />
           </mesh>
           {/* Vent slits */}
-          <mesh position={[0, 1.2, 0.18]}>
+          <mesh position={[0, 1.6, 0.18]}>
             <boxGeometry args={[0.3, 0.08, 0.01]} />
             <meshStandardMaterial color="#445566" />
           </mesh>
@@ -173,21 +173,21 @@ function DecorationMesh({ dec }: { dec: Decoration }) {
     case 'locker-double':
       return (
         <group position={[dec.x, 0, dec.z]} rotation={[0, dec.rotation, 0]}>
-          <mesh position={[0, 0.7, 0]}>
-            <boxGeometry args={[1.0, 1.4, 0.35]} />
+          <mesh position={[0, 0.91, 0]}>
+            <boxGeometry args={[1.0, 1.82, 0.35]} />
             <meshStandardMaterial color="#556677" roughness={0.6} metalness={0.3} />
           </mesh>
           {/* Divider line */}
-          <mesh position={[0, 0.7, 0.18]}>
-            <boxGeometry args={[0.02, 1.35, 0.01]} />
+          <mesh position={[0, 0.91, 0.18]}>
+            <boxGeometry args={[0.02, 1.78, 0.01]} />
             <meshStandardMaterial color="#445566" />
           </mesh>
           {/* Handles */}
-          <mesh position={[-0.18, 0.7, 0.18]}>
+          <mesh position={[-0.18, 0.91, 0.18]}>
             <boxGeometry args={[0.03, 0.12, 0.02]} />
             <meshStandardMaterial color="#333333" metalness={0.8} roughness={0.3} />
           </mesh>
-          <mesh position={[0.18, 0.7, 0.18]}>
+          <mesh position={[0.18, 0.91, 0.18]}>
             <boxGeometry args={[0.03, 0.12, 0.02]} />
             <meshStandardMaterial color="#333333" metalness={0.8} roughness={0.3} />
           </mesh>

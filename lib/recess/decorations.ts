@@ -32,7 +32,7 @@ const WALL_OFFSET = WALL_THICKNESS / 2 + 0.02
 /** Density: probability that an eligible wall slot gets a decoration. */
 const WALL_FILL_RATE = 0.35
 /** Probability that a locker continues into the next slot (clustering). */
-const LOCKER_CONTINUE_PROB = 0.7
+const LOCKER_CONTINUE_PROB = 0.88
 /** Ceiling lights: place one every N cells. */
 const LIGHT_INTERVAL = 2
 
@@ -200,22 +200,22 @@ export function decorateMaze(maze: Maze): Decoration[] {
     const kindRand = hashRandom(slot.row, slot.col, slot.dir, 2)
     let kind: DecorationKind
 
-    if (kindRand < 0.35) {
+    if (kindRand < 0.30) {
       kind = 'locker'
       lockerSlots.add(key)
     } else if (kindRand < 0.50) {
       kind = 'locker-double'
       lockerSlots.add(key)
-    } else if (kindRand < 0.65) {
-      kind = 'bulletin-board'
-    } else if (kindRand < 0.75) {
-      kind = 'clock'
-    } else if (kindRand < 0.82) {
-      kind = 'fire-extinguisher'
-    } else if (kindRand < 0.89) {
-      kind = 'water-fountain'
-    } else if (kindRand < 0.95) {
+    } else if (kindRand < 0.60) {
       kind = 'door-frame'
+    } else if (kindRand < 0.72) {
+      kind = 'bulletin-board'
+    } else if (kindRand < 0.80) {
+      kind = 'clock'
+    } else if (kindRand < 0.87) {
+      kind = 'fire-extinguisher'
+    } else if (kindRand < 0.94) {
+      kind = 'water-fountain'
     } else {
       kind = 'trash-can'
     }
@@ -231,8 +231,8 @@ export function decorateMaze(maze: Maze): Decoration[] {
 
 /** Heights for different decoration kinds. */
 const KIND_HEIGHT: Record<DecorationKind, number> = {
-  'locker': 1.4,
-  'locker-double': 1.4,
+  'locker': 1.82,
+  'locker-double': 1.82,
   'ceiling-light': WALL_HEIGHT - 0.05,
   'bulletin-board': 1.8,
   'clock': 2.3,
