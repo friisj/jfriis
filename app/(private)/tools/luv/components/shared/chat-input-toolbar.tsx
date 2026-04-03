@@ -39,6 +39,7 @@ import {
   IconMicroscope,
   IconSearch,
   IconVideo,
+  IconSquare,
 } from '@tabler/icons-react';
 import { MODEL_OPTIONS, type ContextPressure } from '../use-luv-chat-session';
 import type { LuvCompactSummary } from '@/lib/types/luv';
@@ -108,6 +109,8 @@ export interface ChatInputToolbarProps {
   // Tool hints
   toolHint?: string | null;
   onSetToolHint?: (hint: string | null) => void;
+  // Stop
+  onStop?: () => void;
   // Sizing
   compact?: boolean;
   autoResize?: boolean;
@@ -152,6 +155,7 @@ export function ChatInputToolbar({
   onSetVoiceSpeed,
   toolHint,
   onSetToolHint,
+  onStop,
   compact = false,
   autoResize = false,
 }: ChatInputToolbarProps) {
@@ -493,15 +497,25 @@ export function ChatInputToolbar({
             />
           </div>
 
-          {/* Right: [send] */}
+          {/* Right: [send] or [stop] */}
           <div className="p-1">
-            <button
-              onClick={handleSend}
-              disabled={isActive || (!input.trim() && pendingFiles.length === 0) || !soulLoaded}
-              className="flex items-center justify-center size-10 bg-amber-400 hover:bg-amber-500 active:bg-amber-500 rounded-full cursor-pointer"
-            >
-              <IconArrowUp size={iconSize} stroke={1.5} />
-            </button>
+            {isActive && onStop ? (
+              <button
+                onClick={onStop}
+                className="flex items-center justify-center size-10 bg-red-500/80 hover:bg-red-500 active:bg-red-600 rounded-full cursor-pointer transition-colors"
+                aria-label="Stop generating"
+              >
+                <IconSquare size={compact ? 12 : 14} stroke={2} className="fill-current" />
+              </button>
+            ) : (
+              <button
+                onClick={handleSend}
+                disabled={isActive || (!input.trim() && pendingFiles.length === 0) || !soulLoaded}
+                className="flex items-center justify-center size-10 bg-amber-400 hover:bg-amber-500 active:bg-amber-500 rounded-full cursor-pointer"
+              >
+                <IconArrowUp size={iconSize} stroke={1.5} />
+              </button>
+            )}
           </div>
         </div>
       </div>

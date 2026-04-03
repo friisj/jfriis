@@ -123,7 +123,7 @@ export function useLuvChatSession() {
     [modelKey, thinking, pageContext.pathname, pageDataKey, seedContext, toolHint]
   );
 
-  const { messages, sendMessage, setMessages, regenerate, status, error } = useChat({
+  const { messages, sendMessage, setMessages, regenerate, stop, status, error } = useChat({
     transport,
   });
 
@@ -508,6 +508,7 @@ export function useLuvChatSession() {
     handleTraitsApplied,
     handleDeleteMessage,
     handleRetry,
+    handleStop: stop,
     compacting,
     branching,
     addFilesFromFileList,
