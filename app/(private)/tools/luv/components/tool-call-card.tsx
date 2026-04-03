@@ -121,10 +121,12 @@ const toolLabels: Record<string, string> = {
   tag_image: 'Tag Image',
   create_image_series: 'Create Image Series',
   set_series_cover: 'Set Series Cover',
-  run_chassis_study: 'Chassis Study',
+  start_image_generation: 'Image Generation',
+  start_chassis_study: 'Chassis Study',
+  start_sketch_study: 'Sketch Study',
+  check_gen_job: 'Generation Result',
   record_study_feedback: 'Record Feedback',
   list_chassis_studies: 'List Studies',
-  run_sketch_study: 'Sketch Study',
   list_sketches: 'List Sketches',
   start_video_generation: 'Video Generation',
   check_video_generation: 'Check Video',
@@ -252,8 +254,10 @@ export function ToolCallCard({ toolName, state, result, getImageIndex, onInsertI
         <span className="font-medium">{label}</span>
         {!isComplete && (
           <span className="ml-auto text-muted-foreground animate-pulse">
-            {toolName === 'generate_image' ? 'generating...'
-              : toolName === 'run_chassis_study' ? 'deliberating...'
+            {toolName === 'start_image_generation' || toolName === 'generate_image' ? 'starting...'
+              : toolName === 'start_chassis_study' || toolName === 'run_chassis_study' ? 'starting...'
+              : toolName === 'start_sketch_study' || toolName === 'run_sketch_study' ? 'starting...'
+              : toolName === 'check_gen_job' ? 'generating...'
               : toolName === 'start_video_generation' ? 'submitting...'
               : toolName === 'check_video_generation' ? 'rendering...'
               : 'running...'}

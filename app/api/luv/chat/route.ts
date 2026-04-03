@@ -20,9 +20,10 @@ import { getLuvChangelogServer } from '@/lib/luv-changelog-server';
 import { getCurrentSoulConfigServer } from '@/lib/luv-soul-modulation-server';
 import { luvTools, createCurrentContextTool, createGetToolResultTool } from '@/lib/luv-tools';
 import { luvImageMgmtTools } from '@/lib/luv-image-mgmt-tools';
-import { createGenerateImageTool } from '@/lib/luv-image-gen-tools';
-import { createChassisStudyTool, recordStudyFeedback, listChassisStudies } from '@/lib/luv-chassis-study-tools';
-import { createSketchStudyTool, listSketches } from '@/lib/luv-sketch-study-tools';
+import { createStartImageGenTool } from '@/lib/luv-image-gen-tools';
+import { createStartChassisStudyTool, recordStudyFeedback, listChassisStudies } from '@/lib/luv-chassis-study-tools';
+import { createStartSketchStudyTool, listSketches } from '@/lib/luv-sketch-study-tools';
+import { checkGenJob } from '@/lib/luv-gen-job-tools';
 import { createStartVideoGenerationTool, checkVideoGeneration } from '@/lib/luv-video-gen-tools';
 import { getAnthropic } from '@/lib/ai/providers';
 import { analyzeImageWithGemini, buildGeneralVisionPrompt } from '@/lib/ai/gemini-vision';
@@ -246,11 +247,12 @@ export async function POST(request: Request) {
       tools: {
         ...luvTools,
         ...luvImageMgmtTools,
-        generate_image: createGenerateImageTool(augmentedMessages),
-        run_chassis_study: createChassisStudyTool(augmentedMessages),
+        start_image_generation: createStartImageGenTool(augmentedMessages),
+        start_chassis_study: createStartChassisStudyTool(augmentedMessages),
+        start_sketch_study: createStartSketchStudyTool(augmentedMessages),
+        check_gen_job: checkGenJob,
         record_study_feedback: recordStudyFeedback,
         list_chassis_studies: listChassisStudies,
-        run_sketch_study: createSketchStudyTool(augmentedMessages),
         list_sketches: listSketches,
         start_video_generation: createStartVideoGenerationTool(augmentedMessages),
         check_video_generation: checkVideoGeneration,

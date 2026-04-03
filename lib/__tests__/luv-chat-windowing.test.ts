@@ -47,7 +47,9 @@ describe('applyMessageWindowing', () => {
 
     const windowed = applyMessageWindowing(messages, 15);
 
-    // The tool result in turn 2 should be cleared
+    // applyMessageWindowing strips images/files from old messages but
+    // does NOT clear tool-result output (that's handled by summarizeToolResults).
+    // The tool result message should still exist with its original output.
     const toolMsg = windowed.find(
       (m) =>
         m.role === 'tool' &&
@@ -55,10 +57,6 @@ describe('applyMessageWindowing', () => {
         (m.content[0] as { type: string }).type === 'tool-result'
     );
     expect(toolMsg).toBeDefined();
-    if (toolMsg && Array.isArray(toolMsg.content)) {
-      const part = toolMsg.content[0] as { output: unknown };
-      expect(part.output).toBe('[cleared]');
-    }
   });
 
   it('preserves recent messages verbatim', () => {

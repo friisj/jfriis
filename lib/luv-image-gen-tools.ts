@@ -1,33 +1,35 @@
 /**
  * Luv: Image Generation Tool Definitions
  *
- * Agentic tools for generating images via Gemini Nano Banana models.
- * generate_image is a factory — it needs model messages injected at
- * request time to extract reference images from the conversation.
+ * Two-phase async pattern:
+ *   start_image_generation — resolves refs, creates job row, returns jobId
+ *   check_gen_job (shared) — executes the pipeline if pending, returns result
+ *
+ * This decouples job creation from execution so the agent can continue
+ * talking while generation runs, and multiple jobs can run in parallel.
  */
 
 import { tool, zodSchema } from 'ai';
 import type { ModelMessage } from 'ai';
 import { z } from 'zod';
-import { generateLuvImage, listLuvGenerations } from './luv-image-gen';
+import { listLuvGenerations } from './luv-image-gen';
 import { resolveReferenceImages, referenceImageSchema } from './luv-image-refs';
-
-
+import { submitGenJob } from './luv-gen-jobs';
 
 /**
- * Factory: create the generate_image tool with access to current model messages.
- * This allows the tool to extract reference images directly from the conversation
- * rather than requiring the model to pass URLs (which it can't access).
+ * Factory: create the start_image_generation tool.
+ * Resolves reference images, creates a gen job row, returns jobId immediately.
+ * The actual generation happens when check_gen_job is called.
  */
-export function createGenerateImageTool(messages: ModelMessage[]) {
+export function createStartImageGenTool(messages: ModelMessage[]) {
   return tool({
     description:
-      'Generate an image using Gemini Nano Banana models. This is the DEFAULT image generation tool — use it for any image request unless the user specifically asks for a chassis "study" or pencil "sketch". ' +
+      'Start an image generation job using Gemini Nano Banana models. Returns a jobId — ' +
+      'call check_gen_job with the jobId to get the result (this may take 10-30 seconds). ' +
+      'This is the DEFAULT image generation tool — use it for any image request unless the user specifically asks for a chassis "study" or pencil "sketch". ' +
       'Write a detailed prompt describing subject, composition, lighting, style, and mood. ' +
-      'Use for: portraits, creative images, scenes, style explorations, appearance testing, outfit concepts. ' +
-      'Pass referenceImageIds with Cog image IDs from fetch_series_images, list_generations, or list_sketches for i2i conditioning. ' +
-      'Set useRecentChatImages to include images from the conversation. ' +
-      'Returns a public URL and Cog image ID. Does NOT return the image itself — describe what you observe only after the tool returns.',
+      'Pass referenceImageIds with Cog image IDs for i2i conditioning. ' +
+      'You can start multiple generation jobs in one step, then check them all with separate check_gen_job calls.',
     inputSchema: zodSchema(
       z.object({
         prompt: z.string().describe('Detailed image generation prompt'),
@@ -52,13 +54,14 @@ export function createGenerateImageTool(messages: ModelMessage[]) {
     ),
     execute: async ({ prompt, useRecentChatImages, referenceImageIds, aspectRatio, imageSize, model, templateId }) => {
       try {
+        // Resolve reference images now (before job creation) so base64 data is captured
         const { images: finalRefs, warnings: refWarnings } = await resolveReferenceImages(
           { fromChat: useRecentChatImages, fromCogIds: referenceImageIds },
           messages,
           4,
         );
 
-        const result = await generateLuvImage({
+        const jobId = await submitGenJob('image', {
           prompt,
           referenceImages: finalRefs.length > 0 ? finalRefs : undefined,
           aspectRatio,
@@ -68,25 +71,19 @@ export function createGenerateImageTool(messages: ModelMessage[]) {
         });
 
         return {
-          type: 'image_generation_result' as const,
+          type: 'gen_job_started' as const,
           success: true,
-          imageUrl: result.publicUrl,
-          storagePath: result.storagePath,
-          cogImageId: result.cogImageId,
-          cogSeriesId: result.cogSeriesId,
-          prompt: result.prompt,
-          model: result.model,
-          aspectRatio: aspectRatio ?? '1:1',
-          imageSize: imageSize ?? '1K',
-          durationMs: result.durationMs,
+          jobId,
+          jobType: 'image',
+          message: `Image generation job started. Call check_gen_job with jobId "${jobId}" to get the result.`,
           referenceImageCount: finalRefs.length,
           ...(refWarnings.length > 0 ? { warnings: refWarnings } : {}),
         };
       } catch (err) {
         return {
-          type: 'image_generation_result' as const,
+          type: 'gen_job_started' as const,
           success: false,
-          error: err instanceof Error ? err.message : 'Image generation failed',
+          error: err instanceof Error ? err.message : 'Failed to start image generation',
         };
       }
     },

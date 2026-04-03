@@ -21,17 +21,17 @@ export interface ToolHint {
 
 export const TOOL_HINTS: ToolHint[] = [
   {
-    toolName: 'generate_image',
+    toolName: 'start_image_generation',
     label: 'Image',
     icon: 'photo',
   },
   {
-    toolName: 'run_sketch_study',
+    toolName: 'start_sketch_study',
     label: 'Sketch',
     icon: 'pencil',
   },
   {
-    toolName: 'run_chassis_study',
+    toolName: 'start_chassis_study',
     label: 'Study',
     icon: 'microscope',
   },

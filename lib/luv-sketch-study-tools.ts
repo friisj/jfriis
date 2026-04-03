@@ -1,128 +1,89 @@
 /**
  * Luv: Sketch Study Tool Definitions
  *
- * Agent tools for generating pencil sketch studies of chassis anatomy
- * via Flux 2 Dev. Style-locked to graphite/pencil aesthetic.
+ * Two-phase async pattern:
+ *   start_sketch_study — resolves refs, creates job row, returns jobId
+ *   check_gen_job (shared) — executes the pipeline if pending, returns result
  */
 
 import { tool, zodSchema } from 'ai';
 import type { ModelMessage } from 'ai';
 import { z } from 'zod';
-import { runSketchStudyPipeline } from './luv-sketch-study-pipeline';
 import { getCogImageUrl } from './cog/images';
-import { resolveImageAsBase64 } from './luv-image-utils';
 import { resolveReferenceImages, referenceImageSchema } from './luv-image-refs';
+import { submitGenJob } from './luv-gen-jobs';
 
 /**
- * Factory: create the run_sketch_study tool with access to current model messages.
+ * Factory: create the start_sketch_study tool.
+ * Resolves reference images, creates a gen job row, returns jobId immediately.
  */
-export function createSketchStudyTool(messages: ModelMessage[]) {
+export function createStartSketchStudyTool(messages: ModelMessage[]) {
   return tool({
-  description:
-    'Generate a pencil/graphite drawing using Flux 2 Dev. The medium is locked (pencil on paper) ' +
-    'but you control the drawing approach entirely through subject and styleNotes. ' +
-    'Use this for anatomy studies, gesture drawings, fashion silhouettes, or form exploration. ' +
-    'Do NOT use this for photorealistic images (use generate_image or run_chassis_study). ' +
-    'Required: subject (keep simple — over-specifying anatomy causes hallucinations) and focus. ' +
-    'Always compose styleNotes with specific rendering direction — e.g. "loose gestural lines" or "precise contour drawing". ' +
-    'Pass referenceImageIds with Cog image IDs for i2i refinement or style consistency. ' +
-    'Set useRecentChatImages to include images from the conversation. ' +
-    'Returns the generated image inline for your review. Critically evaluate before presenting — flag errors honestly.',
-  inputSchema: zodSchema(
-    z.object({
-      subject: z
-        .string()
-        .describe('What to draw — keep it simple and focused. Overly specific anatomy terms cause hallucinations. Good: "posterior view, natural standing pose". Bad: "posterior showing sacral dimples, iliac crest, and gluteal fold"'),
-      focus: z
-        .enum(['assembly', 'detail', 'dynamics'])
-        .describe('assembly = full body/region, detail = close-up, dynamics = movement/gesture'),
-      styleNotes: z
-        .string()
-        .optional()
-        .describe('ALWAYS provide this. Drawing approach layered on the pencil base — e.g. "loose gestural lines", "precise contour drawing", "fashion illustration silhouette", "architectural geometric breakdown", "minimal line art". This is your creative control over how the sketch looks.'),
-      moduleSlugs: z
-        .array(z.string())
-        .optional()
-        .describe('Chassis module slugs for tagging (e.g. ["eyes", "nose"])'),
-      aspectRatio: z
-        .enum(['1:1', '2:3', '3:2', '3:4', '4:3', '4:5', '5:4', '9:16', '16:9'])
-        .optional()
-        .describe('Aspect ratio (default: 3:4 portrait)'),
-      ...referenceImageSchema,
-    })
-  ),
-  execute: async ({ subject, focus, styleNotes, moduleSlugs, aspectRatio, useRecentChatImages, referenceImageIds }) => {
-    try {
-      // Resolve references via unified resolver (max 4 for Flux Dev)
-      const { images: refImages, warnings } = await resolveReferenceImages(
-        { fromChat: useRecentChatImages, fromCogIds: referenceImageIds },
-        messages,
-        4,
-      );
+    description:
+      'Start a pencil/graphite sketch study using Flux 2 Dev. Returns a jobId — ' +
+      'call check_gen_job with the jobId to get the result (~20 seconds). ' +
+      'The medium is locked (pencil on paper) but you control the drawing approach through subject and styleNotes. ' +
+      'Use for anatomy studies, gesture drawings, fashion silhouettes, or form exploration. ' +
+      'Do NOT use for photorealistic images — use start_image_generation instead. ' +
+      'You can start multiple sketches in one step, then check them all with separate check_gen_job calls.',
+    inputSchema: zodSchema(
+      z.object({
+        subject: z
+          .string()
+          .describe('What to draw — keep simple. Good: "posterior view, natural standing pose". Bad: overly specific anatomy terms.'),
+        focus: z
+          .enum(['assembly', 'detail', 'dynamics'])
+          .describe('assembly = full body/region, detail = close-up, dynamics = movement/gesture'),
+        styleNotes: z
+          .string()
+          .optional()
+          .describe('Drawing approach — e.g. "loose gestural lines", "precise contour drawing", "fashion illustration silhouette"'),
+        moduleSlugs: z
+          .array(z.string())
+          .optional()
+          .describe('Chassis module slugs for tagging (e.g. ["eyes", "nose"])'),
+        aspectRatio: z
+          .enum(['1:1', '2:3', '3:2', '3:4', '4:3', '4:5', '5:4', '9:16', '16:9'])
+          .optional()
+          .describe('Aspect ratio (default: 3:4 portrait)'),
+        ...referenceImageSchema,
+      })
+    ),
+    execute: async ({ subject, focus, styleNotes, moduleSlugs, aspectRatio, useRecentChatImages, referenceImageIds }) => {
+      try {
+        const { images: refImages, warnings } = await resolveReferenceImages(
+          { fromChat: useRecentChatImages, fromCogIds: referenceImageIds },
+          messages,
+          4,
+        );
 
-      const result = await runSketchStudyPipeline({
-        subject,
-        focus,
-        moduleSlugs,
-        aspectRatio: aspectRatio as import('./ai/replicate-flux').FluxAspectRatio | undefined,
-        styleNotes,
-        referenceImages: refImages,
-        warnings,
-      });
+        const jobId = await submitGenJob('sketch_study', {
+          subject,
+          focus,
+          moduleSlugs,
+          aspectRatio,
+          styleNotes,
+          referenceImages: refImages.length > 0 ? refImages : undefined,
+          warnings: warnings.length > 0 ? warnings : undefined,
+        });
 
-      return {
-        type: 'sketch_study_result' as const,
-        success: true,
-        imageUrl: result.imageUrl,
-        cogImageId: result.cogImageId,
-        prompt: result.prompt,
-        durationMs: result.durationMs,
-        referenceUsed: result.referenceUsed,
-        moduleSlugs: moduleSlugs ?? [],
-        focus,
-        ...(result.warnings?.length ? { warnings: result.warnings } : {}),
-      };
-    } catch (err) {
-      const message = err instanceof Error
-        ? err.message
-        : typeof err === 'object' && err !== null && 'message' in err
-          ? String((err as { message: unknown }).message)
-          : 'Sketch study failed';
-      console.error('[sketch-study] Tool execution failed:', message);
-      return {
-        type: 'sketch_study_result' as const,
-        success: false,
-        error: message,
-      };
-    }
-  },
-  toModelOutput: async ({ output }) => {
-    const result = output as { success?: boolean; imageUrl?: string; prompt?: string; cogImageId?: string; error?: string; warnings?: string[] };
-    if (!result.success || !result.imageUrl) {
-      return { type: 'text' as const, value: result.error ?? JSON.stringify(output) };
-    }
-
-    const warningText = result.warnings?.length
-      ? `\n\nWARNINGS:\n${result.warnings.map(w => `- ${w}`).join('\n')}`
-      : '';
-
-    // Resolve the generated image so the agent can actually see what was produced
-    try {
-      // Extract storage path from the cog image URL
-      const urlParts = result.imageUrl.split('/cog-images/');
-      const storagePath = urlParts[1] ?? '';
-      const { base64, mediaType } = await resolveImageAsBase64(storagePath);
-      return {
-        type: 'content' as const,
-        value: [
-          { type: 'text' as const, text: `Sketch generated (${result.cogImageId}). Examine the image critically before presenting — flag any anatomical errors, hallucinated structures, or artifacts honestly.${warningText}` },
-          { type: 'file-data' as const, data: base64, mediaType },
-        ],
-      };
-    } catch {
-      return { type: 'text' as const, value: `Sketch generated but could not load for review. Image URL: ${result.imageUrl}${warningText}` };
-    }
-  },
+        return {
+          type: 'gen_job_started' as const,
+          success: true,
+          jobId,
+          jobType: 'sketch_study',
+          message: `Sketch study started. Call check_gen_job with jobId "${jobId}" to get the result (~20s).`,
+          referenceImageCount: refImages.length,
+          ...(warnings.length > 0 ? { warnings } : {}),
+        };
+      } catch (err) {
+        return {
+          type: 'gen_job_started' as const,
+          success: false,
+          error: err instanceof Error ? err.message : 'Failed to start sketch study',
+        };
+      }
+    },
   });
 }
 
@@ -155,7 +116,7 @@ export const listSketches = tool({
     const client = await createClient();
 
     // Get all images in sketches series
-    let query = (client as any)
+    const query = (client as any)
       .from('cog_images')
       .select('id, storage_path, filename, prompt, metadata, created_at')
       .eq('series_id', seriesId)

@@ -61,6 +61,20 @@ const summarizeSketchStudy: ToolSummarizer = (output, callId) => {
   return `[sketch cogId=${r.cogImageId}, focus=${r.focus}, ${dur(r.durationMs)} | callId=${callId}]`;
 };
 
+// ── Gen job tools (two-phase pattern) ────────────────────────────
+
+const summarizeGenJobStarted: ToolSummarizer = (output, callId) => {
+  const r = safe(output);
+  if (!r.success) return `[gen job failed to start: ${trunc(r.error)} | callId=${callId}]`;
+  return `[gen job started jobId=${r.jobId}, type=${r.jobType} | callId=${callId}]`;
+};
+
+const summarizeGenJobResult: ToolSummarizer = (output, callId) => {
+  const r = safe(output);
+  if (!r.success) return `[gen job failed: ${trunc(r.error)} | callId=${callId}]`;
+  return `[gen job completed type=${r.jobType}, ${dur(r.durationMs)} | callId=${callId}]`;
+};
+
 // ── Data retrieval tools ─────────────────────────────────────────
 
 const summarizeFetchSeries: ToolSummarizer = (output, callId) => {
@@ -191,7 +205,12 @@ const SUMMARIZERS: Record<string, ToolSummarizer> = {
   start_video_generation: summarizeStartVideo,
   check_video_generation: summarizeCheckVideo,
 
-  // Image generation
+  // Image generation (two-phase)
+  start_image_generation: summarizeGenJobStarted,
+  start_chassis_study: summarizeGenJobStarted,
+  start_sketch_study: summarizeGenJobStarted,
+  check_gen_job: summarizeGenJobResult,
+  // Legacy (for summarizing old tool results in conversation history)
   generate_image: summarizeImageGen,
   run_chassis_study: summarizeChassisStudy,
   run_sketch_study: summarizeSketchStudy,
