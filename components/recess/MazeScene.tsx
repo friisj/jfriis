@@ -13,6 +13,7 @@ import {
   WALL_HEIGHT,
   type WallSegment,
 } from '@/lib/recess/maze3d'
+import { decorateMaze, type Decoration } from '@/lib/recess/decorations'
 
 const WALK_SPEED = 5 // units/sec
 const RUN_SPEED = 9 // units/sec (shift held)
@@ -140,6 +141,207 @@ function ItemMarker({ position, item }: { position: { x: number; z: number }; it
         <meshBasicMaterial color={color} />
       </mesh>
       <pointLight color={color} intensity={1} distance={CELL_SIZE_3D} position={[0, 0.8, 0]} />
+    </group>
+  )
+}
+
+// ── Maze Decorations ───────────────────────────────────────
+
+/** Renders a single decoration as simple geometry. */
+function DecorationMesh({ dec }: { dec: Decoration }) {
+  switch (dec.kind) {
+    case 'locker':
+      return (
+        <group position={[dec.x, 0, dec.z]} rotation={[0, dec.rotation, 0]}>
+          <mesh position={[0, 0.7, 0]}>
+            <boxGeometry args={[0.5, 1.4, 0.35]} />
+            <meshStandardMaterial color="#556677" roughness={0.6} metalness={0.3} />
+          </mesh>
+          {/* Handle */}
+          <mesh position={[0.18, 0.7, 0.18]}>
+            <boxGeometry args={[0.03, 0.12, 0.02]} />
+            <meshStandardMaterial color="#333333" metalness={0.8} roughness={0.3} />
+          </mesh>
+          {/* Vent slits */}
+          <mesh position={[0, 1.2, 0.18]}>
+            <boxGeometry args={[0.3, 0.08, 0.01]} />
+            <meshStandardMaterial color="#445566" />
+          </mesh>
+        </group>
+      )
+
+    case 'locker-double':
+      return (
+        <group position={[dec.x, 0, dec.z]} rotation={[0, dec.rotation, 0]}>
+          <mesh position={[0, 0.7, 0]}>
+            <boxGeometry args={[1.0, 1.4, 0.35]} />
+            <meshStandardMaterial color="#556677" roughness={0.6} metalness={0.3} />
+          </mesh>
+          {/* Divider line */}
+          <mesh position={[0, 0.7, 0.18]}>
+            <boxGeometry args={[0.02, 1.35, 0.01]} />
+            <meshStandardMaterial color="#445566" />
+          </mesh>
+          {/* Handles */}
+          <mesh position={[-0.18, 0.7, 0.18]}>
+            <boxGeometry args={[0.03, 0.12, 0.02]} />
+            <meshStandardMaterial color="#333333" metalness={0.8} roughness={0.3} />
+          </mesh>
+          <mesh position={[0.18, 0.7, 0.18]}>
+            <boxGeometry args={[0.03, 0.12, 0.02]} />
+            <meshStandardMaterial color="#333333" metalness={0.8} roughness={0.3} />
+          </mesh>
+        </group>
+      )
+
+    case 'ceiling-light':
+      return (
+        <group position={[dec.x, dec.y, dec.z]}>
+          {/* Fixture housing */}
+          <mesh>
+            <boxGeometry args={[0.8, 0.08, 0.3]} />
+            <meshStandardMaterial color="#cccccc" roughness={0.5} />
+          </mesh>
+          {/* Light panel (emissive) */}
+          <mesh position={[0, -0.05, 0]}>
+            <boxGeometry args={[0.7, 0.02, 0.22]} />
+            <meshStandardMaterial color="#ffffee" emissive="#ffffdd" emissiveIntensity={0.8} />
+          </mesh>
+          {/* Actual light source */}
+          <pointLight color="#ffffee" intensity={1.5} distance={CELL_SIZE_3D * 1.5} position={[0, -0.3, 0]} />
+        </group>
+      )
+
+    case 'bulletin-board':
+      return (
+        <group position={[dec.x, dec.y, dec.z]} rotation={[0, dec.rotation, 0]}>
+          {/* Cork board */}
+          <mesh>
+            <boxGeometry args={[0.9, 0.6, 0.04]} />
+            <meshStandardMaterial color="#b8864e" roughness={0.9} />
+          </mesh>
+          {/* Frame */}
+          <mesh position={[0, 0, 0.005]}>
+            <boxGeometry args={[0.96, 0.66, 0.02]} />
+            <meshStandardMaterial color="#665533" roughness={0.8} />
+          </mesh>
+          {/* Papers (small colored rectangles) */}
+          <mesh position={[-0.2, 0.1, 0.03]}>
+            <boxGeometry args={[0.18, 0.22, 0.005]} />
+            <meshStandardMaterial color="#eeeedd" />
+          </mesh>
+          <mesh position={[0.15, -0.05, 0.03]}>
+            <boxGeometry args={[0.2, 0.18, 0.005]} />
+            <meshStandardMaterial color="#ddddee" />
+          </mesh>
+          <mesh position={[0.05, 0.15, 0.03]}>
+            <boxGeometry args={[0.12, 0.15, 0.005]} />
+            <meshStandardMaterial color="#ffeedd" />
+          </mesh>
+        </group>
+      )
+
+    case 'clock':
+      return (
+        <group position={[dec.x, dec.y, dec.z]} rotation={[0, dec.rotation, 0]}>
+          <mesh>
+            <cylinderGeometry args={[0.2, 0.2, 0.06, 16]} />
+            <meshStandardMaterial color="#222222" roughness={0.4} />
+          </mesh>
+          {/* Clock face */}
+          <mesh position={[0, 0, 0.035]} rotation={[Math.PI / 2, 0, 0]}>
+            <circleGeometry args={[0.17, 16]} />
+            <meshStandardMaterial color="#eeeeee" />
+          </mesh>
+        </group>
+      )
+
+    case 'door-frame':
+      return (
+        <group position={[dec.x, 0, dec.z]} rotation={[0, dec.rotation, 0]}>
+          {/* Left jamb */}
+          <mesh position={[-0.45, WALL_HEIGHT / 2, 0]}>
+            <boxGeometry args={[0.08, WALL_HEIGHT, 0.12]} />
+            <meshStandardMaterial color="#8B6914" roughness={0.7} />
+          </mesh>
+          {/* Right jamb */}
+          <mesh position={[0.45, WALL_HEIGHT / 2, 0]}>
+            <boxGeometry args={[0.08, WALL_HEIGHT, 0.12]} />
+            <meshStandardMaterial color="#8B6914" roughness={0.7} />
+          </mesh>
+          {/* Lintel */}
+          <mesh position={[0, WALL_HEIGHT * 0.85, 0]}>
+            <boxGeometry args={[0.98, 0.1, 0.12]} />
+            <meshStandardMaterial color="#8B6914" roughness={0.7} />
+          </mesh>
+          {/* Door panel (slightly recessed) */}
+          <mesh position={[0, WALL_HEIGHT * 0.42, -0.02]}>
+            <boxGeometry args={[0.82, WALL_HEIGHT * 0.82, 0.05]} />
+            <meshStandardMaterial color="#6B4F1A" roughness={0.8} />
+          </mesh>
+          {/* Door handle */}
+          <mesh position={[0.3, WALL_HEIGHT * 0.42, 0.04]}>
+            <sphereGeometry args={[0.04, 8, 8]} />
+            <meshStandardMaterial color="#bba333" metalness={0.9} roughness={0.2} />
+          </mesh>
+        </group>
+      )
+
+    case 'fire-extinguisher':
+      return (
+        <group position={[dec.x, dec.y, dec.z]} rotation={[0, dec.rotation, 0]}>
+          {/* Tank */}
+          <mesh>
+            <cylinderGeometry args={[0.08, 0.08, 0.35, 8]} />
+            <meshStandardMaterial color="#cc2222" roughness={0.5} metalness={0.2} />
+          </mesh>
+          {/* Top */}
+          <mesh position={[0, 0.2, 0]}>
+            <cylinderGeometry args={[0.03, 0.05, 0.06, 8]} />
+            <meshStandardMaterial color="#222222" metalness={0.8} roughness={0.3} />
+          </mesh>
+        </group>
+      )
+
+    case 'water-fountain':
+      return (
+        <group position={[dec.x, dec.y, dec.z]} rotation={[0, dec.rotation, 0]}>
+          {/* Basin */}
+          <mesh>
+            <boxGeometry args={[0.4, 0.3, 0.25]} />
+            <meshStandardMaterial color="#aabbcc" roughness={0.4} metalness={0.3} />
+          </mesh>
+          {/* Spout */}
+          <mesh position={[0, 0.18, 0.05]}>
+            <cylinderGeometry args={[0.02, 0.02, 0.06, 6]} />
+            <meshStandardMaterial color="#888888" metalness={0.8} roughness={0.3} />
+          </mesh>
+        </group>
+      )
+
+    case 'trash-can':
+      return (
+        <group position={[dec.x, dec.y, dec.z]} rotation={[0, dec.rotation, 0]}>
+          <mesh>
+            <cylinderGeometry args={[0.18, 0.15, 0.5, 8]} />
+            <meshStandardMaterial color="#555555" roughness={0.7} metalness={0.2} />
+          </mesh>
+          {/* Rim */}
+          <mesh position={[0, 0.26, 0]}>
+            <cylinderGeometry args={[0.19, 0.19, 0.03, 8]} />
+            <meshStandardMaterial color="#444444" metalness={0.5} roughness={0.4} />
+          </mesh>
+        </group>
+      )
+  }
+}
+
+function MazeDecorations({ decorations }: { decorations: Decoration[] }) {
+  return (
+    <group>
+      {decorations.map((dec, i) => (
+        <DecorationMesh key={i} dec={dec} />
+      ))}
     </group>
   )
 }
@@ -279,6 +481,7 @@ function SceneContent({ state, onCellChange, posRef }: MazeSceneProps) {
   const cols = maze[0].length
 
   const wallSegments = useMemo(() => mazeToWalls(maze), [maze])
+  const mazeDecorations = useMemo(() => decorateMaze(maze), [maze])
   const worldWidth = cols * CELL_SIZE_3D
   const worldDepth = rows * CELL_SIZE_3D
 
@@ -309,15 +512,18 @@ function SceneContent({ state, onCellChange, posRef }: MazeSceneProps) {
 
   return (
     <>
-      {/* Strong, even lighting — no atmosphere yet */}
-      <ambientLight color="#ffffff" intensity={1.0} />
-      <directionalLight position={[worldWidth / 2, 20, worldDepth / 2]} intensity={0.5} />
+      {/* Reduced ambient — ceiling lights provide local illumination */}
+      <ambientLight color="#aaaacc" intensity={0.4} />
+      <directionalLight position={[worldWidth / 2, 20, worldDepth / 2]} intensity={0.3} />
 
       {/* Player light for local illumination */}
       <PlayerLight posRef={posRef} />
 
       {/* Walls */}
       <Walls segments={wallSegments} />
+
+      {/* Decorations (lockers, lights, bulletin boards, etc.) */}
+      <MazeDecorations decorations={mazeDecorations} />
 
       {/* Floor — distinct from walls */}
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[worldWidth / 2, 0, worldDepth / 2]}>
