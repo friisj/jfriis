@@ -20,7 +20,8 @@ import { saveHighScore, isHighScore } from '@/lib/recess/scores'
 import GameHud from '@/components/recess/GameHud'
 import MazeRenderer from '@/components/recess/MazeRenderer'
 import TeacherEncounter from '@/components/recess/TeacherEncounter'
-import GymBattle from '@/components/recess/GymBattle'
+import GymBattle3D from '@/components/recess/GymBattle3D'
+import type { GymAnimationState } from '@/components/recess/GymScene3D'
 
 // Dynamic import to avoid SSR issues with Three.js
 const MazeScene = dynamic(() => import('@/components/recess/MazeScene'), { ssr: false })
@@ -66,6 +67,7 @@ export default function Play3DPage() {
   const [showMinimap, setShowMinimap] = useState(true)
   const scoreSaved = useRef(false)
   const posRef = useRef({ x: 2, z: 2, yaw: Math.PI })
+  const gymAnimStateRef = useRef<GymAnimationState | null>(null)
 
   // Initialize audio on first user interaction
   useEffect(() => {
@@ -207,6 +209,7 @@ export default function Play3DPage() {
         state={state}
         onCellChange={handleCellChangeWrapped}
         posRef={posRef}
+        gymAnimState={gymAnimStateRef}
       />
 
       {/* HUD Overlay */}
@@ -266,11 +269,12 @@ export default function Play3DPage() {
       )}
 
       {state.phase === 'gym' && (
-        <GymBattle
+        <GymBattle3D
           demons={state.demonsFound}
           floor={state.currentFloor}
           onResult={(won) => dispatch({ type: 'dodgeball', won })}
           playSound={playSound}
+          gymAnimState={gymAnimStateRef}
         />
       )}
 
