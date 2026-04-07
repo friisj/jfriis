@@ -4,6 +4,7 @@ import dynamic from 'next/dynamic'
 
 const registry: Record<string, React.ComponentType> = {
   'arena/agent-compliance-spike': dynamic(() => import('@/components/studio/prototypes/arena/agent-compliance-spike'), { ssr: false }),
+  'bonkhold/isometric-gen': dynamic(() => import('@/components/studio/prototypes/bonkhold/isometric-gen'), { ssr: false }),
   'bug/attribution-tier-classifier': dynamic(() => import('@/components/studio/prototypes/bug/attribution-tier-classifier'), { ssr: false }),
   'bug/entity-resolution-spike': dynamic(() => import('@/components/studio/prototypes/bug/entity-resolution-spike'), { ssr: false }),
   'bug/stance-detection-benchmark': dynamic(() => import('@/components/studio/prototypes/bug/stance-detection-benchmark'), { ssr: false }),

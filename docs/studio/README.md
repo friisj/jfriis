@@ -388,6 +388,29 @@ MCP Apps embed interactive HTML UIs inside AI conversation contexts via sandboxe
 
 ---
 
+### Bonkhold
+**Status**: Phase 1 (Exploration) - Initial setup and asset pipeline research
+**Location**: `/components/studio/prototypes/bonkhold/` + `/docs/studio/bonkhold/`
+**Focus**: Asset generation pipeline exploration for a top-down melee survival game (external project, contributor role)
+
+**Current State**:
+- ✅ Project scaffolding and initial research structure
+- ⏳ Surveying asset generation approaches (AI-augmented, procedural, hybrid)
+- ⏳ Defining asset requirements per visual layer (Norse, Roman, Deep)
+
+**Concept**:
+Bonkhold is a multiplayer survival game combining Rust's full-loot stakes with A Link to the Past's combat readability. This studio project focuses on exploring digital asset generation pipelines — discovering which methods, styles, and workflows produce top-down game assets that maintain readability across three distinct architectural layers. Jon contributes creative content to this externally developed project.
+
+**Next Steps**:
+1. Survey asset generation approaches (tiled, procedural, AI-augmented)
+2. Define asset categories and requirements per visual layer
+3. Spike initial generation pipelines
+4. Evaluate output readability and style cohesion
+
+**Documents**: `/docs/studio/bonkhold/exploration/` (research.md, definitions.md)
+
+---
+
 ### Sub-Prompt
 **Status**: Phase 1 (Exploration) - Initial research and concept definition
 **Location**: `/components/studio/prototypes/sub-prompt/` + `/docs/studio/sub-prompt/`
