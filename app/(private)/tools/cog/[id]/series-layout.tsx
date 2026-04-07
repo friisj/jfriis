@@ -798,7 +798,7 @@ export function SeriesLayout({
           <ResizableHandle withHandle />
 
           <ResizablePanel defaultSize={75} minSize={50}>
-            <div className="h-full flex flex-col overflow-hidden px-6 py-4">
+            <div className="h-full flex flex-col overflow-y-scroll px-6 py-4">
               <ImagesPanel
                 images={images}
                 seriesId={seriesId}
