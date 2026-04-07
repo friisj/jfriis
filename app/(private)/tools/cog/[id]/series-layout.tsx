@@ -504,6 +504,8 @@ function ConfigPanel({
   const [error, setError] = useState<string | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [thumbStatus, setThumbStatus] = useState<string | null>(null);
+  const [regenerating, setRegenerating] = useState(false);
 
   // Form state
   const [title, setTitle] = useState(series.title);
@@ -626,6 +628,44 @@ function ConfigPanel({
       {/* Image Tags */}
       <div className="pt-4 border-t">
         <TagsSection seriesId={seriesId} enabledTags={enabledTags} globalTags={globalTags} tagGroups={tagGroups} />
+      </div>
+
+      {/* Maintenance */}
+      <div className="pt-4 border-t">
+        <h3 className="text-sm font-semibold mb-2">Maintenance</h3>
+        <div className="flex items-center gap-2">
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-7 text-xs"
+            disabled={regenerating}
+            onClick={async () => {
+              setRegenerating(true);
+              setThumbStatus(null);
+              try {
+                const res = await fetch('/api/cog/thumbnails', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ seriesId }),
+                });
+                const data = await res.json();
+                if (data.generated === 0 && data.failed === 0) {
+                  setThumbStatus('All images have thumbnails');
+                } else {
+                  setThumbStatus(`Generated: ${data.generated}, failed: ${data.failed}`);
+                  router.refresh();
+                }
+              } catch {
+                setThumbStatus('Failed');
+              } finally {
+                setRegenerating(false);
+              }
+            }}
+          >
+            {regenerating ? 'Generating...' : 'Regenerate Thumbnails'}
+          </Button>
+          {thumbStatus && <span className="text-xs text-muted-foreground">{thumbStatus}</span>}
+        </div>
       </div>
 
       {/* Delete Series */}
@@ -798,7 +838,7 @@ export function SeriesLayout({
           <ResizableHandle withHandle />
 
           <ResizablePanel defaultSize={75} minSize={50}>
-            <div className="h-full flex flex-col overflow-hidden px-6 py-4">
+            <div className="h-full flex flex-col overflow-y-scroll px-6 py-4">
               <ImagesPanel
                 images={images}
                 seriesId={seriesId}
