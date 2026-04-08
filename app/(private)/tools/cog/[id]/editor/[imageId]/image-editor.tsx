@@ -737,7 +737,7 @@ export function ImageEditor({ seriesId, imageId, initialImages }: ImageEditorPro
 
       {/* Group Drawer - Overlays bottom when active */}
       {showGroupMode && (
-        <div className="absolute bottom-0 inset-x-0 z-20 bg-black/50 backdrop-blur-">
+        <div className="absolute bottom-0 inset-x-0 z-20 bg-black/50">
           <div className="px-4 py-4">
             {loadingGroup ? (
               <div className="flex items-center justify-center py-8">

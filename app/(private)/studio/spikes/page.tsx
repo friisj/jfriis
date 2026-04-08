@@ -70,23 +70,10 @@ export default async function SpikesPage() {
 
   return (
     <div className="min-h-screen overflow-y-scroll">
-      <div className="max-w-5xl mx-auto p-8">
-        <nav className="mb-6 text-sm">
-          <Link href="/studio" className="text-blue-600 hover:underline">Studio</Link>
-          <span className="mx-2 text-gray-400">/</span>
-          <span className="text-gray-600">Spikes</span>
-        </nav>
-
-        <header className="mb-8">
-          <h1 className="text-3xl font-bold mb-1">Spikes</h1>
-          <p className="text-gray-500">{enrichedSpikes.length} spikes across {projectsWithSpikes.length} projects</p>
-        </header>
-
-        <SpikesFilter
-          spikes={enrichedSpikes}
-          projects={projectsWithSpikes}
-        />
-      </div>
+      <SpikesFilter
+        spikes={enrichedSpikes}
+        projects={projectsWithSpikes}
+      />
     </div>
   )
 }

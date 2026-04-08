@@ -43,7 +43,7 @@ function PrivateHeader() {
 
   return (
     <>
-      <header className="border-b bg-card flex items-center justify-between">
+      <header className="border-b bg-card flex items-center justify-between font-mono">
         {/* Desktop breadcrumbs */}
         <div className="hidden md:flex items-center">
           <nav className="flex items-center gap-1 text-xs text-muted-foreground h-10 px-3">
@@ -75,13 +75,13 @@ function PrivateHeader() {
           >
             <IconMenu2 size={18} />
           </button>
-          <span className="text-xs font-medium truncate max-w-[160px]">
+          <span className="text-xs truncate max-w-[160px]">
             {lastSegment}
           </span>
         </div>
 
         {/* Right side: actions + user menu (both viewports) */}
-        <div className="flex items-center h-10 border-l border-border divide-x divide-border">
+        <div className="flex items-center h-10  divide-x divide-border">
           {actions}
           <UserMenu />
         </div>

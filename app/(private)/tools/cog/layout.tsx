@@ -17,7 +17,14 @@ function CogHeaderActions() {
 
   useEffect(() => {
     setActions(
-      <div className="flex items-center h-full divide-x divide-x-border">
+      <>
+        <Link
+          href="/tools/cog/new"
+          className="flex items-center justify-center h-10 w-10 text-muted-foreground hover:text-foreground transition-colors"
+          title="New series"
+        >
+          <IconPlus size={16} stroke={1.5} />
+        </Link>
         <Link
           href="/tools/cog"
           className={cn(
@@ -40,14 +47,7 @@ function CogHeaderActions() {
         >
           Prompts
         </Link>
-        <Link
-          href="/tools/cog/new"
-          className="flex items-center justify-center h-10 w-10 text-muted-foreground hover:text-foreground transition-colors"
-          title="New series"
-        >
-          <IconPlus size={16} stroke={2} />
-        </Link>
-      </div>,
+      </>,
     );
 
     return () => setActions(null);

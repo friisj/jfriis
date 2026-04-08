@@ -148,57 +148,53 @@ export function SeriesDashboard({ series: initialSeries }: SeriesDashboardProps)
   }
 
   return (
-    <div className="grid gap-3 md:grid-cols-4 lg:grid-cols-4 p-3">
+    <div className="grid md:grid-cols-4 lg:grid-cols-4 divide-x divide-y divide-border">
       {visibleSeries.map((s) => (
         <ContextMenu key={s.id}>
           <ContextMenuTrigger asChild>
-            <div>
-              <Link href={`/tools/cog/${s.id}`} className="block">
-                <div className="overflow-hidden transition hover:bg-accent">
-                  <div className="relative aspect-square bg-muted">
-                    {s.primaryImage ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={getCogThumbnailUrl(s.primaryImage.storage_path)}
-                        alt={s.title}
-                        className="h-full w-full object-cover"
-                      />
-                    ) : (
-                      <div className="flex h-full items-center justify-center text-muted-foreground/50">
-                        No image
-                      </div>
-                    )}
+            <Link href={`/tools/cog/${s.id}`} className="block aspect-square relative">
+              <div className="absolute inset-0 aspect-square bg-muted z-20">
+                {s.primaryImage ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={getCogThumbnailUrl(s.primaryImage.storage_path)}
+                    alt={s.title}
+                    className="h-full w-full object-cover absolute aspect-square"
+                  />
+                ) : (
+                  <div className="absolute aspect-square">
+                    No image
                   </div>
-                  <div className="p-3 flex items-start text-sm justify-between bg-secondary">
-                    {renamingId === s.id ? (
-                      <input
-                        ref={renameInputRef}
-                        value={renameValue}
-                        onChange={(e) => setRenameValue(e.target.value)}
-                        onBlur={handleFinishRename}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') handleFinishRename();
-                          if (e.key === 'Escape') setRenamingId(null);
-                        }}
-                        onClick={(e) => e.preventDefault()}
-                        className="font-semibold bg-transparent border-b border-foreground outline-none w-full"
-                      />
-                    ) : (
-                      <h2 className="text-foreground">{s.title}</h2>
-                    )}
-                    <span className="text-muted-foreground">{s.imageCount}</span>
-                  </div>
-                </div>
-              </Link>
-            </div>
+                )}
+              </div>
+              <div className="absolute inset-0 flex flex-col items-start z-30 text-xs font-mono p-2">
+                {renamingId === s.id ? (
+                  <input
+                    ref={renameInputRef}
+                    value={renameValue}
+                    onChange={(e) => setRenameValue(e.target.value)}
+                    onBlur={handleFinishRename}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') handleFinishRename();
+                      if (e.key === 'Escape') setRenamingId(null);
+                    }}
+                    onClick={(e) => e.preventDefault()}
+                    className="font-semibold bg-transparent border-b border-foreground outline-none w-full"
+                  />
+                ) : (
+                  <span className="text-foreground bg-background p-1">{s.title}</span>
+                )}
+                <span className="text-foreground p-1 bg-background">{s.imageCount}</span>
+              </div>
+            </Link>
           </ContextMenuTrigger>
           <ContextMenuContent className="w-44">
             <ContextMenuItem className="text-xs" onClick={() => router.push(`/tools/cog/${s.id}`)}>
-              <IconEye size={14} className="mr-2" /> View
+              <IconEye size={14} stroke={1.5} /> View
             </ContextMenuItem>
             <ContextMenuSeparator />
             <ContextMenuItem className="text-xs" onClick={() => handleStartRename(s)}>
-              <IconPencil size={14} className="mr-2" /> Rename
+              <IconPencil size={14} stroke={1.5} /> Rename
             </ContextMenuItem>
             <ContextMenuSeparator />
             {(() => {
@@ -208,13 +204,13 @@ export function SeriesDashboard({ series: initialSeries }: SeriesDashboardProps)
                 <>
                   {(s.toolLinks ?? []).map((l) => (
                     <ContextMenuItem key={l.sourceType} className="text-xs" onClick={() => handleUnlinkTool(s.id, l.sourceType)}>
-                      <IconLinkOff size={14} className="mr-2" /> Unlink from {l.sourceType}
+                      <IconLinkOff size={14} stroke={1.5} /> Unlink from {l.sourceType}
                     </ContextMenuItem>
                   ))}
                   {unlinkedTools.length > 0 && (
                     <ContextMenuSub>
                       <ContextMenuSubTrigger className="text-xs">
-                        <IconLink size={14} className="mr-2" /> Link to...
+                        <IconLink size={14} stroke={1.5} /> Link to...
                       </ContextMenuSubTrigger>
                       <ContextMenuSubContent className="w-40">
                         {unlinkedTools.map((tool) => (
@@ -230,7 +226,7 @@ export function SeriesDashboard({ series: initialSeries }: SeriesDashboardProps)
             })()}
             <ContextMenuSeparator />
             <ContextMenuItem className="text-xs text-destructive focus:text-destructive" onClick={() => handleDelete(s)}>
-              <IconTrash size={14} className="mr-2" /> Delete
+              <IconTrash size={14} stroke={1.5} /> Delete
             </ContextMenuItem>
           </ContextMenuContent>
         </ContextMenu>
