@@ -6,6 +6,7 @@ import { useChat } from '@ai-sdk/react';
 import { DefaultChatTransport } from 'ai';
 import type { UIMessage } from 'ai';
 import { usePrivateHeader } from '@/components/layout/private-header-context';
+import { createAgentConversationClient } from '@/lib/agent-chat-client';
 import { IconArrowUp, IconSquare, IconChevronDown } from '@tabler/icons-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -59,21 +60,17 @@ export default function ChatPage() {
     if (!trimmed || isActive) return;
 
     if (!chatIdRef.current) {
-      const res = await fetch('/api/chat/conversations', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+      try {
+        const conv = await createAgentConversationClient({
           agent: 'chief',
           title: trimmed.slice(0, 60),
           model: modelKey,
-        }),
-      });
-      if (!res.ok) {
-        console.error('[chat] Failed to create conversation:', res.status);
+        });
+        chatIdRef.current = conv.id;
+      } catch (err) {
+        console.error('[chat] Failed to create conversation:', err);
         return;
       }
-      const conv = await res.json();
-      chatIdRef.current = conv.id;
     }
 
     setInput('');
