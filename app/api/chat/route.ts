@@ -45,43 +45,26 @@ export async function POST(req: Request) {
 
     const convId = chatId;
     let turnCount = 0;
-    let messages: UIMessage[] = clientMessages;
 
-    // If resuming an existing conversation, load history from DB
-    if (convId) {
+    // Use client messages directly — useChat includes the latest user message
+    const messages: UIMessage[] = clientMessages;
+
+    // Persist user message to DB if we have a conversation
+    if (convId && latestMessage) {
       const conv = await getAgentConversation(convId);
       if (!conv) {
         return NextResponse.json({ error: 'Conversation not found' }, { status: 404 });
       }
 
-      // Persist the latest user message
-      if (latestMessage) {
-        await createAgentMessage({
-          conversation_id: convId,
-          role: latestMessage.role,
-          content: getMessageText(latestMessage),
-          parts: latestMessage.parts,
-        });
-      }
+      await createAgentMessage({
+        conversation_id: convId,
+        role: latestMessage.role,
+        content: getMessageText(latestMessage),
+        parts: latestMessage.parts,
+      });
 
       await incrementAgentTurnCount(convId);
       turnCount = conv.turn_count + 1;
-
-      // Load full history
-      const dbMessages = await getAgentMessages(convId);
-      const historicalMessages = dbMessages
-        .filter((m) => m.role === 'user' || m.role === 'assistant')
-        .map((m) => ({
-          id: m.id,
-          role: m.role as 'user' | 'assistant',
-          parts: m.parts ? (m.parts as UIMessage['parts']) : [{ type: 'text' as const, text: m.content ?? '' }],
-        })) as UIMessage[];
-
-      if (latestMessage) {
-        messages = [...historicalMessages, latestMessage];
-      } else {
-        messages = historicalMessages;
-      }
     }
 
     // Build system prompt based on agent
