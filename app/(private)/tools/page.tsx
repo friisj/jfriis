@@ -6,23 +6,17 @@ export default function ToolsIndexPage() {
   const tools = getVisibleTools();
 
   return (
-    <div className="container py-8">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold">Tools</h1>
-        <p className="text-muted-foreground mt-2">
-          Private tools for personal productivity and management
-        </p>
-      </div>
+    <div className="">
 
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+      <div className="grid md:grid-cols-2 lg:grid-cols-3 divide-x divide-y divide-border">
         {tools.map((tool) => (
           <Link
             key={tool.id}
             href={tool.path}
-            className="group block rounded-lg border bg-card p-6 transition-colors hover:bg-accent"
+            className="group bg-card p-6 transition-colors hover:bg-accent aspect-square relative flex flex-col justify-between"
           >
             {tool.cover && (
-              <div className="mb-4 aspect-video relative rounded-md overflow-hidden bg-muted">
+              <div className="aspect-square absolute inset-0 overflow-hidden bg-muted">
                 <Image
                   src={tool.cover}
                   alt={tool.title}
@@ -32,11 +26,11 @@ export default function ToolsIndexPage() {
               </div>
             )}
 
-            <h2 className="text-xl font-semibold group-hover:text-primary transition-colors">
+            <h2 className="text-4xl font-semibold group-hover:text-primary transition-colors">
               {tool.title}
             </h2>
 
-            <p className="text-sm text-muted-foreground mt-2">
+            <p className="text-sm text-muted-foreground mt-1">
               {tool.description}
             </p>
           </Link>
