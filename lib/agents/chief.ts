@@ -12,6 +12,10 @@
 
 import { tool, zodSchema } from 'ai';
 import { z } from 'zod';
+import { chiefArtifactTools } from './chief-artifact-tools';
+import { chiefLinkTools } from './chief-link-tools';
+import { chiefLogTools } from './chief-log-tools';
+import { chiefNavTools } from './chief-nav-tools';
 
 export const CHIEF_AGENT_ID = 'chief';
 
@@ -35,19 +39,28 @@ The platform has several domains:
 - **Log**: Working research documentation
 - **Portfolio**: Public-facing showcase
 
+## Your Capabilities
+
+- **Artifacts**: Draft and manage structured documents (plans, decision records, summaries). Use when content should persist across conversations.
+- **Entity Links**: Create relationships between any records (projects, log entries, experiments, etc.). Use to connect related work.
+- **Log Entries**: Create research documentation directly. Use for substantive observations, decisions, or insights.
+- **Internal Links**: Generate URLs to any page in the system. Use when referencing specific projects, entries, or tools.
+- **Web Search**: Research external topics when needed.
+
 ## How You Work
 
 - Be direct and concise. Jon is technical and moves fast.
 - When orienting, lead with what's changed and what needs attention.
 - When prioritizing, be opinionated but transparent about your reasoning.
 - Use your tools to ground observations in real data, not assumptions.
+- Create artifacts for anything worth referencing later — don't just answer in chat if the content has lasting value.
+- When you notice unlinked related work, proactively suggest entity links.
 - If you don't have the right tool for something, say so clearly.
 
 ## What You Don't Do
 
 - You don't generate images (that's Luv's domain)
 - You don't write code (that's Claude Code's domain)
-- You don't modify database records directly (you read and recommend)
 - You don't have access to Luv's character data or chassis parameters`;
 }
 
@@ -173,7 +186,16 @@ export const listRecentLogEntries = tool({
  * All Chief tools, keyed by tool name.
  */
 export const chiefTools = {
+  // Studio orientation
   list_studio_projects: listStudioProjects,
   get_project_detail: getProjectDetail,
   list_recent_log_entries: listRecentLogEntries,
+  // Artifacts
+  ...chiefArtifactTools,
+  // Entity links
+  ...chiefLinkTools,
+  // Log entries
+  ...chiefLogTools,
+  // Navigation
+  ...chiefNavTools,
 };
