@@ -29,13 +29,13 @@ export function UserMenu() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <button className="flex items-center gap-2 px-3 h-10 hover:bg-accent transition-colors outline-none">
+        <button className="flex items-center gap-2 px-3 h-10 hover:bg-accent transition-colors outline-none font-mono">
           {user ? (
             <>
-              <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center text-xs font-medium">
+              <div className="w-6 h-6 rounded-full bg-blue-500 text-white font-mono flex items-center justify-center text-xs font-medium">
                 {user.email?.[0].toUpperCase()}
               </div>
-              <IconChevronDown size={16} strokeWidth={1.5} />
+              <IconChevronDown size={16} strokeWidth={1.5} className="text-neutral-500" />
             </>
           ) : (
             <IconMenu2 size={20} />
@@ -43,10 +43,10 @@ export function UserMenu() {
         </button>
       </DropdownMenuTrigger>
 
-      <DropdownMenuContent align="end" className="w-56">
+      <DropdownMenuContent align="end" className="w-56 font-mono" sideOffset={-4} alignOffset={4}>
         {user ? (
           <>
-            <div className="px-2 py-1.5 text-sm">
+            <div className="px-2 py-1.5 text-xs">
               <div className="font-medium truncate">{user.email}</div>
               {isAdmin && (
                 <div className="text-xs text-muted-foreground">Admin</div>
@@ -65,15 +65,15 @@ export function UserMenu() {
               Log out
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <div className="px-2 py-1.5 flex items-center justify-between text-sm">
+            <div className="px-2 py-1.5 flex items-center justify-between text-xs">
               <span className="text-muted-foreground">Theme</span>
               <ModeToggle />
             </div>
             {isAdmin && (
               <>
                 <DropdownMenuSeparator />
-                <div className="px-2 py-1.5 flex items-center justify-between text-sm">
-                  <span className="text-muted-foreground">Privacy Mode</span>
+                <div className="px-2 py-1.5 flex items-center justify-between text-xs">
+                  <span className="text-muted-foreground select-none">Privacy Mode</span>
                   <button
                     onClick={togglePrivacyMode}
                     className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${

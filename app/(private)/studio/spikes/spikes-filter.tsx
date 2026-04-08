@@ -91,39 +91,40 @@ export function SpikesFilter({ spikes, projects }: { spikes: Spike[]; projects: 
     <>
 
       {/* List */}
-      <div className="divide-y divide-border">
+      <div className="divide-y divide-border font-mono">
         {filtered.map(spike => {
           const href = spike.projectSlug && spike.experimentSlug
             ? `/studio/${spike.projectSlug}/${spike.experimentSlug}/${spike.slug}`
             : null
 
           return (
-            <div key={spike.id} className="flex items-start gap-2 text-xs p-3">
-              <div className="w-32 truncate">
+            <div key={spike.id} className="flex items-start gap-2 text-xs p-3 overflow-hidden">
+
               {spike.projectName && (
-                <Link
-                  href={`/studio/${spike.projectSlug}`}
-                  className="text-neutral-500 hover:text-foreground hover:underline"
-                >
-                  {spike.projectName}
-                </Link>
+                <div className="md:min-w-32">
+                  <Link
+                    href={`/studio/${spike.projectSlug}`}
+                    className="text-neutral-500 hover:text-foreground hover:underline"
+                  >
+                    {spike.projectName}
+                  </Link>
+                </div>
               )}
-              </div>
-              <div className="flex items-center gap-2 flex-1">
+              <div className="flex items-center gap-2">
                 {href ? (
-                  <Link href={href} className="font-semibold hover:underline truncate">
+                  <Link href={href} className="font-semibold hover:underline line-clamp-1">
                     {spike.name}
                   </Link>
                 ) : (
                   <span className="font-semibold truncate">{spike.name}</span>
                 )}
                 {spike.description && (
-                  <p className="line-clamp-1">{spike.description}</p>
+                  <p className="flex-1 truncate">{spike.description}</p>
                 )}
               </div>
-              <div className="flex items-center gap-4 text-neutral-500">
+              <div className="flex-1 flex items-center justify-end gap-4 text-neutral-500">
                 {spike.experimentName && spike.experimentType === 'spike' && (
-                  <span className="flex items-center gap-1">
+                  <span className="flex items-center gap-1 min-w-48 truncate">
                     <IconFlask size={12} />
                     <Link
                       href={`/studio/${spike.projectSlug}/${spike.experimentSlug}`}
