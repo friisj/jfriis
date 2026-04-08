@@ -1,5 +1,5 @@
 'use client';
- 
+/* eslint-disable react-hooks/refs */
 
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useChat } from '@ai-sdk/react';
@@ -27,7 +27,7 @@ export default function ChatPage() {
   const { setHidden } = usePrivateHeader();
   const [modelKey, setModelKey] = useState('claude-sonnet');
   const [input, setInput] = useState('');
-  const [chatId, setChatId] = useState<string | null>(null);
+  const chatIdRef = useRef<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const endRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -40,9 +40,9 @@ export default function ChatPage() {
   const transport = useMemo(
     () => new DefaultChatTransport({
       api: '/api/chat',
-      body: { chatId, modelKey, agent: 'chief' },
+      body: () => ({ chatId: chatIdRef.current, modelKey, agent: 'chief' }),
     }),
-    [chatId, modelKey]
+    [modelKey]
   );
 
   const { messages, sendMessage, stop, status } = useChat({ transport });
@@ -58,7 +58,7 @@ export default function ChatPage() {
     const trimmed = input.trim();
     if (!trimmed || isActive) return;
 
-    if (!chatId) {
+    if (!chatIdRef.current) {
       const res = await fetch('/api/chat/conversations', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -68,13 +68,17 @@ export default function ChatPage() {
           model: modelKey,
         }),
       });
+      if (!res.ok) {
+        console.error('[chat] Failed to create conversation:', res.status);
+        return;
+      }
       const conv = await res.json();
-      setChatId(conv.id);
+      chatIdRef.current = conv.id;
     }
 
     setInput('');
     await sendMessage({ text: trimmed });
-  }, [input, isActive, chatId, modelKey, sendMessage]);
+  }, [input, isActive, modelKey, sendMessage]);
 
   const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
