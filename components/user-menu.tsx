@@ -33,7 +33,7 @@ export function UserMenu() {
               <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center text-xs font-medium">
                 {user.email?.[0].toUpperCase()}
               </div>
-              <IconChevronDown size={16} className={`transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+              <IconChevronDown size={16} strokeWidth={1.5} className={`transition-transform ${isOpen ? 'rotate-180' : ''}`} />
             </>
           ) : (
             <>

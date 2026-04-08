@@ -59,9 +59,9 @@ export function SpikesFilter({ spikes, projects }: { spikes: Spike[]; projects: 
 
   useEffect(() => {
     setActions(
-      <div className="flex items-center gap-2">
+      <>
         <Select value={projectFilter} onValueChange={setProjectFilter}>
-          <SelectTrigger size="sm" className="text-xs min-w-[120px]">
+          <SelectTrigger size="sm" className="text-xs min-w-[120px] h-12">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -72,7 +72,7 @@ export function SpikesFilter({ spikes, projects }: { spikes: Spike[]; projects: 
           </SelectContent>
         </Select>
         <Select value={sort} onValueChange={v => setSort(v as SortKey)}>
-          <SelectTrigger size="sm" className="text-xs min-w-[110px]">
+          <SelectTrigger size="sm" className="text-xs min-w-[110px] h-12">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -82,7 +82,7 @@ export function SpikesFilter({ spikes, projects }: { spikes: Spike[]; projects: 
             <SelectItem value="project">By project</SelectItem>
           </SelectContent>
         </Select>
-      </div>
+      </>
     )
     return () => setActions(null)
   }, [setActions, projectFilter, sort, projects, filtered.length])
@@ -103,7 +103,7 @@ export function SpikesFilter({ spikes, projects }: { spikes: Spike[]; projects: 
               {spike.projectName && (
                 <Link
                   href={`/studio/${spike.projectSlug}`}
-                  className="text-neutral-500 hover:text-gray-600 hover:underline"
+                  className="text-neutral-500 hover:text-foreground hover:underline"
                 >
                   {spike.projectName}
                 </Link>
@@ -118,10 +118,10 @@ export function SpikesFilter({ spikes, projects }: { spikes: Spike[]; projects: 
                   <span className="font-semibold truncate">{spike.name}</span>
                 )}
                 {spike.description && (
-                  <p className="text-gray-500 line-clamp-1">{spike.description}</p>
+                  <p className="line-clamp-1">{spike.description}</p>
                 )}
               </div>
-              <div className="flex items-center gap-3 text-gray-500">
+              <div className="flex items-center gap-4 text-neutral-500">
                 {spike.experimentName && spike.experimentType === 'spike' && (
                   <span className="flex items-center gap-1">
                     <IconFlask size={12} />
@@ -133,7 +133,7 @@ export function SpikesFilter({ spikes, projects }: { spikes: Spike[]; projects: 
                     </Link>
                   </span>
                 )}
-                <span>{new Date(spike.created_at).toLocaleDateString()}</span>
+                <span className="font-mono text-xs">{new Date(spike.created_at).toLocaleDateString()}</span>
               </div>
             </div>
           )
