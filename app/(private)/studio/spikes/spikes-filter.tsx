@@ -4,6 +4,13 @@ import { useState, useMemo, useEffect } from 'react'
 import Link from 'next/link'
 import { IconBolt, IconFlask } from '@tabler/icons-react'
 import { usePrivateHeader } from '@/components/layout/private-header-context'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 
 interface Spike {
   id: string
@@ -52,27 +59,29 @@ export function SpikesFilter({ spikes, projects }: { spikes: Spike[]; projects: 
 
   useEffect(() => {
     setActions(
-      <div className="flex items-center gap-3 divide-x divide-border">
-        <select
-          value={projectFilter}
-          onChange={e => setProjectFilter(e.target.value)}
-          className="h-10 px-3 text-xs"
-        >
-          <option value="all">All projects</option>
-          {projects.map(p => (
-            <option key={p.id} value={p.id}>{p.name}</option>
-          ))}
-        </select>
-        <select
-          value={sort}
-          onChange={e => setSort(e.target.value as SortKey)}
-          className="h-10 px-3 text-xs"
-        >
-          <option value="newest">Newest first</option>
-          <option value="oldest">Oldest first</option>
-          <option value="name">Name A-Z</option>
-          <option value="project">By project</option>
-        </select>
+      <div className="flex items-center gap-2">
+        <Select value={projectFilter} onValueChange={setProjectFilter}>
+          <SelectTrigger size="sm" className="text-xs min-w-[120px]">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All projects</SelectItem>
+            {projects.map(p => (
+              <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select value={sort} onValueChange={v => setSort(v as SortKey)}>
+          <SelectTrigger size="sm" className="text-xs min-w-[110px]">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="newest">Newest first</SelectItem>
+            <SelectItem value="oldest">Oldest first</SelectItem>
+            <SelectItem value="name">Name A-Z</SelectItem>
+            <SelectItem value="project">By project</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
     )
     return () => setActions(null)
