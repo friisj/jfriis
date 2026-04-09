@@ -7,7 +7,7 @@ import { DefaultChatTransport } from 'ai';
 import type { UIMessage } from 'ai';
 import { usePrivateHeader } from '@/components/layout/private-header-context';
 import { createAgentConversationClient } from '@/lib/agent-chat-client';
-import { IconArrowUp, IconSquare, IconChevronDown, IconPlus } from '@tabler/icons-react';
+import { IconArrowUp, IconSquare, IconChevronDown, IconPlus, IconAt } from '@tabler/icons-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import {
@@ -17,6 +17,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import {
+  Command,
+  CommandItem,
+  CommandList,
+} from '@/components/ui/command';
 import { AGENTS, DEFAULT_AGENT, getAgentConfig } from '@/lib/agents/registry';
 
 const MODEL_OPTIONS = [
@@ -44,6 +49,7 @@ export default function ChatPage() {
   const chatIdRef = useRef<string | null>(null);
   const [resumedConversationId, setResumedConversationId] = useState<string | null>(null);
   const [recentConversations, setRecentConversations] = useState<ConversationSummary[]>([]);
+  const [showMentionPicker, setShowMentionPicker] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const endRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -180,15 +186,65 @@ export default function ChatPage() {
     await sendMessage({ text: trimmed });
   }, [input, isActive, modelKey, sendMessage, syncUrl]);
 
+  const handleInputChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const val = e.target.value;
+    setInput(val);
+    // Show mention picker when @ is typed at the end or after whitespace
+    const lastAt = val.lastIndexOf('@');
+    if (lastAt >= 0 && (lastAt === 0 || val[lastAt - 1] === ' ' || val[lastAt - 1] === '\n')) {
+      const afterAt = val.slice(lastAt + 1);
+      if (!afterAt.includes(' ') && afterAt.length < 20) {
+        setShowMentionPicker(true);
+        return;
+      }
+    }
+    setShowMentionPicker(false);
+  }, []);
+
+  const handleMentionSelect = useCallback((mentionAgentId: string) => {
+    const agent = AGENTS[mentionAgentId];
+    if (!agent) return;
+    // Replace the @partial with @AgentLabel
+    const lastAt = input.lastIndexOf('@');
+    const before = input.slice(0, lastAt);
+    setInput(`${before}@${agent.label} `);
+    setShowMentionPicker(false);
+    textareaRef.current?.focus();
+  }, [input]);
+
   const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === 'Escape' && showMentionPicker) {
+      setShowMentionPicker(false);
+      return;
+    }
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
+      if (showMentionPicker) {
+        setShowMentionPicker(false);
+        return;
+      }
       handleSend();
     }
-  }, [handleSend]);
+  }, [handleSend, showMentionPicker]);
 
   return (
     <div className="h-lvh flex flex-col bg-background">
+      {/* Conversation header — shows active agent when in a conversation */}
+      {messages.length > 0 && (
+        <div className="border-b px-4 py-2 flex items-center justify-between max-w-3xl mx-auto w-full">
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-medium">{agentConfig.label}</span>
+            <span className="text-[10px] text-muted-foreground">{agentConfig.description}</span>
+          </div>
+          <button
+            onClick={handleNewConversation}
+            className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1"
+          >
+            <IconPlus size={12} /> New
+          </button>
+        </div>
+      )}
+
       {/* Messages */}
       <div ref={scrollRef} className="flex-1 overflow-y-auto">
         <div className="max-w-3xl mx-auto px-4 py-8 space-y-6">
@@ -260,28 +316,40 @@ export default function ChatPage() {
       {/* Input */}
       <div className="max-w-3xl mx-auto w-full px-4 pb-4">
         <div className="border rounded-2xl bg-card">
-          <textarea
-            ref={textareaRef}
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder={`Ask ${agentConfig.label}...`}
-            rows={1}
-            className="w-full resize-none bg-transparent px-4 pt-3 pb-1 text-sm outline-none placeholder:text-muted-foreground"
-            style={{ minHeight: '44px', maxHeight: '200px' }}
-          />
+          <div className="relative">
+            <textarea
+              ref={textareaRef}
+              value={input}
+              onChange={handleInputChange}
+              onKeyDown={handleKeyDown}
+              placeholder={`Ask ${agentConfig.label}... (type @ to mention an agent)`}
+              rows={1}
+              className="w-full resize-none bg-transparent px-4 pt-3 pb-1 text-sm outline-none placeholder:text-muted-foreground"
+              style={{ minHeight: '44px', maxHeight: '200px' }}
+            />
+            {/* @mention picker */}
+            {showMentionPicker && (
+              <div className="absolute bottom-full left-2 mb-1 z-10">
+                <Command className="border rounded-lg shadow-md bg-popover w-48">
+                  <CommandList>
+                    {Object.values(AGENTS).map((a) => (
+                      <CommandItem
+                        key={a.id}
+                        onSelect={() => handleMentionSelect(a.id)}
+                        className="cursor-pointer"
+                      >
+                        <IconAt size={14} className="text-muted-foreground" />
+                        <span className="font-medium">{a.label}</span>
+                        <span className="text-[10px] text-muted-foreground ml-auto">{a.description}</span>
+                      </CommandItem>
+                    ))}
+                  </CommandList>
+                </Command>
+              </div>
+            )}
+          </div>
           <div className="flex items-center justify-between px-2 pb-2">
             <div className="flex items-center gap-1">
-              <Select value={agentId} onValueChange={handleSwitchAgent}>
-                <SelectTrigger size="sm" className="text-xs w-20 border-none shadow-none font-medium">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {Object.values(AGENTS).map((a) => (
-                    <SelectItem key={a.id} value={a.id}>{a.label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
               <Select value={modelKey} onValueChange={setModelKey}>
                 <SelectTrigger size="sm" className="text-xs w-24 border-none shadow-none">
                   <SelectValue />
@@ -384,8 +452,16 @@ function MessageBubble({ message }: { message: UIMessage }) {
 
 function ToolCallChip({ toolName, state, output }: { toolName: string; state: string; output?: unknown }) {
   const [expanded, setExpanded] = useState(false);
-  const label = toolName.replace(/_/g, ' ');
   const isComplete = state === 'output-available';
+
+  // Special labeling for delegation
+  const isDelegation = toolName === 'delegate_to_agent';
+  const delegationTarget = isDelegation && output
+    ? (output as Record<string, unknown>).agentLabel as string | undefined
+    : undefined;
+  const label = isDelegation
+    ? delegationTarget ? `Delegated to ${delegationTarget}` : 'Delegating...'
+    : toolName.replace(/_/g, ' ');
 
   return (
     <div className="rounded-md border bg-muted/50 text-xs">
@@ -395,8 +471,11 @@ function ToolCallChip({ toolName, state, output }: { toolName: string; state: st
         className="flex items-center gap-1.5 w-full px-2 py-1.5 text-left"
       >
         <IconChevronDown size={12} className={`transition-transform ${expanded ? '' : '-rotate-90'}`} />
+        {isDelegation && <IconAt size={12} className="text-muted-foreground" />}
         <span className="font-medium capitalize">{label}</span>
-        {!isComplete && <span className="ml-auto text-muted-foreground animate-pulse">running...</span>}
+        {!isComplete && <span className="ml-auto text-muted-foreground animate-pulse">
+          {isDelegation ? 'delegating...' : 'running...'}
+        </span>}
       </button>
       {expanded && output != null && (
         <div className="border-t px-2 py-1.5 max-h-48 overflow-auto">
