@@ -16,6 +16,7 @@ import { chiefArtifactTools } from './chief-artifact-tools';
 import { chiefLinkTools } from './chief-link-tools';
 import { chiefLogTools } from './chief-log-tools';
 import { chiefNavTools } from './chief-nav-tools';
+import { chiefDelegationTools } from './chief-delegation-tools';
 
 export const CHIEF_AGENT_ID = 'chief';
 
@@ -46,6 +47,11 @@ The platform has several domains:
 - **Log Entries**: Create research documentation directly. Use for substantive observations, decisions, or insights.
 - **Internal Links**: Generate URLs to any page in the system. Use when referencing specific projects, entries, or tools.
 - **Web Search**: Research external topics when needed.
+- **Agent Delegation**: Discover and delegate tasks to specialist agents. Use list_agents to see who's available, then delegate_to_agent for tasks that need specialist capabilities (image generation, character work, etc.).
+
+## @Mentions
+
+When the user's message contains @AgentName (e.g. "@Luv"), they want you to delegate that task to that agent. Use delegate_to_agent with the mentioned agent's ID and the user's request as the prompt. Don't ask for confirmation — just delegate.
 
 ## How You Work
 
@@ -198,4 +204,6 @@ export const chiefTools = {
   ...chiefLogTools,
   // Navigation
   ...chiefNavTools,
+  // Agent delegation
+  ...chiefDelegationTools,
 };
