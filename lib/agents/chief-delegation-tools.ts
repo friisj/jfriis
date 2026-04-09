@@ -102,19 +102,21 @@ export const delegateToAgent = tool({
         stopWhen: stepCountIs(10),
       });
 
+      const toolsUsed = result.steps
+        .flatMap((s) => (s.toolCalls ?? []))
+        .map((tc) => (tc as { toolName: string }).toolName)
+        .filter(Boolean);
+
       return {
         success: true,
         agentId,
         agentLabel: agentConfig.label,
-        response: result.text,
-        toolCalls: result.steps.flatMap((s) =>
-          (s.toolCalls ?? []).map((tc) => ({
-            toolName: (tc as { toolName: string }).toolName,
-          }))
-        ),
+        response: result.text || '(no text response)',
+        toolsUsed: toolsUsed.length > 0 ? toolsUsed : undefined,
         stepsUsed: result.steps.length,
       };
     } catch (err) {
+      console.error(`[delegate] Failed to delegate to ${agentId}:`, err);
       return {
         success: false,
         error: err instanceof Error ? err.message : 'Delegation failed',
