@@ -7,7 +7,7 @@ import { DefaultChatTransport } from 'ai';
 import type { UIMessage } from 'ai';
 import { usePrivateHeader } from '@/components/layout/private-header-context';
 import { createAgentConversationClient } from '@/lib/agent-chat-client';
-import { IconArrowUp, IconSquare, IconChevronDown } from '@tabler/icons-react';
+import { IconArrowUp, IconSquare, IconChevronDown, IconPlus } from '@tabler/icons-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import {
@@ -24,11 +24,21 @@ const MODEL_OPTIONS = [
   { value: 'claude-haiku', label: 'Haiku' },
 ];
 
+interface ConversationSummary {
+  id: string;
+  title: string | null;
+  model: string | null;
+  turn_count: number;
+  updated_at: string;
+}
+
 export default function ChatPage() {
   const { setHidden } = usePrivateHeader();
   const [modelKey, setModelKey] = useState('claude-sonnet');
   const [input, setInput] = useState('');
   const chatIdRef = useRef<string | null>(null);
+  const [resumedConversationId, setResumedConversationId] = useState<string | null>(null);
+  const [recentConversations, setRecentConversations] = useState<ConversationSummary[]>([]);
   const scrollRef = useRef<HTMLDivElement>(null);
   const endRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -38,6 +48,24 @@ export default function ChatPage() {
     return () => setHidden(false);
   }, [setHidden]);
 
+  // Load recent conversations on mount
+  useEffect(() => {
+    fetch('/api/chat/conversations?agent=chief&limit=10')
+      .then((r) => r.json())
+      .then(setRecentConversations)
+      .catch(() => {});
+  }, [resumedConversationId]); // refetch when conversation changes
+
+  // Check URL for conversation ID on mount
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const convId = params.get('c');
+    if (convId) {
+      chatIdRef.current = convId;
+      setResumedConversationId(convId);
+    }
+  }, []);
+
   const transport = useMemo(
     () => new DefaultChatTransport({
       api: '/api/chat',
@@ -46,13 +74,57 @@ export default function ChatPage() {
     [modelKey]
   );
 
-  const { messages, sendMessage, stop, status } = useChat({ transport });
+  const { messages, sendMessage, setMessages, stop, status } = useChat({ transport });
   const isActive = status === 'streaming' || status === 'submitted';
+
+  // Load messages when resuming a conversation
+  useEffect(() => {
+    if (!resumedConversationId) return;
+    // Fetch messages from DB and populate useChat
+    fetch(`/api/chat/conversations/${resumedConversationId}/messages`)
+      .then((r) => r.ok ? r.json() : [])
+      .then((msgs: Array<{ id: string; role: string; content: string | null; parts: unknown }>) => {
+        const uiMessages: UIMessage[] = msgs
+          .filter((m) => m.role === 'user' || m.role === 'assistant')
+          .map((m) => ({
+            id: m.id,
+            role: m.role as 'user' | 'assistant',
+            parts: m.parts
+              ? (m.parts as UIMessage['parts'])
+              : [{ type: 'text' as const, text: m.content ?? '' }],
+          }));
+        setMessages(uiMessages);
+      })
+      .catch(() => {});
+  }, [resumedConversationId, setMessages]);
 
   // Auto-scroll
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
+
+  // URL sync
+  const syncUrl = useCallback((convId: string) => {
+    const url = new URL(window.location.href);
+    url.searchParams.set('c', convId);
+    window.history.replaceState({}, '', url.toString());
+  }, []);
+
+  // Resume a conversation
+  const handleResume = useCallback((convId: string) => {
+    chatIdRef.current = convId;
+    setResumedConversationId(convId);
+    syncUrl(convId);
+  }, [syncUrl]);
+
+  // New conversation
+  const handleNewConversation = useCallback(() => {
+    chatIdRef.current = null;
+    setResumedConversationId(null);
+    setMessages([]);
+    setInput('');
+    window.history.replaceState({}, '', '/chat');
+  }, [setMessages]);
 
   // Create conversation on first send
   const handleSend = useCallback(async () => {
@@ -67,6 +139,8 @@ export default function ChatPage() {
           model: modelKey,
         });
         chatIdRef.current = conv.id;
+        setResumedConversationId(conv.id);
+        syncUrl(conv.id);
       } catch (err) {
         console.error('[chat] Failed to create conversation:', err);
         return;
@@ -75,7 +149,7 @@ export default function ChatPage() {
 
     setInput('');
     await sendMessage({ text: trimmed });
-  }, [input, isActive, modelKey, sendMessage]);
+  }, [input, isActive, modelKey, sendMessage, syncUrl]);
 
   const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -90,9 +164,40 @@ export default function ChatPage() {
       <div ref={scrollRef} className="flex-1 overflow-y-auto">
         <div className="max-w-3xl mx-auto px-4 py-8 space-y-6">
           {messages.length === 0 && (
-            <div className="text-center py-24">
-              <h1 className="text-2xl font-bold mb-2">Chief</h1>
-              <p className="text-muted-foreground text-sm">Operations & orchestration agent</p>
+            <div className="py-16">
+              <div className="text-center mb-8">
+                <h1 className="text-2xl font-bold mb-2">Chief</h1>
+                <p className="text-muted-foreground text-sm">Operations & orchestration agent</p>
+              </div>
+
+              {/* Recent conversations */}
+              {recentConversations.length > 0 && (
+                <div className="max-w-md mx-auto">
+                  <div className="flex items-center justify-between mb-3">
+                    <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Recent</h2>
+                    <button
+                      onClick={handleNewConversation}
+                      className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1"
+                    >
+                      <IconPlus size={12} /> New
+                    </button>
+                  </div>
+                  <div className="divide-y divide-border rounded-lg border">
+                    {recentConversations.map((conv) => (
+                      <button
+                        key={conv.id}
+                        onClick={() => handleResume(conv.id)}
+                        className="w-full text-left px-3 py-2.5 hover:bg-accent/50 transition-colors first:rounded-t-lg last:rounded-b-lg"
+                      >
+                        <div className="text-sm truncate">{conv.title || 'Untitled'}</div>
+                        <div className="text-[10px] text-muted-foreground mt-0.5">
+                          {conv.turn_count} turns · {timeAgo(conv.updated_at)}
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           )}
           {messages.map((msg) => (
@@ -121,16 +226,27 @@ export default function ChatPage() {
             style={{ minHeight: '44px', maxHeight: '200px' }}
           />
           <div className="flex items-center justify-between px-2 pb-2">
-            <Select value={modelKey} onValueChange={setModelKey}>
-              <SelectTrigger size="sm" className="text-xs w-24 border-none shadow-none">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {MODEL_OPTIONS.map((m) => (
-                  <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <div className="flex items-center gap-1">
+              <Select value={modelKey} onValueChange={setModelKey}>
+                <SelectTrigger size="sm" className="text-xs w-24 border-none shadow-none">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {MODEL_OPTIONS.map((m) => (
+                    <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {chatIdRef.current && (
+                <button
+                  onClick={handleNewConversation}
+                  className="text-xs text-muted-foreground hover:text-foreground px-2 py-1"
+                  title="New conversation"
+                >
+                  <IconPlus size={14} />
+                </button>
+              )}
+            </div>
             <div className="p-1">
               {isActive ? (
                 <button
@@ -159,6 +275,18 @@ export default function ChatPage() {
 }
 
 // ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+function timeAgo(dateStr: string): string {
+  const seconds = Math.floor((Date.now() - new Date(dateStr).getTime()) / 1000);
+  if (seconds < 60) return 'just now';
+  if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
+  if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
+  return `${Math.floor(seconds / 86400)}d ago`;
+}
+
+// ---------------------------------------------------------------------------
 // Message Bubble
 // ---------------------------------------------------------------------------
 
@@ -174,11 +302,9 @@ function MessageBubble({ message }: { message: UIMessage }) {
     );
   }
 
-  // Assistant
   const textParts = message.parts.filter((p) => p.type === 'text') as { text: string }[];
   const combinedText = textParts.map((p) => p.text).join('\n\n');
 
-  // Tool calls
   const toolParts = message.parts.filter((p) => 'toolName' in p) as Array<{
     toolName: string;
     state: string;
