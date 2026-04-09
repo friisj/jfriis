@@ -17,6 +17,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { AGENTS, DEFAULT_AGENT, getAgentConfig } from '@/lib/agents/registry';
 
 const MODEL_OPTIONS = [
   { value: 'claude-sonnet', label: 'Sonnet' },
@@ -34,9 +35,13 @@ interface ConversationSummary {
 
 export default function ChatPage() {
   const { setHidden } = usePrivateHeader();
+  const [agentId, setAgentId] = useState(DEFAULT_AGENT);
+  const agentConfig = getAgentConfig(agentId);
   const [modelKey, setModelKey] = useState('claude-sonnet');
   const [input, setInput] = useState('');
   const chatIdRef = useRef<string | null>(null);
+  const agentIdRef = useRef(agentId);
+  agentIdRef.current = agentId;
   const [resumedConversationId, setResumedConversationId] = useState<string | null>(null);
   const [recentConversations, setRecentConversations] = useState<ConversationSummary[]>([]);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -48,18 +53,20 @@ export default function ChatPage() {
     return () => setHidden(false);
   }, [setHidden]);
 
-  // Load recent conversations on mount
+  // Load recent conversations on mount and when agent changes
   useEffect(() => {
-    fetch('/api/chat/conversations?agent=chief&limit=10')
+    fetch(`/api/chat/conversations?agent=${agentId}&limit=10`)
       .then((r) => r.json())
       .then(setRecentConversations)
       .catch(() => {});
-  }, [resumedConversationId]); // refetch when conversation changes
+  }, [resumedConversationId, agentId]);
 
-  // Check URL for conversation ID on mount
+  // Check URL for conversation ID and agent on mount
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const convId = params.get('c');
+    const urlAgent = params.get('agent');
+    if (urlAgent && AGENTS[urlAgent]) setAgentId(urlAgent);
     if (convId) {
       chatIdRef.current = convId;
       setResumedConversationId(convId);
@@ -69,7 +76,7 @@ export default function ChatPage() {
   const transport = useMemo(
     () => new DefaultChatTransport({
       api: '/api/chat',
-      body: () => ({ chatId: chatIdRef.current, modelKey, agent: 'chief' }),
+      body: () => ({ chatId: chatIdRef.current, modelKey, agent: agentIdRef.current }),
     }),
     [modelKey]
   );
@@ -104,9 +111,10 @@ export default function ChatPage() {
   }, [messages]);
 
   // URL sync
-  const syncUrl = useCallback((convId: string) => {
+  const syncUrl = useCallback((convId: string, agent?: string) => {
     const url = new URL(window.location.href);
     url.searchParams.set('c', convId);
+    if (agent) url.searchParams.set('agent', agent);
     window.history.replaceState({}, '', url.toString());
   }, []);
 
@@ -123,8 +131,23 @@ export default function ChatPage() {
     setResumedConversationId(null);
     setMessages([]);
     setInput('');
-    window.history.replaceState({}, '', '/chat');
-  }, [setMessages]);
+    const url = new URL(window.location.href);
+    url.search = agentId !== DEFAULT_AGENT ? `?agent=${agentId}` : '';
+    window.history.replaceState({}, '', url.toString());
+  }, [setMessages, agentId]);
+
+  // Switch agent
+  const handleSwitchAgent = useCallback((newAgent: string) => {
+    if (newAgent === agentId) return;
+    setAgentId(newAgent);
+    chatIdRef.current = null;
+    setResumedConversationId(null);
+    setMessages([]);
+    setInput('');
+    const url = new URL(window.location.href);
+    url.search = newAgent !== DEFAULT_AGENT ? `?agent=${newAgent}` : '';
+    window.history.replaceState({}, '', url.toString());
+  }, [agentId, setMessages]);
 
   // Create conversation on first send
   const handleSend = useCallback(async () => {
@@ -134,13 +157,13 @@ export default function ChatPage() {
     if (!chatIdRef.current) {
       try {
         const conv = await createAgentConversationClient({
-          agent: 'chief',
+          agent: agentId,
           title: trimmed.slice(0, 60),
           model: modelKey,
         });
         chatIdRef.current = conv.id;
         setResumedConversationId(conv.id);
-        syncUrl(conv.id);
+        syncUrl(conv.id, agentId);
       } catch (err) {
         console.error('[chat] Failed to create conversation:', err);
         return;
@@ -166,8 +189,24 @@ export default function ChatPage() {
           {messages.length === 0 && (
             <div className="py-16">
               <div className="text-center mb-8">
-                <h1 className="text-2xl font-bold mb-2">Chief</h1>
-                <p className="text-muted-foreground text-sm">Operations & orchestration agent</p>
+                {/* Agent selector */}
+                <div className="flex items-center justify-center gap-2 mb-4">
+                  {Object.values(AGENTS).map((a) => (
+                    <button
+                      key={a.id}
+                      onClick={() => handleSwitchAgent(a.id)}
+                      className={`px-4 py-1.5 rounded-full text-sm font-medium transition-colors ${
+                        agentId === a.id
+                          ? 'bg-primary text-primary-foreground'
+                          : 'bg-muted text-muted-foreground hover:text-foreground'
+                      }`}
+                    >
+                      {a.label}
+                    </button>
+                  ))}
+                </div>
+                <h1 className="text-2xl font-bold mb-1">{agentConfig.label}</h1>
+                <p className="text-muted-foreground text-sm">{agentConfig.description}</p>
               </div>
 
               {/* Recent conversations */}
@@ -220,13 +259,23 @@ export default function ChatPage() {
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="Ask Chief..."
+            placeholder={`Ask ${agentConfig.label}...`}
             rows={1}
             className="w-full resize-none bg-transparent px-4 pt-3 pb-1 text-sm outline-none placeholder:text-muted-foreground"
             style={{ minHeight: '44px', maxHeight: '200px' }}
           />
           <div className="flex items-center justify-between px-2 pb-2">
             <div className="flex items-center gap-1">
+              <Select value={agentId} onValueChange={handleSwitchAgent}>
+                <SelectTrigger size="sm" className="text-xs w-20 border-none shadow-none font-medium">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {Object.values(AGENTS).map((a) => (
+                    <SelectItem key={a.id} value={a.id}>{a.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
               <Select value={modelKey} onValueChange={setModelKey}>
                 <SelectTrigger size="sm" className="text-xs w-24 border-none shadow-none">
                   <SelectValue />
