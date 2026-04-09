@@ -1,12 +1,12 @@
 /**
  * /api/chat — Multi-agent chat endpoint
  *
- * Currently supports Chief agent. Designed for future agent additions.
- * Reuses patterns from Luv's chat route but with the shared agent_conversations tables.
+ * Supports Chief and Luv agents. Agent param determines system prompt,
+ * tools, and middleware. Luv gets soul data, memory, windowing; Chief is lighter.
  */
 
 import { NextResponse } from 'next/server';
-import { streamText, convertToModelMessages, type UIMessage, type ModelMessage, type ToolSet } from 'ai';
+import { streamText, convertToModelMessages, stepCountIs, type UIMessage, type ModelMessage, type ToolSet } from 'ai';
 import { requireAuth } from '@/lib/ai/auth';
 import { getModel } from '@/lib/ai/models';
 import { getAnthropic } from '@/lib/ai/providers';
@@ -18,6 +18,7 @@ import {
   updateAgentConversationTitle,
 } from '@/lib/agent-chat';
 import { buildChiefSystemPrompt, chiefTools, CHIEF_AGENT_ID } from '@/lib/agents/chief';
+import { setupLuvAgent } from '@/lib/agents/luv-adapter';
 
 export const maxDuration = 120;
 
@@ -35,12 +36,14 @@ export async function POST(req: Request) {
       latestMessage,
       modelKey = 'claude-sonnet',
       agent = CHIEF_AGENT_ID,
+      thinking = false,
     } = body as {
       messages: UIMessage[];
       chatId?: string;
       latestMessage?: UIMessage;
       modelKey?: string;
       agent?: string;
+      thinking?: boolean;
     };
 
     const convId = chatId;
@@ -67,25 +70,37 @@ export async function POST(req: Request) {
       turnCount = conv.turn_count + 1;
     }
 
-    // Build system prompt based on agent
-    const systemPrompt = agent === CHIEF_AGENT_ID
-      ? buildChiefSystemPrompt()
-      : buildChiefSystemPrompt(); // fallback to chief for now
-
     // Convert to model messages
-    const modelMessages = await convertToModelMessages(messages);
+    let modelMessages = await convertToModelMessages(messages);
 
-    // Select tools based on agent
-    const tools = {
-      ...chiefTools,
-      web_search: getAnthropic().tools.webSearch_20250305({ maxUses: 3 }),
-    } as ToolSet;
+    // Agent-specific setup
+    let systemPrompt: string;
+    let tools: ToolSet;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let providerOptions: any = undefined;
+
+    if (agent === 'luv') {
+      const luv = await setupLuvAgent(modelMessages, { modelKey, thinking, convId });
+      systemPrompt = luv.systemPrompt;
+      tools = luv.tools;
+      providerOptions = luv.providerOptions;
+      modelMessages = luv.processMessages(modelMessages);
+    } else {
+      // Chief (default)
+      systemPrompt = buildChiefSystemPrompt();
+      tools = {
+        ...chiefTools,
+        web_search: getAnthropic().tools.webSearch_20250305({ maxUses: 3 }),
+      } as ToolSet;
+    }
 
     const result = streamText({
       model: getModel(modelKey),
       system: systemPrompt,
       messages: modelMessages,
       tools,
+      stopWhen: agent === 'luv' ? stepCountIs(15) : undefined,
+      ...(providerOptions ? { providerOptions } : {}),
       onFinish: async (event) => {
         if (!convId) return;
         try {
